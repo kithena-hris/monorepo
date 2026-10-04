@@ -31,7 +31,14 @@ let base: string;
 function serve(token: string) {
   const handle = askerRoutes({
     internalToken: token,
-    accounts: (_tenantId, email) => Promise.resolve(accounts[email.toLowerCase()] ?? []),
+    accounts: (_tenantId, who) =>
+      Promise.resolve(
+        'email' in who
+          ? (accounts[who.email.toLowerCase()] ?? [])
+          : Object.values(accounts)
+              .flat()
+              .filter((a) => a.id === who.accountId),
+      ),
     tenant: (tenantId) =>
       Promise.resolve(
         tenantId === TENANT
@@ -76,6 +83,17 @@ describe('who is asking the assistant', () => {
     });
   });
 
+  it('answers the web’s signed-in account by its id, as for its email', async () => {
+    const response = await ask({ accountId: ADA });
+    expect(response.status).toBe(200);
+    expect(AssistantAsker.parse(await response.json())).toMatchObject({
+      accountId: ADA,
+      timeZone: 'Europe/Madrid',
+      slug: 'acme',
+    });
+    expect((await ask({ accountId: '00000000-0000-4000-8000-0000000000ff' })).status).toBe(404);
+  });
+
   it('is the same bodiless 404 for nobody, for several, and for a company there is not', async () => {
     for (const [body, tenant] of [
       [{ email: 'nobody@acme.example' }, TENANT],
@@ -108,9 +126,11 @@ describe('who is asking the assistant', () => {
     await new Promise((resolve) => unset.close(resolve));
   });
 
-  it('takes a POST with an email, for a tenant id', async () => {
+  it('takes a POST with an email or an account id, never both, for a tenant id', async () => {
     expect((await ask(undefined, TOKEN, TENANT, 'GET')).status).toBe(405);
     expect((await ask({ email: 'not an email' })).status).toBe(400);
+    expect((await ask({ accountId: 'ada' })).status).toBe(400);
+    expect((await ask({ email: 'ada@acme.example', accountId: ADA })).status).toBe(400);
     expect((await ask({ email: 'ada@acme.example' }, TOKEN, 'acme')).status).toBe(400);
   });
 });

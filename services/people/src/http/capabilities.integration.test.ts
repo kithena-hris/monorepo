@@ -255,13 +255,31 @@ describe('the assistant’s token', () => {
     expect((await fetch(`${base}/v1/people`, { headers: asHr() })).status).toBe(401);
   });
 
-  it('asks as a person, never as support or a view', async () => {
+  it('asks in the session it was given: a view-as is the employee’s, support is support’s', async () => {
+    const keys = async (h: Record<string, string>) => {
+      const response = await catalogue(h);
+      expect(response.status).toBe(200);
+      const c = RuntimeCatalogue.parse(await response.json());
+      return (c.fields['people.find'] ?? []).map((f) => f.key);
+    };
+    // Ada, HR, viewing as Marco: Marco's sight, not hers.
+    const viewing = headers(ASSISTANT, MARCO_ACCOUNT, [], { viewedBy: ADA_ACCOUNT });
+    expect(await keys(viewing)).toEqual(await keys(asEmployee()));
+    expect(await keys(viewing)).not.toContain('pay_band');
+    const found = await call(viewing, 'people.find', { personIds: [ADA, MARCO, LEFT], limit: 25 });
+    expect(found.status).toBe(200);
+    expect(PeopleFind.schemas.output.parse(await found.json())).toMatchObject({ total: 2 });
+    // Support holds every role, as on People's screens.
     const support = headers(ASSISTANT, ADA_ACCOUNT, [], {
       impersonatedBy: '00000000-0000-4000-8000-0000000000c1',
     });
-    const viewing = headers(ASSISTANT, MARCO_ACCOUNT, [], { viewedBy: ADA_ACCOUNT });
-    expect((await catalogue(support)).status).toBe(401);
-    expect((await catalogue(viewing)).status).toBe(401);
+    expect(await keys(support)).toContain('pay_band');
+    // A principal claiming both is not one the router built.
+    const both = headers(ASSISTANT, MARCO_ACCOUNT, [], {
+      viewedBy: ADA_ACCOUNT,
+      impersonatedBy: '00000000-0000-4000-8000-0000000000c1',
+    });
+    expect((await catalogue(both)).status).toBe(401);
   });
 });
 

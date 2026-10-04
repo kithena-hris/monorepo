@@ -787,10 +787,10 @@ export async function compose(config: Config): Promise<RequestHandler> {
       inTenantTransaction(tenantId, (tx) => accountsPage(tx, after, limit)),
   });
 
-  // Who is asking the assistant, from a verified work email (assistant PRD §10.1).
+  // Who is asking the assistant: a verified work email, or the web's signed-in account (§10.1).
   const asker = askerRoutes({
     internalToken: config.assistantToken ?? '',
-    accounts: (tenantId, email) => inTenantTransaction(tenantId, (tx) => askerAccounts(tx, email)),
+    accounts: (tenantId, who) => inTenantTransaction(tenantId, (tx) => askerAccounts(tx, who)),
     tenant: async (tenantId) => {
       const rows = await db.execute(sql`
         SELECT slug FROM platform.tenant WHERE id = ${tenantId}::uuid

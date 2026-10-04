@@ -339,14 +339,16 @@ export async function recordCapturedName(
 }
 
 /**
- * The active member accounts with this work email, for the assistant's asker
- * route: at most two, which is enough to refuse. Case-insensitive, as the
- * live-email index is. A suspended or terminated account is not asking
- * anything.
+ * The active accounts the assistant's asker route is asking about: at most
+ * two, which is enough to refuse. By work email, a member, case-insensitive
+ * as the live-email index is; by id, whichever account the router signed in,
+ * the company's support account included, so a support session reaches each
+ * module as the support session it is. A suspended or terminated account is
+ * not asking anything.
  */
 export function askerAccounts(
   tx: PostgresJsDatabase,
-  email: string,
+  who: { readonly email: string } | { readonly accountId: string },
 ): Promise<{ id: string; timeZone: string }[]> {
   return tx
     .select({ id: account.id, timeZone: account.timeZone })
@@ -354,8 +356,9 @@ export function askerAccounts(
     .where(
       and(
         eq(account.status, 'active'),
-        eq(account.kind, 'member'),
-        sql`lower(${account.workEmail}) = lower(${email})`,
+        ...('email' in who
+          ? [eq(account.kind, 'member'), sql`lower(${account.workEmail}) = lower(${who.email})`]
+          : [eq(account.id, who.accountId)]),
       ),
     )
     .limit(2);

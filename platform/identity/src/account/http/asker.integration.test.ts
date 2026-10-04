@@ -92,7 +92,7 @@ beforeAll(async () => {
 
   const handle = askerRoutes({
     internalToken: TOKEN,
-    accounts: (tenantId, email) => withTenant(db, tenantId, (tx) => askerAccounts(tx, email)),
+    accounts: (tenantId, who) => withTenant(db, tenantId, (tx) => askerAccounts(tx, who)),
     tenant: () => Promise.resolve({ slug: 'acme', entitlements: ['module.timeoff'] }),
   });
   server = createServer((request, response) => {
@@ -111,11 +111,11 @@ afterAll(async () => {
   await stop?.();
 });
 
-const ask = (email: string, tenant = TENANT) =>
+const ask = (who: string | { accountId: string }, tenant = TENANT) =>
   fetch(`${base}/api/internal/tenants/${tenant}/assistant/asker`, {
     method: 'POST',
     headers: { 'x-internal-token': TOKEN },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(typeof who === 'string' ? { email: who } : who),
   });
 
 describe('who is asking the assistant, from the accounts table', () => {
@@ -144,8 +144,19 @@ describe('who is asking the assistant, from the accounts table', () => {
     expect(AssistantAsker.parse(await response.json()).accountId).toBe(account(5));
   });
 
+  it('finds the web’s signed-in account by id while it is active, and nobody once it has ended', async () => {
+    const response = await ask({ accountId: account(1) });
+    expect(AssistantAsker.parse(await response.json()).accountId).toBe(account(1));
+    expect((await ask({ accountId: account(3) })).status).toBe(404);
+    expect((await ask({ accountId: account(4) })).status).toBe(404);
+    // Another company's account is nobody here, whatever id is named.
+    expect((await ask({ accountId: account(6) })).status).toBe(404);
+  });
+
   it('never finds another tenant’s account with the same email', async () => {
-    const rows = await withTenant(db, TENANT, (tx) => askerAccounts(tx, 'ada@acme.example'));
+    const rows = await withTenant(db, TENANT, (tx) =>
+      askerAccounts(tx, { email: 'ada@acme.example' }),
+    );
     expect(rows.map((r) => r.id)).toEqual([account(1)]);
     expect((await ask('ada@acme.example', '00000000-0000-4000-8000-00000000000c')).status).toBe(
       404,
