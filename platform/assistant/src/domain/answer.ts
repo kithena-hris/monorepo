@@ -8,6 +8,7 @@ import {
   type ModuleKey,
   type PeopleResult,
   type PersonRow,
+  type StepId,
 } from '@kithena/contracts';
 
 import { longDate, resolve, type Today } from './dates.js';
@@ -327,6 +328,9 @@ function written(
       };
     }
     case 'items': {
+      if (plan.answer.kind === 'one' && plan.answer.also !== undefined) {
+        return queuesAnswer(plan, executed, setting, [plan.answer.step, ...plan.answer.also]);
+      }
       const n = output.total;
       const waits = WAITING[step.capability.name] ?? APPROVALS;
       return {
@@ -342,6 +346,39 @@ function written(
     case 'people':
       return peopleAnswer(plan, executed, setting, step, output);
   }
+}
+
+/**
+ * What waits for the asker in several modules, each module's under its name
+ * (AST-032): "3 things are waiting for you:", then "People:" and its items,
+ * "Time Off: nothing waiting." where one has none.
+ */
+function queuesAnswer(
+  plan: Plan,
+  executed: Executed,
+  setting: Setting,
+  ids: readonly StepId[],
+): AssistantAnswer {
+  const queues = ids.flatMap((id) => {
+    const step = plan.steps.find((s) => s.id === id);
+    const output = executed.outputs.get(id);
+    return step === undefined || output?.kind !== 'items'
+      ? []
+      : [{ module: MODULE_NAMES[step.capability.module], output }];
+  });
+  const n = queues.reduce((total, q) => total + q.output.total, 0);
+  const lines = queues.map(({ module, output }) =>
+    output.total === 0 ? `${module}: nothing waiting.` : `${module}:\n${itemsOf(output, setting)}`,
+  );
+  return {
+    text:
+      n === 0
+        ? 'You’re all caught up. Nothing is waiting for you.'
+        : `${opening(plan.say, n, `${String(n)} ${plural(n, 'thing is', 'things are')} waiting for you:`)}\n${lines.join('\n')}`,
+    people: [],
+    understood: `What waits for you in ${queues.map((q) => q.module).join(' and ')}`,
+    answered: true,
+  };
 }
 
 function peopleAnswer(

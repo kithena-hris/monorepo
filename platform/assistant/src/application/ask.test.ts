@@ -705,3 +705,40 @@ describe('balances, end to end (AST-030)', () => {
     expect(asked.answer.text).toContain('• Adam Novak — 12.5 days left');
   });
 });
+
+describe('what’s waiting for me, end to end (AST-032)', () => {
+  it('asks People and Time Off for their queues and lists each under its name', async () => {
+    const { modules, calls } = fakeModules(
+      { people: PEOPLE_CATALOGUE, timeoff: TIMEOFF_CATALOGUE },
+      {
+        'people.approvals': returns({
+          kind: 'items',
+          items: [{ name: 'Jim Halpert', label: 'Job title' }],
+          total: 1,
+        }),
+        'timeoff.pending': returns({
+          kind: 'items',
+          items: [{ name: 'Hana Kim', label: 'Vacation · Tue 6 Oct (1 day)' }],
+          total: 1,
+        }),
+      },
+    );
+    const { planner } = fakePlanner({
+      kind: 'plan',
+      steps: [
+        { id: 's1', capability: 'people.approvals', input: {} },
+        { id: 's2', capability: 'timeoff.pending', input: {} },
+      ],
+      answer: { kind: 'one', step: ['s1', 's2'] },
+    });
+    const asked = await ask({ modules, planner })(question('What’s waiting for me?'), 'c');
+    expect(calls).toEqual([
+      { name: 'people.approvals', input: { limit: 25 } },
+      { name: 'timeoff.pending', input: { limit: 25 } },
+    ]);
+    expect(asked.answer.text).toBe(
+      '2 things are waiting for you:\nPeople:\n• Jim Halpert — Job title\nTime Off:\n• Hana Kim — Vacation · Tue 6 Oct (1 day)',
+    );
+    expect(asked).toMatchObject({ outcome: 'answered', steps: 2, answerKind: 'one' });
+  });
+});

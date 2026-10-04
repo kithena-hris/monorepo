@@ -111,4 +111,8 @@ describe('the planner’s prompt', () => {
     expect(INSTRUCTION).toMatch(/number field, after means more than and before means less than/u);
     expect(INSTRUCTION).toMatch(/How much leave somebody has left is "list"/u);
   });
+
+  it('tells the model one answer may list what waits in several capabilities (AST-032)', () => {
+    expect(INSTRUCTION).toContain('{"kind":"one","step":["s1","s2"]}');
+  });
 });

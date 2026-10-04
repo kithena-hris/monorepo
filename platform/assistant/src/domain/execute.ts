@@ -81,14 +81,15 @@ export function limitFor(step: ValidStep, plan: Plan): Pick<CapabilityInput, 'li
   if (output === 'profile') return {};
   const feeds = output === 'people' && plan.steps.some((s) => s.within === step.id);
   const { answer } = plan;
-  const limit =
-    answer.step !== step.id
-      ? 0
-      : answer.kind === 'count'
-        ? answer.by === undefined
-          ? 0
-          : ASSISTANT_LIMITS.ids
-        : ASSISTANT_LIMITS.listed;
+  const answers =
+    answer.step === step.id || (answer.kind === 'one' && answer.also?.includes(step.id) === true);
+  const limit = !answers
+    ? 0
+    : answer.kind === 'count'
+      ? answer.by === undefined
+        ? 0
+        : ASSISTANT_LIMITS.ids
+      : ASSISTANT_LIMITS.listed;
   return feeds ? { limit, ids: true } : { limit };
 }
 
@@ -185,6 +186,11 @@ export async function execute(
   const end = answerStep === undefined ? undefined : ended.get(answerStep.id);
   if (answerStep === undefined || end === undefined) throw new Error('the answer names no step');
   if (end.kind === 'failed') return err(end.failure);
+  // An answer over several queues is never written from some of them.
+  for (const id of plan.answer.kind === 'one' ? (plan.answer.also ?? []) : []) {
+    const queue = ended.get(id);
+    if (queue?.kind === 'failed') return err(queue.failure);
+  }
   if (end.kind === 'stopped') {
     const output = outputs.get(end.by.id);
     if (output === undefined) throw new Error('a step was stopped by one that did not return');

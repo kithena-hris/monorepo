@@ -281,6 +281,56 @@ describe('People’s sentences, carried over from ask.ts', () => {
     expect(a.text).toContain('• Adam Novak — Away · Tue 6 Oct (1 day)');
   });
 
+  describe('what’s waiting for me, across modules (AST-032)', () => {
+    const both = (extra = {}) => ({
+      kind: 'plan',
+      steps: [
+        { id: 's1', capability: 'people.approvals', input: {} },
+        { id: 's2', capability: 'timeoff.pending', input: {} },
+      ],
+      answer: { kind: 'one', step: ['s1', 's2'] },
+      ...extra,
+    });
+    const approvals = {
+      kind: 'items',
+      items: [{ name: 'Jim Halpert', label: 'Job title' }],
+      total: 1,
+    };
+    const pendingOf = (n: number) => ({
+      kind: 'items',
+      items: Array.from({ length: n }, () => ({
+        name: 'Hana Kim',
+        label: 'Vacation · Tue 6 Oct (1 day)',
+      })),
+      total: n,
+    });
+
+    it('lists each module’s under its name', async () => {
+      const a = await answer(both(), { s1: approvals, s2: pendingOf(2) });
+      expect(a).toEqual({
+        text: '3 things are waiting for you:\nPeople:\n• Jim Halpert — Job title\nTime Off:\n• Hana Kim — Vacation · Tue 6 Oct (1 day)\n• Hana Kim — Vacation · Tue 6 Oct (1 day)',
+        understood: 'What waits for you in People and Time Off',
+        people: [],
+        answered: true,
+      });
+    });
+
+    it('says where nothing waits, and when nothing does anywhere', async () => {
+      const a = await answer(both({ say: 'Here is your queue, {n} in all.' }), {
+        s1: approvals,
+        s2: pendingOf(0),
+      });
+      expect(a.text).toBe(
+        'Here is your queue, 1 in all.\nPeople:\n• Jim Halpert — Job title\nTime Off: nothing waiting.',
+      );
+      const none = await answer(both(), {
+        s1: { ...approvals, items: [], total: 0 },
+        s2: pendingOf(0),
+      });
+      expect(none.text).toBe('You’re all caught up. Nothing is waiting for you.');
+    });
+  });
+
   it('drops an opening that carries a number of its own', async () => {
     const a = await answer(one('people.find', SALES, 'count', { say: 'All {n} of the 3 teams:' }), {
       s1: people(2, 'whose department is Sales'),
