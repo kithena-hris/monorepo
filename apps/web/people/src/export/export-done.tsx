@@ -71,6 +71,8 @@ export interface ShareRequest {
   readonly asOf: string | null;
   readonly format: ExportFormat;
   readonly audience: string | null;
+  /** People in it, as the requester read it when they asked; null or absent for an older request. */
+  readonly people?: number | null;
   readonly exportId: string | null;
   readonly mine: boolean;
   readonly canDecide: boolean;

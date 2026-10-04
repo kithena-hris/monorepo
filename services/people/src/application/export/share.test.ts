@@ -189,6 +189,8 @@ describe('sending', () => {
       state: 'pending',
       mine: true,
       canDecide: false,
+      // How many people it covers, as the requester read it when they asked (E5).
+      people: 3,
       approvers: [{ accountId: NORA, name: 'Nora Becker' }],
       gap: { fields: [{ key: 'given_name' }, { key: 'job_title' }, { key: 'base_salary' }] },
     });
@@ -218,7 +220,9 @@ describe('sending', () => {
       photos: {
         get: () => Promise.resolve(null),
         versions: (_tx, _tenant, ids) =>
-          Promise.resolve(new Map(ids.filter((id) => id === ADA).map((id) => [id, 'abcdef0123456789ff']))),
+          Promise.resolve(
+            new Map(ids.filter((id) => id === ADA).map((id) => [id, 'abcdef0123456789ff'])),
+          ),
       },
     };
     await shareExport(tx, faces, asking(HR), { choice, recipient: MANAGER.accountId });

@@ -78,14 +78,7 @@ export interface InboxRow {
   /** Whose face: the name above, or nobody (a glyph instead). */
   readonly person: boolean;
   readonly kind:
-    | 'change'
-    | 'id'
-    | 'duplicate'
-    | 'access'
-    | 'export'
-    | 'missing'
-    | 'import'
-    | 'viewed';
+    'change' | 'id' | 'duplicate' | 'access' | 'export' | 'missing' | 'import' | 'viewed';
   readonly summary: string;
   /** When, ISO; null for what has always been so. */
   readonly at: string | null;

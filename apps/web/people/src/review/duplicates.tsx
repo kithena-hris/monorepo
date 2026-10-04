@@ -66,8 +66,10 @@ export interface DuplicatePair {
 }
 
 /** One side's photo, by their id, from the queue's row for the pair. */
-export const faceOf = (pair: DuplicatePair | undefined, personId: string | undefined): string | undefined =>
-  pair?.avatarUrls?.[pair.personIds.indexOf(personId ?? '')] ?? undefined;
+export const faceOf = (
+  pair: DuplicatePair | undefined,
+  personId: string | undefined,
+): string | undefined => pair?.avatarUrls?.[pair.personIds.indexOf(personId ?? '')] ?? undefined;
 
 /** "Flagged by Kithena’s duplicate check", or null from an older People. */
 export const flaggedByOf = (pair: DuplicatePair | undefined): string | null =>

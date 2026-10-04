@@ -30,7 +30,6 @@ export interface PhotoDeps extends ScreenDeps {
   readonly newId: () => string;
 }
 
-
 /** These people's photo URLs, in one read. Only for people the caller has already read. */
 export async function avatarsOf(
   deps: Pick<ScreenDeps, 'photos'>,

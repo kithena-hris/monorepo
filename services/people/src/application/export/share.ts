@@ -131,6 +131,11 @@ export interface ShareRequest extends Share {
   readonly gap: Gap;
   /** Set once approved and sent. */
   readonly exportId: string | null;
+  /**
+   * People in the file as the requester read it when they asked; null on a
+   * request made before it was recorded.
+   */
+  readonly people: number | null;
 }
 
 export interface ShareStore {
@@ -612,6 +617,7 @@ export async function shareExport(
     choice: input.choice,
     gap,
     exportId: null,
+    people: mine.value.size,
   };
   await deps.shares.insert(tx, share);
   await deps.audit.publish(tx, [
@@ -756,6 +762,8 @@ export interface ShareView {
   readonly asOf: string | null;
   readonly format: ShareChoice['format'];
   readonly audience: string | null;
+  /** People in it, as the requester read it when they asked; null for an older request. */
+  readonly people: number | null;
   /** The file, once sent. */
   readonly exportId: string | null;
   readonly mine: boolean;
@@ -826,7 +834,10 @@ function viewOf(
   return {
     id: a.id,
     state,
-    requestedBy: { ...person(accounts, a.requestedBy), avatarUrl: faces.get(a.requestedBy) ?? null },
+    requestedBy: {
+      ...person(accounts, a.requestedBy),
+      avatarUrl: faces.get(a.requestedBy) ?? null,
+    },
     recipient: person(accounts, share.recipient),
     reason: a.reason,
     requestedAt: a.requestedAt,
@@ -845,6 +856,7 @@ function viewOf(
     asOf: share.choice.asOf ?? null,
     format: share.choice.format,
     audience: share.choice.filter ?? null,
+    people: share.people,
     exportId: share.exportId,
     mine: a.requestedBy === asking.viewer.accountId,
     canDecide: mayDecideShare(share, asking.viewer, now),

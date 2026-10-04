@@ -794,7 +794,9 @@ function HrHome({
         title={counted(hr.identifiers ?? 0, 'identifier to check', 'identifiers to check')}
         description={[
           'Failed a check, or couldn’t be verified',
-          ((by) => (by === null ? null : `entered by ${byWhom(by)}`))(whoOf(hr.identifiersBy ?? [])),
+          ((by) => (by === null ? null : `entered by ${byWhom(by)}`))(
+            whoOf(hr.identifiersBy ?? []),
+          ),
         ]
           .filter((x) => x !== null)
           .join(' · ')}

@@ -22,6 +22,7 @@ const share: ShareRequest = {
   asOf: null,
   format: 'xlsx',
   audience: null,
+  people: 6,
   exportId: null,
   mine: false,
   canDecide: true,
@@ -37,6 +38,8 @@ describe('Review', () => {
     expect(screen.getByRole('radio', { name: /Exports 1/u })).toBeInTheDocument();
     const list = screen.getByRole('list', { name: 'Waiting for a decision' });
     expect(within(list).getByText('Marco Ruiz')).toBeInTheDocument();
+    expect(within(list).getByText('Export to Nora Becker · 6 people')).toBeInTheDocument();
+    expect(screen.getByText('Everybody Marco can see · 6 people')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Approve and send' })).toBeInTheDocument();
   });
 
@@ -75,6 +78,16 @@ describe('Review', () => {
     expect(within(list).getByText('Asked by Marco Ruiz')).toBeInTheDocument();
     expect(within(list).getByText('Entered by Adam Novak')).toBeInTheDocument();
     expect(within(list).getByText('Flagged by SCIM provisioning')).toBeInTheDocument();
+  });
+
+  it('says nothing of how many people an older, uncounted request covers', () => {
+    renderReview(
+      { roles: { hr: true, admin: true, finance: false }, shares: [{ ...share, people: null }] },
+      { onDecideShare: done },
+    );
+    const list = screen.getByRole('list', { name: 'Waiting for a decision' });
+    expect(within(list).getByText(/Export to Nora Becker · Headcount plan/u)).toBeInTheDocument();
+    expect(screen.getByText('Everybody Marco can see')).toBeInTheDocument();
   });
 
   it('says whose values a request for full values would show (E4)', () => {

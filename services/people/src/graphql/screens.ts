@@ -267,7 +267,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
         enteredBy: t.exposeString('enteredBy', {
           nullable: true,
-          description: 'Who entered the value, as the viewer may name them; null when not recorded.',
+          description:
+            'Who entered the value, as the viewer may name them; null when not recorded.',
         }),
       }),
     });

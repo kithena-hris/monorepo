@@ -211,6 +211,10 @@ const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body:
   mine: { title: 'Nothing waiting', body: 'None of your changes wait for approval.' },
 };
 
+/** "6 people", "1 person". */
+const peopleCount = (n: number): string =>
+  `${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}`;
+
 const shortDay = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -251,7 +255,10 @@ const idRow = (item: ReviewItem): Row => ({
   avatarUrl: item.avatarUrl ?? null,
   summary: `${item.label} · ${item.findings[0]?.message ?? ''}`,
   at: item.enteredAt,
-  by: item.enteredBy == null ? null : `Entered by ${item.enteredBy === 'You' ? 'you' : item.enteredBy}`,
+  by:
+    item.enteredBy == null
+      ? null
+      : `Entered by ${item.enteredBy === 'You' ? 'you' : item.enteredBy}`,
   badge: verdictOf(item),
 });
 
@@ -279,7 +286,10 @@ const shareRow = (share: ShareRequest): Row => ({
   kind: 'exports',
   name: share.requestedBy.name ?? 'A colleague',
   avatarUrl: share.requestedBy.avatarUrl ?? null,
-  summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${share.reason}`,
+  // "Export to Nora Becker · 6 people" (E5); an older request, uncounted, says why instead.
+  summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${
+    share.people == null ? share.reason : peopleCount(share.people)
+  }`,
   at: share.requestedAt,
 });
 
@@ -922,10 +932,12 @@ function ExportDetail({
         items={[
           {
             label: 'Who',
-            value: (share.audience ?? 'Everybody you can see').replace(
-              /\byou\b/u,
-              firstName(asker),
-            ),
+            value: [
+              (share.audience ?? 'Everybody you can see').replace(/\byou\b/u, firstName(asker)),
+              share.people == null ? null : peopleCount(share.people),
+            ]
+              .filter((x) => x !== null)
+              .join(' · '),
           },
           { label: 'Fields', value: listed(share.fields) },
           {
