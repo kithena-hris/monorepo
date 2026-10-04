@@ -52,6 +52,9 @@ import {
 import { offersViewAs } from '../person/view-as.js';
 import {
   formValues,
+  hrFills,
+  hrToFill,
+  listOptions,
   nameOf,
   NOBODY,
   personOfViewer,
@@ -2341,6 +2344,10 @@ export interface CompletenessView {
   readonly fields: readonly {
     readonly key: string;
     readonly label: string;
+    /** What kind of value it takes, so each cell is that kind's own control. */
+    readonly dataType: AttributeDefinition['dataType'];
+    /** ISO 4217, for a money field fixed to one currency; null for any other. */
+    readonly currency: string | null;
     readonly options: readonly { readonly value: string; readonly label: string }[];
     /** A person reference: picked by searching people (`pickerView`), not from `options`. */
     readonly person: boolean;
@@ -2377,7 +2384,11 @@ export const GRID_PAGE = DIRECTORY_PAGE;
 export async function completenessView(
   deps: ScreenDeps,
   asking: Asking,
-  query: { readonly after?: string | null } = {},
+  query: {
+    readonly after?: string | null;
+    /** One person's gaps alone, for the fill-in a link opens (`?fill=`); the totals stay everybody's. */
+    readonly person?: string | null;
+  } = {},
 ): Promise<Result<CompletenessView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
@@ -2385,21 +2396,24 @@ export async function completenessView(
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
-    const hrs = (key: string) => byKey.get(key)?.ownership.includes('hr') === true;
+    const hrs = (key: string) => hrFills(byKey.get(key));
     // `gapsByOwner`'s rule: theirs alone, not also HR's or Finance's.
     const theirs = (key: string) => {
       const owners = byKey.get(key)?.ownership ?? [];
       return owners.includes('employee') && !owners.some((o) => o === 'hr' || o === 'finance');
     };
     // Selected by the keys the rows show, so a page is never short of people
-    // whose only gap is Finance's.
-    const listed = await deps.service.access.list(tx, {
-      ...asking,
-      gaps: [...byKey.keys()].filter((k) => hrs(k) || theirs(k)),
-      gapsIn: 'any',
-      after: query.after ?? null,
-      limit: GRID_PAGE,
-    });
+    // whose only gap is Finance's. One person is read as a profile is.
+    const listed =
+      query.person == null
+        ? await deps.service.access.list(tx, {
+            ...asking,
+            gaps: [...byKey.keys()].filter((k) => hrs(k) || theirs(k)),
+            gapsIn: 'any',
+            after: query.after ?? null,
+            limit: GRID_PAGE,
+          })
+        : await one(deps, tx, asking, query.person);
     if (!listed.ok) return listed;
     const page = listed.value.items;
     const totals = await deps.gapTotals(tx, asking.tenantId);
@@ -2468,7 +2482,7 @@ export async function completenessView(
         due: figures === null || deps.remindNow === undefined ? null : figures.due,
       },
       completedThisWeek: 0,
-      toFill: staff.reduce((n, s) => n + s.people, 0),
+      toFill: hrToFill(totals, version),
       blocking: figures?.blocking ?? null,
       fields: [...staff.map((s) => s.key), ...own].flatMap((key) => {
         const d = byKey.get(key);
@@ -2477,12 +2491,9 @@ export async function completenessView(
           {
             key,
             label: d.label.default,
-            options:
-              d.typeConfig.kind === 'select'
-                ? d.typeConfig.options
-                    .filter((o) => o.retiredAt === null)
-                    .map((o) => ({ value: o.value, label: o.label.default }))
-                : [],
+            dataType: d.dataType,
+            currency: d.typeConfig.kind === 'money' ? d.typeConfig.currency : null,
+            options: listOptions(d),
             person: d.typeConfig.kind === 'person_ref',
             sensitive: requiresApproval(d),
           },
@@ -2492,6 +2503,20 @@ export async function completenessView(
       next: listed.value.next,
     });
   });
+}
+
+/** One person as a page of one: none, for somebody this viewer cannot read or who is not there. */
+async function one(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  personId: string,
+): Promise<Result<{ readonly items: readonly PersonView[]; readonly next: null }>> {
+  const read = await deps.service.access.read(tx, { ...asking, personId });
+  if (read.ok) return ok({ items: [read.value], next: null });
+  return read.error.code === 'NOT_FOUND' || read.error.code === 'FORBIDDEN'
+    ? ok({ items: [], next: null })
+    : read;
 }
 
 /**
@@ -2531,7 +2556,7 @@ export type GridFinding = IdentifierFindingView & { readonly personId: string };
 
 type GridChanges = readonly {
   readonly personId: string;
-  readonly values: Readonly<Record<string, string>>;
+  readonly values: Readonly<Record<string, unknown>>;
 }[];
 
 /**

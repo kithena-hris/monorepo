@@ -348,14 +348,14 @@ export const OPERATIONS = {
     }
   }`,
 
-  Completeness: `query Completeness($after: ID) {
-    peopleCompleteness(after: $after) {
+  Completeness: `query Completeness($after: ID, $person: ID) {
+    peopleCompleteness(after: $after, person: $person) {
       since
       waiting { people lastReminded due }
       completedThisWeek
       toFill
       blocking
-      fields { key label options { value label } person sensitive }
+      fields { key label dataType currency options { value label } person sensitive }
       rows { personId name department manager missing owner remindedAt }
       next
     }

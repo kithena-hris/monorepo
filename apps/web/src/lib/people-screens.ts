@@ -422,11 +422,15 @@ async function exportExtras(
  *
  * The address chooses what else is read: a pair to compare (`?item=dup-a~b`),
  * the request to send an export an email linked to (`?item=export-…`, when it
- * is not one this viewer decides), and the page of missing details (`?after=`).
+ * is not one this viewer decides), and the person whose missing details are
+ * filled in (`?fill=<person>`), on their own, wherever they are in the list.
  */
 async function review(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
   const item = given(search['item']);
   const pair = item?.startsWith('dup-') === true ? item.slice(4).split('~') : null;
+  // The person whose missing details the address fills in (`?fill=<id>`), not the grid's `all`.
+  const fillFor = given(search['fill']);
+  const named = fillFor === null || fillFor === 'all' ? null : fillFor;
   const shareId = item?.startsWith('export-') === true ? item.slice(7) : null;
   const approvals = read('Approvals', {}, VIEWS.Approvals);
   const roles = await people<{ hr?: boolean; admin?: boolean; finance?: boolean }>('Home');
@@ -449,6 +453,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     share,
     shares,
     own,
+    person,
   ] = await Promise.all([
     approvals,
     hr ? read('IdentifierReviews') : null,
@@ -456,7 +461,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
       ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) => read('Duplicates', asked))
       : null,
     hr || finance ? read('FullValues') : null,
-    hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
+    hr ? read('Completeness') : null,
     // Complete records overall, analytics' own figure, beside the missing details.
     hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
     shareId === null ? null : people<string>('ExportShare', { id: shareId }),
@@ -464,6 +469,8 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     admin ? people<string>('ExportSharesToDecide') : null,
     // Anybody but HR: their own requests, decided (E10). HR's Decided is everybody's.
     hr ? null : read('OwnDecided', {}, VIEWS.OwnDecided),
+    // Their gaps on their own, so the dialog opens though they are past the first page.
+    hr && named !== null ? read('Completeness', { person: named }) : null,
   ]);
   const down = [changes, identifiers, duplicates, fullValues, completeness].find(
     (l) => l?.status === 'error' && l.unreachable === true,
@@ -485,6 +492,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
           : {
               ...(missing as object),
               complete: analytics?.ok === true ? analytics.data.complete : null,
+              named: (ready(person) as { rows?: unknown[] } | null)?.rows ?? null,
             },
       shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
       ownDecided: ready(own),
