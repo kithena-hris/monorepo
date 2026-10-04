@@ -175,6 +175,23 @@ describe('FieldRegistry', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('says on the name when a section of that name already exists', async () => {
+    const user = fast();
+    const message = 'A section called "HR information" already exists';
+    const onAddSection = vi.fn(() => Promise.resolve({ ok: false as const, message }));
+    render(<FieldRegistry {...props({ onAddSection })} />);
+    await user.click(screen.getAllByRole('button', { name: 'Add section' })[0] as HTMLElement);
+    const dialog = screen.getByRole('dialog', { name: 'Add a section' });
+    const name = within(dialog).getByRole('textbox', { name: /^Name/ });
+    await user.click(name);
+    await user.paste(' hr information ');
+    await user.click(within(dialog).getByRole('button', { name: 'Add section' }));
+
+    expect(onAddSection).toHaveBeenCalledWith('hr information');
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+    expect(name).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('reorders fields from the keyboard alone', async () => {
     const user = fast();
     const onReorderFields = vi.fn(ok);
