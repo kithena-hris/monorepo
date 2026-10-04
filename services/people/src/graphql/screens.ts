@@ -943,6 +943,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       total: t.exposeInt('total'),
       active: t.exposeInt('active'),
       notStarted: t.exposeInt('notStarted', { nullable: true }),
+      leaving: t.exposeInt('leaving', {
+        nullable: true,
+        description: 'On notice, of everybody: beside the bare directory, for HR only.',
+      }),
       incomplete: t.exposeInt('incomplete', { nullable: true }),
       columns: t.field({ type: [Column], resolve: (v) => list(v.columns) }),
       filterable: t.field({ type: [Filterable], resolve: (v) => list(v.filterable) }),

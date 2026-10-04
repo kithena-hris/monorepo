@@ -163,6 +163,8 @@ export interface DirectoryState {
   readonly active: number;
   /** Provisional or pre-hire; null for a viewer who is not shown statuses. */
   readonly notStarted: number | null;
+  /** On notice, of everybody: the Leaving view's count. Absent from an older People. */
+  readonly leaving?: number | null;
   readonly incomplete: number | null;
   readonly columns: readonly DirectoryColumn[];
   /** Everything a condition may name. Absent: no advanced filters. */
@@ -682,7 +684,7 @@ function Views({
           {
             id: 'leaving',
             label: 'Leaving',
-            count: null,
+            count: everyone ? (state.leaving ?? null) : null,
             on: statusIs('notice'),
             view: status('notice'),
           },

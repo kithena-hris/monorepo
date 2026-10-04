@@ -1692,6 +1692,8 @@ type PeopleDirectory {
   fields: [DirectoryField!]
   filterable: [DirectoryFilter!]
   incomplete: Int
+  """On notice, of everybody: beside the bare directory, for HR only."""
+  leaving: Int
   metrics: [DirectoryMetric!]
   next: String
   notStarted: Int

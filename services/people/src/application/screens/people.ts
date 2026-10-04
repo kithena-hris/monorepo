@@ -1424,6 +1424,11 @@ export interface DirectoryView {
   readonly active: number;
   /** Provisional or pre-hire among them; null when this viewer is not shown statuses. */
   readonly notStarted: number | null;
+  /**
+   * On notice, of everybody: the Leaving view's count (C1). Only beside the
+   * bare directory, and only for a viewer shown statuses; null otherwise.
+   */
+  readonly leaving: number | null;
   readonly incomplete: number | null;
   /**
    * Every column this viewer may show, in order; `shown` is the default set
@@ -1751,6 +1756,23 @@ export async function directoryView(
         notStarted: capped(found.value.notStarted),
       },
     };
+    // Leaving, counted as Starting soon is: beside everybody, for a viewer shown statuses.
+    const bare =
+      own.length === 0 &&
+      segment === null &&
+      query.incomplete !== true &&
+      query.search.trim() === '' &&
+      Object.keys(query.filters).length === 0;
+    const leaving =
+      everyone.isHr && bare
+        ? await deps.service.access.count(tx, {
+            ...asking,
+            refine: {
+              conditions: [{ key: 'status', op: 'in', values: ['notice'] }],
+              match: 'all',
+            },
+          })
+        : null;
     const page = listed.value.items;
     const next = top !== null && offset + page.length >= top ? null : listed.value.next;
 
@@ -1883,6 +1905,7 @@ export async function directoryView(
       total: counted.value.all,
       active: counted.value.active,
       notStarted: everyone.isHr ? counted.value.notStarted : null,
+      leaving: leaving?.ok === true ? leaving.value.all : null,
       incomplete: incomplete?.ok === true ? incomplete.value.all : null,
       columns: [
         ...columns.map((c) => ({

@@ -168,6 +168,20 @@ describe('Directory', () => {
     expect(onSortChange).toHaveBeenCalledWith({ key: 'cost_centre', direction: 'asc' });
   });
 
+  it('counts who is starting and who is leaving on their views (C1)', () => {
+    const status = { key: 'status', label: 'Status', kind: 'status', options: [] };
+    render(
+      <Directory
+        {...props({
+          onView: vi.fn(),
+          load: { status: 'ready', data: { ...state, leaving: 2, fields: [status] } },
+        })}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: /Starting soon\s*5/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Leaving\s*2/ })).toBeInTheDocument();
+  });
+
   it('lets HR narrow to people with something missing, through the shell', async () => {
     const user = fast();
     const onView = vi.fn();

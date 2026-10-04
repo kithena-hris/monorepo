@@ -438,6 +438,24 @@ describe('the org chart', () => {
     }
   });
 
+  it('counts who is leaving beside everybody, for HR only (C1)', async () => {
+    const w = world();
+    w.store.seed('00000000-0000-4000-8000-0000000000a8', {
+      ...person('Leaving', 'Soon', ADA),
+      status: 'notice',
+    });
+    // The in-memory reader leaves status conditions to the database: counted, not narrowed, here.
+    const hr = await directoryView(w.deps, w.as(HR_ACCOUNT, 'hr'), { search: '', filters: {} });
+    expect(hr.ok && typeof hr.value.leaving).toBe('number');
+    const searched = await directoryView(w.deps, w.as(HR_ACCOUNT, 'hr'), {
+      search: 'Ada',
+      filters: {},
+    });
+    expect(searched.ok && searched.value.leaving).toBeNull();
+    const tim = await directoryView(w.deps, w.as(TIM_ACCOUNT), { search: '', filters: {} });
+    expect(tim.ok && tim.value.leaving).toBeNull();
+  });
+
   it('leaves out a field the viewer cannot read on everybody, for everybody', async () => {
     const w = world();
     // A title only its holder and HR read: no column, so nobody's on the chart.
