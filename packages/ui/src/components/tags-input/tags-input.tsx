@@ -55,6 +55,11 @@ export interface TagsInputProps {
   value: readonly string[];
   onChange: (value: readonly string[]) => void;
   label: string;
+  /**
+   * The label is read, not shown: for a field whose column or row already
+   * names it, like a cell in a table. It still names the field and its tags.
+   */
+  hideLabel?: boolean;
   hint?: ReactNode;
   placeholder?: string;
   /** Upper bound. The field stops accepting once reached, and says so. */
@@ -81,6 +86,7 @@ export function TagsInput({
   value,
   onChange,
   label,
+  hideLabel = false,
   hint,
   placeholder = 'Type and press Enter',
   max,
@@ -196,7 +202,7 @@ export function TagsInput({
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className={fieldLabelClass}>
+      <label htmlFor={id} className={hideLabel ? 'sr-only' : fieldLabelClass}>
         {label}
       </label>
       {hint ? (

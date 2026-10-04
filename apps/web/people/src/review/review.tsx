@@ -100,9 +100,10 @@ import {
  * finance viewer's is their requests for full values. Missing details is a
  * backlog rather than a decision: it is a chip, never counted in the badge.
  *
- * The chip, the item and the fill-in grid live in the address (`?kind=`,
- * `?item=`, `?fill=`), so a link from the bell or an email opens the item,
- * already selected, in the page the server sends.
+ * The chip, the item and what is being filled in live in the address
+ * (`?kind=`, `?item=`, `?fill=all` or `?fill=<person>`), so a link from the
+ * bell or an email opens the item, already selected, in the page the server
+ * sends.
  */
 
 export type ReviewTab = 'waiting' | 'flagged' | 'asked' | 'decided';
@@ -158,10 +159,10 @@ export interface ReviewProps extends ChangeActions {
   readonly onCheckMissing?: MissingActions['onCheck'];
   readonly onRemindAll?: MissingActions['onRemindAll'];
   readonly onRemind?: MissingActions['onRemind'];
-  readonly onNextPage?: MissingActions['onNextPage'];
-  readonly onFirstPage?: MissingActions['onFirstPage'];
+  readonly onLoadMoreMissing?: MissingActions['onLoadMore'];
+  /** What is filled in (`?fill=`): `all`, the grid; a person's id, their dialog. */
   readonly fill?: string | null;
-  readonly onFillChange?: (personId: string | null) => void;
+  readonly onFillChange?: (fill: string | null) => void;
   readonly searchPeople?: SearchPeople;
 }
 
@@ -415,6 +416,9 @@ function Queue({
   // A, on a change's row: it opens with the note to write, as its button needs one.
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  /** Missing values filled in on this page, until People is read again: off the chip's count. */
+  const [filled, setFilled] = useState({ of: state.completeness, count: 0 });
+  const filledHere = filled.of === state.completeness ? filled.count : 0;
   /** A row's own keys (A and R on a change, M and N on a pair), as its buttons do. */
   const rowActions = (row: Row): readonly RowAction[] | undefined => {
     if (row.kind === 'changes') {
@@ -479,7 +483,7 @@ function Queue({
   const total = tab === 'decided' ? decisions.length + merged : all.length;
   const countOf = (k: ReviewKind): number =>
     k === 'missing'
-      ? (state.completeness?.toFill ?? 0)
+      ? Math.max(0, (state.completeness?.toFill ?? 0) - filledHere)
       : tab === 'decided'
         ? k === 'duplicates'
           ? merged
@@ -538,11 +542,13 @@ function Queue({
     }
     if (kind === 'missing') {
       return state.completeness === null ? (
-        <EmptyState
-          icon={<icons.missing />}
-          title={EMPTY.missing.title}
-          description={EMPTY.missing.body}
-        />
+        <Card padded>
+          <EmptyState
+            icon={<icons.missing />}
+            title={EMPTY.missing.title}
+            description={EMPTY.missing.body}
+          />
+        </Card>
       ) : (
         <MissingDetails
           state={state.completeness}
@@ -550,8 +556,12 @@ function Queue({
           {...(actions.onCheckMissing === undefined ? {} : { onCheck: actions.onCheckMissing })}
           {...(actions.onRemindAll === undefined ? {} : { onRemindAll: actions.onRemindAll })}
           {...(actions.onRemind === undefined ? {} : { onRemind: actions.onRemind })}
-          {...(actions.onNextPage === undefined ? {} : { onNextPage: actions.onNextPage })}
-          {...(actions.onFirstPage === undefined ? {} : { onFirstPage: actions.onFirstPage })}
+          {...(actions.onLoadMoreMissing === undefined
+            ? {}
+            : { onLoadMore: actions.onLoadMoreMissing })}
+          onFilled={(count) => {
+            setFilled({ of: state.completeness, count });
+          }}
           now={now}
           fill={actions.fill ?? null}
           {...(actions.onFillChange === undefined ? {} : { onFillChange: actions.onFillChange })}

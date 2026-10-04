@@ -40,8 +40,15 @@ const attributes = [
   }),
 ];
 
-function world(options: { figures?: boolean; sweep?: boolean } = {}) {
-  const store = inMemoryPeople([versionOf(1, attributes)]);
+function world(
+  options: {
+    figures?: boolean;
+    sweep?: boolean;
+    extra?: readonly ReturnType<typeof define>[];
+    staff?: readonly { key: string; people: number }[];
+  } = {},
+) {
+  const store = inMemoryPeople([versionOf(1, [...attributes, ...(options.extra ?? [])])]);
   // Mei owes HR a cost centre and herself an emergency contact and a bank account.
   store.seed(MEI, { custom: { given_name: 'Mei', family_name: 'Tanaka' } });
   // Omar owes nothing HR fills in, only his own details.
@@ -69,7 +76,11 @@ function world(options: { figures?: boolean; sweep?: boolean } = {}) {
     clock: store.deps.clock,
     calendars: utcCalendars,
     personOf: () => Promise.resolve(null),
-    gapTotals: () => Promise.resolve({ waiting: 70, staff: [{ key: 'cost_centre', people: 1 }] }),
+    gapTotals: () =>
+      Promise.resolve({
+        waiting: 70,
+        staff: options.staff ?? [{ key: 'cost_centre', people: 1 }],
+      }),
     ...(options.figures === false
       ? {}
       : {
@@ -139,6 +150,54 @@ describe('the completeness view', () => {
     expect(view.value.blocking).toBeNull();
     expect(view.value.waiting).toEqual({ people: 70, lastReminded: null, due: null });
     expect(view.value.rows.every((r) => r.remindedAt === null)).toBe(true);
+  });
+
+  it('says what kind of value each field takes, so the grid draws its own control for it', async () => {
+    const w = world({
+      extra: [
+        define({ key: 'contract_end', dataType: 'date', typeConfig: { kind: 'date', range: 'any' } }),
+        define({ key: 'allowance', dataType: 'money', typeConfig: { kind: 'money', currency: 'EUR' } }),
+        define({
+          key: 'equipment',
+          dataType: 'multi_select',
+          typeConfig: {
+            kind: 'multi_select',
+            options: [{ value: 'laptop', label: { default: 'Laptop' } }],
+          },
+        }),
+        // Finance's alone: not HR's to fill in, nor counted as HR's.
+        define({ key: 'payroll_ref', ownership: ['finance'] }),
+      ],
+      staff: [
+        { key: 'allowance', people: 2 },
+        { key: 'contract_end', people: 3 },
+        { key: 'cost_centre', people: 1 },
+        { key: 'equipment', people: 4 },
+        { key: 'payroll_ref', people: 9 },
+      ],
+    });
+    const view = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
+    if (!view.ok) throw new Error(view.error.message);
+    const field = (key: string) => view.value.fields.find((f) => f.key === key);
+    expect(field('contract_end')).toMatchObject({ dataType: 'date', currency: null, options: [] });
+    expect(field('allowance')).toMatchObject({ dataType: 'money', currency: 'EUR' });
+    expect(field('equipment')).toMatchObject({
+      dataType: 'multi_select',
+      options: [{ value: 'laptop', label: 'Laptop' }],
+    });
+    expect(field('cost_centre')).toMatchObject({ dataType: 'text', person: false });
+    expect(field('payroll_ref')).toBeUndefined();
+    expect(view.value.toFill).toBe(10);
+  });
+
+  it('reads one person’s gaps alone, for the fill-in a link opens', async () => {
+    const w = world();
+    const view = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'), { person: OMAR });
+    if (!view.ok) throw new Error(view.error.message);
+    expect(view.value.rows.map((r) => [r.personId, r.owner])).toEqual([[OMAR, 'employee']]);
+    expect(view.value.next).toBeNull();
+    // The totals are everybody's still.
+    expect(view.value.waiting.people).toBe(70);
   });
 
   it('offers nobody to remind where the sweep cannot run from here', async () => {
