@@ -827,7 +827,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   plans `people.approvals` and `timeoff.pending`.
 - **Done when** the eval set gains the case and it passes.
 
-### [ ] AST-033 — Follow-ups in a conversation
+### [x] AST-033 — Follow-ups in a conversation
 
 - **Spec** PRD §4, §17
 - **Files** `platform/slack/src/service.ts`, `platform/assistant/src/application/ask.ts`
