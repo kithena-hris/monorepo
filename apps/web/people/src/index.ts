@@ -14,7 +14,6 @@ import { FieldRegistry as FieldRegistryScreen } from './settings/field-registry'
 import { FieldChange as FieldChangeScreen } from './settings/field-change';
 import { PeopleSetup as PeopleSetupScreen } from './setup/people-setup';
 import { Onboarding as OnboardingScreen } from './onboarding/onboarding';
-import { AddPerson as AddPersonScreen } from './onboarding/add-person';
 import { Profile as ProfileScreen } from './profile/profile';
 import { PersonHistory as PersonHistoryScreen } from './profile/history';
 import { Directory as DirectoryScreen } from './directory/directory';
@@ -45,7 +44,6 @@ export const FieldRegistry = framed(FieldRegistryScreen);
 export const FieldChange = framed(FieldChangeScreen);
 export const PeopleSetup = framed(PeopleSetupScreen);
 export const Onboarding = framed(OnboardingScreen);
-export const AddPerson = framed(AddPersonScreen);
 export const Profile = framed(ProfileScreen);
 export const PersonHistory = framed(PersonHistoryScreen);
 export const Directory = framed(DirectoryScreen);

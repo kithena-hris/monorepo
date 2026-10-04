@@ -495,7 +495,7 @@ describe('Directory', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('cards load the next page as the reader nears the end, with cards in their shape meanwhile and no button', async () => {
+  it('cards load the next page as the reader nears the end, with no placeholder cards and no button', async () => {
     // The sentinel a screen ahead is in view at once: jsdom lays nothing out.
     const observed: (() => void)[] = [];
     vi.stubGlobal(
@@ -530,8 +530,8 @@ describe('Directory', () => {
     await vi.waitFor(() => {
       expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
     });
-    // The cards' own shape says a page is coming; the line under them holds still.
-    expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(4);
+    // No placeholder cards: the line under them holds still, and the page arrives.
+    expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
     expect(screen.getByRole('status')).toHaveTextContent('Loads 50 at a time');
     expect(screen.queryByRole('button', { name: /more people/i })).toBeNull();
     arrive({

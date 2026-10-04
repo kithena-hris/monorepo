@@ -10,7 +10,7 @@ import { Directory as Screen, type DirectoryPerson, type DirectoryState } from '
 const Directory = framed(Screen);
 const FRAME = {
   section: 'Directory',
-  actions: [{ href: '/people/new', label: 'Add employee', icon: 'hire' }],
+  actions: [{ href: '/people/directory/list?add=person', label: 'Add employee', icon: 'hire' }],
   tabs: [
     { href: '/people/directory/list', label: 'List', current: true },
     { href: '/people/directory/cards', label: 'Cards', current: false },

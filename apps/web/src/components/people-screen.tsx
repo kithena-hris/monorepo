@@ -644,22 +644,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             go('/people/me');
           },
         };
-      // One person by hand; then their record, to fill in the rest.
-      case 'AddPerson':
-        return {
-          today,
-          onAdd: async (person: Readonly<Record<string, string>>) => {
-            const added = await actions.addPerson(person);
-            if (added.ok) go(`/people/${added.personId}`);
-            return added;
-          },
-          onCancel: () => {
-            go('/people/directory/list');
-          },
-          onImport: () => {
-            go('/people/import');
-          },
-        };
       case 'Onboarding':
         return {
           load: loadable,
@@ -763,8 +747,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         // first page, and a page is a history entry, so Back returns to the
         // one before (PEO-117).
         const query = (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
-          // A new query starts at the top: the row the reader was on belongs to the old one.
-          navigate({ after: null, row: null, ...patch }, mode);
+          // A new query starts at the top, on its own first person: the row the
+          // reader was on, and whose quick look was open, belong to the old one.
+          navigate({ after: null, row: null, look: null, ...patch }, mode);
         };
         const view = leaf === 'cards' ? 'cards' : 'list';
         const data =
@@ -972,6 +957,35 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             const done = await actions.remindDirectory(conditions, match, at('q'));
             return done.ok ? { ok: true, asked: done.asked, more: done.more } : done;
           },
+          // Whose quick look is open, and which panel: in the address, so a
+          // shared link opens the same card or dialog in the server's HTML.
+          look: at('look'),
+          onLookChange: (look: string | null) => {
+            note({ look }, 'replace');
+          },
+          filtersOpen: at('filters') === 'open',
+          onFiltersOpenChange: (open: boolean) => {
+            note({ filters: open ? 'open' : null }, open ? 'push' : 'replace');
+          },
+          savingView: at('save') === 'view',
+          onSavingViewChange: (open: boolean) => {
+            note({ save: open ? 'view' : null }, open ? 'push' : 'replace');
+          },
+          // Add person (D9): the dialog over the directory; on success, the new record.
+          ...(shell.roles.hr
+            ? {
+                today,
+                adding: at('add') === 'person',
+                onAddingChange: (open: boolean) => {
+                  note({ add: open ? 'person' : null }, open ? 'push' : 'replace');
+                },
+                onAdd: async (person: Readonly<Record<string, string>>) => {
+                  const added = await actions.addPerson(person);
+                  if (added.ok) go(`/people/${added.personId}`);
+                  return added;
+                },
+              }
+            : {}),
           // Where the reader is: noted in the address, so Back returns to the same row.
           place: Number.parseInt(at('row') ?? '', 10) || null,
           onPlaceChange: (row: number | null) => {

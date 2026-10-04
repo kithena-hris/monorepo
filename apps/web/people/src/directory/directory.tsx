@@ -38,7 +38,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
   Stack,
   Toolbar,
   icons,
@@ -66,9 +65,10 @@ import {
   type ReactNode,
 } from 'react';
 
-import { useTyped } from '../held';
+import { useHeld, useTyped } from '../held';
 import { ImportBusy, isRunning, type ImportRunStatus } from '../import/import-run';
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { AddPersonDialog, type Added, type NewPerson } from '../onboarding/add-person';
 import { longDate } from '../record/display';
 import { MissingMark } from '../record/missing';
 import { SaveSegment, type SegmentRef } from '../segments';
@@ -278,6 +278,27 @@ export interface DirectoryProps {
   readonly place?: number | null;
   /** Where the reader is now, noted in the address so Back returns to the same row. */
   readonly onPlaceChange?: (row: number | null) => void;
+  /**
+   * Whose quick look is open, `?look=<id>`: absent, the first person's;
+   * `none`, closed. Held by the host so a link opens the same card.
+   */
+  readonly look?: string | null;
+  readonly onLookChange?: (look: string | null) => void;
+  /** The filters dialog is open, `?filters=open`. */
+  readonly filtersOpen?: boolean;
+  readonly onFiltersOpenChange?: (open: boolean) => void;
+  /** The Save view panel is open, `?save=view`. */
+  readonly savingView?: boolean;
+  readonly onSavingViewChange?: (open: boolean) => void;
+  /**
+   * Add a person (D9), HR's: a centred dialog over the directory, opened by
+   * the Add person action or C, at `?add=person`. Absent: not offered here.
+   */
+  readonly onAdd?: (person: NewPerson) => Promise<Added>;
+  readonly adding?: boolean;
+  readonly onAddingChange?: (open: boolean) => void;
+  /** Today, for the start date's calendar. */
+  readonly today?: string;
 }
 
 /** What People made of a sentence typed in the search, once the host has applied it. */
@@ -314,6 +335,8 @@ export type DirectoryAsked =
   | { readonly ok: false; readonly message: string };
 
 const ANY = '__any';
+/** `?look=none`: the quick look closed. */
+const NO_LOOK = 'none';
 const PERSON = 'person';
 const COLUMNS_KEY = 'people.directory.columns';
 const WIDTHS_KEY = 'people.directory.widths';
@@ -1013,6 +1036,16 @@ function Body({
   onRemind,
   place = null,
   onPlaceChange,
+  look,
+  onLookChange,
+  filtersOpen: heldFiltersOpen,
+  onFiltersOpenChange,
+  savingView,
+  onSavingViewChange,
+  onAdd,
+  adding,
+  onAddingChange,
+  today,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
   const keys = useShortcutKeys();
@@ -1020,15 +1053,21 @@ function Body({
   const smart = onAsk !== undefined;
   // Without smart search the field searches names as they are typed; with it, Enter asks.
   const [typed, type] = useTyped(search, smart ? undefined : onSearchChange);
-  // The person the quick look is on. Until somebody chooses (undefined), the
-  // first, so the page opens on a record and the keyboard starts there; null
-  // once they close it. A new query starts on its own first person.
-  const [chosen, setPeek] = useState<string | null | undefined>(undefined);
-  const [chosenIn, setChosenIn] = useState(state.people);
-  if (chosenIn !== state.people) {
-    setChosenIn(state.people);
-    setPeek(undefined);
-  }
+  // The person the quick look is on, held in the address (`?look=`). Until
+  // somebody chooses (''), the first, so the page opens on a record and the
+  // keyboard starts there; `none` once they close it. A new query starts on
+  // its own first person: the host drops `look` with the old query.
+  const [held, hold] = useHeld<string>(look, onLookChange, '');
+  const chosen = held === '' ? undefined : held === NO_LOOK ? null : held;
+  const setPeek = (id: string | null): void => {
+    hold(id ?? NO_LOOK);
+  };
+  const [filtersOpen, setFiltersOpen] = useHeld(heldFiltersOpen, onFiltersOpenChange, false);
+  const [addOpen, setAddOpen] = useHeld(adding, onAddingChange, false);
+  const savePanel =
+    onSavingViewChange === undefined
+      ? {}
+      : { open: savingView === true, onOpenChange: onSavingViewChange };
   const tableRef = useRef<DataTableHandle | null>(null);
   const columnsChosen = useColumns(state.columns);
   const widths = useWidths();
@@ -1059,7 +1098,6 @@ function Body({
   const [answer, setAnswer] = useState<{ sentence: string; answer: Answered } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [reminding, setReminding] = useState(false);
   const [reminded, setReminded] = useState<string | null>(null);
   useEffect(() => {
@@ -1135,31 +1173,62 @@ function Body({
     incomplete ||
     segmentId !== null ||
     onFirstPage !== undefined;
+  // Add person (D9): a centred dialog over the directory, open in the first
+  // HTML when the address says so.
+  const addDialog =
+    onAdd === undefined ? null : (
+      <AddPersonDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onAdd={onAdd}
+        {...(onImport === undefined ? {} : { onImport })}
+        {...(today === undefined ? {} : { today })}
+      />
+    );
   if (state.people.length === 0 && !narrowed) {
     return (
-      <EmptyState
-        title="No employees yet"
-        description={
-          onImport === undefined
-            ? 'Nobody has been added to People yet.'
-            : 'Add people one at a time with Add person, or import a spreadsheet of everybody.'
-        }
-        // Import lives in Import & export; an empty directory is where it is wanted first.
-        action={
-          onImport === undefined ? undefined : running !== null && isRunning(running) ? (
-            <div className="flex flex-col items-center gap-2">
-              <Button startIcon={<icons.upload aria-hidden />} disabled aria-describedby={busyId}>
-                Import
-              </Button>
-              <ImportBusy id={busyId} run={running} />
-            </div>
-          ) : (
-            <Button startIcon={<icons.upload aria-hidden />} onClick={onImport}>
-              Import
-            </Button>
-          )
-        }
-      />
+      <>
+        <EmptyState
+          title="No employees yet"
+          description={
+            onImport === undefined
+              ? 'Nobody has been added to People yet.'
+              : 'Add people one at a time with Add person, or import a spreadsheet of everybody.'
+          }
+          // Import lives in Import & export; an empty directory is where it is wanted first.
+          action={
+            <span className="flex flex-wrap justify-center gap-2">
+              {onImport === undefined ? null : running !== null && isRunning(running) ? (
+                <span className="flex flex-col items-center gap-2">
+                  <Button
+                    startIcon={<icons.upload aria-hidden />}
+                    disabled
+                    aria-describedby={busyId}
+                  >
+                    Import
+                  </Button>
+                  <ImportBusy id={busyId} run={running} />
+                </span>
+              ) : (
+                <Button startIcon={<icons.upload aria-hidden />} onClick={onImport}>
+                  Import
+                </Button>
+              )}
+              {onAdd === undefined ? null : (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    setAddOpen(true);
+                  }}
+                >
+                  Add person
+                </Button>
+              )}
+            </span>
+          }
+        />
+        {addDialog}
+      </>
     );
   }
 
@@ -1205,7 +1274,11 @@ function Body({
       .join(' · ');
 
   const rows = loaded.rows;
-  const peek = chosen === undefined ? (rows[0]?.id ?? null) : chosen;
+  // Somebody this list does not hold (an old link, a new query) is the first person too.
+  const peek =
+    chosen === undefined || (chosen !== null && !rows.some((p) => p.id === chosen))
+      ? (rows[0]?.id ?? null)
+      : chosen;
   const peeked = rows.find((p) => p.id === peek) ?? null;
   /**
    * The quick look to the person above or below: the one way the selection
@@ -1394,16 +1467,6 @@ function Body({
             </a>
           </ListItem>
         ))}
-        {loaded.loading ? (
-          // The next person's row, in its shape, until they arrive.
-          <ListItem
-            aria-hidden
-            leading={<Skeleton className="size-14 rounded-full" />}
-            description={<Skeleton className="mt-1.5 h-3 w-32" />}
-          >
-            <Skeleton className="h-4 w-44" />
-          </ListItem>
-        ) : null}
       </List>
     )
   ) : view === 'cards' ? (
@@ -1450,14 +1513,6 @@ function Body({
             />
           </li>
         ))}
-        {loaded.loading
-          ? // A row of cards, in their shape, until the next page arrives.
-            ['a', 'b', 'c', 'd'].map((k) => (
-              <li key={`loading-${k}`} aria-hidden className="min-w-0">
-                <Skeleton className="h-full min-h-60 rounded-xl" />
-              </li>
-            ))
-          : null}
       </ul>
     )
   ) : (
@@ -1479,7 +1534,6 @@ function Body({
       estimateRowHeight={57}
       containerClassName="page-fill max-h-dvh min-h-96"
       {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
-      loadingMore={loaded.loading}
       columns={columns}
       rowId={(p) => p.id}
       describeRow={(p) => p.name}
@@ -1811,7 +1865,7 @@ function Body({
                   Clear all
                 </Button>
               )}
-              {saveable ? <SaveSegment onSave={onSaveSegment} /> : null}
+              {saveable ? <SaveSegment onSave={onSaveSegment} {...savePanel} /> : null}
             </ChipRow>
           )
         }
@@ -1820,7 +1874,7 @@ function Body({
             <span className="flex flex-wrap items-center gap-2">
               {fromQuestion ? remindButton : null}
               {fromQuestion && saveable ? (
-                <SaveSegment onSave={onSaveSegment} label="Save as view" />
+                <SaveSegment onSave={onSaveSegment} label="Save as view" {...savePanel} />
               ) : null}
               <ViewMenu
                 columns={state.columns}
@@ -2013,6 +2067,7 @@ function Body({
           {onNextPage === undefined ? null : <Button onClick={onNextPage}>Next page</Button>}
         </nav>
       )}
+      {addDialog}
     </Stack>
   );
 }

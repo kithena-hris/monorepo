@@ -36,6 +36,7 @@ vi.mock('../app/(app)/people/actions', () => ({
 // The shell around the page: its data is what the page is remembered under.
 const shell = vi.hoisted(() => ({
   current: {
+    roles: { hr: true, admin: false, finance: false },
     routes: [
       '/people/insights/headcount',
       '/people/insights/turnover',

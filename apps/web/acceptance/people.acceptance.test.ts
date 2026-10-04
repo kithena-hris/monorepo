@@ -845,7 +845,7 @@ describe('Hiring somebody added without a start date', () => {
   it('HR adds a person with no start date, then hires them from their profile', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/new`);
+    await page.goto(`${stack.shell}/people/directory/list?add=person`);
     const form = page.getByRole('form', { name: 'Add employee' });
     await form.waitFor({ timeout: 30_000 });
     await page.waitForLoadState('networkidle');

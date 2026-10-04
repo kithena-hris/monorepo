@@ -2,7 +2,12 @@
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import type { ComponentPropsWithoutRef, JSX } from 'react';
+import {
+  useSyncExternalStore,
+  type ComponentPropsWithoutRef,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 import { usePortalContainer } from '../../lib/portal-container';
@@ -38,7 +43,7 @@ export function DialogContent({
   sheetOnTouch?: boolean;
 }): JSX.Element {
   return (
-    <DialogPrimitive.Portal container={usePortalContainer()}>
+    <InPortal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(
@@ -100,7 +105,35 @@ export function DialogContent({
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>
-    </DialogPrimitive.Portal>
+    </InPortal>
+  );
+}
+
+const subscribeNever = (): (() => void) => () => undefined;
+
+/**
+ * The portal, once the page is live. A dialog open in the server's HTML (one
+ * the address asked for) has no `document` to portal into there, and a portal
+ * draws nothing until it mounts; so on the server and while hydrating it is
+ * drawn where it sits — fixed, so in the same place — and moves into the
+ * portal right after. The first HTML already shows it open.
+ */
+function InPortal({
+  container,
+  children,
+}: {
+  readonly container: HTMLElement | null | undefined;
+  readonly children: ReactNode;
+}): JSX.Element {
+  const live = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+  return live ? (
+    <DialogPrimitive.Portal container={container}>{children}</DialogPrimitive.Portal>
+  ) : (
+    <>{children}</>
   );
 }
 
