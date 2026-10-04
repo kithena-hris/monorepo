@@ -1002,6 +1002,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       identifiers: t.exposeInt('identifiers', { nullable: true }),
       duplicates: t.exposeInt('duplicates', { nullable: true }),
       accessRequests: t.exposeInt('accessRequests', { nullable: true }),
+      flagged: t.exposeInt('flagged', {
+        nullable: true,
+        description: 'Changes waiting for this viewer’s decision that People’s checks flag.',
+      }),
+      asked: t.exposeInt('asked', {
+        nullable: true,
+        description: 'HR’s own changes and requests for full values, waiting on somebody else.',
+      }),
+      exports: t.exposeInt('exports', {
+        nullable: true,
+        description: 'Requests to send an export this viewer may decide.',
+      }),
     }),
   });
 

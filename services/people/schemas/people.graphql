@@ -2213,7 +2213,15 @@ How many decisions wait for this viewer, counted; null where they have no such q
 """
 type PeopleWaiting {
   accessRequests: Int
+  """
+  HR’s own changes and requests for full values, waiting on somebody else.
+  """
+  asked: Int
   duplicates: Int
+  """Requests to send an export this viewer may decide."""
+  exports: Int
+  """Changes waiting for this viewer’s decision that People’s checks flag."""
+  flagged: Int
   identifiers: Int
 }
 

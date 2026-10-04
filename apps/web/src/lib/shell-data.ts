@@ -327,10 +327,19 @@ export interface Waiting {
   readonly duplicates: number | null;
   /** Access requests waiting for this person's decision. */
   readonly accessRequests: number | null;
+  /** Changes waiting for this person's decision that the checks flag: Review's Flagged. Absent from an older People. */
+  readonly flagged?: number | null;
+  /** HR's own changes and requests waiting on somebody else: Review's I asked. Absent from an older People. */
+  readonly asked?: number | null;
+  /** Requests to send an export this person may decide. Absent from an older People. */
+  readonly exports?: number | null;
 }
 
 /** Review's tab of what waits for this viewer: where its one count goes. */
 export const REVIEW_WAITING = '/people/review/waiting';
+/** Review's other tabs that carry a count of their own (E1): Flagged and I asked. */
+export const REVIEW_FLAGGED = '/people/review/flagged';
+export const REVIEW_ASKED = '/people/review/asked';
 
 /**
  * An item in Review, as a link opens it: the tab, the kind of item (a chip)
@@ -354,9 +363,11 @@ export function reviewItem(
  * Counts by section path and by tab path; a zero is not shown.
  *
  * Review carries the one count, red: every decision waiting for this viewer,
- * changes, ID checks, duplicates and requests for full values together. Its
- * Missing details are a backlog rather than a decision, and are not counted.
- * Keyed by the viewer's own places, so a viewer without Review counts nothing.
+ * changes, ID checks, duplicates, requests for full values and exports to
+ * send together. Its Missing details are a backlog rather than a decision,
+ * and are not counted. Its Flagged and I asked tabs carry their own (E1),
+ * not added to the section's. Keyed by the viewer's own places, so a viewer
+ * without Review, or without one of its tabs, counts nothing there.
  */
 export function countsOf(
   overview: Overview,
@@ -367,12 +378,24 @@ export function countsOf(
     (overview.approvals?.total ?? 0) +
     (waiting?.identifiers ?? 0) +
     (waiting?.duplicates ?? 0) +
-    (waiting?.accessRequests ?? 0);
+    (waiting?.accessRequests ?? 0) +
+    (waiting?.exports ?? 0);
   const review = sections.find(
     (s) => s.path === REVIEW_WAITING || s.tabs?.some((t) => t.path === REVIEW_WAITING) === true,
   );
-  if (review === undefined || n === 0) return { sections: {}, tabs: {} };
-  return { sections: { [review.path]: n }, tabs: { [REVIEW_WAITING]: n } };
+  if (review === undefined) return { sections: {}, tabs: {} };
+  const own = (path: string, count: number | null | undefined): Record<string, number> =>
+    (count ?? 0) > 0 && review.tabs?.some((t) => t.path === path) === true
+      ? { [path]: count ?? 0 }
+      : {};
+  return {
+    sections: n === 0 ? {} : { [review.path]: n },
+    tabs: {
+      ...(n === 0 ? {} : { [REVIEW_WAITING]: n }),
+      ...own(REVIEW_FLAGGED, waiting?.flagged),
+      ...own(REVIEW_ASKED, waiting?.asked),
+    },
+  };
 }
 
 /**

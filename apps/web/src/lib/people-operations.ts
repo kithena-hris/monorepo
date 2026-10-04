@@ -233,7 +233,7 @@ export const OPERATIONS = {
 
   /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
   Waiting: `query Waiting {
-    peopleWaiting { identifiers duplicates accessRequests }
+    peopleWaiting { identifiers duplicates accessRequests flagged asked exports }
   }`,
 
   /** Where People starts: the viewer, their line, and what waits for them. */

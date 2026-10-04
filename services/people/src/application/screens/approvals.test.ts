@@ -19,6 +19,7 @@ import { inMemoryPendingChangeStore } from '../person/pending-store.js';
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
 import { approvalsView } from './people.js';
+import { flaggedToDecide, waitingView } from './waiting.js';
 import type { ScreenDeps } from './record.js';
 
 /**
@@ -224,6 +225,22 @@ describe('a flagged approval (AI7)', () => {
     expect(after.ok && after.value.decided.map((d) => [d.state, d.note, d.decidedBy])).toEqual([
       ['approved', 'Promotion to Sales manager', 'You'],
     ]);
+  });
+});
+
+describe('Review’s tab counts (E1)', () => {
+  it('counts the flagged change for whoever decides it, and the asker’s own under I asked', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z', { raises });
+    await askedForRaise(s);
+    expect(await flaggedToDecide(tx, s.pending, asking(SOFIA))).toEqual({
+      count: 1,
+      latest: 'A 38% raise',
+    });
+    const sofia = await waitingView(tx, { access: s.access, pending: s.pending }, asking(SOFIA));
+    expect(sofia.ok && [sofia.value.flagged, sofia.value.asked]).toEqual([1, 0]);
+    // Nora asked: nothing of hers is flagged to her, and it waits under I asked.
+    const nora = await waitingView(tx, { access: s.access, pending: s.pending }, asking(NORA_HR));
+    expect(nora.ok && [nora.value.flagged, nora.value.asked]).toEqual([0, 1]);
   });
 });
 

@@ -50,6 +50,20 @@ describe('countsOf', () => {
     ).toEqual({ sections: {}, tabs: {} });
     expect(countsOf(overview(FINANCE, 3), null, [])).toEqual({ sections: {}, tabs: {} });
   });
+
+  it('counts exports to send in Waiting, and Flagged and I asked on their own tabs (E1)', () => {
+    const { sections, tabs } = countsOf(
+      overview(HR, 4),
+      { identifiers: 3, duplicates: 2, accessRequests: 1, exports: 1, flagged: 1, asked: 2 },
+      placesFor(PEOPLE_NAV, HR).sections,
+    );
+    expect(sections).toEqual({ '/people/review/waiting': 11 });
+    expect(tabs).toEqual({
+      '/people/review/waiting': 11,
+      '/people/review/flagged': 1,
+      '/people/review/asked': 2,
+    });
+  });
 });
 
 describe('reviewItem', () => {
