@@ -364,9 +364,14 @@ export const FieldChangeBody = z.strictObject({
     .max(20_000),
   requiredFrom: z.iso.date().optional(),
 });
+/**
+ * The grid's cells, one change per person, each value as a form holds it (a
+ * date, a choice, several, a flag, money in minor units); the write path then
+ * checks each against its field, as it does a form's.
+ */
 export const Grid = z.strictObject({
   changes: z
-    .array(z.object({ personId: z.uuid(), values: z.record(z.string(), z.string()) }))
+    .array(z.object({ personId: z.uuid(), values: z.record(z.string().max(64), z.unknown()) }))
     .max(500),
 });
 /** A page of a bulk edit (PEO-071): the same values for these people, from one date. */
@@ -1045,7 +1050,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
           return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
         }
-        return answer(await completenessView(deps, asking, { after: after ?? null }));
+        const person = query.get('person') ?? undefined;
+        if (person !== undefined && !new RegExp(`^${UUID}$`).test(person)) {
+          return refused(failure('BAD_REQUEST', 'person is a person id', ['person']));
+        }
+        return answer(
+          await completenessView(deps, asking, { after: after ?? null, person: person ?? null }),
+        );
       },
     },
     {

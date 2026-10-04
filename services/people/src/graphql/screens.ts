@@ -1130,6 +1130,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       fields: (t) => ({
         key: t.exposeString('key'),
         label: t.exposeString('label'),
+        dataType: t.exposeString('dataType', {
+          description: 'What kind of value it takes: the cell is that kind’s own control.',
+        }),
+        currency: t.exposeString('currency', {
+          nullable: true,
+          description: 'ISO 4217, for a money field fixed to one currency.',
+        }),
         options: t.field({ type: [OptionRef], resolve: (f) => list(f.options) }),
         person: t.exposeBoolean('person', {
           description: 'A person reference: picked with peoplePicker, not from options',
@@ -2214,15 +2221,21 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleCompleteness: t.field({
       type: CompletenessRef,
-      args: { after: t.arg.id() },
-      resolve: (_root, args, ctx) =>
-        viaRest<CompletenessView>(
+      args: {
+        after: t.arg.id(),
+        person: t.arg.id({ description: 'One person’s gaps alone; the totals stay everybody’s.' }),
+      },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.after) query.set('after', String(args.after));
+        if (args.person) query.set('person', String(args.person));
+        const asked = query.toString();
+        return viaRest<CompletenessView>(
           ctx,
           'GET',
-          args.after
-            ? `/v1/views/completeness?after=${encodeURIComponent(args.after)}`
-            : '/v1/views/completeness',
-        ),
+          asked === '' ? '/v1/views/completeness' : `/v1/views/completeness?${asked}`,
+        );
+      },
     }),
     peopleHeadcount: t.int({
       description: 'How many people you could find by searching: a count only.',
@@ -2360,13 +2373,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       value: t.string({ required: true }),
     }),
   });
-  const CellInput = builder.inputType('GridCellInput', {
-    fields: (t) => ({ key: t.string({ required: true }), value: t.string({ required: true }) }),
-  });
   const GridChange = builder.inputType('GridChangeInput', {
     fields: (t) => ({
       personId: t.id({ required: true }),
-      values: t.field({ type: [CellInput], required: true }),
+      // Each cell as a form holds it, so a date, a choice, a flag or money
+      // arrives as itself rather than as text.
+      values: t.field({ type: [FormValueInput], required: true }),
     }),
   });
   const ClauseInput = builder.inputType('PredicateClauseInput', {
@@ -2574,12 +2586,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   const gridChanges = (
     changes: readonly {
       personId: string | number;
-      values: readonly { key: string; value: string }[];
+      values: readonly FormInput[];
     }[],
   ) =>
     changes.map((c) => ({
       personId: String(c.personId),
-      values: Object.fromEntries(c.values.map((v) => [v.key, v.value])),
+      values: changed(c.values),
     }));
   builder.queryField('peopleGridCheck', (t) =>
     t.field({

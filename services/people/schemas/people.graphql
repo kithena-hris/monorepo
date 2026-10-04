@@ -374,6 +374,10 @@ type ComparedRow {
 }
 
 type CompletenessField {
+  """ISO 4217, for a money field fixed to one currency."""
+  currency: String
+  """What kind of value it takes: the cell is that kind’s own control."""
+  dataType: String
   key: String
   label: String
   options: [FieldOption!]
@@ -734,14 +738,9 @@ type GridCellFinding {
   review: String
 }
 
-input GridCellInput {
-  key: String!
-  value: String!
-}
-
 input GridChangeInput {
   personId: ID!
-  values: [GridCellInput!]!
+  values: [FormValueInput!]!
 }
 
 type GridIdentifierCheck {
@@ -2465,7 +2464,11 @@ type Query {
   peopleBulkHirePreview(hires: [BulkHireInput!]!): BulkEditResult
   peopleChat: PeopleChat
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
-  peopleCompleteness(after: ID): PeopleCompleteness
+  peopleCompleteness(
+    after: ID
+    """One person’s gaps alone; the totals stay everybody’s."""
+    person: ID
+  ): PeopleCompleteness
   peopleDirectory(
     after: ID
     conditions: [DirectoryConditionInput!]

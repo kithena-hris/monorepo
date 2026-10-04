@@ -222,14 +222,7 @@ function fieldOf(
   people: readonly { readonly value: string; readonly label: string }[],
 ): RecordField {
   const config = d.typeConfig;
-  const options =
-    config.kind === 'select' || config.kind === 'multi_select'
-      ? config.options
-          .filter((o) => o.retiredAt === null)
-          .map((o) => ({ value: o.value, label: o.label.default }))
-      : config.kind === 'person_ref'
-        ? people
-        : [];
+  const options = config.kind === 'person_ref' ? people : listOptions(d);
   const readOnly = !canWrite(d, relations).ok;
   const keptIn = relations.sources?.get(d.key)?.system;
   return {
@@ -246,6 +239,31 @@ function fieldOf(
     ...(keptIn === undefined ? {} : { keptIn }),
     sensitive: requiresApproval(d),
   };
+}
+
+/** What a list field offers to pick, retired choices left out; nothing for any other field. */
+export function listOptions(
+  d: AttributeDefinition,
+): { readonly value: string; readonly label: string }[] {
+  const config = d.typeConfig;
+  return config.kind === 'select' || config.kind === 'multi_select'
+    ? config.options
+        .filter((o) => o.retiredAt === null)
+        .map((o) => ({ value: o.value, label: o.label.default }))
+    : [];
+}
+
+/** Whether HR fills this field in: what Missing details and Home both count as HR's. */
+export const hrFills = (d: AttributeDefinition | undefined): boolean =>
+  d?.ownership.includes('hr') === true;
+
+/**
+ * HR's missing values over everybody: the keys HR fills in, and not a key
+ * Finance or a system alone fills. Home's figure and Review's are this one sum.
+ */
+export function hrToFill(totals: GapTotals, version: PublishedVersion): number {
+  const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+  return totals.staff.filter((s) => hrFills(byKey.get(s.key))).reduce((n, s) => n + s.people, 0);
 }
 
 /** A stored value as a form holds it. */

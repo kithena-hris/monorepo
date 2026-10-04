@@ -59,6 +59,8 @@ const attributes = [
   }),
   // HR's to fill, and required.
   define({ key: 'cost_centre', requiredness: { mode: 'always' } }),
+  // Finance's alone to fill: never counted as HR's.
+  define({ key: 'payroll_ref', ownership: ['finance'], visibility: ['hr'] }),
   // Required, and HR's alone to read: never in anybody else's list.
   define({ key: 'right_to_work', visibility: ['hr'], requiredness: { mode: 'always' } }),
   define({
@@ -280,6 +282,22 @@ describe('the overview', () => {
     const hr = await overview(w, w.as(HR_ACCOUNT, 'hr'));
     expect(hr.me).toBeNull();
     expect(hr.team).toEqual({ waiting: 3, toFill: 5 });
+    // Home counts what Review's Missing details counts: HR's gaps, not Finance's.
+    const wider = await overviewView(
+      {
+        ...w.deps,
+        gapTotals: () =>
+          Promise.resolve({
+            waiting: 3,
+            staff: [
+              { key: 'cost_centre', people: 5 },
+              { key: 'payroll_ref', people: 2 },
+            ],
+          }),
+      },
+      w.as(HR_ACCOUNT, 'hr'),
+    );
+    expect(wider.ok && wider.value.team).toEqual({ waiting: 3, toFill: 5 });
     expect(hr.approvals).toMatchObject({
       isHr: true,
       total: 1,
