@@ -467,23 +467,32 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
   const finance = roles.data.finance === true;
   const ready = (load: ScreenLoad | null): unknown => (load?.status === 'ready' ? load.data : null);
   const admin = roles.data.admin === true;
-  const [changes, identifiers, duplicates, fullValues, completeness, analytics, share, shares] =
-    await Promise.all([
-      approvals,
-      hr ? read('IdentifierReviews') : null,
-      hr
-        ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) =>
-            read('Duplicates', asked),
-          )
-        : null,
-      hr || finance ? read('FullValues') : null,
-      hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
-      // Complete records overall, analytics' own figure, beside the missing details.
-      hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
-      shareId === null ? null : people<string>('ExportShare', { id: shareId }),
-      // The requests to send an export waiting for this administrator (E5).
-      admin ? people<string>('ExportSharesToDecide') : null,
-    ]);
+  const [
+    changes,
+    identifiers,
+    duplicates,
+    fullValues,
+    completeness,
+    analytics,
+    share,
+    shares,
+    own,
+  ] = await Promise.all([
+    approvals,
+    hr ? read('IdentifierReviews') : null,
+    hr
+      ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) => read('Duplicates', asked))
+      : null,
+    hr || finance ? read('FullValues') : null,
+    hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
+    // Complete records overall, analytics' own figure, beside the missing details.
+    hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
+    shareId === null ? null : people<string>('ExportShare', { id: shareId }),
+    // The requests to send an export waiting for this administrator (E5).
+    admin ? people<string>('ExportSharesToDecide') : null,
+    // Anybody but HR: their own requests, decided (E10). HR's Decided is everybody's.
+    hr ? null : read('OwnDecided', {}, VIEWS.OwnDecided),
+  ]);
   const down = [changes, identifiers, duplicates, fullValues, completeness].find(
     (l) => l?.status === 'error' && l.unreachable === true,
   );
@@ -506,6 +515,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
               complete: analytics?.ok === true ? analytics.data.complete : null,
             },
       shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
+      ownDecided: ready(own),
       // Somebody else's or gone: said as such in its pane, never as an error page.
       share:
         share === null

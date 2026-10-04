@@ -203,6 +203,10 @@ type ApprovalFlagStats {
 type ApprovalItem {
   avatarUrl: String
   awaitingReview: Boolean
+  """
+  What the field held when it was asked for, on the requester’s own Decided; null elsewhere.
+  """
+  before: FormEntry
   canAsk: Boolean
   canDecide: Boolean
   """May mark its flags not unusual."""
@@ -238,7 +242,9 @@ type ApprovalItem {
   reason: String
   requestedAt: String
   requestedBy: String
-  """pending, approved, rejected or lapsed."""
+  """
+  pending, approved, rejected, lapsed, or withdrawn on the requester’s own.
+  """
   state: String
   value: FormEntry
 }
@@ -1997,6 +2003,18 @@ type PeopleOverviewTeam {
   waiting: Int
 }
 
+"""
+The viewer’s own requests, decided in the last 90 days (E10): theirs alone, whoever they are.
+"""
+type PeopleOwnDecided {
+  """
+  Their requested changes approved, rejected, lapsed or withdrawn, newest first, with `before`.
+  """
+  changes: [ApprovalItem!]
+  """Their own identifiers HR accepted or sent back. Never the value."""
+  identifiers: [DecidedIdentifierReview!]
+}
+
 """A person’s photo, to somebody who may read the person."""
 type PeoplePhoto {
   checksum: String
@@ -2544,6 +2562,8 @@ type Query {
   peopleOrgChart: PeopleOrgChart
   peopleOrganisation: PeopleOrganisation
   peopleOverview: PeopleOverview
+  """What became of the viewer’s own requests in the last 90 days (E10)."""
+  peopleOwnDecided: PeopleOwnDecided
   peoplePhoto(personId: ID!): PeoplePhoto
   """People whose name matches, as this viewer may read them."""
   peoplePicker(after: ID, search: String): PeoplePicker

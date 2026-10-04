@@ -52,6 +52,7 @@ beforeAll(async () => {
     '20260926140000_people_visibility_rules.sql',
     '20260926180000_people_pending_change.sql',
     '20260926230000_people_pending_change_decided_as.sql',
+    '20261001170000_people_approval_flags.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -232,6 +233,43 @@ describe('a held change, stored', () => {
       }),
     );
     expect(declined).toBe(true);
+  });
+
+  it('lists one requester’s decisions, their withdrawals too, for their own Decided (E10)', async () => {
+    const at = '2026-09-23T09:00:00.000Z';
+    const closed = (id: string, state: 'approved' | 'withdrawn', by: string, asker = ASKER) => {
+      const held = change(id, { approval: { ...change(id).approval, requestedBy: asker } });
+      return [
+        held,
+        { ...held, approval: { ...held.approval, state, decidedBy: by, decidedAt: at } },
+      ] as const;
+    };
+    const rows = [
+      closed(ID, 'approved', HR),
+      closed(OTHER, 'withdrawn', ASKER),
+      closed('01890000-0000-7000-8000-000000000003', 'approved', ASKER, HR),
+    ];
+    await inTenant(ACME, async ({ tx }) => {
+      for (const [held, next] of rows) {
+        await store.insert(tx, held, JSON.stringify(IBAN));
+        await store.close(tx, held, next);
+      }
+    });
+    const where = {
+      since: '2026-09-01T00:00:00.000Z',
+      until: '2026-10-01T00:00:00.000Z',
+      limit: 10,
+    };
+    const mine = await inTenant(ACME, ({ tx }) =>
+      store.decided(tx, ACME, { ...where, requestedBy: ASKER }),
+    );
+    expect(mine.map((c) => [c.approval.id, c.approval.state]).toSorted()).toEqual([
+      [ID, 'approved'],
+      [OTHER, 'withdrawn'],
+    ]);
+    // HR's Decided: everybody's decisions, and nobody's withdrawals.
+    const all = await inTenant(ACME, ({ tx }) => store.decided(tx, ACME, where));
+    expect(all.map((c) => c.approval.state)).toEqual(['approved', 'approved']);
   });
 
   it('is invisible to another tenant', async () => {

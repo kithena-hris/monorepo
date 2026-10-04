@@ -38,7 +38,8 @@ import {
   type Comparison,
   type Reason,
 } from '../../domain/approval/unusual.js';
-import { outcomeAt } from '../../domain/approval/approval.js';
+import { outcomeAt, ownOutcomeAt } from '../../domain/approval/approval.js';
+import { recordedBefore } from '../../domain/person/history.js';
 import { reviewOutcome } from '../../domain/person/identifier-review.js';
 import { placedZone, placementOf } from '../../domain/org/calendar.js';
 import {
@@ -661,12 +662,20 @@ export interface ApprovalItem extends PendingFieldView {
   /** And may mark its flags not unusual. */
   readonly canMark: boolean;
   readonly questions: readonly ApprovalQuestion[];
-  /** Lapsed: nobody decided it within its seven days. */
-  readonly state: 'pending' | 'approved' | 'rejected' | 'lapsed';
+  /**
+   * Lapsed: nobody decided it within its seven days. Withdrawn: its requester
+   * took it back, which only their own Decided says.
+   */
+  readonly state: 'pending' | 'approved' | 'rejected' | 'lapsed' | 'withdrawn';
   /** Who decided (nobody, for a lapsed one), when and with what note: a decided change only. */
   readonly decidedBy: string | null;
   readonly decidedAt: string | null;
   readonly note: string | null;
+  /**
+   * What the field held when it was asked for, masked as the field is: on the
+   * requester's own Decided only, where it is read back from history.
+   */
+  readonly before?: FormValue;
 }
 
 export interface ApprovalsView {
@@ -893,6 +902,160 @@ export async function approvalsView(
           ? await pending.flags.store.stats(tx, asking.tenantId, since)
           : null,
     });
+  });
+}
+
+/** The viewer's own requests, decided (Review's Decided, E10): theirs alone, whoever they are. */
+export interface OwnDecidedView {
+  /** Their requested changes decided, lapsed or withdrawn in the last 90 days, newest first. */
+  readonly changes: readonly ApprovalItem[];
+  /** Their own identifiers HR accepted or sent back in the last 90 days. Never the value. */
+  readonly identifiers: readonly DecidedIdentifierReview[];
+}
+
+/**
+ * What became of the viewer's own requests (E10), read for them alone: the
+ * changes they asked for that were approved (applied from their date),
+ * rejected (with HR's note), lapsed or withdrawn by them, each with the value
+ * before beside the value asked for as they may read both; and their own
+ * identifiers HR accepted or sent back, by label and never by value. The store
+ * is asked for this requester's rows, and `ownOutcomeAt` answers nothing for a
+ * row anybody else asked for.
+ */
+export async function ownDecidedView(
+  deps: ScreenDeps,
+  asking: Asking,
+): Promise<Result<OwnDecidedView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const me = asking.viewer.accountId;
+    const now = deps.clock.instant();
+    const since = new Date(Date.parse(now) - NINETY_DAYS_MS).toISOString();
+    const pending = deps.service.pending;
+    const rows =
+      pending === undefined
+        ? []
+        : await pending.store.decided(tx, asking.tenantId, {
+            since,
+            until: now,
+            limit: DECIDED_SHOWN,
+            requestedBy: me,
+          });
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    const definitions = version?.document.attributes ?? [];
+    const labels = new Map(definitions.map((d) => [d.key as string, d.label.default]));
+    const own = await deps.personOf(tx, asking.tenantId, me);
+    const reviewed =
+      own === null
+        ? null
+        : await deps.service.access.personReviews(tx, {
+            ...asking,
+            personId: own,
+            decidedSince: since,
+            limit: DECIDED_SHOWN,
+          });
+    const reviews = reviewed?.ok === true ? reviewed.value : [];
+    const by = await actors(deps, tx, asking, [
+      ...rows.flatMap((c) =>
+        c.approval.decidedBy === null
+          ? []
+          : [{ kind: 'user' as const, userId: c.approval.decidedBy }],
+      ),
+      ...reviews.flatMap((r) =>
+        r.decidedBy === null ? [] : [{ kind: 'user' as const, userId: r.decidedBy }],
+      ),
+    ]);
+    const user = (userId: string) => by({ kind: 'user', userId });
+    const avatars = await avatarsOf(
+      deps,
+      tx,
+      asking.tenantId,
+      rows.map((c) => c.personId),
+    );
+
+    const changes: ApprovalItem[] = [];
+    for (const c of rows) {
+      const outcome = ownOutcomeAt(c.approval, now, me);
+      if (outcome === null) continue;
+      const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
+      const definition = definitions.find((d) => d.key === c.attributeKey);
+      const readable =
+        person.ok &&
+        definition !== undefined &&
+        visibleTo(
+          definition,
+          await deps.relations.relations(tx, asking.tenantId, asking.viewer, c.personId),
+        );
+      // What was there when they asked: the entry recorded before the request.
+      const kept = readable
+        ? await deps.service.access.history(tx, {
+            ...asking,
+            personId: c.personId,
+            attributeKey: c.attributeKey,
+          })
+        : null;
+      const entries = kept?.ok === true ? kept.value : [];
+      const then = recordedBefore(entries, c.attributeKey, c.approval.requestedAt);
+      const current = readable ? toForm(person.value.attributes[c.attributeKey]) : null;
+      changes.push({
+        id: c.approval.id,
+        personId: c.personId,
+        name: (person.ok ? nameOf(person.value.attributes) : null) ?? 'Unnamed',
+        avatarUrl: person.ok ? (avatars.get(c.personId) ?? null) : null,
+        key: c.attributeKey,
+        label: labels.get(c.attributeKey) ?? c.attributeKey,
+        kind: c.kind,
+        value: readable ? toForm(c.sealed ? { last4: c.last4 } : c.value) : null,
+        readable,
+        current,
+        // Nothing recorded for it at all: what it holds now is what it always held.
+        before:
+          then !== undefined
+            ? toForm(then.value)
+            : entries.some((e) => e.attributeKey === c.attributeKey)
+              ? null
+              : current,
+        effectiveFrom: c.effectiveFrom,
+        requestedAt: c.approval.requestedAt,
+        expiresAt: c.approval.expiresAt,
+        requestedBy: user(me),
+        reason: c.approval.reason === '' ? null : c.approval.reason,
+        mine: true,
+        canDecide: false,
+        canSelfApprove: false,
+        awaitingReview: false,
+        findings: [],
+        // A requester is never told which rule they tripped.
+        ...unflagged,
+        canAsk: false,
+        canMark: false,
+        questions: [],
+        state: outcome.state,
+        decidedBy:
+          outcome.state === 'lapsed' || c.approval.decidedBy === null
+            ? null
+            : user(c.approval.decidedBy),
+        decidedAt: outcome.at,
+        note: outcome.state === 'withdrawn' ? null : c.approval.note,
+      });
+    }
+
+    const identifiers: DecidedIdentifierReview[] = [];
+    const name =
+      own === null ? null : await deps.service.access.read(tx, { ...asking, personId: own });
+    for (const r of reviews) {
+      const outcome = reviewOutcome(r);
+      if (outcome === null || r.decidedBy === null || r.decidedAt === null) continue;
+      identifiers.push({
+        personId: r.personId,
+        name: (name?.ok === true ? nameOf(name.value.attributes) : null) ?? 'You',
+        label: labels.get(r.attributeKey) ?? r.attributeKey,
+        outcome,
+        decidedBy: user(r.decidedBy),
+        decidedAt: r.decidedAt,
+        note: r.note,
+      });
+    }
+    return ok({ changes, identifiers });
   });
 }
 

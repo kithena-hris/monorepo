@@ -300,6 +300,17 @@ describe('the reviewer accepting', () => {
     expect(decided.ok && decided.value.map((r) => [r.personId, r.state, r.decidedBy])).toEqual([
       [LUCIA, 'accepted', hr.accountId],
     ]);
+    // And on Lucía's own Decided (E10): hers alone.
+    const own = (personId: string) =>
+      inTenantResult(inTenant, ACME, (tx) =>
+        people.personReviews(tx, {
+          ...as(lucia),
+          personId,
+          decidedSince: '2000-01-01T00:00:00.000Z',
+        }),
+      );
+    const hers = await own(LUCIA);
+    expect(hers.ok && hers.value.map((r) => [r.personId, r.state])).toEqual([[LUCIA, 'accepted']]);
   });
 
   it('is never asked again for the same value, however it is spaced', async () => {

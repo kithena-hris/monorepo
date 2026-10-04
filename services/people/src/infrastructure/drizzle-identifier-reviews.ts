@@ -164,10 +164,11 @@ export function drizzleIdentifierReviews(
       return [...rows].map((r) => ({ ...fromRow(r), enteredBy: r.entered_by }));
     },
 
-    async decided(tx, tenantId, since, limit) {
+    async decided(tx, tenantId, since, limit, personId) {
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS} FROM people.identifier_review
          WHERE tenant_id = ${tenantId}::uuid AND decided_at >= ${since}::timestamptz
+           AND (${personId ?? null}::uuid IS NULL OR person_id = ${personId ?? null}::uuid)
          ORDER BY decided_at DESC, id
          LIMIT ${limit}`);
       return [...rows].map(fromRow);

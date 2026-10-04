@@ -67,6 +67,19 @@ const PENDING = `
     mine canDecide canSelfApprove awaitingReview findings { level code message }
   }`;
 
+/** A change in the approvals inbox (PEO-077), waiting or decided, masked as its field is. */
+const APPROVAL = `
+  fragment ApprovalParts on ApprovalItem {
+    id personId name avatarUrl key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+    reason mine canDecide canSelfApprove awaitingReview findings { level code message }
+    flags { code title detail }
+    comparisons { label percent highlight }
+    flagNote flagSummary canAsk canMark state decidedBy decidedAt note
+    questions { id question askedBy askedAt answer answeredAt canAnswer }
+    value { ...EntryParts }
+    current { ...EntryParts }
+  }`;
+
 /** What the country checks warned about, on a save or before one (PEO-125). */
 const FINDINGS = 'findings { key label level code message review }';
 
@@ -143,17 +156,15 @@ export const OPERATIONS = {
       checks { code title detail on }
       last90 { flagged rejected marked }
     }
-  }
-  fragment ApprovalParts on ApprovalItem {
-    id personId name avatarUrl key label kind readable effectiveFrom requestedAt expiresAt requestedBy
-    reason mine canDecide canSelfApprove awaitingReview findings { level code message }
-    flags { code title detail }
-    comparisons { label percent highlight }
-    flagNote flagSummary canAsk canMark state decidedBy decidedAt note
-    questions { id question askedBy askedAt answer answeredAt canAnswer }
-    value { ...EntryParts }
-    current { ...EntryParts }
-  }${ENTRY}`,
+  }${APPROVAL}${ENTRY}`,
+
+  /** The viewer's own requests, decided (E10): an employee's Decided tab, theirs alone. */
+  OwnDecided: `query OwnDecided {
+    peopleOwnDecided {
+      changes { ...ApprovalParts before { ...EntryParts } }
+      identifiers { personId name label outcome decidedBy decidedAt note }
+    }
+  }${APPROVAL}${ENTRY}`,
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {

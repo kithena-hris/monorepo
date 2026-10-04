@@ -4,6 +4,7 @@ import {
   arrived,
   correct,
   record,
+  recordedBefore,
   scheduled,
   timelineOf,
   valueAsOf,
@@ -57,6 +58,33 @@ describe('reading a value as of a date', () => {
 
   it('ignores another attribute entirely', () => {
     expect(valueAsOf(history, 'job_title', '2026-07-01')).toBeUndefined();
+  });
+});
+
+describe('what a later write found there', () => {
+  const history = [
+    entry({ id: 'h1', value: 'Calle Mayor 12', recordedAt: '2026-01-01T09:00:00.000Z' }),
+    entry({ id: 'h2', value: 'Calle de Alcalá 48', recordedAt: '2026-09-22T10:00:00.000Z' }),
+    entry({
+      id: 'h3',
+      attributeKey: 'job_title',
+      value: 'Engineer',
+      recordedAt: '2026-09-01T09:00:00.000Z',
+    }),
+  ];
+
+  it('is the value last recorded before the instant, not the one written at it', () => {
+    expect(recordedBefore(history, 'base_salary', '2026-09-22T10:00:00.000Z')?.value).toBe(
+      'Calle Mayor 12',
+    );
+    expect(recordedBefore(history, 'base_salary', '2026-09-23T10:00:00.000Z')?.value).toBe(
+      'Calle de Alcalá 48',
+    );
+  });
+
+  it('is nothing before anything was recorded, whatever another field holds', () => {
+    expect(recordedBefore(history, 'base_salary', '2025-12-31T09:00:00.000Z')).toBeUndefined();
+    expect(recordedBefore(history, 'department', '2026-09-23T10:00:00.000Z')).toBeUndefined();
   });
 });
 

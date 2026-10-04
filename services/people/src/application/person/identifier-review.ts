@@ -51,12 +51,16 @@ export interface IdentifierReviews {
   open(tx: Tx, tenantId: string, personId: string): Promise<readonly IdentifierReview[]>;
   /** HR's queue, oldest first, each with who entered the value where that is known. */
   pending(tx: Tx, tenantId: string, limit: number): Promise<readonly QueuedReview[]>;
-  /** Decided since an instant, whatever became of them after, newest decision first. */
+  /**
+   * Decided since an instant, whatever became of them after, newest decision
+   * first: the tenant's, or with `personId` one person's.
+   */
   decided(
     tx: Tx,
     tenantId: string,
     since: string,
     limit: number,
+    personId?: string,
   ): Promise<readonly IdentifierReview[]>;
   /** The review of a value held for approval (PEO-077), whatever its state. */
   forChange(tx: Tx, tenantId: string, changeId: string): Promise<IdentifierReview | null>;

@@ -144,6 +144,26 @@ export function outcomeAt(
   return null;
 }
 
+/**
+ * What became of one's own request by `at`, for the requester's Decided: what
+ * `outcomeAt` says, and withdrawn too, which only they could do and only they
+ * are told of. Null for a request somebody else made, whoever asks.
+ */
+export function ownOutcomeAt(
+  approval: Approval,
+  at: string,
+  requester: string,
+): {
+  readonly state: 'approved' | 'rejected' | 'lapsed' | 'withdrawn';
+  readonly at: string;
+} | null {
+  if (approval.requestedBy !== requester) return null;
+  if (approval.state === 'withdrawn' && approval.decidedAt !== null) {
+    return { state: 'withdrawn', at: approval.decidedAt };
+  }
+  return outcomeAt(approval, at);
+}
+
 /** Record that a pending request ran out of time. Refused while it still has some. */
 export function expire(approval: Approval, at: string): Result<Approval> {
   if (approval.state !== 'pending') {

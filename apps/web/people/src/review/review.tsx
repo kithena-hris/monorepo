@@ -34,6 +34,7 @@ import {
   ChangeDetail,
   Checks,
   ago,
+  asField,
   isClosed,
   isFlagged,
   summaryOf,
@@ -61,6 +62,7 @@ import { FORMAT_LABEL, firstName, listed, spokenDate } from '../export/words';
 import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type { SearchPeople } from '../record/attribute-input';
+import { DisplayValue } from '../record/display';
 import {
   DuplicateDetail,
   Merges,
@@ -75,6 +77,7 @@ import {
   IdCheckDetail,
   idCheckId,
   verdictOf,
+  type DecidedReview,
   type IdCheckActions,
   type IdentifierReviewsState,
   type ReviewItem,
@@ -134,6 +137,14 @@ export interface ReviewState {
    * null: one the viewer does not decide arrives from the email about it.
    */
   readonly share: ShareRequest | { readonly state: 'missing'; readonly id?: string } | null;
+  /**
+   * The viewer's own requests, decided (E10): anybody's but HR's, whose
+   * Decided is everybody's. Null for HR, or where People refused the read.
+   */
+  readonly ownDecided?: {
+    readonly changes: readonly ApprovalItem[];
+    readonly identifiers: readonly DecidedReview[];
+  } | null;
 }
 
 export interface ReviewProps extends ChangeActions {
@@ -325,6 +336,10 @@ function splitChanges(approvals: ApprovalsState | null): {
   return { forMe, asked, rest };
 }
 
+/** The changes decided that the viewer's Decided lists: their own, or for HR everybody's. */
+const decidedChanges = (state: ReviewState): readonly ApprovalItem[] =>
+  state.ownDecided?.changes ?? state.approvals?.decided ?? [];
+
 /** Whose Review it is: HR's queue, an employee's own changes, or finance's requests. */
 type Viewer = 'hr' | 'finance' | 'employee';
 
@@ -341,7 +356,7 @@ function rowsOf(state: ReviewState, tab: ReviewTab, viewer: Viewer): Row[] {
   const requests = state.fullValues?.requests ?? [];
   if (viewer !== 'hr') {
     return tab === 'decided'
-      ? newestFirst((state.approvals?.decided ?? []).map(changeRow))
+      ? newestFirst(decidedChanges(state).map(changeRow))
       : newestFirst((state.approvals?.items ?? []).map(changeRow));
   }
   switch (tab) {
@@ -750,7 +765,7 @@ function Detail({
   const isHr = viewerOf(state) === 'hr';
   switch (row.kind) {
     case 'changes': {
-      const item = [...(state.approvals?.items ?? []), ...(state.approvals?.decided ?? [])].find(
+      const item = [...(state.approvals?.items ?? []), ...decidedChanges(state)].find(
         (i) => `change-${i.id}` === row.id,
       );
       return item === undefined ? null : (
@@ -1009,7 +1024,7 @@ interface Decision {
   readonly kind: 'changes' | 'ids' | 'access';
   readonly name: string;
   readonly avatarUrl?: string | null;
-  readonly what: string;
+  readonly what: ReactNode;
   readonly outcome: { readonly tone: ComponentProps<typeof Badge>['tone']; readonly text: string };
   readonly by: string;
   readonly when: string | null;
@@ -1017,43 +1032,62 @@ interface Decision {
 
 /** Every decision of the last 90 days the viewer may see, newest first. */
 function decisionsOf(state: ReviewState): Decision[] {
-  const changes = (state.approvals?.decided ?? []).map((c): Decision => ({
+  const changes = decidedChanges(state).map((c): Decision => ({
     key: `change-${c.id}`,
     kind: 'changes',
     name: c.name,
     avatarUrl: c.avatarUrl ?? null,
-    what: [
-      `${c.label} change`,
-      isFlagged(c)
-        ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
-        : null,
-      c.note ? `Note: “${c.note}”` : null,
-    ]
-      .filter((x) => x !== null)
-      .join(' · '),
+    what:
+      c.before !== undefined && c.readable ? (
+        // One's own (E10): the field, what it held → what was asked for, from when.
+        <>
+          {c.label}: <DisplayValue field={asField(c)} value={c.before} /> →{' '}
+          <DisplayValue field={asField(c)} value={c.value} /> · from {shortDay(c.effectiveFrom)}
+          {c.note ? ` · Note: “${c.note}”` : ''}
+        </>
+      ) : (
+        [
+          `${c.label} change`,
+          isFlagged(c)
+            ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
+            : null,
+          c.note ? `Note: “${c.note}”` : null,
+        ]
+          .filter((x) => x !== null)
+          .join(' · ')
+      ),
     outcome:
       c.state === 'approved'
         ? { tone: 'success', text: 'Approved' }
         : c.state === 'lapsed'
           ? { tone: 'neutral', text: 'Lapsed' }
-          : { tone: 'danger', text: 'Rejected' },
-    by: c.state === 'lapsed' ? 'Nobody, in 7 days' : (c.decidedBy ?? 'HR'),
+          : c.state === 'withdrawn'
+            ? { tone: 'neutral', text: 'Withdrawn' }
+            : { tone: 'danger', text: 'Rejected' },
+    by:
+      c.state === 'lapsed'
+        ? 'Nobody, in 7 days'
+        : c.state === 'withdrawn'
+          ? 'You'
+          : (c.decidedBy ?? 'HR'),
     when: c.decidedAt ?? null,
   }));
-  const ids = (state.identifiers?.decided ?? []).map((r): Decision => ({
-    key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
-    kind: 'ids',
-    name: r.name,
-    what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
-      .filter((x) => x !== null)
-      .join(' · '),
-    outcome:
-      r.outcome === 'accepted'
-        ? { tone: 'success', text: 'Accepted' }
-        : { tone: 'danger', text: 'Sent back' },
-    by: r.decidedBy,
-    when: r.decidedAt,
-  }));
+  const ids = (state.ownDecided?.identifiers ?? state.identifiers?.decided ?? []).map(
+    (r): Decision => ({
+      key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
+      kind: 'ids',
+      name: r.name,
+      what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
+        .filter((x) => x !== null)
+        .join(' · '),
+      outcome:
+        r.outcome === 'accepted'
+          ? { tone: 'success', text: 'Accepted' }
+          : { tone: 'danger', text: 'Sent back' },
+      by: r.decidedBy,
+      when: r.decidedAt,
+    }),
+  );
   const requests = (state.fullValues?.requests ?? [])
     .filter((r) => r.state !== 'pending')
     .map((r): Decision => ({

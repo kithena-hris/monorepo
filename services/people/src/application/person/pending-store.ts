@@ -126,10 +126,14 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
     },
 
     async decided(tx, tenantId, where) {
+      const mine = where.requestedBy ?? null;
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS}, flags FROM people.pending_change
          WHERE tenant_id = ${tenantId}::uuid
+           AND (${mine}::uuid IS NULL OR requested_by = ${mine}::uuid)
            AND ((state IN ('approved', 'rejected') AND decided_at >= ${where.since}::timestamptz)
+                OR (${mine}::uuid IS NOT NULL AND state = 'withdrawn'
+                    AND decided_at >= ${where.since}::timestamptz)
                 OR (state IN ('expired', 'pending')
                     AND expires_at >= ${where.since}::timestamptz
                     AND expires_at <= ${where.until}::timestamptz))
@@ -207,7 +211,10 @@ export function inMemoryPendingChangeStore(): PendingChangeStore & {
           .filter(
             (c) =>
               c.tenantId === tenantId &&
-              ((c.approval.state === 'approved' || c.approval.state === 'rejected') &&
+              (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy) &&
+              ((c.approval.state === 'approved' ||
+                c.approval.state === 'rejected' ||
+                (c.approval.state === 'withdrawn' && where.requestedBy !== undefined)) &&
               c.approval.decidedAt !== null
                 ? c.approval.decidedAt >= where.since
                 : (c.approval.state === 'expired' || c.approval.state === 'pending') &&

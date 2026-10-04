@@ -105,11 +105,13 @@ export interface ApprovalItem extends PendingValue {
   readonly canAsk?: boolean;
   readonly canMark?: boolean;
   readonly questions?: readonly ApprovalQuestion[];
-  /** Lapsed: nobody decided it within its seven days. */
-  readonly state?: 'pending' | 'approved' | 'rejected' | 'lapsed';
+  /** Lapsed: nobody decided it within its seven days. Withdrawn: its requester took it back. */
+  readonly state?: 'pending' | 'approved' | 'rejected' | 'lapsed' | 'withdrawn';
   readonly decidedBy?: string | null;
   readonly decidedAt?: string | null;
   readonly note?: string | null;
+  /** What the field held when it was asked for: on the requester's own Decided only. */
+  readonly before?: AttributeValue;
 }
 
 export interface ApprovalCheck {
@@ -153,7 +155,7 @@ export interface ChangeActions {
 }
 
 /** Enough of a field to draw a value: a pending value carries no options or type. */
-const asField = (item: ApprovalItem): RecordField => ({
+export const asField = (item: ApprovalItem): RecordField => ({
   key: item.key,
   label: item.label,
   description: null,
@@ -206,7 +208,10 @@ const shortDate = new Intl.DateTimeFormat('en-GB', {
 
 /** Decided, or lapsed with nobody deciding: no longer waiting. */
 export const isClosed = (item: ApprovalItem): boolean =>
-  item.state === 'approved' || item.state === 'rejected' || item.state === 'lapsed';
+  item.state === 'approved' ||
+  item.state === 'rejected' ||
+  item.state === 'lapsed' ||
+  item.state === 'withdrawn';
 
 /** "Salary €61k → €84k · from 1 Oct", or the field and the date where no amount shows. */
 export function summaryOf(item: ApprovalItem): string {
@@ -329,9 +334,11 @@ export function ChangeDetail({
             {decided
               ? item.state === 'lapsed'
                 ? ` · lapsed${item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''}, nobody decided in 7 days`
-                : ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
-                    item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''
-                  }`
+                : item.state === 'withdrawn'
+                  ? ` · withdrawn${item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''}`
+                  : ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
+                      item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''
+                    }`
               : ` · expires in ${daysLeft(item.expiresAt, now).replace(' left', '').toLowerCase()}`}
           </p>
         </div>
@@ -341,7 +348,19 @@ export function ChangeDetail({
           </span>
         )}
       </div>
-      {item.readable && decided ? (
+      {item.readable && decided && item.before !== undefined ? (
+        // The requester's own: what it held when they asked, beside what they asked for.
+        <ChangeDiff
+          items={[
+            {
+              label: item.label,
+              before: <DisplayValue field={field} value={item.before} />,
+              after: <DisplayValue field={field} value={item.value} />,
+            },
+            { label: 'Effective', before: '—', after: longDate(item.effectiveFrom) },
+          ]}
+        />
+      ) : item.readable && decided ? (
         // What was asked for; what was in force before it is not kept with the decision.
         <p className="text-sm">
           {item.label}: <DisplayValue field={field} value={item.value} />, from{' '}
