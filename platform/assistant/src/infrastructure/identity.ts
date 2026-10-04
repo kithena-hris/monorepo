@@ -2,16 +2,17 @@ import { AssistantAsker } from '@kithena/contracts';
 import { err, ok } from '@kithena/domain-kit';
 import { logger as base, type Logger } from '@kithena/telemetry';
 
-import type { AskerLookup, Identity } from '../application/ports.js';
+import type { AskerKey, AskerLookup, Identity } from '../application/ports.js';
 
 /**
  * Who is asking, from identity (assistant PRD §6.6, §10.1):
  * `POST {IDENTITY_URL}/api/internal/tenants/<id>/assistant/asker` with
- * `ASSISTANT_IDENTITY_TOKEN`. A 404 is nobody to answer — none, several, or
+ * `ASSISTANT_IDENTITY_TOKEN`, the body a chat app's `{ email }` or the web's
+ * `{ accountId }`. A 404 is nobody to answer — none, several, or
  * access ended, which identity does not say — and anything else, including no
  * identity configured, is identity unreachable.
  *
- * Kept 60 s per tenant and email, so a burst of questions is one call and an
+ * Kept 60 s per tenant and email or account, so a burst of questions is one call and an
  * ended access takes effect within a minute. Only a found asker is kept.
  */
 
@@ -36,9 +37,12 @@ export function identityFrom(settings: Settings, options: IdentityOptions = {}):
   const cache = new Map<string, { readonly at: number; readonly found: AskerLookup }>();
 
   return {
-    async asker(tenantId, email) {
+    async asker(tenantId, who: AskerKey) {
       if (!url || !token) return err('UNREACHABLE');
-      const key = `${tenantId}:${email.toLowerCase()}`;
+      const key =
+        'email' in who
+          ? `${tenantId}:email:${who.email.toLowerCase()}`
+          : `${tenantId}:account:${who.accountId}`;
       const kept = cache.get(key);
       if (kept !== undefined && now() - kept.at < CACHE_MS) return kept.found;
       try {
@@ -47,7 +51,7 @@ export function identityFrom(settings: Settings, options: IdentityOptions = {}):
           {
             method: 'POST',
             headers: { 'content-type': 'application/json', 'x-internal-token': token },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify(who),
             signal: AbortSignal.timeout(options.timeoutMs ?? 4_000),
           },
         );

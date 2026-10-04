@@ -21,7 +21,14 @@ import {
 import type { CallOutcome } from '../domain/execute.js';
 import { PEOPLE_CATALOGUE, TIMEOFF_CATALOGUE } from '../domain/fixtures.js';
 import { asker, type AskDeps } from './ask.js';
-import type { AskerLookup, Modules, Planned, PlanRequest } from './ports.js';
+import type {
+  AskerKey,
+  AskerLookup,
+  Modules,
+  Planned,
+  PlanRequest,
+  Principal,
+} from './ports.js';
 
 /**
  * The ask use case over fake ports (assistant PRD §7, §10.4): identity, the
@@ -621,5 +628,107 @@ describe('when something does not answer', () => {
     while (release.length > 0) release.shift()?.();
     await Promise.all(all);
     expect(most).toBe(8);
+  });
+});
+
+describe('a question from the web, in the session it was asked in (AST-035)', () => {
+  const ADA_ACCOUNT = id(901);
+  const MARCO_ACCOUNT = id(902);
+  const TIMEOFF_SAYS = 'Time Off cannot be used in a support or view-as session';
+
+  /** Ada, a People administrator, viewing the app as Marco. */
+  const viewing = (text: string) => ({
+    tenantId: TENANT as AssistantQuestion['tenantId'],
+    question: text,
+    channel: 'web' as const,
+    accountId: MARCO_ACCOUNT,
+    impersonatedBy: null,
+    viewedBy: ADA_ACCOUNT,
+  });
+
+  /** People answers as whoever it is sent; Time Off refuses a view-as, in its words. */
+  function sessionModules(answers: Answers = {}) {
+    const sent: Principal[] = [];
+    const modules: Modules = {
+      configured: ['people', 'timeoff'],
+      catalogue: (module, as) => {
+        sent.push(as);
+        if (module === 'people') return Promise.resolve(PEOPLE_CATALOGUE);
+        return Promise.resolve(
+          as.viewedBy === null ? TIMEOFF_CATALOGUE : { refused: TIMEOFF_SAYS },
+        );
+      },
+      call: (capability, input, as, _id, signal) => {
+        sent.push(as);
+        const answer = answers[capability.name];
+        return answer === undefined
+          ? Promise.resolve(err({ code: 'UNREACHABLE' }))
+          : answer(input, signal);
+      },
+    };
+    return { modules, sent };
+  }
+
+  it('asks identity for the signed-in account, and every module in the session as it is', async () => {
+    const keys: AskerKey[] = [];
+    const { modules, sent } = sessionModules({
+      'people.reports': returns(people(1, 'Marco Ruiz', [{ name: 'Ben Ode' }])),
+    });
+    const asked = await asker({
+      identity: {
+        asker: (_tenant, who) => {
+          keys.push(who);
+          return Promise.resolve(
+            ok(
+              AssistantAsker.parse({
+                accountId: MARCO_ACCOUNT,
+                timeZone: 'Europe/Madrid',
+                slug: 'acme',
+                entitlements: BOTH,
+              }),
+            ),
+          );
+        },
+      },
+      modules,
+      planner: fakePlanner(one('people.reports', { name: 'Marco' })).planner,
+      clock,
+    })(viewing('Who reports to me?'), 'c');
+    expect(keys).toEqual([{ accountId: MARCO_ACCOUNT }]);
+    expect(sent.length).toBeGreaterThan(0);
+    for (const as of sent) {
+      expect(as).toMatchObject({
+        userId: MARCO_ACCOUNT,
+        viewedBy: ADA_ACCOUNT,
+        impersonatedBy: null,
+      });
+    }
+    // People's answer, as People gave it to the view: Marco's sight, read-only there.
+    expect(asked).toMatchObject({ outcome: 'answered', called: ['people.reports'] });
+    expect(asked.answer.text).toBe('Marco Ruiz has 1 direct report:\n• Ben Ode');
+  });
+
+  it('says Time Off’s refusal in words, not that Time Off is down or missing', async () => {
+    const { modules } = sessionModules();
+    const { planner, requests } = fakePlanner({ kind: 'unavailable', module: 'timeoff' });
+    const asked = await ask({ modules, planner })(viewing('Who is off today?'), 'c');
+    expect(requests[0]?.unavailable).toEqual(['timeoff']);
+    expect(asked.answer).toEqual({
+      text: TIMEOFF_SAYS,
+      understood: 'Time Off refused',
+      people: [],
+      answered: false,
+    });
+    expect(asked).toMatchObject({ outcome: 'refused', reason: 'MODULE_REFUSED' });
+  });
+
+  it('a chat app’s question is always the person’s own: no session is forwarded', async () => {
+    const { modules, sent } = sessionModules();
+    await ask({ modules, planner: fakePlanner({ kind: 'unclear', reply: '' }).planner })(
+      question('Who is off today?'),
+      'c',
+    );
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.every((as) => as.viewedBy === null && as.impersonatedBy === null)).toBe(true);
   });
 });

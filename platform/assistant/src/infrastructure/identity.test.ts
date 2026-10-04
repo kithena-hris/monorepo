@@ -29,7 +29,7 @@ describe('who is asking, from identity', () => {
     let at = 0;
     const { fake, sent } = fetching(200);
     const identity = identityFrom(SETTINGS, { fetch: fake, logger: quiet, now: () => at });
-    expect(await identity.asker(TENANT, 'Ada@acme.example')).toEqual({ ok: true, value: ASKER });
+    expect(await identity.asker(TENANT, { email: 'Ada@acme.example' })).toEqual({ ok: true, value: ASKER });
     expect(sent[0]?.url).toBe(
       `http://identity:4100/api/internal/tenants/${TENANT}/assistant/asker`,
     );
@@ -38,36 +38,48 @@ describe('who is asking, from identity', () => {
     expect(JSON.parse(init.body as string)).toEqual({ email: 'Ada@acme.example' });
     expect((init.headers as Record<string, string>)['x-internal-token']).toBe('pair');
     at = 59_000;
-    await identity.asker(TENANT, 'ada@acme.example');
+    await identity.asker(TENANT, { email: 'ada@acme.example' });
     expect(sent).toHaveLength(1);
     at = 61_000;
-    await identity.asker(TENANT, 'ada@acme.example');
+    await identity.asker(TENANT, { email: 'ada@acme.example' });
+    expect(sent).toHaveLength(2);
+  });
+
+  it('posts the web’s signed-in account in place of an email, and keeps it apart', async () => {
+    const { fake, sent } = fetching(200);
+    const identity = identityFrom(SETTINGS, { fetch: fake, logger: quiet });
+    expect(await identity.asker(TENANT, { accountId: ASKER.accountId })).toEqual({
+      ok: true,
+      value: ASKER,
+    });
+    expect(JSON.parse(sent[0]?.init.body as string)).toEqual({ accountId: ASKER.accountId });
+    await identity.asker(TENANT, { email: 'ada@acme.example' });
     expect(sent).toHaveLength(2);
   });
 
   it('reads a 404 as nobody, and never keeps it', async () => {
     const { fake, sent } = fetching(404, {});
     const identity = identityFrom(SETTINGS, { fetch: fake, logger: quiet });
-    expect(await identity.asker(TENANT, 'x@acme.example')).toEqual({
+    expect(await identity.asker(TENANT, { email: 'x@acme.example' })).toEqual({
       ok: false,
       error: 'NOT_FOUND',
     });
-    await identity.asker(TENANT, 'x@acme.example');
+    await identity.asker(TENANT, { email: 'x@acme.example' });
     expect(sent).toHaveLength(2);
   });
 
   it('reads anything else, a malformed answer, or no identity configured as unreachable', async () => {
     const unreachable = { ok: false, error: 'UNREACHABLE' };
     const failing = identityFrom(SETTINGS, { fetch: fetching(500).fake, logger: quiet });
-    expect(await failing.asker(TENANT, 'a@acme.example')).toEqual(unreachable);
+    expect(await failing.asker(TENANT, { email: 'a@acme.example' })).toEqual(unreachable);
     const odd = identityFrom(SETTINGS, {
       fetch: fetching(200, { who: 'knows' }).fake,
       logger: quiet,
     });
-    expect(await odd.asker(TENANT, 'a@acme.example')).toEqual(unreachable);
+    expect(await odd.asker(TENANT, { email: 'a@acme.example' })).toEqual(unreachable);
     const { fake, sent } = fetching(200);
     expect(
-      await identityFrom({}, { fetch: fake, logger: quiet }).asker(TENANT, 'a@acme.example'),
+      await identityFrom({}, { fetch: fake, logger: quiet }).asker(TENANT, { email: 'a@acme.example' }),
     ).toEqual(unreachable);
     expect(sent).toHaveLength(0);
   });

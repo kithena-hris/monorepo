@@ -17,11 +17,12 @@ import type { CallOutcome } from '../domain/execute.js';
  * A module is reachable where the assistant has `<MODULE>_URL` and
  * `ASSISTANT_<MODULE>_TOKEN`; without both it is absent, said once at boot.
  * Every request carries the pair token, the asker as the router would forward
- * them, and the question's correlation id, and gets 4 s. What comes back is
- * parsed with the contract: anything else is a module that did not answer.
- * A 403 is the module saying no, in its own words, and is never retried.
+ * them — a web question's support or view-as session unchanged — and the
+ * question's correlation id, and gets 4 s. What comes back is parsed with the
+ * contract: anything else is a module that did not answer. A 403 is the
+ * module saying no, in its own words, and is never retried.
  *
- * The catalogue is kept 60 s per tenant, account and module: field names and
+ * The catalogue is kept 60 s per tenant, account, session and module: field names and
  * option labels, never a value. A capability served at a major version the
  * assistant was not built against is dropped from it, and said once.
  *
@@ -51,6 +52,12 @@ const SERVING: readonly ModuleKey[] = [...new Set(allCapabilities.map((c) => c.m
 /** The response's JSON, or undefined where there is none to read. */
 const json = (response: Response): Promise<unknown> => response.json().catch(() => undefined);
 
+/** A module's refusal in its own words (`{ error: { message } }`), or a plain one. */
+function refusalOf(body: unknown): string {
+  const message = (body as { error?: { message?: unknown } } | undefined)?.error?.message;
+  return typeof message === 'string' ? message : 'You can’t see that here.';
+}
+
 export function modulesFrom(settings: Settings, options: ModulesOptions = {}): Modules {
   const send = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
@@ -76,8 +83,8 @@ export function modulesFrom(settings: Settings, options: ModulesOptions = {}): M
       userId: as.userId,
       tenantId: as.tenantId,
       entitlements: as.entitlements,
-      impersonatedBy: null,
-      viewedBy: null,
+      impersonatedBy: as.impersonatedBy,
+      viewedBy: as.viewedBy,
     }),
     'x-correlation-id': correlationId,
   });
@@ -88,7 +95,7 @@ export function modulesFrom(settings: Settings, options: ModulesOptions = {}): M
     async catalogue(module, as, correlationId) {
       const endpoint = endpoints.get(module);
       if (endpoint === undefined) return null;
-      const key = `${as.tenantId}:${as.userId}:${module}`;
+      const key = `${as.tenantId}:${as.userId}:${String(as.impersonatedBy)}:${String(as.viewedBy)}:${module}`;
       const kept = cache.get(key);
       if (kept !== undefined && now() - kept.at < CACHE_MS) return kept.catalogue;
       try {
@@ -96,6 +103,7 @@ export function modulesFrom(settings: Settings, options: ModulesOptions = {}): M
           headers: headers(endpoint, as, correlationId),
           signal: AbortSignal.timeout(timeoutMs),
         });
+        if (response.status === 403) return { refused: refusalOf(await json(response)) };
         if (response.status !== 200) {
           log.warn({ module, status: response.status, correlationId }, 'catalogue refused');
           return null;
@@ -141,13 +149,7 @@ export function modulesFrom(settings: Settings, options: ModulesOptions = {}): M
           signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
         });
         const body = await json(response);
-        if (response.status === 403) {
-          const message = (body as { error?: { message?: unknown } } | undefined)?.error?.message;
-          return err({
-            code: 'REFUSED',
-            message: typeof message === 'string' ? message : 'You can’t see that here.',
-          });
-        }
+        if (response.status === 403) return err({ code: 'REFUSED', message: refusalOf(body) });
         if (response.status !== 200)
           return failed('capability refused', { status: response.status });
         const parsed = capability.schemas.output.safeParse(body);
