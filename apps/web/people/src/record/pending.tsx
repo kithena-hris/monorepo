@@ -111,7 +111,7 @@ export function ApproveAlone({
         Approve it myself
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent sheetOnTouch={false}>
           <DialogHeader>
             <DialogTitle>Approve your own change to {label}?</DialogTitle>
             <DialogDescription>No other HR member can approve this change.</DialogDescription>

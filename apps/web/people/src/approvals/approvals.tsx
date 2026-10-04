@@ -674,7 +674,7 @@ function Ask({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent sheetOnTouch={false}>
         <DialogHeader>
           <DialogTitle>Ask {to} about this change</DialogTitle>
           <DialogDescription>
