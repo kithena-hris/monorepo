@@ -77,6 +77,17 @@ export function onIdentifierWritten(input: {
   return { supersede, open: flagged };
 }
 
+/**
+ * What HR decided about a review, for a Decided list: accepted, or sent back
+ * (which a new value later supersedes, decided all the same). Null for one
+ * nobody decided: still waiting, or replaced before anybody looked.
+ */
+export function reviewOutcome(review: IdentifierReview): 'accepted' | 'sent_back' | null {
+  if (review.decidedAt === null) return null;
+  if (review.state === 'accepted') return 'accepted';
+  return review.state === 'sent_back' || review.state === 'superseded' ? 'sent_back' : null;
+}
+
 /** The reviewer's decision on a pending review. */
 export function decideReview(
   review: IdentifierReview,

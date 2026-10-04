@@ -544,6 +544,16 @@ describe('a doubted national identifier held for approval (PEO-077, PEO-125)', (
       decision: 'accept',
     });
     expect(accepted.ok && accepted.value.state).toBe('accepted');
+    // Off the queue, and on HR's Decided (E9).
+    const queue = await s.access.identifierReviews(tx, asking(hr));
+    expect(queue.ok && queue.value).toEqual([]);
+    const closed = await s.access.identifierReviews(tx, {
+      ...asking(hr),
+      decidedSince: '2026-01-01T00:00:00.000Z',
+    });
+    expect(closed.ok && closed.value.map((r) => [r.attributeKey, r.state])).toEqual([
+      ['es_nif', 'accepted'],
+    ]);
     const inbox = await approvalsInbox(tx, s.deps, asking(hr));
     expect(inbox.ok && inbox.value.items[0]?.awaitingReview).toBe(false);
 

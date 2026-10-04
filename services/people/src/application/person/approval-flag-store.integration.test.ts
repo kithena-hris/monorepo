@@ -252,9 +252,25 @@ describe('what People keeps about the checks', () => {
        WHERE id = ${OTHER}::uuid`);
     await inTenant(ACME, ({ tx }) => store.recordDecided(tx, ACME, OTHER, ['raise', 'band']));
     const decided = await inTenant(ACME, ({ tx }) =>
-      changes.decided(tx, ACME, { since: '2026-09-01T00:00:00Z', limit: 10 }),
+      changes.decided(tx, ACME, {
+        since: '2026-09-01T00:00:00Z',
+        until: '2026-09-25T00:00:00Z',
+        limit: 10,
+      }),
     );
     expect(decided.map((c) => [c.approval.id, c.flags])).toEqual([[OTHER, ['raise', 'band']]]);
+    // Past its deadline, the one still pending lapsed: Decided lists it first, newest.
+    const later = await inTenant(ACME, ({ tx }) =>
+      changes.decided(tx, ACME, {
+        since: '2026-09-01T00:00:00Z',
+        until: '2026-10-01T00:00:00Z',
+        limit: 10,
+      }),
+    );
+    expect(later.map((c) => [c.approval.id, c.approval.state])).toEqual([
+      [CHANGE, 'pending'],
+      [OTHER, 'rejected'],
+    ]);
     const stats = await inTenant(ACME, ({ tx }) => store.stats(tx, ACME, '2026-07-01T00:00:00Z'));
     // OTHER flagged and rejected; CHANGE marked not unusual.
     expect(stats).toEqual({ flagged: 2, rejected: 1, marked: 1 });

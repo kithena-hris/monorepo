@@ -116,11 +116,14 @@ export interface PendingChangeStore {
   ): Promise<readonly PendingChange[]>;
   /** Every change to one person, whatever it became, oldest first: their subject access pack. */
   forPerson(tx: Tx, tenantId: string, personId: string): Promise<readonly PendingChange[]>;
-  /** Approved or rejected since an instant, newest decision first: the Decided tab. */
+  /**
+   * Approved or rejected since an instant, or lapsed since then by `until`
+   * (an expiry not yet recorded included), newest first: the Decided tab.
+   */
   decided(
     tx: Tx,
     tenantId: string,
-    where: { readonly since: string; readonly limit: number },
+    where: { readonly since: string; readonly until: string; readonly limit: number },
   ): Promise<readonly PendingChange[]>;
   /** A sealed value's plaintext, while it is pending. */
   unseal(tx: Tx, tenantId: string, id: string): Promise<string | null>;

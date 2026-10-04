@@ -28,12 +28,13 @@ import {
   icons,
   type RowAction,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useState, type ComponentProps, type JSX, type ReactNode } from 'react';
 
 import {
   ChangeDetail,
   Checks,
   ago,
+  isClosed,
   isFlagged,
   summaryOf,
   type ApprovalItem,
@@ -220,6 +221,8 @@ interface Row {
   readonly id: string;
   readonly kind: Exclude<ReviewKind, 'missing'>;
   readonly name: string;
+  /** Their photo, where People sent one. */
+  readonly avatarUrl?: string | null;
   readonly summary: string;
   /** When it was asked for, for its age and the order; null for a pair, which has none. */
   readonly at: string | null;
@@ -231,15 +234,17 @@ const changeRow = (item: ApprovalItem): Row => ({
   id: `change-${item.id}`,
   kind: 'changes',
   name: item.name,
+  avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
   at: item.requestedAt,
-  flag: item.state === 'approved' || item.state === 'rejected' ? null : (item.flagSummary ?? null),
+  flag: isClosed(item) ? null : (item.flagSummary ?? null),
 });
 
 const idRow = (item: ReviewItem): Row => ({
   id: `id-${idCheckId(item)}`,
   kind: 'ids',
   name: item.name,
+  avatarUrl: item.avatarUrl ?? null,
   summary: `${item.label} · ${item.findings[0]?.message ?? ''}`,
   at: item.enteredAt,
   badge: verdictOf(item),
@@ -444,8 +449,18 @@ function Queue({
 
   const all = rowsOf(state, tab, viewer);
   const rows = kind === null ? all : all.filter((r) => r.kind === kind);
+  // Decided counts what it lists (E9): each kind's decisions, and the merges.
+  const decisions = tab === 'decided' ? decisionsOf(state) : [];
+  const merged = tab === 'decided' ? (state.duplicates?.merges ?? []).length : 0;
+  const total = tab === 'decided' ? decisions.length + merged : all.length;
   const countOf = (k: ReviewKind): number =>
-    k === 'missing' ? (state.completeness?.toFill ?? 0) : all.filter((r) => r.kind === k).length;
+    k === 'missing'
+      ? (state.completeness?.toFill ?? 0)
+      : tab === 'decided'
+        ? k === 'duplicates'
+          ? merged
+          : decisions.filter((d) => d.kind === k).length
+        : all.filter((r) => r.kind === k).length;
 
   const description =
     viewer === 'hr'
@@ -470,7 +485,7 @@ function Queue({
         }}
       >
         <ChipGroupItem value="all">
-          All <span className="opacity-60 tabular-nums">{all.length}</span>
+          All <span className="opacity-60 tabular-nums">{total}</span>
         </ChipGroupItem>
         {chips.map((k) => (
           <ChipGroupItem key={k} value={k}>
@@ -644,7 +659,7 @@ function Rows({
             const actions = actionsOf?.(row);
             return actions === undefined ? {} : { actions };
           })()}
-          leading={<Avatar size="lg" name={row.name} />}
+          leading={<Avatar size="lg" name={row.name} src={row.avatarUrl ?? undefined} />}
           description={
             <span className="flex min-w-0 items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
               {KIND_ICON[row.kind]}
@@ -961,6 +976,79 @@ function ExportDetail({
   );
 }
 
+/** One decision on Decided (E9), whatever its kind. */
+interface Decision {
+  readonly key: string;
+  readonly kind: 'changes' | 'ids' | 'access';
+  readonly name: string;
+  readonly avatarUrl?: string | null;
+  readonly what: string;
+  readonly outcome: { readonly tone: ComponentProps<typeof Badge>['tone']; readonly text: string };
+  readonly by: string;
+  readonly when: string | null;
+}
+
+/** Every decision of the last 90 days the viewer may see, newest first. */
+function decisionsOf(state: ReviewState): Decision[] {
+  const changes = (state.approvals?.decided ?? []).map(
+    (c): Decision => ({
+      key: `change-${c.id}`,
+      kind: 'changes',
+      name: c.name,
+      avatarUrl: c.avatarUrl ?? null,
+      what: [
+        `${c.label} change`,
+        isFlagged(c)
+          ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
+          : null,
+        c.note ? `Note: “${c.note}”` : null,
+      ]
+        .filter((x) => x !== null)
+        .join(' · '),
+      outcome:
+        c.state === 'approved'
+          ? { tone: 'success', text: 'Approved' }
+          : c.state === 'lapsed'
+            ? { tone: 'neutral', text: 'Lapsed' }
+            : { tone: 'danger', text: 'Rejected' },
+      by: c.state === 'lapsed' ? 'Nobody, in 7 days' : (c.decidedBy ?? 'HR'),
+      when: c.decidedAt ?? null,
+    }),
+  );
+  const ids = (state.identifiers?.decided ?? []).map(
+    (r): Decision => ({
+      key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
+      kind: 'ids',
+      name: r.name,
+      what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
+        .filter((x) => x !== null)
+        .join(' · '),
+      outcome:
+        r.outcome === 'accepted'
+          ? { tone: 'success', text: 'Accepted' }
+          : { tone: 'danger', text: 'Sent back' },
+      by: r.decidedBy,
+      when: r.decidedAt,
+    }),
+  );
+  const requests = (state.fullValues?.requests ?? [])
+    .filter((r) => r.state !== 'pending')
+    .map(
+      (r): Decision => ({
+        key: `access-${r.id}`,
+        kind: 'access',
+        name: askedBy(r),
+        what: `Full values: ${r.fields.join(', ')}${r.note === null ? '' : ` · “${r.note}”`}`,
+        outcome: stateOf(r),
+        by: '—',
+        when: r.requestedAt,
+      }),
+    );
+  return [...changes, ...ids, ...requests].toSorted((a, b) =>
+    (b.when ?? '').localeCompare(a.when ?? ''),
+  );
+}
+
 /**
  * Decided (E9): every kind for 90 days, with who decided and when, and the
  * merged records underneath with Undo, or why it cannot be undone.
@@ -976,44 +1064,11 @@ function Decided({
   readonly viewer: Viewer;
   readonly onUnmerge: DuplicateActions['onUnmerge'];
 }): JSX.Element {
-  const changes = kind === null || kind === 'changes' ? (state.approvals?.decided ?? []) : [];
-  const requests =
-    kind === null || kind === 'access'
-      ? (state.fullValues?.requests ?? []).filter((r) => r.state !== 'pending')
-      : [];
+  const decisions = decisionsOf(state).filter((d) => kind === null || d.kind === kind);
   const merges =
     viewer === 'hr' && (kind === null || kind === 'duplicates')
       ? (state.duplicates?.merges ?? [])
       : [];
-  const decisions = [
-    ...changes.map((c) => ({
-      key: `change-${c.id}`,
-      name: c.name,
-      what: [
-        `${c.label} change`,
-        isFlagged(c)
-          ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
-          : null,
-        c.note ? `Note: “${c.note}”` : null,
-      ]
-        .filter((x) => x !== null)
-        .join(' · '),
-      outcome:
-        c.state === 'approved'
-          ? { tone: 'success' as const, text: 'Approved' }
-          : { tone: 'danger' as const, text: 'Rejected' },
-      by: c.decidedBy ?? 'HR',
-      when: c.decidedAt,
-    })),
-    ...requests.map((r) => ({
-      key: `access-${r.id}`,
-      name: askedBy(r),
-      what: `Full values: ${r.fields.join(', ')}${r.note === null ? '' : ` · “${r.note}”`}`,
-      outcome: stateOf(r),
-      by: '—',
-      when: r.requestedAt,
-    })),
-  ].toSorted((a, b) => (b.when ?? '').localeCompare(a.when ?? ''));
   if (decisions.length === 0 && merges.length === 0) {
     return (
       <Card padded>
@@ -1044,7 +1099,7 @@ function Decided({
                 <TableRow key={d.key}>
                   <TableCell>
                     <span className="flex min-w-0 items-center gap-2">
-                      <Avatar size="sm" name={d.name} />
+                      <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
                       <span className="truncate">{d.name}</span>
                     </span>
                   </TableCell>

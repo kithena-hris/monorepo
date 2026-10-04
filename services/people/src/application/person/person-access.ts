@@ -414,10 +414,14 @@ export interface PersonAccess {
     tx: Tx,
     asking: On<{ readonly values: Readonly<Record<string, unknown>> }>,
   ): Promise<Result<readonly AttributeFindings[]>>;
-  /** HR's queue of doubted identifiers, oldest first, only what HR may read (PEO-125). */
+  /**
+   * HR's queue of doubted identifiers, oldest first, only what HR may read
+   * (PEO-125). With `decidedSince`, those HR decided since then instead,
+   * newest first: Review's Decided.
+   */
   identifierReviews(
     tx: Tx,
-    asking: Asking & { readonly limit?: number },
+    asking: Asking & { readonly limit?: number; readonly decidedSince?: string },
   ): Promise<Result<readonly ReviewItem[]>>;
   /** One person's open reviews, only on attributes the viewer may read. */
   personReviews(tx: Tx, asking: On<object>): Promise<Result<readonly IdentifierReview[]>>;
@@ -3027,7 +3031,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews identifiers'));
       if (!deps.reviews) return ok([]);
       const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
-      const pending = await deps.reviews.pending(tx, asking.tenantId, asking.limit ?? 100);
+      const pending =
+        asking.decidedSince === undefined
+          ? await deps.reviews.pending(tx, asking.tenantId, asking.limit ?? 100)
+          : await deps.reviews.decided(
+              tx,
+              asking.tenantId,
+              asking.decidedSince,
+              asking.limit ?? 100,
+            );
       const items: ReviewItem[] = [];
       // ponytail: one relation lookup per review, as `list` does per person.
       for (const review of pending) {

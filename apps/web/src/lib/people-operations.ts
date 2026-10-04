@@ -145,7 +145,7 @@ export const OPERATIONS = {
     }
   }
   fragment ApprovalParts on ApprovalItem {
-    id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+    id personId name avatarUrl key label kind readable effectiveFrom requestedAt expiresAt requestedBy
     reason mine canDecide canSelfApprove awaitingReview findings { level code message }
     flags { code title detail }
     comparisons { label percent highlight }
@@ -157,7 +157,8 @@ export const OPERATIONS = {
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
-      items { personId name attributeKey label last4 findings { level code message } enteredAt held }
+      items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held }
+      decided { personId name label outcome decidedBy decidedAt note }
     }
   }`,
 

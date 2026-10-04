@@ -128,9 +128,12 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
     async decided(tx, tenantId, where) {
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS}, flags FROM people.pending_change
-         WHERE tenant_id = ${tenantId}::uuid AND state IN ('approved', 'rejected')
-           AND decided_at >= ${where.since}::timestamptz
-         ORDER BY decided_at DESC, id
+         WHERE tenant_id = ${tenantId}::uuid
+           AND ((state IN ('approved', 'rejected') AND decided_at >= ${where.since}::timestamptz)
+                OR (state IN ('expired', 'pending')
+                    AND expires_at >= ${where.since}::timestamptz
+                    AND expires_at <= ${where.until}::timestamptz))
+         ORDER BY COALESCE(decided_at, expires_at) DESC, id
          LIMIT ${where.limit}`);
       return [...rows].map(fromRow);
     },
@@ -204,10 +207,19 @@ export function inMemoryPendingChangeStore(): PendingChangeStore & {
           .filter(
             (c) =>
               c.tenantId === tenantId &&
-              (c.approval.state === 'approved' || c.approval.state === 'rejected') &&
-              (c.approval.decidedAt ?? '') >= where.since,
+              ((c.approval.state === 'approved' || c.approval.state === 'rejected') &&
+              c.approval.decidedAt !== null
+                ? c.approval.decidedAt >= where.since
+                : (c.approval.state === 'expired' || c.approval.state === 'pending') &&
+                  c.approval.expiresAt >= where.since &&
+                  c.approval.expiresAt <= where.until),
           )
-          .toSorted((a, b) => ((a.approval.decidedAt ?? '') < (b.approval.decidedAt ?? '') ? 1 : -1))
+          .toSorted((a, b) =>
+            (a.approval.decidedAt ?? a.approval.expiresAt) <
+            (b.approval.decidedAt ?? b.approval.expiresAt)
+              ? 1
+              : -1,
+          )
           .slice(0, where.limit),
       ),
     unseal: (_tx, tenantId, id) =>

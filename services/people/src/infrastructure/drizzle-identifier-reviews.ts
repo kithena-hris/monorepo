@@ -155,6 +155,15 @@ export function drizzleIdentifierReviews(
       return [...rows].map(fromRow);
     },
 
+    async decided(tx, tenantId, since, limit) {
+      const rows = await tx.execute<Row>(sql`
+        SELECT ${COLUMNS} FROM people.identifier_review
+         WHERE tenant_id = ${tenantId}::uuid AND decided_at >= ${since}::timestamptz
+         ORDER BY decided_at DESC, id
+         LIMIT ${limit}`);
+      return [...rows].map(fromRow);
+    },
+
     async forChange(tx, tenantId, changeId) {
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS} FROM people.identifier_review

@@ -52,6 +52,8 @@ export interface ReviewFinding {
 export interface ReviewItem {
   readonly personId: string;
   readonly name: string;
+  /** Their photo, when they have one and the viewer may read them. Absent from an older People. */
+  readonly avatarUrl?: string | null;
   readonly attributeKey: string;
   readonly label: string;
   readonly last4: string | null;
@@ -61,8 +63,21 @@ export interface ReviewItem {
   readonly held?: boolean;
 }
 
+/** An identifier HR decided (E9). Never the value. */
+export interface DecidedReview {
+  readonly personId: string;
+  readonly name: string;
+  readonly label: string;
+  readonly outcome: 'accepted' | 'sent_back';
+  readonly decidedBy: string;
+  readonly decidedAt: string;
+  readonly note: string | null;
+}
+
 export interface IdentifierReviewsState {
   readonly items: readonly ReviewItem[];
+  /** Decided in the last 90 days, newest first. Absent from an older People. */
+  readonly decided?: readonly DecidedReview[];
 }
 
 export type Revealed =
@@ -123,7 +138,7 @@ export function IdCheckDetail({
   return (
     <Card padded className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
-        <Avatar size="xl" name={item.name} />
+        <Avatar size="xl" name={item.name} src={item.avatarUrl ?? undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-md font-bold">
             {item.name}

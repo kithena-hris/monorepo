@@ -260,16 +260,36 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         last4: t.exposeString('last4', { nullable: true }),
         findings: t.field({ type: [FindingRef], resolve: (r) => list(r.findings) }),
         enteredAt: t.exposeString('enteredAt'),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
         held: t.exposeBoolean('held', {
           description:
             'Held for approval, not yet written: reviewed first; sending it back declines the change.',
         }),
       }),
     });
+  const DecidedReviewRef = builder
+    .objectRef<IdentifierReviewsView['decided'][number]>('DecidedIdentifierReview')
+    .implement({
+      description: 'An identifier HR decided: never the value.',
+      fields: (t) => ({
+        personId: t.exposeID('personId'),
+        name: t.exposeString('name'),
+        label: t.exposeString('label'),
+        outcome: t.exposeString('outcome', { description: 'accepted or sent_back.' }),
+        decidedBy: t.exposeString('decidedBy'),
+        decidedAt: t.exposeString('decidedAt'),
+        note: t.exposeString('note', { nullable: true }),
+      }),
+    });
   const ReviewsRef = builder.objectRef<IdentifierReviewsView>('PeopleIdentifierReviews').implement({
     description: 'HR’s queue of doubted national identifiers, oldest first.',
     fields: (t) => ({
       items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
+      decided: t.field({
+        type: [DecidedReviewRef],
+        description: 'Decided in the last 90 days, newest first.',
+        resolve: (v) => list(v.decided),
+      }),
     }),
   });
   /* ------------------------------------------------- duplicates (PEO-074) -- */
@@ -687,7 +707,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         canAsk: t.exposeBoolean('canAsk'),
         canMark: t.exposeBoolean('canMark', { description: 'May mark its flags not unusual.' }),
         questions: t.field({ type: [ApprovalQuestionRef], resolve: (c) => list(c.questions) }),
-        state: t.exposeString('state', { description: 'pending, approved or rejected.' }),
+        state: t.exposeString('state', { description: 'pending, approved, rejected or lapsed.' }),
         decidedBy: t.exposeString('decidedBy', { nullable: true }),
         decidedAt: t.exposeString('decidedAt', { nullable: true }),
         note: t.exposeString('note', { nullable: true }),
@@ -708,6 +728,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         findings: t.field({ type: [FindingRef], resolve: (c) => list(c.findings) }),
         personId: t.exposeID('personId'),
         name: t.exposeString('name'),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
         readable: t.exposeBoolean('readable', {
           description:
             'False where the viewer may not read the field: value and current are empty.',

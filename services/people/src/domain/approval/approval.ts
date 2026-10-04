@@ -126,6 +126,24 @@ export function decide(
   });
 }
 
+/**
+ * What became of a request by `at`, and when, for a Decided list: the
+ * decision when it was made, or lapsed at its deadline once nobody decided
+ * in time, recorded or not yet. Null while it waits, and once withdrawn,
+ * which nobody decided.
+ */
+export function outcomeAt(
+  approval: Approval,
+  at: string,
+): { readonly state: 'approved' | 'rejected' | 'lapsed'; readonly at: string } | null {
+  const state = stateAt(approval, at);
+  if (state === 'expired') return { state: 'lapsed', at: approval.expiresAt };
+  if ((state === 'approved' || state === 'rejected') && approval.decidedAt !== null) {
+    return { state, at: approval.decidedAt };
+  }
+  return null;
+}
+
 /** Record that a pending request ran out of time. Refused while it still has some. */
 export function expire(approval: Approval, at: string): Result<Approval> {
   if (approval.state !== 'pending') {

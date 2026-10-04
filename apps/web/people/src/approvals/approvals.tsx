@@ -90,6 +90,8 @@ export interface ApprovalQuestion {
 export interface ApprovalItem extends PendingValue {
   readonly personId: string;
   readonly name: string;
+  /** Their photo, when they have one and the viewer may read them. Absent from an older People. */
+  readonly avatarUrl?: string | null;
   /** False where the viewer may not read the field: they decide on who, when and why. */
   readonly readable: boolean;
   /** What is in force now, masked as the field is. */
@@ -103,7 +105,8 @@ export interface ApprovalItem extends PendingValue {
   readonly canAsk?: boolean;
   readonly canMark?: boolean;
   readonly questions?: readonly ApprovalQuestion[];
-  readonly state?: 'pending' | 'approved' | 'rejected';
+  /** Lapsed: nobody decided it within its seven days. */
+  readonly state?: 'pending' | 'approved' | 'rejected' | 'lapsed';
   readonly decidedBy?: string | null;
   readonly decidedAt?: string | null;
   readonly note?: string | null;
@@ -195,12 +198,16 @@ function compact(value: AttributeValue): string | null {
 
 const shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
+/** Decided, or lapsed with nobody deciding: no longer waiting. */
+export const isClosed = (item: ApprovalItem): boolean =>
+  item.state === 'approved' || item.state === 'rejected' || item.state === 'lapsed';
+
 /** "Salary €61k → €84k · from 1 Oct", or the field and the date where no amount shows. */
 export function summaryOf(item: ApprovalItem): string {
   const from = `from ${shortDate.format(Date.parse(`${item.effectiveFrom}T00:00:00Z`))}`;
   const after = item.readable ? compact(item.value) : null;
   // A decided change keeps what was asked for, not what was in force before it.
-  if (item.state === 'approved' || item.state === 'rejected') {
+  if (isClosed(item)) {
     return after === null ? `${item.label} · ${from}` : `${item.label} ${after} · ${from}`;
   }
   const before = item.readable ? compact(item.current) : null;
@@ -262,7 +269,7 @@ export function ChangeDetail({
   const field = asField(item);
   const flags = flagsOf(item);
   const flaggedNow = flags.length > 0;
-  const decided = item.state === 'approved' || item.state === 'rejected';
+  const decided = isClosed(item);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<'approve' | 'reject' | 'mark' | 'withdraw' | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
@@ -293,7 +300,7 @@ export function ChangeDetail({
     // Not a landmark of its own: the list-detail's pane is the region, named for it.
     <Card padded className="flex flex-col gap-3.5">
       <div className="flex items-start gap-3">
-        <Avatar size="xl" name={item.name} />
+        <Avatar size="xl" name={item.name} src={item.avatarUrl ?? undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-md font-bold">
             {onOpen === undefined ? (
@@ -314,9 +321,11 @@ export function ChangeDetail({
           <p className="text-sm text-fg-muted">
             Asked by {item.requestedBy} on {longDate(item.requestedAt.slice(0, 10))}
             {decided
-              ? ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
-                  item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''
-                }`
+              ? item.state === 'lapsed'
+                ? ` · lapsed${item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''}, nobody decided in 7 days`
+                : ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
+                    item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''
+                  }`
               : ` · expires in ${daysLeft(item.expiresAt, now).replace(' left', '').toLowerCase()}`}
           </p>
         </div>

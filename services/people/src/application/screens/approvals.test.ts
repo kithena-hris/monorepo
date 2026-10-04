@@ -227,6 +227,20 @@ describe('a flagged approval (AI7)', () => {
   });
 });
 
+describe('Decided (E9)', () => {
+  it('lists a change nobody decided in its seven days as lapsed, by nobody', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z');
+    const { item } = await askedForRaise(s);
+    const later = await approvalsView(
+      { ...s.deps, clock: fixedClock('2026-09-30T10:00:00.000Z') },
+      asking(SOFIA),
+    );
+    expect(later.ok && later.value.decided.map((d) => [d.id, d.state, d.decidedBy, d.decidedAt])).toEqual([
+      [item.id, 'lapsed', null, item.expiresAt],
+    ]);
+  });
+});
+
 describe('Not unusual', () => {
   it('quietens the flag, decides nothing, and is whoever decides it’s alone', async () => {
     const s = setup('2026-09-22T10:00:00.000Z', { raises });

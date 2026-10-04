@@ -201,6 +201,7 @@ type ApprovalFlagStats {
 }
 
 type ApprovalItem {
+  avatarUrl: String
   awaitingReview: Boolean
   canAsk: Boolean
   canDecide: Boolean
@@ -237,7 +238,7 @@ type ApprovalItem {
   reason: String
   requestedAt: String
   requestedBy: String
-  """pending, approved or rejected."""
+  """pending, approved, rejected or lapsed."""
   state: String
   value: FormEntry
 }
@@ -404,6 +405,18 @@ A calendar date (YYYY-MM-DD) or an ISO 8601 instant, per the attribute.
 type DateAttribute {
   key: String
   value: String
+}
+
+"""An identifier HR decided: never the value."""
+type DecidedIdentifierReview {
+  decidedAt: String
+  decidedBy: String
+  label: String
+  name: String
+  note: String
+  """accepted or sent_back."""
+  outcome: String
+  personId: ID
 }
 
 """A field somebody asked the person to fill in, still empty."""
@@ -815,6 +828,7 @@ type IdentifierReviewEntry {
 
 type IdentifierReviewItem {
   attributeKey: String
+  avatarUrl: String
   enteredAt: String
   findings: [IdentifierFinding!]
   """
@@ -1766,6 +1780,8 @@ type PeopleHome {
 
 """HR’s queue of doubted national identifiers, oldest first."""
 type PeopleIdentifierReviews {
+  """Decided in the last 90 days, newest first."""
+  decided: [DecidedIdentifierReview!]
   items: [IdentifierReviewItem!]
 }
 

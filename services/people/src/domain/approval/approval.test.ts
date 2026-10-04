@@ -4,6 +4,7 @@ import {
   decide,
   expire,
   openApproval,
+  outcomeAt,
   stateAt,
   useOnce,
   withdraw,
@@ -109,6 +110,31 @@ describe('expiry', () => {
     if (!approved.ok) throw new Error('not approved');
     const decided = expire(approved.value, WEEK_LATER);
     expect(!decided.ok && decided.error.code).toBe('APPROVAL_DECIDED');
+  });
+});
+
+describe('what became of it, for Decided', () => {
+  it('is nothing while it waits, or once withdrawn', () => {
+    expect(outcomeAt(pending(), AT)).toBeNull();
+    const withdrawn = withdraw(pending(), { by: FINANCE, at: AT });
+    expect(withdrawn.ok && outcomeAt(withdrawn.value, AT)).toBeNull();
+  });
+
+  it('is the decision, when it was made', () => {
+    const decided = decide(pending(), { by: HR, approve: false, at: AT });
+    expect(decided.ok && outcomeAt(decided.value, WEEK_LATER)).toEqual({
+      state: 'rejected',
+      at: AT,
+    });
+  });
+
+  it('is lapsed at its deadline, recorded or not yet', () => {
+    expect(outcomeAt(pending(), WEEK_LATER)).toEqual({ state: 'lapsed', at: WEEK_LATER });
+    const expired = expire(pending(), WEEK_LATER);
+    expect(expired.ok && outcomeAt(expired.value, WEEK_LATER)).toEqual({
+      state: 'lapsed',
+      at: WEEK_LATER,
+    });
   });
 });
 
