@@ -5,7 +5,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { useId, type ComponentPropsWithoutRef, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
-import { bgTone, type ChartTone } from '../chart/chart';
+import { bgTone, type ChartTone } from '../chart/tones';
 
 /**
  * Determinate and indeterminate progress.

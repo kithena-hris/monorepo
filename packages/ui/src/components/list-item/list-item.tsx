@@ -26,7 +26,7 @@ import {
   shortcutKeys,
   type RowAction,
 } from '../../lib/shortcut-keys';
-import { toneVar, type ChartTone } from '../chart/chart';
+import { toneVar, type ChartTone } from '../chart/tones';
 import { RowMenu } from '../table/row-menu';
 
 /**
