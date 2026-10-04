@@ -71,6 +71,7 @@ function world(
     extra?: readonly ReturnType<typeof define>[];
     staff?: readonly { key: string; people: number }[];
     org?: boolean;
+    hrPeople?: number;
   } = {},
 ) {
   const store = inMemoryPeople([versionOf(1, [...attributes, ...(options.extra ?? [])])]);
@@ -106,6 +107,9 @@ function world(
         waiting: 70,
         staff: options.staff ?? [{ key: 'cost_centre', people: 1 }],
       }),
+    ...(options.hrPeople === undefined
+      ? {}
+      : { gapPeople: () => Promise.resolve(options.hrPeople ?? 0) }),
     ...(options.figures === false
       ? {}
       : {
@@ -153,6 +157,17 @@ describe('the completeness view', () => {
     const w = world();
     await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
     expect(w.asked).toEqual([{ payroll: ['iban'], people: [MEI, OMAR] }]);
+  });
+
+  it('counts the rows it lists over everybody: a person HR fills for, and one waiting on themselves', async () => {
+    const w = world({ hrPeople: 1200 });
+    const view = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
+    if (!view.ok) throw new Error(view.error.message);
+    // 1,200 people with a gap HR fills, 70 with their own to give.
+    expect(view.value.listed).toBe(1270);
+    // The same whichever page or person is read: it is everybody's.
+    const one = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'), { person: OMAR });
+    expect(one.ok && one.value.listed).toBe(1270);
   });
 
   it('carries the store’s figures: blocking payroll, the last reminder, and who is due', async () => {

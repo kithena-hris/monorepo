@@ -2386,6 +2386,12 @@ export interface CompletenessView {
   readonly completedThisWeek: number;
   /** HR's missing values over everybody, not only this page. */
   readonly toFill: number;
+  /**
+   * The rows this lists over everybody, not only this page: one for each
+   * person HR fills something in for, and one for each waiting on themselves.
+   * What Review's chip counts.
+   */
+  readonly listed: number;
   /** People missing bank, tax or ID details (`blocksPayroll`); null where not known. */
   readonly blocking: number | null;
   readonly fields: readonly {
@@ -2517,6 +2523,14 @@ export async function completenessView(
     }
     const staff = totals.staff.filter((s) => hrs(s.key));
     const org = await orgChoices(deps, tx, asking.tenantId);
+    const hrPeople =
+      deps.gapPeople === undefined
+        ? Math.max(0, ...staff.map((s) => s.people))
+        : await deps.gapPeople(
+            tx,
+            asking.tenantId,
+            staff.map((s) => s.key),
+          );
     // HR's fields over everybody, then the labels of the person's own on this page.
     const shown = new Set(staff.map((s) => s.key));
     const own = [
@@ -2531,6 +2545,7 @@ export async function completenessView(
       },
       completedThisWeek: 0,
       toFill: hrToFill(totals, version),
+      listed: hrPeople + totals.waiting,
       blocking: figures?.blocking ?? null,
       fields: [...staff.map((s) => s.key), ...own].flatMap((key) => {
         const d = byKey.get(key);

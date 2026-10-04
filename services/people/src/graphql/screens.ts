@@ -1091,6 +1091,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: 'HR’s own changes and requests for full values, waiting on somebody else.',
       }),
+      changes: t.exposeInt('changes', {
+        nullable: true,
+        description: 'Changes in HR’s Waiting tab: all but the viewer’s own that wait on somebody else.',
+      }),
       exports: t.exposeInt('exports', {
         nullable: true,
         description: 'Requests to send an export this viewer may decide.',
@@ -1175,6 +1179,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       waiting: t.field({ type: Waiting, resolve: (v) => v.waiting }),
       completedThisWeek: t.exposeInt('completedThisWeek'),
       toFill: t.exposeInt('toFill', { description: 'Over everybody, not only this page' }),
+      listed: t.exposeInt('listed', {
+        description:
+          'Rows Missing details lists over everybody: a person HR fills for, and a person waiting on themselves.',
+      }),
       blocking: t.exposeInt('blocking', {
         nullable: true,
         description: 'People missing bank, tax or ID details, whoever fills them in.',

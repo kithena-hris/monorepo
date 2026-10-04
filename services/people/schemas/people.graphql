@@ -1700,6 +1700,10 @@ type PeopleCompleteness {
   blocking: Int
   completedThisWeek: Int
   fields: [CompletenessField!]
+  """
+  Rows Missing details lists over everybody: a person HR fills for, and a person waiting on themselves.
+  """
+  listed: Int
   next: String
   rows: [CompletenessRow!]
   since: String
@@ -2285,6 +2289,10 @@ type PeopleWaiting {
   HR’s own changes and requests for full values, waiting on somebody else.
   """
   asked: Int
+  """
+  Changes in HR’s Waiting tab: all but the viewer’s own that wait on somebody else.
+  """
+  changes: Int
   duplicates: Int
   """
   What flagged the suspected duplicates: Kithena’s duplicate check, SCIM provisioning, or both.
