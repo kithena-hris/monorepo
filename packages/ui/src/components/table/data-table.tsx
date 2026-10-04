@@ -493,6 +493,9 @@ export interface DataTableProps<T extends TableRow> {
   estimateRowHeight?: number;
 }
 
+/** The box a virtualized table assumes before it is measured: a desk's window. */
+const INITIAL_RECT = { width: 0, height: 900 };
+
 export function DataTable<T extends TableRow>({
   ref,
   rows,
@@ -773,6 +776,10 @@ export function DataTable<T extends TableRow>({
     // mostly lands on rows already drawn. Where it outruns them, the spacers
     // are skeleton rows (`SpacerRow`), never blank.
     overscan: 20,
+    // Before the box is measured — on the server, and in the browser's first
+    // render, which must match it — a window's height is assumed, so the
+    // page arrives with its first rows drawn rather than a skeleton.
+    initialRect: INITIAL_RECT,
   });
 
   // The pinned header's height: with every row counted at its height, the
@@ -945,6 +952,14 @@ export function DataTable<T extends TableRow>({
   // since a first page shorter than the container never scrolls at all.
   const endReached = useRef(onEndReached);
   endReached.current = onEndReached;
+  // "50 more loaded", as each page lands: the rows below the reader are not announced otherwise.
+  const [said, setSaid] = useState('');
+  const loadedBefore = useRef(rows.length);
+  useEffect(() => {
+    const added = rows.length - loadedBefore.current;
+    loadedBefore.current = rows.length;
+    if (onEndReached !== undefined && added > 0) setSaid(`${String(added)} more loaded`);
+  }, [rows.length, onEndReached]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
     const el = scrollRef.current;
@@ -1540,6 +1555,11 @@ export function DataTable<T extends TableRow>({
       )}
 
       {bulkBar}
+      {onEndReached === undefined ? null : (
+        <span aria-live="polite" className="sr-only">
+          {said}
+        </span>
+      )}
     </div>
   );
 }
