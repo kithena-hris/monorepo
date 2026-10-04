@@ -783,8 +783,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       items: t.field({ type: [ApprovalItemRef], resolve: (v) => list(v.items) }),
       decided: t.field({
         type: [ApprovalItemRef],
-        description: 'HR’s: decided in the last 90 days, newest first.',
+        description: 'HR’s: decided in the last 90 days, newest first, a page at a time.',
         resolve: (v) => list(v.decided),
+      }),
+      decidedNext: t.exposeString('decidedNext', {
+        nullable: true,
+        description: 'The next page of Decided, as `decidedAfter`; null on the last.',
       }),
       checks: t.field({
         type: [ApprovalCheckRef],
@@ -3581,7 +3585,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: ApprovalsRef,
       description:
         'Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.',
-      resolve: view<ApprovalsView>(() => '/v1/views/approvals'),
+      args: {
+        decidedAfter: t.arg.string({
+          description:
+            'Decided’s next page, from the last page’s `decidedNext`; the queue is left out.',
+        }),
+      },
+      resolve: view<ApprovalsView>((args: { decidedAfter?: string | null }) =>
+        args.decidedAfter
+          ? `/v1/views/approvals?decidedAfter=${encodeURIComponent(args.decidedAfter)}`
+          : '/v1/views/approvals',
+      ),
     }),
     peopleIdentifierReviews: t.field({
       type: ReviewsRef,

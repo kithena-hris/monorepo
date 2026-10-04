@@ -913,7 +913,11 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/approvals$/,
-      handle: async (asking) => answer(await approvalsView(deps, asking)),
+      // `decidedAfter`: Decided's next page, from the last page's `decidedNext`.
+      handle: async (asking, _r, _p, query) =>
+        answer(
+          await approvalsView(deps, asking, query.get('decidedAfter')?.slice(0, 100) ?? null),
+        ),
     },
     // The viewer's own requests, decided (E10): an employee's Decided tab.
     {

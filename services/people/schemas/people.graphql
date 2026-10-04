@@ -1632,8 +1632,10 @@ type PeopleApprovals {
   canTune: Boolean
   """What Kithena checks, for HR."""
   checks: [ApprovalCheck!]
-  """HR’s: decided in the last 90 days, newest first."""
+  """HR’s: decided in the last 90 days, newest first, a page at a time."""
   decided: [ApprovalItem!]
+  """The next page of Decided, as `decidedAfter`; null on the last."""
+  decidedNext: String
   isHr: Boolean
   items: [ApprovalItem!]
   last90: ApprovalFlagStats
@@ -2445,7 +2447,12 @@ type Query {
   """
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
-  peopleApprovals: PeopleApprovals
+  peopleApprovals(
+    """
+    Decided’s next page, from the last page’s `decidedNext`; the queue is left out.
+    """
+    decidedAfter: String
+  ): PeopleApprovals
   peopleAsk(
     """
     Earlier questions in the same conversation, oldest first, for a follow-up.

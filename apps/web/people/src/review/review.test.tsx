@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ApprovalItem } from '../approvals/approvals';
 import type { ShareRequest } from '../export/export-done';
@@ -231,6 +231,66 @@ describe('Review', () => {
     expect(within(table).getByText('Nobody, in 7 days')).toBeInTheDocument();
     expect(within(table).getByText('Sent back')).toBeInTheDocument();
     expect(within(table).getByText('Ada Lovelace')).toBeInTheDocument();
+  });
+
+  it('loads older decisions as it scrolls, an older ID check waiting for the changes around it', async () => {
+    const decided = (id: string, at: string): ApprovalItem => ({
+      ...change,
+      id,
+      state: 'approved',
+      decidedBy: 'Ada Lovelace',
+      decidedAt: at,
+      flagSummary: null,
+      flags: [],
+    });
+    const onMoreDecided = vi.fn(() =>
+      Promise.resolve({
+        isHr: true,
+        items: [],
+        decided: [decided('c-old', '2026-08-01T09:00:00.000Z')],
+        decidedNext: null,
+      }),
+    );
+    renderReview(
+      {
+        approvals: {
+          isHr: true,
+          items: [],
+          decided: [decided('c-new', '2026-09-20T09:00:00.000Z')],
+          decidedNext: 'place-1',
+        },
+        identifiers: {
+          items: [],
+          decided: [
+            {
+              personId: 'p2',
+              name: 'Adam Novak',
+              label: 'National ID',
+              outcome: 'sent_back',
+              decidedBy: 'Ada Lovelace',
+              decidedAt: '2026-08-15T09:00:00.000Z',
+              note: null,
+            },
+          ],
+        },
+      },
+      { tab: 'decided', onMoreDecided },
+    );
+    // jsdom measures nothing, so the first page never fills the table: it asks at once.
+    await vi.waitFor(() => {
+      expect(onMoreDecided).toHaveBeenCalledWith('place-1');
+    });
+    const table = await screen.findByRole('table', { name: 'Decided in the last 90 days' });
+    await vi.waitFor(() => {
+      expect(within(table).getAllByRole('row')).toHaveLength(4);
+    });
+    // Newest first across kinds once both pages are in.
+    expect(
+      within(table)
+        .getAllByRole('row')
+        .slice(1)
+        .map((r) => within(r).getAllByRole('cell')[2]?.textContent),
+    ).toEqual(['Approved', 'Sent back', 'Approved']);
   });
 });
 

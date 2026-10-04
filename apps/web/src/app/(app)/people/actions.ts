@@ -1153,6 +1153,12 @@ export async function screenPage(
   return load.status === 'ready' ? load.data : null;
 }
 
+/** Review's Decided after `after` (the last page's `decidedNext`), as it scrolls: HR's, the page alone. */
+export async function decidedPage(after: string): Promise<unknown> {
+  const answer = await people<never>('Approvals', { decidedAfter: after });
+  return answer.ok ? VIEWS.Approvals(answer.data) : null;
+}
+
 /** Import & export's history before `before` (the last entry's cursor), as it scrolls. */
 export async function transferHistoryPage(before: string): Promise<unknown> {
   const answer = await people<unknown>('TransferHistory', { before });

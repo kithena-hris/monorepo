@@ -685,8 +685,10 @@ export interface ApprovalsView {
   /** HR sees every change waiting in the tenant; anybody else, their own. */
   readonly isHr: boolean;
   readonly items: readonly ApprovalItem[];
-  /** HR's: decided in the last 90 days, newest first. Empty for anybody else. */
+  /** HR's: decided in the last 90 days, newest first, a page at a time. Empty for anybody else. */
   readonly decided: readonly ApprovalItem[];
+  /** The place of the next page of `decided`, null on the last. */
+  readonly decidedNext: string | null;
   /** What Kithena checks (AI8), for HR; null for anybody else. */
   readonly checks: readonly CheckView[] | null;
   /** A People administrator switches the checks. */
@@ -696,7 +698,10 @@ export interface ApprovalsView {
 }
 
 const NINETY_DAYS_MS = 90 * 86_400_000;
-const DECIDED_SHOWN = 50;
+/** Decided, a keyset page at a time as the list scrolls. */
+export const DECIDED_PAGE = 50;
+/** A page's place: when the last one was decided (or lapsed), and its id. */
+const DECIDED_CURSOR = /^(\d{4}-\d{2}-\d{2}T[0-9:.]+Z)~([0-9a-f-]{36})$/u;
 
 const unflagged = {
   flags: [],
@@ -715,6 +720,11 @@ const unflagged = {
 export async function approvalsView(
   deps: ScreenDeps,
   asking: Asking,
+  /**
+   * Decided's next page from this place (the last page's `decidedNext`): the
+   * page alone, without the queue, which is the first page's.
+   */
+  decidedAfter: string | null = null,
 ): Promise<Result<ApprovalsView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const pending = deps.service.pending;
@@ -723,6 +733,7 @@ export async function approvalsView(
         isHr: false,
         items: [],
         decided: [],
+        decidedNext: null,
         checks: null,
         canTune: false,
         last90: null,
@@ -731,15 +742,24 @@ export async function approvalsView(
     const inbox = await approvalsInbox(tx, pending, asking);
     if (!inbox.ok) return inbox;
     const isHr = inbox.value.isHr;
+    const queue = decidedAfter === null ? inbox.value.items : [];
     const now = deps.clock.instant();
     const since = new Date(Date.parse(now) - NINETY_DAYS_MS).toISOString();
-    const decided = isHr
+    const place = decidedAfter === null ? null : DECIDED_CURSOR.exec(decidedAfter);
+    const read = isHr
       ? await pending.store.decided(tx, asking.tenantId, {
           since,
           until: now,
-          limit: DECIDED_SHOWN,
+          limit: DECIDED_PAGE + 1,
+          ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
         })
       : [];
+    const decided = read.slice(0, DECIDED_PAGE);
+    const lastDecided = decided.at(-1);
+    const decidedNext =
+      read.length > DECIDED_PAGE && lastDecided !== undefined
+        ? `${new Date(lastDecided.approval.decidedAt ?? lastDecided.approval.expiresAt).toISOString()}~${lastDecided.approval.id}`
+        : null;
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     const definitions = version?.document.attributes ?? [];
     const labels = new Map(definitions.map((d) => [d.key as string, d.label.default]));
@@ -747,11 +767,11 @@ export async function approvalsView(
       pending.flags === undefined
         ? []
         : await pending.flags.store.questions(tx, asking.tenantId, [
-            ...inbox.value.items.map((c) => c.id),
+            ...queue.map((c) => c.id),
             ...decided.map((c) => c.approval.id),
           ]);
     const by = await actors(deps, tx, asking, [
-      ...inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+      ...queue.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
       ...decided.flatMap((c) => [
         { kind: 'user' as const, userId: c.approval.requestedBy },
         ...(c.approval.decidedBy === null
@@ -775,12 +795,12 @@ export async function approvalsView(
         }));
     const look = await looking(tx, pending, asking);
     const avatars = await avatarsOf(deps, tx, asking.tenantId, [
-      ...inbox.value.items.map((c) => c.personId),
+      ...queue.map((c) => c.personId),
       ...decided.map((c) => c.personId),
     ]);
 
     const items: ApprovalItem[] = [];
-    for (const c of inbox.value.items) {
+    for (const c of queue) {
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
       const change =
@@ -898,6 +918,7 @@ export async function approvalsView(
       isHr,
       items,
       decided: decidedItems,
+      decidedNext,
       checks: isHr ? checksOf(look.enabled) : null,
       canTune: everyone?.isAdmin === true && pending.flags !== undefined,
       last90:
@@ -940,7 +961,7 @@ export async function ownDecidedView(
         : await pending.store.decided(tx, asking.tenantId, {
             since,
             until: now,
-            limit: DECIDED_SHOWN,
+            limit: DECIDED_PAGE,
             requestedBy: me,
           });
     const version = await deps.service.schemas.current(tx, asking.tenantId);
@@ -954,7 +975,7 @@ export async function ownDecidedView(
             ...asking,
             personId: own,
             decidedSince: since,
-            limit: DECIDED_SHOWN,
+            limit: DECIDED_PAGE,
           });
     const reviews = reviewed?.ok === true ? reviewed.value : [];
     const by = await actors(deps, tx, asking, [
@@ -1373,7 +1394,7 @@ export async function identifierReviewsView(
     const closed = await deps.service.access.identifierReviews(tx, {
       ...asking,
       decidedSince: since,
-      limit: DECIDED_SHOWN,
+      limit: DECIDED_PAGE,
     });
     const reviews = closed.ok ? closed.value : [];
     const by = await actors(
