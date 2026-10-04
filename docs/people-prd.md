@@ -1855,7 +1855,7 @@ with the new reason `notice_withdrawn`.
 
 ### 10.2a Calendar events
 
-Legal entities, locations and settings (§6.8). Organisation configuration,
+Legal entities, locations, org units and settings (§6.8). Organisation configuration,
 never anybody's values, every field classified like any other.
 
 | Event                              | Payload highlights                                                                                   |
@@ -1865,6 +1865,8 @@ never anybody's values, every field classified like any other.
 | `people.location.created` v1       | locationId, legalEntityId, name, country, time zone, `effectiveFrom`                                 |
 | `people.location.updated` v1       | locationId, name, archived, changed field names                                                      |
 | `people.location.zone_changed` v1  | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
+| `people.org_unit.created` v1       | orgUnitId, name, parentId (null at the top)                                                          |
+| `people.org_unit.updated` v1       | orgUnitId, name, parentId, archived, changed field names (a rename, a move, archiving or restoring)  |
 | `people.settings.changed` v1       | default time zone, cohort minimum, changed field names                                               |
 | `people.employee_numbering.set` v1 | legalEntityId, prefix, digits, next number                                                           |
 

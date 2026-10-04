@@ -51,11 +51,25 @@ export interface Location {
   readonly archived?: boolean;
 }
 
+/** A department or team, in a tree by `parentId` (`org-unit.ts` has its rules). */
+export interface OrgUnit {
+  readonly id: string;
+  readonly name: string;
+  readonly parentId: string | null;
+  readonly archived?: boolean;
+}
+
 export interface TenantCalendar {
   /** The tenant's default zone: the last resort, never the first. */
   readonly defaultZone: string;
   readonly entities: ReadonlyMap<string, LegalEntity>;
   readonly locations: ReadonlyMap<string, Location>;
+  /**
+   * The company's org units, archived ones too. No part of anybody's day:
+   * carried here because this is the one read of the company's own lists
+   * every screen already makes. Absent where a test built the calendar by hand.
+   */
+  readonly orgUnits?: ReadonlyMap<string, OrgUnit>;
 }
 
 /** Where a person sits, as far as their calendar is concerned. */

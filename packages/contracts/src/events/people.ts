@@ -997,6 +997,37 @@ export const LocationZoneChanged = defineEvent(
   }),
 );
 
+/*
+ * Org units: the company's departments and teams, a tree by `parentId`. What
+ * a person's `orgUnitId` points at. Organisation configuration, like a
+ * location: a team's name is not anybody's personal data.
+ */
+const OrgUnitId = z.uuid().register(policy, asPublic());
+
+export const OrgUnitCreated = defineEvent(
+  'people.org_unit.created',
+  1,
+  z.object({
+    orgUnitId: OrgUnitId,
+    name: PlaceName,
+    /** The unit it sits under; null at the top. */
+    parentId: z.uuid().nullable().register(policy, asPublic()),
+  }),
+);
+
+/** A rename, a move under another unit, archiving or restoring: `fieldsChanged` says which. */
+export const OrgUnitUpdated = defineEvent(
+  'people.org_unit.updated',
+  1,
+  z.object({
+    orgUnitId: OrgUnitId,
+    name: PlaceName,
+    parentId: z.uuid().nullable().register(policy, asPublic()),
+    archived: z.boolean().register(policy, asPublic()),
+    fieldsChanged: z.array(z.string()).register(policy, asInternal()),
+  }),
+);
+
 /** The tenant's default zone or cohort minimum changed. The minimum only ever rises. */
 export const TenantSettingsChanged = defineEvent(
   'people.settings.changed',
@@ -1371,6 +1402,8 @@ export const peopleEvents = [
   LocationCreated,
   LocationUpdated,
   LocationZoneChanged,
+  OrgUnitCreated,
+  OrgUnitUpdated,
   TenantSettingsChanged,
   EmployeeNumberingSet,
   FullValuesRequested,

@@ -137,6 +137,50 @@ describe('legal entities and locations, in Postgres', () => {
   });
 });
 
+describe('org units, in Postgres', () => {
+  it('round-trips a tree through the use cases and the resolver, and isolates the tenant', async () => {
+    const units = await inTenant(ACME, async ({ tx, tenantId }) => {
+      const eng = await org.createOrgUnit(tx, { ...ADMIN, tenantId, name: 'Engineering', parentId: null });
+      if (!eng.ok) throw new Error(eng.error.message);
+      const platform = await org.createOrgUnit(tx, {
+        ...ADMIN,
+        tenantId,
+        name: 'Platform',
+        parentId: eng.value.id,
+      });
+      if (!platform.ok) throw new Error(platform.error.message);
+      await org.updateOrgUnit(tx, { ...ADMIN, tenantId, id: platform.value.id, archived: true });
+      return {
+        listed: await org.orgUnits(tx, { ...ADMIN, tenantId }),
+        calendar: await drizzleOrgStore().load(tx, tenantId),
+      };
+    });
+    expect(units.listed.ok && units.listed.value.map((u) => [u.path, u.archived])).toEqual([
+      ['Engineering', false],
+      ['Engineering › Platform', true],
+    ]);
+    expect(units.calendar.orgUnits?.size).toBe(2);
+
+    const seen = await inTenant(GLOBEX, async ({ tx }) => [
+      ...(await tx.execute(sql`SELECT id FROM people.org_unit`)),
+    ]);
+    expect(seen).toHaveLength(0);
+  });
+
+  it('holds a name unique among live siblings even past the domain', async () => {
+    const insert = (id: string) =>
+      inTenant(ACME, ({ tx }) =>
+        tx.execute(
+          sql`INSERT INTO people.org_unit (tenant_id, id, name) VALUES (${ACME}::uuid, ${id}::uuid, 'Sales')`,
+        ),
+      );
+    expect(await refusal(insert('01900000-0000-7000-8000-0000000a0001'))).toBe('accepted');
+    expect(await refusal(insert('01900000-0000-7000-8000-0000000a0002'))).toMatch(
+      /org_unit_live_sibling_name/u,
+    );
+  });
+});
+
 describe('the cohort minimum, in Postgres', () => {
   it('is raised through the use case', async () => {
     const raised = await inTenant(ACME, ({ tx, tenantId }) =>

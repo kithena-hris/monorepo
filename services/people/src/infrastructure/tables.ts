@@ -321,6 +321,14 @@ export const locationZone = people.table('location_zone', {
   supersedes: uuid('supersedes'),
 });
 
+export const orgUnit = people.table('org_unit', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  name: text('name').notNull(),
+  parentId: uuid('parent_id'),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+});
+
 /** Every tenant People has work for. Readable unscoped, by design: see the migration. */
 export const tenant = people.table('tenant', {
   tenantId: uuid('tenant_id').primaryKey(),

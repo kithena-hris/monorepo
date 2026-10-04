@@ -1,7 +1,9 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { normalName } from '../import/identifiers.js';
-import { checkName } from './calendar.js';
+import { checkName, type OrgUnit } from './calendar.js';
+
+export type { OrgUnit };
 
 /**
  * A company's org units: its departments and teams, as a tree.
@@ -19,17 +21,10 @@ import { checkName } from './calendar.js';
  * Pure.
  */
 
-export interface OrgUnit {
-  readonly id: string;
-  readonly name: string;
-  readonly parentId: string | null;
-  readonly archived?: boolean;
-}
-
 /** Between a parent's name and its child's in a path. */
 export const PATH_SEPARATOR = ' › ';
 
-const live = (u: OrgUnit | undefined): u is OrgUnit => u !== undefined && u.archived !== true;
+const live = (u: OrgUnit): boolean => u.archived !== true;
 
 function checkParent(
   units: readonly OrgUnit[],
