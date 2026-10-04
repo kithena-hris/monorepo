@@ -58,6 +58,7 @@ import {
   post,
   refuse,
   relates,
+  self,
   transact,
 } from '../shared.js';
 
@@ -80,12 +81,6 @@ export const DEFAULT_SCHEDULE: Schedule = {
 
 /** A team key for Payroll's lines when the member is in none. */
 const NO_TEAM = TeamKey.parse('unassigned');
-
-async function memberOf(tx: Tx, caller: Caller): Promise<Result<Member>> {
-  if (caller.personId === null) return forbidden();
-  const member = await tx.members.get(caller.personId);
-  return member === null ? notFound('Member') : ok(member);
-}
 
 /** The member, when the caller is them, approves or covers for them, or is HR. */
 async function watched(
@@ -132,7 +127,7 @@ export const punch =
   (deps: Pick<Deps, 'uow' | 'clock' | 'newId'>) =>
   (caller: Caller, input: PunchInput): Promise<Result<{ punch: Punch; state: ClockState }>> =>
     transact(deps, caller.tenantId, async (tx) => {
-      const member = await memberOf(tx, caller);
+      const member = await self(tx, caller);
       if (!member.ok) return member;
       const clock = await clockOf(tx, member.value, caller.tenantId);
       const punched = clock.punch({

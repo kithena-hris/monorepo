@@ -248,6 +248,24 @@ describe('coming up and decided', () => {
     expect(screen.getAllByText('Approved')).toHaveLength(2);
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('loads the next page from the last one’s place as the list nears its end', async () => {
+    const first = comingUp();
+    const [one] = first.items;
+    if (one === undefined) throw new Error('fixture');
+    const later = { ...one, requestId: 'r-later', displayName: 'Hana Sato' };
+    const onLoadMore = vi.fn(() => Promise.resolve({ items: [later], next: null }));
+    render(
+      <Approvals
+        load={ready({ ...first, next: 'place-1' })}
+        path="/time-off/approvals/coming-up"
+        onLoadMore={onLoadMore}
+      />,
+    );
+    expect(await screen.findByRole('link', { name: /^Hana Sato/ })).toBeTruthy();
+    expect(onLoadMore).toHaveBeenCalledWith('place-1');
+    expect(screen.getByText('1 more loaded')).toBeTruthy();
+  });
 });
 
 describe('the states around it', () => {

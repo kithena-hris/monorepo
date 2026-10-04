@@ -184,6 +184,19 @@ export interface RequestStore {
     readonly from?: CalendarDate;
     readonly to?: CalendarDate;
   }): Promise<readonly RequestRecord[]>;
+  /**
+   * A keyset page of `list`'s requests, in `order`: `newest` by when each was
+   * asked, newest first; `soonest` by its first day, soonest first. `after`
+   * is the last one's place (`next` of the page before), null for the first.
+   */
+  page(filter: {
+    readonly personIds?: readonly PersonId[];
+    readonly statuses: readonly LeaveRequest['status'][];
+    readonly from?: CalendarDate;
+    readonly order: 'newest' | 'soonest';
+    readonly after: string | null;
+    readonly limit: number;
+  }): Promise<{ readonly records: readonly RequestRecord[]; readonly next: string | null }>;
   save(record: RequestRecord): Promise<void>;
 }
 

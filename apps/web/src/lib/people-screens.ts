@@ -152,17 +152,15 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
       // administrators', read beside the rest so the first HTML holds it:
-      // the page is drawn once, whole, with no rows still to come. One
-      // People refuses this viewer is left out, not an error.
-      const before = given(query.search['before']);
+      // the page is drawn with its newest history, and older pages load as
+      // it scrolls (`transferHistoryPage`). One People refuses this viewer is
+      // left out, not an error.
       // `Home` is the shell's own read of the roles (`shellData`), shared.
       const [roles, template, running, history] = await Promise.all([
         read('Home'),
         read('ImportTemplate'),
         activeImport(),
-        orBare({ before }, (asked) => read('TransferHistory', asked)).then((answer) =>
-          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
-        ),
+        read('TransferHistory').then((answer) => (answer.status === 'ready' ? answer.data : null)),
       ]);
       if (roles.status !== 'ready') return roles;
       const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
@@ -218,7 +216,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       };
     }
     case 'RoleSettings':
-      return read('RoleSettings');
+      // The search is People's (`?q=`); `after` is only ever a later page's.
+      return read('RoleSettings', {
+        search: given(query.search['q']),
+        after: given(query.search['after']),
+      });
     case 'PeopleHome':
       return overview();
     case 'Organisation':
@@ -234,7 +236,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'ReportSchedules':
       return read('ReportSchedules');
     case 'ReportRuns':
-      return read('ReportRuns', { id: query.params['id'] ?? '' });
+      return read('ReportRuns', {
+        id: query.params['id'] ?? '',
+        // Only ever a later page's (`screenPage`): the address opens the newest.
+        before: given(query.search['before']),
+      });
     case 'ExportBuilder': {
       // The directory's conditions, from its Export button or an export
       // described in words: one more audience, or the bare builder with a notice.

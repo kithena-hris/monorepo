@@ -96,14 +96,13 @@ export interface Condition {
 
 /**
  * What the directory adds to a list beyond `where`: conditions, whether all
- * or any must hold, and an order. A sorted list pages by `offset`; an
- * unsorted one keeps the keyset by id, which is what large tenants page by.
+ * or any must hold, and an order. Either way a list pages from the last
+ * one's place (`after`): by id unsorted, by the order's keys sorted.
  */
 export interface Refine {
   readonly conditions?: readonly Condition[];
   readonly match?: 'all' | 'any';
   readonly sort?: { readonly key: string; readonly direction: 'asc' | 'desc' };
-  readonly offset?: number;
   /**
    * Only these people, of those the rest finds: the assistant's join (PRD
    * §9.5). It narrows and never widens, so it is authorized as the list is.

@@ -127,6 +127,7 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
 
     async decided(tx, tenantId, where) {
       const mine = where.requestedBy ?? null;
+      const before = where.before ?? null;
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS}, flags FROM people.pending_change
          WHERE tenant_id = ${tenantId}::uuid
@@ -137,7 +138,10 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
                 OR (state IN ('expired', 'pending')
                     AND expires_at >= ${where.since}::timestamptz
                     AND expires_at <= ${where.until}::timestamptz))
-         ORDER BY COALESCE(decided_at, expires_at) DESC, id
+           AND (${before?.at ?? null}::timestamptz IS NULL
+                OR (COALESCE(decided_at, expires_at), id)
+                   < (${before?.at ?? null}::timestamptz, ${before?.id ?? null}::uuid))
+         ORDER BY COALESCE(decided_at, expires_at) DESC, id DESC
          LIMIT ${where.limit}`);
       return [...rows].map(fromRow);
     },
@@ -221,11 +225,17 @@ export function inMemoryPendingChangeStore(): PendingChangeStore & {
                   c.approval.expiresAt >= where.since &&
                   c.approval.expiresAt <= where.until),
           )
-          .toSorted((a, b) =>
-            (a.approval.decidedAt ?? a.approval.expiresAt) <
-            (b.approval.decidedAt ?? b.approval.expiresAt)
-              ? 1
-              : -1,
+          .filter((c) => {
+            if (where.before === undefined) return true;
+            const at = Date.parse(c.approval.decidedAt ?? c.approval.expiresAt);
+            const then = Date.parse(where.before.at);
+            return at < then || (at === then && c.approval.id < where.before.id);
+          })
+          .toSorted(
+            (a, b) =>
+              Date.parse(b.approval.decidedAt ?? b.approval.expiresAt) -
+                Date.parse(a.approval.decidedAt ?? a.approval.expiresAt) ||
+              (a.approval.id < b.approval.id ? 1 : -1),
           )
           .slice(0, where.limit),
       ),

@@ -1632,8 +1632,10 @@ type PeopleApprovals {
   canTune: Boolean
   """What Kithena checks, for HR."""
   checks: [ApprovalCheck!]
-  """HR’s: decided in the last 90 days, newest first."""
+  """HR’s: decided in the last 90 days, newest first, a page at a time."""
   decided: [ApprovalItem!]
+  """The next page of Decided, as `decidedAfter`; null on the last."""
+  decidedNext: String
   isHr: Boolean
   items: [ApprovalItem!]
   last90: ApprovalFlagStats
@@ -1743,6 +1745,8 @@ type PeopleDuplicates {
   comparison: DuplicateComparison
   items: [DuplicatePair!]
   merges: [MergedPair!]
+  """The next page of merged records, as `mergesAfter`; null on the last."""
+  mergesNext: String
 }
 
 type PeopleExport {
@@ -2072,6 +2076,8 @@ type PeopleRegistry {
 type PeopleReportRuns {
   id: ID
   name: String
+  """The page before, as `before`; null on the last."""
+  next: String
   runs: [ReportRun!]
 }
 
@@ -2098,6 +2104,11 @@ type PeopleReportingLine {
 
 type PeopleRoleSettings {
   canManage: Boolean
+  """Everybody holding a role, whatever the page."""
+  holders: [RoleSettingsPerson!]
+  """The next page, as `after`; null on the last."""
+  next: ID
+  """A page of everybody who signs in, by name, or those the search finds."""
   people: [RoleSettingsPerson!]
   viewerAccountId: ID
 }
@@ -2445,7 +2456,12 @@ type Query {
   """
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
-  peopleApprovals: PeopleApprovals
+  peopleApprovals(
+    """
+    Decided’s next page, from the last page’s `decidedNext`; the queue is left out.
+    """
+    decidedAfter: String
+  ): PeopleApprovals
   peopleAsk(
     """
     Earlier questions in the same conversation, oldest first, for a follow-up.
@@ -2497,7 +2513,7 @@ type Query {
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
-  peopleDuplicates(a: ID, b: ID): PeopleDuplicates
+  peopleDuplicates(a: ID, b: ID, mergesAfter: String): PeopleDuplicates
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder(
@@ -2579,11 +2595,13 @@ type Query {
   """What publishing the draft would do, from requiredFrom; rolled back."""
   peoplePublishPreview(requiredFrom: String!): PublishPreview
   peopleRegistry: PeopleRegistry
-  """One scheduled report’s last 50 runs, newest first."""
-  peopleReportRuns(id: ID!): PeopleReportRuns
+  """
+  One scheduled report’s runs, newest first, 50 at a time before `before`.
+  """
+  peopleReportRuns(before: String, id: ID!): PeopleReportRuns
   """Scheduled reports and what their form may offer; HR and people_admin."""
   peopleReportSchedules: PeopleReportSchedules
-  peopleRoleSettings: PeopleRoleSettings
+  peopleRoleSettings(after: ID, search: String): PeopleRoleSettings
   """Who holds a tenant role; HR and people_admin only."""
   peopleRoles: [RoleHolder!]
   peopleSchema(version: Int): PeopleSchema

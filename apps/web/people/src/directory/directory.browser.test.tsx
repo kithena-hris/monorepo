@@ -465,8 +465,13 @@ describe.runIf(coarse)('the directory’s list, under a finger', () => {
     await vi.waitFor(() => {
       expect(asked).toEqual(['50']);
     });
+    // Both pages are the list's, though only the rows near the view are drawn.
     await vi.waitFor(() => {
-      expect(rows()).toBe(PAGE * 2);
+      expect(document.querySelector('li[aria-posinset="1"]')).toHaveAttribute(
+        'aria-setsize',
+        String(PAGE * 2),
+      );
     });
+    expect(rows()).toBeLessThan(PAGE);
   });
 });

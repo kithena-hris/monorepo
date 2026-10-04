@@ -90,7 +90,8 @@ describe('Settings › Activity', () => {
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
   });
 
-  it('shows which sign-in support’s action came from, and why', () => {
+  it('opens an entry in full from its address, with the sign-in support’s action came from', () => {
+    window.history.replaceState(null, '', `/settings/activity?entry=${entries[1]?.id ?? ''}`);
     render(
       <ActivityLog
         load={{ status: 'ready', page: { entries: [entries[1] as ActivityEntry], next: null } }}
@@ -98,19 +99,17 @@ describe('Settings › Activity', () => {
         filters={activityFilters({})}
       />,
     );
-    for (const opener of screen.getAllByRole('button', { name: /show|expand|detail/i })) {
-      fireEvent.click(opener);
-    }
+    expect(screen.getByRole('dialog', { name: 'Added a field' })).toBeTruthy();
     expect(screen.getByText(/for: Ticket 4411/)).toBeTruthy();
   });
 
-  it('puts a filter in the address and starts again from the newest', () => {
-    window.history.replaceState(null, '', '/settings/activity?area=roles&before=x');
+  it('puts a filter in the address, closing an open entry', () => {
+    window.history.replaceState(null, '', '/settings/activity?area=roles&entry=x');
     render(
       <ActivityLog
         load={{ status: 'ready', page: { entries, next: null } }}
         named={named}
-        filters={activityFilters({ area: 'roles', before: 'x' })}
+        filters={activityFilters({ area: 'roles' })}
       />,
     );
     fireEvent.click(screen.getByRole('radio', { name: 'Kithena support' }));
@@ -119,20 +118,50 @@ describe('Settings › Activity', () => {
     });
   });
 
+  it('loads older entries as the reader nears the end, with the names they bring', async () => {
+    const older: ActivityEntry = {
+      ...base,
+      id: '01890000-0000-7000-8000-000000000009',
+      action: 'Removed a role',
+      actorAccountId: GRACE,
+    };
+    const onMore = vi.fn(() =>
+      Promise.resolve({
+        load: { status: 'ready' as const, page: { entries: [older], next: null } },
+        named: { [GRACE]: { name: 'Grace Hopper', avatarUrl: null, personId: GRACE } },
+      }),
+    );
+    render(
+      <ActivityLog
+        load={{ status: 'ready', page: { entries, next: entries[2]?.id ?? null } }}
+        named={named}
+        filters={activityFilters({})}
+        onMore={onMore}
+      />,
+    );
+    // jsdom measures nothing, so the first page never fills the table: it asks at once.
+    await vi.waitFor(
+      () => {
+        expect(onMore).toHaveBeenCalled();
+      },
+      { timeout: 5000 },
+    );
+    expect(await screen.findByText(/Removed a role/, undefined, { timeout: 5000 })).toBeTruthy();
+    expect(onMore).toHaveBeenCalledWith(entries[2]?.id);
+    expect(screen.queryByRole('button', { name: 'Older' })).toBeNull();
+    expect(screen.getByText('1 more loaded')).toBeTruthy();
+  });
+
   it('says the log is not available yet, rather than an error, while it is not deployed', () => {
-    render(<ActivityLog load={{ status: 'unavailable' }} named={{}} filters={activityFilters({})} />);
+    render(
+      <ActivityLog load={{ status: 'unavailable' }} named={{}} filters={activityFilters({})} />,
+    );
     expect(screen.getByText('The activity log isn’t available yet')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('tells somebody who may not read it why, rather than showing an empty log', () => {
-    render(
-      <ActivityLog
-        load={{ status: 'forbidden' }}
-        named={{}}
-        filters={activityFilters({})}
-      />,
-    );
+    render(<ActivityLog load={{ status: 'forbidden' }} named={{}} filters={activityFilters({})} />);
     expect(screen.getByText('The activity log is for administrators and HR')).toBeTruthy();
   });
 });

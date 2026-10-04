@@ -6,7 +6,7 @@ import { addDays, addMonths, amount, days as amountOf, type DateRange } from '..
 import { dateOptions, type TeamDay } from '../../domain/request/options.js';
 import type { Caller, Deps } from '../ports.js';
 import { LIVE, teamCoverage } from '../request/assess.js';
-import { balanceFor, calendarOf, forbidden, notFound, transact } from '../shared.js';
+import { balanceFor, calendarOf, notFound, transact } from '../shared.js';
 import { requestPanel } from '../screens/employee.js';
 import type { DescribedView } from '../screens/views.js';
 import { written, type Line } from './written.js';
@@ -220,7 +220,7 @@ const lineTemplate = (o: {
 export const describeRequest =
   (deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'judge' | 'writer'>) =>
   async (caller: Caller, query: DescribeQuery): Promise<Result<DescribedView>> => {
-    if (caller.personId === null) return forbidden();
+    // The panel refuses an account Time Off holds no member for, in words.
     const panel = await requestPanel(deps)(caller, {});
     if (!panel.ok) return panel;
     const types = panel.value.leaveTypes.filter((t) => t.category !== 'sick_leave');

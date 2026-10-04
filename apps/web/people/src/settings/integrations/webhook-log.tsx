@@ -2,24 +2,21 @@ import {
   Alert,
   Badge,
   Button,
+  DataTable,
   EmptyState,
   PageHeader,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  usePages,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useCallback, useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../../load';
 
 /**
  * One endpoint's delivery log, and replaying a delivery (PEO-121; PRD §13.3).
  *
- * What was sent and how it went, newest first, fifty at a time, never a body:
+ * What was sent and how it went, newest first, never a body, older pages of
+ * fifty loading as the log scrolls (`onLoadMore`, from the last one's cursor):
  * a payload is the person's data and the log is not a second copy of it. A
  * replay sends the stored event again, filtered by the endpoint's allowlist
  * as it is now, and appears here as a delivery of its own naming the one it
@@ -48,10 +45,8 @@ export interface WebhookLogProps {
   readonly load: Loadable<WebhookLogState>;
   readonly onReplay: (deliveryId: string) => Promise<Outcome>;
   readonly onBack?: () => void;
-  /** The older page; absent on the last. */
-  readonly onOlder?: () => void;
-  /** Back to the newest; absent on the first page. */
-  readonly onNewest?: () => void;
+  /** The page after `after`: People's answer for it, as the first page's, or null. */
+  readonly onLoadMore?: (after: string) => Promise<unknown>;
 }
 
 const TONE: Partial<Record<string, 'success' | 'danger' | 'warning' | 'neutral'>> = {
@@ -83,12 +78,20 @@ function Log({
   state,
   onReplay,
   onBack,
-  onOlder,
-  onNewest,
+  onLoadMore,
 }: WebhookLogProps & { readonly state: WebhookLogState }): JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<{ id: string; result: Outcome } | null>(null);
-  const failed = state.deliveries.filter((d) => d.status === 'failed').length;
+  const more = useCallback(
+    async (after: string) => {
+      const page = (await onLoadMore?.(after)) as WebhookLogState | null | undefined;
+      return page == null ? null : { items: page.deliveries, next: page.next };
+    },
+    [onLoadMore],
+  );
+  const pages = usePages(state.deliveries, state.next, onLoadMore === undefined ? undefined : more);
+  const deliveries = pages.items;
+  const failed = deliveries.filter((d) => d.status === 'failed').length;
 
   return (
     <Stack gap={6}>
@@ -99,7 +102,7 @@ function Log({
       />
       {failed === 0 ? null : (
         <Alert tone="warning">
-          {failed === 1 ? 'One delivery' : `${String(failed)} deliveries`} on this page failed.
+          {failed === 1 ? 'One delivery' : `${String(failed)} deliveries`} shown here failed.
           Replaying sends the same event again, with the fields the endpoint may receive now.
         </Alert>
       )}
@@ -112,67 +115,85 @@ function Log({
           {outcome.result.message}
         </Alert>
       )}
-      {state.deliveries.length === 0 ? (
+      {deliveries.length === 0 ? (
         <EmptyState
           title="Nothing delivered yet"
           description="A delivery appears here once an event this endpoint subscribes to happens."
         />
       ) : (
-        <Table aria-label="Deliveries">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Event</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Attempts</TableHead>
-              <TableHead>Sent</TableHead>
-              <TableHead>Replay</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {state.deliveries.map((d) => (
-              <TableRow key={d.id}>
-                <TableCell>
+        <DataTable<Delivery>
+          label="Deliveries"
+          rows={deliveries}
+          rowId={(d) => d.id}
+          describeRow={(d) => d.eventName}
+          // Infinite: the log is the page's one scroll, older deliveries load
+          // near its end, and only the rows on screen are drawn.
+          stickyHeader
+          containerClassName="page-fill max-h-dvh min-h-96"
+          {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+          loadingMore={pages.loading}
+          columns={[
+            {
+              id: 'event',
+              header: 'Event',
+              cell: (d) => (
+                <>
                   <span className="font-medium">{d.eventName}</span>
                   {d.replayOf === null ? null : (
                     <span className="block text-fg-muted text-sm">A replay</span>
                   )}
-                </TableCell>
-                <TableCell>
+                </>
+              ),
+            },
+            {
+              id: 'status',
+              header: 'Status',
+              cardTrailing: true,
+              cell: (d) => (
+                <>
                   <Badge tone={TONE[d.status] ?? 'neutral'}>{WORD[d.status] ?? d.status}</Badge>
                   {d.lastResponse === null ? null : (
                     <span className="block text-fg-muted text-sm">HTTP {d.lastResponse}</span>
                   )}
-                </TableCell>
-                <TableCell>{d.attempts}</TableCell>
-                <TableCell>{when(d.deliveredAt ?? d.createdAt)}</TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    loading={busy === d.id}
-                    loadingLabel="Replaying"
-                    aria-label={`Replay ${d.eventName} from ${when(d.createdAt)}`}
-                    onClick={() => {
-                      setBusy(d.id);
-                      setOutcome(null);
-                      void onReplay(d.id).then((result) => {
-                        setBusy(null);
-                        setOutcome({ id: d.id, result });
-                      });
-                    }}
-                  >
-                    Replay
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      {onOlder === undefined && onNewest === undefined ? null : (
-        <div className="flex flex-wrap gap-2">
-          {onNewest === undefined ? null : <Button onClick={onNewest}>Newest</Button>}
-          {onOlder === undefined ? null : <Button onClick={onOlder}>Older</Button>}
-        </div>
+                </>
+              ),
+            },
+            {
+              id: 'attempts',
+              header: 'Attempts',
+              shortHeader: 'Attempts',
+              numeric: true,
+              cell: (d) => d.attempts,
+            },
+            {
+              id: 'sent',
+              header: 'Sent',
+              cell: (d) => when(d.deliveredAt ?? d.createdAt),
+            },
+            {
+              id: 'replay',
+              header: 'Replay',
+              cell: (d) => (
+                <Button
+                  size="sm"
+                  loading={busy === d.id}
+                  loadingLabel="Replaying"
+                  aria-label={`Replay ${d.eventName} from ${when(d.createdAt)}`}
+                  onClick={() => {
+                    setBusy(d.id);
+                    setOutcome(null);
+                    void onReplay(d.id).then((result) => {
+                      setBusy(null);
+                      setOutcome({ id: d.id, result });
+                    });
+                  }}
+                >
+                  Replay
+                </Button>
+              ),
+            },
+          ]}
+        />
       )}
     </Stack>
   );

@@ -270,6 +270,14 @@ describe('a held change, stored', () => {
     // HR's Decided: everybody's decisions, and nobody's withdrawals.
     const all = await inTenant(ACME, ({ tx }) => store.decided(tx, ACME, where));
     expect(all.map((c) => c.approval.state)).toEqual(['approved', 'approved']);
+    // A page at a time: decided at the same moment, so the id breaks the tie, newest first.
+    const [top] = await inTenant(ACME, ({ tx }) => store.decided(tx, ACME, { ...where, limit: 1 }));
+    if (top === undefined) throw new Error('nothing decided');
+    const rest = await inTenant(ACME, ({ tx }) =>
+      store.decided(tx, ACME, { ...where, before: { at, id: top.approval.id } }),
+    );
+    expect([top, ...rest].map((c) => c.approval.id)).toEqual(all.map((c) => c.approval.id));
+    expect(rest.map((c) => c.approval.id)).not.toContain(top.approval.id);
   });
 
   it('is invisible to another tenant', async () => {

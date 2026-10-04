@@ -811,7 +811,6 @@ describe('at 390×844, with a finger', () => {
                 },
               ],
               next: null,
-              paged: false,
             },
           },
         }}
@@ -957,7 +956,7 @@ describe('at 390×844, with a finger', () => {
         }}
         onReplay={ok}
         onBack={() => undefined}
-        onOlder={() => undefined}
+        onLoadMore={() => Promise.resolve(null)}
       />,
     );
   });

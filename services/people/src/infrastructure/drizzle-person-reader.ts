@@ -338,27 +338,75 @@ function conditioned(tenantId: string, refine: Refine | undefined): SQL | undefi
 }
 
 /** The order a sorted directory asks for, always ending in the id so pages are stable. */
-function orderOf(refine: Refine | undefined): SQL[] | undefined {
+/** One key of a sorted directory's order: descending or not, and whether it may be null (last). */
+interface SortKey {
+  readonly expr: SQL;
+  readonly desc: boolean;
+  readonly nullable: boolean;
+}
+
+function orderOf(refine: Refine | undefined): readonly SortKey[] | undefined {
   const sort = refine?.sort;
   if (sort === undefined) return undefined;
-  const dir = sort.direction === 'desc' ? sql`DESC` : sql`ASC`;
+  const desc = sort.direction === 'desc';
+  const id = { expr: sql`${person.id}`, desc: false, nullable: false };
   if (sort.key === 'name') {
     return [
-      sql`lower(coalesce(${person.preferredName}, ${person.givenName}, '')) ${dir}`,
-      sql`lower(coalesce(${person.familyName}, '')) ${dir}`,
-      sql`${person.id} ASC`,
+      {
+        expr: sql`lower(coalesce(${person.preferredName}, ${person.givenName}, ''))`,
+        desc,
+        nullable: false,
+      },
+      { expr: sql`lower(coalesce(${person.familyName}, ''))`, desc, nullable: false },
+      id,
     ];
   }
   // A person with no value sorts last whichever way the list runs.
   const metric = metricSql(sort.key);
-  if (metric !== null) return [sql`${metric} ${dir} NULLS LAST`, sql`${person.id} ASC`];
+  if (metric !== null) return [{ expr: metric, desc, nullable: true }, id];
   // A number orders as a number ("9" before "10"), anything else as text.
   const text = fieldSql(sort.key);
   return [
-    sql`(CASE WHEN ${text} ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (${text})::numeric END) ${dir} NULLS LAST`,
-    sql`${text} ${dir} NULLS LAST`,
-    sql`${person.id} ASC`,
+    {
+      expr: sql`(CASE WHEN ${text} ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (${text})::numeric END)`,
+      desc,
+      nullable: true,
+    },
+    { expr: text, desc, nullable: true },
+    id,
   ];
+}
+
+const orderBy = (keys: readonly SortKey[]): SQL[] =>
+  keys.map(
+    (k) => sql`${k.expr} ${k.desc ? sql`DESC` : sql`ASC`}${k.nullable ? sql` NULLS LAST` : sql``}`,
+  );
+
+/**
+ * The rows after a person in a sorted order (a keyset, never an offset): the
+ * cursor person's own values, read beside, and the first key that differs
+ * decides. A key with no value sorts last, so after a valued one comes a
+ * smaller (or larger) value or none; after none, only what ties on it.
+ */
+function seek(keys: readonly SortKey[], tenantId: string, after: string): SQL {
+  const at = (k: SortKey) =>
+    sql`(SELECT ${k.expr} FROM people.person WHERE tenant_id = ${tenantId}::uuid AND id = ${after}::uuid)`;
+  const beyond = (k: SortKey): SQL => {
+    const strictly = k.desc ? sql`${k.expr} < ${at(k)}` : sql`${k.expr} > ${at(k)}`;
+    return k.nullable
+      ? sql`(${at(k)} IS NOT NULL AND (${k.expr} IS NULL OR ${strictly}))`
+      : strictly;
+  };
+  const branches = keys.map((k, i) =>
+    sql.join(
+      [...keys.slice(0, i).map((j) => sql`${j.expr} IS NOT DISTINCT FROM ${at(j)}`), beyond(k)],
+      sql` AND `,
+    ),
+  );
+  return sql`(${sql.join(
+    branches.map((b) => sql`(${b})`),
+    sql` OR `,
+  )})`;
 }
 
 export function drizzleGapTotals() {
@@ -468,9 +516,8 @@ export function drizzlePersonReader(): PersonReader {
 
     async page(tx, tenantId, after, limit, where, search, gaps, leavers, gapsIn, refine) {
       const order = orderOf(refine);
-      // ponytail: a sorted page reads by offset, so page n costs n pages; the
-      // unsorted default keeps the keyset by id that large tenants page by.
-      // Keyset on (value, id) if deep sorted pages ever matter.
+      // Both a keyset from the last one's place: by id unsorted, by the
+      // order's own keys sorted (`seek`), so page n costs one page either way.
       const rows =
         order === undefined
           ? await tx
@@ -492,11 +539,11 @@ export function drizzlePersonReader(): PersonReader {
                 and(
                   matching(tenantId, where, search, gaps, leavers, gapsIn),
                   refined(tenantId, refine),
+                  after === null ? undefined : seek(order, tenantId, after),
                 ),
               )
-              .orderBy(...order)
-              .limit(limit)
-              .offset(Math.max(0, refine?.offset ?? 0));
+              .orderBy(...orderBy(order))
+              .limit(limit);
       return rows.map(toRecord);
     },
 

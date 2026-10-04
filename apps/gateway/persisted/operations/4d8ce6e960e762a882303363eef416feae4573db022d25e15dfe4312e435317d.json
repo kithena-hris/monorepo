@@ -1,0 +1,1 @@
+{"version":1,"body":"query ReportRuns($id: ID!, $before: String) {\n    peopleReportRuns(id: $id, before: $before) {\n      id name\n      runs { period missed startedAt finishedAt outcome recipients { accountId name outcome } }\n      next\n    }\n  }"}

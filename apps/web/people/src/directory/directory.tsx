@@ -21,7 +21,6 @@ import {
   Kbd,
   KbdShortcut,
   KeyValues,
-  List,
   ListItem,
   PageHeader,
   PersonCard,
@@ -45,7 +44,6 @@ import {
   keysOf,
   pressed,
   useCoarsePointer,
-  useInView,
   useShortcutKeys,
   type ColumnChooserValue,
   type DataColumn,
@@ -54,6 +52,7 @@ import {
   type FilterField,
   type FilterGroup,
   type FilterOperator,
+  VirtualList,
 } from '@reach/ui';
 import {
   useEffect,
@@ -387,15 +386,12 @@ function useRows(
     next,
   });
   const [loading, setLoading] = useState(false);
-  // How many the last page added, for the live region: "100 more loaded".
-  const [added, setAdded] = useState<number | null>(null);
   // Reset while rendering, not after: an effect would leave one render, and a
   // prefetch, holding the old query's cursor.
   const [query, setQuery] = useState({ first, next });
   if (query.first !== first || query.next !== next) {
     setQuery({ first, next });
     setMore({ people: [], next });
-    setAdded(null);
   }
   // The cursors asked for, for this first page: each is fetched once.
   const asked = useRef<{ first: readonly DirectoryPerson[]; cursors: Set<string> }>({
@@ -418,7 +414,6 @@ function useRows(
               asked.current.cursors.delete(after);
               return;
             }
-            setAdded(page.people.length);
             setMore((m) =>
               m.next !== after
                 ? m
@@ -432,24 +427,7 @@ function useRows(
   useEffect(() => {
     ahead.current?.();
   }, [first]);
-  return { rows: [...first, ...more.people], loading, loadMore, added, done: more.next === null };
-}
-
-/**
- * The next page as the reader nears the end of a list or of cards, which
- * scroll with the page rather than in a box of their own as the table does:
- * a sentinel a screen ahead (`useInView`), asked again each time a page lands
- * while it is still in view. Keyboard users reach it too: focus moving to
- * the last person scrolls it into view.
- */
-function useEndOfPage(on: boolean, loading: boolean, loadMore: (() => void) | undefined) {
-  const [ref, near] = useInView<HTMLDivElement>({ rootMargin: '400px', enabled: on && !loading });
-  const load = useRef(loadMore);
-  load.current = loadMore;
-  useEffect(() => {
-    if (on && near && !loading) load.current?.();
-  }, [on, near, loading]);
-  return ref;
+  return { rows: [...first, ...more.people], loading, loadMore, done: more.next === null };
 }
 
 /**
@@ -845,6 +823,9 @@ export function chipOf(
 
 /** How tall a row is before it is measured: the table's `estimateRowHeight`. */
 const ROW_HEIGHT = 57;
+/** A person's row under a finger, and a card, as first guesses before they are measured. */
+const PHONE_ROW = 72;
+const CARD_HEIGHT = 190;
 
 /**
  * Where the reader is in a list that keeps loading, and the way back
@@ -967,8 +948,12 @@ function usePlace({
         `[data-row-id="${CSS.escape(id)}"], [data-person-id="${CSS.escape(id)}"]`,
       );
     const scroller = box();
-    // A virtualized table mounts the row only once it is near: get there first.
+    // A virtualized list mounts the row only once it is near: get there first.
     if (scroller !== null) scroller.scrollTop = to * ROW_HEIGHT;
+    else {
+      const top = (wrapper.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
+      window.scrollTo({ top: top + to * PHONE_ROW });
+    }
     requestAnimationFrame(() => {
       find()?.scrollIntoView({ block: 'start' });
     });
@@ -1078,11 +1063,6 @@ function Body({
   const columnsChosen = useColumns(state.columns);
   const widths = useWidths();
   const loaded = useRows(state.people, next, onLoadMore);
-  const endOfPage = useEndOfPage(
-    (coarse || view === 'cards') && loaded.loadMore !== undefined,
-    loaded.loading,
-    loaded.loadMore,
-  );
   const wrapper = useRef<HTMLDivElement | null>(null);
   const placed = usePlace({
     wrapper,
@@ -1431,10 +1411,20 @@ function Body({
     rows.length === 0 ? (
       empty
     ) : (
-      <List aria-label="People">
-        {rows.map((p) => (
+      // Virtualized with the page as its scroll, a page ahead of the reader.
+      <VirtualList
+        label="People"
+        items={rows}
+        itemKey={(p) => p.id}
+        scroll="page"
+        listItems
+        estimateItemHeight={PHONE_ROW}
+        {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
+        loadingMore={loaded.loading}
+        renderItem={(p, _i, row) => (
           <ListItem
             key={p.id}
+            {...row}
             asChild
             selected={p.id === peek}
             leading={
@@ -1472,16 +1462,27 @@ function Body({
               {p.name}
             </a>
           </ListItem>
-        ))}
-      </List>
+        )}
+      />
     )
   ) : view === 'cards' ? (
     rows.length === 0 ? (
       empty
     ) : (
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-3.5">
-        {rows.map((p) => (
-          <li key={p.id} data-person-id={p.id} className="min-w-0">
+      // As many columns as fit, rows drawn only near the view, the page its scroll.
+      <VirtualList
+        label="People"
+        items={rows}
+        itemKey={(p) => p.id}
+        scroll="page"
+        minItemWidth={200}
+        gap={14}
+        estimateItemHeight={CARD_HEIGHT}
+        className="bg-transparent shadow-none"
+        {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
+        loadingMore={loaded.loading}
+        renderItem={(p) => (
+          <div data-person-id={p.id} className="h-full">
             <PersonCard
               name={p.name}
               description={lineOf(p)}
@@ -1517,9 +1518,9 @@ function Body({
               }
               className="h-full"
             />
-          </li>
-        ))}
-      </ul>
+          </div>
+        )}
+      />
     )
   ) : (
     <DataTable
@@ -2026,9 +2027,6 @@ function Body({
           </>
         )}
       </div>
-      {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
-        <div ref={endOfPage} aria-hidden className="h-px" />
-      ) : null}
       {coarse ? null : (
         // The list's keys, and how it loads, in one line under it (C1).
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted">
@@ -2056,14 +2054,11 @@ function Body({
             </>
           ) : null}
           {onLoadMore === undefined ? null : (
-            // Said as each page lands, to a screen reader too: "100 more loaded".
-            // The line itself holds still: pages load a page ahead of the reader,
-            // so a "Loading" swapped in each time would blink under a scroll that
+            // The list itself says each page as it lands ("100 more loaded").
+            // The line holds still: pages load a page ahead of the reader, so a
+            // "Loading" swapped in each time would blink under a scroll that
             // never waits. Where they would wait, the rows' own skeleton says so.
-            <p role="status" className="ms-auto">
-              {loaded.added === null || loaded.loading ? null : (
-                <span className="sr-only">{loaded.added} more loaded. </span>
-              )}
+            <p className="ms-auto">
               {`Loads ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : ` · ${orderWords(sort, fields, metrics)}`}`}
             </p>
           )}

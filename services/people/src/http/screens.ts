@@ -913,7 +913,11 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/approvals$/,
-      handle: async (asking) => answer(await approvalsView(deps, asking)),
+      // `decidedAfter`: Decided's next page, from the last page's `decidedNext`.
+      handle: async (asking, _r, _p, query) =>
+        answer(
+          await approvalsView(deps, asking, query.get('decidedAfter')?.slice(0, 100) ?? null),
+        ),
     },
     // The viewer's own requests, decided (E10): an employee's Decided tab.
     {
@@ -982,7 +986,15 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
             failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']),
           );
         }
-        return answer(await duplicatesView(deps, asking, a === null || b === null ? null : [a, b]));
+        return answer(
+          await duplicatesView(
+            deps,
+            asking,
+            a === null || b === null ? null : [a, b],
+            // Merged records' next page, from the last page's `mergesNext`.
+            query.get('mergesAfter')?.slice(0, 100) ?? null,
+          ),
+        );
       },
     },
     {
@@ -1005,8 +1017,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'filter is key:value pairs', ['filter']));
         }
         const after = query.get('after') ?? undefined;
-        if (after !== undefined && !new RegExp(`^(${UUID}|@\\d{1,6})$`).test(after)) {
-          return refused(failure('BAD_REQUEST', 'after is a person id or @offset', ['after']));
+        if (after !== undefined && !new RegExp(`^${UUID}(~\\d{1,4})?$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
         }
         const segment = query.get('segment') ?? undefined;
         if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
@@ -1027,8 +1039,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           await directoryView(deps, asking, {
             search: (query.get('search') ?? '').slice(0, 200),
             filters: filterIn(filter),
-            // Sorted, the cursor is an offset (`@150`); otherwise a person id.
-            after: after ?? query.get('offset') ?? null,
+            // The last person's place, sorted or not (`~150` after a "top"'s).
+            after: after ?? null,
             ...refine.data,
             ...(segment === undefined ? {} : { segmentId: segment }),
             ...(query.get('incomplete') === 'true' ? { incomplete: true } : {}),
@@ -1188,7 +1200,16 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/roles$/,
-      handle: async (asking) => answer(await rolesView(deps, asking)),
+      // `q` searches the table on People's side; `after` is its next page.
+      handle: async (asking, _r, _p, query) => {
+        const after = query.get('after');
+        if (after !== null && !new RegExp(`^${UUID}$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
+        }
+        return answer(
+          await rolesView(deps, asking, { search: query.get('q')?.slice(0, 200) ?? null, after }),
+        );
+      },
     },
 
     /* the registry and setup */
@@ -1807,8 +1828,14 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: new RegExp(`^/v1/views/report-schedules/${UUID}$`),
-      handle: async (asking, _r, params) =>
-        answer(await reportRunsView(deps, asking, params['id'] ?? '')),
+      // `before`: the page before this period, as the history scrolls.
+      handle: async (asking, _r, params, query) => {
+        const before = query.get('before');
+        if (before !== null && !/^\d{4}-\d{2}-\d{2}$/.test(before)) {
+          return refused(failure('BAD_REQUEST', 'before is a period, a date', ['before']));
+        }
+        return answer(await reportRunsView(deps, asking, params['id'] ?? '', before));
+      },
     },
     {
       method: 'DELETE',

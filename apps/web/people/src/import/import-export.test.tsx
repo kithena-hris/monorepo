@@ -53,7 +53,7 @@ const items = [
 
 const state = (over: Partial<ImportExportState> = {}): ImportExportState => ({
   canImport: true,
-  history: { items, next: null, paged: false },
+  history: { items, next: null },
   now: NOW,
   ...over,
 });
@@ -166,7 +166,7 @@ describe('ImportExport', () => {
       <ImportExport
         load={{
           status: 'ready',
-          data: state({ history: { items: [], next: null, paged: false } }),
+          data: state({ history: { items: [], next: null } }),
         }}
       />,
     );
@@ -209,7 +209,7 @@ describe('ImportExport', () => {
       <ImportExport
         load={{
           status: 'ready',
-          data: state({ history: { items: [going, ...items], next: null, paged: false } }),
+          data: state({ history: { items: [going, ...items], next: null } }),
         }}
         running={RUN_GOING}
       />,
@@ -237,28 +237,27 @@ describe('ImportExport', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('pages back through older entries, and returns to the newest', () => {
+  it('loads older entries as it scrolls, from the last page’s cursor, with no Older or Newest', async () => {
+    const older = { ...(items[0] as (typeof items)[number]), id: 'e9', title: 'older-file.csv' };
+    const onLoadMore = vi.fn(() => Promise.resolve({ items: [older], next: null }));
     render(
       <ImportExport
-        load={{ status: 'ready', data: state({ history: { items, next: 'e2', paged: true } }) }}
+        load={{ status: 'ready', data: state({ history: { items, next: 'e2' } }) }}
+        onLoadMore={onLoadMore}
       />,
     );
-    expect(screen.getByRole('link', { name: 'Older' })).toHaveAttribute(
-      'href',
-      '/people/import-export?before=e2',
-    );
-    expect(screen.getByRole('link', { name: 'Newest' })).toHaveAttribute(
-      'href',
-      '/people/import-export',
-    );
+    expect((await screen.findAllByText('older-file.csv')).length).toBeGreaterThan(0);
+    expect(onLoadMore).toHaveBeenCalledWith('e2');
+    expect(screen.queryByRole('link', { name: 'Older' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Newest' })).toBeNull();
   });
 });
 
 describe('the history’s filters, in the address', () => {
-  it('opens narrowed as a link left it, and keeps it on the older pages', () => {
+  it('opens narrowed as a link left it', () => {
     render(
       <ImportExport
-        load={{ status: 'ready', data: state({ history: { items, next: 'e2', paged: false } }) }}
+        load={{ status: 'ready', data: state({ history: { items, next: 'e2' } }) }}
         kind="export"
         onKindChange={vi.fn()}
         search="payroll"
@@ -268,10 +267,6 @@ describe('the history’s filters, in the address', () => {
     expect(screen.getByRole('radio', { name: 'Exports' })).toBeChecked();
     expect(screen.getByRole('searchbox', { name: 'Search the history' })).toHaveValue('payroll');
     expect(screen.queryByText('new-joiners.csv')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Older' })).toHaveAttribute(
-      'href',
-      '/people/import-export?before=e2&kind=export&q=payroll',
-    );
   });
 
   it('hands a chosen kind to the host', async () => {

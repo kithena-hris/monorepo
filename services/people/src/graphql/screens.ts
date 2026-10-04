@@ -384,6 +384,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
       merges: t.field({ type: [MergedPairRef], resolve: (v) => list(v.merges) }),
+      mergesNext: t.exposeString('mergesNext', {
+        nullable: true,
+        description: 'The next page of merged records, as `mergesAfter`; null on the last.',
+      }),
       comparison: t.field({ type: ComparisonRef, nullable: true, resolve: (v) => v.comparison }),
     }),
   });
@@ -399,11 +403,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     t.field({
       type: DuplicatesRef,
       description: 'Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.',
-      args: { a: t.arg.id(), b: t.arg.id() },
+      args: { a: t.arg.id(), b: t.arg.id(), mergesAfter: t.arg.string() },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
         if (args.a) query.set('a', args.a);
         if (args.b) query.set('b', args.b);
+        if (args.mergesAfter) query.set('mergesAfter', args.mergesAfter);
         const qs = query.toString();
         return viaRest<DuplicatesView>(
           ctx,
@@ -783,8 +788,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       items: t.field({ type: [ApprovalItemRef], resolve: (v) => list(v.items) }),
       decided: t.field({
         type: [ApprovalItemRef],
-        description: 'HR’s: decided in the last 90 days, newest first.',
+        description: 'HR’s: decided in the last 90 days, newest first, a page at a time.',
         resolve: (v) => list(v.decided),
+      }),
+      decidedNext: t.exposeString('decidedNext', {
+        nullable: true,
+        description: 'The next page of Decided, as `decidedAfter`; null on the last.',
       }),
       checks: t.field({
         type: [ApprovalCheckRef],
@@ -1201,7 +1210,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       viewerAccountId: t.exposeID('viewerAccountId'),
       canManage: t.exposeBoolean('canManage'),
-      people: t.field({ type: [RolesPerson], resolve: (v) => list(v.people) }),
+      people: t.field({
+        type: [RolesPerson],
+        description: 'A page of everybody who signs in, by name, or those the search finds.',
+        resolve: (v) => list(v.people),
+      }),
+      next: t.exposeID('next', {
+        nullable: true,
+        description: 'The next page, as `after`; null on the last.',
+      }),
+      holders: t.field({
+        type: [RolesPerson],
+        description: 'Everybody holding a role, whatever the page.',
+        resolve: (v) => list(v.holders),
+      }),
     }),
   });
 
@@ -2260,7 +2282,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleRoleSettings: t.field({
       type: RoleSettings,
-      resolve: view<RolesView>(() => '/v1/views/roles'),
+      args: { search: t.arg.string(), after: t.arg.id() },
+      resolve: view<RolesView>((args) => {
+        const q = new URLSearchParams();
+        if (typeof args['search'] === 'string' && args['search'] !== '') q.set('q', args['search']);
+        if (typeof args['after'] === 'string') q.set('after', args['after']);
+        const qs = q.toString();
+        return qs === '' ? '/v1/views/roles' : `/v1/views/roles?${qs}`;
+      }),
     }),
     peopleRegistry: t.field({
       type: Registry,
@@ -3581,7 +3610,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: ApprovalsRef,
       description:
         'Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.',
-      resolve: view<ApprovalsView>(() => '/v1/views/approvals'),
+      args: {
+        decidedAfter: t.arg.string({
+          description:
+            'Decided’s next page, from the last page’s `decidedNext`; the queue is left out.',
+        }),
+      },
+      resolve: view<ApprovalsView>((args: { decidedAfter?: string | null }) =>
+        args.decidedAfter
+          ? `/v1/views/approvals?decidedAfter=${encodeURIComponent(args.decidedAfter)}`
+          : '/v1/views/approvals',
+      ),
     }),
     peopleIdentifierReviews: t.field({
       type: ReviewsRef,

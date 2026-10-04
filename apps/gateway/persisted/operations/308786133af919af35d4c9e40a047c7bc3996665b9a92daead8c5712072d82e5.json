@@ -1,0 +1,1 @@
+{"version":1,"body":"query RoleSettings($search: String, $after: ID) {\n    peopleRoleSettings(search: $search, after: $after) {\n      viewerAccountId canManage\n      people { accountId personId name workEmail roles }\n      next\n      holders { accountId personId name workEmail roles }\n    }\n  }"}

@@ -144,6 +144,8 @@ describe('the overview', () => {
     expect(screen.queryByRole('timer')).toBeNull();
     expect(screen.queryByRole('region', { name: 'Your balances' })).toBeNull();
     expect(screen.queryByText(/Make the most/)).toBeNull();
+    // Said plainly, not left as an empty page.
+    expect(screen.getByText('Nothing here for you yet')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
 

@@ -222,6 +222,35 @@ describe('a scheduled report’s history', () => {
     expect(screen.getByText('Marco Rossi: may not filter by this audience')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('loads older runs as the history scrolls, from the last period shown', async () => {
+    const run = (period: string) => ({
+      period,
+      missed: 0,
+      finishedAt: `${period}T08:00:00.000Z`,
+      outcome: 'sent',
+      recipients: [{ accountId: PRIYA, name: 'Priya Shah', outcome: 'sent' }],
+    });
+    const onLoadMore = vi.fn(() =>
+      Promise.resolve({ id: row.id, name: 'Monday roster', runs: [run('2026-09-14')], next: null }),
+    );
+    render(
+      <ReportRuns
+        load={{
+          status: 'ready',
+          data: {
+            id: row.id,
+            name: 'Monday roster',
+            runs: [run('2026-09-21')],
+            next: '2026-09-21',
+          },
+        }}
+        onLoadMore={onLoadMore}
+      />,
+    );
+    expect(await screen.findByText('2026-09-14')).toBeInTheDocument();
+    expect(onLoadMore).toHaveBeenCalledWith('2026-09-21');
+  });
 });
 
 describe('a schedule’s dialog, in the address', () => {

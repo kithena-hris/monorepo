@@ -211,6 +211,13 @@ function Ready({
           </Button>
         }
       />
+      {data.member === null ? (
+        // An account Time Off holds no member for: somebody People has not hired.
+        <Alert tone="info" title="Nothing here for you yet">
+          Time Off does not have you as an employee yet, so there are no balances to show or time
+          off to request. There will be once HR hires you in People.
+        </Alert>
+      ) : null}
       <div className={body}>
         <div className={column}>
           {data.clock === null ? null : (

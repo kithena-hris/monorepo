@@ -124,8 +124,10 @@ export interface ApprovalCheck {
 export interface ApprovalsState {
   readonly isHr: boolean;
   readonly items: readonly ApprovalItem[];
-  /** HR's: decided in the last 90 days, newest first. */
+  /** HR's: decided in the last 90 days, newest first, the first page. */
   readonly decided?: readonly ApprovalItem[];
+  /** The place of Decided's next page; null on the last. Absent from an older People. */
+  readonly decidedNext?: string | null;
   /** What Kithena checks (AI8), for HR. */
   readonly checks?: readonly ApprovalCheck[] | null;
   /** A People administrator switches the checks. */

@@ -967,11 +967,25 @@ export function DataTable<T extends TableRow>({
   // since a first page shorter than the container never scrolls at all.
   const endReached = useRef(onEndReached);
   endReached.current = onEndReached;
+  // "50 more loaded", as each page lands: the rows below the reader are not announced otherwise.
+  const [said, setSaid] = useState('');
+  const loadedBefore = useRef(rows.length);
+  // Infinite once is infinite for the announcement: the last page comes with no next.
+  const infinite = useRef(false);
+  if (onEndReached !== undefined) infinite.current = true;
+  useEffect(() => {
+    const added = rows.length - loadedBefore.current;
+    loadedBefore.current = rows.length;
+    if (infinite.current && added > 0) setSaid(`${String(added)} more loaded`);
+  }, [rows.length]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
     const el = scrollRef.current;
     if (el === null || !wantsEnd) return;
     const check = (): void => {
+      // A table not drawn (a desk's, hidden under a finger) is at no end at all.
+      // (`in`: jsdom has no `checkVisibility`, and draws nothing anyway.)
+      if ('checkVisibility' in el && !el.checkVisibility()) return;
       if (el.scrollHeight - el.scrollTop - el.clientHeight < END_MARGIN) endReached.current?.();
     };
     check();
@@ -1562,6 +1576,9 @@ export function DataTable<T extends TableRow>({
       )}
 
       {bulkBar}
+      <span aria-live="polite" className="sr-only">
+        {said}
+      </span>
     </div>
   );
 }

@@ -148,11 +148,12 @@ export const OPERATIONS = {
    * otherwise. For HR, also why each is flagged, what was decided lately and
    * what Kithena checks (design AI7, AI8).
    */
-  Approvals: `query Approvals {
-    peopleApprovals {
+  Approvals: `query Approvals($decidedAfter: String) {
+    peopleApprovals(decidedAfter: $decidedAfter) {
       isHr canTune
       items { ...ApprovalParts }
       decided { ...ApprovalParts }
+      decidedNext
       checks { code title detail on }
       last90 { flagged rejected marked }
     }
@@ -173,10 +174,11 @@ export const OPERATIONS = {
     }
   }`,
 
-  Duplicates: `query Duplicates($a: ID, $b: ID) {
-    peopleDuplicates(a: $a, b: $b) {
+  Duplicates: `query Duplicates($a: ID, $b: ID, $mergesAfter: String) {
+    peopleDuplicates(a: $a, b: $b, mergesAfter: $mergesAfter) {
       items { personIds names reasons match flaggedBy avatarUrls }
       merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
+      mergesNext
       comparison {
         people { id name status refusal }
         rows { key label values same takeable }
@@ -376,10 +378,12 @@ export const OPERATIONS = {
     }
   }`,
 
-  RoleSettings: `query RoleSettings {
-    peopleRoleSettings {
+  RoleSettings: `query RoleSettings($search: String, $after: ID) {
+    peopleRoleSettings(search: $search, after: $after) {
       viewerAccountId canManage
       people { accountId personId name workEmail roles }
+      next
+      holders { accountId personId name workEmail roles }
     }
   }`,
 
@@ -955,10 +959,11 @@ export const OPERATIONS = {
     }
   }`,
 
-  ReportRuns: `query ReportRuns($id: ID!) {
-    peopleReportRuns(id: $id) {
+  ReportRuns: `query ReportRuns($id: ID!, $before: String) {
+    peopleReportRuns(id: $id, before: $before) {
       id name
       runs { period missed startedAt finishedAt outcome recipients { accountId name outcome } }
+      next
     }
   }`,
 

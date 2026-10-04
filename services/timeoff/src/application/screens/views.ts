@@ -401,6 +401,8 @@ export const ApprovalsView = named(
       named('TimeOffLookCloserItem', z.object({ item: RequestItem, reason: LookCloserReason })),
     ),
     items: z.array(RequestItem),
+    /** Coming up and Decided: the next page's place, null on the last (and on Waiting). */
+    next: z.string().nullable(),
     /** Waiting for me: each request's one line, clear or not (TOF-086). */
     why: z.array(named('TimeOffWhy', z.object({ requestId: z.uuid(), text: WrittenView }))),
   }),
@@ -1196,6 +1198,8 @@ export const ViewerView = named(
   z.object({
     approves: z.boolean(),
     hrAdmin: z.boolean(),
+    /** Whether Time Off holds a member for the caller: somebody People has hired, who may request. */
+    member: z.boolean(),
     counts: z.object({ requestsWaiting: z.int(), attendanceExceptions: z.int() }),
   }),
 );

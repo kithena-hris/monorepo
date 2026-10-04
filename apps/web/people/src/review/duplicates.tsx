@@ -21,16 +21,12 @@ import {
   RadioGroup,
   RadioGroupItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
   Textarea,
+  usePages,
   icons,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useCallback, useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
 
@@ -119,6 +115,8 @@ export interface DuplicatesState {
   readonly items: readonly DuplicatePair[];
   /** Absent from a state that predates undo: read as none. */
   readonly merges?: readonly MergedPair[];
+  /** Merged records' next page; null on the last. Absent from an older People. */
+  readonly mergesNext?: string | null;
   readonly comparison: {
     readonly people: readonly ComparedPerson[];
     readonly rows: readonly ComparedRow[];
@@ -144,51 +142,66 @@ export const bandOf = (pair: DuplicatePair): string | null =>
   pair.match == null ? null : BAND[pair.match];
 
 export function Merges({
-  merges,
+  merges: first,
+  next = null,
   onUnmerge,
+  onLoadMore,
 }: {
   readonly merges: readonly MergedPair[];
+  /** The next page's place; null on the last. */
+  readonly next?: string | null;
   readonly onUnmerge: DuplicateActions['onUnmerge'];
+  /** The merges after `after`, as People answers them (a `DuplicatesState`), or null. */
+  readonly onLoadMore?: ((after: string) => Promise<unknown>) | undefined;
 }): JSX.Element | null {
   const [undoing, setUndoing] = useState<MergedPair | null>(null);
-  if (merges.length === 0) return null;
+  // Older merges as the list scrolls; only the rows on screen drawn.
+  const more = useCallback(
+    async (after: string) => {
+      const page = (await onLoadMore?.(after)) as DuplicatesState | null | undefined;
+      return page == null ? null : { items: page.merges ?? [], next: page.mergesNext ?? null };
+    },
+    [onLoadMore],
+  );
+  const pages = usePages(first, next, onLoadMore === undefined ? undefined : more);
+  if (first.length === 0) return null;
   return (
     <Stack gap={4}>
       <h2 className="text-lg font-semibold">Merged records</h2>
-      <Table aria-label="Merged records">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Merged</TableHead>
-            <TableHead>Into</TableHead>
-            <TableHead>When</TableHead>
-            <TableHead>Undo</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {merges.map((m) => (
-            <TableRow key={m.absorbedId}>
-              <TableCell>{m.absorbedName}</TableCell>
-              <TableCell>{m.survivorName}</TableCell>
-              <TableCell>{m.mergedAt.slice(0, 10)}</TableCell>
-              <TableCell>
-                {m.refusal === null ? (
-                  <Button
-                    size="sm"
-                    aria-label={`Undo merge of ${m.absorbedName} into ${m.survivorName}`}
-                    onClick={() => {
-                      setUndoing(m);
-                    }}
-                  >
-                    Undo merge
-                  </Button>
-                ) : (
-                  <span className="text-sm">{m.refusal}</span>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <DataTable<MergedPair>
+        label="Merged records"
+        rows={pages.items}
+        rowId={(m) => m.absorbedId}
+        describeRow={(m) => m.absorbedName}
+        stickyHeader
+        // Its own box under Decided, which fills the page.
+        containerClassName="max-h-[70dvh] min-h-48"
+        {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+        loadingMore={pages.loading}
+        columns={[
+          { id: 'merged', header: 'Merged', cell: (m) => m.absorbedName },
+          { id: 'into', header: 'Into', shortHeader: 'Into', cell: (m) => m.survivorName },
+          { id: 'when', header: 'When', cell: (m) => m.mergedAt.slice(0, 10) },
+          {
+            id: 'undo',
+            header: 'Undo',
+            cell: (m) =>
+              m.refusal === null ? (
+                <Button
+                  size="sm"
+                  aria-label={`Undo merge of ${m.absorbedName} into ${m.survivorName}`}
+                  onClick={() => {
+                    setUndoing(m);
+                  }}
+                >
+                  Undo merge
+                </Button>
+              ) : (
+                <span className="text-sm">{m.refusal}</span>
+              ),
+          },
+        ]}
+      />
       {undoing === null ? null : (
         <UndoDialog
           merge={undoing}

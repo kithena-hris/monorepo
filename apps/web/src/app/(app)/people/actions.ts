@@ -1130,6 +1130,49 @@ export async function shareSummary(input: Readonly<Record<string, unknown>>): Pr
   return parsed(people<string>('ShareSummary', { input: JSON.stringify(input) }));
 }
 
+/** The screens whose lists load as they scroll, and the name their read gives its cursor. */
+const PAGED = {
+  WebhookLog: 'after',
+  RoleSettings: 'after',
+  ReportRuns: 'before',
+} as const;
+
+/**
+ * The next page of a screen's list, for its infinite scroll: the screen's own
+ * read (`loadScreen`), as the page was drawn, from the cursor its last page
+ * gave. Its data as the screen's first page had it, or null when People did
+ * not answer. Only the screens above: anything else is not a list.
+ */
+export async function screenPage(
+  component: keyof typeof PAGED,
+  params: Readonly<Record<string, string>>,
+  search: Readonly<Record<string, string>>,
+  cursor: string,
+): Promise<unknown> {
+  const key = PAGED[component] as string | undefined;
+  if (key === undefined) return null;
+  const load = await loadScreen(component, { params, search: { ...search, [key]: cursor } });
+  return load.status === 'ready' ? load.data : null;
+}
+
+/** Review's Decided after `after` (the last page's `decidedNext`), as it scrolls: HR's, the page alone. */
+export async function decidedPage(after: string): Promise<unknown> {
+  const answer = await people<never>('Approvals', { decidedAfter: after });
+  return answer.ok ? VIEWS.Approvals(answer.data) : null;
+}
+
+/** Review's merged records after `after` (the last page's `mergesNext`), as they scroll. */
+export async function mergesPage(after: string): Promise<unknown> {
+  const answer = await people<unknown>('Duplicates', { mergesAfter: after });
+  return answer.ok ? answer.data : null;
+}
+
+/** Import & export's history before `before` (the last entry's cursor), as it scrolls. */
+export async function transferHistoryPage(before: string): Promise<unknown> {
+  const answer = await people<unknown>('TransferHistory', { before });
+  return answer.ok ? answer.data : null;
+}
+
 /**
  * The directory's next page, for its infinite scroll: the same query the page
  * was drawn with (search, filters, conditions, order), from `after`.

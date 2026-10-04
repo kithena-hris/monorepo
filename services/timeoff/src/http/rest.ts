@@ -646,7 +646,11 @@ export const ROUTES: readonly Route[] = [
     method: 'GET',
     path: `${V1}/approvals`,
     summary: 'T16: waiting for the caller (clear and look closer), coming up, or decided',
-    params: z.object({ tab: z.enum(['waiting', 'coming_up', 'decided']).default('waiting') }),
+    params: z.object({
+      tab: z.enum(['waiting', 'coming_up', 'decided']).default('waiting'),
+      /** Coming up and Decided: the page after this place (the last page's `next`). */
+      after: z.string().max(100).optional(),
+    }),
     answer: ApprovalsView,
     run: (deps, caller, { params }) => approvals(deps)(caller, params),
     shape: same,

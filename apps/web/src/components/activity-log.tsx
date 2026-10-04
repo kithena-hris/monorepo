@@ -19,11 +19,18 @@ import {
   EmptyState,
   PageHeader,
   SearchField,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
   Stack,
   icons,
+  usePages,
 } from '@reach/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import {
   AREAS,
@@ -33,7 +40,7 @@ import {
   type ActivityFilters,
   type ActivityPage,
 } from '../lib/activity';
-import { withQuery } from '../lib/url-state';
+import { noteInAddress, withQuery } from '../lib/url-state';
 import { Waking } from './waking';
 
 /**
@@ -118,14 +125,21 @@ function whom(e: ActivityEntry, named: Named): string | null {
   return null;
 }
 
+/** An older page of the log, from `before`, with the names on it: the server's. */
+export type MoreActivity = (
+  before: string,
+) => Promise<{ readonly load: ActivityLoad; readonly named: Named }>;
+
 export function ActivityLog({
   load,
   named,
   filters,
+  onMore,
 }: {
   readonly load: ActivityLoad;
   readonly named: Named;
   readonly filters: ActivityFilters;
+  readonly onMore?: MoreActivity | undefined;
 }): JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
@@ -137,7 +151,7 @@ export function ActivityLog({
     patch: Readonly<Record<string, string | null>>,
     mode: 'push' | 'replace' = 'push',
   ) => {
-    const to = withQuery(pathname, params.toString(), { before: null, ...patch });
+    const to = withQuery(pathname, params.toString(), { entry: null, ...patch });
     if (mode === 'push') router.push(to, { scroll: false });
     else router.replace(to, { scroll: false });
   };
@@ -291,7 +305,8 @@ export function ActivityLog({
             page={load.page}
             named={named}
             zone={zone}
-            paged={filters.before !== null}
+            open={params.get('entry')}
+            onMore={onMore}
             filtered={Object.values({ ...filters, zone: null }).some(
               (v) => v !== null && !(Array.isArray(v) && v.length === 0),
             )}
@@ -305,19 +320,41 @@ export function ActivityLog({
 
 function Entries({
   page,
-  named,
+  named: first,
   zone,
-  paged,
+  open,
+  onMore,
   filtered,
   onFilter,
 }: {
   readonly page: ActivityPage;
   readonly named: Named;
   readonly zone: string | undefined;
-  readonly paged: boolean;
+  /** The entry open in the panel (`?entry=`), when it is among those loaded. */
+  readonly open: string | null;
+  readonly onMore: MoreActivity | undefined;
   readonly filtered: boolean;
   readonly onFilter: (patch: Readonly<Record<string, string | null>>) => void;
 }): JSX.Element {
+  // Older pages as the reader scrolls, and the names each one brought.
+  const [more, setMore] = useState<Named>({});
+  const load = useCallback(
+    async (before: string) => {
+      if (onMore === undefined) return null;
+      const answer = await onMore(before);
+      if (answer.load.status !== 'ready') return null;
+      setMore((n) => ({ ...n, ...answer.named }));
+      return { items: answer.load.page.entries, next: answer.load.page.next };
+    },
+    [onMore],
+  );
+  const pages = usePages(page.entries, page.next, onMore === undefined ? undefined : load);
+  const named = { ...more, ...first };
+  const opened = open === null ? undefined : pages.items.find((e) => e.id === open);
+  const show = (id: string | null): void => {
+    noteInAddress({ entry: id }, id === null ? 'replace' : 'push');
+  };
+
   if (page.entries.length === 0) {
     return filtered ? (
       <EmptyState
@@ -343,11 +380,22 @@ function Entries({
     }).format(new Date(iso));
 
   return (
-    <Stack gap={4}>
+    <>
       <DataTable<ActivityEntry>
         label="Activity"
-        rows={page.entries}
+        rows={pages.items}
         rowId={(e) => e.id}
+        // Infinite: the table is the page's one scroll, older entries load
+        // near its end, and only the rows on screen are drawn.
+        stickyHeader
+        containerClassName="page-fill max-h-dvh min-h-96"
+        {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+        loadingMore={pages.loading}
+        describeRow={(e) => e.action}
+        activeRowId={opened?.id ?? null}
+        onRowClick={(e) => {
+          show(e.id);
+        }}
         columns={[
           {
             id: 'when',
@@ -393,31 +441,29 @@ function Entries({
             cell: (e) => <Badge>{AREA_NAME[e.area] ?? e.area}</Badge>,
           },
         ]}
-        renderDetail={(e) => <Detail entry={e} named={named} when={when} onFilter={onFilter} />}
       />
-      {!paged && page.next === null ? null : (
-        <nav aria-label="Older activity" className="flex gap-2">
-          {paged ? (
-            <Button
-              onClick={() => {
-                onFilter({ before: null });
-              }}
-            >
-              Newest
-            </Button>
-          ) : null}
-          {page.next === null ? null : (
-            <Button
-              onClick={() => {
-                onFilter({ before: page.next });
-              }}
-            >
-              Older
-            </Button>
-          )}
-        </nav>
-      )}
-    </Stack>
+      {/* One entry in full beside the log, its place in the address. */}
+      <Sheet
+        open={opened !== undefined}
+        onOpenChange={(o) => {
+          if (!o) show(null);
+        }}
+      >
+        {opened === undefined ? null : (
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>{opened.action}</SheetTitle>
+              <SheetDescription>
+                {`${who(opened, named).name} · ${when(opened.occurredAt)}`}
+              </SheetDescription>
+            </SheetHeader>
+            <SheetBody>
+              <Detail entry={opened} named={named} when={when} onFilter={onFilter} />
+            </SheetBody>
+          </SheetContent>
+        )}
+      </Sheet>
+    </>
   );
 }
 

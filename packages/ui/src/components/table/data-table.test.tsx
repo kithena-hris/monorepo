@@ -340,6 +340,44 @@ describe('<DataTable> that keeps loading', () => {
     vi.restoreAllMocks();
   });
 
+  it('arrives from the server with its first rows drawn, not a skeleton', () => {
+    const html = renderToString(
+      <DataTable
+        label="People"
+        rows={more(500)}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={vi.fn()}
+      />,
+    );
+    expect(html).toContain('data-row-id="m0"');
+    expect(html).toContain('data-row-id="m20"');
+    // Only a window of them: the rest are counted, not drawn.
+    expect(html).not.toContain('data-row-id="m200"');
+  });
+
+  it('says how many more each page brought', () => {
+    const { rerender } = render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={vi.fn()}
+      />,
+    );
+    rerender(
+      <DataTable
+        label="People"
+        rows={[...people, ...more(50)]}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('50 more loaded')).toBeInTheDocument();
+  });
+
   it('keeps fixed column widths as rows arrive', () => {
     const widths = (): string[] =>
       [...document.querySelectorAll<HTMLElement>('thead th')].map((th) => th.style.width);

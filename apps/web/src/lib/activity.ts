@@ -35,7 +35,6 @@ export interface ActivityFilters {
   readonly to: string | null;
   readonly zone: string | null;
   readonly search: string | null;
-  readonly before: string | null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -49,8 +48,9 @@ const matching = (v: string | undefined, shape: RegExp): string | null =>
 
 /**
  * The address's filters: `area` (comma-separated), `by`, `actor`, `subject`,
- * `from`, `to`, `tz` (the reader's zone, which the page adds with a date),
- * `q` and `before`.
+ * `from`, `to`, `tz` (the reader's zone, which the page adds with a date)
+ * and `q`. Which page is not among them: the address opens the newest, and
+ * older entries load as the reader scrolls.
  */
 export function activityFilters(search: Readonly<Record<string, string>>): ActivityFilters {
   const known = new Set<string>(AREAS.map((a) => a.value));
@@ -67,12 +67,18 @@ export function activityFilters(search: Readonly<Record<string, string>>): Activ
     to: matching(search['to'], DAY),
     zone: matching(search['tz'], ZONE),
     search: text(search['q']),
-    before: matching(search['before'], UUID),
   };
 }
 
-/** The router's variables for them: an absent filter is left out, never sent empty. */
-export function activityVariables(f: ActivityFilters): Record<string, unknown> {
+/** A cursor into the log (the last entry's id), or null for a garbled one. */
+export const cursorOf = (before: string | null | undefined): string | null =>
+  matching(before ?? undefined, UUID);
+
+/** The router's variables for them, from `before`: an absent filter is left out, never sent empty. */
+export function activityVariables(
+  f: ActivityFilters,
+  before: string | null = null,
+): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries({
       areas: f.areas.length === 0 ? null : f.areas,
@@ -83,7 +89,7 @@ export function activityVariables(f: ActivityFilters): Record<string, unknown> {
       to: f.to,
       zone: f.zone,
       search: f.search,
-      before: f.before,
+      before: cursorOf(before),
     }).filter(([, v]) => v !== null),
   );
 }

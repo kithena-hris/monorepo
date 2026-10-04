@@ -973,16 +973,22 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...dialog,
         };
       case 'ReportRuns':
-        return { load: loadable };
+        return {
+          load: loadable,
+          // Older runs as the history scrolls.
+          onLoadMore: (before: string) => actions.screenPage('ReportRuns', params, search, before),
+        };
       case 'RoleSettings':
         return {
           load: loadable,
           onGrant: actions.grantRole,
           onRevoke: actions.revokeRole,
           search: at('q') ?? '',
+          // People searches the table, so the server reads it again.
           onSearchChange: (text: string) => {
-            note({ q: typed(text) }, 'replace');
+            navigate({ q: typed(text) }, 'replace');
           },
+          onLoadMore: (after: string) => actions.screenPage('RoleSettings', params, search, after),
         };
       case 'PeopleHome':
         return {
@@ -1035,6 +1041,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         return {
           load: loadable,
           tab,
+          // HR's Decided loads as it scrolls; the address opens the newest.
+          onMoreDecided: actions.decidedPage,
+          onMoreMerges: actions.mergesPage,
           kind: at('kind'),
           onKindChange: (kind: string | null) => {
             // A new chip starts at the top of its list.
@@ -1103,34 +1112,16 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onLoadMoreMissing: actions.completenessPage,
         };
       }
-      case 'WebhookLog': {
-        const next =
-          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
-            ? ((load.data as { next?: string | null }).next ?? null)
-            : null;
-        const here = `/settings/people/integrations/webhooks/${params['id'] ?? ''}`;
+      case 'WebhookLog':
         return {
           load: loadable,
           onReplay: actions.replayDelivery,
           onBack: () => {
             go('/settings/people/integrations/webhooks');
           },
-          ...(next === null
-            ? {}
-            : {
-                onOlder: () => {
-                  go(`${here}?after=${encodeURIComponent(next)}`);
-                },
-              }),
-          ...(search['after'] === undefined
-            ? {}
-            : {
-                onNewest: () => {
-                  go(here);
-                },
-              }),
+          // Older deliveries as the log scrolls; the address opens the newest.
+          onLoadMore: (after: string) => actions.screenPage('WebhookLog', params, search, after),
         };
-      }
       case 'Organisation':
         return {
           load: loadable,
@@ -1475,6 +1466,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onSearchChange: (text: string) => {
             note({ q: typed(text) }, 'replace');
           },
+          // Older history as it scrolls; the address opens the newest.
+          onLoadMore: actions.transferHistoryPage,
         };
       default:
         return {};

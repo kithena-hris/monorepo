@@ -22,16 +22,12 @@ import {
   PageHeader,
   SearchField,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
   Textarea,
+  usePages,
   icons,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useCallback, useState, type JSX, type ReactNode } from 'react';
 
 import { useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
@@ -59,16 +55,23 @@ export interface RolesPerson {
 export interface RolesState {
   readonly viewerAccountId: string;
   readonly canManage: boolean;
+  /** A page of everybody who signs in, or those the search finds. */
   readonly people: readonly RolesPerson[];
+  /** The next page's place; null on the last. Absent from an older People. */
+  readonly next?: string | null;
+  /** Everybody holding a role, whatever the page. Absent from an older People. */
+  readonly holders?: readonly RolesPerson[];
 }
 
 export interface RoleSettingsProps {
   readonly load: Loadable<RolesState>;
   readonly onGrant: (accountId: string, role: TenantRole, reason: string) => Promise<Outcome>;
   readonly onRevoke: (accountId: string, role: TenantRole, reason: string) => Promise<Outcome>;
-  /** The search over who holds a role (`?q=`), once typing rests. */
+  /** The search over who holds a role (`?q=`), once typing rests; People's to answer. */
   readonly search?: string;
   readonly onSearchChange?: (search: string) => void;
+  /** The table's page after `after`, as People answers it (a `RolesState`), or null. */
+  readonly onLoadMore?: (after: string) => Promise<unknown>;
 }
 
 const ROLES: readonly {
@@ -120,17 +123,33 @@ function Roles({
   onRevoke,
   search,
   onSearchChange,
+  onLoadMore,
 }: RoleSettingsProps & { readonly state: RolesState }): JSX.Element {
   const [pending, setPending] = useState<Pending | null>(null);
   const [query, setQuery] = useTyped(search ?? '', onSearchChange);
-  const admins = state.people.filter((p) => p.roles.includes('people_admin')).length;
-  const holders = (role: TenantRole) => state.people.filter((p) => p.roles.includes(role));
+  // The table, a page at a time as it scrolls; the cards, every holder.
+  const more = useCallback(
+    async (after: string) => {
+      const page = (await onLoadMore?.(after)) as RolesState | null | undefined;
+      return page == null ? null : { items: page.people, next: page.next ?? null };
+    },
+    [onLoadMore],
+  );
+  const pages = usePages(
+    state.people,
+    state.next ?? null,
+    onLoadMore === undefined ? undefined : more,
+  );
+  const everyHolder = state.holders ?? state.people;
+  const admins = everyHolder.filter((p) => p.roles.includes('people_admin')).length;
+  const holders = (role: TenantRole) => everyHolder.filter((p) => p.roles.includes(role));
   const nameOf = (p: RolesPerson) => p.name ?? p.workEmail ?? 'Somebody without a record yet';
+  // People searches; until its answer arrives, what is loaded is narrowed here.
   const needle = query.trim().toLowerCase();
   const shown =
     needle === ''
-      ? state.people
-      : state.people.filter((p) =>
+      ? pages.items
+      : pages.items.filter((p) =>
           [p.name, p.workEmail].some((v) => v?.toLowerCase().includes(needle) === true),
         );
 
@@ -181,7 +200,7 @@ function Roles({
           People administrators have Finance’s access until someone is added.
         </Alert>
       ) : null}
-      {state.people.length === 0 ? (
+      {state.people.length === 0 && needle === '' ? (
         <EmptyState
           title="Nobody signs in yet"
           description="People appear here once they have an account."
@@ -196,70 +215,76 @@ function Roles({
               onValueChange={setQuery}
             />
           </div>
-          <Table aria-label="Who holds a role">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Person</TableHead>
-                {ROLES.map((r) => (
-                  <TableHead key={r.role}>{r.label}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shown.map((person) => {
-                const who = nameOf(person);
-                const me = person.accountId === state.viewerAccountId;
-                return (
-                  <TableRow key={person.accountId}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar name={who} size="sm" />
-                        <div className="flex min-w-0 flex-col">
-                          <span className="font-medium">
-                            {who}
-                            {me ? ' (you)' : ''}
-                          </span>
-                          {person.name !== null && person.workEmail !== null ? (
-                            <span className="text-fg-muted text-sm">{person.workEmail}</span>
-                          ) : null}
-                        </div>
+          <DataTable<RolesPerson>
+            label="Who holds a role"
+            rows={shown}
+            rowId={(p) => p.accountId}
+            describeRow={nameOf}
+            // Infinite: the page's one scroll, the next people loading near its
+            // end, only the rows on screen drawn; cards under a finger.
+            stickyHeader
+            containerClassName="page-fill max-h-dvh min-h-96"
+            {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+            loadingMore={pages.loading}
+            empty="Nobody matches"
+            columns={[
+              {
+                id: 'person',
+                header: 'Person',
+                cell: (person) => {
+                  const who = nameOf(person);
+                  const me = person.accountId === state.viewerAccountId;
+                  return (
+                    <div className="flex items-center gap-3">
+                      <Avatar name={who} size="sm" />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="font-medium">
+                          {who}
+                          {me ? ' (you)' : ''}
+                        </span>
+                        {person.name !== null && person.workEmail !== null ? (
+                          <span className="text-fg-muted text-sm">{person.workEmail}</span>
+                        ) : null}
                       </div>
-                    </TableCell>
-                    {ROLES.map(({ role, label }) => {
-                      const held = person.roles.includes(role);
-                      // Nobody grants themselves a role, and the last
-                      // administrator cannot be removed: People refuses both,
-                      // and the control says so before anybody tries.
-                      const locked =
-                        !state.canManage ||
-                        (me && !held) ||
-                        (held && role === 'people_admin' && admins === 1);
-                      return (
-                        <TableCell key={role}>
-                          {state.canManage ? (
-                            <Checkbox
-                              checked={held}
-                              disabled={locked}
-                              aria-label={`${label} for ${who}`}
-                              onCheckedChange={(on) => {
-                                setPending({ person, role, grant: on === true });
-                              }}
-                            />
-                          ) : held ? (
-                            <Badge tone="accent">{label}</Badge>
-                          ) : (
-                            <span className="text-fg-muted" aria-label={`Not ${label}`}>
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    </div>
+                  );
+                },
+              },
+              ...ROLES.map(({ role, label }) => ({
+                id: role,
+                header: label,
+                shortHeader: label,
+                cell: (person: RolesPerson) => {
+                  const who = nameOf(person);
+                  const me = person.accountId === state.viewerAccountId;
+                  const held = person.roles.includes(role);
+                  // Nobody grants themselves a role, and the last
+                  // administrator cannot be removed: People refuses both,
+                  // and the control says so before anybody tries.
+                  const locked =
+                    !state.canManage ||
+                    (me && !held) ||
+                    (held && role === 'people_admin' && admins === 1);
+                  return state.canManage ? (
+                    <Checkbox
+                      checked={held}
+                      disabled={locked}
+                      aria-label={`${label} for ${who}`}
+                      onCheckedChange={(on) => {
+                        setPending({ person, role, grant: on === true });
+                      }}
+                    />
+                  ) : held ? (
+                    <Badge tone="accent">{label}</Badge>
+                  ) : (
+                    <span className="text-fg-muted" aria-label={`Not ${label}`}>
+                      —
+                    </span>
+                  );
+                },
+              })),
+            ]}
+          />
         </Stack>
       )}
       <Confirm
