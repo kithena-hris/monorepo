@@ -15,6 +15,7 @@ import {
   ChipGroup,
   ChipGroupItem,
   DataTable,
+  type DataColumn,
   DatePicker,
   EmptyState,
   PageHeader,
@@ -30,7 +31,7 @@ import {
   usePages,
 } from '@reach/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import {
   AREAS,
@@ -318,6 +319,15 @@ export function ActivityLog({
   );
 }
 
+const show = (id: string | null): void => {
+  noteInAddress({ entry: id }, id === null ? 'replace' : 'push');
+};
+const showEntry = (e: ActivityEntry): void => {
+  show(e.id);
+};
+const entryId = (e: ActivityEntry): string => e.id;
+const entryAction = (e: ActivityEntry): string => e.action;
+
 function Entries({
   page,
   named: first,
@@ -349,11 +359,69 @@ function Entries({
     [onMore],
   );
   const pages = usePages(page.entries, page.next, onMore === undefined ? undefined : load);
-  const named = { ...more, ...first };
+  const named = useMemo(() => ({ ...more, ...first }), [more, first]);
   const opened = open === null ? undefined : pages.items.find((e) => e.id === open);
-  const show = (id: string | null): void => {
-    noteInAddress({ entry: id }, id === null ? 'replace' : 'push');
-  };
+  const when = useCallback(
+    (iso: string) =>
+      new Intl.DateTimeFormat(undefined, {
+        timeZone: zone,
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(iso)),
+    [zone],
+  );
+  // Held while the names and the zone hold, so opening an entry or a page
+  // landing redraws only the rows that changed.
+  const columns = useMemo<readonly DataColumn<ActivityEntry>[]>(
+    () => [
+      {
+        id: 'when',
+        header: 'When',
+        width: '9.5rem',
+        cell: (e) => (
+          <time dateTime={e.occurredAt} title={e.occurredAt} className="tabular-nums">
+            {when(e.occurredAt)}
+          </time>
+        ),
+      },
+      {
+        id: 'who',
+        header: 'Who',
+        cell: (e) => {
+          const actor = who(e, named);
+          return (
+            <span className="flex items-center gap-2.5">
+              {actor.avatar}
+              {actor.name}
+            </span>
+          );
+        },
+      },
+      {
+        id: 'what',
+        header: 'What',
+        cell: (e) => {
+          const target = whom(e, named);
+          return target === null ? (
+            e.action
+          ) : (
+            <>
+              {e.action}: <span className="font-semibold">{target}</span>
+            </>
+          );
+        },
+      },
+      {
+        id: 'area',
+        header: 'Area',
+        cardTrailing: true,
+        cell: (e) => <Badge>{AREA_NAME[e.area] ?? e.area}</Badge>,
+      },
+    ],
+    [named, when],
+  );
 
   if (page.entries.length === 0) {
     return filtered ? (
@@ -370,77 +438,22 @@ function Entries({
       />
     );
   }
-  const when = (iso: string) =>
-    new Intl.DateTimeFormat(undefined, {
-      timeZone: zone,
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(iso));
-
   return (
     <>
       <DataTable<ActivityEntry>
         label="Activity"
         rows={pages.items}
-        rowId={(e) => e.id}
+        rowId={entryId}
         // Infinite: the table is the page's one scroll, older entries load
         // near its end, and only the rows on screen are drawn.
         stickyHeader
         containerClassName="page-fill max-h-dvh min-h-96"
         {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
         loadingMore={pages.loading}
-        describeRow={(e) => e.action}
+        describeRow={entryAction}
         activeRowId={opened?.id ?? null}
-        onRowClick={(e) => {
-          show(e.id);
-        }}
-        columns={[
-          {
-            id: 'when',
-            header: 'When',
-            width: '9.5rem',
-            cell: (e) => (
-              <time dateTime={e.occurredAt} title={e.occurredAt} className="tabular-nums">
-                {when(e.occurredAt)}
-              </time>
-            ),
-          },
-          {
-            id: 'who',
-            header: 'Who',
-            cell: (e) => {
-              const actor = who(e, named);
-              return (
-                <span className="flex items-center gap-2.5">
-                  {actor.avatar}
-                  {actor.name}
-                </span>
-              );
-            },
-          },
-          {
-            id: 'what',
-            header: 'What',
-            cell: (e) => {
-              const target = whom(e, named);
-              return target === null ? (
-                e.action
-              ) : (
-                <>
-                  {e.action}: <span className="font-semibold">{target}</span>
-                </>
-              );
-            },
-          },
-          {
-            id: 'area',
-            header: 'Area',
-            cardTrailing: true,
-            cell: (e) => <Badge>{AREA_NAME[e.area] ?? e.area}</Badge>,
-          },
-        ]}
+        onRowClick={showEntry}
+        columns={columns}
       />
       {/* One entry in full beside the log, its place in the address. */}
       <Sheet
