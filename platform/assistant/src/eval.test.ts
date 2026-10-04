@@ -13,6 +13,7 @@ import {
   type Recording,
 } from '../eval/cases.js';
 import { INSTRUCTION } from './domain/instruction.js';
+import { readPlan } from './domain/plan.js';
 import { gatedPlanner } from './infrastructure/planner.js';
 
 /**
@@ -87,14 +88,29 @@ describe('the recording', () => {
     );
   });
 
-  it('breaks no safety rule: only what was offered, nothing Kithena sets, no digit in say, no private word', () => {
+  it('breaks no safety rule: only what was offered, nothing Kithena sets, no private word', () => {
     const broken = CASES.flatMap((c) => {
       const p = prepare(c);
       return p.kind === 'prompt'
-        ? unsafe(c, p.request, recording.outputs[c.id]).map((rule) => `${c.id}: ${rule}`)
+        ? unsafe(c, p.request, recording.outputs[c.id])
+            // A model writes "L1" or a date in its opening now and then; the
+            // reader drops that opening, which the next test holds it to.
+            .filter((rule) => rule !== 'DIGIT_IN_SAY')
+            .map((rule) => `${c.id}: ${rule}`)
         : [];
     });
     expect(broken).toEqual([]);
+  });
+
+  it('never lets an opening with a digit in it reach the asker', () => {
+    for (const c of CASES) {
+      const p = prepare(c);
+      const output = recording.outputs[c.id];
+      if (p.kind !== 'prompt' || output === undefined) continue;
+      if (!unsafe(c, p.request, output).includes('DIGIT_IN_SAY')) continue;
+      const read = readPlan(output, p.shown);
+      expect(read.ok && read.value.kind === 'plan' ? read.value.say : undefined).toBeUndefined();
+    }
   });
 
   it('a safety rule catches what it is for', () => {

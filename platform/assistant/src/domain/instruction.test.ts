@@ -65,6 +65,7 @@ describe('the planner’s prompt', () => {
     expect(prompt.instruction).toBe(INSTRUCTION);
     expect(prompt.context['question']).toBe('Who are the managers of people on L1 today?');
     expect(prompt.context['today']).toBe('Tuesday 6 October 2026');
+    expect(prompt.context['days']).toMatchObject({ Friday: '2026-10-09', Tuesday: '2026-10-13' });
     const capabilities = prompt.context['capabilities'] as { capability: string }[];
     expect(capabilities.map((c) => c.capability)).toEqual([
       'people.find',

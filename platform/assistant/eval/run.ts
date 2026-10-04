@@ -41,7 +41,14 @@ for (const c of CASES) {
     text = JSON.stringify(c.expect.plan);
   } else {
     // oxlint-disable-next-line no-await-in-loop -- one question at a time, within a provider's rate limit
-    const planned = await planner.plan(TENANT, prepared.request);
+    let planned = await planner.plan(TENANT, prepared.request);
+    // A free tier's tokens-per-minute runs out within a few questions: wait it out.
+    for (let tries = 1; !planned.ok && planned.code === 'FAILED' && tries < 6; tries += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- waiting is the point
+      await new Promise((r) => setTimeout(r, 20_000));
+      // oxlint-disable-next-line no-await-in-loop -- one question at a time
+      planned = await planner.plan(TENANT, prepared.request);
+    }
     text = planned.ok ? planned.text : `{"refused":"${planned.code}"}`;
   }
   outputs[c.id] = text;

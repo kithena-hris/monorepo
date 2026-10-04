@@ -94,6 +94,15 @@ export function resolve(on: DateOn, today: Today): DateRange | null {
   return from <= to ? { from, to } : null;
 }
 
+/**
+ * The next seven days by name, for the prompt: "Friday" is the coming one.
+ * A model told only "Tuesday 6 October" still counts to the wrong Friday.
+ */
+export function comingDays(today: Today): Record<string, CalendarDate> {
+  const days = Array.from({ length: 7 }, (_, i) => plus(today.date, i + 1));
+  return Object.fromEntries(days.map((d) => [say(d, { weekday: 'long' }), d]));
+}
+
 /* ---------------------------------------------------------------- words -- */
 
 const say = (d: string, options: Intl.DateTimeFormatOptions): string => {

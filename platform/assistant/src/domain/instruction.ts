@@ -1,6 +1,6 @@
 import type { ModuleKey } from '@kithena/contracts';
 
-import { spoken, type Today } from './dates.js';
+import { comingDays, spoken, type Today } from './dates.js';
 import type { Offer } from './plan.js';
 
 /**
@@ -21,20 +21,20 @@ import type { Offer } from './plan.js';
 
 export const INSTRUCTION = [
   'You turn a question about the people in a company, and their time off, into ONE JSON object, and nothing else.',
-  'You are given the question, today’s date, the capabilities this asker may use — what each is about, the inputs it takes and the fields its filters may name, each with its key, label, kind and options — and the parts of Kithena this company cannot use.',
+  'You are given the question, today’s date, the next seven days by name, the capabilities this asker may use — what each is about, the inputs it takes and the fields its filters may name, each with its key, label, kind and options — and the parts of Kithena this company cannot use.',
   'Answer with exactly one of:',
   '{"kind":"plan","steps":[{"id":"s1","capability":"<capability>","input":{}}],"answer":{"kind":"count"|"list"|"one","step":"s1"},"say":"<opening>"}  — to look something up',
-  '{"kind":"unavailable","module":"<module>"}  — the question needs a part of Kithena listed as unavailable',
+  '{"kind":"unavailable","module":"<module>"}  — the question needs a part of Kithena listed as unavailable, and no capability given can answer it',
   '{"kind":"unclear","reply":"<one short sentence>"}  — anything else',
   'Steps: at most four, with ids s1 to s4. A step may add "within":"<an earlier step id>" to look only among the people that step found; that is the only way to join two steps, and a capability marked within "required" means nothing without it.',
-  'Inputs, only those a capability takes: "filters":[{"key":"<field key>","op":"<op>","values":["..."]}], "match":"all"|"any", "on":<date>, "name":"<a person named in the question>", "sort":{"key":"<field or metric key>","direction":"asc"|"desc"}, "groupBy":"<group key>". Never write personIds, limit or ids: Kithena sets those.',
+  'Inputs, only those a capability takes: "filters":[{"key":"<field key>","op":"<op>","values":["..."]}], "match":"all"|"any", "on":<date>, "name":"<a person named in the question>", "sort":{"key":"<field or metric key>","direction":"asc"|"desc"}. Never write personIds, limit or ids: Kithena sets those.',
   'Ops: is, in, not_in, contains, before, after, between, empty, not_empty. For a field with options use in or not_in with the option values. Use only the keys, options and capabilities given; never invent one.',
-  'Dates: one of today, tomorrow, yesterday, this_week, next_week, last_week, this_month, next_month, last_month, or a calendar date as YYYY-MM-DD; a span is {"from":<date>,"to":<date>}. Use a word wherever one fits; for a named day, write its date.',
+  'Dates: one of today, tomorrow, yesterday, this_week, next_week, last_week, this_month, next_month, last_month, or a calendar date as YYYY-MM-DD; a span is {"from":<date>,"to":<date>}. Use a word wherever one fits; for a named day, write its date from days.',
   'The asker is a person here too. When the question is about them (me, my, I, myself), use the name "@me". Never ask who "me" is.',
-  'Answer kinds: "count" for how many, with "by":"<group key>" to split by a group the capability lists; "list" to name people; "one" for a single person, for what waits for approval, or for a name that may match several people.',
+  'Answer kinds: "count" for how many, with "by":"<group key>" to split by a group the capability lists (in the answer, never in an input); "list" to name people, also for "is anyone…?"; "one" for a single person, for what waits for approval, or for a name that may match several people.',
   'Being off, out or away on a day is time off. A status of "On leave" in the directory is employment status, not who is away today.',
   'A leave type option labelled "a leave type named in the question" stands for words of the question replaced by its value (L1, L2): filter by that value as it is.',
-  'Add "say" to a plan: one warm, natural sentence a helpful colleague would open with, in the asker’s language. You have not seen the answer yet, so in "say" never write a number, a name you were not given, or any fact: write {n} where the count goes.',
+  'Add "say" to a plan: one warm, natural sentence a helpful colleague would open with, in the asker’s language. You have not seen the answer yet, so in "say" never write a number, a leave type value such as L1, a name you were not given, or any fact: write {n} where the count goes.',
   'For unclear, "reply" is a friendly sentence saying what you can help with.',
 ].join('\n');
 
@@ -95,6 +95,7 @@ export function promptFor({ question, today, offer, unavailable }: PromptInput):
     context: {
       question,
       today: today.utc ? `${date}, in UTC` : date,
+      days: comingDays(today),
       capabilities,
       unavailable: unavailable.flatMap((module) => {
         const about = MODULE_ABOUT[module];

@@ -215,6 +215,35 @@ describe('a plan for every worked example is accepted', () => {
   });
 });
 
+describe('a slip with the right meaning is put where it belongs', () => {
+  it('a count’s group written as an input becomes the answer’s', () => {
+    const r = read(
+      plan([away({ on: 'next_week', groupBy: 'team' })], { kind: 'count', step: 's1' }),
+    );
+    expect(r.ok && r.value.kind === 'plan' && r.value.answer).toEqual({
+      kind: 'count',
+      step: 's1',
+      by: 'team',
+    });
+    expect(r.ok && r.value.kind === 'plan' && r.value.steps[0]?.input).toEqual({ on: 'next_week' });
+  });
+
+  it('`within` written inside the input joins the steps', () => {
+    const r = read(
+      plan([away(), { id: 's2', capability: 'people.managers', input: { within: 's1' } }], {
+        kind: 'list',
+        step: 's2',
+      }),
+    );
+    expect(r.ok && r.value.kind === 'plan' && r.value.steps[1]?.within).toBe('s1');
+  });
+
+  it('a list of what waits for approval is read as the one answer it is', () => {
+    const r = read(plan([{ id: 's1', capability: 'people.approvals', input: {} }]));
+    expect(r.ok && r.value.kind === 'plan' && r.value.answer.kind).toBe('one');
+  });
+});
+
 describe('a filter is read as People reads one', () => {
   it('takes an option’s label as its value, and asks a choice as "any of"', () => {
     const r = read(
@@ -369,7 +398,12 @@ describe('a plan is refused whole when', () => {
 
   it('a step groups by a key its capability does not declare', () => {
     expect(
-      refusal(plan([{ id: 's1', capability: 'people.find', input: { groupBy: 'job_title' } }])),
+      refusal(
+        plan([{ id: 's1', capability: 'people.find', input: { groupBy: 'job_title' } }], {
+          kind: 'count',
+          step: 's1',
+        }),
+      ),
     ).toBe('GROUP');
   });
 

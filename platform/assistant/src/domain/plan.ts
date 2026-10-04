@@ -1,6 +1,7 @@
 import {
   allCapabilities,
   AssistantPlan,
+  StepId,
   type Capability,
   type CapabilityFilter,
   type CapabilitySort,
@@ -12,7 +13,6 @@ import {
   type PlanAnswer,
   type PlanStep,
   type RuntimeCatalogue,
-  type StepId,
 } from '@kithena/contracts';
 import { err, ok, type Result } from '@kithena/domain-kit';
 
@@ -93,7 +93,6 @@ export interface StepInput {
   readonly on?: DateOn;
   readonly name?: string;
   readonly sort?: CapabilitySort;
-  readonly groupBy?: string;
 }
 
 export interface ValidStep {
@@ -236,8 +235,6 @@ function readStep(
   ) {
     return refuse('SORT');
   }
-  if (input.groupBy !== undefined && !groupable(o, input.groupBy)) return refuse('GROUP');
-
   return ok({
     id: step.id,
     capability: o.capability,
@@ -269,23 +266,43 @@ export function readPlan(text: string, offered: Offer): Result<ValidPlan, PlanRe
   if (new Set(plan.steps.map((s) => s.id)).size !== plan.steps.length) {
     return refuse('DUPLICATE_STEP');
   }
+  // Two slips a model makes with the right meaning, put where they belong:
+  // "within" written inside the input, and a count's group written as an input.
+  let by = plan.answer.kind === 'count' ? plan.answer.by : undefined;
+  const written = plan.steps.map((step) => {
+    const { within, groupBy, ...input } = step.input;
+    if (by === undefined && step.id === plan.answer.step && typeof groupBy === 'string') {
+      by = groupBy;
+    }
+    const lifted = step.within ?? StepId.safeParse(within).data;
+    return { ...step, input, ...(lifted === undefined ? {} : { within: lifted }) };
+  });
+  const answer =
+    plan.answer.kind === 'count' && by !== undefined ? { ...plan.answer, by } : plan.answer;
+
   const steps: ValidStep[] = [];
-  for (const step of plan.steps) {
+  for (const step of written) {
     const read = readStep(step, steps, offered);
     if (!read.ok) return read;
     steps.push(read.value);
   }
 
-  const answered = steps.find((s) => s.id === plan.answer.step);
+  const answered = steps.find((s) => s.id === answer.step);
   if (answered === undefined) return refuse('ANSWER_STEP');
-  if (plan.answer.kind !== 'one' && answered.capability.output !== 'people') {
-    return refuse('ANSWER_KIND');
-  }
-  if (plan.answer.kind === 'count' && plan.answer.by !== undefined) {
+  const people = answered.capability.output === 'people';
+  // A list of what waits for approval is written the same as "one": read it so.
+  const kind = answer.kind === 'list' && !people ? 'one' : answer.kind;
+  if (kind !== 'one' && !people) return refuse('ANSWER_KIND');
+  if (answer.kind === 'count' && answer.by !== undefined) {
     const o = offered.get(answered.capability.name);
-    if (o === undefined || !groupable(o, plan.answer.by)) return refuse('GROUP');
+    if (o === undefined || !groupable(o, answer.by)) return refuse('GROUP');
   }
 
   const say = saying(plan.say);
-  return ok({ kind: 'plan', steps, answer: plan.answer, ...(say === undefined ? {} : { say }) });
+  return ok({
+    kind: 'plan',
+    steps,
+    answer: kind === answer.kind ? answer : { kind: 'one', step: answer.step },
+    ...(say === undefined ? {} : { say }),
+  });
 }

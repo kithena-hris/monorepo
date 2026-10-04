@@ -31,7 +31,7 @@ export type Company = 'both' | 'people' | 'timeoff';
 
 export type Expected =
   /** What the model should answer: a plan, `unclear` or `unavailable`. */
-  | { readonly plan: unknown }
+  | { readonly plan: unknown; readonly also?: readonly unknown[] }
   /** Refused before any model is asked. */
   | { readonly refused: RefusalKind }
   /** The AI gateway refuses the prompt. */
@@ -96,6 +96,11 @@ const types = (...values: string[]) => ({
 });
 const where = (key: string, op: string, ...values: string[]) => ({
   filters: [{ key, op, values }],
+});
+/** A second plan that answers the question as well: "Marco's team" is also who reports to Marco. */
+const or = (expected: { plan: unknown }, ...others: { plan: unknown }[]) => ({
+  ...expected,
+  also: others.map((o) => o.plan),
 });
 const unavailable = (module: ModuleKey) => ({ plan: { kind: 'unavailable', module } });
 
@@ -214,12 +219,21 @@ export const CASES: readonly EvalCase[] = [
     group: 'joins',
     question: 'Who in Marco’s team is away this week?',
     company: 'both',
-    expect: plan(
-      [
-        step('s1', 'people.find', { name: 'Marco' }),
-        step('s2', 'timeoff.away', away('this_week'), 's1'),
-      ],
-      { kind: 'list', step: 's2' },
+    expect: or(
+      plan(
+        [
+          step('s1', 'people.find', { name: 'Marco' }),
+          step('s2', 'timeoff.away', away('this_week'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
+      plan(
+        [
+          step('s1', 'people.reports', { name: 'Marco' }),
+          step('s2', 'timeoff.away', away('this_week'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
     ),
   },
   {
@@ -241,12 +255,21 @@ export const CASES: readonly EvalCase[] = [
     question: 'Is anyone in my team off on Friday?',
     company: 'both',
     asker: 'manager',
-    expect: plan(
-      [
-        step('s1', 'people.find', { name: '@me' }),
-        step('s2', 'timeoff.away', away('2026-10-09'), 's1'),
-      ],
-      { kind: 'list', step: 's2' },
+    expect: or(
+      plan(
+        [
+          step('s1', 'people.find', { name: '@me' }),
+          step('s2', 'timeoff.away', away('2026-10-09'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
+      plan(
+        [
+          step('s1', 'people.reports', { name: '@me' }),
+          step('s2', 'timeoff.away', away('2026-10-09'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
     ),
   },
   {
@@ -341,7 +364,10 @@ export const CASES: readonly EvalCase[] = [
     group: 'people',
     question: 'Who has been here the longest?',
     company: 'people',
-    expect: one('people.find', { sort: { key: 'tenure', direction: 'desc' } }, 'list'),
+    expect: or(
+      one('people.find', { sort: { key: 'tenure', direction: 'desc' } }, 'list'),
+      one('people.find', { sort: { key: 'hire_date', direction: 'asc' } }, 'list'),
+    ),
   },
   {
     id: 'p-joined-this-year',
@@ -362,7 +388,10 @@ export const CASES: readonly EvalCase[] = [
     group: 'people',
     question: 'How many people are in Michael’s team?',
     company: 'people',
-    expect: one('people.find', { name: 'Michael' }, 'count'),
+    expect: or(
+      one('people.find', { name: 'Michael' }, 'count'),
+      one('people.reports', { name: 'Michael' }, 'count'),
+    ),
   },
   {
     id: 'p-employee-sales',
@@ -548,16 +577,24 @@ function normal(valid: ValidPlan): unknown {
     case 'plan':
       return {
         kind: 'plan',
-        answer: valid.answer,
+        // A people answer lists the same whether the model wrote "one" or "list".
+        answer:
+          valid.answer.kind === 'one' &&
+          valid.steps.find((s) => s.id === valid.answer.step)?.capability.output === 'people'
+            ? { ...valid.answer, kind: 'list' }
+            : valid.answer,
         steps: valid.steps.map((s) => {
-          const { filters, match, ...rest } = s.input;
+          const { filters, match, on, ...rest } = s.input;
           const input: Record<string, unknown> = { ...rest };
+          if (on !== undefined) {
+            input['on'] = typeof on !== 'string' && on.from === on.to ? on.from : on;
+          }
           if (filters !== undefined && filters.length > 0) {
             input['filters'] = filters
               .map((f) => ({ ...f, values: [...f.values].toSorted() }))
               .toSorted(byKey);
           }
-          if (match === 'any') input['match'] = 'any';
+          if (match === 'any' && (filters?.length ?? 0) > 1) input['match'] = 'any';
           return {
             id: s.id,
             capability: s.capability.name,
@@ -571,18 +608,22 @@ function normal(valid: ValidPlan): unknown {
   }
 }
 
-/** The expected plan read the way the model's is, for comparing. */
-export function expectedOf(c: EvalCase, shown: Offer): unknown {
-  if (!('plan' in c.expect)) return undefined;
-  const read = readPlan(JSON.stringify(c.expect.plan), shown);
-  if (!read.ok) throw new Error(`case ${c.id}: the expected plan is refused (${read.error.code})`);
-  return normal(read.value);
+/** The expected plans read the way the model's is, for comparing: the first, then any equally right. */
+export function expectedOf(c: EvalCase, shown: Offer): unknown[] {
+  if (!('plan' in c.expect)) return [];
+  return [c.expect.plan, ...(c.expect.also ?? [])].map((p) => {
+    const read = readPlan(JSON.stringify(p), shown);
+    if (!read.ok) throw new Error(`case ${c.id}: an expected plan is refused (${read.error.code})`);
+    return normal(read.value);
+  });
 }
 
-/** Whether what the model wrote is exactly the expected plan, once read. */
+/** Whether what the model wrote is exactly one of the expected plans, once read. */
 export function matches(c: EvalCase, shown: Offer, output: string): boolean {
   const read = readPlan(output, shown);
-  return read.ok && JSON.stringify(normal(read.value)) === JSON.stringify(expectedOf(c, shown));
+  if (!read.ok) return false;
+  const got = JSON.stringify(normal(read.value));
+  return expectedOf(c, shown).some((e) => JSON.stringify(e) === got);
 }
 
 const PRIVATE = /\b(sick|ill|baja|médica|parental|maternity|paternity)\b/iu;
