@@ -5,11 +5,10 @@ import {
   Button,
   DatePicker,
   EmptyState,
-  Field,
-  FieldControl,
-  FieldLabel,
   PageHeader,
   PageSection,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
@@ -157,34 +156,93 @@ function History({
     day === today ? 'Today' : day === yesterday ? 'Yesterday' : longDate(day);
 
   return (
-    <Stack gap={6}>
+    <Stack gap={5}>
       <PageHeader
         title="History"
         description={`Every change to ${state.person.name}’s record, newest first.`}
-        actions={onBack === undefined ? undefined : <Button onClick={onBack}>Profile</Button>}
+        actions={
+          onBack === undefined ? undefined : (
+            <Button
+              variant="ghost"
+              size="sm"
+              startIcon={<icons.back aria-hidden />}
+              onClick={onBack}
+            >
+              Profile
+            </Button>
+          )
+        }
       />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field>
-          <FieldLabel>Field</FieldLabel>
-          <Select value={only} onValueChange={setOnly}>
-            <FieldControl>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-            </FieldControl>
-            <SelectContent>
-              <SelectItem value={ALL}>All fields</SelectItem>
-              {[...fields.values()].map((f) => (
-                <SelectItem key={f.key} value={f.key}>
-                  {f.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <DatePicker label="See the record as it was on" value={state.asOf} onChange={onAsOf} />
+      {/* One field or all, and a switch between the changes and a past day (D7, D8). */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Select value={only} onValueChange={setOnly}>
+          <SelectTrigger aria-label="Field" size="sm" className="w-55 touch:w-auto touch:flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All fields</SelectItem>
+            {[...fields.values()].map((f) => (
+              <SelectItem key={f.key} value={f.key}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <SegmentedControl
+          aria-label="Show"
+          size="sm"
+          value={state.asOf === null ? 'changes' : 'as-of'}
+          onValueChange={(next) => {
+            // A day is its own address, so Back returns to the one before. The
+            // switch opens on today, the day it was pressed.
+            if (next === 'changes') onAsOf(null);
+            else if (state.asOf === null) onAsOf(new Date().toISOString().slice(0, 10));
+          }}
+        >
+          <SegmentedControlItem value="changes">Changes</SegmentedControlItem>
+          <SegmentedControlItem value="as-of">As it was on a date</SegmentedControlItem>
+        </SegmentedControl>
+        {state.asOf === null ? null : (
+          <DatePicker
+            label="See the record as it was on"
+            size="sm"
+            value={state.asOf}
+            onChange={onAsOf}
+          />
+        )}
       </div>
-      {state.asOf === null ? null : (
+      {state.asOf === null ? (
+        <PageSection surface title="Changes">
+          {changes.length === 0 ? (
+            <EmptyState title="No changes recorded" />
+          ) : (
+            <Stack gap={5}>
+              {[...days].map(([day, items]) => (
+                <section key={day} aria-labelledby={`day-${day}`} className="flex flex-col gap-3">
+                  <h3 id={`day-${day}`} className="text-sm font-semibold text-fg-subtle">
+                    {dayTitle(day)}
+                  </h3>
+                  <Timeline aria-label={`Changes, ${dayTitle(day)}`}>
+                    {items.map((c, i) => (
+                      <Change
+                        key={c.id}
+                        change={c}
+                        field={fields.get(c.key) as RecordField}
+                        previous={previousOf(c, state.changes, byId)}
+                        corrected={c.supersedes === null ? undefined : byId.get(c.supersedes)}
+                        replacement={c.supersededBy === null ? undefined : byId.get(c.supersededBy)}
+                        dated={dated.has(c.key)}
+                        zone={zone}
+                        last={i === items.length - 1}
+                      />
+                    ))}
+                  </Timeline>
+                </section>
+              ))}
+            </Stack>
+          )}
+        </PageSection>
+      ) : (
         <>
           <Alert
             tone="info"
@@ -203,59 +261,31 @@ function History({
             Includes later corrections. Fields without dates, like phone number, show only their
             changes.
           </Alert>
-          {sections.map((section) => (
-            <PageSection key={section.key} surface title={section.label}>
-              <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(10rem,auto)_1fr]">
-                {section.fields.map((field) => (
-                  <div key={field.key} className="contents">
-                    <dt className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
-                      {field.label}
-                      <SensitiveMark field={field} />
-                    </dt>
-                    <dd className="text-sm">
-                      {!dated.has(field.key) ? (
-                        <span className="text-fg-muted">Not kept by date</span>
-                      ) : (
-                        <DisplayValue field={field} value={state.values[field.key]} />
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </PageSection>
-          ))}
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-2 @4xl/page:items-start">
+            {sections.map((section) => (
+              <PageSection key={section.key} surface title={section.label}>
+                <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(8.75rem,auto)_1fr]">
+                  {section.fields.map((field) => (
+                    <div key={field.key} className="contents">
+                      <dt className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+                        {field.label}
+                        <SensitiveMark field={field} />
+                      </dt>
+                      <dd className="text-sm font-medium">
+                        {!dated.has(field.key) ? (
+                          <span className="font-normal text-fg-muted">Not kept by date</span>
+                        ) : (
+                          <DisplayValue field={field} value={state.values[field.key]} />
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </PageSection>
+            ))}
+          </div>
         </>
       )}
-      <PageSection surface title="Changes">
-        {changes.length === 0 ? (
-          <EmptyState title="No changes recorded" />
-        ) : (
-          <Stack gap={6}>
-            {[...days].map(([day, items]) => (
-              <section key={day} aria-labelledby={`day-${day}`} className="flex flex-col gap-3">
-                <h3 id={`day-${day}`} className="text-sm font-medium text-fg-muted">
-                  {dayTitle(day)}
-                </h3>
-                <Timeline aria-label={`Changes, ${dayTitle(day)}`}>
-                  {items.map((c, i) => (
-                    <Change
-                      key={c.id}
-                      change={c}
-                      field={fields.get(c.key) as RecordField}
-                      previous={previousOf(c, state.changes, byId)}
-                      corrected={c.supersedes === null ? undefined : byId.get(c.supersedes)}
-                      replacement={c.supersededBy === null ? undefined : byId.get(c.supersededBy)}
-                      dated={dated.has(c.key)}
-                      zone={zone}
-                      last={i === items.length - 1}
-                    />
-                  ))}
-                </Timeline>
-              </section>
-            ))}
-          </Stack>
-        )}
-      </PageSection>
     </Stack>
   );
 }
@@ -312,6 +342,12 @@ function Change({
   readonly last: boolean;
 }): JSX.Element {
   const kind = change.actor?.kind ?? 'person';
+  // A sealed field's value reads `{ last4: null }`: that it changed, nothing more.
+  const sealed =
+    typeof change.value === 'object' &&
+    change.value !== null &&
+    'last4' in change.value &&
+    change.value.last4 === null;
   // Kithena support has no face, as the system has none; it is named, not automatic.
   const faceless = kind === 'system' || kind === 'support';
   const title = corrected
@@ -376,9 +412,18 @@ function Change({
             ? ` · effective ${longDate(change.effectiveFrom)}`
             : null}
         </p>
+        {sealed ? (
+          <span className="inline-flex flex-wrap items-center gap-2 text-xs text-fg-muted">
+            <Badge size="sm">
+              <icons.locked aria-hidden />
+              Sealed
+            </Badge>
+            <span>The value is sealed, so only the change is shown.</span>
+          </span>
+        ) : null}
         {corrected ? (
           <span className="inline-flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-            <Badge size="sm" tone="warning">
+            <Badge size="sm" tone="accent">
               Correction
             </Badge>
             <span>
