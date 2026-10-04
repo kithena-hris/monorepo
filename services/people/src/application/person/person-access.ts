@@ -681,9 +681,6 @@ export function refinable(
   if (sort !== undefined && sort.key !== 'name' && !readable(sort.key, false)) {
     return err(failure('FIELD_NOT_SORTABLE', `You cannot sort people by ${sort.key}`, [sort.key]));
   }
-  if (refine.offset !== undefined && (refine.offset < 0 || refine.offset > 100_000)) {
-    return err(failure('CONDITION_INVALID', 'Offset out of range'));
-  }
   return ok(undefined);
 }
 
@@ -2579,13 +2576,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           ),
         );
       }
-      // A sorted list's next page is its offset; an unsorted one's, the last id.
-      const next =
-        rows.length < asking.limit
-          ? null
-          : asking.refine?.sort !== undefined
-            ? `@${String((asking.refine.offset ?? 0) + asking.limit)}`
-            : (rows.at(-1)?.snapshot.id ?? null);
+      // The next page is the last one's place, sorted or not.
+      const next = rows.length < asking.limit ? null : (rows.at(-1)?.snapshot.id ?? null);
       return ok({ items, next });
     },
 

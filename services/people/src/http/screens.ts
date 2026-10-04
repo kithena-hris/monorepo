@@ -1009,8 +1009,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'filter is key:value pairs', ['filter']));
         }
         const after = query.get('after') ?? undefined;
-        if (after !== undefined && !new RegExp(`^(${UUID}|@\\d{1,6})$`).test(after)) {
-          return refused(failure('BAD_REQUEST', 'after is a person id or @offset', ['after']));
+        if (after !== undefined && !new RegExp(`^${UUID}(~\\d{1,4})?$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
         }
         const segment = query.get('segment') ?? undefined;
         if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
@@ -1031,8 +1031,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           await directoryView(deps, asking, {
             search: (query.get('search') ?? '').slice(0, 200),
             filters: filterIn(filter),
-            // Sorted, the cursor is an offset (`@150`); otherwise a person id.
-            after: after ?? query.get('offset') ?? null,
+            // The last person's place, sorted or not (`~150` after a "top"'s).
+            after: after ?? null,
             ...refine.data,
             ...(segment === undefined ? {} : { segmentId: segment }),
             ...(query.get('incomplete') === 'true' ? { incomplete: true } : {}),

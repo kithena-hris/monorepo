@@ -1941,12 +1941,10 @@ export async function directoryView(
             gapsIn: 'any' as const,
           }
         : {};
-    // A sorted directory's cursor is its offset (`@150`); an unsorted one's,
-    // the last person's id, as ever.
-    const offset =
-      query.sort !== undefined && query.after?.startsWith('@') === true
-        ? Number.parseInt(query.after.slice(1), 10) || 0
-        : 0;
+    // The cursor is the last person's place, sorted or not; with a "top",
+    // how many were shown before it too (`<id>~150`), for where to stop.
+    const [afterId = null, shownBefore] = query.after?.split('~') ?? [];
+    const offset = Number.parseInt(shownBefore ?? '0', 10) || 0;
     // A view saved from a search holds conditions too: all of them, and
     // all of any typed beside it. "Any of" either side cannot be one query.
     const own = query.conditions ?? [];
@@ -1965,7 +1963,7 @@ export async function directoryView(
     const refine = {
       conditions: [...saved, ...own],
       match: own.length === 0 ? savedMatch : saved.length === 0 ? ownMatch : ('all' as const),
-      ...(query.sort === undefined ? {} : { sort: query.sort, offset }),
+      ...(query.sort === undefined ? {} : { sort: query.sort }),
     };
     const narrowed = {
       ...asking,
@@ -1978,7 +1976,7 @@ export async function directoryView(
     const top = query.top ?? null;
     const listed = await deps.service.access.list(tx, {
       ...narrowed,
-      after: query.sort === undefined ? (query.after ?? null) : null,
+      after: afterId,
       limit: top === null ? DIRECTORY_PAGE : Math.max(1, Math.min(DIRECTORY_PAGE, top - offset)),
     });
     if (!listed.ok) return listed;
@@ -2010,7 +2008,12 @@ export async function directoryView(
           })
         : null;
     const page = listed.value.items;
-    const next = top !== null && offset + page.length >= top ? null : listed.value.next;
+    const next =
+      top !== null && offset + page.length >= top
+        ? null
+        : top === null || listed.value.next === null
+          ? listed.value.next
+          : `${listed.value.next}~${String(offset + page.length)}`;
 
     const columns = directoryColumns(definitions, everyone);
     const shownDefault = new Set(
@@ -2295,7 +2298,7 @@ export async function orgChartView(
       ...asking,
       after: null,
       limit: ORG_CHART_MAX + 1,
-      refine: { conditions: [], match: 'all', sort: { key: 'name', direction: 'asc' }, offset: 0 },
+      refine: { conditions: [], match: 'all', sort: { key: 'name', direction: 'asc' } },
     });
     if (!listed.ok) return listed;
     const page = listed.value.items.slice(0, ORG_CHART_MAX);
