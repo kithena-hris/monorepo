@@ -87,6 +87,17 @@ async function violations(root: Element): Promise<string[]> {
   );
 }
 
+/**
+ * A short task's dialog, centred under a finger rather than risen as a sheet:
+ * its top-left is the middle of the window before the translate, read from
+ * the style rather than the box, which may still be scaling in.
+ */
+function expectCentred(dialog: HTMLElement): void {
+  const style = getComputedStyle(dialog);
+  expect(Number.parseFloat(style.top)).toBeCloseTo(window.innerHeight / 2, 0);
+  expect(Number.parseFloat(style.left)).toBeCloseTo(window.innerWidth / 2, 0);
+}
+
 function mount(ui: ReactElement) {
   return render(ui, { wrapper: TooltipProvider });
 }
@@ -265,7 +276,7 @@ describe('at 390×844, with a finger', () => {
     for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
   });
 
-  it('publishing, as a sheet from the bottom', async () => {
+  it('publishing, as a dialog centred over the page', async () => {
     await checked(
       <PublishDialog
         open
@@ -298,10 +309,7 @@ describe('at 390×844, with a finger', () => {
     );
     await screen.findByText('Become incomplete');
     const dialog = screen.getByRole('dialog');
-    // Anchored to the bottom edge, not centred: read from the style rather than
-    // the box, which is mid-way through sliding in.
-    // Reach 2 floats the sheet a half-rem above the edge (or the safe area).
-    expect(Number.parseFloat(getComputedStyle(dialog).bottom)).toBeLessThanOrEqual(8);
+    expectCentred(dialog);
     expect(underFloor(dialog)).toEqual([]);
   });
 
@@ -1648,7 +1656,7 @@ describe('what changed on a phone (MA4, MA5)', () => {
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   });
 
-  it('shares as a sheet from the bottom, rewritten for its recipient', async () => {
+  it('shares in a centred dialog, rewritten for its recipient', async () => {
     await checked(
       <WhatChanged
         load={{ status: 'ready', data: SEPTEMBER }}
@@ -1669,7 +1677,7 @@ describe('what changed on a phone (MA4, MA5)', () => {
     expect(within(dialog).getByText('Message')).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Send to Nora' })).toBeVisible();
     expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
-    expect(Number.parseFloat(getComputedStyle(dialog).bottom)).toBeLessThanOrEqual(8);
+    expectCentred(dialog);
     await settled();
     expect(underFloor(dialog)).toEqual([]);
     expect(await violations(document.body)).toEqual([]);

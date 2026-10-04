@@ -119,7 +119,7 @@ export function DescribeRequest({ load, onAsk, onNavigate }: DescribeProps): JSX
           if (!open) onNavigate?.(CLOSE);
         }}
       >
-        <DialogContent className="max-w-190">
+        <DialogContent sheetOnTouch className="max-w-190">
           <DialogHeader className="flex flex-row flex-wrap items-center gap-3">
             <DialogTitle className="flex-1">Request time off</DialogTitle>
             <SegmentedControl

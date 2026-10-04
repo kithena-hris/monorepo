@@ -552,7 +552,7 @@ function MoveDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-150" sheetOnTouch={false}>
+      <DialogContent className="max-w-150">
         <DialogHeader>
           <DialogTitle>{TITLE[kind] ?? LABEL[kind]}</DialogTitle>
           <DialogDescription>{WHAT[kind]}</DialogDescription>

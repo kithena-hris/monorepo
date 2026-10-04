@@ -2292,7 +2292,7 @@ function Filters({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-170" sheetOnTouch={false}>
+      <DialogContent className="max-w-170">
         <DialogHeader>
           <DialogTitle>Filter people</DialogTitle>
           <DialogDescription>

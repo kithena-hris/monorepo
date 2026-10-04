@@ -984,7 +984,7 @@ function DatedChange({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-140" sheetOnTouch={false}>
+      <DialogContent className="max-w-140">
         <form
           aria-label={`Change ${field.label}`}
           className="flex min-h-0 flex-col"
@@ -1461,7 +1461,7 @@ function RecordDialog({
         if (!next) onClose();
       }}
     >
-      <DialogContent className="max-w-120" sheetOnTouch={false}>
+      <DialogContent className="max-w-120">
         <form
           noValidate
           aria-label={title}

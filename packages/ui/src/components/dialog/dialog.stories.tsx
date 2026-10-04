@@ -43,6 +43,7 @@ const meta = {
           '- The confirming button names the act, "Offboard", not "OK". A user who skimmed the title still reads the button.',
           '- Consequences go in the body, above the buttons, where they cannot be missed on the way past.',
           '- `DialogBody` scrolls at 60vh so a long form never pushes the footer off-screen on a laptop.',
+          '- Under a finger it stays centred. Only a long, scrolling editor takes `sheetOnTouch` and rises as a bottom sheet.',
         ].join('\n'),
       },
     },
@@ -211,39 +212,43 @@ export const Destructive: Story = {
   ),
 };
 
-export const CentredOnTouch: Story = {
-  name: 'Centred on touch',
+export const SheetOnTouch: Story = {
+  name: 'Sheet on touch',
   parameters: {
     docs: {
       description: {
         story:
-          '`sheetOnTouch={false}`: a short, focused task stays a centred dialog under a finger too, instead of rising as a bottom sheet. For a few fields and one outcome, where the whole form fits on screen.',
+          'Every dialog stays centred under a finger, because a short task fits on screen and keeps the page in sight. `sheetOnTouch` is for the exception: a long, scrolling editor that needs the height rises as a bottom sheet instead, its actions in reach of the thumb.',
       },
     },
   },
   render: (args) => (
     <Dialog {...args}>
       <DialogTrigger asChild>
-        <Button>Rename the view</Button>
+        <Button>Edit the policy</Button>
       </DialogTrigger>
-      <DialogContent sheetOnTouch={false}>
+      <DialogContent sheetOnTouch>
         <DialogHeader>
-          <DialogTitle>Rename the view</DialogTitle>
-          <DialogDescription>Everybody it is shared with sees the new name.</DialogDescription>
+          <DialogTitle>Edit the travel policy</DialogTitle>
+          <DialogDescription>Each part is published on its own effective date.</DialogDescription>
         </DialogHeader>
-        <DialogBody>
-          <Field>
-            <FieldLabel>Name</FieldLabel>
-            <FieldControl>
-              <Textarea rows={1} defaultValue="Madrid engineers" />
-            </FieldControl>
-          </Field>
+        <DialogBody className="grid gap-4 pb-4">
+          {['Who it covers', 'What it pays for', 'How to claim', 'Who approves', 'Exceptions'].map(
+            (part) => (
+              <Field key={part}>
+                <FieldLabel>{part}</FieldLabel>
+                <FieldControl>
+                  <Textarea rows={4} />
+                </FieldControl>
+              </Field>
+            ),
+          )}
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>
             <Button>Cancel</Button>
           </DialogClose>
-          <Button variant="primary">Rename</Button>
+          <Button variant="primary">Save policy</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

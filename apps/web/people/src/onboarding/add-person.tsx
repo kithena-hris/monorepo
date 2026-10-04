@@ -91,7 +91,7 @@ export function AddPersonDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-w-190" sheetOnTouch={false}>
+      <DialogContent className="max-w-190">
         <form
           aria-label="Add employee"
           noValidate

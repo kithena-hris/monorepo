@@ -53,6 +53,7 @@ export function ShortcutsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-3xl"
+        sheetOnTouch
         // The dialog itself takes focus, not the list's scroller, which is the
         // first thing in it that can: Tab reaches that, and Escape closes.
         onOpenAutoFocus={(event) => {

@@ -22,4 +22,20 @@ describe('Dialog', () => {
     expect(screen.getByRole('dialog', { name: 'Filter people' })).toBeInTheDocument();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
+
+  it('stays centred under a finger unless it asks to be a sheet', () => {
+    render(open);
+    expect(screen.getByRole('dialog').className).not.toMatch(/touch:bottom-/);
+  });
+
+  it('rises as a bottom sheet under a finger when it is a long editor', () => {
+    render(
+      <Dialog open>
+        <DialogContent sheetOnTouch>
+          <DialogTitle>Edit the policy</DialogTitle>
+        </DialogContent>
+      </Dialog>,
+    );
+    expect(screen.getByRole('dialog').className).toMatch(/touch:bottom-/);
+  });
 });

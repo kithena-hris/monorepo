@@ -87,7 +87,7 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-3xl">
+      <DialogContent sheetOnTouch className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{`Nudge ${people(n)} to take a break`}</DialogTitle>
           <DialogDescription>

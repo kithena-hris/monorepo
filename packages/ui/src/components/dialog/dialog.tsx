@@ -21,6 +21,10 @@ import { usePortalContainer } from '../../lib/portal-container';
  *
  * Modals interrupt. Use one for a decision that blocks the task, not to show
  * detail that a panel or a route could carry.
+ *
+ * Centred everywhere, a finger included: a short task (a filter, a
+ * confirmation, a few fields) fits on screen and keeps the page in sight
+ * around it. `sheetOnTouch` is for the long, scrolling editor that would not.
  */
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -30,15 +34,15 @@ export function DialogContent({
   className,
   children,
   showCloseButton = true,
-  sheetOnTouch = true,
+  sheetOnTouch = false,
   ...props
 }: ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
   /**
-   * Under a finger, rise as a bottom sheet (the default). `false` keeps it a
-   * centred dialog there too: for a short, focused task (a few fields, one
-   * outcome) whose whole form fits on screen, where a sheet would cover the
-   * page for no reason. A long or scrolling editor stays a sheet.
+   * Under a finger, rise as a bottom sheet instead of staying centred. For a
+   * long, scrolling editor or list that needs the height; a short, focused
+   * task (a few fields, one outcome) leaves it off, because a sheet would
+   * cover the page for no reason.
    */
   sheetOnTouch?: boolean;
 }): JSX.Element {
@@ -61,10 +65,10 @@ export function DialogContent({
           'top-1/2 left-1/2 max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2',
           'rounded-[1.5rem]',
           'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
-          // Under a finger it is a bottom sheet, not a shrunken dialog. A centred
-          // modal puts its actions out of the thumb's reach and its close button
-          // in the corner hardest to reach one-handed. This follows the pointer,
-          // not the window width: a tablet is held the same way a phone is.
+          // A long editor under a finger is a bottom sheet, not a shrunken
+          // dialog: it needs the height, and its actions sit in the thumb's
+          // reach. This follows the pointer, not the window width: a tablet is
+          // held the same way a phone is.
           //
           // `dvh`, not `vh`: mobile Safari's `vh` is the height with the URL bar
           // hidden, so a `90vh` sheet is taller than the visible page until the

@@ -73,7 +73,7 @@ export function SuggestDates({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-190">
+      <DialogContent sheetOnTouch className="max-w-190">
         <DialogHeader>
           <DialogTitle>{`Suggest other dates to ${who}`}</DialogTitle>
         </DialogHeader>

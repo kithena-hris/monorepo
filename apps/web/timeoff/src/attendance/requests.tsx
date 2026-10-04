@@ -249,7 +249,7 @@ function Decide({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent sheetOnTouch>
         <DialogHeader>
           <DialogTitle>{`${item.displayName}’s overtime on ${weekdayName(item.date)}`}</DialogTitle>
           <DialogDescription>
