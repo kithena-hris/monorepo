@@ -17,7 +17,7 @@ export const NOTHING: ReviewState = {
   share: null,
 };
 
-export const done = () => Promise.resolve({ ok: true as const });
+export const done = (): Promise<{ readonly ok: true }> => Promise.resolve({ ok: true as const });
 
 /** Every operation Review is handed, each a spy that succeeds. */
 export function actions(): Omit<ReviewProps, 'load' | 'tab'> {

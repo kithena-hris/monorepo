@@ -2,7 +2,6 @@
 
 import {
   Avatar,
-  Badge,
   Button,
   CommandPalette,
   DropdownMenu,

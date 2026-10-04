@@ -36,11 +36,14 @@ async function press(key: string): Promise<void> {
   const target = document.activeElement;
   if (target === null) throw new Error('nothing has focus');
   fireEvent.keyDown(target, { key });
-  await act(() => new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        resolve();
-      });
-    }));
+  await act(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      }),
+  );
 }
 const bodyRows = (grid: HTMLElement): HTMLElement[] =>
   within(grid)
@@ -170,7 +173,9 @@ describe('Completeness from the keyboard', () => {
         state={state}
         onSave={vi.fn()}
         onRemind={onRemind}
-        onRemindAll={vi.fn(() => Promise.resolve({ ok: true as const, sent: 1, failed: 0, skipped: 0 }))}
+        onRemindAll={vi.fn(() =>
+          Promise.resolve({ ok: true as const, sent: 1, failed: 0, skipped: 0 }),
+        )}
       />,
     );
     expect(screenCommands().map((c) => c.label)).toContain('Remind 1 person waiting');
@@ -180,6 +185,8 @@ describe('Completeness from the keyboard', () => {
     expect(onRemind).toHaveBeenCalledWith('u', ['desk']);
     lena?.focus();
     await press('f');
-    expect(await screen.findByRole('textbox', { name: /Desk for Lena Moreau/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('textbox', { name: /Desk for Lena Moreau/ }),
+    ).toBeInTheDocument();
   });
 });

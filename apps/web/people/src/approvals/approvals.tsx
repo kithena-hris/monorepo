@@ -13,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyState,
   Field,
   FieldControl,
   FieldDescription,
@@ -23,25 +22,18 @@ import {
   IconList,
   IconListItem,
   List,
-  ListDetail,
   ListItem,
-  PageHeader,
   PageSection,
   PINNED_BAR,
   Stack,
   Stat,
   Switch,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Textarea,
   icons,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
-import { useHeld } from '../held';
-import { Loaded, type Loadable, type Outcome } from '../load';
+import type { Outcome } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, PendingValue, RecordField } from '../record/model';
 import { ApproveAlone, PendingBadge } from '../record/pending';

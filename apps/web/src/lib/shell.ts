@@ -91,9 +91,7 @@ async function peopleShell(entitlements: readonly string[]): Promise<ShellData> 
   // and what waits for a decision, which needs nobody's roles to be asked.
   // The changes flagged for whoever decides, asked as soon as the roles say HR.
   const roles0 = people<ShellData['roles']>('Home');
-  const flaggedP = roles0.then((h) =>
-    h.ok && h.data.hr ? people<never>('Approvals', {}) : null,
-  );
+  const flaggedP = roles0.then((h) => (h.ok && h.data.hr ? people<never>('Approvals', {}) : null));
   const [route, overview, answered, waiting, approvals] = await Promise.all([
     // The manifest, whichever path is asked for: People's own front page is Home's now.
     remoteNav(AREAS.people).catch(() => null),
@@ -121,7 +119,9 @@ async function peopleShell(entitlements: readonly string[]): Promise<ShellData> 
     flagged:
       approvals === null || !approvals.ok
         ? null
-        : flaggedRows((VIEWS.Approvals(approvals.data) as unknown as { items: FlaggedSource[] }).items),
+        : flaggedRows(
+            (VIEWS.Approvals(approvals.data) as unknown as { items: FlaggedSource[] }).items,
+          ),
     viewedAs: data?.viewedAs ?? [],
     now: data?.now ?? null,
   };

@@ -17,12 +17,7 @@ import {
 import Link from 'next/link';
 import { useState, type JSX, type ReactNode } from 'react';
 
-import {
-  flaggedInboxRows,
-  todoRows,
-  type InboxRow,
-  type InboxView,
-} from '../lib/inbox';
+import { flaggedInboxRows, todoRows, type InboxRow, type InboxView } from '../lib/inbox';
 import { viewedAsNotice, type ShellData } from '../lib/shell-data';
 import { AccountSheet, type AppShellProps } from './app-shell';
 import { InboxViews } from './inbox-views';
@@ -98,7 +93,10 @@ function Updates({ shell }: { readonly shell: ShellData }): JSX.Element {
     );
   }
   return (
-    <PageSection title="Viewed as you" description="When a People administrator saw Kithena as you, read-only.">
+    <PageSection
+      title="Viewed as you"
+      description="When a People administrator saw Kithena as you, read-only."
+    >
       <ul className="flex flex-col gap-2">
         {shell.viewedAs.map((v) => {
           const said = viewedAsNotice(v);

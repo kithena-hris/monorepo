@@ -228,8 +228,7 @@ const changeRow = (item: ApprovalItem): Row => ({
   name: item.name,
   summary: summaryOf(item),
   at: item.requestedAt,
-  flag:
-    item.state === 'approved' || item.state === 'rejected' ? null : (item.flagSummary ?? null),
+  flag: item.state === 'approved' || item.state === 'rejected' ? null : (item.flagSummary ?? null),
 });
 
 const idRow = (item: ReviewItem): Row => ({
@@ -269,7 +268,13 @@ const shareRow = (share: ShareRequest): Row => ({
 /** Newest first, as the queue reads (E1); a pair, undated, after everything dated. */
 const newestFirst = (rows: readonly Row[]): Row[] =>
   rows.toSorted((a, b) =>
-    a.at === null ? (b.at === null ? 0 : 1) : b.at === null ? -1 : Date.parse(b.at) - Date.parse(a.at),
+    a.at === null
+      ? b.at === null
+        ? 0
+        : 1
+      : b.at === null
+        ? -1
+        : Date.parse(b.at) - Date.parse(a.at),
   );
 
 /** The changes in each of HR's tabs, as Approvals split them. */
@@ -357,7 +362,11 @@ function Queue({
 }: Omit<ReviewProps, 'load'> & { readonly state: ReviewState }): JSX.Element {
   const viewer = viewerOf(state);
   const chips = viewer === 'hr' ? CHIPS[tab] : [];
-  const [chosen, setChosen] = useHeld<string | null>(heldKind, onKindChange as never, heldKind ?? null);
+  const [chosen, setChosen] = useHeld<string | null>(
+    heldKind,
+    onKindChange as never,
+    heldKind ?? null,
+  );
   const kind = chips.find((k) => k === chosen) ?? null;
   const [picked, pick] = useHeld<string | null>(heldItem, onItemChange, heldItem ?? null);
   const now = Date.parse(state.now);
@@ -473,18 +482,15 @@ function Queue({
       );
     }
     if (tab === 'decided') {
-      return (
-        <Decided
-          state={state}
-          kind={kind}
-          viewer={viewer}
-          onUnmerge={actions.onUnmerge}
-        />
-      );
+      return <Decided state={state} kind={kind} viewer={viewer} onUnmerge={actions.onUnmerge} />;
     }
     if (kind === 'missing') {
       return state.completeness === null ? (
-        <EmptyState icon={<icons.missing />} title={EMPTY.missing.title} description={EMPTY.missing.body} />
+        <EmptyState
+          icon={<icons.missing />}
+          title={EMPTY.missing.title}
+          description={EMPTY.missing.body}
+        />
       ) : (
         <MissingDetails
           state={state.completeness}
@@ -523,7 +529,17 @@ function Queue({
         <Stack gap={5}>
           <Card padded>
             <EmptyState
-              icon={kind === null ? (tab === 'flagged' ? <icons.flagged /> : <icons.success />) : KIND_ICON[kind]}
+              icon={
+                kind === null ? (
+                  tab === 'flagged' ? (
+                    <icons.flagged />
+                  ) : (
+                    <icons.success />
+                  )
+                ) : (
+                  KIND_ICON[kind]
+                )
+              }
               title={empty.title}
               description={empty.body}
             />
@@ -579,6 +595,11 @@ function Queue({
           {refused}
         </Alert>
       )}
+      {state.share?.state === 'missing' ? (
+        <Alert tone="warning" title="This request is not here">
+          It was made for somebody else, or it no longer exists.
+        </Alert>
+      ) : null}
       {body}
     </Stack>
   );
@@ -654,7 +675,10 @@ function Rows({
   );
 }
 
-type Actions = Omit<ReviewProps, 'load' | 'tab' | 'kind' | 'onKindChange' | 'item' | 'onItemChange'>;
+type Actions = Omit<
+  ReviewProps,
+  'load' | 'tab' | 'kind' | 'onKindChange' | 'item' | 'onItemChange'
+>;
 
 /** One item, whatever its kind, in the same pane (E1–E5). */
 function Detail({
@@ -697,7 +721,11 @@ function Detail({
     case 'ids': {
       const item = state.identifiers?.items.find((i) => `id-${idCheckId(i)}` === row.id);
       return item === undefined ? null : (
-        <IdCheckDetail item={item} onDecide={actions.onReviewIdentifier} onReveal={actions.onReveal} />
+        <IdCheckDetail
+          item={item}
+          onDecide={actions.onReviewIdentifier}
+          onReveal={actions.onReveal}
+        />
       );
     }
     case 'duplicates': {
@@ -755,9 +783,7 @@ function RequestCard({ request }: { readonly request: FullValuesRequest }): JSX.
   const shown = stateOf(request);
   return (
     <Card padded className="flex flex-col gap-4">
-      <h2 className="text-md font-bold">
-        Full values: {request.fields.join(', ')}
-      </h2>
+      <h2 className="text-md font-bold">Full values: {request.fields.join(', ')}</h2>
       <KeyValues
         layout="aligned"
         labelWidth="7.5rem"
@@ -818,15 +844,24 @@ function ExportDetail({
         </div>
         {decided ? (
           <Badge size="sm" tone={share.state === 'approved' ? 'success' : 'neutral'}>
-            {share.state === 'approved' ? 'Sent' : share.state === 'rejected' ? 'Rejected' : 'Lapsed'}
+            {share.state === 'approved'
+              ? 'Sent'
+              : share.state === 'rejected'
+                ? 'Rejected'
+                : 'Lapsed'}
           </Badge>
         ) : null}
       </div>
       {share.gap === null || share.gap.fields.length === 0 ? null : (
-        <Alert tone="warning" icon={<icons.locked aria-hidden />} title={`${them} can’t see all of it`}>
+        <Alert
+          tone="warning"
+          icon={<icons.locked aria-hidden />}
+          title={`${them} can’t see all of it`}
+        >
           {listed(
             share.gap.fields.map(
-              (f) => `${f.label} is outside what ${them} can see for ${String(f.people)} ${f.people === 1 ? 'person' : 'people'}`,
+              (f) =>
+                `${f.label} is outside what ${them} can see for ${String(f.people)} ${f.people === 1 ? 'person' : 'people'}`,
             ),
           )}
           {share.gap.unlisted > 0
@@ -842,15 +877,23 @@ function ExportDetail({
         items={[
           {
             label: 'Who',
-            value: (share.audience ?? 'Everybody you can see').replace(/\byou\b/u, firstName(asker)),
+            value: (share.audience ?? 'Everybody you can see').replace(
+              /\byou\b/u,
+              firstName(asker),
+            ),
           },
           { label: 'Fields', value: listed(share.fields) },
-          { label: 'As of', value: share.asOf === null ? 'The day it is sent' : spokenDate(share.asOf) },
+          {
+            label: 'As of',
+            value: share.asOf === null ? 'The day it is sent' : spokenDate(share.asOf),
+          },
           { label: 'Format', value: FORMAT_LABEL[share.format] },
           { label: 'Reason', value: `“${share.reason}”` },
         ]}
       />
-      {decided && share.note !== null ? <p className="text-sm text-fg-muted">“{share.note}”</p> : null}
+      {decided && share.note !== null ? (
+        <p className="text-sm text-fg-muted">“{share.note}”</p>
+      ) : null}
       {share.canDecide && onDecide !== undefined ? (
         <>
           <Field>
@@ -924,7 +967,9 @@ function Decided({
       ? (state.fullValues?.requests ?? []).filter((r) => r.state !== 'pending')
       : [];
   const merges =
-    viewer === 'hr' && (kind === null || kind === 'duplicates') ? (state.duplicates?.merges ?? []) : [];
+    viewer === 'hr' && (kind === null || kind === 'duplicates')
+      ? (state.duplicates?.merges ?? [])
+      : [];
   const decisions = [
     ...changes.map((c) => ({
       key: `change-${c.id}`,
@@ -1075,7 +1120,14 @@ function Finance({
             list={<Rows rows={rows} current={current?.id ?? null} now={now} pick={pick} />}
             detail={
               current === null ? null : (
-                <Detail key={current.id} row={current} state={state} now={now} actions={actions} pick={pick} />
+                <Detail
+                  key={current.id}
+                  row={current}
+                  state={state}
+                  now={now}
+                  actions={actions}
+                  pick={pick}
+                />
               )
             }
           />

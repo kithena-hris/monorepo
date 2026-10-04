@@ -89,7 +89,10 @@ const LEVEL = {
 export const idCheckId = (item: ReviewItem): string => `${item.personId}~${item.attributeKey}`;
 
 /** Failed, or only unverifiable: the badge on its row. */
-export function verdictOf(item: ReviewItem): { readonly tone: 'danger' | 'warning'; readonly text: string } {
+export function verdictOf(item: ReviewItem): {
+  readonly tone: 'danger' | 'warning';
+  readonly text: string;
+} {
   return item.findings.some((f) => f.level === 'mismatch')
     ? { tone: 'danger', text: 'Failed' }
     : { tone: 'warning', text: 'Unverifiable' };

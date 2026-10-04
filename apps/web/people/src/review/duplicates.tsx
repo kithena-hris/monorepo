@@ -4,7 +4,6 @@ import {
   Badge,
   Button,
   Card,
-  DataTable,
   Dialog,
   DialogBody,
   DialogContent,
@@ -12,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyState,
   Field,
   FieldControl,
   FieldDescription,
@@ -20,7 +18,6 @@ import {
   FieldLabel,
   MergeCompare,
   PINNED_BAR,
-  PageHeader,
   RadioGroup,
   RadioGroupItem,
   Stack,
@@ -32,7 +29,6 @@ import {
   TableRow,
   Textarea,
   icons,
-  type DataColumn,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
