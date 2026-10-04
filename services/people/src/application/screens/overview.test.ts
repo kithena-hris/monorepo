@@ -114,7 +114,8 @@ function world() {
   const objects = new Map<string, Uint8Array>();
   const intents = new Map<string, UploadIntent>();
   const uploadStore: UploadStore = {
-    presignPut: (key) => Promise.resolve({ url: `https://bucket.test/${key}`, method: 'PUT', headers: {} }),
+    presignPut: (key) =>
+      Promise.resolve({ url: `https://bucket.test/${key}`, method: 'PUT', headers: {} }),
     read: (key) => {
       const bytes = objects.get(key);
       return Promise.resolve(
@@ -173,7 +174,10 @@ function world() {
   return { store, access, deps, photos, objects, as };
 }
 
-const overview = async (w: ReturnType<typeof world>, asking: ReturnType<ReturnType<typeof world>['as']>) => {
+const overview = async (
+  w: ReturnType<typeof world>,
+  asking: ReturnType<ReturnType<typeof world>['as']>,
+) => {
   const read = await overviewView(w.deps, asking);
   if (!read.ok) throw new Error(read.error.message);
   return read.value;
@@ -241,7 +245,9 @@ describe('the overview', () => {
       pendingChangeId: null,
       valueHash: 'hash',
       keyId: 'k1',
-      findings: [{ level: 'mismatch' as const, code: 'check', message: 'The check digit is wrong.' }],
+      findings: [
+        { level: 'mismatch' as const, code: 'check', message: 'The check digit is wrong.' },
+      ],
       state,
       createdAt: '2026-09-24T08:00:00.000Z',
       decidedBy: state === 'sent_back' ? HR_ACCOUNT : null,
@@ -300,7 +306,14 @@ function png(): Uint8Array {
     0,
   ];
   return new Uint8Array([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
     ...chunk('IHDR', [...u32(256), ...u32(256), 8, 6, 0, 0, 0]),
     ...chunk('tEXt', Array.from(Buffer.from('GPS 52N', 'latin1'))),
     ...chunk('IDAT', [1, 2, 3]),
@@ -326,7 +339,9 @@ describe('a person’s photo', () => {
     const saved = await upload(w, w.as(ADA_ACCOUNT), null, png());
     if (!saved.ok) throw new Error(saved.error.message);
     expect(saved.value.avatarUrl).toMatch(new RegExp(`^/people/photos/${ADA}\\?v=[0-9a-f]{16}$`));
-    expect(Buffer.from(w.photos.rows.get(ADA)?.bytes ?? []).toString('latin1')).not.toContain('GPS');
+    expect(Buffer.from(w.photos.rows.get(ADA)?.bytes ?? []).toString('latin1')).not.toContain(
+      'GPS',
+    );
     // The upload is let go once kept.
     expect(w.objects.size).toBe(0);
 
@@ -454,6 +469,15 @@ describe('the org chart', () => {
     expect(searched.ok && searched.value.leaving).toBeNull();
     const tim = await directoryView(w.deps, w.as(TIM_ACCOUNT), { search: '', filters: {} });
     expect(tim.ok && tim.value.leaving).toBeNull();
+  });
+
+  it('answers with one instant to read local times from, and no zone for somebody placed nowhere', async () => {
+    const w = world();
+    const read = await directoryView(w.deps, w.as(HR_ACCOUNT, 'hr'), { search: '', filters: {} });
+    if (!read.ok) throw new Error(read.error.message);
+    expect(read.value.now).toBe(w.deps.clock.instant());
+    // Nobody here has a location or an entity: the tenant's default would be a guess.
+    expect(new Set(read.value.people.map((p) => p.timeZone))).toEqual(new Set([null]));
   });
 
   it('leaves out a field the viewer cannot read on everybody, for everybody', async () => {

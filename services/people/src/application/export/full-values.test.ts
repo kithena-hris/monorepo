@@ -56,7 +56,8 @@ function setup() {
   const sent: string[] = [];
   const revealed: string[] = [];
   let ids = 0;
-  const deps: FullValuesDeps = { calendars: utcCalendars,
+  const deps: FullValuesDeps = {
+    calendars: utcCalendars,
     access: personAccess(people.deps),
     schemas: people.deps.schemas,
     relations: people.deps.relations,

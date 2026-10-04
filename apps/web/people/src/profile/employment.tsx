@@ -62,7 +62,8 @@ export interface EmploymentPeriod {
 }
 
 export interface EmploymentState {
-  readonly calendar: { readonly today: string; readonly timeZone: string };
+  /** `now`: when People answered, what their local time is read from. Absent from an older People. */
+  readonly calendar: { readonly today: string; readonly timeZone: string; readonly now?: string };
   readonly employment: {
     readonly status: string;
     readonly periods: readonly EmploymentPeriod[];

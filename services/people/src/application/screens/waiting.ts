@@ -61,13 +61,16 @@ export async function waitingView(
   const full =
     deps.fullValues === undefined ? null : await fullValuesScreen(tx, deps.fullValues, asking);
   const hr = roles.has('hr');
-  const inbox = hr && deps.pending !== undefined ? await approvalsInbox(tx, deps.pending, asking) : null;
+  const inbox =
+    hr && deps.pending !== undefined ? await approvalsInbox(tx, deps.pending, asking) : null;
   const mine =
     inbox?.ok === true
       ? inbox.value.items.filter((c) => c.mine && !c.canDecide && !c.canSelfApprove).length
       : null;
   const fullMine =
-    full?.ok === true ? full.value.requests.filter((r) => r.mine && r.state === 'pending').length : 0;
+    full?.ok === true
+      ? full.value.requests.filter((r) => r.mine && r.state === 'pending').length
+      : 0;
   return ok({
     identifiers: identifiers.ok ? identifiers.value.length : null,
     duplicates: duplicates.ok ? duplicates.value.length : null,

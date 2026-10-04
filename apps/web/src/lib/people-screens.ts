@@ -479,9 +479,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
       hr || finance ? read('FullValues') : null,
       hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
       // Complete records overall, analytics' own figure, beside the missing details.
-      hr
-        ? people<{ complete: unknown }>('Analytics', { segment: null })
-        : null,
+      hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
       shareId === null ? null : people<string>('ExportShare', { id: shareId }),
       // The requests to send an export waiting for this administrator (E5).
       admin ? people<string>('ExportSharesToDecide') : null,

@@ -263,6 +263,35 @@ describe('Directory', () => {
     vi.unstubAllGlobals();
   });
 
+  it('says the time where they work on the quick look, as People answered (W3b)', () => {
+    const [adam, lena] = state.people;
+    if (adam === undefined || lena === undefined) throw new Error('fixture');
+    render(
+      <Directory
+        {...props({
+          load: {
+            status: 'ready',
+            data: {
+              ...state,
+              now: '2026-10-03T12:12:00.000Z',
+              columns: [...state.columns, { key: 'location_id', label: 'Location' }],
+              people: [
+                {
+                  ...adam,
+                  timeZone: 'Europe/Madrid',
+                  values: { ...adam.values, location_id: 'Madrid' },
+                },
+                lena,
+              ],
+            },
+          },
+        })}
+      />,
+    );
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    expect(within(look).getByText('Madrid · 14:12')).toBeInTheDocument();
+  });
+
   it('opens a quick look beside the list, then the person (W3b)', async () => {
     const user = fast();
     const onOpen = vi.fn();

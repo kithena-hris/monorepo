@@ -484,7 +484,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   const PersonCalendar = builder
     .objectRef<NonNullable<ProfileView['calendar']>>('PersonCalendar')
     .implement({
-      fields: (t) => ({ today: t.exposeString('today'), timeZone: t.exposeString('timeZone') }),
+      fields: (t) => ({
+        today: t.exposeString('today'),
+        timeZone: t.exposeString('timeZone'),
+        now: t.exposeString('now', {
+          description: 'When People answered: the instant their local time is read from.',
+        }),
+      }),
     });
   type Employment = NonNullable<ProfileView['employment']>;
   const ProfilePeriod = builder
@@ -632,7 +638,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       description:
         'Why People’s checks flag a change (design AI7), for whoever decides it. It never blocks.',
       fields: (t) => ({
-        code: t.exposeString('code', { description: 'The check: raise, band, bank_after_contact, close_colleagues, payroll_closing or unusual_time.' }),
+        code: t.exposeString('code', {
+          description:
+            'The check: raise, band, bank_after_contact, close_colleagues, payroll_closing or unusual_time.',
+        }),
         title: t.exposeString('title', { description: '“A 38% raise”.' }),
         detail: t.exposeString('detail', {
           description: 'What it compared against, in words. Empty on a decided change.',
@@ -695,7 +704,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description: 'Only to whoever decides it; empty for anybody else.',
           resolve: (c) => list(c.flags),
         }),
-        comparisons: t.field({ type: [ApprovalComparisonRef], resolve: (c) => list(c.comparisons) }),
+        comparisons: t.field({
+          type: [ApprovalComparisonRef],
+          resolve: (c) => list(c.comparisons),
+        }),
         flagNote: t.exposeString('flagNote', {
           nullable: true,
           description: '“This might be fine: …”, with anything flagged.',
@@ -895,6 +907,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       name: t.exposeString('name'),
       email: t.exposeString('email', { nullable: true }),
       avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+      timeZone: t.exposeString('timeZone', {
+        nullable: true,
+        description:
+          'Their zone, from where the viewer may read they work; null when that is nowhere.',
+      }),
       values: t.field({
         type: [Cell],
         resolve: (p) => Object.entries(p.values).map(([key, value]) => ({ key, value })),
@@ -953,6 +970,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       fields: t.field({ type: [DirectoryField], resolve: (v) => list(v.fields) }),
       metrics: t.field({ type: [DirectoryMetric], resolve: (v) => list(v.metrics) }),
       query: t.field({ type: DirectoryQuery, resolve: (v) => v.query }),
+      now: t.exposeString('now', {
+        description: 'When People answered: what each person’s local time is read from.',
+      }),
       people: t.field({ type: [DirectoryPerson], resolve: (v) => list(v.people) }),
       next: t.exposeString('next', { nullable: true }),
       can: t.field({ type: DirectoryCan, resolve: (v) => v.can }),
@@ -3382,10 +3402,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         'Its flags were not worth raising (design AI7): similar changes by the same requester are flagged less often. Decides nothing.',
       args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
       resolve: async (_root, args, ctx) => {
-        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/not-unusual`, {
-          body: {},
-          key: args.idempotencyKey,
-        });
+        await viaRest(
+          ctx,
+          'POST',
+          `/v1/pending-changes/${encodeURIComponent(args.id)}/not-unusual`,
+          {
+            body: {},
+            key: args.idempotencyKey,
+          },
+        );
         return done();
       },
     }),

@@ -26,6 +26,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { FieldFiles, FileInput, type UploadOutcome } from '../record/files';
+import { localTime } from '../record/display';
 import { MissingMark } from '../record/missing';
 
 /**
@@ -205,14 +206,6 @@ const longDate = (date: string): string =>
   new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' }).format(
     new Date(`${date}T00:00:00Z`),
   );
-
-const localTime = (now: string, timeZone: string): string => {
-  try {
-    return new Intl.DateTimeFormat('en-GB', { timeStyle: 'short', timeZone }).format(new Date(now));
-  } catch {
-    return '';
-  }
-};
 
 /** "Wednesday 3 October": today, where they work. */
 const weekday = (now: string, timeZone: string): string => {
@@ -767,11 +760,12 @@ function HrHome({
         key="changes"
         icon={<icons.edit aria-hidden />}
         title={counted(changes, 'change to approve', 'changes to approve')}
-        description={unusual(approvals) ?? (
-          oldest === undefined
+        description={
+          unusual(approvals) ??
+          (oldest === undefined
             ? 'Waiting for your decision'
-            : `Oldest asked ${waited(oldest.requestedAt, state.now)}`
-        )}
+            : `Oldest asked ${waited(oldest.requestedAt, state.now)}`)
+        }
         href={review('changes')}
         word="Review"
         primary

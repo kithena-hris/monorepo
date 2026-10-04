@@ -174,7 +174,12 @@ export function withdraw(
   if (withdrawal.by !== approval.requestedBy) {
     return err(failure('FORBIDDEN', 'Only whoever asked withdraws a request'));
   }
-  return ok({ ...approval, state: 'withdrawn', decidedBy: withdrawal.by, decidedAt: withdrawal.at });
+  return ok({
+    ...approval,
+    state: 'withdrawn',
+    decidedBy: withdrawal.by,
+    decidedAt: withdrawal.at,
+  });
 }
 
 /** Something an approval issued that may be used once, until it expires. */

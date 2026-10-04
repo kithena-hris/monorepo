@@ -513,6 +513,10 @@ type DirectoryPerson {
   Each person column (a manager), to draw as a person: who, and their photo.
   """
   people: [DirectoryPersonRef!]
+  """
+  Their zone, from where the viewer may read they work; null when that is nowhere.
+  """
+  timeZone: String
   values: [DirectoryCell!]
 }
 
@@ -1697,6 +1701,8 @@ type PeopleDirectory {
   metrics: [DirectoryMetric!]
   next: String
   notStarted: Int
+  """When People answered: what each person’s local time is read from."""
+  now: String
   people: [DirectoryPerson!]
   query: DirectoryQuery
   """
@@ -2258,6 +2264,8 @@ type Person @key(fields: "id") {
 union PersonAttribute = AddressAttribute | BooleanAttribute | DateAttribute | ListAttribute | MoneyAttribute | NumberAttribute | SealedAttribute | TextAttribute
 
 type PersonCalendar {
+  """When People answered: the instant their local time is read from."""
+  now: String
   timeZone: String
   today: String
 }

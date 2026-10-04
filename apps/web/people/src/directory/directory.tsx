@@ -69,7 +69,7 @@ import { useHeld, useTyped } from '../held';
 import { ImportBusy, isRunning, type ImportRunStatus } from '../import/import-run';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { AddPersonDialog, type Added, type NewPerson } from '../onboarding/add-person';
-import { longDate } from '../record/display';
+import { localTime, longDate } from '../record/display';
 import { MissingMark } from '../record/missing';
 import { SaveSegment, type SegmentRef } from '../segments';
 import {
@@ -137,6 +137,8 @@ export interface DirectoryPerson {
   readonly name: string;
   readonly email: string | null;
   readonly avatarUrl: string | null;
+  /** Their zone, from where the viewer may read they work; absent or null when that is nowhere. */
+  readonly timeZone?: string | null;
   /** Display text per column key. A key the viewer cannot read is absent. */
   readonly values: Readonly<Record<string, string>>;
   /** Each person column (a manager): who, to draw as a person with their photo. */
@@ -163,6 +165,8 @@ export interface DirectoryState {
   readonly active: number;
   /** Provisional or pre-hire; null for a viewer who is not shown statuses. */
   readonly notStarted: number | null;
+  /** When People answered: what each person's local time is read from. Absent from an older People. */
+  readonly now?: string;
   /** On notice, of everybody: the Leaving view's count. Absent from an older People. */
   readonly leaving?: number | null;
   readonly incomplete: number | null;
@@ -1977,9 +1981,19 @@ function Body({
               }
             >
               <KeyValues
-                items={shownColumns
-                  .slice(0, 5)
-                  .map((c) => ({ id: c.key, label: c.label, value: cell(peeked, c) }))}
+                items={shownColumns.slice(0, 5).map((c) => ({
+                  id: c.key,
+                  label: c.label,
+                  value:
+                    // Where they work, and the time there as People answered (W3b).
+                    c.key === 'location_id' && peeked.timeZone && state.now !== undefined ? (
+                      <>
+                        {cell(peeked, c)} · {localTime(state.now, peeked.timeZone)}
+                      </>
+                    ) : (
+                      cell(peeked, c)
+                    ),
+                }))}
               />
               {peeked.missing === null || peeked.missing === 0 ? null : (
                 <p className="flex items-center gap-2 text-sm text-fg-muted">

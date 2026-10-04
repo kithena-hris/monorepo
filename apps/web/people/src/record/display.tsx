@@ -53,3 +53,20 @@ export function DisplayValue({
   }
   return <>{value.map((v) => field.options.find((o) => o.value === v)?.label ?? v).join(', ')}</>;
 }
+
+/**
+ * "14:12": the time at an instant on somebody's clock. The instant is the one
+ * People answered at, never the browser's, so the server's HTML and the
+ * hydrated page say the same; empty for a zone this browser does not know.
+ */
+export const localTime = (now: string, timeZone: string): string => {
+  try {
+    return new Intl.DateTimeFormat('en-GB', { timeStyle: 'short', timeZone }).format(new Date(now));
+  } catch {
+    return '';
+  }
+};
+
+/** "Madrid" for Europe/Madrid, "New York" for America/New_York: a zone as a place. */
+export const zoneCity = (timeZone: string): string =>
+  (timeZone.split('/').at(-1) ?? timeZone).replaceAll('_', ' ');

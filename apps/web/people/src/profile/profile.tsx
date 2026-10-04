@@ -51,7 +51,7 @@ import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 import { useHeld } from '../held';
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
-import { DisplayValue, longDate } from '../record/display';
+import { DisplayValue, localTime, longDate, zoneCity } from '../record/display';
 import { FieldFiles, isFileField, type FileInfo, type UploadOutcome } from '../record/files';
 import {
   isMissing,
@@ -451,7 +451,9 @@ function Record({
                         <icons.scheduled aria-hidden />
                         Their day:{' '}
                         <span data-testid="their-day">
-                          {longDate(state.calendar.today)}, {state.calendar.timeZone}
+                          {state.calendar.now === undefined
+                            ? `${longDate(state.calendar.today)}, ${state.calendar.timeZone}`
+                            : `${localTime(state.calendar.now, state.calendar.timeZone)}, ${zoneCity(state.calendar.timeZone)}`}
                         </span>
                       </Badge>
                     ) : null}

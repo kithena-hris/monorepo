@@ -185,7 +185,9 @@ function compact(value: AttributeValue): string | null {
     new Intl.NumberFormat('en', { style: 'currency', currency: value.currency }).resolvedOptions()
       .maximumFractionDigits ?? 2;
   // Display only: a whole thousand, never arithmetic on the amount.
-  const major = Number(value.amountMinor.slice(0, Math.max(0, value.amountMinor.length - digits)) || '0');
+  const major = Number(
+    value.amountMinor.slice(0, Math.max(0, value.amountMinor.length - digits)) || '0',
+  );
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: value.currency,
@@ -196,7 +198,11 @@ function compact(value: AttributeValue): string | null {
     .replace(/K$/u, 'k');
 }
 
-const shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const shortDate = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+});
 
 /** Decided, or lapsed with nobody deciding: no longer waiting. */
 export const isClosed = (item: ApprovalItem): boolean =>
@@ -449,7 +455,9 @@ export function ChangeDetail({
             </span>
           ) : null}
           {!item.canDecide && item.mine && isHr && item.canSelfApprove !== true ? (
-            <span className="text-sm text-fg-muted">Another HR member must approve your change.</span>
+            <span className="text-sm text-fg-muted">
+              Another HR member must approve your change.
+            </span>
           ) : null}
           <div
             {...PINNED_BAR}

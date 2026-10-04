@@ -252,9 +252,9 @@ describe('Decided (E9)', () => {
       { ...s.deps, clock: fixedClock('2026-09-30T10:00:00.000Z') },
       asking(SOFIA),
     );
-    expect(later.ok && later.value.decided.map((d) => [d.id, d.state, d.decidedBy, d.decidedAt])).toEqual([
-      [item.id, 'lapsed', null, item.expiresAt],
-    ]);
+    expect(
+      later.ok && later.value.decided.map((d) => [d.id, d.state, d.decidedBy, d.decidedAt]),
+    ).toEqual([[item.id, 'lapsed', null, item.expiresAt]]);
   });
 });
 
@@ -272,8 +272,13 @@ describe('Not unusual', () => {
     expect(now?.state).toBe('pending');
     // Quiet, so approving it needs no note any more.
     expect(
-      (await decidePendingChange(tx, s.pending, { ...asking(SOFIA), changeId: item.id, approve: true }))
-        .ok,
+      (
+        await decidePendingChange(tx, s.pending, {
+          ...asking(SOFIA),
+          changeId: item.id,
+          approve: true,
+        })
+      ).ok,
     ).toBe(true);
   });
 });
@@ -408,7 +413,11 @@ describe('sealed pay (PEO-145)', () => {
     const s = await askedForSealedRaise();
     const view = await approvalsView(s.deps, asking(FINANCE_HR));
     const id = (view.ok ? view.value.items.find((i) => i.key === 'pay')?.id : undefined) ?? '';
-    const bare = await decidePendingChange(tx, s.pending, { ...asking(FINANCE_HR), changeId: id, approve: true });
+    const bare = await decidePendingChange(tx, s.pending, {
+      ...asking(FINANCE_HR),
+      changeId: id,
+      approve: true,
+    });
     expect(!bare.ok && bare.error.code).toBe('NOTE_REQUIRED');
     const noted = await decidePendingChange(tx, s.pending, {
       ...asking(FINANCE_HR),

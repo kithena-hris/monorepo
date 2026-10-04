@@ -40,6 +40,7 @@ import {
 } from '../../domain/approval/unusual.js';
 import { outcomeAt } from '../../domain/approval/approval.js';
 import { reviewOutcome } from '../../domain/person/identifier-review.js';
+import { placedZone, placementOf } from '../../domain/org/calendar.js';
 import {
   checksOf,
   flagChange,
@@ -288,8 +289,16 @@ export interface ProfileView {
   };
   readonly sections: readonly (RecordSection & { readonly readsLogged: boolean })[];
   readonly values: FormValues;
-  /** Whose day it is for them, and what day: HR's alone, absent for anybody else (PEO-119). */
-  readonly calendar: { readonly today: string; readonly timeZone: string } | null;
+  /**
+   * Whose day it is for them, and what day: HR's alone, absent for anybody
+   * else (PEO-119). `now` is when People answered, the one instant their
+   * local time is read from, on the server and in the browser alike.
+   */
+  readonly calendar: {
+    readonly today: string;
+    readonly timeZone: string;
+    readonly now: string;
+  } | null;
   /** HR's alone, beside the calendar: where they stand and every employment (PEO-120). */
   readonly employment: {
     readonly status: string;
@@ -493,7 +502,7 @@ export async function profileView(
           deps.viewAs !== undefined && (await offersViewAs(deps.viewAs, tx, asking, id.value)),
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
-      calendar: calendar.ok ? calendar.value : null,
+      calendar: calendar.ok ? { ...calendar.value, now: deps.clock.instant() } : null,
       employment: periods?.ok && status !== null ? { status, periods: periods.value } : null,
       sections: named.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, named),
@@ -1194,7 +1203,9 @@ export async function identifierReviewsView(
       deps,
       tx,
       asking,
-      reviews.flatMap((r) => (r.decidedBy === null ? [] : [{ kind: 'user' as const, userId: r.decidedBy }])),
+      reviews.flatMap((r) =>
+        r.decidedBy === null ? [] : [{ kind: 'user' as const, userId: r.decidedBy }],
+      ),
     );
     const decided: DecidedIdentifierReview[] = [];
     for (const r of reviews) {
@@ -1476,11 +1487,18 @@ export interface DirectoryView {
     readonly label: string;
     readonly options: readonly { readonly value: string; readonly label: string }[];
   }[];
+  /** When People answered: what each person's local time is read from. */
+  readonly now: string;
   readonly people: readonly {
     readonly id: string;
     readonly name: string;
     readonly email: string | null;
     readonly avatarUrl: string | null;
+    /**
+     * Their zone, from what the viewer may read of where they work; null
+     * when that places them nowhere (`placedZone`).
+     */
+    readonly timeZone: string | null;
     readonly values: Readonly<Record<string, string>>;
     /** Each person column (a manager): who, with their photo, to draw as a person. */
     readonly people: readonly {
@@ -1785,6 +1803,7 @@ export async function directoryView(
     );
     const org = await deps.calendars.load(tx, asking.tenantId);
     const placeName = placeNames(org);
+    const now = deps.clock.instant();
     const selects = definitions.filter(
       (d) => d.typeConfig.kind === 'select' && filterable(definitions, [d.key], everyone).ok,
     );
@@ -1961,6 +1980,7 @@ export async function directoryView(
               : [],
         })),
       ],
+      now,
       people: page.map((p) => {
         const email = p.attributes['work_email'];
         return {
@@ -1968,6 +1988,7 @@ export async function directoryView(
           name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
           email: typeof email === 'string' ? email : null,
           avatarUrl: avatars.get(p.id) ?? null,
+          timeZone: placedZone(org, placementOf(p.attributes), now),
           values: withStatus(
             p.status,
             Object.fromEntries(

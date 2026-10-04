@@ -58,6 +58,27 @@ describe('a profile, served whole and hydrated', () => {
     expect(errors).toEqual([]);
   });
 
+  it('says their time from when People answered, the same on the server and in the browser (D1)', async () => {
+    const { html, errors } = await serveAndHydrate(
+      createElement(Profile, {
+        load: {
+          status: 'ready',
+          data: {
+            ...record,
+            calendar: {
+              today: '2026-10-03',
+              timeZone: 'Europe/Madrid',
+              now: '2026-10-03T12:12:00.000Z',
+            },
+          },
+        },
+        onSave: vi.fn(),
+      }),
+    );
+    expect(html).toContain('14:12, Madrid');
+    expect(errors).toEqual([]);
+  });
+
   it('draws the move and the section the address names in the first HTML', async () => {
     const { html, errors } = await serveAndHydrate(
       createElement(Profile, {

@@ -990,60 +990,54 @@ interface Decision {
 
 /** Every decision of the last 90 days the viewer may see, newest first. */
 function decisionsOf(state: ReviewState): Decision[] {
-  const changes = (state.approvals?.decided ?? []).map(
-    (c): Decision => ({
-      key: `change-${c.id}`,
-      kind: 'changes',
-      name: c.name,
-      avatarUrl: c.avatarUrl ?? null,
-      what: [
-        `${c.label} change`,
-        isFlagged(c)
-          ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
-          : null,
-        c.note ? `Note: “${c.note}”` : null,
-      ]
-        .filter((x) => x !== null)
-        .join(' · '),
-      outcome:
-        c.state === 'approved'
-          ? { tone: 'success', text: 'Approved' }
-          : c.state === 'lapsed'
-            ? { tone: 'neutral', text: 'Lapsed' }
-            : { tone: 'danger', text: 'Rejected' },
-      by: c.state === 'lapsed' ? 'Nobody, in 7 days' : (c.decidedBy ?? 'HR'),
-      when: c.decidedAt ?? null,
-    }),
-  );
-  const ids = (state.identifiers?.decided ?? []).map(
-    (r): Decision => ({
-      key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
-      kind: 'ids',
-      name: r.name,
-      what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
-        .filter((x) => x !== null)
-        .join(' · '),
-      outcome:
-        r.outcome === 'accepted'
-          ? { tone: 'success', text: 'Accepted' }
-          : { tone: 'danger', text: 'Sent back' },
-      by: r.decidedBy,
-      when: r.decidedAt,
-    }),
-  );
+  const changes = (state.approvals?.decided ?? []).map((c): Decision => ({
+    key: `change-${c.id}`,
+    kind: 'changes',
+    name: c.name,
+    avatarUrl: c.avatarUrl ?? null,
+    what: [
+      `${c.label} change`,
+      isFlagged(c)
+        ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
+        : null,
+      c.note ? `Note: “${c.note}”` : null,
+    ]
+      .filter((x) => x !== null)
+      .join(' · '),
+    outcome:
+      c.state === 'approved'
+        ? { tone: 'success', text: 'Approved' }
+        : c.state === 'lapsed'
+          ? { tone: 'neutral', text: 'Lapsed' }
+          : { tone: 'danger', text: 'Rejected' },
+    by: c.state === 'lapsed' ? 'Nobody, in 7 days' : (c.decidedBy ?? 'HR'),
+    when: c.decidedAt ?? null,
+  }));
+  const ids = (state.identifiers?.decided ?? []).map((r): Decision => ({
+    key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
+    kind: 'ids',
+    name: r.name,
+    what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
+      .filter((x) => x !== null)
+      .join(' · '),
+    outcome:
+      r.outcome === 'accepted'
+        ? { tone: 'success', text: 'Accepted' }
+        : { tone: 'danger', text: 'Sent back' },
+    by: r.decidedBy,
+    when: r.decidedAt,
+  }));
   const requests = (state.fullValues?.requests ?? [])
     .filter((r) => r.state !== 'pending')
-    .map(
-      (r): Decision => ({
-        key: `access-${r.id}`,
-        kind: 'access',
-        name: askedBy(r),
-        what: `Full values: ${r.fields.join(', ')}${r.note === null ? '' : ` · “${r.note}”`}`,
-        outcome: stateOf(r),
-        by: '—',
-        when: r.requestedAt,
-      }),
-    );
+    .map((r): Decision => ({
+      key: `access-${r.id}`,
+      kind: 'access',
+      name: askedBy(r),
+      what: `Full values: ${r.fields.join(', ')}${r.note === null ? '' : ` · “${r.note}”`}`,
+      outcome: stateOf(r),
+      by: '—',
+      when: r.requestedAt,
+    }));
   return [...changes, ...ids, ...requests].toSorted((a, b) =>
     (b.when ?? '').localeCompare(a.when ?? ''),
   );

@@ -125,7 +125,9 @@ export function inMemoryShareStore(): ShareStore & { readonly rows: Map<string, 
         [...rows.values()]
           .filter(
             (q) =>
-              q.tenantId === tenantId && q.approval.state === 'pending' && q.approval.expiresAt > at,
+              q.tenantId === tenantId &&
+              q.approval.state === 'pending' &&
+              q.approval.expiresAt > at,
           )
           .toSorted((a, b) => a.approval.requestedAt.localeCompare(b.approval.requestedAt))
           .slice(0, limit),

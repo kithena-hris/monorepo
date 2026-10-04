@@ -222,7 +222,12 @@ export function RequestsTable({
                 ) : (
                   // A signed bearer link that carries its own authority and
                   // works once: a real link, so the browser downloads it.
-                  <Button asChild size="sm" variant="primary" startIcon={<icons.download aria-hidden />}>
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="primary"
+                    startIcon={<icons.download aria-hidden />}
+                  >
                     <a href={r.link} download>
                       Download, once
                     </a>

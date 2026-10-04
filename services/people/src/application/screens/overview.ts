@@ -293,11 +293,17 @@ export async function overviewView(
 /** A select's label rather than its stored value, when the department is one. */
 function departmentOf(
   view: PersonView,
-  fields: readonly { readonly key: string; readonly options: readonly { value: string; label: string }[] }[],
+  fields: readonly {
+    readonly key: string;
+    readonly options: readonly { value: string; label: string }[];
+  }[],
 ): string | null {
   const value = text(view.attributes['department']);
   if (value === null) return null;
-  return fields.find((f) => f.key === 'department')?.options.find((o) => o.value === value)?.label ?? value;
+  return (
+    fields.find((f) => f.key === 'department')?.options.find((o) => o.value === value)?.label ??
+    value
+  );
 }
 
 async function reportingLine(
@@ -430,11 +436,7 @@ async function approvalsPart(
   };
 }
 
-async function teamPart(
-  deps: ScreenDeps,
-  tx: Tx,
-  tenantId: string,
-): Promise<OverviewView['team']> {
+async function teamPart(deps: ScreenDeps, tx: Tx, tenantId: string): Promise<OverviewView['team']> {
   const totals = await deps.gapTotals(tx, tenantId);
   return {
     waiting: totals.waiting,

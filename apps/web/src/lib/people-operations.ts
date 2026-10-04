@@ -90,7 +90,7 @@ export const OPERATIONS = {
       person { name summary avatarUrl missing canChangePhoto canViewAs }
       sections { key label visibility readsLogged fields { ...RecordFieldParts } }
       values { ...EntryParts }
-      calendar { today timeZone }
+      calendar { today timeZone now }
       employment {
         status
         periods {
@@ -318,7 +318,8 @@ export const OPERATIONS = {
       metrics { key label kind filter most least }
       query { conditions { key op values } match sort { key direction } top }
       filterable { key label options { value label } }
-      people { id name email avatarUrl values { key value } people { key id name avatarUrl } missing }
+      now
+      people { id name email avatarUrl timeZone values { key value } people { key id name avatarUrl } missing }
       next
       can { import export bulkEdit }
       suggestions remind

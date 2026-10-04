@@ -35,9 +35,7 @@ export function reviewHash(
     hkdfSync('sha256', master.key, Buffer.alloc(0), `${REVIEW_KEY_INFO}:${tenantId}`, 32),
   );
   try {
-    return createHmac('sha256', key)
-      .update(`${attributeKey}\0${normalisedValue}`)
-      .digest('base64');
+    return createHmac('sha256', key).update(`${attributeKey}\0${normalisedValue}`).digest('base64');
   } finally {
     key.fill(0);
   }
