@@ -21,14 +21,7 @@ import {
 import type { CallOutcome } from '../domain/execute.js';
 import { PEOPLE_CATALOGUE, TIMEOFF_CATALOGUE } from '../domain/fixtures.js';
 import { asker, type AskDeps } from './ask.js';
-import type {
-  AskerKey,
-  AskerLookup,
-  Modules,
-  Planned,
-  PlanRequest,
-  Principal,
-} from './ports.js';
+import type { AskerKey, AskerLookup, Modules, Planned, PlanRequest, Principal } from './ports.js';
 
 /**
  * The ask use case over fake ports (assistant PRD §7, §10.4): identity, the

@@ -47,7 +47,8 @@ async function ask(question: unknown, headers: Record<string, string>): Promise<
     method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify({
-      query: 'query ($q: String!) { ask(question: $q) { text understood answered people { id name title } } }',
+      query:
+        'query ($q: String!) { ask(question: $q) { text understood answered people { id name title } } }',
       variables: { q: question },
     }),
   });
@@ -139,8 +140,8 @@ function network() {
     const headers = (init.headers ?? {}) as Record<string, string>;
     const raw = headers['x-kithena-principal'];
     const body = typeof init.body === 'string' ? init.body : '';
-    sent.push({ url, principal: raw === undefined ? null : JSON.parse(raw), body });
     const session = raw === undefined ? null : (JSON.parse(raw) as Record<string, unknown>);
+    sent.push({ url, principal: session, body });
     if (url.startsWith('http://identity.test/')) {
       return Promise.resolve(
         json({

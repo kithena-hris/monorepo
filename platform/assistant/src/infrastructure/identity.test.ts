@@ -29,7 +29,10 @@ describe('who is asking, from identity', () => {
     let at = 0;
     const { fake, sent } = fetching(200);
     const identity = identityFrom(SETTINGS, { fetch: fake, logger: quiet, now: () => at });
-    expect(await identity.asker(TENANT, { email: 'Ada@acme.example' })).toEqual({ ok: true, value: ASKER });
+    expect(await identity.asker(TENANT, { email: 'Ada@acme.example' })).toEqual({
+      ok: true,
+      value: ASKER,
+    });
     expect(sent[0]?.url).toBe(
       `http://identity:4100/api/internal/tenants/${TENANT}/assistant/asker`,
     );
@@ -79,7 +82,9 @@ describe('who is asking, from identity', () => {
     expect(await odd.asker(TENANT, { email: 'a@acme.example' })).toEqual(unreachable);
     const { fake, sent } = fetching(200);
     expect(
-      await identityFrom({}, { fetch: fake, logger: quiet }).asker(TENANT, { email: 'a@acme.example' }),
+      await identityFrom({}, { fetch: fake, logger: quiet }).asker(TENANT, {
+        email: 'a@acme.example',
+      }),
     ).toEqual(unreachable);
     expect(sent).toHaveLength(0);
   });

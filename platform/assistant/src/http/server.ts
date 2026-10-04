@@ -2,11 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { metrics, SpanStatusCode, trace } from '@opentelemetry/api';
 import { presentsInternalToken } from '@kithena/auth-kit';
-import {
-  AssistantQuestion,
-  type AssistantAnswer,
-  type AssistantChannel,
-} from '@kithena/contracts';
+import { AssistantQuestion, type AssistantAnswer, type AssistantChannel } from '@kithena/contracts';
 import { logger as base, type Logger } from '@kithena/telemetry';
 
 import type { Asked, SignedInQuestion } from '../application/ask.js';

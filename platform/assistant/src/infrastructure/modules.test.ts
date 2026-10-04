@@ -96,8 +96,11 @@ describe('a catalogue', () => {
     await modules.catalogue('people', { ...AS, impersonatedBy: admin }, 'c');
     await modules.catalogue('people', AS, 'c');
     const principals = sent.map(
-      (s) => JSON.parse((s.init.headers as Record<string, string>)['x-kithena-principal'] ?? ''),
-    ) as Principal[];
+      (s) =>
+        JSON.parse(
+          (s.init.headers as Record<string, string>)['x-kithena-principal'] ?? '',
+        ) as Principal,
+    );
     expect(principals.map((p) => [p.viewedBy, p.impersonatedBy])).toEqual([
       [admin, null],
       [null, admin],
