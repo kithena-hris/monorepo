@@ -295,9 +295,9 @@ export function sectionName(label: string): string {
  * falls back to its default). The same words in two languages are not a clash.
  */
 function sameName(a: Section['label'], b: Section['label']): boolean {
-  const locales = new Set([...Object.keys(a.translations ?? {}), ...Object.keys(b.translations ?? {})]);
+  const locales = new Set([...Object.keys(a.translations), ...Object.keys(b.translations)]);
   const named = (l: Section['label'], locale: string | null) =>
-    sectionName((locale === null ? undefined : l.translations?.[locale]) ?? l.default);
+    sectionName((locale === null ? undefined : l.translations[locale]) ?? l.default);
   return [null, ...locales].some((locale) => named(a, locale) === named(b, locale));
 }
 
