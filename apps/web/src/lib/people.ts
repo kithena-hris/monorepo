@@ -272,7 +272,12 @@ async function send(
   if (body.trimStart().startsWith('mutation')) {
     // A write waits for identity's word on the session before it is sent.
     const token = await accessToken();
-    return token === null ? signedOut : call(area, name, variables, token, true);
+    if (token === null) return signedOut;
+    const answer = await call(area, name, variables, token, true);
+    // A read this viewer started before the write is not the page drawn after it.
+    const mine = `${sha256(token)}\n`;
+    for (const key of inFlight.keys()) if (key.startsWith(mine)) inFlight.delete(key);
+    return answer;
   }
   // A read goes with the session check (`readToken`), and is answered only
   // once identity has confirmed the session; otherwise it is dropped, unread.
@@ -297,9 +302,10 @@ async function send(
  * prefetches of a page's tabs all draw the same header, at the same moment —
  * waits for that answer rather than asking again.
  *
- * Only while the first is in flight: once answered it is gone, so nothing
- * here is older than a request that started after it, and there is nothing to
- * invalidate. Keyed by a hash of the token, which is one session's (`minted`),
+ * Only while the first is in flight: once answered it is gone, and a write by
+ * the same viewer drops every read of theirs still on its way, so the page
+ * drawn after a save never waits on a read sent before it. No expiry, nothing
+ * else to invalidate. Keyed by a hash of the token, which is one session's (`minted`),
  * so one viewer's answer is never another's; and each page still confirms its
  * own session before it reads the answer (`send`). In-process.
  */
@@ -311,11 +317,13 @@ function alongside(
   key: string,
   ask: () => Promise<PeopleAnswer<unknown>>,
 ): Promise<PeopleAnswer<unknown>> {
-  let answer = inFlight.get(key);
-  if (answer === undefined) {
-    answer = ask().finally(() => inFlight.delete(key));
-    inFlight.set(key, answer);
-  }
+  const held = inFlight.get(key);
+  if (held !== undefined) return held;
+  const answer: Promise<PeopleAnswer<unknown>> = ask().finally(() => {
+    // Only this one: a write may have dropped it and a newer read taken its place.
+    if (inFlight.get(key) === answer) inFlight.delete(key);
+  });
+  inFlight.set(key, answer);
   return answer;
 }
 
