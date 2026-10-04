@@ -2,7 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 import { people, timeOff } from './people';
-import { AREAS, placesFor, remoteNav, remoteRoute, type Area } from './remotes';
+import { AREAS, placesFor, remoteNav, type Area } from './remotes';
 import {
   countsOf,
   EMPTY_SHELL,
@@ -88,14 +88,15 @@ async function peopleShell(entitlements: readonly string[]): Promise<ShellData> 
   // anything is published yet, which the overview does not), the overview,
   // and what waits for a decision, which needs nobody's roles to be asked.
   const [route, overview, answered, waiting] = await Promise.all([
-    remoteRoute('/people').catch(() => undefined),
+    // The manifest, whichever path is asked for: People's own front page is Home's now.
+    remoteNav(AREAS.people).catch(() => null),
     people<Overview>('Overview'),
     people<ShellData['roles']>('Home'),
     waitingFor(),
   ]);
   const data = overview.ok ? overview.data : null;
   const roles = answered.ok ? answered.data : (data?.roles ?? EMPTY_SHELL.roles);
-  if (route === null || route === undefined) return { ...EMPTY_SHELL, roles };
+  if (route === null) return { ...EMPTY_SHELL, roles };
   const places = placesFor(route.nav, roles);
   const counts = data === null ? null : countsOf(data, waiting, places.sections);
   return {
