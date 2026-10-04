@@ -199,12 +199,8 @@ export async function placePerson(
   return outcome(people('PlacePerson', { personId, ...placement }));
 }
 
-export async function saveGrid(
-  changes: readonly {
-    readonly personId: string;
-    readonly values: Readonly<Record<string, string>>;
-  }[],
-): Promise<Saved> {
+/** Missing details' save: one change per person, each value as a form holds it. */
+export async function saveGrid(changes: GridChanges): Promise<Saved> {
   return saved(people('SaveCompletenessGrid', { changes: gridChanges(changes) }));
 }
 
@@ -213,16 +209,28 @@ export async function checkGrid(changes: GridChanges): Promise<Saved> {
   return saved(people('GridCheck', { changes: gridChanges(changes) }));
 }
 
-type GridChanges = readonly {
-  readonly personId: string;
-  readonly values: Readonly<Record<string, string>>;
-}[];
+type GridChanges = readonly { readonly personId: string; readonly values: Values }[];
 
 const gridChanges = (changes: GridChanges) =>
-  changes.map((c) => ({
-    personId: c.personId,
-    values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
-  }));
+  changes.map((c) => ({ personId: c.personId, values: formInputs(c.values) }));
+
+/** Missing details' next people, for its infinite list: from `after`, by keyset (PEO-122). */
+export async function completenessPage(after: string): Promise<{
+  readonly rows: readonly unknown[];
+  readonly fields: readonly unknown[];
+  readonly next: string | null;
+} | null> {
+  const answer = await people<{ rows?: unknown[]; fields?: unknown[]; next?: string | null }>(
+    'Completeness',
+    { after },
+  );
+  if (!answer.ok) return null;
+  return {
+    rows: answer.data.rows ?? [],
+    fields: answer.data.fields ?? [],
+    next: answer.data.next ?? null,
+  };
+}
 
 /* ----------------------------------------------------------- bulk edit -- */
 

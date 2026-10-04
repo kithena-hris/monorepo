@@ -85,4 +85,53 @@ describe('Review on the server, then in the browser', () => {
 
     expect(errors).toEqual([]);
   });
+
+  it.each([
+    { fill: null, shows: 'Missing information' },
+    { fill: 'all', shows: 'Fill in for HR' },
+    { fill: 'l', shows: 'Fill in for Lena Moreau' },
+  ])('renders Missing details with fill=$fill open, and hydrates it unchanged', async ({ fill, shows }) => {
+    const completeness: ReviewState['completeness'] = {
+      since: 'Since version 4',
+      waiting: { people: 1, lastReminded: null, due: 1 },
+      completedThisWeek: 0,
+      toFill: 1,
+      blocking: null,
+      fields: [
+        { key: 'contract_end', label: 'Contract end', dataType: 'date', options: [], person: false },
+      ],
+      rows: [
+        {
+          personId: 'l',
+          name: 'Lena Moreau',
+          department: null,
+          manager: null,
+          missing: ['contract_end'],
+          owner: 'hr',
+          remindedAt: null,
+        },
+      ],
+      next: 'l',
+    };
+    const { html, errors } = await serveAndHydrate(
+      createElement(
+        TooltipProvider,
+        null,
+        createElement(Review, {
+          load: { status: 'ready', data: { ...NOTHING, completeness } },
+          tab: 'waiting',
+          ...actions(),
+          kind: 'missing',
+          onKindChange: vi.fn(),
+          fill,
+          onFillChange: vi.fn(),
+          onLoadMoreMissing: vi.fn(() => Promise.resolve(null)),
+        }),
+      ),
+    );
+    // Open in the first HTML, the row drawn rather than a skeleton.
+    expect(html).toContain(shows);
+    expect(html).toContain('Lena Moreau');
+    expect(errors).toEqual([]);
+  });
 });

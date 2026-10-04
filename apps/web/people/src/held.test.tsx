@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TYPING_MS, useHeld, useTyped } from './held';
+import { TYPING_MS, useHeld, useHeldAtOnce, useTyped } from './held';
 
 describe('useHeld', () => {
   it('is the host’s value when the host holds it, and its fallback when it holds none', () => {
@@ -24,7 +24,7 @@ describe('useHeld', () => {
     const { result, rerender } = renderHook<
       readonly [string, (next: string) => void],
       { held: string | null }
-    >(({ held }) => useHeld(held, onChange, 'all'), { initialProps: { held: null } });
+    >(({ held }) => useHeldAtOnce(held, onChange, 'all'), { initialProps: { held: null } });
     act(() => {
       result.current[1]('missing');
     });
