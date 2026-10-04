@@ -468,18 +468,18 @@ describe('A press on a People screen before its code has loaded', () => {
     await close();
   });
 
-  // React itself replays the focus a press gives a record's tab, which
-  // selects it; the press held here must not select it a second time.
-  it('changes a record’s tab once', async () => {
+  // A section's Edit, pressed before the page is live, opens its editor once:
+  // the press held here must not open it a second time.
+  it('opens a record’s section editor once', async () => {
     const { page, close } = await late(ADMIN.session);
     await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`, { waitUntil: 'commit' });
-    const tab = page.getByRole('tablist', { name: 'Parts of the record' }).getByRole('tab').nth(1);
-    await tab.waitFor({ timeout: 30_000 });
+    const edit = page.getByRole('button', { name: /^Edit .+/ }).first();
+    await edit.waitFor({ timeout: 30_000 });
     expect(await waiting(page)).toBe(true);
     const entries = await page.evaluate(() => history.length);
-    await tab.click();
-    await expect.poll(() => tab.getAttribute('aria-selected'), { timeout: 30_000 }).toBe('true');
-    expect(new URL(page.url()).searchParams.get('tab')).not.toBeNull();
+    await edit.click();
+    await page.getByText('Editing').waitFor({ timeout: 30_000 });
+    expect(new URL(page.url()).searchParams.get('edit')).not.toBeNull();
     await page.waitForLoadState('networkidle');
     expect(await page.evaluate(() => history.length)).toBe(entries + 1);
     await close();
@@ -744,7 +744,7 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     // Changed from the profile's Actions menu, in a dialog.
     await page.getByRole('button', { name: 'Actions' }).click();
     await page.getByRole('menuitem', { name: 'Change placement' }).click();
-    const placement = page.getByRole('form', { name: 'Placement' });
+    const placement = page.getByRole('form', { name: 'Change placement' });
     await placement.getByRole('combobox', { name: /Work location/ }).click();
     await page.getByRole('option', { name: 'Pago Pago office' }).click();
     await placement.getByRole('button', { name: 'Move' }).click();
@@ -805,7 +805,7 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     // A move is in the profile's Actions menu.
     await page.getByRole('button', { name: 'Actions' }).click();
     await page.getByRole('menuitem', { name: 'Terminate' }).click();
-    const terminate = page.getByRole('dialog', { name: 'Terminate' });
+    const terminate = page.getByRole('dialog', { name: /^Terminate / });
     await terminate.getByRole('combobox', { name: /Reason/ }).click();
     await page.getByRole('option', { name: 'Dismissed' }).click();
     await terminate.getByRole('checkbox', { name: 'End their access now' }).click();
@@ -820,7 +820,7 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     // A move is in the profile's Actions menu.
     await page.getByRole('button', { name: 'Actions' }).click();
     await page.getByRole('menuitem', { name: 'Rehire' }).click();
-    const rehire = page.getByRole('dialog', { name: 'Rehire' });
+    const rehire = page.getByRole('dialog', { name: /^Rehire / });
     await rehire.getByRole('button', { name: 'Rehire' }).click();
     // From the day after the last working day, which is still ahead: pre-hire.
     await eventually('the rehire', status, (s) => s === 'pre_hire');
@@ -913,8 +913,8 @@ describe('Hiring somebody added without a start date', () => {
     // One placement for everybody placed nowhere.
     await page.getByRole('combobox', { name: 'Legal entity', exact: true }).click();
     await page.getByRole('option').first().click();
-    await page.getByRole('button', { name: 'Preview hire' }).click();
-    await page.getByText('Nobody is hired yet').waitFor({ timeout: 30_000 });
+    // The preview asks itself, and follows the placement 0.4 s later.
+    await page.getByRole('table', { name: 'Per person' }).waitFor({ timeout: 30_000 });
     const rows = page.getByRole('table', { name: 'Per person' });
     await rows.getByText(/Legal entity: .*→/).waitFor();
     expect(await statusOf('alan@acme.example')).toBe('provisional');
