@@ -13,15 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
-  List,
   ListItem,
+  VirtualList,
   PageSection,
   Progress,
   Sparkline,
   Stack,
   Stat,
   icons,
-  useInView,
   useScreenCommand,
   type ChartPoint,
   type DataColumn,
@@ -30,7 +29,6 @@ import {
 } from '@reach/ui';
 import {
   memo,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -253,9 +251,11 @@ const rowId = (r: GapRow): string => `${r.personId}-${r.owner}`;
  * new first page (the shell read again) starts over.
  */
 function usePages(state: CompletenessState, onLoadMore: MissingActions['onLoadMore']) {
-  const [more, setMore] = useState<{ rows: GapRow[]; fields: GapField[]; next: string | null }>(
-    { rows: [], fields: [], next: state.next ?? null },
-  );
+  const [more, setMore] = useState<{ rows: GapRow[]; fields: GapField[]; next: string | null }>({
+    rows: [],
+    fields: [],
+    next: state.next ?? null,
+  });
   const [loading, setLoading] = useState(false);
   const [first, setFirst] = useState(state);
   if (first !== state) {
@@ -397,7 +397,9 @@ function Missing({
       pages.rows
         .map((r) => {
           const done = r.owner === 'hr' ? filled[r.personId] : undefined;
-          return done === undefined ? r : { ...r, missing: r.missing.filter((k) => !done.includes(k)) };
+          return done === undefined
+            ? r
+            : { ...r, missing: r.missing.filter((k) => !done.includes(k)) };
         })
         .filter((r) => r.missing.length > 0),
     [pages.rows, filled],
@@ -408,7 +410,11 @@ function Missing({
   const labelOf = (key: string): string => pages.fields.get(key)?.label ?? key;
 
   /** After a save: what is no longer missing, and the words for it. */
-  const saved = (changes: readonly GridSave[], result: Extract<GridOutcome, { ok: true }>, who: string | null): void => {
+  const saved = (
+    changes: readonly GridSave[],
+    result: Extract<GridOutcome, { ok: true }>,
+    who: string | null,
+  ): void => {
     // A sensitive value waits for approval: still missing until it is applied.
     const applied = changes.map((c) => ({
       personId: c.personId,
@@ -511,8 +517,6 @@ function Missing({
       )}
     </>
   );
-
-  const endRef = useEndOfList(fill === null ? pages.loadMore : undefined, pages.loading);
 
   if (fill === FILL_ALL) {
     return (
@@ -680,7 +684,11 @@ function Missing({
         />
         <Stat label="For HR to fill in" value={toFill} description="Fill them in below" />
         {state.blocking === null ? null : (
-          <Stat label="Blocking payroll" value={state.blocking} description="Bank, tax or ID details" />
+          <Stat
+            label="Blocking payroll"
+            value={state.blocking}
+            description="Bank, tax or ID details"
+          />
         )}
       </div>
       <Card padded className="hidden touch:block">
@@ -759,20 +767,33 @@ function Missing({
             virtualize
             empty={empty}
           />
-          <List aria-label="Missing information" className="hidden touch:block">
-            {rows.map((r) => (
-              <ListItem
-                key={rowId(r)}
-                leading={<Avatar size="lg" name={r.name} />}
-                description={`Missing: ${missingOf(r).join(', ')}`}
-                trailing={action(r)}
-              >
-                {r.name}
-              </ListItem>
-            ))}
-          </List>
-          {/* A phone's list scrolls with the page: the next people load a screen ahead. */}
-          <div ref={endRef} aria-hidden className="hidden h-px touch:block" />
+          {/* A phone's list: the page is its scroll, only the rows near the view are
+              drawn, and the next people load a screen ahead (not while a dialog is open). */}
+          <div className="hidden touch:block">
+            <VirtualList
+              label="Missing information"
+              items={rows}
+              itemKey={rowId}
+              scroll="page"
+              listItems
+              estimateItemHeight={PHONE_ROW}
+              {...(fill !== null || pages.loadMore === undefined
+                ? {}
+                : { onEndReached: pages.loadMore })}
+              loadingMore={pages.loading}
+              renderItem={(r, _i, item) => (
+                <ListItem
+                  key={rowId(r)}
+                  {...item}
+                  leading={<Avatar size="lg" name={r.name} />}
+                  description={`Missing: ${missingOf(r).join(', ')}`}
+                  trailing={action(r)}
+                >
+                  {r.name}
+                </ListItem>
+              )}
+            />
+          </div>
         </PageSection>
       )}
       {person === undefined ? null : (
@@ -799,19 +820,8 @@ const NOTHING = {
   body: 'Every required field has a value for everybody it applies to.',
 };
 
-/** The next page when a list that scrolls with the page nears its end (a phone's). */
-function useEndOfList(loadMore: (() => void) | undefined, loading: boolean) {
-  const [ref, near] = useInView<HTMLDivElement>({
-    rootMargin: '400px',
-    enabled: loadMore !== undefined && !loading && typeof IntersectionObserver !== 'undefined',
-  });
-  const load = useRef(loadMore);
-  load.current = loadMore;
-  useEffect(() => {
-    if (near && !loading) load.current?.();
-  }, [near, loading]);
-  return ref;
-}
+/** A phone row's height, for the list to place rows it has not measured yet. */
+const PHONE_ROW = 72;
 
 function PersonCell({ row }: { readonly row: GapRow }): JSX.Element {
   return (
@@ -858,7 +868,10 @@ function PersonFill({
   readonly fields: ReadonlyMap<string, GapField>;
   readonly onSave: MissingActions['onSave'];
   readonly onCheck: MissingActions['onCheck'];
-  readonly onSaved: (changes: readonly GridSave[], result: Extract<GridOutcome, { ok: true }>) => void;
+  readonly onSaved: (
+    changes: readonly GridSave[],
+    result: Extract<GridOutcome, { ok: true }>,
+  ) => void;
   readonly onClose: () => void;
 }): JSX.Element {
   const shown = row.missing.flatMap((key) => {
@@ -882,7 +895,12 @@ function PersonFill({
         </DialogHeader>
         <DialogBody>
           <SectionForm
-            section={{ key: 'missing', label: `Missing details for ${row.name}`, visibility: [], fields: shown }}
+            section={{
+              key: 'missing',
+              label: `Missing details for ${row.name}`,
+              visibility: [],
+              fields: shown,
+            }}
             values={{}}
             hint="Sensitive values wait for approval."
             footer={
@@ -947,13 +965,20 @@ function FillGrid({
   readonly notices: ReactNode;
   readonly onSave: MissingActions['onSave'];
   readonly onCheck: MissingActions['onCheck'];
-  readonly onSaved: (changes: readonly GridSave[], result: Extract<GridOutcome, { ok: true }>) => void;
+  readonly onSaved: (
+    changes: readonly GridSave[],
+    result: Extract<GridOutcome, { ok: true }>,
+  ) => void;
   readonly onFailed: (message: string) => void;
   readonly onBack: () => void;
 }): JSX.Element {
   const [edits] = useState(createEdits);
   const [saving, setSaving] = useState(false);
-  const pending = useSyncExternalStore(edits.subscribe, () => countOf(edits.edits()), () => 0);
+  const pending = useSyncExternalStore(
+    edits.subscribe,
+    () => countOf(edits.edits()),
+    () => 0,
+  );
   const doubted = useSyncExternalStore(edits.subscribe, edits.findings, edits.findings);
   const table = useRef<DataTableHandle>(null);
   const placed = useRef(rows);
@@ -978,30 +1003,28 @@ function FillGrid({
         sticky: true,
         cell: (r) => <PersonCell row={r} />,
       },
-      ...shown.map(
-        ({ gap, field }): DataColumn<GapRow> => ({
-          id: field.key,
-          header:
-            gap.sensitive === true ? (
-              <span className="inline-flex items-center gap-2">
-                {field.label}
-                <Badge tone="sensitive" size="sm">
-                  Sensitive
-                </Badge>
-              </span>
-            ) : (
-              field.label
-            ),
-          cell: (r) =>
-            r.missing.includes(field.key) ? (
-              <Cell edits={edits} row={r} field={field} />
-            ) : (
-              <span className="text-fg-subtle" aria-label="Already filled in">
-                —
-              </span>
-            ),
-        }),
-      ),
+      ...shown.map(({ gap, field }): DataColumn<GapRow> => ({
+        id: field.key,
+        header:
+          gap.sensitive === true ? (
+            <span className="inline-flex items-center gap-2">
+              {field.label}
+              <Badge tone="sensitive" size="sm">
+                Sensitive
+              </Badge>
+            </span>
+          ) : (
+            field.label
+          ),
+        cell: (r) =>
+          r.missing.includes(field.key) ? (
+            <Cell edits={edits} row={r} field={field} />
+          ) : (
+            <span className="text-fg-subtle" aria-label="Already filled in">
+              —
+            </span>
+          ),
+      })),
     ],
     [shown, edits],
   );
@@ -1017,7 +1040,9 @@ function FillGrid({
     const personId = at.dataset['person'] ?? '';
     const key = at.dataset['cell'] ?? '';
     const list = placed.current;
-    const next = list.slice(list.findIndex((r) => r.personId === personId) + 1).find((r) => r.missing.includes(key));
+    const next = list
+      .slice(list.findIndex((r) => r.personId === personId) + 1)
+      .find((r) => r.missing.includes(key));
     if (next === undefined) return;
     table.current?.revealRow(next.personId);
     // A row scrolled out of the DOM mounts once the scroll nears it.
@@ -1101,7 +1126,11 @@ function FillGrid({
       )}
       {rows.length === 0 ? (
         <Card padded>
-          <EmptyState icon={<icons.missing />} title="Nothing for HR to fill in" description="Every gap left is a person’s own: remind them from the list." />
+          <EmptyState
+            icon={<icons.missing />}
+            title="Nothing for HR to fill in"
+            description="Every gap left is a person’s own: remind them from the list."
+          />
         </Card>
       ) : (
         // ↵ is caught here, once, for every line in the grid.
