@@ -1480,6 +1480,8 @@ export interface DuplicatesView {
    * do; empty beside a comparison.
    */
   readonly merges: readonly MergedPair[];
+  /** The next page of `merges`, as `mergesAfter`; null on the last. */
+  readonly mergesNext: string | null;
   /** The pair asked about, side by side; null when none was. */
   readonly comparison: {
     readonly people: readonly [ComparedPerson, ComparedPerson];
@@ -1520,15 +1522,22 @@ function shown(
  * what HR may not read is absent here too; what may be copied, and which way
  * a merge may go, are `mergeOptions`', the same rules `merge` applies.
  */
+/** Merged records, a keyset page at a time as the list scrolls. */
+export const MERGES_PAGE = 20;
+const MERGES_CURSOR = /^(\d{4}-\d{2}-\d{2}T[0-9:.]+Z)~([0-9a-f-]{36})$/u;
+
 export async function duplicatesView(
   deps: ScreenDeps,
   asking: Asking,
   pair: readonly [string, string] | null,
+  /** Merged records' next page from this place: the page alone, without the queue. */
+  mergesAfter: string | null = null,
 ): Promise<Result<DuplicatesView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const access = deps.service.access;
-    const queue = await access.duplicates(tx, asking);
-    if (!queue.ok) return queue;
+    const queued = await access.duplicates(tx, asking);
+    if (!queued.ok) return queued;
+    const queue = mergesAfter === null ? queued : { ...queued, value: [] };
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const labelOf = (key: string) =>
@@ -1562,10 +1571,21 @@ export async function duplicatesView(
       });
     }
     if (pair === null) {
-      const standing = await access.merges(tx, asking);
+      const place = mergesAfter === null ? null : MERGES_CURSOR.exec(mergesAfter);
+      const standing = await access.merges(tx, {
+        ...asking,
+        limit: MERGES_PAGE + 1,
+        ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
+      });
       if (!standing.ok) return standing;
+      const shown = standing.value.slice(0, MERGES_PAGE);
+      const last = shown.at(-1);
+      const mergesNext =
+        standing.value.length > MERGES_PAGE && last !== undefined
+          ? `${last.decidedAt}~${last.id}`
+          : null;
       const merges: MergedPair[] = [];
-      for (const m of standing.value) {
+      for (const m of shown) {
         const undo = await access.unmergeOptions(tx, { ...asking, personId: m.absorbedId });
         if (!undo.ok) return undo;
         merges.push({
@@ -1580,7 +1600,7 @@ export async function duplicatesView(
           refusal: undo.value.refusal?.message ?? null,
         });
       }
-      return ok<DuplicatesView>({ items, merges, comparison: null });
+      return ok<DuplicatesView>({ items, merges, mergesNext, comparison: null });
     }
 
     const [a, b] = pair;
@@ -1635,6 +1655,7 @@ export async function duplicatesView(
     return ok({
       items,
       merges: [],
+      mergesNext: null,
       comparison: {
         people: [
           person(readA.value, intoA.value.refusal),

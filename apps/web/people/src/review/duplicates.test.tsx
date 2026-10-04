@@ -172,6 +172,21 @@ describe('possible duplicates in Review (PEO-074)', () => {
     expect(onUnmerge).toHaveBeenCalledWith('p3', 'Two people');
   });
 
+  it('loads older merged records as the list nears its end', async () => {
+    const [shown] = withMerges.merges ?? [];
+    if (shown === undefined) throw new Error('fixture');
+    const older = { ...shown, absorbedId: 'p9', absorbedName: 'Ada King', refusal: null };
+    const onMoreMerges = vi.fn(() =>
+      Promise.resolve({ items: [], merges: [older], mergesNext: null, comparison: null }),
+    );
+    renderReview(
+      { duplicates: { ...withMerges, mergesNext: 'place-1' } },
+      { tab: 'decided', onMoreMerges },
+    );
+    expect(await screen.findByText('Ada King')).toBeInTheDocument();
+    expect(onMoreMerges).toHaveBeenCalledWith('place-1');
+  });
+
   it('shows why a pair cannot be merged here, and offers no merge', () => {
     const blocked: DuplicatesState = {
       ...compared,

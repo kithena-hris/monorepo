@@ -384,6 +384,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
       merges: t.field({ type: [MergedPairRef], resolve: (v) => list(v.merges) }),
+      mergesNext: t.exposeString('mergesNext', {
+        nullable: true,
+        description: 'The next page of merged records, as `mergesAfter`; null on the last.',
+      }),
       comparison: t.field({ type: ComparisonRef, nullable: true, resolve: (v) => v.comparison }),
     }),
   });
@@ -399,11 +403,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     t.field({
       type: DuplicatesRef,
       description: 'Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.',
-      args: { a: t.arg.id(), b: t.arg.id() },
+      args: { a: t.arg.id(), b: t.arg.id(), mergesAfter: t.arg.string() },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
         if (args.a) query.set('a', args.a);
         if (args.b) query.set('b', args.b);
+        if (args.mergesAfter) query.set('mergesAfter', args.mergesAfter);
         const qs = query.toString();
         return viaRest<DuplicatesView>(
           ctx,

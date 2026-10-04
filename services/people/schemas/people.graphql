@@ -1745,6 +1745,8 @@ type PeopleDuplicates {
   comparison: DuplicateComparison
   items: [DuplicatePair!]
   merges: [MergedPair!]
+  """The next page of merged records, as `mergesAfter`; null on the last."""
+  mergesNext: String
 }
 
 type PeopleExport {
@@ -2511,7 +2513,7 @@ type Query {
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
-  peopleDuplicates(a: ID, b: ID): PeopleDuplicates
+  peopleDuplicates(a: ID, b: ID, mergesAfter: String): PeopleDuplicates
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder(

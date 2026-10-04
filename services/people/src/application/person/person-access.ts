@@ -491,7 +491,10 @@ export interface PersonAccess {
   /** Merges still standing, newest first, for HR: what an undo is offered on. */
   merges(
     tx: Tx,
-    asking: Asking & { readonly limit?: number },
+    asking: Asking & {
+      readonly limit?: number;
+      readonly before?: { readonly at: string; readonly id: string };
+    },
   ): Promise<Result<readonly MergeDecision[]>>;
   /**
    * HR undoes the merge that absorbed `personId`, for a stated reason: the
@@ -2325,7 +2328,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
       return ok(
         (await deps.duplicates?.merges(tx, asking.tenantId, {
-          limit: Math.min(asking.limit ?? 20, 100),
+          limit: Math.min(asking.limit ?? 20, 101),
+          ...(asking.before === undefined ? {} : { before: asking.before }),
         })) ?? [],
       );
     },

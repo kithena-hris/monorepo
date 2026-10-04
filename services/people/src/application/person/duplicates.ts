@@ -28,7 +28,12 @@ export interface DuplicateStore {
   merges(
     tx: Tx,
     tenantId: string,
-    where: { readonly absorbedId?: string; readonly limit: number },
+    where: {
+      readonly absorbedId?: string;
+      readonly limit: number;
+      /** A keyset page: decided before this, newest first, then by id. */
+      readonly before?: { readonly at: string; readonly id: string };
+    },
   ): Promise<readonly MergeDecision[]>;
   /** Whether retention has erased anything of this record: a redacted history row. */
   erased(tx: Tx, tenantId: string, personId: string): Promise<boolean>;

@@ -174,10 +174,11 @@ export const OPERATIONS = {
     }
   }`,
 
-  Duplicates: `query Duplicates($a: ID, $b: ID) {
-    peopleDuplicates(a: $a, b: $b) {
+  Duplicates: `query Duplicates($a: ID, $b: ID, $mergesAfter: String) {
+    peopleDuplicates(a: $a, b: $b, mergesAfter: $mergesAfter) {
       items { personIds names reasons match flaggedBy avatarUrls }
       merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
+      mergesNext
       comparison {
         people { id name status refusal }
         rows { key label values same takeable }

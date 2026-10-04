@@ -1043,6 +1043,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           tab,
           // HR's Decided loads as it scrolls; the address opens the newest.
           onMoreDecided: actions.decidedPage,
+          onMoreMerges: actions.mergesPage,
           kind: at('kind'),
           onKindChange: (kind: string | null) => {
             // A new chip starts at the top of its list.

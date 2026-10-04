@@ -26,6 +26,7 @@ vi.mock('../app/(app)/people/actions', () => ({
   decidePendingChange: vi.fn(),
   transferHistoryPage: vi.fn(),
   decidedPage: vi.fn(),
+  mergesPage: vi.fn(),
   screenPage: vi.fn(),
   withdrawPendingChange: vi.fn(),
   approveAlone: vi.fn(),

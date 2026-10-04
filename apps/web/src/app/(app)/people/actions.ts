@@ -1161,6 +1161,12 @@ export async function decidedPage(after: string): Promise<unknown> {
   return answer.ok ? VIEWS.Approvals(answer.data) : null;
 }
 
+/** Review's merged records after `after` (the last page's `mergesNext`), as they scroll. */
+export async function mergesPage(after: string): Promise<unknown> {
+  const answer = await people<unknown>('Duplicates', { mergesAfter: after });
+  return answer.ok ? answer.data : null;
+}
+
 /** Import & export's history before `before` (the last entry's cursor), as it scrolls. */
 export async function transferHistoryPage(before: string): Promise<unknown> {
   const answer = await people<unknown>('TransferHistory', { before });

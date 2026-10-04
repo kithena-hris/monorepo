@@ -986,7 +986,15 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
             failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']),
           );
         }
-        return answer(await duplicatesView(deps, asking, a === null || b === null ? null : [a, b]));
+        return answer(
+          await duplicatesView(
+            deps,
+            asking,
+            a === null || b === null ? null : [a, b],
+            // Merged records' next page, from the last page's `mergesNext`.
+            query.get('mergesAfter')?.slice(0, 100) ?? null,
+          ),
+        );
       },
     },
     {

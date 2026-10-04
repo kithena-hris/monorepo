@@ -150,6 +150,8 @@ export interface ReviewProps extends ChangeActions {
   readonly onUnmerge: DuplicateActions['onUnmerge'];
   /** HR's Decided after this place, as People answers `Approvals` for it, or null. */
   readonly onMoreDecided?: (after: string) => Promise<unknown>;
+  /** Merged records after this place, as People answers `Duplicates` for it, or null. */
+  readonly onMoreMerges?: (after: string) => Promise<unknown>;
   readonly onRequestFullValues: FullValuesActions['onRequest'];
   readonly onDecideFullValues: FullValuesActions['onDecide'];
   readonly onDecideShare?: (id: string, approve: boolean, note: string) => Promise<Outcome>;
@@ -544,6 +546,7 @@ function Queue({
           viewer={viewer}
           onUnmerge={actions.onUnmerge}
           onMore={actions.onMoreDecided}
+          onMoreMerges={actions.onMoreMerges}
         />
       );
     }
@@ -1122,12 +1125,14 @@ function Decided({
   viewer,
   onUnmerge,
   onMore,
+  onMoreMerges,
 }: {
   readonly state: ReviewState;
   readonly kind: ReviewKind | null;
   readonly viewer: Viewer;
   readonly onUnmerge: DuplicateActions['onUnmerge'];
   readonly onMore: ReviewProps['onMoreDecided'];
+  readonly onMoreMerges: ReviewProps['onMoreMerges'];
 }): JSX.Element {
   // HR's decided changes, a page at a time as the table scrolls.
   const more = useCallback(
@@ -1217,7 +1222,12 @@ function Decided({
           />
         </PageSection>
       )}
-      <Merges merges={merges} onUnmerge={onUnmerge} />
+      <Merges
+        merges={merges}
+        next={drawn.duplicates?.mergesNext ?? null}
+        onUnmerge={onUnmerge}
+        onLoadMore={onMoreMerges}
+      />
     </Stack>
   );
 }
