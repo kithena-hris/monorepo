@@ -85,7 +85,7 @@ export function HolidayCalendar({
         if (!open) onClose();
       }}
     >
-      <DialogContent sheetOnTouch>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{layer === null ? 'Add a calendar' : layer.name}</DialogTitle>
           <DialogDescription>

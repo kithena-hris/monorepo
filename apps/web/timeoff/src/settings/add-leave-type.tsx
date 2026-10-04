@@ -110,7 +110,7 @@ export function AddLeaveType({
         if (!open) onClose();
       }}
     >
-      <DialogContent sheetOnTouch>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a leave type</DialogTitle>
           <DialogDescription>

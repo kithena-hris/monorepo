@@ -186,7 +186,6 @@ export function AskBar({
   return (
     <Popover
       open={open}
-      sheetOnTouch={false}
       onOpenChange={(next) => {
         if (!next) setFocused(false);
       }}
