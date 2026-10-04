@@ -264,6 +264,40 @@ describe('with a model', () => {
     expect(unreadable).toBe(2);
   });
 
+  it('places a "new" section the company already has by that name in that section', () => {
+    const { proposals } = withModel(
+      local,
+      [
+        {
+          proposals: [
+            {
+              column: 5,
+              field: {
+                label: 'Shirt size',
+                dataType: 'select',
+                required: false,
+                ownership: ['employee'],
+                visibility: ['self', 'hr'],
+                classification: 'internal',
+                piiKind: 'none',
+                encrypted: false,
+                aiEligible: true,
+              },
+              newSection: 'EMPLOYMENT',
+              why: 'For the welcome pack.',
+              forExisting: 'ask',
+              forExistingWhy: 'Ask.',
+            },
+          ],
+          skipped: [],
+        },
+      ],
+      SECTIONS,
+      Object.values(FILE),
+    );
+    expect(proposals.find((p) => p.column === 5)?.placement).toEqual({ sectionKey: 'employment' });
+  });
+
   it('is fitted to what the settings take: no sealed list, no identifier without its scheme, no list for a number', () => {
     const raise = seen(11, 'Last Raise %', ['2.0', '9.4', '3.15']);
     const columns = [

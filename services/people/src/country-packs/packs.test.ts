@@ -45,6 +45,21 @@ describe('the country packs', () => {
     expect(again.ok && again.value).toEqual({ sections: [], attributes: [] });
   });
 
+  it('puts its fields in a section the tenant already has by the same name, never a second one', () => {
+    const draft = SchemaDraft.empty();
+    draft.addSection({
+      key: 'id_and_rtw',
+      label: { default: 'Identification & Right to Work' },
+      order: 0,
+      defaultVisibility: ['hr'],
+      origin: 'tenant',
+    });
+    const applied = applyPack(draft, COUNTRY_PACKS.GB);
+    expect(applied.ok && applied.value.sections).toEqual([]);
+    expect(draft.liveSections().map((s) => s.key)).toEqual(['id_and_rtw']);
+    expect(draft.attribute('gb_ni_number')?.sectionKey).toBe('id_and_rtw');
+  });
+
   it('leaves an attribute the tenant already has alone', () => {
     const draft = SchemaDraft.empty();
     applyPack(draft, COUNTRY_PACKS.GB);

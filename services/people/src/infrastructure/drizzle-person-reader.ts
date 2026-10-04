@@ -688,6 +688,7 @@ function toVersion(row: typeof schemaVersion.$inferSelect): PublishedVersion {
     publishedAt: row.publishedAt.toISOString(),
     publishedBy: row.publishedBy,
     rolledBackFrom: row.rolledBackFrom,
+    reason: row.reason,
   };
 }
 

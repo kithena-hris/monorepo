@@ -297,6 +297,8 @@ export const SchemaVersionSummary = z.object({
   checksum: z.string(),
   publishedAt: z.string(),
   rolledBackFrom: z.int().nullable(),
+  /** Why the system published it ("Duplicate sections merged"); null for a person's publish. */
+  reason: z.string().nullable(),
 });
 
 export const ErrorBody = z.object({
@@ -517,6 +519,8 @@ const STATUS: Record<string, number> = {
   UNIQUE_VALUE_TAKEN: 409,
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
+  // A section of that name already exists in the company's fields.
+  DUPLICATE_SECTION_NAME: 409,
   // PEO-074: a merge the records' states refuse.
   MERGE_ABSORBS_EMPLOYMENT: 409,
   MERGE_TOMBSTONE: 409,
@@ -1311,6 +1315,7 @@ export function restRoutes(deps: RestDeps): Route[] {
               checksum: v.checksum,
               publishedAt: v.publishedAt,
               rolledBackFrom: v.rolledBackFrom,
+              reason: v.reason,
             })),
           }),
         ),

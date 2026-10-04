@@ -687,6 +687,19 @@ describe('approving and running it', () => {
     ]);
   });
 
+  it('puts a field proposed for a "new" section the company already has by that name in that section', async () => {
+    const w = world();
+    const v = await proposed(w);
+    const proposals = strip(v).map((p) => ({ ...p, placement: { newSection: ' employment ' } }));
+    const built = draftWithNewFields(
+      { sections: [...w.sections.values()], attributes: [...w.attributes.values()] },
+      proposals,
+    );
+    expect(built.problems).toEqual([]);
+    expect(built.sections).toEqual([]);
+    expect(new Set(built.attributes.map((a) => a.sectionKey))).toEqual(new Set(['employment']));
+  });
+
   it('is all or nothing: one field the draft refuses and nothing is stored, published or imported', async () => {
     const w = world();
     const v = await proposed(w);
