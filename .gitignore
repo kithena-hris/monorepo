@@ -38,6 +38,10 @@ storybook-static/
 # Composed locally and in CI from the subgraph SDL; never committed.
 apps/gateway/supergraph.json
 
+# The knowledge graph `just graph` builds. Tens of megabytes, stale the moment
+# a file changes, and rebuilt from source for free, so each checkout keeps its own.
+graphify-out/
+
 # Local compose tweaks. A developer with Postgres already installed needs to
 # republish the container on another port, because the host's own daemon binds
 # 127.0.0.1:5432 and wins the race for `localhost`. That is a property of one
