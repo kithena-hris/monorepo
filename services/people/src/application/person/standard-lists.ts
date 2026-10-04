@@ -15,8 +15,8 @@ export interface Choice {
   readonly label: string;
 }
 
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const pairsOf = (): string[] => [...LETTERS].flatMap((a) => [...LETTERS].map((b) => a + b));
+const LETTERS = Array.from({ length: 26 }, (_, i) => String.fromCodePoint(65 + i));
+const pairsOf = (): string[] => LETTERS.flatMap((a) => LETTERS.map((b) => a + b));
 
 /**
  * Region codes CLDR names that are not ISO 3166-1 countries: groupings,
