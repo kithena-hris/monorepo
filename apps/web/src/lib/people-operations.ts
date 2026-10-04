@@ -377,10 +377,12 @@ export const OPERATIONS = {
     }
   }`,
 
-  RoleSettings: `query RoleSettings {
-    peopleRoleSettings {
+  RoleSettings: `query RoleSettings($search: String, $after: ID) {
+    peopleRoleSettings(search: $search, after: $after) {
       viewerAccountId canManage
       people { accountId personId name workEmail roles }
+      next
+      holders { accountId personId name workEmail roles }
     }
   }`,
 

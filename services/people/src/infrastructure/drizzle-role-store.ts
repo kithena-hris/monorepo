@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import { pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { publish } from '@kithena/db-kit';
 
@@ -64,8 +64,19 @@ export function drizzleRoleStore(): RoleStore {
       await tx.execute(sql`SELECT set_config('people.release_last_admin', 'on', true)`);
     },
 
-    async candidates(tx, tenantId) {
-      const rows = await tx
+    /**
+     * The keyset on `person_role_candidates`
+     * (`migrations/20261004123000_people_role_candidates.sql`); a name not yet
+     * known sorts as empty, first.
+     */
+    async candidates(tx, tenantId, where = {}) {
+      const family = sql`coalesce(${person.familyName}, '')`;
+      const given = sql`coalesce(${person.givenName}, '')`;
+      const like =
+        where.search == null || where.search === ''
+          ? null
+          : `%${where.search.replaceAll(/[\\%_]/gu, (c) => `\\${c}`)}%`;
+      const query = tx
         .select({
           accountId: person.identityAccountId,
           personId: person.id,
@@ -80,9 +91,22 @@ export function drizzleRoleStore(): RoleStore {
             eq(person.tenantId, tenantId),
             isNotNull(person.identityAccountId),
             notInArray(person.status, GONE),
+            where.accounts === undefined
+              ? undefined
+              : inArray(person.identityAccountId, [...where.accounts]),
+            like === null
+              ? undefined
+              : sql`concat_ws(' ', ${person.givenName}, ${person.preferredName}, ${person.familyName}, ${person.workEmail}) ILIKE ${like}`,
+            where.after == null
+              ? undefined
+              : sql`(${family}, ${given}, ${person.id}) > (
+                  SELECT coalesce(p.family_name, ''), coalesce(p.given_name, ''), p.id
+                    FROM people.person p
+                   WHERE p.tenant_id = ${tenantId}::uuid AND p.id = ${where.after}::uuid)`,
           ),
         )
-        .orderBy(asc(person.familyName), asc(person.givenName), asc(person.id));
+        .orderBy(asc(family), asc(given), asc(person.id));
+      const rows = await (where.limit === undefined ? query : query.limit(where.limit));
       return rows.map((r) => ({
         accountId: r.accountId ?? '',
         personId: r.personId,

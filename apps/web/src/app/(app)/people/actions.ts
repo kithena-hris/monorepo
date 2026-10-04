@@ -1133,6 +1133,7 @@ export async function shareSummary(input: Readonly<Record<string, unknown>>): Pr
 /** The screens whose lists load as they scroll, and the name their read gives its cursor. */
 const PAGED = {
   WebhookLog: 'after',
+  RoleSettings: 'after',
 } as const;
 
 /**

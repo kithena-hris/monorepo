@@ -2100,6 +2100,11 @@ type PeopleReportingLine {
 
 type PeopleRoleSettings {
   canManage: Boolean
+  """Everybody holding a role, whatever the page."""
+  holders: [RoleSettingsPerson!]
+  """The next page, as `after`; null on the last."""
+  next: ID
+  """A page of everybody who signs in, by name, or those the search finds."""
   people: [RoleSettingsPerson!]
   viewerAccountId: ID
 }
@@ -2590,7 +2595,7 @@ type Query {
   peopleReportRuns(id: ID!): PeopleReportRuns
   """Scheduled reports and what their form may offer; HR and people_admin."""
   peopleReportSchedules: PeopleReportSchedules
-  peopleRoleSettings: PeopleRoleSettings
+  peopleRoleSettings(after: ID, search: String): PeopleRoleSettings
   """Who holds a tenant role; HR and people_admin only."""
   peopleRoles: [RoleHolder!]
   peopleSchema(version: Int): PeopleSchema

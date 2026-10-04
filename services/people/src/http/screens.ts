@@ -1192,7 +1192,16 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/roles$/,
-      handle: async (asking) => answer(await rolesView(deps, asking)),
+      // `q` searches the table on People's side; `after` is its next page.
+      handle: async (asking, _r, _p, query) => {
+        const after = query.get('after');
+        if (after !== null && !new RegExp(`^${UUID}$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
+        }
+        return answer(
+          await rolesView(deps, asking, { search: query.get('q')?.slice(0, 200) ?? null, after }),
+        );
+      },
     },
 
     /* the registry and setup */

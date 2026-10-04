@@ -1205,7 +1205,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       viewerAccountId: t.exposeID('viewerAccountId'),
       canManage: t.exposeBoolean('canManage'),
-      people: t.field({ type: [RolesPerson], resolve: (v) => list(v.people) }),
+      people: t.field({
+        type: [RolesPerson],
+        description: 'A page of everybody who signs in, by name, or those the search finds.',
+        resolve: (v) => list(v.people),
+      }),
+      next: t.exposeID('next', {
+        nullable: true,
+        description: 'The next page, as `after`; null on the last.',
+      }),
+      holders: t.field({
+        type: [RolesPerson],
+        description: 'Everybody holding a role, whatever the page.',
+        resolve: (v) => list(v.holders),
+      }),
     }),
   });
 
@@ -2264,7 +2277,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleRoleSettings: t.field({
       type: RoleSettings,
-      resolve: view<RolesView>(() => '/v1/views/roles'),
+      args: { search: t.arg.string(), after: t.arg.id() },
+      resolve: view<RolesView>((args) => {
+        const q = new URLSearchParams();
+        if (typeof args['search'] === 'string' && args['search'] !== '') q.set('q', args['search']);
+        if (typeof args['after'] === 'string') q.set('after', args['after']);
+        const qs = q.toString();
+        return qs === '' ? '/v1/views/roles' : `/v1/views/roles?${qs}`;
+      }),
     }),
     peopleRegistry: t.field({
       type: Registry,

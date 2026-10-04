@@ -980,9 +980,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onGrant: actions.grantRole,
           onRevoke: actions.revokeRole,
           search: at('q') ?? '',
+          // People searches the table, so the server reads it again.
           onSearchChange: (text: string) => {
-            note({ q: typed(text) }, 'replace');
+            navigate({ q: typed(text) }, 'replace');
           },
+          onLoadMore: (after: string) => actions.screenPage('RoleSettings', params, search, after),
         };
       case 'PeopleHome':
         return {

@@ -216,7 +216,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       };
     }
     case 'RoleSettings':
-      return read('RoleSettings');
+      // The search is People's (`?q=`); `after` is only ever a later page's.
+      return read('RoleSettings', {
+        search: given(query.search['q']),
+        after: given(query.search['after']),
+      });
     case 'PeopleHome':
       return overview();
     case 'Organisation':
