@@ -47,6 +47,30 @@ describe('the settings activity log’s words', () => {
     });
   });
 
+  it('says which check, or Flagged’s pay setting, was switched and what it now does', () => {
+    expect(
+      settingsActivity('PUT', '/v1/approval-checks/manager_pay', JSON.stringify({ on: false })),
+    ).toEqual({
+      action: 'Turned off an approval setting',
+      subject: 'Pay that only a person’s manager can see',
+      detail: 'Flagged leaves out pay a decider sees only as the person’s manager.',
+      area: 'organisation',
+    });
+    expect(
+      settingsActivity('PUT', '/v1/approval-checks/manager_pay', JSON.stringify({ on: true })),
+    ).toMatchObject({
+      action: 'Turned on an approval setting',
+      detail: 'Flagged counts it for the managers who can see it.',
+    });
+    expect(
+      settingsActivity('PUT', '/v1/approval-checks/raise', JSON.stringify({ on: false })),
+    ).toEqual({
+      action: 'Turned off an approval check',
+      subject: 'Raise much bigger than usual',
+      area: 'organisation',
+    });
+  });
+
   it('says what was done to an org unit', () => {
     const unit = '/v1/org-units/00000000-0000-4000-8000-0000000000a1';
     const said = (method: string, path: string, body: object) =>

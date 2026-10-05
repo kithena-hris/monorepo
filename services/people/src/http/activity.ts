@@ -1,6 +1,7 @@
 import type { AttributeDefinition } from '@kithena/contracts';
 
 import type { ActivityArea } from '../application/settings/activity-store.js';
+import { CHECKS, MANAGER_PAY } from '../domain/approval/unusual.js';
 import { PEOPLE_NOTICES } from '../application/settings/chat.js';
 
 /** A chat app's name as the log says it. */
@@ -270,6 +271,27 @@ const RULES: readonly Rule[] = [
     path: /^\/v1\/pay-bands$/,
     area: 'organisation',
     say: (_m, b) => ({ action: 'Changed a pay band', subject: text(b['grade']) }),
+  },
+  {
+    path: /^\/v1\/approval-checks\/([a-z_]+)$/,
+    area: 'organisation',
+    say: (_m, b, id) => {
+      const on = b['on'] === true ? 'on' : 'off';
+      if (id === MANAGER_PAY.code) {
+        return {
+          action: `Turned ${on} an approval setting`,
+          subject: MANAGER_PAY.title,
+          detail:
+            on === 'on'
+              ? 'Flagged counts it for the managers who can see it.'
+              : 'Flagged leaves out pay a decider sees only as the person’s manager.',
+        };
+      }
+      return {
+        action: `Turned ${on} an approval check`,
+        subject: CHECKS.find((c) => c.code === id)?.title ?? null,
+      };
+    },
   },
   {
     path: /^\/v1\/roles\/grants$/,
