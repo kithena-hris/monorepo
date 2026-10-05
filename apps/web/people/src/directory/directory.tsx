@@ -57,6 +57,7 @@ import {
   type RowAction,
 } from '@reach/ui';
 import {
+  memo,
   useCallback,
   useEffect,
   useId,
@@ -458,7 +459,10 @@ function useRows(
   useEffect(() => {
     ahead.current?.();
   }, [first]);
-  return { rows: [...first, ...more.people], loading, loadMore, done: more.next === null };
+  // One list for as long as nothing in it changes: a new array on every
+  // render redrew every row and card the virtual lists had drawn.
+  const rows = useMemo(() => [...first, ...more.people], [first, more.people]);
+  return { rows, loading, loadMore, done: more.next === null };
 }
 
 /**
@@ -1031,6 +1035,59 @@ function PlacePill({
   );
 }
 
+/**
+ * One person as a card, drawn again only when they or their line change: a
+ * page landing tells every card drawn its new place in the list, and without
+ * this each of them was rebuilt with it.
+ */
+const DirectoryCard = memo(function DirectoryCard({
+  person: p,
+  line,
+  onOpen,
+}: {
+  readonly person: DirectoryPerson;
+  readonly line: string;
+  readonly onOpen: (id: string) => void;
+}): JSX.Element {
+  return (
+    <div data-person-id={p.id} className="h-full">
+      <PersonCard
+        name={p.name}
+        description={line}
+        {...(p.avatarUrl === null ? {} : { avatarSrc: p.avatarUrl })}
+        {...(p.values['status'] === 'Active'
+          ? { status: 'success' as const, statusLabel: 'Active' }
+          : p.values['status'] === 'On leave'
+            ? { status: 'info' as const, statusLabel: 'On leave' }
+            : {})}
+        badges={
+          p.missing === null || p.missing === 0 ? undefined : <MissingMark count={p.missing} />
+        }
+        actions={
+          <>
+            {p.email === null ? null : (
+              <Button asChild size="xs" aria-label={`Email ${p.name}`}>
+                <a href={`mailto:${p.email}`}>
+                  <icons.email aria-hidden />
+                </a>
+              </Button>
+            )}
+            <Button
+              size="xs"
+              onClick={() => {
+                onOpen(p.id);
+              }}
+            >
+              Profile
+            </Button>
+          </>
+        }
+        className="h-full"
+      />
+    </div>
+  );
+});
+
 function Body({
   state,
   search,
@@ -1396,45 +1453,12 @@ function Body({
     ),
     [peek, lineOf],
   );
+  const openPerson = useCallback((id: string) => {
+    live.current.onOpen(id);
+  }, []);
   const cardOf = useCallback(
-    (p: DirectoryPerson) => (
-      <div data-person-id={p.id} className="h-full">
-        <PersonCard
-          name={p.name}
-          description={lineOf(p)}
-          {...(p.avatarUrl === null ? {} : { avatarSrc: p.avatarUrl })}
-          {...(p.values['status'] === 'Active'
-            ? { status: 'success' as const, statusLabel: 'Active' }
-            : p.values['status'] === 'On leave'
-              ? { status: 'info' as const, statusLabel: 'On leave' }
-              : {})}
-          badges={
-            p.missing === null || p.missing === 0 ? undefined : <MissingMark count={p.missing} />
-          }
-          actions={
-            <>
-              {p.email === null ? null : (
-                <Button asChild size="xs" aria-label={`Email ${p.name}`}>
-                  <a href={`mailto:${p.email}`}>
-                    <icons.email aria-hidden />
-                  </a>
-                </Button>
-              )}
-              <Button
-                size="xs"
-                onClick={() => {
-                  live.current.onOpen(p.id);
-                }}
-              >
-                Profile
-              </Button>
-            </>
-          }
-          className="h-full"
-        />
-      </div>
-    ),
-    [lineOf],
+    (p: DirectoryPerson) => <DirectoryCard person={p} line={lineOf(p)} onOpen={openPerson} />,
+    [lineOf, openPerson],
   );
 
   // Nobody at all, rather than nobody matching: say so, and where adding

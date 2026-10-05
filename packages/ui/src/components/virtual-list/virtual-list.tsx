@@ -14,6 +14,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type JSX,
   type ReactNode,
   type Ref,
@@ -203,6 +204,12 @@ const observeSizedRect = (
     if (rect.height > 0) cb(rect);
   });
 
+// The server's answer while rendering there and while hydrating what it sent;
+// the browser's for a list mounted afterwards.
+const noSubscription = (): (() => void) => () => undefined;
+const inBrowser = (): boolean => true;
+const onServer = (): boolean => false;
+
 /** A length React will not print in exponent form: rounded, never negative. */
 const px = (n: number): string => `${String(Math.max(0, Math.round(n)))}px`;
 
@@ -251,6 +258,7 @@ export function VirtualList<T>({
       observer.disconnect();
     };
   }, [minItemWidth, gap]);
+  const hydrating = !useSyncExternalStore(noSubscription, inBrowser, onServer);
   const lanes = columns ?? 1;
   const rows = Math.ceil(items.length / lanes);
 
@@ -289,7 +297,17 @@ export function VirtualList<T>({
   // commit forced a layout of the page. A grid of cards wheeled through laid
   // the page out 87 times in two seconds, frames up to 85 ms. The overscan
   // covers the frame a row now waits.
-  const options = { estimateSize, overscan, initialRect, gap, useFlushSync: false };
+  //
+  // The overscan is in items, and a grid's virtual rows hold `lanes` of them:
+  // counted in rows, eight rows of five cards drew eighty cards nobody could
+  // see, each restyled and laid out on every frame a row entered.
+  const options = {
+    estimateSize,
+    overscan: Math.ceil(overscan / lanes),
+    initialRect,
+    gap,
+    useFlushSync: false,
+  };
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inBox = useVirtualizer({
     ...options,
@@ -318,7 +336,10 @@ export function VirtualList<T>({
         if (drawn != null) {
           const r = drawn.getBoundingClientRect();
           const top = Math.max(box?.getBoundingClientRect().top ?? 0, 0);
-          const bottom = Math.min(box?.getBoundingClientRect().bottom ?? Infinity, window.innerHeight);
+          const bottom = Math.min(
+            box?.getBoundingClientRect().bottom ?? Infinity,
+            window.innerHeight,
+          );
           if (r.top >= top && r.bottom <= bottom) return;
         }
         virtualizer.scrollToIndex(row, { align: 'center' });
@@ -486,7 +507,15 @@ export function VirtualList<T>({
     );
   };
 
-  // Not yet measured: CSS lays out the items that would fill the view.
+  // Not yet measured. Mounted in a browser (a view switched to, not a page
+  // hydrating), nothing: the columns are measured before the first paint, and
+  // items drawn here would be drawn again inside rows, laid out twice in the
+  // frame the list appears in.
+  if (columns === null && !hydrating) {
+    return outer(<div ref={setList} role="list" aria-label={label} />, false);
+  }
+  // On the server, and hydrating what it sent: CSS lays out the items that
+  // would fill the view.
   if (columns === null) {
     // A window's rows of as many columns as a wide screen fits.
     const fill = Math.min(items.length, Math.ceil(initialHeight / estimateItemHeight) * 6);
