@@ -263,7 +263,17 @@ export function VirtualList<T>({
   // commit forced a layout of the page. A grid of cards wheeled through laid
   // the page out 87 times in two seconds, frames up to 85 ms. The overscan
   // covers the frame a row now waits.
-  const options = { estimateSize, overscan, initialRect, gap, useFlushSync: false };
+  //
+  // The overscan is in items, and a grid's virtual rows hold `lanes` of them:
+  // counted in rows, eight rows of five cards drew eighty cards nobody could
+  // see, each restyled and laid out on every frame a row entered.
+  const options = {
+    estimateSize,
+    overscan: Math.ceil(overscan / lanes),
+    initialRect,
+    gap,
+    useFlushSync: false,
+  };
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inBox = useVirtualizer({ ...options, count: page ? 0 : rows, getScrollElement });
   const inPage = useWindowVirtualizer({ ...options, count: page ? rows : 0, scrollMargin: margin });
