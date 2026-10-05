@@ -229,7 +229,7 @@ layout primitives (`Stack`, `Inline`, `Split`, `AutoGrid`, `Container`,
 `Foundations/Tokens`, `Motion`, `Typography`, `Icons`, `App marks`, `Brand`
 (the Reach mark and lockup only), `Responsive`. `Patterns` waits for lane P.
 
-### [ ] RMB-009 — Parity and compare
+### [x] RMB-009 — Parity and compare
 
 `packages/ui-native/design/index.json` (titles and notes from the design, no
 markup). `pnpm reach-mobile:parity` fails when a design story has no story.
@@ -237,6 +237,27 @@ markup). `pnpm reach-mobile:parity` fails when a design story has no story.
 in both themes and writes them side by side to `.compare/`.
 
 **Done when** both run, and parity lists exactly what lanes A–P still owe.
+
+How to use them:
+
+- **`pnpm reach-mobile:parity`** lists every design story without a Storybook
+  story and exits non-zero while any is missing. Narrow it to a category
+  (`pnpm reach-mobile:parity Forms`) or to components by id
+  (`pnpm reach-mobile:parity button avatar`), so a lane gates on its own work.
+  A design story is matched by its component's `title` in `design/index.json`
+  (the web Storybook's title for the same component) and its own name, read
+  statically from the stories: give every story whose name is not its export
+  name a literal `name: '…'`.
+- **`pnpm reach-mobile:compare <component-id>…`** screenshots each of the
+  component's stories (the iframe's `reach-story` view, 390 wide) and the
+  matching `ref/` figure, light and dark, into
+  `.compare/<component>/<story>.png`: Storybook left, design right. It uses a
+  Storybook on `$STORYBOOK_URL` (default `http://localhost:6008`, which
+  `pnpm --filter @reach/storybook-mobile dev` serves) or starts one, and finds
+  the design in `.claude/design/reach-mobile` of this checkout or the main one,
+  or `$REACH_MOBILE_DESIGN`.
+- **`pnpm reach-mobile:import-design`** rewrites `design/index.json` from the
+  design's `ref/index.json` when the design changes; commit the diff.
 
 ---
 

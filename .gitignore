@@ -82,3 +82,6 @@ docker-compose.override.yml
 # What a failed browser test leaves behind: a screenshot and its attachments.
 __screenshots__
 .vitest-attachments
+
+# Reach Mobile side-by-side screenshots (pnpm reach-mobile:compare)
+.compare/

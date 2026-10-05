@@ -31,6 +31,7 @@ export default tseslint.config(
       // construction and the type-aware rules have nothing true to say.
       'tools/a11y/*.mjs',
       'tools/storybook/*.mjs',
+      'tools/reach-mobile/*.mjs',
       // Same case: a standalone Node script that belongs to no tsconfig. It
       // reads a stylesheet and does colour maths, so there is nothing typed for
       // the type-aware rules to check even if they could load it.
