@@ -5,11 +5,13 @@ import {
   memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
   type JSX,
   type ReactNode,
+  type Ref,
 } from 'react';
 
 import { cn } from '../../lib/cn';
@@ -65,7 +67,19 @@ import { List } from '../list-item/list-item';
  * once at the start when the first page does not fill the view; the caller
  * appends the next page (`usePages`). Each page that lands is said to a
  * screen reader ("20 more loaded").
+ *
+ * ### Bringing an item into view
+ *
+ * Most of a long list is not in the DOM, so an item cannot be scrolled to by
+ * its element. `ref`'s `revealItem` asks the virtualizer instead: the list
+ * scrolls the least it can to show the item, and not at all when it shows
+ * already. What a list-and-detail screen needs for the item a link opened.
  */
+export interface VirtualListHandle {
+  /** Scroll the item with this key into view, if it is not; an unknown key does nothing. */
+  revealItem: (key: string) => void;
+}
+
 export interface VirtualRowProps {
   readonly 'data-index': number;
   readonly 'aria-setsize': number;
@@ -118,6 +132,7 @@ export interface VirtualListProps<T> {
   /** On a `self` list, the height goes here. Without a bounded height nothing scrolls. */
   className?: string;
   itemClassName?: string;
+  ref?: Ref<VirtualListHandle>;
 }
 
 /**
@@ -192,6 +207,7 @@ export function VirtualList<T>({
   moreLoaded = moreLoadedDefault,
   className,
   itemClassName,
+  ref,
 }: VirtualListProps<T>): JSX.Element {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLElement | null>(null);
@@ -263,6 +279,17 @@ export function VirtualList<T>({
 
   const virtualRows = virtualizer.getVirtualItems();
   const offset = page ? margin : 0;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      revealItem: (key) => {
+        const index = items.findIndex((it, i) => itemKey(it, i) === key);
+        if (index >= 0) virtualizer.scrollToIndex(Math.floor(index / lanes), { align: 'auto' });
+      },
+    }),
+    [items, itemKey, virtualizer, lanes],
+  );
 
   // A column's rows are the list's own children: measured where they sit,
   // once each at each place. From then on the virtualizer's own observer

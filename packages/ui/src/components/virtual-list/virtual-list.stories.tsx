@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useCallback, useState, type JSX } from 'react';
+import { useCallback, useRef, useState, type JSX } from 'react';
 
 import { usePages } from '../../lib/use-pages';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
-import { VirtualList, type VirtualListProps } from './virtual-list';
+import { Button } from '../button/button';
+import { ListItem } from '../list-item/list-item';
+import { VirtualList, type VirtualListHandle, type VirtualListProps } from './virtual-list';
 
 interface Person {
   id: string;
@@ -251,6 +253,64 @@ export const PageScrolledGrid: Story = {
           </div>
         )}
       />
+    );
+  },
+};
+
+/**
+ * A list to pick from, as a list-and-detail screen's: rows of `ListItem`
+ * moving from the keyboard (`navigable`), the picked one tinted. Each row is
+ * drawn again only when it changes, so a pick redraws the row left and the row
+ * picked; `revealItem` scrolls a row the list has not drawn into view.
+ */
+export const Selectable: Story = {
+  render: function SelectableStory() {
+    const [people] = useState(() => makePeople(5000, 500_000));
+    const [picked, setPicked] = useState<string | null>(null);
+    const list = useRef<VirtualListHandle>(null);
+    const far = people[3000]?.id ?? '';
+    return (
+      <div className="flex flex-col gap-3">
+        <Button
+          size="sm"
+          className="self-start"
+          onClick={() => {
+            setPicked(far);
+            list.current?.revealItem(far);
+          }}
+        >
+          Pick Employee 3001
+        </Button>
+        <VirtualList
+          ref={list}
+          items={people}
+          label="Everyone"
+          itemKey={(person) => person.id}
+          listItems
+          navigable
+          estimateItemHeight={56}
+          className="h-96"
+          renderItem={(person, _index, row) => (
+            <ListItem
+              key={person.id}
+              {...row}
+              asChild
+              selected={person.id === picked}
+              description={person.role}
+            >
+              <button
+                type="button"
+                aria-current={person.id === picked ? true : undefined}
+                onClick={() => {
+                  setPicked(person.id);
+                }}
+              >
+                {person.name}
+              </button>
+            </ListItem>
+          )}
+        />
+      </div>
     );
   },
 };
