@@ -76,9 +76,9 @@ import { List } from '../list-item/list-item';
  * ### Bringing an item into view
  *
  * Most of a long list is not in the DOM, so an item cannot be scrolled to by
- * its element. `ref`'s `revealItem` asks the virtualizer instead: the list
- * scrolls the least it can to show the item, and not at all when it shows
- * already. What a list-and-detail screen needs for the item a link opened.
+ * its element. `ref`'s `revealItem` asks the virtualizer instead: an item
+ * out of view is brought to the middle, and one in full view stays where it
+ * is. What a list-and-detail screen needs for the item a link opened.
  */
 export interface VirtualListHandle {
   /** Scroll the item with this key into view, if it is not; an unknown key does nothing. */
@@ -308,10 +308,23 @@ export function VirtualList<T>({
     () => ({
       revealItem: (key) => {
         const index = items.findIndex((it, i) => itemKey(it, i) === key);
-        if (index >= 0) virtualizer.scrollToIndex(Math.floor(index / lanes), { align: 'auto' });
+        if (index < 0) return;
+        const row = Math.floor(index / lanes);
+        // In full view already: left where it is. Otherwise centred, as
+        // DataTable's revealRow does: placed by its estimate, a row taller than
+        // that would end past the edge it was scrolled to.
+        const drawn = listRef.current?.querySelector(`:scope > [data-index="${String(row)}"]`);
+        const box = page ? null : outerRef.current;
+        if (drawn != null) {
+          const r = drawn.getBoundingClientRect();
+          const top = Math.max(box?.getBoundingClientRect().top ?? 0, 0);
+          const bottom = Math.min(box?.getBoundingClientRect().bottom ?? Infinity, window.innerHeight);
+          if (r.top >= top && r.bottom <= bottom) return;
+        }
+        virtualizer.scrollToIndex(row, { align: 'center' });
       },
     }),
-    [items, itemKey, virtualizer, lanes],
+    [items, itemKey, virtualizer, lanes, page],
   );
 
   // A column's rows are the list's own children: measured where they sit,
