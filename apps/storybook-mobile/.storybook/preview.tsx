@@ -13,8 +13,11 @@ import '@reach/ui-native/global.css';
  */
 const withPhone: Decorator = (Story, context) => (
   <ReachProvider theme={context.globals['theme'] === 'dark' ? 'dark' : 'light'}>
-    <View className="bg-canvas p-4" style={{ width: 390, minHeight: 844 }}>
-      <Story />
+    <View className="bg-canvas" style={{ width: 390, minHeight: 844 }}>
+      {/* The design's phone frame pads 20 × 16; `reach-mobile:compare` shoots this view. */}
+      <View testID="reach-story" className="px-m-margin py-5">
+        <Story />
+      </View>
     </View>
   </ReachProvider>
 );

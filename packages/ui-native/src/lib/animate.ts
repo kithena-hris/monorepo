@@ -49,13 +49,17 @@ export function useLayoutTransition(): LinearTransition | undefined {
 export type Press = {
   /** For the bare `Animated.View` the scale goes on (RMB-001: never on a styled view). */
   style: ReturnType<typeof useAnimatedStyle>;
-  /** True while a finger is down and motion is reduced: show the pressed colour instead. */
-  tinted: boolean;
+  /**
+   * True while a finger is down: show the pressed colour. Under reduced motion
+   * (`press.tint`) the colour is the whole of the press; otherwise it rides
+   * along with the scale, as the web's `active:` fill does.
+   */
+  pressed: boolean;
   onPressIn: () => void;
   onPressOut: () => void;
 };
 
-/** The press: scale to 0.97 and back, or under reduced motion, a colour change. */
+/** The press: scale to 0.97 and back, or under reduced motion, a colour change alone. */
 export function usePress(): Press {
   const { press } = useMotion();
   const scale: SharedValue<number> = useSharedValue(1);
@@ -63,7 +67,7 @@ export function usePress(): Press {
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return {
     style,
-    tinted: press.tint && down,
+    pressed: down,
     onPressIn: () => {
       setDown(true);
       scale.value = animateTo(press.scale, press.transition);

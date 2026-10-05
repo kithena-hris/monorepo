@@ -212,7 +212,7 @@ beside `design-system`; `pnpm docs:brand-leak` covers it.
 **Done when** `pnpm --filter @reach/storybook-mobile test:stories` runs axe over
 every story and fails on the gate story.
 
-### [ ] RMB-007 — The primitives everyone uses
+### [x] RMB-007 — The primitives everyone uses
 
 `Text` (the type scale, tabular figures), `Icon` (lucide, 2px stroke,
 decorative vs labelled), `Button` (every variant and size in the design,

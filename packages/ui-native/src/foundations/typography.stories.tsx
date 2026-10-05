@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import { View } from 'react-native-css/components';
 
-import { Text } from './text.tsx';
+import { Text } from '../components/text/text.tsx';
 
 const meta = {
   title: 'Foundations/Typography',

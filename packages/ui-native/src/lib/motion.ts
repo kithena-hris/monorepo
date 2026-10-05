@@ -66,7 +66,16 @@ function offset(side: Side): { translateX: number; translateY: number } {
  * cross-fades, a press becomes a colour change instead of a scale, a layout
  * change jumps. Spinners are not here because they stay: they are meaning.
  */
-export function motionPresets(reduced: boolean) {
+export interface MotionPresets {
+  press: { scale: number; tint: boolean; transition: Timing };
+  popoverIn: (side: Side) => Motion;
+  popoverOut: (side: Side) => Motion;
+  sheet: { slide: boolean; enter: Transition; exit: Transition };
+  fadeRise: Motion & { transition: Timing };
+  layout: Spring | null;
+}
+
+export function motionPresets(reduced: boolean): MotionPresets {
   const fadeIn = timing(durations.fast, easings.standard);
   const fadeOut = timing(durations.fast, easings.standard);
 
@@ -113,8 +122,8 @@ export function motionPresets(reduced: boolean) {
       ? { slide: false, enter: fadeIn, exit: fadeOut }
       : {
           slide: true,
-          enter: physics(gentleSpring) as Transition,
-          exit: timing(durations.fast, easings.exit) as Transition,
+          enter: physics(gentleSpring),
+          exit: timing(durations.fast, easings.exit),
         },
 
     /** Content arriving: a fade and a rise of half a rem. */
@@ -129,4 +138,3 @@ export function motionPresets(reduced: boolean) {
   };
 }
 
-export type MotionPresets = ReturnType<typeof motionPresets>;
