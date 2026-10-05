@@ -384,6 +384,33 @@ function buildSpine(
   return current;
 }
 
+/**
+ * How many cards a chart opens with, at most, when nobody said what to fold.
+ *
+ * Every card is a box in a laid-out tree, so a chart of a thousand drew a
+ * thousand on arrival (1.5 s at a thousand people), most of them screens away.
+ * So it opens whole levels from the top while they fit, and folds the last
+ * level it shows: a company of 80 opens whole, one of 10,000 with its top two
+ * levels, and every branch is a press away. Search and focus still reach
+ * anybody.
+ */
+const OPENING_CARDS = 100;
+
+function openingCollapsed(nodes: readonly OrgNode[]): readonly string[] {
+  if (nodes.length <= OPENING_CARDS) return [];
+  let level = buildTree(nodes).roots;
+  let shown = level.length;
+  for (;;) {
+    const next = level.flatMap((tree) => tree.children);
+    if (next.length === 0) return [];
+    if (shown + next.length > OPENING_CARDS) {
+      return level.filter((tree) => tree.children.length > 0).map((tree) => tree.node.id);
+    }
+    shown += next.length;
+    level = next;
+  }
+}
+
 /** Depth-first, skipping the reports of anything collapsed. Navigation order. */
 function flatten(roots: readonly TreeNode[], collapsed: ReadonlySet<string>): VisibleRow[] {
   const rows: VisibleRow[] = [];
@@ -477,7 +504,7 @@ export function OrgChart({
   ...events
 }: OrgChartProps): JSX.Element {
   const [uncontrolledCollapsed, setUncontrolledCollapsed] = useState<readonly string[]>(
-    defaultCollapsed ?? [],
+    () => defaultCollapsed ?? (collapsed === undefined ? openingCollapsed(nodes) : []),
   );
   const [uncontrolledFocus, setUncontrolledFocus] = useState<string | null>(defaultFocusId);
   const [activeId, setActiveId] = useState<string | null>(null);
