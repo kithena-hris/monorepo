@@ -232,7 +232,6 @@ export interface Matched {
   readonly screens: RemoteRoute['screens'];
 }
 
-
 /**
  * `matchRoute`'s rule on the paths alone: the one that answers `path`, a
  * literal before a pattern, with its parameters. The shell's sidebar uses it

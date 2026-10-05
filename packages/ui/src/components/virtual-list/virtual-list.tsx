@@ -277,7 +277,9 @@ export function VirtualList<T>({
     // Which rows are new is a DOM query; whether the list is drawn is a style
     // read, so it is asked only when there is something to measure.
     const drawn = listRef.current?.querySelectorAll<HTMLElement>(':scope > [data-index]') ?? [];
-    const fresh = [...drawn].filter((li) => measured.current.get(li) !== (li.dataset['index'] ?? ''));
+    const fresh = [...drawn].filter(
+      (li) => measured.current.get(li) !== (li.dataset['index'] ?? ''),
+    );
     if (fresh.length === 0) return;
     const box = outerRef.current;
     if (box !== null && 'checkVisibility' in box && !box.checkVisibility()) return;

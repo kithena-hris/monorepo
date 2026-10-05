@@ -120,7 +120,11 @@ export interface WarmArea {
  * sidebar's sections: each is a screen with reads of its own, fetched on
  * intent (`useInAppLinks`).
  */
-export function pagesToWarm(pathname: string, search: string, areas: readonly WarmArea[]): string[] {
+export function pagesToWarm(
+  pathname: string,
+  search: string,
+  areas: readonly WarmArea[],
+): string[] {
   const pages = new Set<string>();
   for (const { places, routes } of areas) {
     const route = matchPath(routes, pathname)?.path ?? null;

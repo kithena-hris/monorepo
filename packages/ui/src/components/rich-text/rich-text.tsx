@@ -147,7 +147,11 @@ export function RichTextFrame({
   readonly editable?: ReactNode;
 }): JSX.Element {
   const id = useId();
-  const { label: labelId, hint: hintId, count: countId } = ids ?? {
+  const {
+    label: labelId,
+    hint: hintId,
+    count: countId,
+  } = ids ?? {
     label: `${id}-label`,
     hint: `${id}-hint`,
     count: `${id}-count`,

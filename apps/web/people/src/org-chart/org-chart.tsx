@@ -107,19 +107,17 @@ function Body({
     return {
       ids: present,
       managers: new Set(state.people.flatMap((p) => (p.managerId === null ? [] : [p.managerId]))),
-      nodes: state.people.map(
-        (p): OrgNode => ({
-          id: p.id,
-          name: p.name,
-          ...(p.title === null ? {} : { title: p.title }),
-          ...(p.team === null ? {} : { meta: p.team }),
-          ...(p.managerId === null || !present.has(p.managerId) ? {} : { parentId: p.managerId }),
-          ...(p.avatarUrl === null ? {} : { avatarUrl: p.avatarUrl }),
-          ...(p.status === null || TONE[p.status] === undefined
-            ? {}
-            : { status: p.status, statusTone: TONE[p.status] }),
-        }),
-      ),
+      nodes: state.people.map((p): OrgNode => ({
+        id: p.id,
+        name: p.name,
+        ...(p.title === null ? {} : { title: p.title }),
+        ...(p.team === null ? {} : { meta: p.team }),
+        ...(p.managerId === null || !present.has(p.managerId) ? {} : { parentId: p.managerId }),
+        ...(p.avatarUrl === null ? {} : { avatarUrl: p.avatarUrl }),
+        ...(p.status === null || TONE[p.status] === undefined
+          ? {}
+          : { status: p.status, statusTone: TONE[p.status] }),
+      })),
     };
   }, [state.people]);
   // Somebody a link names who is not on this viewer's chart: no card.

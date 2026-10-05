@@ -165,9 +165,12 @@ function warm(exports: Record<string, unknown>): void {
 
 function warmWhenIdle(exports: Record<string, unknown>): void {
   if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(() => {
-      warm(exports);
-    }, { timeout: 3000 });
+    window.requestIdleCallback(
+      () => {
+        warm(exports);
+      },
+      { timeout: 3000 },
+    );
   } else {
     setTimeout(() => {
       warm(exports);

@@ -49,8 +49,7 @@
  * package does not depend on PostCSS itself; Vite runs it after Tailwind has
  * compiled `styles.css`.
  */
-export const REMOTE_SCOPE =
-  ':where([data-remote], body > :not([data-remote-host]))';
+export const REMOTE_SCOPE = ':where([data-remote], body > :not([data-remote-host]))';
 
 interface Node {
   readonly type: string;

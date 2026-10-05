@@ -59,15 +59,7 @@ export interface ChartPoint {
 
 // The tones live in `tones.ts`, so a component that only colours itself by
 // one (a list item, a progress bar) does not bring every chart with it.
-export {
-  seriesTones,
-  seriesTone,
-  fillTone,
-  strokeTone,
-  bgTone,
-  toneVar,
-  toneMix,
-} from './tones';
+export { seriesTones, seriesTone, fillTone, strokeTone, bgTone, toneVar, toneMix } from './tones';
 export type { ChartTone } from './tones';
 
 export type { ChartWindow };
