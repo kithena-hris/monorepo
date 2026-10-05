@@ -224,7 +224,9 @@ describe('the directory, which People answers from the address', () => {
       'OrgChart',
     );
     call(props, 'onViewChange', 'cards');
-    expect(router.push).toHaveBeenCalledWith('/people/directory/cards?q=ada&conditions=%5B%5D');
+    expect(router.push).toHaveBeenCalledWith('/people/directory/cards?q=ada&conditions=%5B%5D', {
+      scroll: false,
+    });
   });
 });
 
