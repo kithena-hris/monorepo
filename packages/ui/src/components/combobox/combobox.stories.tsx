@@ -602,3 +602,17 @@ export const LongListInADialog: Story = {
     );
   },
 };
+
+export const OpenOnMount: Story = {
+  name: 'Open as it mounts',
+  args: { defaultOpen: true, label: 'Country', placeholder: 'Choose', options: countries },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`defaultOpen` for a control that stands in for a lighter one until it is pressed, such as a cell in a long grid: the press that mounted it also opens it. A long list opens with what fits and draws the rest a frame later.',
+      },
+    },
+  },
+  render: renderControlled,
+};

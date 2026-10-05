@@ -55,6 +55,7 @@ import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
   drizzleGapFigures,
+  drizzleGapPeople,
   drizzleGapTotals,
   drizzlePersonReader,
   drizzleRelations,
@@ -737,6 +738,7 @@ function screenDeps(
     calendars,
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     gapTotals: drizzleGapTotals(),
+    gapPeople: drizzleGapPeople(),
     gapFigures: drizzleGapFigures(),
     ...remindNow(calendars, service),
     segments: { store: drizzleSegments(), newId: uuidv7 },

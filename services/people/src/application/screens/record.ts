@@ -4,6 +4,8 @@ import { requiresApproval, type AttributeDefinition, type WriterRole } from '@ki
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
+import { unitPaths } from '../../domain/org/org-unit.js';
+import type { TenantCalendar } from '../../domain/org/calendar.js';
 import type { AttributeFindings } from '../person/identifier-review.js';
 import { standardList, type Choice } from '../person/standard-lists.js';
 import type { Asking, PersonView } from '../person/person-access.js';
@@ -67,6 +69,11 @@ export interface ScreenDeps {
   readonly calendars: Calendars;
   /** The completeness grid's totals over everybody (PEO-122). */
   readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
+  /**
+   * How many people are missing any of these keys (HR's), over everybody.
+   * Absent, the most people missing any one key stands in: never more.
+   */
+  readonly gapPeople?: (tx: Tx, tenantId: string, keys: readonly string[]) => Promise<number>;
   /** The completeness screen's payroll and reminder figures. Absent, they are not shown. */
   readonly gapFigures?: (
     tx: Tx,
@@ -249,31 +256,43 @@ function fieldOf(
 export interface OrgChoices {
   readonly legal_entity_ref: readonly Choice[];
   readonly location_ref: readonly Choice[];
-  /** People keeps no org units of its own yet: nothing to offer. */
+  /** Each by its path, "Engineering › Platform", so two teams called Platform stay apart. */
   readonly org_unit_ref: readonly Choice[];
 }
 
-/** The company's live legal entities and locations, by name: what a new value may point at. */
-export async function orgChoices(deps: ScreenDeps, tx: Tx, tenantId: string): Promise<OrgChoices> {
-  const org = await deps.calendars.load(tx, tenantId);
+/** The kinds of field that point at one of the company's own lists. */
+export const isOrgRef = (kind: string): kind is keyof OrgChoices =>
+  kind === 'legal_entity_ref' || kind === 'location_ref' || kind === 'org_unit_ref';
+
+/**
+ * The company's live legal entities, locations and org units, by name (an org
+ * unit by its path): what a new value may point at.
+ */
+export function choicesOf(org: TenantCalendar): OrgChoices {
   const live = (
-    all: ReadonlyMap<string, { readonly id: string; readonly name: string; readonly archived?: boolean }>,
+    all: Iterable<{ readonly id: string; readonly name: string; readonly archived?: boolean }>,
   ): Choice[] =>
-    [...all.values()]
+    [...all]
       .filter((x) => x.archived !== true)
       .map((x) => ({ value: x.id, label: x.name }))
       .toSorted((a, b) => a.label.localeCompare(b.label, 'en'));
+  const units = [...(org.orgUnits?.values() ?? [])];
+  const paths = unitPaths(units);
   return {
-    legal_entity_ref: live(org.entities),
-    location_ref: live(org.locations),
-    org_unit_ref: [],
+    legal_entity_ref: live(org.entities.values()),
+    location_ref: live(org.locations.values()),
+    org_unit_ref: live(units.map((u) => ({ ...u, name: paths.get(u.id) ?? u.name }))),
   };
+}
+
+export async function orgChoices(deps: ScreenDeps, tx: Tx, tenantId: string): Promise<OrgChoices> {
+  return choicesOf(await deps.calendars.load(tx, tenantId));
 }
 
 /**
  * What a field offers to pick, the one place that says so: a list's live
  * options, a standard list (countries, currencies, languages, time zones),
- * or the company's entities and locations. Nothing for any other field.
+ * or the company's entities, locations and org units. Nothing for any other field.
  */
 export function listOptions(d: AttributeDefinition, org?: OrgChoices): Choice[] {
   const config = d.typeConfig;
@@ -284,11 +303,7 @@ export function listOptions(d: AttributeDefinition, org?: OrgChoices): Choice[] 
   }
   const standard = standardList(config.kind);
   if (standard !== null) return [...standard];
-  return config.kind === 'legal_entity_ref' ||
-    config.kind === 'location_ref' ||
-    config.kind === 'org_unit_ref'
-    ? [...(org?.[config.kind] ?? [])]
-    : [];
+  return isOrgRef(config.kind) ? [...(org?.[config.kind] ?? [])] : [];
 }
 
 /** Whether HR fills this field in: what Missing details and Home both count as HR's. */

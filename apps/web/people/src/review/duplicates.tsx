@@ -22,11 +22,12 @@ import {
   RadioGroupItem,
   Stack,
   DataTable,
+  type DataColumn,
   Textarea,
   usePages,
   icons,
 } from '@reach/ui';
-import { useCallback, useState, type JSX } from 'react';
+import { useCallback, useMemo, useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
 
@@ -141,6 +142,9 @@ export const pairId = (pair: Pick<DuplicatePair, 'personIds'>): string => pair.p
 export const bandOf = (pair: DuplicatePair): string | null =>
   pair.match == null ? null : BAND[pair.match];
 
+const mergeId = (m: MergedPair): string => m.absorbedId;
+const mergeName = (m: MergedPair): string => m.absorbedName;
+
 export function Merges({
   merges: first,
   next = null,
@@ -164,6 +168,33 @@ export function Merges({
     [onLoadMore],
   );
   const pages = usePages(first, next, onLoadMore === undefined ? undefined : more);
+  // Held across renders, so a page landing redraws only the rows it brought.
+  const columns = useMemo<readonly DataColumn<MergedPair>[]>(
+    () => [
+      { id: 'merged', header: 'Merged', cell: (m) => m.absorbedName },
+      { id: 'into', header: 'Into', shortHeader: 'Into', cell: (m) => m.survivorName },
+      { id: 'when', header: 'When', cell: (m) => m.mergedAt.slice(0, 10) },
+      {
+        id: 'undo',
+        header: 'Undo',
+        cell: (m) =>
+          m.refusal === null ? (
+            <Button
+              size="sm"
+              aria-label={`Undo merge of ${m.absorbedName} into ${m.survivorName}`}
+              onClick={() => {
+                setUndoing(m);
+              }}
+            >
+              Undo merge
+            </Button>
+          ) : (
+            <span className="text-sm">{m.refusal}</span>
+          ),
+      },
+    ],
+    [],
+  );
   if (first.length === 0) return null;
   return (
     <Stack gap={4}>
@@ -171,36 +202,14 @@ export function Merges({
       <DataTable<MergedPair>
         label="Merged records"
         rows={pages.items}
-        rowId={(m) => m.absorbedId}
-        describeRow={(m) => m.absorbedName}
+        rowId={mergeId}
+        describeRow={mergeName}
         stickyHeader
         // Its own box under Decided, which fills the page.
         containerClassName="max-h-[70dvh] min-h-48"
         {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
         loadingMore={pages.loading}
-        columns={[
-          { id: 'merged', header: 'Merged', cell: (m) => m.absorbedName },
-          { id: 'into', header: 'Into', shortHeader: 'Into', cell: (m) => m.survivorName },
-          { id: 'when', header: 'When', cell: (m) => m.mergedAt.slice(0, 10) },
-          {
-            id: 'undo',
-            header: 'Undo',
-            cell: (m) =>
-              m.refusal === null ? (
-                <Button
-                  size="sm"
-                  aria-label={`Undo merge of ${m.absorbedName} into ${m.survivorName}`}
-                  onClick={() => {
-                    setUndoing(m);
-                  }}
-                >
-                  Undo merge
-                </Button>
-              ) : (
-                <span className="text-sm">{m.refusal}</span>
-              ),
-          },
-        ]}
+        columns={columns}
       />
       {undoing === null ? null : (
         <UndoDialog

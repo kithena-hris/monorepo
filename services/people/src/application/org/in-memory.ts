@@ -1,6 +1,6 @@
 import type { PendingEvent } from '@kithena/domain-kit';
 
-import { effectiveZones, type LegalEntity } from '../../domain/org/calendar.js';
+import { effectiveZones, type LegalEntity, type OrgUnit } from '../../domain/org/calendar.js';
 import {
   DEFAULT_SETTINGS,
   type LegalEntityView,
@@ -23,6 +23,7 @@ export function inMemoryOrg(): {
     string,
     { id: string; legalEntityId: string; name: string; country: string; archived: boolean; zones: ZoneRow[] }
   >();
+  const units = new Map<string, Required<OrgUnit>>();
   const events: PendingEvent[] = [];
 
   const store: OrgStore = {
@@ -33,6 +34,7 @@ export function inMemoryOrg(): {
         locations: new Map(
           [...locations].map(([id, l]) => [id, { ...l, zones: effectiveZones(l.zones) }]),
         ),
+        orgUnits: new Map(units),
       }),
     settings: () => Promise.resolve(settings),
     saveSettings: (_tx, _tenant, next) => {
@@ -66,6 +68,15 @@ export function inMemoryOrg(): {
     },
     insertZone: (_tx, _tenant, id, zone) => {
       locations.get(id)?.zones.push(zone);
+      return Promise.resolve();
+    },
+    orgUnits: () => Promise.resolve([...units.values()]),
+    insertOrgUnit: (_tx, _tenant, unit) => {
+      units.set(unit.id, unit);
+      return Promise.resolve();
+    },
+    updateOrgUnit: (_tx, _tenant, unit) => {
+      units.set(unit.id, unit);
       return Promise.resolve();
     },
     publish: (_tx, raised) => {

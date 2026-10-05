@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createHash, randomUUID } from 'node:crypto';
 import { appendFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -33,7 +33,7 @@ let stack: Stack;
 let browser: Browser;
 
 beforeAll(async () => {
-  stack = await startStack();
+  stack = await startStack(inject('remoteKeys'));
   browser = await chromium.launch();
 }, 900_000);
 

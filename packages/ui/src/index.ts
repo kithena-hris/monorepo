@@ -569,7 +569,11 @@ export type { RadioCardProps, RadioGroupItemProps } from './components/radio-gro
 export { ScrollArea, ScrollBar } from './components/scroll-area/scroll-area';
 export { ScrollPosition } from './components/scroll-position/scroll-position';
 export type { ScrollPositionProps } from './components/scroll-position/scroll-position';
-export { VirtualList, type VirtualListProps } from './components/virtual-list/virtual-list';
+export {
+  VirtualList,
+  type VirtualListProps,
+  type VirtualRowProps,
+} from './components/virtual-list/virtual-list';
 export type { ScrollAreaProps } from './components/scroll-area/scroll-area';
 
 export {

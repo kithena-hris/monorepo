@@ -1101,7 +1101,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             if (decided.ok) refresh();
             return decided.ok ? { ok: true } : decided;
           },
-          onSaveMissing: actions.saveGrid,
+          // Saved, People is read again: the rows and every count are its, as they now stand.
+          onSaveMissing: async (changes: Parameters<typeof actions.saveGrid>[0]) => {
+            const saved = await actions.saveGrid(changes);
+            if (saved.ok) refresh();
+            return saved;
+          },
           onCheckMissing: actions.checkGrid,
           searchPeople: actions.searchPeople,
           // Everybody due, through the weekly sweep; one person, through asking them.
@@ -1131,6 +1136,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onCreateLocation: actions.createLocation,
           onUpdateLocation: actions.updateLocation,
           onChangeZone: actions.changeZone,
+          onCreateOrgUnit: actions.createOrgUnit,
+          onUpdateOrgUnit: actions.updateOrgUnit,
           onSetNumbering: actions.setNumbering,
           onSetPayBand: actions.setPayBand,
           // Each tab is its own address: legal entities are the page's, the others under it.

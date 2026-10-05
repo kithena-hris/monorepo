@@ -252,10 +252,16 @@ describe('Review’s tab counts (E1)', () => {
       latest: 'A 38% raise',
     });
     const sofia = await waitingView(tx, { access: s.access, pending: s.pending }, asking(SOFIA));
-    expect(sofia.ok && [sofia.value.flagged, sofia.value.asked]).toEqual([1, 0]);
+    // Hers to decide: a change waiting, and flagged; Review's chips count it under Changes.
+    expect(sofia.ok && [sofia.value.flagged, sofia.value.asked, sofia.value.changes]).toEqual([
+      1, 0, 1,
+    ]);
     // Nora asked: nothing of hers is flagged to her, and it waits under I asked.
     const nora = await waitingView(tx, { access: s.access, pending: s.pending }, asking(NORA_HR));
-    expect(nora.ok && [nora.value.flagged, nora.value.asked]).toEqual([0, 1]);
+    // Hers, asked: under I asked, not among the changes waiting for her.
+    expect(nora.ok && [nora.value.flagged, nora.value.asked, nora.value.changes]).toEqual([
+      0, 1, 0,
+    ]);
   });
 });
 

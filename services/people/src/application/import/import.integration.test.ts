@@ -123,6 +123,8 @@ beforeAll(async () => {
     '20260923200000_people_export.sql',
     '20260929120000_people_transfer_history.sql',
     '20260924170000_people_calendar.sql',
+    '20261005090000_people_org_unit.sql',
+    '20261005120000_people_section_names.sql',
     '20260924170100_people_tenant_company.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));

@@ -13,24 +13,26 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
-  List,
+  InlineCell,
   ListItem,
+  VirtualList,
   PageSection,
   Progress,
   Sparkline,
   Stack,
   Stat,
   icons,
-  useInView,
   useScreenCommand,
   type ChartPoint,
   type DataColumn,
   type DataTableHandle,
+  type VirtualRowProps,
   type RowAction,
 } from '@reach/ui';
 import {
   memo,
-  useEffect,
+  useCallback,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -93,6 +95,11 @@ export interface CompletenessState {
   readonly completedThisWeek: number;
   /** HR's missing values over everybody, not only this page. */
   readonly toFill: number;
+  /**
+   * The rows Missing details lists over everybody (a person HR fills for, a
+   * person waiting on themselves): what Review's chip counts. Absent from an older People.
+   */
+  readonly listed?: number;
   /** People missing bank, tax or ID details; null where People cannot say. */
   readonly blocking: number | null;
   readonly fields: readonly GapField[];
@@ -180,8 +187,6 @@ export interface MissingActions {
    */
   readonly fill?: string | null;
   readonly onFillChange?: (fill: string | null) => void;
-  /** How many values were filled in here, for a count drawn outside (Review's chip). */
-  readonly onFilled?: (count: number) => void;
   /** When the page was read (epoch ms): what "reminded within the day" is measured from, the same on the server and in the browser. */
   readonly now?: number;
 }
@@ -253,9 +258,11 @@ const rowId = (r: GapRow): string => `${r.personId}-${r.owner}`;
  * new first page (the shell read again) starts over.
  */
 function usePages(state: CompletenessState, onLoadMore: MissingActions['onLoadMore']) {
-  const [more, setMore] = useState<{ rows: GapRow[]; fields: GapField[]; next: string | null }>(
-    { rows: [], fields: [], next: state.next ?? null },
-  );
+  const [more, setMore] = useState<{ rows: GapRow[]; fields: GapField[]; next: string | null }>({
+    rows: [],
+    fields: [],
+    next: state.next ?? null,
+  });
   const [loading, setLoading] = useState(false);
   const [first, setFirst] = useState(state);
   if (first !== state) {
@@ -372,7 +379,6 @@ function Missing({
   onRemind,
   fill: heldFill,
   onFillChange,
-  onFilled,
   now,
 }: MissingActions & { readonly state: CompletenessState }): JSX.Element {
   const [fill, setFill] = useHeldAtOnce<string | null>(heldFill, onFillChange, heldFill ?? null);
@@ -397,7 +403,9 @@ function Missing({
       pages.rows
         .map((r) => {
           const done = r.owner === 'hr' ? filled[r.personId] : undefined;
-          return done === undefined ? r : { ...r, missing: r.missing.filter((k) => !done.includes(k)) };
+          return done === undefined
+            ? r
+            : { ...r, missing: r.missing.filter((k) => !done.includes(k)) };
         })
         .filter((r) => r.missing.length > 0),
     [pages.rows, filled],
@@ -408,19 +416,21 @@ function Missing({
   const labelOf = (key: string): string => pages.fields.get(key)?.label ?? key;
 
   /** After a save: what is no longer missing, and the words for it. */
-  const saved = (changes: readonly GridSave[], result: Extract<GridOutcome, { ok: true }>, who: string | null): void => {
+  const saved = (
+    changes: readonly GridSave[],
+    result: Extract<GridOutcome, { ok: true }>,
+    who: string | null,
+  ): void => {
     // A sensitive value waits for approval: still missing until it is applied.
     const applied = changes.map((c) => ({
       personId: c.personId,
       keys: Object.keys(c.values).filter((k) => pages.fields.get(k)?.sensitive !== true),
     }));
-    const count = applied.reduce((n, c) => n + c.keys.length, 0);
     setFilled((f) => {
       const next = { ...f };
       for (const c of applied) next[c.personId] = [...(next[c.personId] ?? []), ...c.keys];
       return next;
     });
-    onFilled?.(filledCount + count);
     const held = result.held ?? 0;
     const reviewed = (result.findings ?? []).filter((f) => f.review === 'pending').length;
     setOutcome({
@@ -454,10 +464,14 @@ function Missing({
     if (!result.ok) setAsked((a) => ({ ...a, [rowId(r)]: result.message }));
   };
   // Asked within the day, here or by the weekly email: another press would be a second email.
-  const recently = (r: GapRow): boolean =>
-    asked[rowId(r)] === null ||
-    (r.remindedAt !== null &&
-      (now ?? Date.parse(state.waiting.lastReminded ?? '')) - Date.parse(r.remindedAt) < DAY_MS);
+  const lastReminded = state.waiting.lastReminded;
+  const recently = useCallback(
+    (r: GapRow): boolean =>
+      asked[rowId(r)] === null ||
+      (r.remindedAt !== null &&
+        (now ?? Date.parse(lastReminded ?? '')) - Date.parse(r.remindedAt) < DAY_MS),
+    [asked, now, lastReminded],
+  );
 
   const due = state.waiting.due ?? 0;
   const canRemindAll = onRemindAll !== undefined && due > 0;
@@ -512,7 +526,120 @@ function Missing({
     </>
   );
 
-  const endRef = useEndOfList(fill === null ? pages.loadMore : undefined, pages.loading);
+  // The table's columns and row actions, held between renders: a page
+  // landing redraws only the rows it brought, and a reminder only redraws
+  // with what it changed (`recently`). The rest is read from `live` when used.
+  const live = useRef({ labelOf, remind, setFill });
+  live.current = { labelOf, remind, setFill };
+  const fillIn = useCallback((r: GapRow): void => {
+    setOutcome(null);
+    live.current.setFill(r.personId);
+  }, []);
+  const action = useCallback(
+    (r: GapRow): JSX.Element | null =>
+      r.owner === 'hr' ? (
+        <Button
+          size="sm"
+          variant="primary"
+          aria-label={`Fill in ${r.name}`}
+          shortcut="row.fill"
+          onClick={() => {
+            fillIn(r);
+          }}
+        >
+          Fill in
+        </Button>
+      ) : onRemind === undefined ? null : recently(r) ? (
+        <Button size="sm" variant="ghost" disabled aria-label={`Reminded ${r.name}`}>
+          Reminded
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          aria-label={`Remind ${r.name}`}
+          shortcut="row.remind"
+          onClick={() => {
+            void live.current.remind(r);
+          }}
+        >
+          Remind
+        </Button>
+      ),
+    [fillIn, onRemind, recently],
+  );
+  // The row's own action, from its menu or its key: F fills in HR's gaps, R reminds a person.
+  const rowActions = useCallback(
+    (r: GapRow): readonly RowAction[] =>
+      r.owner === 'hr'
+        ? [
+            {
+              id: 'fill',
+              label: 'Fill in',
+              shortcut: 'row.fill',
+              icon: <icons.edit aria-hidden />,
+              onSelect: () => {
+                fillIn(r);
+              },
+            },
+          ]
+        : onRemind === undefined
+          ? []
+          : [
+              {
+                id: 'remind',
+                label: recently(r) ? 'Reminded' : 'Remind',
+                shortcut: 'row.remind',
+                icon: <icons.notifications aria-hidden />,
+                disabled: recently(r),
+                onSelect: () => {
+                  void live.current.remind(r);
+                },
+              },
+            ],
+    [fillIn, onRemind, recently],
+  );
+  // A phone row, held between renders like the table's columns, so a scroll
+  // or a page landing redraws only the rows it brings (`VirtualList`).
+  const phoneRow = useCallback(
+    (r: GapRow, _i: number, item: VirtualRowProps) => (
+      <ListItem
+        key={rowId(r)}
+        {...item}
+        leading={<Avatar size="lg" name={r.name} />}
+        description={`Missing: ${r.missing.map(live.current.labelOf).join(', ')}`}
+        trailing={action(r)}
+      >
+        {r.name}
+      </ListItem>
+    ),
+    [action],
+  );
+  const columns = useMemo(
+    (): DataColumn<GapRow>[] => [
+      { id: 'person', header: 'Person', width: '15rem', cell: (r) => <PersonCell row={r} /> },
+      {
+        id: 'missing',
+        header: 'Missing',
+        cell: (r) => (
+          <span className="flex flex-wrap gap-1.5">
+            {r.missing.map(live.current.labelOf).map((label) => (
+              <Badge key={label} size="sm">
+                {label}
+              </Badge>
+            ))}
+          </span>
+        ),
+      },
+      {
+        id: 'who',
+        header: 'Who fills it in',
+        width: '9rem',
+        cell: (r) => <WhoFills owner={r.owner} />,
+      },
+      { id: 'act', header: <span className="sr-only">Action</span>, width: '8rem', cell: action },
+    ],
+    [action],
+  );
 
   if (fill === FILL_ALL) {
     return (
@@ -545,92 +672,6 @@ function Missing({
       ? undefined
       : (hrRows.find((r) => r.personId === fill) ??
         state.named?.find((r) => r.owner === 'hr' && r.personId === fill && !filled[r.personId]));
-
-  const fillIn = (r: GapRow): void => {
-    setOutcome(null);
-    setFill(r.personId);
-  };
-  const action = (r: GapRow): JSX.Element | null =>
-    r.owner === 'hr' ? (
-      <Button
-        size="sm"
-        variant="primary"
-        aria-label={`Fill in ${r.name}`}
-        shortcut="row.fill"
-        onClick={() => {
-          fillIn(r);
-        }}
-      >
-        Fill in
-      </Button>
-    ) : onRemind === undefined ? null : recently(r) ? (
-      <Button size="sm" variant="ghost" disabled aria-label={`Reminded ${r.name}`}>
-        Reminded
-      </Button>
-    ) : (
-      <Button
-        size="sm"
-        aria-label={`Remind ${r.name}`}
-        shortcut="row.remind"
-        onClick={() => {
-          void remind(r);
-        }}
-      >
-        Remind
-      </Button>
-    );
-  // The row's own action, from its menu or its key: F fills in HR's gaps, R reminds a person.
-  const rowActions = (r: GapRow): readonly RowAction[] =>
-    r.owner === 'hr'
-      ? [
-          {
-            id: 'fill',
-            label: 'Fill in',
-            shortcut: 'row.fill',
-            icon: <icons.edit aria-hidden />,
-            onSelect: () => {
-              fillIn(r);
-            },
-          },
-        ]
-      : onRemind === undefined
-        ? []
-        : [
-            {
-              id: 'remind',
-              label: recently(r) ? 'Reminded' : 'Remind',
-              shortcut: 'row.remind',
-              icon: <icons.notifications aria-hidden />,
-              disabled: recently(r),
-              onSelect: () => {
-                void remind(r);
-              },
-            },
-          ];
-  const missingOf = (r: GapRow): string[] => r.missing.map(labelOf);
-  const columns: DataColumn<GapRow>[] = [
-    { id: 'person', header: 'Person', width: '15rem', cell: (r) => <PersonCell row={r} /> },
-    {
-      id: 'missing',
-      header: 'Missing',
-      cell: (r) => (
-        <span className="flex flex-wrap gap-1.5">
-          {missingOf(r).map((label) => (
-            <Badge key={label} size="sm">
-              {label}
-            </Badge>
-          ))}
-        </span>
-      ),
-    },
-    {
-      id: 'who',
-      header: 'Who fills it in',
-      width: '9rem',
-      cell: (r) => <WhoFills owner={r.owner} />,
-    },
-    { id: 'act', header: <span className="sr-only">Action</span>, width: '8rem', cell: action },
-  ];
 
   const change = state.complete?.change ?? null;
   const trend = state.complete?.trend ?? [];
@@ -680,7 +721,11 @@ function Missing({
         />
         <Stat label="For HR to fill in" value={toFill} description="Fill them in below" />
         {state.blocking === null ? null : (
-          <Stat label="Blocking payroll" value={state.blocking} description="Bank, tax or ID details" />
+          <Stat
+            label="Blocking payroll"
+            value={state.blocking}
+            description="Bank, tax or ID details"
+          />
         )}
       </div>
       <Card padded className="hidden touch:block">
@@ -759,20 +804,23 @@ function Missing({
             virtualize
             empty={empty}
           />
-          <List aria-label="Missing information" className="hidden touch:block">
-            {rows.map((r) => (
-              <ListItem
-                key={rowId(r)}
-                leading={<Avatar size="lg" name={r.name} />}
-                description={`Missing: ${missingOf(r).join(', ')}`}
-                trailing={action(r)}
-              >
-                {r.name}
-              </ListItem>
-            ))}
-          </List>
-          {/* A phone's list scrolls with the page: the next people load a screen ahead. */}
-          <div ref={endRef} aria-hidden className="hidden h-px touch:block" />
+          {/* A phone's list: the page is its scroll, only the rows near the view are
+              drawn, and the next people load a screen ahead (not while a dialog is open). */}
+          <div className="hidden touch:block">
+            <VirtualList
+              label="Missing information"
+              items={rows}
+              itemKey={rowId}
+              scroll="page"
+              listItems
+              estimateItemHeight={PHONE_ROW}
+              {...(fill !== null || pages.loadMore === undefined
+                ? {}
+                : { onEndReached: pages.loadMore })}
+              loadingMore={pages.loading}
+              renderItem={phoneRow}
+            />
+          </div>
         </PageSection>
       )}
       {person === undefined ? null : (
@@ -799,19 +847,8 @@ const NOTHING = {
   body: 'Every required field has a value for everybody it applies to.',
 };
 
-/** The next page when a list that scrolls with the page nears its end (a phone's). */
-function useEndOfList(loadMore: (() => void) | undefined, loading: boolean) {
-  const [ref, near] = useInView<HTMLDivElement>({
-    rootMargin: '400px',
-    enabled: loadMore !== undefined && !loading && typeof IntersectionObserver !== 'undefined',
-  });
-  const load = useRef(loadMore);
-  load.current = loadMore;
-  useEffect(() => {
-    if (near && !loading) load.current?.();
-  }, [near, loading]);
-  return ref;
-}
+/** A phone row's height, for the list to place rows it has not measured yet. */
+const PHONE_ROW = 72;
 
 function PersonCell({ row }: { readonly row: GapRow }): JSX.Element {
   return (
@@ -858,7 +895,10 @@ function PersonFill({
   readonly fields: ReadonlyMap<string, GapField>;
   readonly onSave: MissingActions['onSave'];
   readonly onCheck: MissingActions['onCheck'];
-  readonly onSaved: (changes: readonly GridSave[], result: Extract<GridOutcome, { ok: true }>) => void;
+  readonly onSaved: (
+    changes: readonly GridSave[],
+    result: Extract<GridOutcome, { ok: true }>,
+  ) => void;
   readonly onClose: () => void;
 }): JSX.Element {
   const shown = row.missing.flatMap((key) => {
@@ -882,7 +922,12 @@ function PersonFill({
         </DialogHeader>
         <DialogBody>
           <SectionForm
-            section={{ key: 'missing', label: `Missing details for ${row.name}`, visibility: [], fields: shown }}
+            section={{
+              key: 'missing',
+              label: `Missing details for ${row.name}`,
+              visibility: [],
+              fields: shown,
+            }}
             values={{}}
             hint="Sensitive values wait for approval."
             footer={
@@ -947,13 +992,20 @@ function FillGrid({
   readonly notices: ReactNode;
   readonly onSave: MissingActions['onSave'];
   readonly onCheck: MissingActions['onCheck'];
-  readonly onSaved: (changes: readonly GridSave[], result: Extract<GridOutcome, { ok: true }>) => void;
+  readonly onSaved: (
+    changes: readonly GridSave[],
+    result: Extract<GridOutcome, { ok: true }>,
+  ) => void;
   readonly onFailed: (message: string) => void;
   readonly onBack: () => void;
 }): JSX.Element {
   const [edits] = useState(createEdits);
   const [saving, setSaving] = useState(false);
-  const pending = useSyncExternalStore(edits.subscribe, () => countOf(edits.edits()), () => 0);
+  const pending = useSyncExternalStore(
+    edits.subscribe,
+    () => countOf(edits.edits()),
+    () => 0,
+  );
   const doubted = useSyncExternalStore(edits.subscribe, edits.findings, edits.findings);
   const table = useRef<DataTableHandle>(null);
   const placed = useRef(rows);
@@ -978,30 +1030,28 @@ function FillGrid({
         sticky: true,
         cell: (r) => <PersonCell row={r} />,
       },
-      ...shown.map(
-        ({ gap, field }): DataColumn<GapRow> => ({
-          id: field.key,
-          header:
-            gap.sensitive === true ? (
-              <span className="inline-flex items-center gap-2">
-                {field.label}
-                <Badge tone="sensitive" size="sm">
-                  Sensitive
-                </Badge>
-              </span>
-            ) : (
-              field.label
-            ),
-          cell: (r) =>
-            r.missing.includes(field.key) ? (
-              <Cell edits={edits} row={r} field={field} />
-            ) : (
-              <span className="text-fg-subtle" aria-label="Already filled in">
-                —
-              </span>
-            ),
-        }),
-      ),
+      ...shown.map(({ gap, field }): DataColumn<GapRow> => ({
+        id: field.key,
+        header:
+          gap.sensitive === true ? (
+            <span className="inline-flex items-center gap-2">
+              {field.label}
+              <Badge tone="sensitive" size="sm">
+                Sensitive
+              </Badge>
+            </span>
+          ) : (
+            field.label
+          ),
+        cell: (r) =>
+          r.missing.includes(field.key) ? (
+            <Cell edits={edits} row={r} field={field} />
+          ) : (
+            <span className="text-fg-subtle" aria-label="Already filled in">
+              —
+            </span>
+          ),
+      })),
     ],
     [shown, edits],
   );
@@ -1017,7 +1067,9 @@ function FillGrid({
     const personId = at.dataset['person'] ?? '';
     const key = at.dataset['cell'] ?? '';
     const list = placed.current;
-    const next = list.slice(list.findIndex((r) => r.personId === personId) + 1).find((r) => r.missing.includes(key));
+    const next = list
+      .slice(list.findIndex((r) => r.personId === personId) + 1)
+      .find((r) => r.missing.includes(key));
     if (next === undefined) return;
     table.current?.revealRow(next.personId);
     // A row scrolled out of the DOM mounts once the scroll nears it.
@@ -1101,7 +1153,11 @@ function FillGrid({
       )}
       {rows.length === 0 ? (
         <Card padded>
-          <EmptyState icon={<icons.missing />} title="Nothing for HR to fill in" description="Every gap left is a person’s own: remind them from the list." />
+          <EmptyState
+            icon={<icons.missing />}
+            title="Nothing for HR to fill in"
+            description="Every gap left is a person’s own: remind them from the list."
+          />
         </Card>
       ) : (
         // ↵ is caught here, once, for every line in the grid.
@@ -1130,9 +1186,40 @@ function FillGrid({
 const cellId = (personId: string, key: string): string => `cell-${personId}-${key}`;
 
 /**
+ * Kinds whose control is heavy to draw (a list, a calendar, a person search):
+ * an empty one is a plain cell until it is pressed or reached by Tab.
+ */
+const PICKERS = new Set<RecordField['dataType']>([
+  'select',
+  'multi_select',
+  'tags',
+  'date',
+  'person_ref',
+  'country',
+  'currency',
+  'language',
+  'time_zone',
+  'org_unit_ref',
+  'legal_entity_ref',
+  'location_ref',
+  // Inputs with a dial-code list or a currency beside them: heavier than a line.
+  'phone',
+  'money',
+]);
+
+/** Pickers whose choices are not a list sent with the field. */
+const UNLISTED = new Set<RecordField['dataType']>(['date', 'person_ref', 'tags', 'phone', 'money']);
+
+/**
  * One empty cell: the control its field's type takes, reading and writing
  * its own value in the grid's edits, so typing here re-renders this cell
  * alone.
+ *
+ * A picker is drawn as a plain cell until it is used: a page of people times
+ * a dozen fields of lists and calendars cost the grid a third of a second to
+ * open. Pressed, the control replaces it already open; reached by Tab, it
+ * replaces it with the focus in it. Synchronous, in the same event, so the
+ * press is answered on the next frame.
  */
 const Cell = memo(function Cell({
   edits,
@@ -1159,17 +1246,51 @@ const Cell = memo(function Cell({
       ),
     () => undefined,
   );
+  const [live, setLive] = useState<'focus' | 'open' | null>(null);
+  const at = useRef<HTMLDivElement>(null);
+  const id = cellId(row.personId, field.key);
+  const label = `${field.label} for ${row.name}`;
+  // The control that replaced the plain cell takes the focus it had.
+  useLayoutEffect(() => {
+    if (live === null) return;
+    at.current?.querySelector<HTMLElement>('button, input')?.focus({ preventScroll: true });
+  }, [live]);
+  // A list with nothing in it is drawn as it is, disabled, saying so.
+  const empty = field.options.length === 0 && !UNLISTED.has(field.dataType);
+  const plain = live === null && value === null && PICKERS.has(field.dataType) && !empty;
   return (
-    <div data-cell={field.key} data-person={row.personId} className="min-w-32">
-      <AttributeControl
-        field={field}
-        value={value}
-        label={`${field.label} for ${row.name}`}
-        cell={{ id: cellId(row.personId, field.key), warning }}
-        onChange={(next) => {
-          edits.set(row.personId, field.key, next);
-        }}
-      />
+    <div data-cell={field.key} data-person={row.personId} className="min-w-32" ref={at}>
+      {plain ? (
+        <InlineCell
+          id={id}
+          aria-label={label}
+          aria-haspopup="listbox"
+          readOnly
+          value=""
+          status="missing"
+          // Pressed: no focus first, so the control comes in open, not twice.
+          onMouseDown={(event) => {
+            event.preventDefault();
+          }}
+          onClick={() => {
+            setLive('open');
+          }}
+          onFocus={() => {
+            setLive((was) => was ?? 'focus');
+          }}
+          containerClassName="min-w-32"
+        />
+      ) : (
+        <AttributeControl
+          field={field}
+          value={value}
+          label={label}
+          cell={{ id, warning, open: live === 'open' }}
+          onChange={(next) => {
+            edits.set(row.personId, field.key, next);
+          }}
+        />
+      )}
     </div>
   );
 });

@@ -49,6 +49,8 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
+    '20261005090000_people_org_unit.sql',
+    '20261005120000_people_section_names.sql',
     '20260926140000_people_visibility_rules.sql',
     '20260926180000_people_pending_change.sql',
     '20260926230000_people_pending_change_decided_as.sql',

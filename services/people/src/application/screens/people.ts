@@ -42,6 +42,7 @@ import { outcomeAt, ownOutcomeAt } from '../../domain/approval/approval.js';
 import { recordedBefore } from '../../domain/person/history.js';
 import { reviewOutcome } from '../../domain/person/identifier-review.js';
 import { placedZone, placementOf } from '../../domain/org/calendar.js';
+import { unitPaths } from '../../domain/org/org-unit.js';
 import {
   checksOf,
   flagChange,
@@ -51,8 +52,10 @@ import {
 } from '../person/approval-flags.js';
 import { offersViewAs } from '../person/view-as.js';
 import {
+  choicesOf,
   formValues,
   hrFills,
+  isOrgRef,
   hrToFill,
   listOptions,
   nameOf,
@@ -1815,6 +1818,7 @@ export function fieldKind(kind: string): 'text' | 'select' | 'date' | 'number' |
     case 'select':
     case 'location_ref':
     case 'legal_entity_ref':
+    case 'org_unit_ref':
       return 'select';
     case 'date':
       return 'date';
@@ -1860,13 +1864,14 @@ function directoryColumns(
   );
 }
 
-/** Legal entities and locations by id, to name a place a record points at. */
+/** Legal entities, locations and org units (by path) by id, to name what a record points at. */
 function placeNames(
   org: Awaited<ReturnType<ScreenDeps['calendars']['load']>>,
 ): Map<string, string> {
   return new Map<string, string>([
     ...[...org.entities.values()].map((e) => [e.id, e.name] as const),
     ...[...org.locations.values()].map((l) => [l.id, l.name] as const),
+    ...unitPaths([...(org.orgUnits?.values() ?? [])]),
   ]);
 }
 
@@ -1884,7 +1889,7 @@ function cellOf(
       ? typeof value === 'string'
         ? names.get(value)
         : undefined
-      : kind === 'location_ref' || kind === 'legal_entity_ref'
+      : isOrgRef(kind)
         ? typeof value === 'string'
           ? places.get(value)
           : undefined
@@ -2047,6 +2052,7 @@ export async function directoryView(
     );
     const org = await deps.calendars.load(tx, asking.tenantId);
     const placeName = placeNames(org);
+    const choices = choicesOf(org);
     const now = deps.clock.instant();
     const selects = definitions.filter(
       (d) => d.typeConfig.kind === 'select' && filterable(definitions, [d.key], everyone).ok,
@@ -2125,15 +2131,9 @@ export async function directoryView(
             ? c.typeConfig.options
                 .filter((o) => o.retiredAt === null)
                 .map((o) => ({ value: o.value, label: o.label.default }))
-            : c.typeConfig.kind === 'location_ref'
-              ? [...org.locations.values()]
-                  .filter((l) => l.archived !== true)
-                  .map((l) => ({ value: l.id, label: l.name }))
-              : c.typeConfig.kind === 'legal_entity_ref'
-                ? [...org.entities.values()]
-                    .filter((e) => e.archived !== true)
-                    .map((e) => ({ value: e.id, label: e.name }))
-                : [];
+            : isOrgRef(c.typeConfig.kind)
+              ? [...choices[c.typeConfig.kind]]
+              : [];
         return [{ key: c.key, label: c.label.default, kind, options }];
       }),
       ...(everyone.isHr
@@ -2386,6 +2386,12 @@ export interface CompletenessView {
   readonly completedThisWeek: number;
   /** HR's missing values over everybody, not only this page. */
   readonly toFill: number;
+  /**
+   * The rows this lists over everybody, not only this page: one for each
+   * person HR fills something in for, and one for each waiting on themselves.
+   * What Review's chip counts.
+   */
+  readonly listed: number;
   /** People missing bank, tax or ID details (`blocksPayroll`); null where not known. */
   readonly blocking: number | null;
   readonly fields: readonly {
@@ -2517,6 +2523,14 @@ export async function completenessView(
     }
     const staff = totals.staff.filter((s) => hrs(s.key));
     const org = await orgChoices(deps, tx, asking.tenantId);
+    const hrPeople =
+      deps.gapPeople === undefined
+        ? Math.max(0, ...staff.map((s) => s.people))
+        : await deps.gapPeople(
+            tx,
+            asking.tenantId,
+            staff.map((s) => s.key),
+          );
     // HR's fields over everybody, then the labels of the person's own on this page.
     const shown = new Set(staff.map((s) => s.key));
     const own = [
@@ -2531,6 +2545,7 @@ export async function completenessView(
       },
       completedThisWeek: 0,
       toFill: hrToFill(totals, version),
+      listed: hrPeople + totals.waiting,
       blocking: figures?.blocking ?? null,
       fields: [...staff.map((s) => s.key), ...own].flatMap((key) => {
         const d = byKey.get(key);

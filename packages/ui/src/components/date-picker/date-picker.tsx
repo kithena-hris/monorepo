@@ -51,6 +51,11 @@ interface DatePickerBaseProps extends Omit<
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   /**
+   * Open as it mounts: for a picker that stands in for a lighter control
+   * until it is pressed (a cell in a long grid).
+   */
+  defaultOpen?: boolean;
+  /**
    * Set by `FieldControl`, so a `Field`'s label, description and error reach
    * the trigger as they reach an `Input`. Not for use on their own.
    */
@@ -124,6 +129,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
     disabled = false,
     size = 'md',
     className,
+    defaultOpen = false,
     locale = 'en-GB',
     id,
     'aria-describedby': describedBy,
@@ -137,7 +143,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
   } = props;
   const mode = props.mode ?? 'single';
   const presets = props.mode === 'range' ? props.presets : undefined;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   const formatter = useMemo(
     () =>
@@ -187,7 +193,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
         <CalendarDays className="size-[1.125rem] shrink-0 text-fg-muted" aria-hidden />
       </PopoverTrigger>
 
-      <PopoverContent className="w-auto p-3 touch:p-4">
+      <PopoverContent aria-label={label} className="w-auto p-3 touch:p-4">
         {/* Presets sit beside the grid at a desk and under it on a phone,
             where the grid already takes the width. */}
         <div className="flex gap-3 touch:flex-col">

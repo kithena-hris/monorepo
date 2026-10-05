@@ -153,8 +153,15 @@ export function applyPack(
   const sections: Section[] = [];
   const attributes: Attribute[] = [];
 
+  // A pack section the company already has under its own key, by name: the pack's fields go there.
+  const into = new Map<string, string>();
   for (const input of pack.sections) {
     if (draft.section(input.key) !== undefined) continue;
+    const named = draft.sectionNamed(input.label.default);
+    if (named !== undefined) {
+      into.set(input.key, named.key);
+      continue;
+    }
     const added = draft.addSection(input);
     if (!added.ok) return added;
     sections.push(added.value);
@@ -162,7 +169,10 @@ export function applyPack(
 
   for (const input of pack.attributes) {
     if (draft.attribute(input.key) !== undefined) continue;
-    const added = draft.addAttribute(input);
+    const added = draft.addAttribute({
+      ...input,
+      sectionKey: into.get(input.sectionKey) ?? input.sectionKey,
+    });
     if (!added.ok) return added;
     attributes.push(added.value);
   }

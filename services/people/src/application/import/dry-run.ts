@@ -9,6 +9,7 @@ import type {
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
+import { unitPaths } from '../../domain/org/org-unit.js';
 import {
   personRefOf,
   placeOf,
@@ -633,7 +634,12 @@ function workplacesOf(
 }
 
 /** Kinds of value that point at something in the company rather than holding a value. */
-const REFERENCES: ReadonlySet<string> = new Set(['person_ref', 'legal_entity_ref', 'location_ref']);
+const REFERENCES: ReadonlySet<string> = new Set([
+  'person_ref',
+  'legal_entity_ref',
+  'location_ref',
+  'org_unit_ref',
+]);
 
 /**
  * Each row as a reference to a person can name it: its id where it came from
@@ -703,6 +709,10 @@ function rowClassifier(
   );
   const entities = [...calendar.entities.values()];
   const locations = [...calendar.locations.values()];
+  // An org unit by its path, "Engineering › Platform", else by its own name if that is one unit's.
+  const units = [...(calendar.orgUnits?.values() ?? [])];
+  const paths = unitPaths(units);
+  const unitsByPath = units.map((u) => ({ ...u, name: paths.get(u.id) ?? u.name }));
 
   return (parsed: ParsedRow): ClassifiedRow => {
     const cell = (m: ColumnMapping) => parsed.cells[m.index] ?? '';
@@ -780,6 +790,18 @@ function rowClassifier(
           else {
             empty(ref.kind === 'new' ? `no legal entity here is called “${ref.name}”` : ref.reason);
           }
+        } else if (kind === 'org_unit_ref') {
+          // ponytail: a unit the company lacks is left empty, not added as a location would be.
+          const byPath = placeOf(raw, unitsByPath);
+          const ref = byPath.kind === 'new' ? placeOf(raw, units) : byPath;
+          if (ref.kind === 'id') refs[key] = ref.id;
+          else {
+            empty(
+              ref.kind === 'new'
+                ? `no org unit here is called “${ref.name}”: add it in Settings › Organisation › Org units`
+                : ref.reason,
+            );
+          }
         } else {
           const entityHere =
             refs['legal_entity_id'] ?? person?.attributes['legal_entity_id'] ?? onlyEntity;
@@ -825,7 +847,7 @@ function rowClassifier(
         }
       }
     };
-    resolve(['person_ref', 'legal_entity_ref']);
+    resolve(['person_ref', 'legal_entity_ref', 'org_unit_ref']);
     resolve(['location_ref']);
 
     const zone = personZone(

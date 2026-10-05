@@ -765,6 +765,16 @@ people.tenant_settings  The tenant's default zone, the cohort minimum (§16.1),
                       name from the back office, for links and reminders.
 ```
 
+Beside them, and deciding nobody's day, `people.org_unit`: the company's
+departments and teams, a name and an optional parent, so a tree. What
+`org_unit_id` points at, what the directory and analytics call a department,
+and what Time Off makes a team of. Archived rather than deleted; a name is
+unique among a unit's live siblings; never archived while a live unit sits
+under it. Managed in Settings › Organisation › Org units by a People
+administrator, and offered to an org unit field by its path ("Engineering ›
+Platform"). Like a location's name, a rename or a move is configuration, not
+effective-dated; its event says when.
+
 **A person's zone** is, in order: their `work_location`'s zone on that
 instant, else their `legal_entity`'s default, else their own `time_zone` (the
 copy identity holds, §5), else the tenant default. A location or entity the
@@ -1855,7 +1865,7 @@ with the new reason `notice_withdrawn`.
 
 ### 10.2a Calendar events
 
-Legal entities, locations and settings (§6.8). Organisation configuration,
+Legal entities, locations, org units and settings (§6.8). Organisation configuration,
 never anybody's values, every field classified like any other.
 
 | Event                              | Payload highlights                                                                                   |
@@ -1865,6 +1875,8 @@ never anybody's values, every field classified like any other.
 | `people.location.created` v1       | locationId, legalEntityId, name, country, time zone, `effectiveFrom`                                 |
 | `people.location.updated` v1       | locationId, name, archived, changed field names                                                      |
 | `people.location.zone_changed` v1  | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
+| `people.org_unit.created` v1       | orgUnitId, name, parentId (null at the top)                                                          |
+| `people.org_unit.updated` v1       | orgUnitId, name, parentId, archived, changed field names (a rename, a move, archiving or restoring)  |
 | `people.settings.changed` v1       | default time zone, cohort minimum, changed field names                                               |
 | `people.employee_numbering.set` v1 | legalEntityId, prefix, digits, next number                                                           |
 

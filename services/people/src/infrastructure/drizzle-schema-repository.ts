@@ -70,6 +70,7 @@ export function drizzleSchemaRepository(): SchemaRepository {
         publishedAt: row.publishedAt.toISOString(),
         publishedBy: row.publishedBy,
         rolledBackFrom: row.rolledBackFrom,
+        reason: row.reason,
       };
     },
 
@@ -82,6 +83,7 @@ export function drizzleSchemaRepository(): SchemaRepository {
         checksum: version.checksum,
         document: version.document,
         rolledBackFrom: version.rolledBackFrom,
+        reason: version.reason,
         evaluatedOn,
       };
       await (evaluatedAt === undefined

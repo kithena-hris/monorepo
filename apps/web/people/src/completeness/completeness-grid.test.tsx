@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -107,9 +107,13 @@ const fillIn = async (name = 'Lena Moreau') => {
   if (atDesk !== undefined) await fast().click(atDesk);
 };
 
+/**
+ * A choice in a grid cell: the cell is plain until pressed, and the press
+ * brings in the list already open.
+ */
 const pick = async (name: string, option: string) => {
   const user = fast();
-  await user.click(screen.getByRole('combobox', { name }));
+  await user.click(screen.getByRole('textbox', { name }));
   await user.click(await screen.findByRole('option', { name: option }));
 };
 
@@ -134,7 +138,7 @@ describe('Missing details', () => {
     const { container } = render(<MissingDetails state={state} onSave={vi.fn()} />);
     await fillAll();
     expect(screen.getByRole('heading', { name: 'Fill in for HR' })).toBeInTheDocument();
-    expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
+    expect(screen.getAllByRole('textbox', { name: /^Cost centre for / })).toHaveLength(3);
     expect(await axeViolations(container)).toEqual([]);
     await fast().click(screen.getByRole('button', { name: 'Back to the list' }));
     expect(screen.queryByRole('combobox')).toBeNull();
@@ -225,12 +229,18 @@ describe('Missing details', () => {
     };
     const { unmount } = render(<MissingDetails state={typed} onSave={vi.fn()} />);
     await fillAll();
-    // A date is a date picker, never a text box that holds a date.
-    expect(screen.getByRole('button', { name: 'Contract end for Lena Moreau' })).toHaveTextContent(
-      'Missing',
-    );
-    expect(screen.queryByRole('textbox', { name: 'Contract end for Lena Moreau' })).toBeNull();
+    const user = fast();
+    // A picker is a plain cell until pressed; pressed, a date is a date picker,
+    // open, never a text box that holds a date.
+    const date = screen.getByRole('textbox', { name: 'Contract end for Lena Moreau' });
+    expect(date).toHaveAttribute('readonly');
+    await user.click(date);
+    expect(screen.getByRole('button', { name: 'Contract end for Lena Moreau' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Contract end for Lena Moreau' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     expect(screen.getByRole('switch', { name: 'Remote for Lena Moreau' })).toBeInTheDocument();
+    // Money, used, is the currency field with the decimal keypad.
+    await user.click(screen.getByRole('textbox', { name: 'Allowance for Lena Moreau' }));
     expect(screen.getByRole('textbox', { name: 'Allowance for Lena Moreau' })).toHaveAttribute(
       'inputmode',
       'decimal',
@@ -275,7 +285,7 @@ describe('Missing details', () => {
       />,
     );
     await fillAll();
-    await user.click(screen.getByRole('button', { name: 'Nationality for Lena Moreau' }));
+    await user.click(screen.getByRole('textbox', { name: 'Nationality for Lena Moreau' }));
     await user.type(screen.getByRole('combobox', { name: 'Nationality for Lena Moreau search' }), 'Jap');
     await user.click(await screen.findByRole('option', { name: 'Japan' }));
     // Nothing to pick from is said, not drawn as a list that opens empty.
@@ -311,7 +321,11 @@ describe('Missing details', () => {
     const user = fast();
     render(<MissingDetails state={{ ...state, rows: [...state.rows, kai] }} onSave={vi.fn()} />);
     await fillAll();
-    screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
+    // Reached by Tab, a plain cell gives way to its control with the focus in it.
+    act(() => {
+      screen.getByRole('textbox', { name: 'Cost centre for Lena Moreau' }).focus();
+    });
+    expect(screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('textbox', { name: 'Desk for Lena Moreau' })).toHaveFocus();
     await user.keyboard('{Enter}');
@@ -339,7 +353,7 @@ describe('Missing details', () => {
     });
     // What was filled is no longer missing: Lena is done, Nadia still waits.
     expect(screen.queryByRole('combobox', { name: 'Cost centre for Lena Moreau' })).toBeNull();
-    expect(screen.getByRole('combobox', { name: 'Cost centre for Nadia Petrova' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Cost centre for Nadia Petrova' })).toBeInTheDocument();
   });
 
   it('keeps the edits and says why when the save is refused', async () => {
@@ -396,7 +410,7 @@ describe('Missing details', () => {
       />,
     );
     await fillAll();
-    await user.click(screen.getByRole('button', { name: 'Manager for Lena Moreau' }));
+    await user.click(screen.getByRole('textbox', { name: 'Manager for Lena Moreau' }));
     await user.type(
       screen.getByRole('combobox', { name: 'Manager for Lena Moreau search' }),
       'ing',
@@ -419,7 +433,7 @@ describe('Missing details', () => {
   it('is Review’s Missing details chip, and opens the grid a link named (E6, E7)', () => {
     renderReview({ completeness: state }, { kind: 'missing', fill: 'all', onFillChange: vi.fn() });
     expect(screen.getByRole('heading', { name: 'Fill in for HR' })).toBeInTheDocument();
-    expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
+    expect(screen.getAllByRole('textbox', { name: /^Cost centre for / })).toHaveLength(3);
   });
 
   it('warns on a doubted identifier in its own cell, then saves it anyway (PEO-125)', async () => {

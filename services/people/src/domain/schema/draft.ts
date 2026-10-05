@@ -284,6 +284,35 @@ export { keyFrom } from './key.js';
 const DuplicateKey = (what: string, key: string) =>
   failure('DUPLICATE_KEY', `A ${what} called ${key} already exists`, ['key']);
 
+/** A section's name as two are compared: case, and the spaces around and between words, ignored. */
+export function sectionName(label: string): string {
+  return label.trim().replaceAll(/\s+/gu, ' ').toLowerCase();
+}
+
+/**
+ * Whether two labels name the same section in some language either is shown
+ * in: the default, or a locale where either has its own words (and the other
+ * falls back to its default). The same words in two languages are not a clash.
+ */
+function sameName(a: Section['label'], b: Section['label']): boolean {
+  // A document published before labels carried translations has none: read
+  // as no translations, so folding a company's oldest sections never throws.
+  const words = (l: Section['label']): Readonly<Record<string, string>> =>
+    (l as { readonly translations?: Readonly<Record<string, string>> }).translations ?? {};
+  const locales = new Set([...Object.keys(words(a)), ...Object.keys(words(b))]);
+  const named = (l: Section['label'], locale: string | null) =>
+    sectionName((locale === null ? undefined : words(l)[locale]) ?? l.default);
+  return [null, ...locales].some((locale) => named(a, locale) === named(b, locale));
+}
+
+/** A section's merge into the first of its name, as `foldDuplicateSections` did it. */
+export interface SectionFold {
+  readonly into: string;
+  readonly from: readonly string[];
+  /** The fields that moved, in their new order. Their keys do not change. */
+  readonly moved: readonly string[];
+}
+
 export class SchemaDraft {
   readonly #sections = new Map<string, Section>();
   readonly #attributes = new Map<string, Attribute>();
@@ -331,10 +360,64 @@ export class SchemaDraft {
     const parsed = SectionInput.safeParse(input);
     if (!parsed.success) return err(invalid('section', parsed.error));
     if (this.#sections.has(parsed.data.key)) return err(DuplicateKey('section', parsed.data.key));
+    // Two live sections of one name render side by side on every profile.
+    const named = this.liveSections().find((s) => sameName(s.label, parsed.data.label));
+    if (named !== undefined) {
+      return err(
+        failure(
+          'DUPLICATE_SECTION_NAME',
+          `A section called "${named.label.default}" already exists`,
+          ['label'],
+        ),
+      );
+    }
 
     const section: Section = { ...parsed.data, archivedAt: null };
     this.#sections.set(section.key, section);
     return ok(section);
+  }
+
+  /** The live section with this name, compared as `sectionName` does; one at most once folded. */
+  sectionNamed(name: string): Section | undefined {
+    return this.liveSections().find((s) => sectionName(s.label.default) === sectionName(name));
+  }
+
+  /**
+   * Fold live sections sharing a name into the first of them (lowest order):
+   * the others' fields move across after its own, in their order, and the
+   * emptied sections are archived. No key changes and no value moves, so no
+   * record is touched; a second fold finds nothing. Repairs what was created
+   * before `addSection` refused a duplicate name.
+   */
+  foldDuplicateSections(clock: Clock): SectionFold[] {
+    const groups = Map.groupBy(this.liveSections(), (s) => sectionName(s.label.default));
+    const folds: SectionFold[] = [];
+    for (const [first, ...rest] of groups.values()) {
+      if (first === undefined || rest.length === 0) continue;
+      const from = rest.map((s) => s.key);
+      const moving = [...this.#attributes.values()]
+        .filter((a) => from.includes(a.sectionKey))
+        // Live fields first, each section's in its own order, then the deprecated ones.
+        .toSorted(
+          (a, b) =>
+            Number(a.deprecatedAt !== null) - Number(b.deprecatedAt !== null) ||
+            from.indexOf(a.sectionKey) - from.indexOf(b.sectionKey) ||
+            a.order - b.order,
+        );
+      let order = Math.max(
+        -1,
+        ...[...this.#attributes.values()]
+          .filter((a) => a.sectionKey === first.key)
+          .map((a) => a.order),
+      );
+      for (const a of moving) {
+        order += 1;
+        this.#attributes.set(a.key, { ...a, sectionKey: first.key, order });
+      }
+      for (const s of rest) this.#sections.set(s.key, { ...s, archivedAt: clock.instant() });
+      folds.push({ into: first.key, from, moved: moving.map((a) => a.key) });
+    }
+    return folds;
   }
 
   /**
@@ -353,7 +436,8 @@ export class SchemaDraft {
    */
   archiveSection(key: string, clock: Clock): Result<Section> {
     const section = this.#sections.get(key);
-    if (!section) return err(failure('SECTION_UNKNOWN', `No section called ${key}`, ['sectionKey']));
+    if (!section)
+      return err(failure('SECTION_UNKNOWN', `No section called ${key}`, ['sectionKey']));
     if (section.archivedAt !== null) return ok(section);
 
     const required = this.attributesIn(key).filter((a) => a.requiredness.mode !== 'never');
@@ -390,9 +474,7 @@ export class SchemaDraft {
       );
     }
     if (section.archivedAt !== null) {
-      return err(
-        failure('SECTION_ARCHIVED', `${section.key} is archived`, ['sectionKey']),
-      );
+      return err(failure('SECTION_ARCHIVED', `${section.key} is archived`, ['sectionKey']));
     }
 
     const readable = this.#checkReadableByOwner(definition);
@@ -450,7 +532,9 @@ export class SchemaDraft {
     if (next.sectionKey !== current.sectionKey) {
       const section = this.#sections.get(next.sectionKey);
       if (!section) {
-        return err(failure('SECTION_UNKNOWN', `No section called ${next.sectionKey}`, ['sectionKey']));
+        return err(
+          failure('SECTION_UNKNOWN', `No section called ${next.sectionKey}`, ['sectionKey']),
+        );
       }
       if (section.archivedAt !== null) {
         return err(failure('SECTION_ARCHIVED', `${section.key} is archived`, ['sectionKey']));
@@ -487,7 +571,9 @@ export class SchemaDraft {
       return err(failure('ATTRIBUTE_UNKNOWN', `No attribute called ${key}`, ['key']));
     }
     if (current.origin === 'core') {
-      return err(failure('CORE_ATTRIBUTE', `${key} is shipped by Kithena and cannot be archived`, ['key']));
+      return err(
+        failure('CORE_ATTRIBUTE', `${key} is shipped by Kithena and cannot be archived`, ['key']),
+      );
     }
     if (current.deprecatedAt !== null) return ok(current);
 
@@ -509,7 +595,11 @@ export class SchemaDraft {
     // Shared with the assistant: the company's choice for any field it could
     // safely be, never for one that is confidential, special-category or
     // sealed, whoever shipped it.
-    if (next.classification.aiEligible && !current.classification.aiEligible && !aiShareable(next)) {
+    if (
+      next.classification.aiEligible &&
+      !current.classification.aiEligible &&
+      !aiShareable(next)
+    ) {
       return err(
         failure(
           'AI_NOT_ALLOWED',
@@ -610,7 +700,9 @@ function sealedShape<T extends object>(input: T): T {
     : input;
 }
 
-export function aiShareable(definition: Pick<AttributeDefinition, 'classification' | 'encrypted'>): boolean {
+export function aiShareable(
+  definition: Pick<AttributeDefinition, 'classification' | 'encrypted'>,
+): boolean {
   return (
     !definition.encrypted &&
     (definition.classification.classification === 'public' ||

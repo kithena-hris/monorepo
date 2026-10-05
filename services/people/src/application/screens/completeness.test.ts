@@ -62,6 +62,11 @@ const ORG = {
       },
     ],
   ]),
+  orgUnits: new Map([
+    ['eng', { id: 'eng', name: 'Engineering', parentId: null }],
+    ['plat', { id: 'plat', name: 'Platform', parentId: 'eng' }],
+    ['old', { id: 'old', name: 'Old team', parentId: 'eng', archived: true }],
+  ]),
 } as never;
 
 function world(
@@ -71,6 +76,7 @@ function world(
     extra?: readonly ReturnType<typeof define>[];
     staff?: readonly { key: string; people: number }[];
     org?: boolean;
+    hrPeople?: number;
   } = {},
 ) {
   const store = inMemoryPeople([versionOf(1, [...attributes, ...(options.extra ?? [])])]);
@@ -106,6 +112,9 @@ function world(
         waiting: 70,
         staff: options.staff ?? [{ key: 'cost_centre', people: 1 }],
       }),
+    ...(options.hrPeople === undefined
+      ? {}
+      : { gapPeople: () => Promise.resolve(options.hrPeople ?? 0) }),
     ...(options.figures === false
       ? {}
       : {
@@ -153,6 +162,17 @@ describe('the completeness view', () => {
     const w = world();
     await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
     expect(w.asked).toEqual([{ payroll: ['iban'], people: [MEI, OMAR] }]);
+  });
+
+  it('counts the rows it lists over everybody: a person HR fills for, and one waiting on themselves', async () => {
+    const w = world({ hrPeople: 1200 });
+    const view = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
+    if (!view.ok) throw new Error(view.error.message);
+    // 1,200 people with a gap HR fills, 70 with their own to give.
+    expect(view.value.listed).toBe(1270);
+    // The same whichever page or person is read: it is everybody's.
+    const one = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'), { person: OMAR });
+    expect(one.ok && one.value.listed).toBe(1270);
   });
 
   it('carries the store’s figures: blocking payroll, the last reminder, and who is due', async () => {
@@ -227,10 +247,17 @@ describe('the completeness view', () => {
         plain('home_zone', 'time_zone'),
         plain('entity', 'legal_entity_ref'),
         plain('office', 'location_ref'),
+        plain('team', 'org_unit_ref'),
       ],
-      staff: ['nationality', 'pay_currency', 'first_language', 'home_zone', 'entity', 'office'].map(
-        (key) => ({ key, people: 1 }),
-      ),
+      staff: [
+        'nationality',
+        'pay_currency',
+        'first_language',
+        'home_zone',
+        'entity',
+        'office',
+        'team',
+      ].map((key) => ({ key, people: 1 })),
     });
     const view = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
     if (!view.ok) throw new Error(view.error.message);
@@ -247,6 +274,11 @@ describe('the completeness view', () => {
     // The company's own, the archived one left out.
     expect(options('entity')).toEqual([{ value: ENTITY, label: 'Acme Iberia SL' }]);
     expect(options('office')).toEqual([{ value: 'loc-mad', label: 'Madrid' }]);
+    // Org units by their path from the top.
+    expect(options('team')).toEqual([
+      { value: 'eng', label: 'Engineering' },
+      { value: 'plat', label: 'Engineering › Platform' },
+    ]);
   });
 
   it('saves any country offered, not only one with address rules', async () => {

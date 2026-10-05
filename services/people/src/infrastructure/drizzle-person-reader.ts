@@ -423,6 +423,21 @@ export function drizzleGapTotals() {
   };
 }
 
+/** People missing any of these keys, over everybody: Missing details' HR rows (`gapPeople`). */
+export function drizzleGapPeople() {
+  return async (tx: PostgresJsDatabase, tenantId: string, keys: readonly string[]): Promise<number> => {
+    if (keys.length === 0) return 0;
+    const wanted = sql`ARRAY[${sql.join(
+      keys.map((k) => sql`${k}`),
+      sql`, `,
+    )}]::text[]`;
+    const [row] = await tx.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM people.completeness_gap
+       WHERE tenant_id = ${tenantId}::uuid AND staff_keys && ${wanted}`);
+    return row?.n ?? 0;
+  };
+}
+
 /**
  * The completeness screen's figures beside the totals (V4), off
  * `people.completeness_gap`: one pass for the tenant's three counts, and one
@@ -688,6 +703,7 @@ function toVersion(row: typeof schemaVersion.$inferSelect): PublishedVersion {
     publishedAt: row.publishedAt.toISOString(),
     publishedBy: row.publishedBy,
     rolledBackFrom: row.rolledBackFrom,
+    reason: row.reason,
   };
 }
 

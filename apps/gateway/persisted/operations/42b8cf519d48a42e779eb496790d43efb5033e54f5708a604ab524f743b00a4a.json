@@ -1,1 +1,0 @@
-{"version":1,"body":"query Waiting {\n    peopleWaiting {\n      identifiers duplicates accessRequests flagged asked exports\n      identifiersBy duplicatesBy accessRequestsBy exportsBy\n    }\n  }"}

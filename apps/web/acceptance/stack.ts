@@ -8,12 +8,15 @@ import { connect, createServer as netServer, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
+import { PersonHired, TenantAdministratorNamed } from '@kithena/contracts';
 import {
   startCosmoRouter,
   startObjectStore,
   startOpenFga,
   startPostgres,
+  startRedpanda,
   startValkey,
 } from '@kithena/testing';
 
@@ -23,13 +26,19 @@ import {
  *
  * Real, all of it: Postgres with every migration, OpenFGA, identity (the
  * sessions, the tenant registry and the access token it issues the shell),
- * the Cosmo Router from `apps/gateway/config.yaml`, the People service, the
- * People remote from a production build, and the shell from a production
- * build (`next build`, `next start`). The shell reaches People only through
- * the router, with identity's token; it is given no address or token for
- * People, and People's internal token is not the shell's. Everything is
- * bounded and everything is stopped in `stop()`, whatever state the run
- * ended in.
+ * the Cosmo Router from `apps/gateway/config.yaml`, the People and Time Off
+ * services, both remotes from production builds, and the shell from a
+ * production build (`next build`, `next start`; made once a run, in
+ * `build.ts`). The shell reaches each module only through the router, with
+ * identity's token; it is given no address or token for either, and neither
+ * module's internal token is the shell's. Everything is bounded and
+ * everything is stopped in `stop()`, whatever state the run ended in.
+ *
+ * Time Off keeps its members from People's and identity's events, as it does
+ * in production: its own Kafka consumer (`wire.ts`) on Redpanda, fed by a
+ * stand-in for Debezium that publishes each outbox row, unchanged, to the
+ * topic the row names (`relayOutboxes`). A person hired in People is a Time
+ * Off member by that path and no other.
  */
 
 export const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -54,6 +63,10 @@ const SHELL_TOKEN = 'acceptance-shell-token';
 const PEOPLE_TOKEN = 'acceptance-people-token';
 /** What People presents to identity (`PEOPLE_IDENTITY_TOKEN`), and identity expects of it. */
 const PEOPLE_IDENTITY_TOKEN = 'acceptance-people-identity-token';
+/** What only the router holds for Time Off (`TIMEOFF_API_TOKEN`). */
+const TIMEOFF_TOKEN = 'acceptance-timeoff-token';
+/** Both modules, as a deployment selling both lists them (`KITHENA_ENTITLEMENTS`). */
+const ENTITLEMENTS = '["module.people","module.timeoff"]';
 const AUDIENCE = 'kithena-router';
 
 export interface Stack {
@@ -65,6 +78,8 @@ export interface Stack {
   readonly router: { readonly asleep: () => void; readonly awake: () => void };
   /** People's own address: for a test to show it refuses anybody but the router. */
   readonly peopleUrl: string;
+  /** Time Off's own address, the same way. */
+  readonly timeoffUrl: string;
   readonly shellToken: string;
   /** People's REST, as the router would call it: for a test to check a result without a screen. */
   asPeople(
@@ -73,6 +88,19 @@ export interface Stack {
     /** A write: its method and body, keyed as the router keys one. */
     write?: { readonly method: string; readonly body: unknown },
   ): Promise<unknown>;
+  /** Time Off's REST, as the router would call it, for a test's setup (HR's leave types). */
+  asTimeOff(
+    account: string,
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<{ status: number; body: unknown }>;
+  /** Identity's back-office routes, as `apps/admin` calls them (`/api/internal/admin/...`). */
+  backOffice(
+    method: string,
+    path: string,
+    body: unknown,
+  ): Promise<{ status: number; body: unknown }>;
   /** OpenFGA tuples, as People's consumer writes them from its events; there is no Kafka here. */
   writeTuples(tuples: readonly { user: string; relation: string; object: string }[]): Promise<void>;
   /**
@@ -363,6 +391,7 @@ function start(
       ([key]) =>
         !key.startsWith('VITEST') &&
         !key.startsWith('PEOPLE_API') &&
+        !key.startsWith('TIMEOFF_API') &&
         key !== 'NODE_ENV' &&
         key !== 'MODE',
     ),
@@ -417,7 +446,7 @@ async function kill(child: ChildProcess | undefined, name = 'a process'): Promis
 }
 
 /** Run to completion, bounded. */
-function run(
+export function run(
   command: string,
   args: readonly string[],
   cwd: string,
@@ -445,23 +474,88 @@ function run(
   });
 }
 
-export async function startStack(): Promise<Stack> {
+/**
+ * Debezium's part, as `deploy/vm/debezium.env` configures it: every row of
+ * identity's and People's outboxes published once, unchanged, to the topic
+ * the row names, keyed by its `partition_key`, in commit order per key. A
+ * consumer meets what it meets in production; nothing here knows who reads.
+ *
+ * Polled, where Debezium tails the WAL. A row is found by its id within a
+ * window rather than past a high-water mark, because `created_at` is when its
+ * transaction began, and a long one (an import) commits rows dated before
+ * others already published.
+ */
+function relayOutboxes(sql: postgres.Sql, kafka: Kafka): { stop: () => Promise<void> } {
+  const producer = kafka.producer();
+  const sent = new Set<string>();
+  const stopped = new AbortController();
+  const loop = (async () => {
+    await producer.connect();
+    while (!stopped.signal.aborted) {
+      const fresh = await sql<{ event_id: string }[]>`
+        SELECT event_id::text FROM (
+          SELECT event_id, created_at FROM platform.outbox
+           WHERE created_at > now() - interval '10 minutes'
+          UNION ALL
+          SELECT event_id, created_at FROM people.outbox
+           WHERE created_at > now() - interval '10 minutes'
+        ) o ORDER BY created_at, event_id`.catch(() => []);
+      const ids = fresh.map((r) => r.event_id).filter((id) => !sent.has(id));
+      if (ids.length > 0) {
+        const rows = await sql<{ event_id: string; topic: string; key: string; value: string }[]>`
+          SELECT event_id::text, topic, partition_key AS key, envelope::text AS value FROM (
+            SELECT event_id, topic, partition_key, envelope, created_at FROM platform.outbox
+            UNION ALL
+            SELECT event_id, topic, partition_key, envelope, created_at FROM people.outbox
+          ) o WHERE event_id = ANY(${ids}::uuid[]) ORDER BY created_at, event_id`;
+        const byTopic = new Map<string, { key: string; value: string }[]>();
+        for (const row of rows) {
+          const list = byTopic.get(row.topic) ?? [];
+          list.push({ key: row.key, value: row.value });
+          byTopic.set(row.topic, list);
+        }
+        await producer.sendBatch({
+          topicMessages: [...byTopic].map(([topic, messages]) => ({ topic, messages })),
+        });
+        for (const row of rows) sent.add(row.event_id);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  })();
+  return {
+    stop: async () => {
+      stopped.abort();
+      await loop.catch(() => undefined);
+      await producer.disconnect();
+    },
+  };
+}
+
+export async function startStack(
+  /** The remotes' SSR public keys, as `build.ts` signed them: `inject('remoteKeys')`. */
+  remoteKeys: { readonly PEOPLE: string; readonly TIMEOFF: string },
+): Promise<Stack> {
   const children: ChildProcess[] = [];
   const logs: Record<string, string[]> = {
     people: [],
+    timeoff: [],
     identity: [],
     remote: [],
+    'timeoff remote': [],
     shell: [],
   };
+  let relay: { stop: () => Promise<void> } | undefined;
   let router: Awaited<ReturnType<typeof startCosmoRouter>> | undefined;
   let dir = '';
   let receiver: Awaited<ReturnType<typeof startReceiver>> | undefined;
   const receiverDir = await mkdtemp(join(tmpdir(), 'kithena-receiver-'));
   // The bucket an import is uploaded to, straight from the browser (§14.2).
-  const [pg, fga, storage, valkey] = await Promise.all([
+  const [pg, fga, storage, redpanda, valkey] = await Promise.all([
     startPostgres(),
     startOpenFga(),
     startObjectStore(),
+    // Where Time Off's consumer reads People's and identity's events.
+    startRedpanda(),
     // `ACCEPTANCE_VALKEY=1`: People with Valkey, so its read cache is on, for a
     // timing run. Off otherwise: some tests write People's rows and tuples
     // straight to the database, which no cache is told about.
@@ -473,9 +567,16 @@ export async function startStack(): Promise<Stack> {
     const stopped = await Promise.allSettled(
       children.map((child) => kill(child, child.spawnargs.join(' '))),
     );
+    await relay?.stop().catch(() => undefined);
     await router?.stop().catch(() => undefined);
     await sql.end({ timeout: 5 }).catch(() => undefined);
-    await Promise.allSettled([pg.stop(), fga.stop(), storage.stop(), valkey?.stop()]);
+    await Promise.allSettled([
+      pg.stop(),
+      fga.stop(),
+      storage.stop(),
+      redpanda.stop(),
+      valkey?.stop(),
+    ]);
     await new Promise<void>((resolve) => {
       if (receiver)
         receiver.server.close(() => {
@@ -501,6 +602,7 @@ export async function startStack(): Promise<Stack> {
       await sql.unsafe(await readFile(join(migrations, file), 'utf8'));
     }
     await sql`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`;
+    await sql`ALTER ROLE svc_timeoff LOGIN PASSWORD 'svc_timeoff'`;
     const secretKeys = `k1:${randomBytes(32).toString('base64')}`;
 
     // What the back office leaves behind: the company, two accounts, and a
@@ -536,13 +638,14 @@ export async function startStack(): Promise<Stack> {
     service.username = 'svc_people';
     service.password = 'svc_people';
 
-    const [peoplePort, identityPort, remotePort, shellPort] = await Promise.all([
-      freePort(),
-      freePort(),
-      freePort(),
-      freePort(),
-    ]);
+    const timeoffDatabase = new URL(pg.url);
+    timeoffDatabase.username = 'svc_timeoff';
+    timeoffDatabase.password = 'svc_timeoff';
+
+    const [peoplePort, timeoffPort, identityPort, remotePort, timeoffRemotePort, shellPort] =
+      await Promise.all([freePort(), freePort(), freePort(), freePort(), freePort(), freePort()]);
     const peopleUrl = `http://127.0.0.1:${String(peoplePort)}`;
+    const timeoffUrl = `http://127.0.0.1:${String(timeoffPort)}`;
     // The upload bucket, configured as an operator would: the People script,
     // over the S3 API, allowing PUT from the tenant app's origin alone.
     const uploads = {
@@ -597,6 +700,35 @@ export async function startStack(): Promise<Stack> {
       ),
     );
 
+    // The topics Time Off subscribes to, before it does: a group that joins a
+    // topic not there yet waits a metadata refresh to see it.
+    const kafka = new Kafka({ clientId: 'acceptance-relay', brokers: [redpanda.brokers] });
+    const admin = kafka.admin();
+    await admin.connect();
+    await admin.createTopics({
+      topics: [PersonHired.topic, TenantAdministratorNamed.topic].map((topic) => ({ topic })),
+    });
+    await admin.disconnect();
+    // Time Off, as `main.ts` runs it: REST, the subgraph, and its consumer.
+    children.push(
+      start(
+        join(ROOT, 'node_modules/.bin/tsx'),
+        ['services/timeoff/src/main.ts'],
+        ROOT,
+        {
+          TIMEOFF_PORT: String(timeoffPort),
+          TIMEOFF_DATABASE_URL: timeoffDatabase.toString(),
+          TIMEOFF_API_TOKEN: TIMEOFF_TOKEN,
+          TIMEOFF_FEED_SECRET: randomBytes(32).toString('base64url'),
+          OPENFGA_URL: fga.apiUrl,
+          KAFKA_BROKERS: redpanda.brokers,
+          NODE_ENV: 'test',
+          LOG_LEVEL: 'warn',
+        },
+        logs['timeoff'] ?? [],
+      ),
+    );
+
     // Identity, as `main.ts` runs it, signing access tokens for the router.
     const signingKey = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({
       format: 'jwk',
@@ -615,7 +747,7 @@ export async function startStack(): Promise<Stack> {
           AUTH_SIGNING_KEY: JSON.stringify(signingKey),
           AUTH_ISSUER: `http://127.0.0.1:${String(identityPort)}`,
           AUTH_TOKEN_AUDIENCE: AUDIENCE,
-          KITHENA_ENTITLEMENTS: '["module.people"]',
+          KITHENA_ENTITLEMENTS: ENTITLEMENTS,
           LOG_LEVEL: 'warn',
         },
         logs['identity'] ?? [],
@@ -623,6 +755,8 @@ export async function startStack(): Promise<Stack> {
     );
     const identityUrl = `http://127.0.0.1:${String(identityPort)}`;
     await until('People', 60_000, async () => (await fetch(`${peopleUrl}/v1/openapi.json`)).ok);
+    await until('Time Off', 60_000, async () => (await fetch(`${timeoffUrl}/healthz`)).ok);
+    relay = relayOutboxes(sql, kafka);
     await until(
       'identity',
       60_000,
@@ -673,6 +807,43 @@ export async function startStack(): Promise<Stack> {
         },
       });
       return response.json();
+    };
+
+    const asTimeOff = async (account: string, method: string, path: string, body?: unknown) => {
+      const response = await fetch(`${timeoffUrl}${path}`, {
+        method,
+        headers: {
+          'x-internal-token': TIMEOFF_TOKEN,
+          // What `apps/gateway/config.yaml` sets for Time Off.
+          'x-kithena-principal': JSON.stringify({
+            userId: account,
+            tenantId: TENANT,
+            impersonatedBy: null,
+            viewedBy: null,
+            entitlements: JSON.parse(ENTITLEMENTS) as string[],
+          }),
+          'x-correlation-id': randomUUID(),
+          ...(body === undefined
+            ? {}
+            : { 'content-type': 'application/json', 'idempotency-key': randomUUID() }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      return {
+        status: response.status,
+        body: (await response.json().catch(() => null)) as unknown,
+      };
+    };
+    const backOffice = async (method: string, path: string, body: unknown) => {
+      const response = await fetch(`${identityUrl}${path}`, {
+        method,
+        headers: { 'content-type': 'application/json', 'x-internal-token': SHELL_TOKEN },
+        body: JSON.stringify(body),
+      });
+      return {
+        status: response.status,
+        body: (await response.json().catch(() => null)) as unknown,
+      };
     };
 
     // People creates its OpenFGA store on first use; then the tuples its
@@ -817,14 +988,18 @@ export async function startStack(): Promise<Stack> {
       };
     };
 
-    // The router, from the file that ships, in front of People alone. The
+    // The router, from the file that ships, in front of People and Time Off. The
     // production-only parts it cannot have here — the CDN, tracing — are
     // turned off by an override; the persisted-operation safelist stays on,
     // with the shell's operations as `apps/gateway` generates them.
     dir = await mkdtemp(join(tmpdir(), 'kithena-acceptance-'));
     const far = Number(process.env['ACCEPTANCE_LATENCY_MS'] ?? '0');
-    const peopleHop =
-      far > 0 ? new URL(await distant(peopleUrl, far, '0.0.0.0')).port : String(peoplePort);
+    const hop = async (url: string, port: number) =>
+      far > 0 ? new URL(await distant(url, far, '0.0.0.0')).port : String(port);
+    const [peopleHop, timeoffHop] = await Promise.all([
+      hop(peopleUrl, peoplePort),
+      hop(timeoffUrl, timeoffPort),
+    ]);
     await writeFile(
       join(dir, 'graph.yaml'),
       [
@@ -834,6 +1009,10 @@ export async function startStack(): Promise<Stack> {
         `    routing_url: http://host.docker.internal:${peopleHop}/graphql`,
         '    schema:',
         `      file: ${join(ROOT, 'services/people/schemas/people.graphql')}`,
+        '  - name: timeoff',
+        `    routing_url: http://host.docker.internal:${timeoffHop}/graphql`,
+        '    schema:',
+        `      file: ${join(ROOT, 'services/timeoff/schemas/timeoff.graphql')}`,
       ].join('\n'),
     );
     await run(
@@ -876,34 +1055,37 @@ export async function startStack(): Promise<Stack> {
         AUTH_JWKS_URL: `http://host.docker.internal:${String(identityPort)}/.well-known/jwks.json`,
         AUTH_TOKEN_AUDIENCE: AUDIENCE,
         PEOPLE_API_TOKEN: PEOPLE_TOKEN,
-        KITHENA_ENTITLEMENTS: '["module.people"]',
+        TIMEOFF_API_TOKEN: TIMEOFF_TOKEN,
+        KITHENA_ENTITLEMENTS: ENTITLEMENTS,
         // Verifies a config downloaded from the CDN; this one is a file.
         GRAPH_SIGN_KEY: 'x'.repeat(32),
       },
     });
 
-    // The remote and the shell, as production builds. The remote's server
-    // build signed as its deploy pipeline signs it, and the shell pinning the
-    // public half (PEO-115).
-    await run('pnpm', ['--filter', '@kithena/web-people', 'build'], ROOT, 240_000);
-    const signing = generateKeyPairSync('ed25519');
-    await run('pnpm', ['--filter', '@kithena/web-people', 'sign'], ROOT, 30_000, {
-      PEOPLE_REMOTE_SSR_SIGNING_KEY: signing.privateKey
-        .export({ format: 'der', type: 'pkcs8' })
-        .toString('base64'),
-    });
-    children.push(
-      start(
-        join(ROOT, 'apps/web/people/node_modules/.bin/vite'),
-        ['preview', '--port', String(remotePort), '--strictPort', '--host', '127.0.0.1'],
-        join(ROOT, 'apps/web/people'),
-        {},
-        logs['remote'] ?? [],
-      ),
-    );
-    const preview = `http://127.0.0.1:${String(remotePort)}`;
-    await until('the remote', 30_000, async () => (await fetch(`${preview}/routes.json`)).ok);
-    const remote = await asDeployed(preview);
+    // The remotes as Vercel serves them, from the builds `build.ts` made and
+    // signed; the shell pins each public half (PEO-115).
+    const preview = async (name: 'people' | 'timeoff', port: number, log: string[]) => {
+      children.push(
+        start(
+          join(ROOT, `apps/web/${name}/node_modules/.bin/vite`),
+          ['preview', '--port', String(port), '--strictPort', '--host', '127.0.0.1'],
+          join(ROOT, `apps/web/${name}`),
+          {},
+          log,
+        ),
+      );
+      const local = `http://127.0.0.1:${String(port)}`;
+      await until(
+        `the ${name} remote`,
+        30_000,
+        async () => (await fetch(`${local}/routes.json`)).ok,
+      );
+      return asDeployed(local);
+    };
+    const [remote, timeoffRemote] = await Promise.all([
+      preview('people', remotePort, logs['remote'] ?? []),
+      preview('timeoff', timeoffRemotePort, logs['timeoff remote'] ?? []),
+    ]);
 
     const routerMs = Number(process.env['ACCEPTANCE_ROUTER_LATENCY_MS'] ?? far);
     const gate = await gated(routerMs > 0 ? await distant(router.url, routerMs) : router.url);
@@ -913,29 +1095,10 @@ export async function startStack(): Promise<Stack> {
       ROUTER_URL: gate.url,
       TENANT_HOST_SUFFIX: 'app.localhost',
       PEOPLE_REMOTE_URL: remote,
-      PEOPLE_REMOTE_SSR_PUBLIC_KEY: signing.publicKey
-        .export({ format: 'der', type: 'spki' })
-        .toString('base64'),
+      PEOPLE_REMOTE_SSR_PUBLIC_KEY: remoteKeys.PEOPLE,
+      TIMEOFF_REMOTE_URL: timeoffRemote,
+      TIMEOFF_REMOTE_SSR_PUBLIC_KEY: remoteKeys.TIMEOFF,
     };
-    // The renderer process's bundle, which `next build` does not make.
-    await run('node', ['scripts/build-renderer.mjs'], join(ROOT, 'apps/web'), 60_000);
-    if (process.env['ACCEPTANCE_SKIP_SHELL_BUILD'] !== '1') {
-      // `next build` rewrites `next-env.d.ts` for a production build; a test
-      // run leaves the checkout as it found it.
-      const nextEnv = join(ROOT, 'apps/web/next-env.d.ts');
-      const committed = await readFile(nextEnv, 'utf8');
-      try {
-        await run(
-          join(ROOT, 'apps/web/node_modules/.bin/next'),
-          ['build'],
-          join(ROOT, 'apps/web'),
-          420_000,
-          env,
-        );
-      } finally {
-        await writeFile(nextEnv, committed);
-      }
-    }
     const shellProcess = start(
       join(ROOT, 'apps/web/node_modules/.bin/next'),
       ['start', '-p', String(shellPort)],
@@ -966,9 +1129,12 @@ export async function startStack(): Promise<Stack> {
       shellEnv: env,
       router: { asleep: gate.asleep, awake: gate.awake },
       peopleUrl,
+      timeoffUrl,
       shellToken: SHELL_TOKEN,
       receiver: { url: receiver.url, received: receiver.received },
       asPeople,
+      asTimeOff,
+      backOffice,
       writeAsPeople,
       writeTuples,
       provisionCompany,

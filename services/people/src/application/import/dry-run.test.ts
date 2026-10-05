@@ -486,3 +486,73 @@ describe('work locations chosen in the import', () => {
     ]);
   });
 });
+
+describe('org units named in a file', () => {
+  const ENG = '00000000-0000-4000-8000-0000000000a1';
+  const PLAT = '00000000-0000-4000-8000-0000000000a2';
+  const SALES_PLAT = '00000000-0000-4000-8000-0000000000a3';
+  const DATA = '00000000-0000-4000-8000-0000000000a4';
+  const SALES = '00000000-0000-4000-8000-0000000000a5';
+  const rows = [
+    ['Ana', 'Ruiz', 'ana@acme.test', '2026-03-01', 'Engineering › Platform'],
+    ['Bea', 'Sol', 'bea@acme.test', '2026-03-01', 'engineering'],
+    ['Carl', 'Mora', 'carl@acme.test', '2026-03-01', 'Platform'],
+    ['Dani', 'Gil', 'dani@acme.test', '2026-03-01', 'Marketing'],
+    ['Eva', 'Paz', 'eva@acme.test', '2026-03-01', 'Data'],
+  ];
+
+  it('finds a unit by its path or its own name, and leaves anything else empty for HR', async () => {
+    const store = priyasTenant();
+    store.versions.push(
+      versionOf(2, [
+        ...attributes,
+        define({ key: 'team', dataType: 'org_unit_ref', typeConfig: { kind: 'org_unit_ref' } }),
+      ]),
+    );
+    const file = await parseUpload(
+      csv(['Given name', 'Family name', 'Work email', 'Hire date', 'team'], rows),
+    );
+    const version = store.versions.at(-1);
+    if (!file.ok || !version) throw new Error('no file');
+    const proposed = await proposeMapping({
+      file: file.value,
+      version,
+      relations: HR_RELATIONS,
+      advisor: null,
+    });
+    const mapping = resolveMapping(proposed, {}, version, HR_RELATIONS);
+    if (!mapping.ok) throw new Error(mapping.error.message);
+    const unit = (id: string, name: string, parentId: string | null, archived = false) =>
+      [id, { id, name, parentId, archived }] as const;
+    const result = await dryRun(
+      tx,
+      {
+        calendars: fixedCalendars({
+          ...UTC_CALENDAR,
+          orgUnits: new Map([
+            unit(ENG, 'Engineering', null),
+            unit(PLAT, 'Platform', ENG),
+            unit(SALES, 'Sales', null),
+            unit(SALES_PLAT, 'Platform', SALES),
+            unit(DATA, 'Data', ENG, true),
+          ]),
+        }),
+        access: personAccess(store.deps),
+        schemas: store.deps.schemas,
+        relations: store.deps.relations,
+        clock: store.deps.clock,
+      },
+      { ...asking, file: file.value, mapping: mapping.value },
+    );
+    if (!result.ok) throw new Error(result.error.message);
+    const [ana, bea, carl, dani, eva] = result.value.rows;
+    expect(ana?.changes).toMatchObject({ team: PLAT });
+    expect(bea?.changes).toMatchObject({ team: ENG });
+    for (const row of [carl, dani, eva]) expect(row?.changes).not.toHaveProperty('team');
+    expect([carl, dani, eva].map((r) => r?.leftEmpty.map((l) => l.reason))).toEqual([
+      ['more than one is called “Platform”'],
+      ['no org unit here is called “Marketing”: add it in Settings › Organisation › Org units'],
+      ['“Data” is archived'],
+    ]);
+  });
+});

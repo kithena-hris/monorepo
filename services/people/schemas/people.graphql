@@ -1174,6 +1174,12 @@ type Mutation {
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
+  createOrgUnit(
+    idempotencyKey: String!
+    name: String!
+    """The unit it sits under; absent or null at the top."""
+    parentId: ID
+  ): OrgUnit
   """
   Add one person by hand: a provisional record with its first values, hired from `hireDate` when one is given; HR only. `POST /v1/people`.
   """
@@ -1454,6 +1460,15 @@ type Mutation {
   unmergePerson(idempotencyKey: String!, personId: ID!, reason: String!): Person
   updateLegalEntity(archived: Boolean, id: ID!, idempotencyKey: String!, name: String, timeZone: String): LegalEntity
   updateLocation(archived: Boolean, id: ID!, idempotencyKey: String!, name: String): Location
+  """Rename, move, archive or restore."""
+  updateOrgUnit(
+    archived: Boolean
+    id: ID!
+    idempotencyKey: String!
+    name: String
+    """Move under this unit; null moves it to the top."""
+    parentId: ID
+  ): OrgUnit
   updatePeopleSettings(
     cohortMinimum: Int
     defaultTimeZone: String
@@ -1524,6 +1539,16 @@ type OrgChartPerson {
 type OrgCountry {
   code: String
   name: String
+}
+
+"""A department or team, in a tree by parentId."""
+type OrgUnit {
+  archived: Boolean
+  id: ID
+  name: String
+  parentId: ID
+  """From the top: "Engineering › Platform"."""
+  path: String
 }
 
 """
@@ -1700,6 +1725,10 @@ type PeopleCompleteness {
   blocking: Int
   completedThisWeek: Int
   fields: [CompletenessField!]
+  """
+  Rows Missing details lists over everybody: a person HR fills for, and a person waiting on themselves.
+  """
+  listed: Int
   next: String
   rows: [CompletenessRow!]
   since: String
@@ -1874,6 +1903,7 @@ type PeopleOrganisation {
   legalEntities: [LegalEntity!]
   locations: [Location!]
   numberings: [EmployeeNumbering!]
+  orgUnits: [OrgUnit!]
   """
   Pay bands as they now stand; HR and finance see and edit them, nobody else.
   """
@@ -2285,6 +2315,10 @@ type PeopleWaiting {
   HR’s own changes and requests for full values, waiting on somebody else.
   """
   asked: Int
+  """
+  Changes in HR’s Waiting tab: all but the viewer’s own that wait on somebody else.
+  """
+  changes: Int
   duplicates: Int
   """
   What flagged the suspected duplicates: Kithena’s duplicate check, SCIM provisioning, or both.
@@ -2447,6 +2481,7 @@ type Query {
   importRun(id: ID!): String
   legalEntities: [LegalEntity!]
   locations: [Location!]
+  orgUnits: [OrgUnit!]
   people(after: String, asOf: String, first: Int): PersonPage
   peopleAnalytics(segment: ID): PeopleAnalytics
   """

@@ -98,6 +98,8 @@ export const schemaVersion = people.table(
     checksum: char('checksum', { length: 64 }).notNull(),
     document: jsonb('document').notNull(),
     rolledBackFrom: integer('rolled_back_from'),
+    /** Why the system published it (20261005120000); null for a person's publish. */
+    reason: text('reason'),
     /** The tenant-local date the publish's preview evaluated `requiredFrom` on. */
     evaluatedOn: date('evaluated_on'),
   },
@@ -118,6 +120,7 @@ export const schemaVersionEvaluated = people.table('schema_version', {
   checksum: char('checksum', { length: 64 }).notNull(),
   document: jsonb('document').notNull(),
   rolledBackFrom: integer('rolled_back_from'),
+  reason: text('reason'),
   evaluatedOn: date('evaluated_on'),
   /** The instant the preview read every person's own day off (PEO-099). */
   evaluatedAt: timestamp('evaluated_at', { withTimezone: true }),
@@ -319,6 +322,14 @@ export const locationZone = people.table('location_zone', {
   effectiveFrom: date('effective_from').notNull(),
   timeZone: text('time_zone').notNull(),
   supersedes: uuid('supersedes'),
+});
+
+export const orgUnit = people.table('org_unit', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  name: text('name').notNull(),
+  parentId: uuid('parent_id'),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
 });
 
 /** Every tenant People has work for. Readable unscoped, by design: see the migration. */

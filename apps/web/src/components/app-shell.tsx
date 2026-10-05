@@ -52,7 +52,7 @@ import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
 import { todoRows } from '../lib/inbox';
 import { useInAppLinks, useWarmPages } from '../lib/links';
-import { matchPath } from '../lib/remotes';
+import { firstUnder, matchPath } from '../lib/remotes';
 import {
   DEFAULT_PREFS,
   adjacentPage,
@@ -617,7 +617,22 @@ export function AppShell({
                                 }
                               : {})}
                         >
-                          <Link href={area.href as Route}>{area.label}</Link>
+                          {/* Where the area's address redirects (`firstUnder`, as the
+                              server does), so a press is one round trip, not two. */}
+                          <Link
+                            href={
+                              (firstUnder(
+                                area.href === '/people'
+                                  ? shell.sections
+                                  : area.href === '/time-off'
+                                    ? (timeOff?.sections ?? [])
+                                    : [],
+                                area.href,
+                              ) ?? area.href) as Route
+                            }
+                          >
+                            {area.label}
+                          </Link>
                         </NavItem>
                       ) : (
                         <NavItem

@@ -23,9 +23,16 @@ const config = {
   // lockfiles above the repo.
   outputFileTracingRoot: join(import.meta.dirname, '../..'),
   // The renderer process's bundle is read from disk, not imported, so tracing
-  // cannot find it on its own (PEO-115, `src/lib/remote-render.ts`).
+  // cannot find it on its own (PEO-115, `src/lib/remote-render.ts`). Every
+  // route that renders a remote on the server needs it beside it: Home (People's
+  // home slot), People, Time Off and both areas' settings. A route without it
+  // still works, drawn in the browser, which is why its absence went unnoticed.
   outputFileTracingIncludes: {
+    '/': ['./.renderer/renderer.cjs'],
     '/people/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
+    '/time-off/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
+    '/settings/people/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
+    '/settings/time-off/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
   },
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],

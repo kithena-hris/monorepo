@@ -133,7 +133,7 @@ export function PersonPicker({
   size = 'md',
   onChange,
   ...control
-}: Pick<ComboboxProps, 'id' | 'aria-describedby' | 'aria-invalid'> & {
+}: Pick<ComboboxProps, 'id' | 'aria-describedby' | 'aria-invalid' | 'defaultOpen'> & {
   readonly label: string;
   readonly value: string;
   readonly known: readonly Option[];
@@ -202,6 +202,8 @@ export interface CellPlace {
   /** Our checks doubt it (PEO-125): marked, and said with the cell. */
   readonly warning?: string | undefined;
   readonly onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
+  /** Open its list or calendar as it mounts: the press that brought it in also opens it. */
+  readonly open?: boolean;
 }
 
 /**
@@ -255,6 +257,7 @@ export function AttributeControl({
   readonly 'aria-required'?: boolean;
 }): JSX.Element | null {
   const size = cell === undefined ? 'md' : 'sm';
+  const opened = cell?.open === true ? { defaultOpen: true } : {};
   const named = cell === undefined ? {} : { 'aria-label': label };
   const invalid = ariaInvalid ?? (cell?.warning === undefined ? undefined : true);
   // Only what was given: an absent id is no id at all, not `id={undefined}`.
@@ -268,6 +271,7 @@ export function AttributeControl({
       return (
         <DatePicker
           {...control}
+          {...opened}
           label={label}
           size={size}
           value={typeof value === 'string' && value !== '' ? value : null}
@@ -282,6 +286,7 @@ export function AttributeControl({
       return (
         <Combobox
           {...control}
+          {...opened}
           multiple
           chips={cell === undefined}
           label={label}
@@ -322,6 +327,7 @@ export function AttributeControl({
       return (
         <PersonPicker
           {...control}
+          {...opened}
           label={label}
           size={size}
           value={text(value)}
@@ -379,6 +385,7 @@ export function AttributeControl({
       return (
         <Combobox
           {...control}
+          {...opened}
           label={label}
           size={size}
           options={field.options}
@@ -394,6 +401,7 @@ export function AttributeControl({
     }
     return (
       <Select
+        {...opened}
         value={text(value)}
         // A list with nothing in it says so rather than opening empty.
         disabled={disabled || empty}

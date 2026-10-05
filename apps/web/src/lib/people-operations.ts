@@ -247,7 +247,7 @@ export const OPERATIONS = {
   /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
   Waiting: `query Waiting {
     peopleWaiting {
-      identifiers duplicates accessRequests flagged asked exports
+      identifiers duplicates accessRequests flagged asked exports changes
       identifiersBy duplicatesBy accessRequestsBy exportsBy
     }
   }`,
@@ -315,6 +315,7 @@ export const OPERATIONS = {
       settings { defaultTimeZone cohortMinimum photoAtSignup slug displayName }
       legalEntities { id name country timeZone archived }
       locations { id legalEntityId name country timeZone zones { effectiveFrom timeZone } archived }
+      orgUnits { id name parentId path archived }
       numberings { legalEntityId prefix digits nextValue }
       countries { code name }
       timeZones
@@ -356,6 +357,7 @@ export const OPERATIONS = {
       waiting { people lastReminded due }
       completedThisWeek
       toFill
+      listed
       blocking
       fields { key label dataType currency options { value label } person sensitive }
       rows { personId name department manager missing owner remindedAt }
@@ -770,6 +772,14 @@ export const OPERATIONS = {
 
   ChangeLocationZone: `mutation ChangeLocationZone($id: ID!, $timeZone: String!, $effectiveFrom: String!, $key: String!) {
     changeLocationZone(id: $id, timeZone: $timeZone, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
+  }`,
+
+  CreateOrgUnit: `mutation CreateOrgUnit($name: String!, $parentId: ID, $key: String!) {
+    createOrgUnit(name: $name, parentId: $parentId, idempotencyKey: $key) { id }
+  }`,
+
+  UpdateOrgUnit: `mutation UpdateOrgUnit($id: ID!, $name: String, $parentId: ID, $archived: Boolean, $key: String!) {
+    updateOrgUnit(id: $id, name: $name, parentId: $parentId, archived: $archived, idempotencyKey: $key) { id }
   }`,
 
   SetEmployeeNumbering: `mutation SetEmployeeNumbering(

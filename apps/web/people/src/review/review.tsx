@@ -19,6 +19,7 @@ import {
   PINNED_BAR,
   Stack,
   DataTable,
+  type DataColumn,
   Textarea,
   icons,
   usePages,
@@ -39,6 +40,7 @@ import {
   type ChangeActions,
 } from '../approvals/approvals';
 import {
+  FILL_ALL,
   MissingDetails,
   type CompletenessState,
   type MissingActions,
@@ -132,6 +134,18 @@ export interface ReviewState {
   readonly ownDecided?: {
     readonly changes: readonly ApprovalItem[];
     readonly identifiers: readonly DecidedReview[];
+  } | null;
+  /**
+   * How many of each kind wait for this viewer, over everybody, as People
+   * counts them (its waiting read): what the chips say, the same whichever
+   * chip is chosen. Null where People refused it; absent from an older shell.
+   */
+  readonly counts?: {
+    readonly changes?: number | null;
+    readonly identifiers: number | null;
+    readonly duplicates: number | null;
+    readonly accessRequests: number | null;
+    readonly exports: number | null;
   } | null;
 }
 
@@ -418,9 +432,12 @@ function Queue({
   // A, on a change's row: it opens with the note to write, as its button needs one.
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
-  /** Missing values filled in on this page, until People is read again: off the chip's count. */
-  const [filled, setFilled] = useState({ of: state.completeness, count: 0 });
-  const filledHere = filled.of === state.completeness ? filled.count : 0;
+  // What is filled in (`?fill=`), here so the grid takes the page from any chip at once.
+  const [fill, setFill] = useHeldAtOnce<string | null>(
+    actions.fill,
+    actions.onFillChange,
+    actions.fill ?? null,
+  );
   /** A row's own keys (A and R on a change, M and N on a pair), as its buttons do. */
   const rowActions = (row: Row): readonly RowAction[] | undefined => {
     if (row.kind === 'changes') {
@@ -482,15 +499,41 @@ function Queue({
   // Decided counts what it lists (E9): each kind's decisions, and the merges.
   const decisions = tab === 'decided' ? decisionsOf(state) : [];
   const merged = tab === 'decided' ? (state.duplicates?.merges ?? []).length : 0;
-  const total = tab === 'decided' ? decisions.length + merged : all.length;
+  // Waiting counts are People's, over everybody (`counts`): never what one
+  // read happened to list, so every chip says the same on every load. The
+  // rows stand in only where People gave no count.
+  const counts = state.counts ?? null;
+  const listedOf = (k: ReviewKind): number => all.filter((r) => r.kind === k).length;
+  const waitingOf = (k: ReviewKind): number => {
+    const counted =
+      k === 'missing'
+        ? state.completeness?.listed
+        : k === 'changes'
+          ? counts?.changes
+          : k === 'ids'
+            ? counts?.identifiers
+            : k === 'duplicates'
+              ? counts?.duplicates
+              : k === 'access'
+                ? counts?.accessRequests
+                : counts?.exports;
+    return counted ?? (k === 'missing' ? (state.completeness?.rows.length ?? 0) : listedOf(k));
+  };
   const countOf = (k: ReviewKind): number =>
-    k === 'missing'
-      ? Math.max(0, (state.completeness?.toFill ?? 0) - filledHere)
-      : tab === 'decided'
-        ? k === 'duplicates'
-          ? merged
-          : decisions.filter((d) => d.kind === k).length
-        : all.filter((r) => r.kind === k).length;
+    tab === 'decided'
+      ? k === 'duplicates'
+        ? merged
+        : decisions.filter((d) => d.kind === k).length
+      : tab === 'waiting' && viewer === 'hr'
+        ? waitingOf(k)
+        : listedOf(k);
+  // All is everything All lists, so never fewer than any one chip.
+  const total =
+    tab === 'decided'
+      ? decisions.length + merged
+      : tab === 'waiting' && viewer === 'hr'
+        ? chips.reduce((n, k) => n + countOf(k), 0)
+        : all.length;
 
   const description =
     viewer === 'hr'
@@ -515,11 +558,11 @@ function Queue({
         }}
       >
         <ChipGroupItem value="all">
-          All <span className="opacity-60 tabular-nums">{total}</span>
+          All <span className="opacity-60 tabular-nums">{total.toLocaleString('en-GB')}</span>
         </ChipGroupItem>
         {chips.map((k) => (
           <ChipGroupItem key={k} value={k}>
-            {CHIP[k]} <span className="opacity-60 tabular-nums">{countOf(k)}</span>
+            {CHIP[k]} <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString('en-GB')}</span>
           </ChipGroupItem>
         ))}
       </ChipGroup>
@@ -551,15 +594,20 @@ function Queue({
         />
       );
     }
-    if (kind === 'missing') {
-      return state.completeness === null ? (
-        <Card padded>
-          <EmptyState
-            icon={<icons.missing />}
-            title={EMPTY.missing.title}
-            description={EMPTY.missing.body}
-          />
-        </Card>
+    // Missing details: its own chip, below the decisions in All (which counts
+    // it), and the whole page while the grid over everybody is open.
+    const listsMissing = tab === 'waiting' && viewer === 'hr' && (kind === null || kind === 'missing');
+    const missing =
+      !listsMissing && fill !== FILL_ALL ? null : state.completeness === null ? (
+        kind === 'missing' ? (
+          <Card padded>
+            <EmptyState
+              icon={<icons.missing />}
+              title={EMPTY.missing.title}
+              description={EMPTY.missing.body}
+            />
+          </Card>
+        ) : null
       ) : (
         <MissingDetails
           state={state.completeness}
@@ -570,16 +618,33 @@ function Queue({
           {...(actions.onLoadMoreMissing === undefined
             ? {}
             : { onLoadMore: actions.onLoadMoreMissing })}
-          onFilled={(count) => {
-            setFilled({ of: state.completeness, count });
-          }}
           now={now}
-          fill={actions.fill ?? null}
-          {...(actions.onFillChange === undefined ? {} : { onFillChange: actions.onFillChange })}
+          fill={fill}
+          onFillChange={setFill}
           searchPeople={actions.searchPeople}
         />
       );
+    if (kind === "missing" || fill === FILL_ALL) {
+      return (
+        <Stack gap={5}>
+          {null}
+          {missing}
+        </Stack>
+      );
     }
+    const decisions = queue();
+    // Nothing to decide, and missing details below: they are what All lists.
+    const nothingElse = rows.length === 0 && kind === null && missing !== null && state.completeness?.rows.length !== 0;
+    return (
+      <Stack gap={5}>
+        {nothingElse ? null : decisions}
+        {missing}
+      </Stack>
+    );
+  })();
+
+  /** The decisions: a list and the item open beside it, or what would appear here. */
+  function queue(): ReactNode {
     const empty =
       tab === 'flagged'
         ? { title: 'Nothing flagged', body: 'No change waiting for you looks unusual.' }
@@ -657,7 +722,7 @@ function Queue({
         detail={detail}
       />
     );
-  })();
+  }
 
   return (
     <Stack gap={4}>
@@ -1116,6 +1181,40 @@ function decisionsOf(state: ReviewState): Decision[] {
   );
 }
 
+// At module scope, so the table keeps one set of columns and redraws a row
+// only when its decision changes, not every time a page lands.
+const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
+  {
+    id: 'person',
+    header: 'Person',
+    cell: (d) => (
+      <span className="flex min-w-0 items-center gap-2">
+        <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
+        <span className="truncate">{d.name}</span>
+      </span>
+    ),
+  },
+  { id: 'what', header: 'What', cell: (d) => d.what },
+  {
+    id: 'outcome',
+    header: 'Outcome',
+    cardTrailing: true,
+    cell: (d) => (
+      <Badge size="sm" tone={d.outcome.tone}>
+        {d.outcome.text}
+      </Badge>
+    ),
+  },
+  { id: 'by', header: 'By', shortHeader: 'By', cell: (d) => d.by },
+  {
+    id: 'when',
+    header: 'When',
+    cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
+  },
+];
+const decisionKey = (d: Decision): string => d.key;
+const decisionName = (d: Decision): string => d.name;
+
 /**
  * Decided (E9): every kind for 90 days, with who decided and when, and the
  * merged records underneath with Undo, or why it cannot be undone.
@@ -1183,43 +1282,15 @@ function Decided({
           <DataTable<Decision>
             label="Decided in the last 90 days"
             rows={decisions}
-            rowId={(d) => d.key}
-            describeRow={(d) => d.name}
+            rowId={decisionKey}
+            describeRow={decisionName}
             // Infinite: the page's one scroll, older decisions loading near its
             // end, only the rows on screen drawn; cards under a finger.
             stickyHeader
             containerClassName="page-fill max-h-dvh min-h-96"
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
-            columns={[
-              {
-                id: 'person',
-                header: 'Person',
-                cell: (d) => (
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
-                    <span className="truncate">{d.name}</span>
-                  </span>
-                ),
-              },
-              { id: 'what', header: 'What', cell: (d) => d.what },
-              {
-                id: 'outcome',
-                header: 'Outcome',
-                cardTrailing: true,
-                cell: (d) => (
-                  <Badge size="sm" tone={d.outcome.tone}>
-                    {d.outcome.text}
-                  </Badge>
-                ),
-              },
-              { id: 'by', header: 'By', shortHeader: 'By', cell: (d) => d.by },
-              {
-                id: 'when',
-                header: 'When',
-                cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
-              },
-            ]}
+            columns={DECIDED_COLUMNS}
           />
         </PageSection>
       )}

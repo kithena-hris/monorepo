@@ -30,6 +30,59 @@ const share: ShareRequest = {
   approvers: [],
 };
 
+describe('Review’s chips', () => {
+  const completeness = {
+    since: 'Since version 4',
+    waiting: { people: 9_000, lastReminded: null, due: 0 },
+    completedThisWeek: 0,
+    toFill: 25_000,
+    listed: 10_000,
+    blocking: null,
+    fields: [{ key: 'desk', label: 'Desk', options: [], person: false }],
+    rows: [
+      {
+        personId: 'l',
+        name: 'Lena Moreau',
+        department: null,
+        manager: null,
+        missing: ['desk'],
+        owner: 'hr' as const,
+        remindedAt: null,
+      },
+    ],
+    next: 'l',
+  };
+  const counts = { changes: 3, identifiers: 2, duplicates: 1, accessRequests: 0, exports: 0 };
+  const chips = () =>
+    screen.getAllByRole('radio').map((chip) => chip.textContent.replace(/\s+/gu, ' ').trim());
+
+  it('counts every kind over everybody, All the most, the same whichever chip is chosen', async () => {
+    renderReview({ completeness, counts }, { onKindChange: vi.fn(), onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) });
+    // People's counts, not what one read listed (nothing here but one missing row).
+    const before = chips();
+    expect(before).toEqual([
+      'All 10,006',
+      'Changes 3',
+      'ID checks 2',
+      'Duplicates 1',
+      'Full values 0',
+      'Exports 0',
+      'Missing details 10,000',
+    ]);
+    for (const name of [/^Missing details/u, /^Changes/u, /^ID checks/u, /^All/u]) {
+      await fast().click(screen.getByRole('radio', { name }));
+      expect(chips()).toEqual(before);
+    }
+  });
+
+  it('lists missing details in All, below the decisions, as it counts them', () => {
+    renderReview({ completeness, counts }, { onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) });
+    expect(screen.getByRole('grid', { name: 'Missing information' })).toBeInTheDocument();
+    // Nothing to decide is not said over a list of what is missing.
+    expect(screen.queryByText('Nothing waiting for you')).toBeNull();
+  });
+});
+
 describe('Review', () => {
   it('lists the exports waiting for this administrator under Exports (E5)', () => {
     renderReview(

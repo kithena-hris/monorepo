@@ -13,6 +13,7 @@ import type { HistoryEntry } from '../domain/person/history.js';
 import type {
   LegalEntityView,
   LocationView,
+  OrgUnitView,
   OrgAdmin,
   TenantSettings,
 } from '../application/org/org.js';
@@ -455,6 +456,17 @@ const LocationRef = builder.objectRef<LocationView>('Location').implement({
   }),
 });
 
+const OrgUnitRef = builder.objectRef<OrgUnitView>('OrgUnit').implement({
+  description: 'A department or team, in a tree by parentId.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    parentId: t.exposeID('parentId', { nullable: true }),
+    path: t.exposeString('path', { description: 'From the top: "Engineering › Platform".' }),
+    archived: t.exposeBoolean('archived'),
+  }),
+});
+
 /** A legal entity, location or settings use case for this caller, in its own transaction. */
 async function inOrg<T>(
   ctx: RequestContext,
@@ -595,6 +607,12 @@ builder.queryType({
       type: [LocationRef],
       resolve: async (_root, _args, ctx) => [
         ...(await inOrg(ctx, (org, tx, asking) => org.locations(tx, asking))),
+      ],
+    }),
+    orgUnits: t.field({
+      type: [OrgUnitRef],
+      resolve: async (_root, _args, ctx) => [
+        ...(await inOrg(ctx, (org, tx, asking) => org.orgUnits(tx, asking))),
       ],
     }),
     peopleSchema: t.field({
@@ -749,6 +767,35 @@ builder.mutationType({
           key: args.idempotencyKey,
         }),
     }),
+    createOrgUnit: t.field({
+      type: OrgUnitRef,
+      args: {
+        name: t.arg.string({ required: true }),
+        parentId: t.arg.id({ description: 'The unit it sits under; absent or null at the top.' }),
+        idempotencyKey: t.arg(idempotencyKey),
+      },
+      resolve: (_root, { idempotencyKey: key, name, parentId }, ctx) =>
+        viaRest<OrgUnitView>(ctx, 'POST', '/v1/org-units', {
+          body: { name, parentId: parentId ?? null },
+          key,
+        }),
+    }),
+    updateOrgUnit: t.field({
+      type: OrgUnitRef,
+      description: 'Rename, move, archive or restore.',
+      args: {
+        id: t.arg.id({ required: true }),
+        name: t.arg.string(),
+        parentId: t.arg.id({ description: 'Move under this unit; null moves it to the top.' }),
+        archived: t.arg.boolean(),
+        idempotencyKey: t.arg(idempotencyKey),
+      },
+      resolve: (_root, { id, idempotencyKey: key, parentId, ...patch }, ctx) =>
+        viaRest<OrgUnitView>(ctx, 'PATCH', `/v1/org-units/${encodeURIComponent(id)}`, {
+          body: { ...sent(patch), ...(parentId === undefined ? {} : { parentId }) },
+          key,
+        }),
+    }),
     correctAttribute: t.field({
       type: HistoryEntryRef,
       args: {
@@ -842,6 +889,7 @@ interface OrganisationShape {
   readonly settings: TenantSettings;
   readonly legalEntities: readonly LegalEntityView[];
   readonly locations: readonly LocationView[];
+  readonly orgUnits: readonly OrgUnitView[];
   readonly numberings: readonly NumberingView[];
   /** HR's alone; null for anybody else (PEO-075). */
   readonly upcomingErasures: readonly UpcomingErasure[] | null;
@@ -924,6 +972,7 @@ const OrganisationRef = builder.objectRef<OrganisationShape>('PeopleOrganisation
     settings: t.field({ type: PeopleSettingsRef, resolve: (o) => o.settings }),
     legalEntities: t.field({ type: [LegalEntityRef], resolve: (o) => [...o.legalEntities] }),
     locations: t.field({ type: [LocationRef], resolve: (o) => [...o.locations] }),
+    orgUnits: t.field({ type: [OrgUnitRef], resolve: (o) => [...o.orgUnits] }),
     numberings: t.field({ type: [EmployeeNumberingRef], resolve: (o) => [...o.numberings] }),
     countries: t.field({
       type: [OrgCountryRef],
@@ -970,6 +1019,8 @@ builder.queryFields((t) => ({
         if (!legalEntities.ok) return legalEntities;
         const locations = await org.locations(tx, asking);
         if (!locations.ok) return locations;
+        const orgUnits = await org.orgUnits(tx, asking);
+        if (!orgUnits.ok) return orgUnits;
         const numberings = await org.numberings(tx, asking);
         if (!numberings.ok) return numberings;
         // `payBands` decides who may see them; a refusal is null here, not an error.
@@ -982,6 +1033,7 @@ builder.queryFields((t) => ({
           settings: settings.value,
           legalEntities: legalEntities.value,
           locations: locations.value,
+          orgUnits: orgUnits.value,
           numberings: numberings.value,
         });
       });

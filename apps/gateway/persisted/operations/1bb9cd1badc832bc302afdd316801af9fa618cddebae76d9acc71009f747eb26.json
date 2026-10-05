@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation UpdateOrgUnit($id: ID!, $name: String, $parentId: ID, $archived: Boolean, $key: String!) {\n    updateOrgUnit(id: $id, name: $name, parentId: $parentId, archived: $archived, idempotencyKey: $key) { id }\n  }"}

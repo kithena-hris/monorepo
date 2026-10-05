@@ -12,12 +12,14 @@ import {
   Progress,
   Stack,
   DataTable,
+  type DataColumn,
   ListItem,
   VirtualList,
+  type VirtualListProps,
   usePages,
   icons,
 } from '@reach/ui';
-import { useCallback, useId, useState, type JSX, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
@@ -488,7 +490,101 @@ function History({
     ...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore }),
     loadingMore: pages.loading,
   };
-  const when = (e: TransferEntry) => whenOf(e.at, now, zone);
+  const when = useCallback((e: TransferEntry) => whenOf(e.at, now, zone), [now, zone]);
+  // Held while the clock and the zone hold, so a page landing or a search
+  // redraws only the rows that changed.
+  const columns = useMemo<readonly DataColumn<TransferEntry>[]>(
+    () => [
+      {
+        id: 'type',
+        header: 'Type',
+        width: '7.5rem',
+        hideOnCard: true,
+        cell: (e) => (
+          <Badge size="sm" tone={KIND[e.kind].tone}>
+            {KIND[e.kind].icon}
+            {KIND[e.kind].label}
+          </Badge>
+        ),
+      },
+      {
+        id: 'title',
+        header: 'File or reason',
+        cell: (e) => {
+          const href = hrefOf(e);
+          const title = titleOf(e);
+          return href === null ? (
+            title
+          ) : (
+            <a
+              href={href}
+              aria-label={
+                e.kind === 'export'
+                  ? `Download ${title}`
+                  : href === e.reportUrl
+                    ? `Report of ${title}`
+                    : `Open the import of ${title}`
+              }
+            >
+              {title}
+            </a>
+          );
+        },
+      },
+      {
+        id: 'by',
+        header: 'By',
+        cell: (e) => (
+          <span className="flex items-center gap-2">
+            <Avatar size="sm" name={e.by.name} src={e.by.avatarUrl ?? undefined} />
+            {e.by.name}
+          </span>
+        ),
+      },
+      { id: 'when', header: 'When', width: '7.5rem', cell: (e) => when(e) },
+      {
+        id: 'result',
+        header: 'Result',
+        cardTrailing: true,
+        cell: (e) => {
+          const result = resultOf(e);
+          return result.tone === 'neutral' ? (
+            result.text
+          ) : (
+            <Badge size="sm" tone={result.tone}>
+              {result.text}
+            </Badge>
+          );
+        },
+      },
+    ],
+    [when],
+  );
+  const renderItem = useCallback<VirtualListProps<TransferEntry>['renderItem']>(
+    (e, _i, row) => {
+      const href = hrefOf(e);
+      return (
+        <ListItem
+          key={e.id}
+          {...row}
+          leading={
+            <Avatar
+              size="lg"
+              shape="rounded"
+              tone={KIND[e.kind].tone}
+              name={KIND[e.kind].label}
+              fallback={KIND[e.kind].icon}
+            />
+          }
+          description={`${resultOf(e).text} · ${when(e)}`}
+          {...(href === null ? {} : { asChild: true, chevron: true })}
+        >
+          {href === null ? titleOf(e) : <a href={href}>{titleOf(e)}</a>}
+        </ListItem>
+      );
+    },
+    [when],
+  );
   return (
     <section aria-labelledby="history" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -536,70 +632,7 @@ function History({
             stickyHeader
             containerClassName="page-fill max-h-dvh min-h-96 touch:hidden"
             {...infinite}
-            columns={[
-              {
-                id: 'type',
-                header: 'Type',
-                width: '7.5rem',
-                hideOnCard: true,
-                cell: (e) => (
-                  <Badge size="sm" tone={KIND[e.kind].tone}>
-                    {KIND[e.kind].icon}
-                    {KIND[e.kind].label}
-                  </Badge>
-                ),
-              },
-              {
-                id: 'title',
-                header: 'File or reason',
-                cell: (e) => {
-                  const href = hrefOf(e);
-                  const title = titleOf(e);
-                  return href === null ? (
-                    title
-                  ) : (
-                    <a
-                      href={href}
-                      aria-label={
-                        e.kind === 'export'
-                          ? `Download ${title}`
-                          : href === e.reportUrl
-                            ? `Report of ${title}`
-                            : `Open the import of ${title}`
-                      }
-                    >
-                      {title}
-                    </a>
-                  );
-                },
-              },
-              {
-                id: 'by',
-                header: 'By',
-                cell: (e) => (
-                  <span className="flex items-center gap-2">
-                    <Avatar size="sm" name={e.by.name} src={e.by.avatarUrl ?? undefined} />
-                    {e.by.name}
-                  </span>
-                ),
-              },
-              { id: 'when', header: 'When', width: '7.5rem', cell: (e) => when(e) },
-              {
-                id: 'result',
-                header: 'Result',
-                cardTrailing: true,
-                cell: (e) => {
-                  const result = resultOf(e);
-                  return result.tone === 'neutral' ? (
-                    result.text
-                  ) : (
-                    <Badge size="sm" tone={result.tone}>
-                      {result.text}
-                    </Badge>
-                  );
-                },
-              },
-            ]}
+            columns={columns}
           />
           {/* Under a finger, a list that scrolls with the page, drawn near the view. */}
           <VirtualList
@@ -611,28 +644,7 @@ function History({
             estimateItemHeight={72}
             className="hidden touch:block"
             {...infinite}
-            renderItem={(e, _i, row) => {
-              const href = hrefOf(e);
-              return (
-                <ListItem
-                  key={e.id}
-                  {...row}
-                  leading={
-                    <Avatar
-                      size="lg"
-                      shape="rounded"
-                      tone={KIND[e.kind].tone}
-                      name={KIND[e.kind].label}
-                      fallback={KIND[e.kind].icon}
-                    />
-                  }
-                  description={`${resultOf(e).text} · ${when(e)}`}
-                  {...(href === null ? {} : { asChild: true, chevron: true })}
-                >
-                  {href === null ? titleOf(e) : <a href={href}>{titleOf(e)}</a>}
-                </ListItem>
-              );
-            }}
+            renderItem={renderItem}
           />
         </>
       )}

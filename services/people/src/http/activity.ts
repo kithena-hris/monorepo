@@ -247,6 +247,26 @@ const RULES: readonly Rule[] = [
     say: (_m, b) => ({ action: 'Changed a location’s time zone', subject: text(b['timeZone']) }),
   },
   {
+    path: /^\/v1\/org-units$/,
+    area: 'organisation',
+    say: (_m, b) => ({ action: 'Added an org unit', subject: text(b['name']) }),
+  },
+  {
+    path: new RegExp(`^/v1/org-units/${ID}$`),
+    area: 'organisation',
+    say: (_m, b) => ({
+      action:
+        b['archived'] === true
+          ? 'Archived an org unit'
+          : b['archived'] === false
+            ? 'Restored an org unit'
+            : 'parentId' in b
+              ? 'Moved an org unit'
+              : 'Renamed an org unit',
+      subject: text(b['name']),
+    }),
+  },
+  {
     path: /^\/v1\/pay-bands$/,
     area: 'organisation',
     say: (_m, b) => ({ action: 'Changed a pay band', subject: text(b['grade']) }),

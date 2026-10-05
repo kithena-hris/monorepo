@@ -49,6 +49,8 @@ export default ModuleManifest.parse({
     'people.location.created',
     'people.location.updated',
     'people.location.zone_changed',
+    'people.org_unit.created',
+    'people.org_unit.updated',
     'people.settings.changed',
     'people.employee_numbering.set',
     'people.export.full_values_requested',

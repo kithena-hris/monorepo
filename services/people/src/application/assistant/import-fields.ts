@@ -520,14 +520,14 @@ export function draftWithNewFields(
   const sections: Section[] = [];
   const added: Attribute[] = [];
   const problems: { column: number; message: string }[] = [];
-  const newKeys = new Map<string, string>();
   for (const p of kept) {
     let sectionKey: string;
     if ('sectionKey' in p.placement) {
       sectionKey = p.placement.sectionKey;
     } else {
       const label = p.placement.newSection;
-      const known = newKeys.get(label.toLowerCase());
+      // A section the company already has by that name takes the field: never a second one.
+      const known = draft.sectionNamed(label)?.key;
       if (known !== undefined) {
         sectionKey = known;
       } else {
@@ -546,7 +546,6 @@ export function draftWithNewFields(
           continue;
         }
         sections.push(section.value);
-        newKeys.set(label.toLowerCase(), key);
         sectionKey = key;
       }
     }

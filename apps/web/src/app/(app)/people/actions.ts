@@ -741,6 +741,21 @@ export async function changeZone(
   return outcome(people('ChangeLocationZone', { id, timeZone, effectiveFrom }));
 }
 
+export async function createOrgUnit(input: {
+  name: string;
+  parentId: string | null;
+}): Promise<Outcome> {
+  return outcome(people('CreateOrgUnit', { ...input }));
+}
+
+/** A rename, a move (null `parentId` for the top), archiving or restoring; People decides who may. */
+export async function updateOrgUnit(
+  id: string,
+  patch: { name?: string; parentId?: string | null; archived?: boolean },
+): Promise<Outcome> {
+  return outcome(people('UpdateOrgUnit', { id, ...given(patch) }));
+}
+
 export async function setNumbering(
   legalEntityId: string,
   scheme: { prefix: string; digits: number; start: number },
