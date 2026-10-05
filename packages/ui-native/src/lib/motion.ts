@@ -137,4 +137,3 @@ export function motionPresets(reduced: boolean): MotionPresets {
     layout: reduced ? null : physics(springs.move),
   };
 }
-

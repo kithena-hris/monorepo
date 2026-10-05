@@ -18,14 +18,18 @@ const config = getDefaultConfig(__dirname);
  */
 // The native-module packages are here for a second reason: two copies of one
 // register the same native view twice, which fails at start-up.
+//
+// From every importer, third-party packages included. The repository holds
+// two `react-native` copies (one per React the workspace uses: the app's
+// 19.2.3 and Storybook's 19.3), and a library such as lucide-react-native or
+// @rn-primitives/portal resolved its peer to the other one: the same stack
+// overflow, reached through `node_modules` instead of workspace source.
 const SINGLETONS =
   /^(react|react-native|react-native-css|nativewind|react-native-reanimated|react-native-worklets|react-native-gesture-handler|react-native-safe-area-context|react-native-svg)(\/|$)/;
 const appRoot = `${__dirname}/package.json`;
 config.resolver.resolveRequest = (context, moduleName, platform) =>
   context.resolveRequest(
-    SINGLETONS.test(moduleName) && !context.originModulePath.includes('/node_modules/')
-      ? { ...context, originModulePath: appRoot }
-      : context,
+    SINGLETONS.test(moduleName) ? { ...context, originModulePath: appRoot } : context,
     moduleName,
     platform,
   );
