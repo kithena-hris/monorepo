@@ -100,7 +100,7 @@ const duplicates = (n: number): DuplicateStore => {
   } as unknown as DuplicateStore;
 };
 
-async function setup() {
+function setup() {
   const people = inMemoryPeople([versionOf(3, [department, nif, workEmail])]);
   people.seed(TOM, { account: TOM_ACCOUNT, custom: { department: 'sales' } });
   const clock = fixedClock(NOW);
@@ -215,7 +215,7 @@ async function everyPage<T>(
 
 describe('Review’s queues past every old cap', () => {
   it('counts each kind’s true total, and pages through exactly that many, newest first', async () => {
-    const s = await setup();
+    const s = setup();
     const waiting = await waitingView(tx, { access: s.access, pending: s.pending }, asking(SOFIA));
     if (!waiting.ok) throw new Error(waiting.error.message);
     expect({
@@ -260,7 +260,7 @@ describe('Review’s queues past every old cap', () => {
   });
 
   it('opens one change or one person’s ID check a link names, wherever it is in the queue', async () => {
-    const s = await setup();
+    const s = setup();
     const far = uuid('8000', CHANGES - 1);
     const change = await approvalsView(s.deps, asking(SOFIA), null, { only: far });
     expect(change.ok && change.value.items.map((c) => c.id)).toEqual([far]);
@@ -309,7 +309,7 @@ describe('Review’s queues past every old cap', () => {
       await shares.insert(tx, share);
     }
     const clock = fixedClock(NOW);
-    expect(await fullValuesCounts(tx, { requests, clock } as never, asking(SOFIA))).toEqual({
+    expect(await fullValuesCounts(tx, { requests, clock }, asking(SOFIA))).toEqual({
       toDecide: REQUESTS,
       mine: OWN,
     });

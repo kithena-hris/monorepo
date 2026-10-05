@@ -5,7 +5,20 @@ import type { ShareRequest } from '../export/export-done';
 import type { FullValuesRequest } from '../export/full-values';
 import { pairId, type DuplicatePair } from './duplicates';
 import { idCheckId, type ReviewItem } from './identifier-reviews';
-import type { ReviewState } from './review';
+import type { ApprovalsState } from '../approvals/approvals';
+import type { FullValuesState } from '../export/full-values';
+import type { DuplicatesState } from './duplicates';
+import type { IdentifierReviewsState } from './identifier-reviews';
+
+/** What of Review's state the queues are: each one's first page and its next place. */
+export interface QueueState {
+  readonly approvals: ApprovalsState | null;
+  readonly identifiers: IdentifierReviewsState | null;
+  readonly duplicates: DuplicatesState | null;
+  readonly fullValues: FullValuesState | null;
+  readonly shares?: readonly ShareRequest[] | null;
+  readonly sharesNext?: string | null;
+}
 
 /** One of Review's decision queues, each paged on its own by People. */
 export type QueueKind = 'changes' | 'ids' | 'duplicates' | 'access' | 'exports';
@@ -40,7 +53,7 @@ const AT: Readonly<Record<QueueKind, (item: never) => string | null>> = {
 const KINDS: readonly QueueKind[] = ['changes', 'ids', 'duplicates', 'access', 'exports'];
 
 /** Each queue's first page, as the page was read. */
-function firstPages(state: ReviewState): Record<QueueKind, Loaded> {
+function firstPages(state: QueueState): Record<QueueKind, Loaded> {
   return {
     changes: { items: state.approvals?.items ?? [], next: state.approvals?.itemsNext ?? null },
     ids: { items: state.identifiers?.items ?? [], next: state.identifiers?.next ?? null },
@@ -65,7 +78,21 @@ function firstPages(state: ReviewState): Record<QueueKind, Loaded> {
  * a queue with more to load is shown yet, so a page never lands above rows
  * already shown. That queue is the one `All` loads next (`blocking`).
  */
-export function useQueuePages(state: ReviewState, onMore: MoreQueue | undefined) {
+export interface QueuePages<S> {
+  /** The page's state, with every page loaded so far in each queue. */
+  readonly state: S;
+  readonly load: (kind: QueueKind) => void;
+  /** The queue whose next page is on its way, or null. */
+  readonly loading: QueueKind | null;
+  readonly hasMore: (kind: QueueKind) => boolean;
+  readonly frontier: (kind: QueueKind) => string | null;
+  readonly decided: (rowId: string) => void;
+}
+
+export function useQueuePages<S extends QueueState>(
+  state: S,
+  onMore: MoreQueue | undefined,
+): QueuePages<S> {
   const first = useMemo(() => firstPages(state), [state]);
   const [more, setMore] = useState<Partial<Record<QueueKind, Loaded>>>({});
   const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
@@ -117,7 +144,7 @@ export function useQueuePages(state: ReviewState, onMore: MoreQueue | undefined)
   }, [first, more, gone]);
 
   const merged = useMemo(
-    (): ReviewState => ({
+    (): S => ({
       ...state,
       approvals:
         state.approvals === null
@@ -135,7 +162,7 @@ export function useQueuePages(state: ReviewState, onMore: MoreQueue | undefined)
         state.fullValues === null
           ? null
           : { ...state.fullValues, requests: items.access as readonly FullValuesRequest[] },
-      shares: state.shares == null ? (state.shares ?? null) : (items.exports as ShareRequest[]),
+      shares: state.shares == null ? null : (items.exports as ShareRequest[]),
     }),
     [state, items],
   );
@@ -168,7 +195,7 @@ export function useQueuePages(state: ReviewState, onMore: MoreQueue | undefined)
  */
 export function cutoffOf(
   kinds: readonly QueueKind[],
-  pages: Pick<ReturnType<typeof useQueuePages>, 'frontier' | 'hasMore'>,
+  pages: Pick<QueuePages<QueueState>, 'frontier' | 'hasMore'>,
 ): { readonly at: string | null; readonly blocking: QueueKind | null; readonly dated: boolean } {
   let at: string | null = null;
   let blocking: QueueKind | null = null;

@@ -73,11 +73,9 @@ export async function waitingView(
   // `identifierReviewCount`, `duplicatePage`'s total, `fullValuesCounts`,
   // `inboxCounts`): the lists page, and a count read off a page was the page.
   // Who asked is read off each list's first page.
-  const admin = deps.shares !== undefined && roles.has('people_admin');
-  const shares =
-    admin && deps.shares !== undefined ? await sharesToDecide(tx, deps.shares, asking) : null;
-  const exports =
-    admin && deps.shares !== undefined ? await sharesCount(tx, deps.shares, asking) : null;
+  const sharing = roles.has('people_admin') ? deps.shares : undefined;
+  const shares = sharing === undefined ? null : await sharesToDecide(tx, sharing, asking);
+  const exports = sharing === undefined ? null : await sharesCount(tx, sharing, asking);
   const exportsBy =
     shares?.ok === true
       ? distinct(shares.value.map((s) => s.requestedBy.name))

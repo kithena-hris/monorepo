@@ -227,27 +227,37 @@ afterAll(async () => {
 });
 
 /** One read: its body, its size in bytes and how long it took, warm (the second of two). */
-async function get<T>(path: string): Promise<{ body: T; bytes: number; ms: number }> {
+/** A read, its body as the caller names it: what People answers is checked by the assertions. */
+type Read<T> = { readonly body: T; readonly bytes: number; readonly ms: number };
+
+async function get(path: string): Promise<Read<never>> {
   await fetch(`${base}${path}`, { headers });
   const at = performance.now();
   const response = await fetch(`${base}${path}`, { headers });
   const text = await response.text();
   const ms = performance.now() - at;
   if (response.status !== 200) throw new Error(`${path}: ${String(response.status)} ${text}`);
-  return { body: JSON.parse(text) as T, bytes: Buffer.byteLength(text), ms };
+  return { body: JSON.parse(text) as never, bytes: Buffer.byteLength(text), ms };
 }
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(0)} kB`;
 
 describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
   it('reads a page of each queue and every count, and says what each costs', async () => {
-    const reads = {
-      waiting: await get<Record<string, number | null>>('/v1/views/waiting'),
-      approvals: await get<{ items: unknown[] }>('/v1/views/approvals'),
-      identifiers: await get<{ items: unknown[] }>('/v1/views/identifier-reviews'),
-      duplicates: await get<{ items: unknown[] }>('/v1/views/duplicates'),
-      fullValues: await get<{ requests: unknown[] }>('/v1/exports/full-values'),
-      shares: await get<unknown[]>('/v1/exports/share'),
+    const reads: {
+      waiting: Read<Record<string, number | null>>;
+      approvals: Read<{ items: unknown[] }>;
+      identifiers: Read<{ items: unknown[] }>;
+      duplicates: Read<{ items: unknown[] }>;
+      fullValues: Read<{ requests: unknown[] }>;
+      shares: Read<unknown[]>;
+    } = {
+      waiting: await get('/v1/views/waiting'),
+      approvals: await get('/v1/views/approvals'),
+      identifiers: await get('/v1/views/identifier-reviews'),
+      duplicates: await get('/v1/views/duplicates'),
+      fullValues: await get('/v1/exports/full-values'),
+      shares: await get('/v1/exports/share'),
     };
     const counts = reads.waiting.body;
     const listed = {
@@ -294,7 +304,7 @@ describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
       let after: string | null = null;
       let reads = 0;
       do {
-        const { body } = await get<never>(path(after));
+        const { body } = await get(path(after));
         const page = take(body);
         for (const k of page.keys) seen.add(k);
         after = page.next;
@@ -351,9 +361,11 @@ describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
   it('opens a change and a person’s ID check far down their queues, alone', async () => {
     const change = `00000000-0000-4000-c000-${String(N).padStart(12, '0')}`;
     const person = `00000000-0000-4000-a000-${String(N).padStart(12, '0')}`;
-    const one = await get<{ items: { id: string }[] }>(`/v1/views/approvals?change=${change}`);
+    const one: Read<{ items: { id: string }[] }> = await get(
+      `/v1/views/approvals?change=${change}`,
+    );
     expect(one.body.items.map((i) => i.id)).toEqual([change]);
-    const theirs = await get<{ items: { personId: string }[] }>(
+    const theirs: Read<{ items: { personId: string }[] }> = await get(
       `/v1/views/identifier-reviews?person=${person}`,
     );
     expect(theirs.body.items.map((i) => i.personId)).toEqual([person]);
