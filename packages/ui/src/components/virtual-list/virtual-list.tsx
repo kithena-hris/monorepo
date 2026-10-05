@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type JSX,
   type ReactNode,
 } from 'react';
@@ -170,6 +171,12 @@ const Drawn = memo(function Drawn<T>({
   renderItem: VirtualListProps<T>['renderItem'];
 }) => ReactNode;
 
+// The server's answer while rendering there and while hydrating what it sent;
+// the browser's for a list mounted afterwards.
+const noSubscription = (): (() => void) => () => undefined;
+const inBrowser = (): boolean => true;
+const onServer = (): boolean => false;
+
 /** A length React will not print in exponent form: rounded, never negative. */
 const px = (n: number): string => `${String(Math.max(0, Math.round(n)))}px`;
 
@@ -217,6 +224,7 @@ export function VirtualList<T>({
       observer.disconnect();
     };
   }, [minItemWidth, gap]);
+  const hydrating = !useSyncExternalStore(noSubscription, inBrowser, onServer);
   const lanes = columns ?? 1;
   const rows = Math.ceil(items.length / lanes);
 
@@ -420,7 +428,15 @@ export function VirtualList<T>({
     );
   };
 
-  // Not yet measured: CSS lays out the items that would fill the view.
+  // Not yet measured. Mounted in a browser (a view switched to, not a page
+  // hydrating), nothing: the columns are measured before the first paint, and
+  // items drawn here would be drawn again inside rows, laid out twice in the
+  // frame the list appears in.
+  if (columns === null && !hydrating) {
+    return outer(<div ref={setList} role="list" aria-label={label} />, false);
+  }
+  // On the server, and hydrating what it sent: CSS lays out the items that
+  // would fill the view.
   if (columns === null) {
     // A window's rows of as many columns as a wide screen fits.
     const fill = Math.min(items.length, Math.ceil(initialHeight / estimateItemHeight) * 6);
