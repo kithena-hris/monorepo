@@ -564,7 +564,9 @@ function Queue({
   // In All, nothing older than where a queue with more to load ends: its
   // next page would land among them. The open item shows wherever it is.
   const queues = kindsOf(tab, viewer);
-  const cutoff = cutoffOf(kind === null ? queues : [kind as QueueKind], pages);
+  // Missing details is a chip but not a queue: it pages itself, below.
+  const chipQueue = kind === 'missing' ? null : kind;
+  const cutoff = cutoffOf(kind === null ? queues : chipQueue === null ? [] : [chipQueue], pages);
   const rows = useMemo(
     () =>
       kind === null
@@ -580,7 +582,11 @@ function Queue({
   );
   // The next page: the chip's own queue, or in All the one holding the rest back.
   const blocking =
-    kind === null ? cutoff.blocking : pages.hasMore(kind as QueueKind) ? (kind as QueueKind) : null;
+    kind === null
+      ? cutoff.blocking
+      : chipQueue !== null && pages.hasMore(chipQueue)
+        ? chipQueue
+        : null;
   const loadMore =
     blocking === null
       ? undefined

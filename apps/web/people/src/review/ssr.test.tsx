@@ -126,12 +126,15 @@ describe('Review on the server, then in the browser', () => {
           fill,
           onFillChange: vi.fn(),
           onLoadMoreMissing: vi.fn(() => Promise.resolve(null)),
+          // The host always hands the queues' paging over, the missing chip included.
+          onMoreQueue: vi.fn(() => Promise.resolve(null)),
         }),
       ),
     );
     // Open in the first HTML, the row drawn rather than a skeleton.
     expect(html).toContain(shows);
     expect(html).toContain('Lena Moreau');
+    expect(html).not.toContain('<!--$!-->');
     expect(errors).toEqual([]);
   });
 });
