@@ -55,6 +55,7 @@ beforeAll(async () => {
     '20260926180000_people_pending_change.sql',
     '20260926230000_people_pending_change_decided_as.sql',
     '20261001170000_people_approval_flags.sql',
+    '20261005160000_people_pending_change_flag_evidence.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

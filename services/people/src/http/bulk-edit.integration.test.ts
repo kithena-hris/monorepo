@@ -66,6 +66,7 @@ beforeAll(async () => {
     '20260926180000_people_pending_change.sql',
     '20260926230000_people_pending_change_decided_as.sql',
     '20261001170000_people_approval_flags.sql',
+    '20261005160000_people_pending_change_flag_evidence.sql',
     '20260922170000_people_person.sql',
     '20260924150000_people_unique_hash.sql',
     '20260924350000_people_unique_key_lookup.sql',
