@@ -179,6 +179,8 @@ const CHECK_ICON: Readonly<Record<string, ReactNode>> = {
   close_colleagues: <icons.team aria-hidden />,
   payroll_closing: <icons.calendar aria-hidden />,
   unusual_time: <icons.night aria-hidden />,
+  // The setting beside them: pay read through the reporting line.
+  manager_pay: <icons.hierarchy aria-hidden />,
 };
 const iconOf = (code: string): ReactNode => CHECK_ICON[code] ?? <icons.flagged aria-hidden />;
 

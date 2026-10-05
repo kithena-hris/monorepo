@@ -1,3 +1,6 @@
+import type { AttributeDefinition } from '@kithena/contracts';
+
+import { visibleTo, type ViewerRelations } from '../access/field-access.js';
 import { Decimal } from '../pay/pay.js';
 
 /**
@@ -490,6 +493,65 @@ export function flaggedNow(
     )
     .map((e) => e.code);
 }
+
+/**
+ * A company setting beside the checks (AI8): whether pay a decider reads only
+ * through a reporting line — as the person's manager, or above them — counts
+ * in their Flagged. On unless a People administrator switches it off: off, a
+ * manager deciding their own report's raise is never told it is unusual.
+ * Kept with the switches, under its own code.
+ */
+export const MANAGER_PAY = {
+  code: 'manager_pay',
+  title: 'Pay that only a person’s manager can see',
+  detail: 'Count it in Flagged for the managers who can',
+  on: true,
+} as const;
+
+/**
+ * The fields a decider's pay checks (raise, band) may read, and on whom: on
+ * everybody, by their tenant roles; on anybody below them in the reporting
+ * line, their reports included (`chain`); and only on their own reports
+ * (`direct`). The last two are empty while the company leaves such pay out
+ * (`MANAGER_PAY`).
+ *
+ * A custom visibility rule (PEO-066) never counts: which records it holds for
+ * is a question about each one, and the Flagged count asks about all of them
+ * at once. The detail pane says what the count says (`payReadable`).
+ */
+export interface PayReach {
+  readonly everyone: readonly string[];
+  readonly chain: readonly string[];
+  readonly direct: readonly string[];
+}
+
+export function payReach(
+  definitions: readonly AttributeDefinition[],
+  roles: Pick<ViewerRelations, 'isHr' | 'isFinance' | 'isAdmin'>,
+  managerPay: boolean,
+): PayReach {
+  const as = (isManager: boolean, isInManagerChain: boolean) => (d: AttributeDefinition) =>
+    visibleTo(d, { ...roles, isSelf: false, isManager, isInManagerChain });
+  const keys = (pick: (d: AttributeDefinition) => boolean) =>
+    definitions.filter(pick).map((d) => d.key as string);
+  const everyone = as(false, false);
+  const chain = (d: AttributeDefinition) => managerPay && !everyone(d) && as(false, true)(d);
+  return {
+    everyone: keys(everyone),
+    chain: keys(chain),
+    direct: keys((d) => managerPay && !everyone(d) && !chain(d) && as(true, true)(d)),
+  };
+}
+
+/** Whether pay on this field may be compared for a decider who is `line` to its person. */
+export const payReadable = (
+  reach: PayReach,
+  key: string,
+  line: { readonly direct: boolean; readonly chain: boolean },
+): boolean =>
+  reach.everyone.includes(key) ||
+  (line.chain && reach.chain.includes(key)) ||
+  (line.direct && reach.direct.includes(key));
 
 /** The reasons in one line, for a row: "A 38% raise, above the band". */
 export function rowSummary(reasons: readonly { readonly title: string }[]): string | null {

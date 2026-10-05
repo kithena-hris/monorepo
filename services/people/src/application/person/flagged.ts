@@ -1,14 +1,14 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
-import { visibleTo } from '../../domain/access/field-access.js';
 import { holdersOf } from '../../domain/access/roles.js';
 import {
   ALL_CHECKS,
   COLLEAGUES_MINUTES,
   evidenceOf,
+  payReach,
   rowSummary,
 } from '../../domain/approval/unusual.js';
-import { flagChange, looking, type Looking } from './approval-flags.js';
+import { flagChange, looking, readableBy, type Looking } from './approval-flags.js';
 import type { FlaggedWhere, PendingChange, PendingChangeDeps } from './pending-changes.js';
 import type { Asking } from './ports.js';
 
@@ -41,6 +41,7 @@ export async function takeEvidence(
   const version = await deps.schemas.current(tx, change.tenantId);
   const look: Looking = {
     enabled: ALL_CHECKS,
+    managerPay: true,
     marks: [],
     definitions: version?.document.attributes ?? [],
     managerOfDecider: null,
@@ -88,11 +89,10 @@ export async function retakeEvidence(
 
 /**
  * The Flagged tab's filter for this decider now (`FlaggedWhere`): their
- * company's switches and marks, and the pay fields they may read on anybody.
- *
- * `ponytail: a pay field this decider reads on some people only (as their
- * manager, say) counts as unread here, where the detail pane may still flag
- * it. Per-person reads in the count when such a field exists.`
+ * company's switches and marks, and the pay fields they may read — on
+ * anybody, or, while the company counts it (`MANAGER_PAY`), on the people
+ * their reporting line reaches, which the store follows in its query. The
+ * detail pane reads pay by the same rule (`readableBy`).
  */
 export async function flaggedWhere(
   tx: Tx,
@@ -105,7 +105,8 @@ export async function flaggedWhere(
     look,
     where: {
       enabled: [...look.enabled],
-      payKeys: look.definitions.filter((d) => visibleTo(d, everyone)).map((d) => d.key as string),
+      pay: payReach(look.definitions, everyone, look.managerPay),
+      decider: asking.viewer.accountId,
       marks: look.marks,
       at: deps.clock.instant(),
     },
@@ -180,7 +181,7 @@ export async function flaggedCount(
     // eslint-disable-next-line no-await-in-loop -- one look per change asked for within the hour
     const found = await flagChange(tx, deps, look, {
       change,
-      readable: where.payKeys.includes(change.attributeKey),
+      readable: await readableBy(tx, deps, asking, change, look),
       requesterName: 'the requester',
     });
     if (found.reasons.length === 0) continue;
@@ -197,7 +198,7 @@ export async function flaggedCount(
     if (newest !== undefined) {
       const found = await flagChange(tx, deps, look, {
         change: newest,
-        readable: where.payKeys.includes(newest.attributeKey),
+        readable: await readableBy(tx, deps, asking, newest, look),
         requesterName: 'the requester',
       });
       latest = rowSummary(found.reasons);

@@ -430,6 +430,12 @@ describe('a flagged approval (design AI7)', () => {
             detail: 'Outside the requester’s working hours',
             on: false,
           },
+          {
+            code: 'manager_pay',
+            title: 'Pay that only a person’s manager can see',
+            detail: 'Count it in Flagged for the managers who can',
+            on: true,
+          },
         ],
         last90: { flagged: 11, rejected: 3, marked: 6 },
       },
@@ -445,6 +451,12 @@ describe('a flagged approval (design AI7)', () => {
     expect(screen.getByText('What it never does')).toBeInTheDocument();
     await fast().click(screen.getByRole('switch', { name: 'Requested at an unusual time' }));
     expect(onSetCheck).toHaveBeenCalledWith('unusual_time', true);
+    // The setting beside the checks, switched the same way.
+    expect(screen.getByText('Count it in Flagged for the managers who can')).toBeInTheDocument();
+    await fast().click(
+      screen.getByRole('switch', { name: 'Pay that only a person’s manager can see' }),
+    );
+    expect(onSetCheck).toHaveBeenCalledWith('manager_pay', false);
   });
 
   it('shows HR the checks without the switches, unless they are an administrator', () => {
@@ -452,12 +464,18 @@ describe('a flagged approval (design AI7)', () => {
       {
         ...data,
         canTune: false,
-        checks: [{ code: 'raise', title: 'Raise much bigger than usual', detail: 'x', on: true }],
+        checks: [
+          { code: 'raise', title: 'Raise much bigger than usual', detail: 'x', on: true },
+          { code: 'manager_pay', title: 'Pay that only a person’s manager can see', detail: 'x', on: true },
+        ],
         last90: { flagged: 0, rejected: 0, marked: 0 },
       },
       { tab: 'flagged', onSetCheck: vi.fn(done) },
     );
     expect(screen.getByRole('switch', { name: 'Raise much bigger than usual' })).toBeDisabled();
+    expect(
+      screen.getByRole('switch', { name: 'Pay that only a person’s manager can see' }),
+    ).toBeDisabled();
     expect(screen.getByText('A People administrator switches these.')).toBeInTheDocument();
   });
 

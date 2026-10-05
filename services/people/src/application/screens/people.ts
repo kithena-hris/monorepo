@@ -48,6 +48,7 @@ import {
   checksOf,
   flagChange,
   looking,
+  readableBy,
   type CheckView,
   type FlagStats,
 } from '../person/approval-flags.js';
@@ -862,7 +863,8 @@ export async function approvalsView(
           ? null
           : await flagChange(tx, pending, look, {
               change,
-              readable: c.readable,
+              // As Flagged counts it (`flaggedWhere`), not as the value is shown.
+              readable: await readableBy(tx, pending, asking, change, look),
               requesterName: user(c.requestedBy),
             });
       items.push({
@@ -969,7 +971,7 @@ export async function approvalsView(
       itemsNext,
       decided: decidedItems,
       decidedNext,
-      checks: isHr ? checksOf(look.enabled) : null,
+      checks: isHr ? checksOf(look) : null,
       canTune: everyone?.isAdmin === true && pending.flags !== undefined,
       last90:
         isHr && pending.flags !== undefined

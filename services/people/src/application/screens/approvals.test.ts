@@ -99,8 +99,20 @@ const asking = (v: Viewer) => ({
   correlationId: '00000000-0000-4000-8000-0000000000c1',
 });
 
-function setup(at: string, facts: Parameters<typeof inMemoryApprovalFlagStore>[0] = {}) {
-  const people = inMemoryPeople([versionOf(3, [salary, department, sealedPay, homeAddress])]);
+function setup(
+  at: string,
+  facts: Parameters<typeof inMemoryApprovalFlagStore>[0] = {},
+  /** Who reads base salary: HR by default; a manager's alone in MANAGER_PAY's tests. */
+  salaryVisibility: typeof salary.visibility = salary.visibility,
+) {
+  const people = inMemoryPeople([
+    versionOf(3, [
+      { ...salary, visibility: salaryVisibility },
+      department,
+      sealedPay,
+      homeAddress,
+    ]),
+  ]);
   people.seed(TOM, {
     account: TOM_ACCOUNT,
     custom: {
@@ -112,7 +124,17 @@ function setup(at: string, facts: Parameters<typeof inMemoryApprovalFlagStore>[0
   people.seed(NORA, { account: NORA_ACCOUNT });
   const clock: Clock = fixedClock(at);
   const holding: Holding = {
-    store: inMemoryPendingChangeStore(),
+    // Each person's managers' accounts, nearest first, as the org chart says now.
+    store: inMemoryPendingChangeStore(new Map(), (personId) => {
+      const line: string[] = [];
+      let up = people.rows.get(personId)?.fields.managerId ?? null;
+      while (up) {
+        const manager = people.rows.get(up);
+        line.push(manager?.snapshot.identityAccountId ?? '');
+        up = manager?.fields.managerId ?? null;
+      }
+      return line;
+    }),
     publish: () => Promise.resolve(),
     clock,
     newId: people.deps.newId,
@@ -402,6 +424,8 @@ describe('what Kithena checks (AI8)', () => {
       ['close_colleagues', true],
       ['payroll_closing', true],
       ['unusual_time', false],
+      // The setting beside them (MANAGER_PAY).
+      ['manager_pay', true],
     ]);
     expect(view.canTune).toBe(false);
     const refused = await setCheck(tx, s.pending, { ...asking(SOFIA), code: 'raise', on: false });
@@ -715,5 +739,113 @@ describe('Flagged, kept and counted over every change waiting', () => {
     expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(0);
     expect(await retakeEvidence(tx, s.pending, TENANT)).toBe(1);
     expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(1);
+  });
+});
+
+describe('pay only a person’s manager can see, in Flagged (MANAGER_PAY)', () => {
+  const LATER = '2026-09-22T13:00:00.000Z';
+  const SOFIA_PERSON = '00000000-0000-4000-8000-0000000000a3';
+  const MID = '00000000-0000-4000-8000-0000000000a4';
+  const ANA = '00000000-0000-4000-8000-0000000000a5';
+  const ANA_ACCOUNT = '00000000-0000-4000-8000-0000000000b5';
+  const LEO = viewer('00000000-0000-4000-8000-0000000000b6');
+  const ADMIN = viewer(SOFIA_ACCOUNT, ['hr', 'people_admin']);
+  const sales = (over: Record<string, unknown> = {}) => ({
+    base_salary: { amountMinor: 6_100_000, currency: 'EUR' },
+    department: 'sales',
+    ...over,
+  });
+
+  /**
+   * Base salary read by managers alone, not HR. Sofia (HR) manages Tom, or
+   * manages Mid who manages Tom; Ana reports to Nora. Nora asks for both
+   * raises; Leo is HR and nobody's manager.
+   */
+  async function company(line: 'direct' | 'above' = 'direct') {
+    const s = setup('2026-09-22T10:00:00.000Z', { raises }, ['self', 'manager', 'manager_chain']);
+    s.people.seed(SOFIA_PERSON, { account: SOFIA_ACCOUNT });
+    s.people.seed(MID, { fields: { managerId: SOFIA_PERSON } });
+    s.people.seed(TOM, {
+      account: TOM_ACCOUNT,
+      fields: { managerId: line === 'direct' ? SOFIA_PERSON : MID },
+      custom: sales(),
+    });
+    s.people.seed(ANA, { account: ANA_ACCOUNT, fields: { managerId: NORA }, custom: sales() });
+    for (const personId of [TOM, ANA]) {
+      const asked = await s.access.update(tx, {
+        ...asking(NORA_HR),
+        personId,
+        changes: { base_salary: { amountMinor: 8_400_000, currency: 'EUR' } },
+        effectiveFrom: '2026-10-01',
+      });
+      if (!asked.ok) throw new Error(asked.error.message);
+    }
+    const store = s.pending.store as ReturnType<typeof inMemoryPendingChangeStore>;
+    const tom = [...store.rows.values()].find((c) => c.personId === TOM);
+    if (tom === undefined) throw new Error('fixture');
+    // Read past the hour close colleagues looks at, so only kept evidence counts.
+    const pending = { ...s.pending, clock: fixedClock(LATER) };
+    const deps = {
+      ...s.deps,
+      service: { ...s.deps.service, pending },
+      clock: fixedClock(LATER),
+    } as unknown as ScreenDeps;
+    /** The count, the Flagged list, and Tom's change in the detail pane, for one decider. */
+    const flaggedFor = async (v: Viewer) => {
+      const { count } = await flaggedToDecide(tx, pending, asking(v));
+      const list = await approvalsView(deps, asking(v), null, { flagged: true });
+      const pane = await approvalsView(deps, asking(v), null, { only: tom.approval.id });
+      if (!list.ok || !pane.ok) throw new Error('unread');
+      return {
+        count,
+        listed: list.value.items.map((i) => i.personId),
+        pane: pane.value.items[0]?.flags.map((f) => f.code) ?? [],
+      };
+    };
+    return { s, pending, deps, flaggedFor };
+  }
+
+  it('counts it for the manager who reads it, on their report alone', async () => {
+    const { flaggedFor } = await company();
+    expect(await flaggedFor(SOFIA)).toEqual({ count: 1, listed: [TOM], pane: ['raise'] });
+    // HR without the reporting line reads neither salary, so nothing is flagged for them.
+    expect(await flaggedFor(LEO)).toEqual({ count: 0, listed: [], pane: [] });
+  });
+
+  it('counts it for anybody above the person in the line, as they read it', async () => {
+    const { flaggedFor } = await company('above');
+    expect(await flaggedFor(SOFIA)).toEqual({ count: 1, listed: [TOM], pane: ['raise'] });
+  });
+
+  it('switched off, counts it for nobody, and the detail pane says the same', async () => {
+    const { s, flaggedFor } = await company();
+    const off = await setCheck(tx, s.pending, { ...asking(ADMIN), code: 'manager_pay', on: false });
+    expect(off.ok && off.value.find((c) => c.code === 'manager_pay')?.on).toBe(false);
+    expect(await flaggedFor(SOFIA)).toEqual({ count: 0, listed: [], pane: [] });
+    await setCheck(tx, s.pending, { ...asking(ADMIN), code: 'manager_pay', on: true });
+    expect(await flaggedFor(SOFIA)).toEqual({ count: 1, listed: [TOM], pane: ['raise'] });
+  });
+
+  it('is switched by a People administrator alone; HR sees it, read-only', async () => {
+    const { s, deps } = await company();
+    const refused = await setCheck(tx, s.pending, {
+      ...asking(SOFIA),
+      code: 'manager_pay',
+      on: false,
+    });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+    const view = await approvalsView(deps, asking(SOFIA));
+    if (!view.ok) throw new Error(view.error.message);
+    expect(view.value.checks?.at(-1)).toEqual({
+      code: 'manager_pay',
+      title: 'Pay that only a person’s manager can see',
+      detail: 'Count it in Flagged for the managers who can',
+      on: true,
+    });
+    expect(view.value.canTune).toBe(false);
+    // Kept with the switches.
+    const set = await setCheck(tx, s.pending, { ...asking(ADMIN), code: 'manager_pay', on: false });
+    expect(set.ok).toBe(true);
+    expect((await s.flagStore.switches(tx, TENANT)).get('manager_pay')).toBe(false);
   });
 });

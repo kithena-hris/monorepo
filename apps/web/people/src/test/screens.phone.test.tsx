@@ -1563,6 +1563,12 @@ describe('Review on a phone, with a flagged change (MA E2)', () => {
                 detail: 'Outside the requester’s working hours',
                 on: false,
               },
+              {
+                code: 'manager_pay',
+                title: 'Pay that only a person’s manager can see',
+                detail: 'Count it in Flagged for the managers who can',
+                on: true,
+              },
             ],
             last90: { flagged: 11, rejected: 3, marked: 6 },
           },

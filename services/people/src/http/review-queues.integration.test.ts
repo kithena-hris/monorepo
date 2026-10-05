@@ -141,6 +141,28 @@ beforeAll(async () => {
           requiresApproval: true,
           classification: internal,
         }),
+        // Pay only a person's managers read, not HR (MANAGER_PAY): anybody
+        // above them, and their own manager alone.
+        define({
+          key: 'base_salary',
+          label: { default: 'Base salary' },
+          dataType: 'money',
+          typeConfig: { kind: 'money' },
+          visibility: ['self', 'manager', 'manager_chain'],
+          ownership: ['hr'],
+          requiresApproval: true,
+          classification: internal,
+        }),
+        define({
+          key: 'bonus',
+          label: { default: 'Bonus' },
+          dataType: 'money',
+          typeConfig: { kind: 'money' },
+          visibility: ['self', 'manager'],
+          ownership: ['hr'],
+          requiresApproval: true,
+          classification: internal,
+        }),
         define({
           key: 'es_nif',
           label: { default: 'NIF' },
@@ -242,10 +264,10 @@ afterAll(async () => {
 /** A read, its body as the caller names it: what People answers is checked by the assertions. */
 type Read<T> = { readonly body: T; readonly bytes: number; readonly ms: number };
 
-async function get(path: string): Promise<Read<never>> {
-  await fetch(`${base}${path}`, { headers });
+async function get(path: string, as: Record<string, string> = headers): Promise<Read<never>> {
+  await fetch(`${base}${path}`, { headers: as });
   const at = performance.now();
-  const response = await fetch(`${base}${path}`, { headers });
+  const response = await fetch(`${base}${path}`, { headers: as });
   const text = await response.text();
   const ms = performance.now() - at;
   if (response.status !== 200) throw new Error(`${path}: ${String(response.status)} ${text}`);
@@ -424,4 +446,96 @@ describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
     );
     expect(theirs.body.items.map((i) => i.personId)).toEqual([person]);
   });
+
+  it('counts pay only a manager reads for whom the decider’s line reaches, in the query', async () => {
+    // HR signs in as Boss: ten reports, the rest of the first half below
+    // them, the second half under somebody else.
+    const BOSS = '00000000-0000-4000-7000-000000000001';
+    const ELSEWHERE = '00000000-0000-4000-7000-000000000002';
+    const half = Math.floor(N / 2);
+    await admin.execute(sql`
+      INSERT INTO people.person (id, tenant_id, status, given_name, family_name, identity_account_id)
+      VALUES (${BOSS}::uuid, ${ACME}::uuid, 'active', 'Boss', 'B', ${HR}::uuid),
+             (${ELSEWHERE}::uuid, ${ACME}::uuid, 'active', 'Other', 'O', NULL)`);
+    await admin.execute(sql`
+      UPDATE people.person p
+         SET manager_id = CASE
+               WHEN g <= 10 THEN ${BOSS}::uuid
+               WHEN g <= ${half} THEN ('00000000-0000-4000-a000-' || lpad(((g % 10) + 1)::text, 12, '0'))::uuid
+               ELSE ${ELSEWHERE}::uuid END
+        FROM generate_series(1, ${N}) g
+       WHERE p.tenant_id = ${ACME}::uuid AND p.id = ${id('a000')}`);
+    // A raise to each person's base salary and bonus, kept flagged, asked for hours ago.
+    for (const [key, prefix] of [
+      ['base_salary', '7100'],
+      ['bonus', '7200'],
+    ] as const) {
+      await admin.execute(sql`
+        INSERT INTO people.pending_change
+               (tenant_id, id, person_id, attribute_key, kind, sealed, value, effective_from,
+                requested_by, requested_at, expires_at, state, flag_evidence)
+        SELECT ${ACME}::uuid, ${id(prefix)}, ${id('a000')}, ${key}, 'value', false,
+               '{"amountMinor":"8400000","currency":"EUR"}'::jsonb, '2026-12-01', ${OTHER_HR}::uuid,
+               now() - interval '2 hours' - g * interval '1 minute', now() + interval '6 days',
+               'pending', '[{"code":"raise","magnitude":"38"}]'::jsonb
+          FROM generate_series(1, ${N}) g`);
+    }
+    await admin.execute(sql`ANALYZE`);
+
+    const department = Math.floor(N / 2);
+    const leo = {
+      ...headers,
+      'x-kithena-principal': JSON.stringify({
+        userId: RECIPIENT,
+        tenantId: ACME,
+        roles: ['hr'],
+        entitlements: ['module.people'],
+      }),
+    };
+    const counted = async (as = headers) => {
+      const read = (await get('/v1/views/waiting', as)) as Read<{ flagged: number | null }>;
+      return { count: read.body.flagged, ms: read.ms };
+    };
+    const listed = async () => {
+      const ids: string[] = [];
+      let after: string | null = null;
+      let reads = 0;
+      do {
+        const page: Read<{ items: { id: string }[]; itemsNext: string | null }> = await get(
+          `/v1/views/approvals?flagged=1${after === null ? '' : `&after=${encodeURIComponent(after)}`}`,
+        );
+        ids.push(...page.body.items.map((i) => i.id));
+        after = page.body.itemsNext;
+        reads += 1;
+      } while (after !== null && reads < 3 * N);
+      return {
+        salary: ids.filter((i) => i.includes('-7100-')).length,
+        bonus: ids.filter((i) => i.includes('-7200-')).length,
+      };
+    };
+
+    // Counted (the default): base salary on everybody below Boss, bonus on their ten reports.
+    const on = await counted();
+    expect(on.count).toBe(department + half + 10);
+    expect(await listed()).toEqual({ salary: half, bonus: 10 });
+    // HR with nobody below them reads neither.
+    expect((await counted(leo)).count).toBe(department);
+
+    // Switched off: unread for everybody, from the next read.
+    await admin.execute(sql`
+      INSERT INTO people.approval_check (tenant_id, code, enabled, set_by, set_at)
+      VALUES (${ACME}::uuid, 'manager_pay', false, ${HR}::uuid, now())`);
+    const off = await counted();
+    process.stderr.write(
+      `manager pay at ${String(N)} ${JSON.stringify({ on: `${String(on.count)} in ${on.ms.toFixed(0)} ms`, off: `${String(off.count)} in ${off.ms.toFixed(0)} ms` })}\n`,
+    );
+    expect(off.count).toBe(department);
+    expect(await listed()).toEqual({ salary: 0, bonus: 0 });
+
+    await admin.execute(sql`
+      DELETE FROM people.approval_check WHERE tenant_id = ${ACME}::uuid AND code = 'manager_pay'`);
+    await admin.execute(sql`
+      DELETE FROM people.pending_change
+       WHERE tenant_id = ${ACME}::uuid AND attribute_key IN ('base_salary', 'bonus')`);
+  }, 1_800_000);
 });
