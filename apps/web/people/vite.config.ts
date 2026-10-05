@@ -35,7 +35,9 @@ export default defineConfig({
     federation({
       name: 'people',
       filename: 'remoteEntry.js',
-      exposes: { '.': './src/index.ts' },
+      // The browser's entry splits each screen into a chunk of its own; the server
+      // build keeps `index.ts`, every screen in one pass (`src/split.tsx`).
+      exposes: { '.': './src/index.browser.ts' },
       shared: {
         react: hostOwned,
         'react/jsx-runtime': hostOwned,
