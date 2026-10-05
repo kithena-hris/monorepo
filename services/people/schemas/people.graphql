@@ -1662,7 +1662,10 @@ type PeopleApprovals {
   """The next page of Decided, as `decidedAfter`; null on the last."""
   decidedNext: String
   isHr: Boolean
+  """Waiting, newest first, a page at a time."""
   items: [ApprovalItem!]
+  """The next page of the queue, as `after`; null on the last."""
+  itemsNext: String
   last90: ApprovalFlagStats
 }
 
@@ -1776,6 +1779,8 @@ type PeopleDuplicates {
   merges: [MergedPair!]
   """The next page of merged records, as `mergesAfter`; null on the last."""
   mergesNext: String
+  """The next page of the queue, as `after`; null on the last."""
+  next: String
 }
 
 type PeopleExport {
@@ -1816,6 +1821,8 @@ type PeopleFullValues {
   canDecide: Boolean
   canRequest: Boolean
   fields: [FullValuesField!]
+  """The next page of requests, as `before`; null on the last."""
+  next: String
   requests: [FullValuesListed!]
 }
 
@@ -1838,11 +1845,15 @@ type PeopleHome {
   hr: Boolean
 }
 
-"""HR’s queue of doubted national identifiers, oldest first."""
+"""
+HR’s queue of doubted national identifiers, newest first, a page at a time.
+"""
 type PeopleIdentifierReviews {
   """Decided in the last 90 days, newest first."""
   decided: [DecidedIdentifierReview!]
   items: [IdentifierReviewItem!]
+  """The next page of the queue, as `after`; null on the last."""
+  next: String
 }
 
 """An import the viewer approved, finished: Imported or Import failed."""
@@ -2493,6 +2504,12 @@ type Query {
   """
   peopleApprovals(
     """
+    The queue’s next page, from the last page’s `itemsNext`; Decided is left out.
+    """
+    after: String
+    """One change alone, wherever it is in the queue."""
+    change: ID
+    """
     Decided’s next page, from the last page’s `decidedNext`; the queue is left out.
     """
     decidedAfter: String
@@ -2548,7 +2565,7 @@ type Query {
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
-  peopleDuplicates(a: ID, b: ID, mergesAfter: String): PeopleDuplicates
+  peopleDuplicates(a: ID, after: String, b: ID, mergesAfter: String): PeopleDuplicates
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder(
@@ -2581,6 +2598,10 @@ type Query {
   """
   peopleExportSharesToDecide: String
   """
+  The same requests, newest first, a page at a time (JSON: `{ items, next }`); `after` is the last page’s `next`.
+  """
+  peopleExportSharesWaiting(after: String): String
+  """
   A field’s new type, with every value it holds read again as that type and nothing written (JSON): what converts, with examples, and each value that does not, with whose it is and why.
   """
   peopleFieldChange(
@@ -2589,7 +2610,12 @@ type Query {
     to: String
   ): String
   peopleFile(id: ID!): PeopleFile
-  peopleFullValues: PeopleFullValues
+  peopleFullValues(
+    """The next page, from the last page’s `next`."""
+    before: ID
+    """One request alone, wherever it is."""
+    request: ID
+  ): PeopleFullValues
   """
   What saving these grid cells would be warned about (PEO-125); nothing is kept.
   """
@@ -2606,7 +2632,12 @@ type Query {
   """
   peopleIdentifierCheck(changed: [FormValueInput!]!, personId: ID): IdentifierCheck
   """Doubted national identifiers waiting for HR (PEO-125); HR only."""
-  peopleIdentifierReviews: PeopleIdentifierReviews
+  peopleIdentifierReviews(
+    """The next page, from the last page’s `next`."""
+    after: String
+    """One person’s alone, wherever they are in the queue."""
+    person: ID
+  ): PeopleIdentifierReviews
   """
   A header-only CSV of the fields the viewer may import, by label; HR only (`GET /v1/imports/template`).
   """

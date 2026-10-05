@@ -1,0 +1,1 @@
+{"version":1,"body":"query ExportSharesWaiting($after: String) {\n    peopleExportSharesWaiting(after: $after)\n  }"}

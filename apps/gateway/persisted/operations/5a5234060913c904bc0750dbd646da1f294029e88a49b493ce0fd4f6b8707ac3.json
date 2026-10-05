@@ -1,0 +1,1 @@
+{"version":1,"body":"query IdentifierReviews($after: String, $person: ID) {\n    peopleIdentifierReviews(after: $after, person: $person) {\n      items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held enteredBy }\n      next\n      decided { personId name label outcome decidedBy decidedAt note }\n    }\n  }"}

@@ -148,10 +148,11 @@ export const OPERATIONS = {
    * otherwise. For HR, also why each is flagged, what was decided lately and
    * what Kithena checks (design AI7, AI8).
    */
-  Approvals: `query Approvals($decidedAfter: String) {
-    peopleApprovals(decidedAfter: $decidedAfter) {
+  Approvals: `query Approvals($decidedAfter: String, $after: String, $change: ID) {
+    peopleApprovals(decidedAfter: $decidedAfter, after: $after, change: $change) {
       isHr canTune
       items { ...ApprovalParts }
+      itemsNext
       decided { ...ApprovalParts }
       decidedNext
       checks { code title detail on }
@@ -167,16 +168,18 @@ export const OPERATIONS = {
     }
   }${APPROVAL}${ENTRY}`,
 
-  IdentifierReviews: `query IdentifierReviews {
-    peopleIdentifierReviews {
+  IdentifierReviews: `query IdentifierReviews($after: String, $person: ID) {
+    peopleIdentifierReviews(after: $after, person: $person) {
       items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held enteredBy }
+      next
       decided { personId name label outcome decidedBy decidedAt note }
     }
   }`,
 
-  Duplicates: `query Duplicates($a: ID, $b: ID, $mergesAfter: String) {
-    peopleDuplicates(a: $a, b: $b, mergesAfter: $mergesAfter) {
+  Duplicates: `query Duplicates($a: ID, $b: ID, $mergesAfter: String, $after: String) {
+    peopleDuplicates(a: $a, b: $b, mergesAfter: $mergesAfter, after: $after) {
       items { personIds names reasons match flaggedBy avatarUrls }
+      next
       merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
       mergesNext
       comparison {
@@ -223,11 +226,12 @@ export const OPERATIONS = {
     peopleIdentifierCheck(personId: $personId, changed: $changed) { ${FINDINGS} }
   }`,
 
-  FullValues: `query FullValues {
-    peopleFullValues {
+  FullValues: `query FullValues($before: ID, $request: ID) {
+    peopleFullValues(before: $before, request: $request) {
       canRequest canDecide
       fields { key label }
       requests { id state mine requestedBy reason fields people requestedAt expiresAt note link }
+      next
     }
   }`,
 
@@ -1066,6 +1070,11 @@ export const OPERATIONS = {
   /** Review's Exports (E5): the requests to send this viewer may decide now. */
   ExportSharesToDecide: `query ExportSharesToDecide {
     peopleExportSharesToDecide
+  }`,
+
+  /** The same, newest first, a page at a time (JSON: `{ items, next }`). */
+  ExportSharesWaiting: `query ExportSharesWaiting($after: String) {
+    peopleExportSharesWaiting(after: $after)
   }`,
 
   ExportRecord: `query ExportRecord($id: ID!) {
