@@ -43,6 +43,8 @@ export type ScreenLoad =
 export interface ScreenQuery {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
+  /** The address without its query, where a screen's tab is its last segment. */
+  readonly path?: string;
 }
 
 /** One screen's read, and how its answer becomes the view model the remote draws. */
@@ -228,7 +230,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'PeopleSettings':
       return settingsOverview();
     case 'Review':
-      return review(query.search);
+      return review(query.search, query.path?.endsWith('/flagged') === true);
     case 'WebhookLog':
       return orBare({ after: given(query.search['after']) }, (asked) =>
         read('WebhookDeliveries', { endpointId: query.params['id'] ?? '', ...asked }),
@@ -431,7 +433,11 @@ async function exportExtras(
  * is not one this viewer decides), and the person whose missing details are
  * filled in (`?fill=<person>`), on their own, wherever they are in the list.
  */
-async function review(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+async function review(
+  search: Readonly<Record<string, string>>,
+  /** Review's Flagged: the changes People's checks flag, rather than every one waiting. */
+  flagged = false,
+): Promise<ScreenLoad> {
   const item = given(search['item']);
   const pair = item?.startsWith('dup-') === true ? item.slice(4).split('~') : null;
   // The person whose missing details the address fills in (`?fill=<id>`), not the grid's `all`.
@@ -443,7 +449,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
   const changeId = item?.startsWith('change-') === true ? item.slice(7) : null;
   const checked = item?.startsWith('id-') === true ? (item.slice(3).split('~')[0] ?? null) : null;
   const requestId = item?.startsWith('access-') === true ? item.slice(7) : null;
-  const approvals = read('Approvals', {}, VIEWS.Approvals);
+  const approvals = read('Approvals', flagged ? { flagged: true } : {}, VIEWS.Approvals);
   // Every queue, asked beside the roles rather than after them: each read is
   // answered once per request (`people.ts`), so those below find these on
   // their way, and one this viewer may not open is refused at once and unused.

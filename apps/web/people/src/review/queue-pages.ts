@@ -25,7 +25,8 @@ export type QueueKind = 'changes' | 'ids' | 'duplicates' | 'access' | 'exports';
 
 /** A page of one queue after a place, as the host reads it. */
 export type QueuePage = { readonly items: readonly unknown[]; readonly next: string | null };
-export type MoreQueue = (kind: QueueKind, after: string) => Promise<QueuePage | null>;
+/** `flagged`: the Flagged tab's changes, which People pages over the changes its checks flag. */
+export type MoreQueue = (kind: QueueKind | 'flagged', after: string) => Promise<QueuePage | null>;
 
 interface Loaded {
   readonly items: readonly unknown[];
@@ -92,6 +93,8 @@ export interface QueuePages<S> {
 export function useQueuePages<S extends QueueState>(
   state: S,
   onMore: MoreQueue | undefined,
+  /** The Flagged tab: its changes' pages are of those People's checks flag. */
+  flagged = false,
 ): QueuePages<S> {
   const first = useMemo(() => firstPages(state), [state]);
   const [more, setMore] = useState<Partial<Record<QueueKind, Loaded>>>({});
@@ -109,7 +112,7 @@ export function useQueuePages<S extends QueueState>(
     if (asked.current.has(key)) return;
     asked.current.add(key);
     setLoading(k);
-    void onMore(k, after).then(
+    void onMore(flagged && k === 'changes' ? 'flagged' : k, after).then(
       (page) => {
         setLoading(null);
         // Nothing came: not asked again on its own, as Missing details' pages are not.

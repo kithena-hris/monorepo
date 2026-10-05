@@ -477,7 +477,7 @@ function Queue({
   ...given
 }: Omit<ReviewProps, 'load'> & { readonly state: ReviewState }): JSX.Element {
   // Every page of every queue loaded so far, and what was decided here gone from them.
-  const pages = useQueuePages(read, given.onMoreQueue);
+  const pages = useQueuePages(read, given.onMoreQueue, tab === 'flagged');
   const state = pages.state;
   const actions = decidedBy(given, pages.decided);
   const viewer = viewerOf(state);
