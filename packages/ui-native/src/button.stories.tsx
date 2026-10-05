@@ -8,7 +8,10 @@ const meta = {
   component: Button,
   args: { children: 'Request time off' },
   argTypes: {
-    variant: { control: 'inline-radio', options: ['primary', 'secondary', 'tinted', 'ghost', 'danger'] },
+    variant: {
+      control: 'inline-radio',
+      options: ['primary', 'secondary', 'tinted', 'ghost', 'danger'],
+    },
     size: { control: 'inline-radio', options: ['md', 'sm'] },
   },
 } satisfies Meta<typeof Button>;

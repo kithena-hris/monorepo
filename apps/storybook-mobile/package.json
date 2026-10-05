@@ -16,12 +16,16 @@
     "react-dom": "^19.3.0",
     "react-native": "0.86.3",
     "react-native-css": "3.1.0-rc.0",
+    "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
     "react-native-web": "0.21.3",
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "10.6.1",
+    "@storybook/addon-docs": "10.6.1",
     "@storybook/addon-vitest": "10.6.1",
     "@storybook/react-native-web-vite": "10.6.1",
     "@tailwindcss/vite": "^4.3.3",

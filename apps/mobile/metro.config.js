@@ -16,7 +16,10 @@ const config = getDefaultConfig(__dirname);
  * the app dies on start with "Maximum call stack size exceeded" in
  * `get Dimensions`. Resolving these from the app root makes the copy count one.
  */
-const SINGLETONS = /^(react|react-native|react-native-css|nativewind|react-native-reanimated|react-native-worklets)(\/|$)/;
+// The native-module packages are here for a second reason: two copies of one
+// register the same native view twice, which fails at start-up.
+const SINGLETONS =
+  /^(react|react-native|react-native-css|nativewind|react-native-reanimated|react-native-worklets|react-native-gesture-handler|react-native-safe-area-context|react-native-svg)(\/|$)/;
 const appRoot = `${__dirname}/package.json`;
 config.resolver.resolveRequest = (context, moduleName, platform) =>
   context.resolveRequest(

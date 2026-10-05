@@ -163,7 +163,7 @@ rejected (Tamagui: a second token system; gluestack / Paper: someone else's
 look; Moti: Reanimated 4's CSS API covers it). `CLAUDE.md`'s decisions list
 gains one entry. **Depends on** RMB-001.
 
-### [ ] RMB-003 — `@reach/ui-native`, and its walls
+### [x] RMB-003 — `@reach/ui-native`, and its walls
 
 The package from the spike, made permanent: exports, `cn`, CVA, the providers
 (`ReachProvider`: theme, safe area, gesture root, portal host, reduced motion).

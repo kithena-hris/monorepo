@@ -23,7 +23,13 @@ const config: StorybookConfig = {
       ...vite.resolve,
       // `@reach/ui-native` is a workspace link whose own devDependencies pin
       // the React Native app's React. Without this the canvas gets two Reacts.
-      dedupe: ['react', 'react-dom', 'react-native-web', 'react-native-css', 'react-native-reanimated'],
+      dedupe: [
+        'react',
+        'react-dom',
+        'react-native-web',
+        'react-native-css',
+        'react-native-reanimated',
+      ],
     },
   }),
 };

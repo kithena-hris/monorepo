@@ -89,13 +89,47 @@ module.exports = {
       to: { path: '^(packages/(?!ui/)|services/|platform/)' },
     },
     {
+      name: 'native-design-system-stays-presentational',
+      severity: 'error',
+      comment:
+        'packages/ui-native is Reach on a phone, under the same wall as packages/ui: ' +
+        'no contract, no module, no app. It may reach packages/ui for exactly two ' +
+        'files, the pure motion and spring modules both libraries read ' +
+        '(`@reach/ui/motion`), and never for a component, which is DOM code.',
+      from: { path: '^packages/ui-native/' },
+      to: {
+        path: '^(packages/(?!ui-native/)|services/|platform/|apps/)',
+        pathNot: '^packages/ui/src/lib/(motion|spring)\\.ts$',
+      },
+    },
+    {
+      name: 'no-data-clients-in-design-system',
+      severity: 'error',
+      comment:
+        'A component takes values and callbacks. A design system that fetches has ' +
+        'learned what the data is, and one module’s queries end up in every screen.',
+      from: { path: '^packages/ui(-native)?/' },
+      to: {
+        path: 'node_modules/(@apollo/client|urql|@urql/|graphql-request|@tanstack/react-query|swr|axios|ky)(/|$)',
+      },
+    },
+    {
+      name: 'no-dom-in-native-design-system',
+      severity: 'error',
+      comment:
+        'React Native renders no DOM. A web component, Radix or the web icon set in ' +
+        'packages/ui-native bundles for Storybook and then fails on a phone.',
+      from: { path: '^packages/ui-native/' },
+      to: { path: 'node_modules/(react-dom|@radix-ui/|lucide-react/)' },
+    },
+    {
       name: 'no-design-system-in-services',
       severity: 'error',
       comment:
         'A subgraph, a worker or a domain layer has no user interface. React in ' +
         'services/* means presentation logic has moved to the wrong side of the wire.',
-      from: { path: '^(services|platform|packages/(?!ui/))' },
-      to: { path: '^packages/ui/' },
+      from: { path: '^(services|platform|packages/(?!ui/|ui-native/))' },
+      to: { path: '^packages/(ui|ui-native)/' },
     },
     {
       name: 'remote-is-presentation-only',

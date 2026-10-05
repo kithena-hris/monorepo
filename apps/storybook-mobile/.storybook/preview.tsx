@@ -1,4 +1,5 @@
 import type { Decorator, Preview } from '@storybook/react-native-web-vite';
+import { ReachProvider } from '@reach/ui-native';
 import { View } from 'react-native-css/components';
 
 import '@reach/ui-native/global.css';
@@ -6,16 +7,16 @@ import '@reach/ui-native/global.css';
 /**
  * Every story on one phone, 390×844, in the theme the toolbar picks.
  *
- * The theme is a `dark` class on an ancestor view, which is the same thing the
- * native app does: `tokens.css` re-points `--reach-color-*` under `.dark`, and
- * react-native-css on device and the browser here both honour it.
+ * `ReachProvider` is what an app puts at its root, so a story renders under
+ * exactly what ships: the `dark` class re-pointing `--reach-color-*`, the safe
+ * area, the gesture root and the portal host overlays open into.
  */
 const withPhone: Decorator = (Story, context) => (
-  <View className={context.globals['theme'] === 'dark' ? 'dark' : ''}>
+  <ReachProvider theme={context.globals['theme'] === 'dark' ? 'dark' : 'light'}>
     <View className="bg-canvas p-4" style={{ width: 390, minHeight: 844 }}>
       <Story />
     </View>
-  </View>
+  </ReachProvider>
 );
 
 const preview: Preview = {
