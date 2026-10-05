@@ -250,7 +250,12 @@ export function VirtualList<T>({
   const getScrollElement = useCallback(() => outerRef.current, []);
   const estimateSize = useCallback(() => estimateItemHeight, [estimateItemHeight]);
   const initialRect = { width: 0, height: initialHeight };
-  const options = { estimateSize, overscan, initialRect, gap };
+  // Rendered with the frame, not inside each scroll event: the virtualizer's
+  // default re-renders synchronously on every event (`flushSync`), and each
+  // commit forced a layout of the page. A grid of cards wheeled through laid
+  // the page out 87 times in two seconds, frames up to 85 ms. The overscan
+  // covers the frame a row now waits.
+  const options = { estimateSize, overscan, initialRect, gap, useFlushSync: false };
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inBox = useVirtualizer({ ...options, count: page ? 0 : rows, getScrollElement });
   const inPage = useWindowVirtualizer({ ...options, count: page ? rows : 0, scrollMargin: margin });

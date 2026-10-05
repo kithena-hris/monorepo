@@ -3,6 +3,7 @@
 import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group';
 import { cva, type VariantProps } from 'class-variance-authority';
 import {
+  Children,
   createContext,
   use,
   useLayoutEffect,
@@ -109,6 +110,7 @@ export function SegmentedControl({
   // edge on mount is motion that means nothing.
   const [placed, setPlaced] = useState(false);
 
+  const segments = Children.count(children);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el === null) return undefined;
@@ -128,7 +130,12 @@ export function SegmentedControl({
     return () => {
       observer.disconnect();
     };
-  }, [value, children]);
+    // The value and how many segments, not the children themselves: those are
+    // new elements on every render of whatever holds the control, and each run
+    // reads a layout (`offsetLeft`), which on a page of a thousand rows cost a
+    // forced layout of 30 ms every time anything around it re-rendered. A
+    // label that changes width is the observer's to catch.
+  }, [value, segments]);
 
   useLayoutEffect(() => {
     if (thumb !== null && !placed) {
