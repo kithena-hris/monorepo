@@ -22,7 +22,6 @@ import {
   type ChartWindow,
 } from './chart-window';
 import {
-  seriesTones,
   seriesTone,
   fillTone,
   strokeTone,

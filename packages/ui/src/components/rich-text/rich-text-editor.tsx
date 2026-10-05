@@ -2,7 +2,7 @@
 
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import TextAlign from '@tiptap/extension-text-align';
-import { EditorContent, useEditor, type Editor, type UseEditorOptions } from '@tiptap/react';
+import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import {
   Bold,
@@ -42,7 +42,7 @@ import { Button } from '../button/button';
 import { Input } from '../input/input';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
 
-import { RichTextFrame, type RichTextEditorProps, type RichTextGroup } from './rich-text';
+import { RichTextFrame, type RichTextEditorProps, type RichTextGroup } from './rich-text-frame';
 
 /*
  * The editor itself, on Tiptap: its own chunk, which `rich-text.tsx` loads

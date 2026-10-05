@@ -33,7 +33,7 @@ export function split<M>(load: () => Promise<M>, name: keyof M & string): SplitS
       (module) => {
         Screen = framed(module[name] as ComponentType<Props>);
         if (loading !== undefined)
-          Object.assign(loading, { status: 'fulfilled', value: undefined });
+          void Object.assign(loading, { status: 'fulfilled', value: undefined });
       },
       (error: unknown) => {
         // Tried again by the next render or hover, rather than failed for good.

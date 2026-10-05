@@ -1,11 +1,11 @@
 /*
  * The remotes, their places and how a path maps to one, as the browser and
  * the server both need them. Reading a remote's manifest is the server's
- * alone, in `remote-manifest.ts`, with the schema it is checked against.
+ * alone, in `remote-manifest.ts`, against the schema in `manifest-schema.ts`.
  */
-import type { Place } from './remote-manifest';
+import type { Place } from './manifest-schema';
 
-export type { Place } from './remote-manifest';
+export type { Place } from './manifest-schema';
 
 /**
  * The places in the shell's chrome a remote may fill: `topBar`, beside search
