@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
+import { SpeedInsights } from '../components/speed-insights';
 import { currentTenant } from '../lib/branding';
 import { EARLY_PRESSES_SCRIPT } from '../lib/early-presses';
 import { THEME_KEY } from '../lib/theme';
@@ -84,6 +85,7 @@ export default async function RootLayout({
         <div data-remote-host="" className="contents">
           {children}
         </div>
+        <SpeedInsights />
       </body>
     </html>
   );
