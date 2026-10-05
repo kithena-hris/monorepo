@@ -1,0 +1,66 @@
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css';
+@import 'nativewind/theme';
+
+/* The same token file the web system reads. One source of truth. */
+@import '../../ui/src/styles/tokens.css';
+
+@source './';
+
+@theme inline {
+  --color-canvas: var(--reach-color-canvas);
+  --color-surface: var(--reach-color-surface);
+  --color-fg: var(--reach-color-fg);
+  --color-fg-muted: var(--reach-color-fg-muted);
+  --color-fg-on-accent: var(--reach-color-fg-on-accent);
+  --color-fg-disabled: var(--reach-color-fg-disabled);
+  --color-accent: var(--reach-color-accent);
+  --color-accent-solid: var(--reach-color-accent-solid);
+  --color-accent-subtle: var(--reach-color-accent-subtle);
+  --color-accent-fg: var(--reach-color-accent-fg);
+  --color-surface-sunken: var(--reach-color-surface-sunken);
+  --color-danger-solid: var(--reach-color-danger-solid);
+}
+
+/*
+ * Mobile sizes and the mobile type scale (Reach mobile design, `--r-m-*`).
+ * Pixel values: a phone's point is the unit, and nothing here should follow a
+ * root font size.
+ */
+@theme {
+  --spacing-m-btn: 52px;
+  --spacing-m-btn-sm: 36px;
+  --spacing-m-tap: 44px;
+
+  --text-large: 34px;
+  --text-large--line-height: 41px;
+  --text-large--font-weight: 700;
+  --text-title1: 28px;
+  --text-title1--line-height: 34px;
+  --text-title1--font-weight: 700;
+  --text-title2: 22px;
+  --text-title2--line-height: 28px;
+  --text-title2--font-weight: 700;
+  --text-title3: 20px;
+  --text-title3--line-height: 25px;
+  --text-title3--font-weight: 600;
+  --text-headline: 17px;
+  --text-headline--line-height: 22px;
+  --text-headline--font-weight: 600;
+  --text-body: 17px;
+  --text-body--line-height: 22px;
+  --text-body--font-weight: 400;
+  --text-callout: 16px;
+  --text-callout--line-height: 21px;
+  --text-callout--font-weight: 400;
+  --text-subhead: 15px;
+  --text-subhead--line-height: 20px;
+  --text-subhead--font-weight: 400;
+  --text-footnote: 13px;
+  --text-footnote--line-height: 18px;
+  --text-footnote--font-weight: 400;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 500;
+}

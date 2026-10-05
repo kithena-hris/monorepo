@@ -1,0 +1,38 @@
+{
+  "name": "@reach/ui-native",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./global.css": "./src/global.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "nativewind": "5.0.0-rc.0",
+    "react-native-css": "3.1.0-rc.0"
+  },
+  "peerDependencies": {
+    "react": ">=19.2.3",
+    "react-native": ">=0.86",
+    "react-native-reanimated": "^4.5.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@storybook/react-native-web-vite": "10.6.1",
+    "@types/react": "^19.3.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-reanimated": "4.5.1",
+    "react-native-worklets": "0.10.1",
+    "tailwindcss": "^4.3.3"
+  }
+}
