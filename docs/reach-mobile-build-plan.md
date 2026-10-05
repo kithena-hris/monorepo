@@ -155,7 +155,7 @@ on the iOS simulator in both themes).
 
 ## Phase 1 — foundation (lane F)
 
-### [ ] RMB-002 — The decision, written down
+### [x] RMB-002 — The decision, written down
 
 `docs/tech-stack.md` gains "Reach on a phone": the table above, why each
 library (each replaces something nobody should hand-roll), and what was
