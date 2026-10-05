@@ -166,6 +166,9 @@ function missingPages() {
   return { onLoadMore, land };
 }
 
+/** Reads the page again, as the shell's `refresh()` after a save does. */
+let reread: () => void = () => undefined;
+
 /** The shell: the address in state, and everything handed down made again on each render. */
 function Host({
   onLoadMore,
@@ -175,9 +178,17 @@ function Host({
   const [kind, setKind] = useState<string | null>(null);
   const [item, setItem] = useState<string | null>(null);
   const [fill, setFill] = useState<string | null>(null);
+  // The page read again, as the shell does after a save: the same answer, new objects.
+  const [data, setData] = useState(STATE);
+  reread = () => {
+    setData((d) => ({
+      ...d,
+      completeness: d.completeness === null ? null : { ...d.completeness },
+    }));
+  };
   return (
     <Review
-      load={{ status: 'ready', data: STATE }}
+      load={{ status: 'ready', data }}
       tab="waiting"
       {...actions()}
       kind={kind}
@@ -438,6 +449,17 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
       kept['grid'] = screen.getByRole('table', { name: 'Missing values' }) === gridTable;
       kept['cell'] = screen.getByRole('textbox', { name: lastCell }) === atEnd;
       kept['grid place'] = gridBox.scrollTop > 0;
+      // A save, and the page read again: the rows loaded and the place stay.
+      const place = gridBox.scrollTop;
+      let reading = performance.now();
+      act(() => {
+        reread();
+      });
+      await painted();
+      reading = performance.now() - reading;
+      kept['grid, read again'] = screen.getByRole('table', { name: 'Missing values' }) === gridTable;
+      kept['cell, read again'] = screen.queryByRole('textbox', { name: lastCell }) === atEnd;
+      kept['place, read again'] = Math.abs(gridBox.scrollTop - place) < 2;
       gridBox.scrollTop = 0;
       await painted();
       const cell = screen.getByRole('textbox', { name: 'Desk for Gap 0' });
@@ -462,7 +484,7 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
         key = Math.max(key, performance.now() - t);
       }
 
-      const said = `list page ${landing.toFixed(0)}, list scroll frame ${listScroll.toFixed(0)}, grid ${opened.toFixed(0)}, grid page ${gridLanding.toFixed(0)}, grid scroll frame ${gridScroll.toFixed(0)}, key ${key.toFixed(0)} ms; kept ${JSON.stringify(kept)}; moved while scrolling: list ${JSON.stringify(listMoved)}, grid ${JSON.stringify(moved)}`;
+      const said = `list page ${landing.toFixed(0)}, list scroll frame ${listScroll.toFixed(0)}, grid ${opened.toFixed(0)}, grid page ${gridLanding.toFixed(0)}, read again ${reading.toFixed(0)}, grid scroll frame ${gridScroll.toFixed(0)}, key ${key.toFixed(0)} ms; kept ${JSON.stringify(kept)}; moved while scrolling: list ${JSON.stringify(listMoved)}, grid ${JSON.stringify(moved)}`;
       console.info('missing', said);
       expect(Object.values(kept).every(Boolean), said).toBe(true);
       expect({ said, list: listMoved, grid: moved }).toEqual({

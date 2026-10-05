@@ -254,8 +254,12 @@ const rowId = (r: GapRow): string => `${r.personId}-${r.owner}`;
 
 /**
  * Everybody missing something: the first page as the shell drew it, then each
- * page after it as the reader nears the end. A cursor is asked for once. A
- * new first page (the shell read again) starts over.
+ * page after it as the reader nears the end. A cursor is asked for once.
+ *
+ * The shell reads the page again after every save. That first page replaces
+ * the old one and the pages after it stay, so the reader keeps the rows and
+ * the place they had: starting over dropped the grid back to its first page
+ * under them on every save. A row both carry is listed once, as read last.
  */
 function usePages(state: CompletenessState, onLoadMore: MissingActions['onLoadMore']) {
   const [more, setMore] = useState<{ rows: GapRow[]; fields: GapField[]; next: string | null }>({
@@ -267,7 +271,7 @@ function usePages(state: CompletenessState, onLoadMore: MissingActions['onLoadMo
   const [first, setFirst] = useState(state);
   if (first !== state) {
     setFirst(state);
-    setMore({ rows: [], fields: [], next: state.next ?? null });
+    setMore((m) => (m.rows.length === 0 ? { rows: [], fields: [], next: state.next ?? null } : m));
   }
   const asked = useRef(new Set<string>());
   const loadMore =
@@ -283,15 +287,18 @@ function usePages(state: CompletenessState, onLoadMore: MissingActions['onLoadMo
             // Nothing came: not asked again on its own, which a list too short
             // to scroll would do in a loop. The next read of the page starts over.
             if (page === null) return;
-            setMore((m) =>
-              m.next !== after
-                ? m
-                : {
-                    rows: [...m.rows, ...page.rows],
-                    fields: [...m.fields, ...page.fields],
-                    next: page.next,
-                  },
-            );
+            setMore((m) => {
+              if (m.next !== after) return m;
+              // Only a field not seen before: the same list, so the grid's
+              // columns, and every cell drawn from them, hold as pages land.
+              const known = new Set([...state.fields, ...m.fields].map((f) => f.key));
+              const added = page.fields.filter((f) => !known.has(f.key));
+              return {
+                rows: [...m.rows, ...page.rows],
+                fields: added.length === 0 ? m.fields : [...m.fields, ...added],
+                next: page.next,
+              };
+            });
           });
         };
   const rows = useMemo(() => {
@@ -383,12 +390,20 @@ function Missing({
 }: MissingActions & { readonly state: CompletenessState }): JSX.Element {
   const [fill, setFill] = useHeldAtOnce<string | null>(heldFill, onFillChange, heldFill ?? null);
   const pages = usePages(state, onLoadMore);
-  /** Values saved here, by person: no longer missing, though the page was read before. */
-  const [filled, setFilled] = useState<Readonly<Record<string, readonly string[]>>>({});
+  /**
+   * Values saved here, by person: no longer missing, though a page kept from
+   * before says they are. `since` counts those saved since the page was last
+   * read, which its figures do not include yet.
+   */
+  const [saves, setSaves] = useState<{
+    readonly filled: Readonly<Record<string, readonly string[]>>;
+    readonly since: number;
+  }>({ filled: {}, since: 0 });
+  const filled = saves.filled;
   const [first, setFirst] = useState(state);
   if (first !== state) {
     setFirst(state);
-    setFilled({});
+    setSaves((f) => ({ filled: f.filled, since: 0 }));
   }
   const [outcome, setOutcome] = useState<{ readonly text: string; readonly ok: boolean } | null>(
     null,
@@ -411,8 +426,7 @@ function Missing({
     [pages.rows, filled],
   );
   const hrRows = useMemo(() => rows.filter((r) => r.owner === 'hr'), [rows]);
-  const filledCount = Object.values(filled).reduce((n, keys) => n + keys.length, 0);
-  const toFill = Math.max(0, state.toFill - filledCount);
+  const toFill = Math.max(0, state.toFill - saves.since);
   const labelOf = (key: string): string => pages.fields.get(key)?.label ?? key;
 
   /** After a save: what is no longer missing, and the words for it. */
@@ -426,10 +440,10 @@ function Missing({
       personId: c.personId,
       keys: Object.keys(c.values).filter((k) => pages.fields.get(k)?.sensitive !== true),
     }));
-    setFilled((f) => {
-      const next = { ...f };
+    setSaves((f) => {
+      const next = { ...f.filled };
       for (const c of applied) next[c.personId] = [...(next[c.personId] ?? []), ...c.keys];
-      return next;
+      return { filled: next, since: f.since + applied.reduce((n, c) => n + c.keys.length, 0) };
     });
     const held = result.held ?? 0;
     const reviewed = (result.findings ?? []).filter((f) => f.review === 'pending').length;
@@ -531,6 +545,9 @@ function Missing({
   // with what it changed (`recently`). The rest is read from `live` when used.
   const live = useRef({ labelOf, remind, setFill });
   live.current = { labelOf, remind, setFill };
+  // Whether there is a Remind at all, not which function: the host's is new on
+  // every render, and the columns drawn from it redrew every row each time.
+  const canRemind = onRemind !== undefined;
   const fillIn = useCallback((r: GapRow): void => {
     setOutcome(null);
     live.current.setFill(r.personId);
@@ -549,7 +566,7 @@ function Missing({
         >
           Fill in
         </Button>
-      ) : onRemind === undefined ? null : recently(r) ? (
+      ) : !canRemind ? null : recently(r) ? (
         <Button size="sm" variant="ghost" disabled aria-label={`Reminded ${r.name}`}>
           Reminded
         </Button>
@@ -565,7 +582,7 @@ function Missing({
           Remind
         </Button>
       ),
-    [fillIn, onRemind, recently],
+    [fillIn, canRemind, recently],
   );
   // The row's own action, from its menu or its key: F fills in HR's gaps, R reminds a person.
   const rowActions = useCallback(
@@ -582,7 +599,7 @@ function Missing({
               },
             },
           ]
-        : onRemind === undefined
+        : !canRemind
           ? []
           : [
               {
@@ -596,7 +613,7 @@ function Missing({
                 },
               },
             ],
-    [fillIn, onRemind, recently],
+    [fillIn, canRemind, recently],
   );
   // A phone row, held between renders like the table's columns, so a scroll
   // or a page landing redraws only the rows it brings (`VirtualList`).
@@ -620,8 +637,10 @@ function Missing({
       {
         id: 'missing',
         header: 'Missing',
+        // One line, clipped at the cell's end: badges that wrapped made a row
+        // taller than the table counts it, and the list jumped as it scrolled.
         cell: (r) => (
-          <span className="flex flex-wrap gap-1.5">
+          <span className="flex gap-1.5 overflow-hidden [&>*]:shrink-0">
             {r.missing.map(live.current.labelOf).map((label) => (
               <Badge key={label} size="sm">
                 {label}
@@ -793,7 +812,7 @@ function Missing({
             rows={rows}
             columns={columns}
             rowId={rowId}
-            describeRow={(r) => r.name}
+            describeRow={nameOf}
             rowActions={rowActions}
             // Infinite: the table scrolls in a box of its own the height the
             // window has left, the next page loads near its end, and only
@@ -841,6 +860,8 @@ function Missing({
     </Stack>
   );
 }
+
+const nameOf = (r: GapRow): string => r.name;
 
 const NOTHING = {
   title: 'Nothing is missing',
@@ -1017,9 +1038,22 @@ function FillGrid({
     [fields],
   );
   // Only the fields somebody listed is missing: a column of nothing is noise.
-  const shown = useMemo(
-    () => [...asRecord.values()].filter(({ gap }) => rows.some((r) => r.missing.includes(gap.key))),
+  // Named by key, so a page that lands with the same fields keeps the columns,
+  // and no row drawn is drawn again for it.
+  const shownKeys = useMemo(
+    () =>
+      [...asRecord.keys()].filter((key) => rows.some((r) => r.missing.includes(key))).join('\n'),
     [asRecord, rows],
+  );
+  const shown = useMemo(
+    () =>
+      shownKeys === ''
+        ? []
+        : shownKeys.split('\n').flatMap((key) => {
+            const one = asRecord.get(key);
+            return one === undefined ? [] : [one];
+          }),
+    [asRecord, shownKeys],
   );
   const columns = useMemo(
     (): DataColumn<GapRow>[] => [
@@ -1167,7 +1201,7 @@ function FillGrid({
             label="Missing values"
             rows={rows}
             columns={columns}
-            rowId={(r) => r.personId}
+            rowId={personOf}
             containerClassName="page-fill max-h-dvh min-h-96"
             {...(loadMore === undefined ? {} : { onEndReached: loadMore })}
             loadingMore={loading}
@@ -1184,6 +1218,7 @@ function FillGrid({
 }
 
 const cellId = (personId: string, key: string): string => `cell-${personId}-${key}`;
+const personOf = (r: GapRow): string => r.personId;
 
 /**
  * Kinds whose control is heavy to draw (a list, a calendar, a person search):
