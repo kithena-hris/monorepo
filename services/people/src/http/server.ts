@@ -49,6 +49,7 @@ import { chatAct, parseChatAction } from './chat.js';
 import { chatAppsFrom } from '../infrastructure/chat-apps.js';
 import { sealExisting } from '../infrastructure/seal-existing.js';
 import { drizzleChatNotices } from '../infrastructure/drizzle-chat-notices.js';
+import { takeEvidence } from '../application/person/flagged.js';
 import { drizzleApprovalFlagStore } from '../application/person/approval-flag-store.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
@@ -296,17 +297,33 @@ export function peopleService(
   const org = drizzleOrgStore();
   const numbers = drizzleEmployeeNumbers();
   const secrets = drizzleSecretStore(ring, logger);
-  // Changes held for approval (PEO-077), a sealed one under the secrets' ring.
+  const reader = drizzlePersonReader();
+  // What flags a change, as the company switched its checks (design AI7, AI8);
+  // sealed pay opened in memory for a decider who may read it (PEO-145).
+  const flags = {
+    store: drizzleApprovalFlagStore(),
+    calendars: org,
+    sealed: {
+      current: (
+        tx: Parameters<typeof secrets.reveal>[0],
+        where: Parameters<typeof secrets.reveal>[1],
+      ) => secrets.reveal(tx, where),
+    },
+  };
+  const pendingStore = drizzlePendingChangeStore({
+    seal: (plaintext) => seal(plaintext, ring),
+    open: (sealed) => open(sealed, ring),
+  });
+  // Changes held for approval (PEO-077), a sealed one under the secrets' ring,
+  // each with what its checks find kept beside it (Review's Flagged).
   const holding: Holding = {
-    store: drizzlePendingChangeStore({
-      seal: (plaintext) => seal(plaintext, ring),
-      open: (sealed) => open(sealed, ring),
-    }),
+    store: pendingStore,
     publish: outboxPendingChanges,
     clock: systemClock,
     newId: uuidv7,
+    evidence: (tx, change) =>
+      takeEvidence(tx, { store: pendingStore, clock: systemClock, reader, schemas, flags }, change),
   };
-  const reader = drizzlePersonReader();
   const relations = relationsFrom(process.env);
   // Doubted national identifiers, queued for HR (PEO-125).
   const reviews = drizzleIdentifierReviews(ring, secrets);
@@ -348,12 +365,7 @@ export function peopleService(
       relations,
       roles: drizzleRoleStore(),
       reviews,
-      // Sealed pay opened in memory for a decider who may read it (PEO-145).
-      flags: {
-        store: drizzleApprovalFlagStore(),
-        calendars: org,
-        sealed: { current: (tx, where) => secrets.reveal(tx, where) },
-      },
+      flags,
     },
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),

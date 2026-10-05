@@ -17,6 +17,7 @@ import {
   type PendingChangeDeps,
 } from '../person/pending-changes.js';
 import { inMemoryPendingChangeStore } from '../person/pending-store.js';
+import { retakeEvidence, takeEvidence } from '../person/flagged.js';
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
 import { approvalsView, DECIDED_PAGE, ownDecidedView } from './people.js';
@@ -115,6 +116,8 @@ function setup(at: string, facts: Parameters<typeof inMemoryApprovalFlagStore>[0
     publish: () => Promise.resolve(),
     clock,
     newId: people.deps.newId,
+    // What its checks find, kept as it is held, as `server.ts` wires it.
+    evidence: (tx, change) => takeEvidence(tx, pending, change),
   };
   const access = personAccess({ ...people.deps, clock, approvals: holding });
   const flagStore = inMemoryApprovalFlagStore(facts);
@@ -620,5 +623,97 @@ describe('an employee’s own Decided (E10)', () => {
     // Nobody else's: Nora's own Decided holds none of Tom's.
     const nora = await ownDecidedView(deps, asking(NORA_HR));
     expect(nora.ok && [nora.value.changes, nora.value.identifiers]).toEqual([[], []]);
+  });
+});
+
+describe('Flagged, kept and counted over every change waiting', () => {
+  const LATER = '2026-09-22T13:00:00.000Z';
+  /** The same company, read again later: past the hour close colleagues looks at. */
+  const later = (s: ReturnType<typeof setup>) => ({
+    ...s.pending,
+    clock: fixedClock(LATER),
+  });
+
+  it('counts a change from what its checks found when it was asked for', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z', { raises });
+    await askedForRaise(s);
+    const store = s.pending.store as ReturnType<typeof inMemoryPendingChangeStore>;
+    expect([...store.rows.values()].map((c) => c.flagEvidence)).toEqual([
+      [{ code: 'raise', magnitude: '38' }],
+    ]);
+    expect(await flaggedToDecide(tx, later(s), asking(SOFIA))).toEqual({
+      count: 1,
+      latest: 'A 38% raise',
+    });
+    // The requester is never told: nothing of hers is hers to decide.
+    expect((await flaggedToDecide(tx, later(s), asking(NORA_HR))).count).toBe(0);
+  });
+
+  it('follows the switches and the marks without anything taken again', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z', { raises });
+    const { item } = await askedForRaise(s);
+    const admin = viewer(SOFIA_ACCOUNT, ['hr', 'people_admin']);
+    const off = await setCheck(
+      tx,
+      { ...s.pending, relations: s.people.deps.relations },
+      {
+        ...asking(admin),
+        code: 'raise',
+        on: false,
+      },
+    );
+    expect(off.ok).toBe(true);
+    expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(0);
+    await setCheck(tx, s.pending, { ...asking(admin), code: 'raise', on: true });
+    expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(1);
+    const marked = await markNotUnusual(tx, s.pending, { ...asking(SOFIA), changeId: item.id });
+    expect(marked.ok).toBe(true);
+    expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(0);
+  });
+
+  it('counts and pages every flagged change past any page, and lists only those', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z', { raises });
+    await askedForRaise(s);
+    const store = s.pending.store as ReturnType<typeof inMemoryPendingChangeStore>;
+    const [raised] = [...store.rows.values()];
+    if (raised === undefined) throw new Error('fixture');
+    // 250 more raises, and 250 unflagged changes beside them, a minute apart.
+    const total = 251;
+    for (let i = 1; i < total * 2 - 1; i += 1) {
+      const id = `00000000-0000-4000-8000-${String(200_000_000_000 + i)}`;
+      const at = new Date(Date.parse('2026-09-22T09:00:00.000Z') - i * 60_000).toISOString();
+      store.rows.set(`${TENANT}/${id}`, {
+        ...raised,
+        approval: { ...raised.approval, id, requestedAt: at },
+        flagEvidence: i % 2 === 0 ? [{ code: 'raise', magnitude: '38' }] : [],
+      });
+    }
+    const flagged = Math.ceil((total * 2 - 2) / 2) + 1;
+    expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(flagged);
+    const deps = { ...s.deps, clock: fixedClock(LATER) } as ScreenDeps;
+    const ids = new Set<string>();
+    let after: string | null = null;
+    let pages = 0;
+    do {
+      const page = await approvalsView(deps, asking(SOFIA), null, { after, flagged: true });
+      if (!page.ok) throw new Error(page.error.message);
+      for (const i of page.value.items) {
+        expect(i.flags.map((f) => f.code)).toEqual(['raise']);
+        ids.add(i.id);
+      }
+      after = page.value.itemsNext;
+      pages += 1;
+    } while (after !== null && pages < 20);
+    expect(ids.size).toBe(flagged);
+  });
+
+  it('takes a waiting change’s evidence again as what it is compared with moves', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z', { raises });
+    await askedForRaise(s);
+    const store = s.pending.store as ReturnType<typeof inMemoryPendingChangeStore>;
+    for (const [k, c] of store.rows) store.rows.set(k, { ...c, flagEvidence: null });
+    expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(0);
+    expect(await retakeEvidence(tx, s.pending, TENANT)).toBe(1);
+    expect((await flaggedToDecide(tx, later(s), asking(SOFIA))).count).toBe(1);
   });
 });

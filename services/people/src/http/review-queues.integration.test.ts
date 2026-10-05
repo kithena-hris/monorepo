@@ -108,7 +108,10 @@ beforeAll(async () => {
     // Absent before Review paged: a run against the old code skips it.
     ...(process.env['PEOPLE_QUEUE_SCALE_BEFORE'] === '1'
       ? []
-      : ['20261005140000_people_review_queue_pages.sql']),
+      : [
+          '20261005140000_people_review_queue_pages.sql',
+          '20261005160000_people_pending_change_flag_evidence.sql',
+        ]),
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -205,6 +208,15 @@ beforeAll(async () => {
            '{"format":"csv","fields":["department"],"reason":"Headcount"}'::jsonb,
            '{"fields":[],"unlisted":0}'::jsonb, 6
       FROM generate_series(1, ${N}) g`);
+  // Every other change flagged, as its checks would keep it: a 38% raise.
+  if (process.env['PEOPLE_QUEUE_SCALE_BEFORE'] !== '1') {
+    await admin.execute(sql`
+      UPDATE people.pending_change
+         SET flag_evidence = CASE WHEN right(id::text, 1)::int % 2 = 0
+                                  THEN '[{"code":"raise","magnitude":"38"}]'::jsonb
+                                  ELSE '[]'::jsonb END
+       WHERE tenant_id = ${ACME}::uuid`);
+  }
   await admin.execute(sql`ANALYZE`);
 
   process.env['PEOPLE_SECRET_KEYS'] = `k1:${randomBytes(32).toString('base64')}`;
@@ -356,6 +368,48 @@ describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
       N,
       N,
     ]);
+  }, 600_000);
+
+  it('counts and pages Flagged over every change its checks flag, marks applied in the query', async () => {
+    const flagged = Math.floor(N / 2);
+    const counted = async () =>
+      ((await get('/v1/views/waiting')) as Read<{ flagged: number | null }>).body.flagged;
+    const at = performance.now();
+    const before = await counted();
+    const ms = performance.now() - at;
+    const first: Read<{ items: { id: string }[]; itemsNext: string | null }> = await get(
+      '/v1/views/approvals?flagged=1',
+    );
+    process.stderr.write(
+      `flagged at ${String(N)} ${JSON.stringify({ count: before, waiting: `${(ms).toFixed(0)} ms`, firstPage: `${kb(first.bytes)}, ${first.ms.toFixed(0)} ms` })}\n`,
+    );
+    expect(before).toBe(flagged);
+    const ids = new Set<string>();
+    let after: string | null = null;
+    let reads = 0;
+    do {
+      const page: Read<{ items: { id: string }[]; itemsNext: string | null }> = await get(
+        `/v1/views/approvals?flagged=1${after === null ? '' : `&after=${encodeURIComponent(after)}`}`,
+      );
+      for (const i of page.body.items) ids.add(i.id);
+      after = page.body.itemsNext;
+      reads += 1;
+    } while (after !== null && reads < N);
+    // The hour's newest are on the first page whatever their evidence (close colleagues).
+    const recent = 60;
+    expect(ids.size).toBeGreaterThanOrEqual(flagged);
+    expect(ids.size).toBeLessThanOrEqual(flagged + recent / 2 + 1);
+    // "Not unusual" on one of them, as big as the raises: every one of the requester's quiet now.
+    const change = `00000000-0000-4000-c000-${String(2).padStart(12, '0')}`;
+    await admin.execute(sql`
+      INSERT INTO people.approval_flag_mark
+             (tenant_id, change_id, code, requested_by, magnitude, marked_by, marked_at)
+      VALUES (${ACME}::uuid, ${change}::uuid, 'raise', ${OTHER_HR}::uuid, 30, ${HR}::uuid, now())`);
+    expect(await counted()).toBe(flagged);
+    await admin.execute(sql`
+      UPDATE people.approval_flag_mark SET magnitude = 40 WHERE tenant_id = ${ACME}::uuid`);
+    expect(await counted()).toBe(0);
+    await admin.execute(sql`DELETE FROM people.approval_flag_mark WHERE tenant_id = ${ACME}::uuid`);
   }, 600_000);
 
   it('opens a change and a person’s ID check far down their queues, alone', async () => {

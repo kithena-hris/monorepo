@@ -2513,6 +2513,10 @@ type Query {
     Decided’s next page, from the last page’s `decidedNext`; the queue is left out.
     """
     decidedAfter: String
+    """
+    Review’s Flagged: only what the checks flag for this decider, over every change waiting.
+    """
+    flagged: Boolean
   ): PeopleApprovals
   peopleAsk(
     """

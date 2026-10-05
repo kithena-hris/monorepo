@@ -441,6 +441,56 @@ export function unusual(change: ChangeSeen, a: Around): Flagging {
   };
 }
 
+/** Every check on: what a change's evidence is taken under (`evidenceOf`). */
+export const ALL_CHECKS: ReadonlySet<CheckCode> = new Set(CHECKS.map((c) => c.code));
+
+/** The checks that read pay: they flag only for a decider who may read it. */
+export const PAY_CHECKS: ReadonlySet<CheckCode> = new Set<CheckCode>(['raise', 'band']);
+
+/**
+ * What People keeps of a change's flags so it can count and list them over
+ * every change waiting, rather than run the checks on each one for each look
+ * (Review's Flagged): each check that fires, and its size, taken with every
+ * check on, no marks, pay read, and nobody deciding. Never a sentence, an
+ * amount or a name. What a decider then sees is `flaggedNow`.
+ *
+ * Close colleagues is never kept: it is about who decides and when they
+ * look, so it is the decider's to run, at the time.
+ */
+export type Evidence = readonly { readonly code: CheckCode; readonly magnitude: string | null }[];
+
+export const evidenceOf = (flagging: Flagging): Evidence =>
+  flagging.reasons
+    .filter((r) => r.code !== 'close_colleagues')
+    .map((r) => ({ code: r.code, magnitude: r.magnitude }));
+
+/**
+ * What a change's evidence flags for one decider now: the checks switched on,
+ * not quietened by a mark for its requester, and pay's only where the decider
+ * may read it. The same codes `unusual` gives them, but close colleagues.
+ */
+export function flaggedNow(
+  evidence: Evidence,
+  now: {
+    readonly enabled: ReadonlySet<CheckCode>;
+    readonly marks: readonly Mark[];
+    readonly at: string;
+    readonly requestedBy: string;
+    readonly payReadable: boolean;
+  },
+): CheckCode[] {
+  const seen = { requestedBy: now.requestedBy } as ChangeSeen;
+  const a = { at: now.at, marks: now.marks } as Around;
+  return evidence
+    .filter(
+      (e) =>
+        now.enabled.has(e.code) &&
+        (now.payReadable || !PAY_CHECKS.has(e.code)) &&
+        !quietened({ code: e.code, title: '', detail: '', magnitude: e.magnitude }, seen, a),
+    )
+    .map((e) => e.code);
+}
+
 /** The reasons in one line, for a row: "A 38% raise, above the band". */
 export function rowSummary(reasons: readonly { readonly title: string }[]): string | null {
   if (reasons.length === 0) return null;

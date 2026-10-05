@@ -148,8 +148,8 @@ export const OPERATIONS = {
    * otherwise. For HR, also why each is flagged, what was decided lately and
    * what Kithena checks (design AI7, AI8).
    */
-  Approvals: `query Approvals($decidedAfter: String, $after: String, $change: ID) {
-    peopleApprovals(decidedAfter: $decidedAfter, after: $after, change: $change) {
+  Approvals: `query Approvals($decidedAfter: String, $after: String, $change: ID, $flagged: Boolean) {
+    peopleApprovals(decidedAfter: $decidedAfter, after: $after, change: $change, flagged: $flagged) {
       isHr canTune
       items { ...ApprovalParts }
       itemsNext

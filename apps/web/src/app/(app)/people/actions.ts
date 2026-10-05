@@ -1176,8 +1176,8 @@ export async function decidedPage(after: string): Promise<unknown> {
   return answer.ok ? VIEWS.Approvals(answer.data) : null;
 }
 
-/** One of Review's decision queues, by the chip that names it. */
-export type QueueKind = 'changes' | 'ids' | 'duplicates' | 'access' | 'exports';
+/** One of Review's decision queues, by the chip that names it; `flagged`, the Flagged tab's changes. */
+export type QueueKind = 'changes' | 'flagged' | 'ids' | 'duplicates' | 'access' | 'exports';
 
 /**
  * A page of one of Review's decision queues after `after` (the last page's
@@ -1189,8 +1189,12 @@ export async function queuePage(
   after: string,
 ): Promise<{ readonly items: readonly unknown[]; readonly next: string | null } | null> {
   switch (kind) {
-    case 'changes': {
-      const answer = await people<never>('Approvals', { after });
+    case 'changes':
+    case 'flagged': {
+      const answer = await people<never>(
+        'Approvals',
+        kind === 'flagged' ? { after, flagged: true } : { after },
+      );
       if (!answer.ok) return null;
       const view = VIEWS.Approvals(answer.data) as { items: unknown[]; itemsNext?: string | null };
       return { items: view.items, next: view.itemsNext ?? null };

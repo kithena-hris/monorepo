@@ -62,7 +62,7 @@ export async function PeopleArea({
   const loading = drawn.then((r) =>
     r == null
       ? ({ status: 'none' } as const)
-      : loadScreen(r.component, { params: r.params, search }),
+      : loadScreen(r.component, { params: r.params, search, path }),
   );
   const preparing = drawn.then((r) => (r == null ? undefined : prepareRemoteSsr(r.base, r.area)));
   const [person, route] = await Promise.all([currentPerson(), routed, accessToken()]);

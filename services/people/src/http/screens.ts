@@ -939,6 +939,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           await approvalsView(deps, asking, query.get('decidedAfter')?.slice(0, 100) ?? null, {
             after: query.get('after')?.slice(0, 100) ?? null,
             only: change,
+            // Review's Flagged: only what the checks flag for this decider.
+            flagged: query.get('flagged') === '1',
           }),
         );
       },
