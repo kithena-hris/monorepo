@@ -5,7 +5,7 @@ import { sharesCount, sharesToDecide, type ShareDeps } from '../export/share.js'
 import { fullValuesCounts, fullValuesScreen, type FullValuesDeps } from '../export/full-values.js';
 import { flaggedCount } from '../person/flagged.js';
 import { QUEUE_PAGE } from '../person/keyset.js';
-import { approvalsInbox, inboxCounts, type PendingChangeDeps } from '../person/pending-changes.js';
+import { inboxCounts, type PendingChangeDeps } from '../person/pending-changes.js';
 import type { Asking, PersonAccess } from '../person/person-access.js';
 import { actors, duplicateSource } from './people.js';
 import type { ScreenDeps } from './record.js';

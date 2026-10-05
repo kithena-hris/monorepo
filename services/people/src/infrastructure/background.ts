@@ -95,6 +95,10 @@ import { readCacheFrom } from './valkey-read-cache.js';
  *   nothing twice. Beside it, the same tenant's role holders are reported to
  *   identity (`role-report.ts`), the backfill for the consumer's reports.
  *
+ * - **Flag evidence taken again**, hourly, only with the key ring: what every
+ *   waiting change's checks find (`flagged.ts`), since what a change is
+ *   compared with moves while it waits. Review's Flagged counts from it.
+ *
  * - **Duplicate sections folded**, at boot and daily: sections sharing a name
  *   (created before a duplicate name was refused) merged into the first, as a
  *   version the system publishes with its reason (`fold-sections.ts`). With
