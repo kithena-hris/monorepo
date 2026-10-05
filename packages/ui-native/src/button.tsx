@@ -85,9 +85,8 @@ export function Button({
       }}
     >
       <Box className={buttonVariants({ variant, size, disabled, className })} style={animated}>
-        {loading ? (
-          <ActivityIndicator size="small" className={label} />
-        ) : null}
+        {/* Decorative: the button already reports `busy`. */}
+        {loading ? <ActivityIndicator size="small" className={label} aria-hidden /> : null}
         <CssText className={label}>{children}</CssText>
       </Box>
     </Pressable>
