@@ -29,7 +29,7 @@ const room = import.meta.env['CI_RUN'] === true ? Number.POSITIVE_INFINITY : web
 const SCALE_TIMEOUT = 60_000;
 
 const N = 5_000;
-const at = (i: number): string => new Date(Date.UTC(2026, 8, 24) - i * 60_000).toISOString();
+const minutesAgo = (i: number): string => new Date(Date.UTC(2026, 8, 24) - i * 60_000).toISOString();
 
 const idCheck = (i: number): ReviewItem => ({
   personId: `p${String(i)}`,
@@ -38,7 +38,7 @@ const idCheck = (i: number): ReviewItem => ({
   label: 'National ID',
   last4: '123Y',
   findings: [{ level: 'mismatch', code: 'checksum', message: 'does not compute' }],
-  enteredAt: at(i),
+  enteredAt: minutesAgo(i),
   enteredBy: 'Marco Ruiz',
 });
 
@@ -316,7 +316,6 @@ const hasRow = (name: string): boolean =>
 const missingTable = () => screen.getByRole('grid', { name: 'Missing information' });
 /** The queue's list, or null where it is not on the page at all. */
 const listed = (): Element | null => document.querySelector('ul[aria-label="Waiting for a decision"]');
-const shown = (el: Element | null): boolean => el !== null && el.checkVisibility();
 
 describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
   it(
