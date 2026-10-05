@@ -1,15 +1,22 @@
 'use client';
 
-import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
+import {
+  observeElementRect,
+  useVirtualizer,
+  useWindowVirtualizer,
+  type Virtualizer,
+} from '@tanstack/react-virtual';
 import {
   memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
   type JSX,
   type ReactNode,
+  type Ref,
 } from 'react';
 
 import { cn } from '../../lib/cn';
@@ -65,7 +72,19 @@ import { List } from '../list-item/list-item';
  * once at the start when the first page does not fill the view; the caller
  * appends the next page (`usePages`). Each page that lands is said to a
  * screen reader ("20 more loaded").
+ *
+ * ### Bringing an item into view
+ *
+ * Most of a long list is not in the DOM, so an item cannot be scrolled to by
+ * its element. `ref`'s `revealItem` asks the virtualizer instead: an item
+ * out of view is brought to the middle, and one in full view stays where it
+ * is. What a list-and-detail screen needs for the item a link opened.
  */
+export interface VirtualListHandle {
+  /** Scroll the item with this key into view, if it is not; an unknown key does nothing. */
+  revealItem: (key: string) => void;
+}
+
 export interface VirtualRowProps {
   readonly 'data-index': number;
   readonly 'aria-setsize': number;
@@ -118,6 +137,7 @@ export interface VirtualListProps<T> {
   /** On a `self` list, the height goes here. Without a bounded height nothing scrolls. */
   className?: string;
   itemClassName?: string;
+  ref?: Ref<VirtualListHandle>;
 }
 
 /**
@@ -170,6 +190,19 @@ const Drawn = memo(function Drawn<T>({
   renderItem: VirtualListProps<T>['renderItem'];
 }) => ReactNode;
 
+/**
+ * The box's size as the virtualizer follows it, from its first real size on,
+ * as `DataTable`'s: a box with no height yet (not laid out, in a test's DOM)
+ * keeps `initialHeight` and draws the rows that would fill it, not none.
+ */
+const observeSizedRect = (
+  instance: Virtualizer<HTMLDivElement, Element>,
+  cb: (rect: { width: number; height: number }) => void,
+): (() => void) | undefined =>
+  observeElementRect(instance, (rect) => {
+    if (rect.height > 0) cb(rect);
+  });
+
 /** A length React will not print in exponent form: rounded, never negative. */
 const px = (n: number): string => `${String(Math.max(0, Math.round(n)))}px`;
 
@@ -192,6 +225,7 @@ export function VirtualList<T>({
   moreLoaded = moreLoadedDefault,
   className,
   itemClassName,
+  ref,
 }: VirtualListProps<T>): JSX.Element {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLElement | null>(null);
@@ -257,12 +291,41 @@ export function VirtualList<T>({
   // covers the frame a row now waits.
   const options = { estimateSize, overscan, initialRect, gap, useFlushSync: false };
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
-  const inBox = useVirtualizer({ ...options, count: page ? 0 : rows, getScrollElement });
+  const inBox = useVirtualizer({
+    ...options,
+    count: page ? 0 : rows,
+    getScrollElement,
+    observeElementRect: observeSizedRect,
+  });
   const inPage = useWindowVirtualizer({ ...options, count: page ? rows : 0, scrollMargin: margin });
   const virtualizer = page ? inPage : inBox;
 
   const virtualRows = virtualizer.getVirtualItems();
   const offset = page ? margin : 0;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      revealItem: (key) => {
+        const index = items.findIndex((it, i) => itemKey(it, i) === key);
+        if (index < 0) return;
+        const row = Math.floor(index / lanes);
+        // In full view already: left where it is. Otherwise centred, as
+        // DataTable's revealRow does: placed by its estimate, a row taller than
+        // that would end past the edge it was scrolled to.
+        const drawn = listRef.current?.querySelector(`:scope > [data-index="${String(row)}"]`);
+        const box = page ? null : outerRef.current;
+        if (drawn != null) {
+          const r = drawn.getBoundingClientRect();
+          const top = Math.max(box?.getBoundingClientRect().top ?? 0, 0);
+          const bottom = Math.min(box?.getBoundingClientRect().bottom ?? Infinity, window.innerHeight);
+          if (r.top >= top && r.bottom <= bottom) return;
+        }
+        virtualizer.scrollToIndex(row, { align: 'center' });
+      },
+    }),
+    [items, itemKey, virtualizer, lanes, page],
+  );
 
   // A column's rows are the list's own children: measured where they sit,
   // once each at each place. From then on the virtualizer's own observer
@@ -284,6 +347,9 @@ export function VirtualList<T>({
     const box = outerRef.current;
     if (box !== null && 'checkVisibility' in box && !box.checkVisibility()) return;
     for (const li of fresh) {
+      // Not laid out (a test's DOM, a box not drawn yet): its estimate stands.
+      // Measured at nothing, every row fitted and the list drew from the end.
+      if (li.offsetHeight === 0) continue;
       measured.current.set(li, li.dataset['index'] ?? '');
       virtualizer.measureElement(li);
     }

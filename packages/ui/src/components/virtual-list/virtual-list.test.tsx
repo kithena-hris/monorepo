@@ -34,6 +34,14 @@ describe('<VirtualList>', () => {
     }
   });
 
+  it('keeps drawing a window of items while its own box has no height yet', () => {
+    // jsdom lays nothing out: every box is 0 tall, as a browser's is before layout.
+    render(list());
+    expect(screen.getByText('i0')).toBeInTheDocument();
+    expect(screen.getByText('i10')).toBeInTheDocument();
+    expect(screen.queryByText('i500')).toBeNull();
+  });
+
   it('holds a List’s own rows directly, each told its place in the whole list', () => {
     const html = renderToString(
       list({
