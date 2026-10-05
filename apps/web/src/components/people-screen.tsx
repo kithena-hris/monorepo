@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route } from 'next';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
@@ -345,6 +345,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
    * a tab, an order) is a new one that Back undoes.
    */
   const live = useSearchParams();
+  const pathname = usePathname();
   const at = (key: string): string | null => live.get(key);
   // A navigation on its way: noting where the reader is (`noteInAddress`) would
   // rewrite the old address under it, and Next would drop the navigation.
@@ -365,10 +366,22 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   // nor what only the org chart reads: the same address `]` goes to.
   const switchView = (view: string): void => {
     const known = oneOf(view, DIRECTORY_VIEWS, null);
-    // The same page in another view, from the switch in its own header: where
-    // the page is scrolled to stays, so Next is not asked to find the new
-    // view's top, which reads the layout of the page it has just changed.
-    if (known !== null) router.push(viewHref(known, window.location.search), { scroll: false });
+    if (known === null) return;
+    const to = viewHref(known, window.location.search);
+    // The list and the cards are one answer from People drawn two ways, so
+    // between them the address alone changes: no round trip, and the screen
+    // keeps every page it has loaded. A navigation would put the screen in a
+    // new page, which moves the whole of it in the document (restyled and
+    // laid out from nothing) and starts its list again from the first page.
+    // A paged address (`after`) is a different answer, and asks for it.
+    if (route?.component === 'Directory' && known !== 'org-chart' && at('after') === null) {
+      window.history.pushState(null, '', to);
+      return;
+    }
+    // Another screen: where the page is scrolled to stays, so Next is not
+    // asked to find the new view's top, which reads the layout of the page it
+    // has just changed.
+    router.push(to, { scroll: false });
   };
 
   // The import's steps: which upload People holds the file under (§14.2),
@@ -583,7 +596,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           // reader was on, and whose quick look was open, belong to the old one.
           navigate({ after: null, row: null, look: null, ...patch }, mode);
         };
-        const view = leaf === 'cards' ? 'cards' : 'list';
+        // The address as it is now: a switch between list and cards changes
+        // it without asking the server again (`switchView`).
+        const view = pathname.split('/').at(-1) === 'cards' ? 'cards' : 'list';
         const data =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? (load.data as {
