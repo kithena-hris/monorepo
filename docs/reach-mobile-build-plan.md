@@ -188,7 +188,7 @@ tokens, light and dark. If native needs static sRGB, they are generated, and
 **Done when** the drift check (if any) runs in `just lint`, and a token changed
 in `packages/ui` changes the mobile story.
 
-### [ ] RMB-005 — Motion, shared
+### [x] RMB-005 — Motion, shared
 
 Durations (`--r-dur-1…4`), easings (standard, enter, exit), the one gentle
 spring, and `HOVER_OPEN_MS` / `HOVER_CLOSE_MS` come from one module both

@@ -118,3 +118,30 @@ renders with the repo's React 19.3, because react-native-web runs on whatever
 React the page has and the rest of the repository is on 19.3. Pinned exactly,
 because a release candidate's patch can break the build: `nativewind`
 5.0.0-rc.0, `react-native-css` 3.1.0-rc.0, `lightningcss` 1.30.1.
+
+### Motion, one module
+
+`packages/ui/src/lib/motion.ts`, exported as `@reach/ui/motion`, holds every
+duration, easing, the press scale, the popover's travel and the hover timings;
+`spring.ts` beside it holds the springs. Both are pure TypeScript with no DOM
+and no React, which is what lets `@reach/ui-native` import them: the
+dependency-cruiser rule that keeps `packages/ui` out of the native library
+allows exactly those two files. The web reads the same numbers as CSS
+custom properties, and `motion.test.ts` fails when `theme.css` and the module
+disagree, the same trade `spring.test.ts` already makes for the baked springs.
+
+On the phone, `packages/ui-native/src/lib/motion.ts` turns those numbers into
+presets, and nothing else: the press (0.97 at `instant`), the popover in and out
+(the web flyout: 8px out of the side it opens from, a hair of scale, in at
+`normal` on the entrance curve and out at `fast` on the exit), the sheet (in on
+the gentle spring, which is the web's `drawer`, out at `fast`), fade and rise,
+and a layout change on the `move` spring. Under reduced motion, slides and
+sheets become cross-fades, the press becomes a colour change and a layout change
+jumps; spinners stay, because they are meaning. `animate.ts` hands a preset to
+Reanimated (`usePress`, `animateTo`, `useLayoutTransition`), and
+`ReachProvider` decides whether motion is reduced, from the system unless an
+app or a story says otherwise.
+
+The design's own duration scale (`--r-dur-1…4`, 120 to 480ms) was never
+shipped on the web, which runs on 80, 140, 200 and 320. The phone runs on what
+ships, because the alternative is two libraries that move at different speeds.

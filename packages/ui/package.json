@@ -10,6 +10,7 @@
     ".": "./src/index.ts",
     "./styles.css": "./src/styles/index.css",
     "./tokens": "./src/tokens/index.ts",
+    "./motion": "./src/lib/motion.ts",
     "./brand/mark-data-uri": "./src/brand/mark-data-uri.ts",
     "./brand/kithena-mark-data-uri": "./src/brand/kithena-mark-data-uri.ts",
     "./tailwind-preset.css": "./src/styles/preset.css",
