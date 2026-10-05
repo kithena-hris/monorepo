@@ -1,11 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Pressable } from 'react-native';
-import { styled } from 'react-native-css';
-import { ActivityIndicator, Text as CssText } from 'react-native-css/components';
+import { ActivityIndicator, Text as CssText, View } from 'react-native-css/components';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-
-/** The visual box. Animated so the press scale runs on the UI thread. */
-const Box = styled(Animated.View);
 
 export const buttonVariants = cva('flex-row items-center justify-center gap-2 rounded-full', {
   variants: {
@@ -84,11 +80,18 @@ export function Button({
         scale.value = withTiming(1, { duration: PRESS_MS });
       }}
     >
-      <Box className={buttonVariants({ variant, size, disabled, className })} style={animated}>
-        {/* Decorative: the button already reports `busy`. */}
-        {loading ? <ActivityIndicator size="small" className={label} aria-hidden /> : null}
-        <CssText className={label}>{children}</CssText>
-      </Box>
+      {/*
+        The scale lives on a bare Animated.View and the classes on a View inside
+        it. Handing react-native-css an animated style (`styled(Animated.View)`)
+        makes it read shared values during render, which Reanimated warns about.
+      */}
+      <Animated.View style={animated}>
+        <View className={buttonVariants({ variant, size, disabled, className })}>
+          {/* Decorative: the button already reports `busy`. */}
+          {loading ? <ActivityIndicator size="small" className={label} aria-hidden /> : null}
+          <CssText className={label}>{children}</CssText>
+        </View>
+      </Animated.View>
     </Pressable>
   );
 }

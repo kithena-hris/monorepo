@@ -3,6 +3,30 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const { withNativewind } = require('nativewind/metro');
 
+const config = getDefaultConfig(__dirname);
+
+/*
+ * One copy of each of these in the bundle, this app's.
+ *
+ * pnpm gives a workspace package its own peer-resolved copy of a dependency,
+ * so `@reach/ui-native` can reach a second `react-native-css` whenever any peer
+ * differs by a patch version (lightningcss did). That is not a harmless
+ * duplicate: react-native-css's resolver only recognises its *own* files as
+ * internal, rewrites the other copy's `react-native` import back to itself, and
+ * the app dies on start with "Maximum call stack size exceeded" in
+ * `get Dimensions`. Resolving these from the app root makes the copy count one.
+ */
+const SINGLETONS = /^(react|react-native|react-native-css|nativewind|react-native-reanimated|react-native-worklets)(\/|$)/;
+const appRoot = `${__dirname}/package.json`;
+config.resolver.resolveRequest = (context, moduleName, platform) =>
+  context.resolveRequest(
+    SINGLETONS.test(moduleName) && !context.originModulePath.includes('/node_modules/')
+      ? { ...context, originModulePath: appRoot }
+      : context,
+    moduleName,
+    platform,
+  );
+
 // `inlineRem: 16`: react-native-css inlines `rem` at 14 by default, which would
 // make `px-5` 17.5pt here and 20px on the web. One rem, both platforms.
-module.exports = withNativewind(getDefaultConfig(__dirname), { inlineRem: 16 });
+module.exports = withNativewind(config, { inlineRem: 16 });

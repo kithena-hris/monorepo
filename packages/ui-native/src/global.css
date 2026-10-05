@@ -27,6 +27,11 @@
  * Mobile sizes and the mobile type scale (Reach mobile design, `--r-m-*`).
  * Pixel values: a phone's point is the unit, and nothing here should follow a
  * root font size.
+ *
+ * Line heights are unitless ratios written as `calc(line / size)`, which is the
+ * same length everywhere. Not `22px`: react-native-css 3.1.0-rc.0 multiplies a
+ * line height that arrives through a variable by the font size, so `22px`
+ * became 374pt on device while the web drew it correctly.
  */
 @theme {
   --spacing-m-btn: 52px;
@@ -34,33 +39,33 @@
   --spacing-m-tap: 44px;
 
   --text-large: 34px;
-  --text-large--line-height: 41px;
+  --text-large--line-height: calc(41 / 34);
   --text-large--font-weight: 700;
   --text-title1: 28px;
-  --text-title1--line-height: 34px;
+  --text-title1--line-height: calc(34 / 28);
   --text-title1--font-weight: 700;
   --text-title2: 22px;
-  --text-title2--line-height: 28px;
+  --text-title2--line-height: calc(28 / 22);
   --text-title2--font-weight: 700;
   --text-title3: 20px;
-  --text-title3--line-height: 25px;
+  --text-title3--line-height: calc(25 / 20);
   --text-title3--font-weight: 600;
   --text-headline: 17px;
-  --text-headline--line-height: 22px;
+  --text-headline--line-height: calc(22 / 17);
   --text-headline--font-weight: 600;
   --text-body: 17px;
-  --text-body--line-height: 22px;
+  --text-body--line-height: calc(22 / 17);
   --text-body--font-weight: 400;
   --text-callout: 16px;
-  --text-callout--line-height: 21px;
+  --text-callout--line-height: calc(21 / 16);
   --text-callout--font-weight: 400;
   --text-subhead: 15px;
-  --text-subhead--line-height: 20px;
+  --text-subhead--line-height: calc(20 / 15);
   --text-subhead--font-weight: 400;
   --text-footnote: 13px;
-  --text-footnote--line-height: 18px;
+  --text-footnote--line-height: calc(18 / 13);
   --text-footnote--font-weight: 400;
   --text-caption: 12px;
-  --text-caption--line-height: 16px;
+  --text-caption--line-height: calc(16 / 12);
   --text-caption--font-weight: 500;
 }
