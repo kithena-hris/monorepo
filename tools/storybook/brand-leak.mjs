@@ -11,7 +11,10 @@
  * A naming rule that depends on nobody typing the name is not a rule. This is
  * the missing half.
  *
- * Scope is deliberately `apps/docs/src` only. `packages/ui/src/brand` holds
+ * Scope: `apps/docs/src`, and Reach Mobile whole, because its Storybook is
+ * documentation built straight from the library's source: `packages/ui-native`
+ * (components, stories, the design's story list) and `apps/storybook-mobile`.
+ * `packages/ui/src/brand` holds
  * both marks by design — a mark is presentation and nothing else — and
  * `packages/ui` exports their prop types, which is a decision already taken
  * rather than a leak to catch here.
@@ -24,7 +27,12 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
-const docsSource = join(repoRoot, 'apps/docs/src');
+const roots = [
+  'apps/docs/src',
+  'packages/ui-native/src',
+  'packages/ui-native/design',
+  'apps/storybook-mobile/.storybook',
+].map((dir) => join(repoRoot, dir));
 
 /**
  * The product name, and the package scope that only Kithena services use.
@@ -40,6 +48,7 @@ const FORBIDDEN = [
 function* sourceFiles(dir) {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
+    if (entry === 'node_modules') continue;
     if (statSync(full).isDirectory()) {
       yield* sourceFiles(full);
     } else if (/\.(ts|tsx|css|json|md|mdx|html)$/.test(entry)) {
@@ -51,28 +60,33 @@ function* sourceFiles(dir) {
 const findings = [];
 let scanned = 0;
 
-for (const file of sourceFiles(docsSource)) {
-  scanned += 1;
-  const lines = readFileSync(file, 'utf8').split('\n');
-  lines.forEach((line, index) => {
-    for (const { pattern, what } of FORBIDDEN) {
-      if (pattern.test(line)) {
-        findings.push({
-          file: relative(repoRoot, file),
-          line: index + 1,
-          what,
-          text: line.trim().slice(0, 100),
-        });
+const perRoot = new Map(roots.map((root) => [root, 0]));
+for (const root of roots)
+  for (const file of sourceFiles(root)) {
+    scanned += 1;
+    perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
+    const lines = readFileSync(file, 'utf8').split('\n');
+    lines.forEach((line, index) => {
+      for (const { pattern, what } of FORBIDDEN) {
+        if (pattern.test(line)) {
+          findings.push({
+            file: relative(repoRoot, file),
+            line: index + 1,
+            what,
+            text: line.trim().slice(0, 100),
+          });
+        }
       }
-    }
-  });
-}
+    });
+  }
 
 // A check that matched no files is not a passing check. If the directory moves,
 // the loop above finds nothing and reports success for the wrong reason.
-if (scanned === 0) {
-  console.error(`No files scanned under ${relative(repoRoot, docsSource)}. Has the path moved?`);
-  process.exit(1);
+for (const [root, count] of perRoot) {
+  if (count === 0) {
+    console.error(`No files scanned under ${relative(repoRoot, root)}. Has the path moved?`);
+    process.exit(1);
+  }
 }
 
 if (findings.length > 0) {

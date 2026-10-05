@@ -199,7 +199,7 @@ cross-fades, press becomes a colour change, shimmer goes static, spinners stay.
 **Done when** a test asserts the native presets use the shared values, and one
 under reduced motion asserts the swap.
 
-### [ ] RMB-006 — `apps/storybook-mobile`
+### [x] RMB-006 — `apps/storybook-mobile`
 
 Storybook 10.6, `@storybook/react-native-web-vite`, stories from
 `packages/ui-native/src/**/*.stories.tsx`. One viewport, 390 × 844, and no

@@ -1,3 +1,7 @@
+// className on React Native's components, for any program that compiles this
+// package's source (the mobile Storybook's included), not only its own.
+/// <reference types="react-native-css/types" />
+
 export { cn } from './lib/cn.ts';
 export {
   ReachProvider,

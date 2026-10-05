@@ -1,0 +1,55 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import { ReachLogo } from '@reach/ui-native';
+
+<Meta title="Welcome" />
+
+<ReachLogo size="lg" showSubtitle />
+
+# Reach, on a phone
+
+The same design system as the web library, for React Native: the same names, the same props where
+the platform allows, the same tokens and the same motion. Every story here is drawn on one phone,
+390 points wide, in light and dark, and rendered through react-native-web so axe can check it. The
+same components run natively under Metro in the Expo app beside this Storybook.
+
+The name is the rule the system keeps coming back to. Whatever you build with it has to be
+reachable: by a thumb, by a screen reader, and at any text size the person has chosen.
+
+## What is here
+
+- **Foundations**: colour, type, elevation, shape and motion, read from the tokens the web ships.
+- **Components**: the parts, each with a note on why it behaves the way it does.
+- **Forms, Charts, Layouts**: in the same places and under the same titles as the web Storybook.
+- **Accessibility**: axe runs over every story and fails the build. It is a gate, not a checklist.
+
+## Using it
+
+```tsx
+// app entry, once
+import '@reach/ui-native/global.css';
+import { ReachProvider } from '@reach/ui-native';
+
+// at the root
+<ReachProvider>{app}</ReachProvider>;
+
+// anywhere
+import { Button, Icon, Text } from '@reach/ui-native';
+```
+
+What ships is TypeScript source. Metro compiles it in the app and Vite compiles it here, so editing a
+component shows up in the canvas with no build step in between.
+
+## What it stays out of
+
+The system is presentation only. It imports no contract, no domain type and no data client. A
+component takes values and callbacks; a screen decides where they come from.
+
+## Four rules that settle most arguments
+
+1. **Semantic tokens only.** Components consume `bg-surface`, never a raw colour. The phone reads
+   the web's `tokens.css` directly, so the two cannot disagree.
+2. **Under a finger.** 44 points is the smallest target, even where a control looks smaller, and
+   body text is 17.
+3. **Motion explains, and is optional.** Under reduced motion, slides become cross-fades and a press
+   becomes a colour change. Spinners stay: they are meaning.
+4. **Money is never a float.** Minor units in, exact formatting out.
