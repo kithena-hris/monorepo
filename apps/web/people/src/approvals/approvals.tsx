@@ -123,7 +123,10 @@ export interface ApprovalCheck {
 
 export interface ApprovalsState {
   readonly isHr: boolean;
+  /** Waiting, newest first: the first page, or every one from an older People. */
   readonly items: readonly ApprovalItem[];
+  /** The place of the queue's next page; null on the last. Absent from an older People. */
+  readonly itemsNext?: string | null;
   /** HR's: decided in the last 90 days, newest first, the first page. */
   readonly decided?: readonly ApprovalItem[];
   /** The place of Decided's next page; null on the last. Absent from an older People. */

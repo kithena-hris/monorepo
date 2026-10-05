@@ -1176,6 +1176,52 @@ export async function decidedPage(after: string): Promise<unknown> {
   return answer.ok ? VIEWS.Approvals(answer.data) : null;
 }
 
+/** One of Review's decision queues, by the chip that names it. */
+export type QueueKind = 'changes' | 'ids' | 'duplicates' | 'access' | 'exports';
+
+/**
+ * A page of one of Review's decision queues after `after` (the last page's
+ * place), newest first, as the list scrolls: its items as the screen reads
+ * them, and the next page's place.
+ */
+export async function queuePage(
+  kind: QueueKind,
+  after: string,
+): Promise<{ readonly items: readonly unknown[]; readonly next: string | null } | null> {
+  switch (kind) {
+    case 'changes': {
+      const answer = await people<never>('Approvals', { after });
+      if (!answer.ok) return null;
+      const view = VIEWS.Approvals(answer.data) as { items: unknown[]; itemsNext?: string | null };
+      return { items: view.items, next: view.itemsNext ?? null };
+    }
+    case 'ids': {
+      const answer = await people<{ items: unknown[]; next?: string | null }>('IdentifierReviews', {
+        after,
+      });
+      return answer.ok ? { items: answer.data.items, next: answer.data.next ?? null } : null;
+    }
+    case 'duplicates': {
+      const answer = await people<{ items: unknown[]; next?: string | null }>('Duplicates', {
+        after,
+      });
+      return answer.ok ? { items: answer.data.items, next: answer.data.next ?? null } : null;
+    }
+    case 'access': {
+      const answer = await people<{ requests: unknown[]; next?: string | null }>('FullValues', {
+        before: after,
+      });
+      return answer.ok ? { items: answer.data.requests, next: answer.data.next ?? null } : null;
+    }
+    case 'exports': {
+      const answer = await people<string>('ExportSharesWaiting', { after });
+      if (!answer.ok) return null;
+      const page = JSON.parse(answer.data) as { items?: unknown[]; next?: string | null } | null;
+      return { items: page?.items ?? [], next: page?.next ?? null };
+    }
+  }
+}
+
 /** Review's merged records after `after` (the last page's `mergesNext`), as they scroll. */
 export async function mergesPage(after: string): Promise<unknown> {
   const answer = await people<unknown>('Duplicates', { mergesAfter: after });

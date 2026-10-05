@@ -438,6 +438,11 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
   const fillFor = given(search['fill']);
   const named = fillFor === null || fillFor === 'all' ? null : fillFor;
   const shareId = item?.startsWith('export-') === true ? item.slice(7) : null;
+  // The item the address names, read on its own beside each queue's first
+  // page, wherever it is in its queue: a change, a person's ID check, a request.
+  const changeId = item?.startsWith('change-') === true ? item.slice(7) : null;
+  const checked = item?.startsWith('id-') === true ? (item.slice(3).split('~')[0] ?? null) : null;
+  const requestId = item?.startsWith('access-') === true ? item.slice(7) : null;
   const approvals = read('Approvals', {}, VIEWS.Approvals);
   // Every queue, asked beside the roles rather than after them: each read is
   // answered once per request (`people.ts`), so those below find these on
@@ -448,7 +453,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     people('FullValues'),
     people('Completeness'),
     people('Analytics', { segment: null }),
-    people('ExportSharesToDecide'),
+    people('ExportSharesWaiting'),
     people('OwnDecided'),
     people('Waiting'),
   ]);
@@ -474,6 +479,9 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     own,
     person,
     counts,
+    namedChange,
+    namedCheck,
+    namedRequest,
   ] = await Promise.all([
     approvals,
     hr ? read('IdentifierReviews') : null,
@@ -485,29 +493,34 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     // Complete records overall, analytics' own figure, beside the missing details.
     hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
     shareId === null ? null : people<string>('ExportShare', { id: shareId }),
-    // The requests to send an export waiting for this administrator (E5).
-    admin ? people<string>('ExportSharesToDecide') : null,
+    // The requests to send an export waiting for this administrator (E5), a page at a time.
+    admin ? people<string>('ExportSharesWaiting') : null,
     // Anybody but HR: their own requests, decided (E10). HR's Decided is everybody's.
     hr ? null : read('OwnDecided', {}, VIEWS.OwnDecided),
     // Their gaps on their own, so the dialog opens though they are past the first page.
     hr && named !== null ? read('Completeness', { person: named }) : null,
     // Every chip's count, People's over everybody: the shell's own read, shared.
     read('Waiting'),
+    changeId === null ? null : read('Approvals', { change: changeId }, VIEWS.Approvals),
+    hr && checked !== null ? read('IdentifierReviews', { person: checked }) : null,
+    requestId === null || !(hr || finance) ? null : read('FullValues', { request: requestId }),
   ]);
   const down = [changes, identifiers, duplicates, fullValues, completeness].find(
     (l) => l?.status === 'error' && l.unreachable === true,
   );
   if (down != null) return down;
   const missing = ready(completeness);
+  const waiting =
+    shares === null ? null : (jsonOf(shares) as { items?: unknown[]; next?: string | null } | null);
   return {
     status: 'ready',
     data: {
       now: new Date().toISOString(),
       roles: { hr, finance, admin },
-      approvals: ready(changes),
-      identifiers: ready(identifiers),
+      approvals: withNamed(ready(changes), ready(namedChange), 'items'),
+      identifiers: withNamed(ready(identifiers), ready(namedCheck), 'items'),
       duplicates: ready(duplicates),
-      fullValues: ready(fullValues),
+      fullValues: withNamed(ready(fullValues), ready(namedRequest), 'requests'),
       completeness:
         missing === null
           ? null
@@ -516,7 +529,8 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
               complete: analytics?.ok === true ? analytics.data.complete : null,
               named: (ready(person) as { rows?: unknown[] } | null)?.rows ?? null,
             },
-      shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
+      shares: shares === null ? null : (waiting?.items ?? null),
+      sharesNext: waiting?.next ?? null,
       ownDecided: ready(own),
       counts: ready(counts),
       // Somebody else's or gone: said as such in its pane, never as an error page.
@@ -526,6 +540,24 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
           : ((jsonOf(share) as object | null) ?? { state: 'missing', id: shareId }),
     },
   };
+}
+
+/**
+ * A queue's first page with the item a link named added after it, when the
+ * page does not hold it already: the list then shows it open, wherever it is.
+ */
+function withNamed(page: unknown, named: unknown, key: 'items' | 'requests'): unknown {
+  const listed = (page as Record<string, unknown[]> | null)?.[key];
+  const extra = (named as Record<string, unknown[]> | null)?.[key] ?? [];
+  if (!Array.isArray(listed) || extra.length === 0) return page;
+  const idOf = (x: unknown) =>
+    JSON.stringify([
+      (x as { id?: unknown }).id,
+      (x as { personId?: unknown }).personId,
+      (x as { attributeKey?: unknown }).attributeKey,
+    ]);
+  const have = new Set(listed.map(idOf));
+  return { ...(page as object), [key]: [...listed, ...extra.filter((x) => !have.has(idOf(x)))] };
 }
 
 /** A person on a directory page, as People answers one. */
