@@ -228,6 +228,19 @@ describe('the directory, which People answers from the address', () => {
       scroll: false,
     });
   });
+
+  it('moves between the list and the cards in the address alone, the pages loaded kept', () => {
+    const props = open('/people/directory/list?q=ada', 'Directory');
+    expect(props['view']).toBe('list');
+    call(props, 'onViewChange', 'cards');
+    expect(router.push).not.toHaveBeenCalled();
+    expect(window.location.pathname + window.location.search).toBe('/people/directory/cards?q=ada');
+    // The org chart is another screen, with an answer of its own.
+    call(props, 'onViewChange', 'org-chart');
+    expect(router.push).toHaveBeenCalledWith('/people/directory/org-chart?q=ada', {
+      scroll: false,
+    });
+  });
 });
 
 describe('an approved import, which runs on without the page', () => {

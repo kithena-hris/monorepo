@@ -504,6 +504,8 @@ describe(`Every page at ${String(N)} people`, () => {
 
     await clickToPaint(page, 'directory → cards', view(page, 'cards', /^Cards/), {
       path: /\/people\/directory\/cards/,
+      // The cards themselves, not only the address: the switch changes the address first.
+      selector: '[role="list"] [data-person-id]',
     });
     await scrolling(page, 'directory cards', page.locator('main'));
     await clickToPaint(page, 'directory → org chart', view(page, 'org-chart', /^Org chart/), {
