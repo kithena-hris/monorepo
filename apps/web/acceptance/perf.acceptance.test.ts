@@ -67,17 +67,10 @@ const JS_BUDGET_KB: Readonly<Record<string, number>> = {
 
 /**
  * Where a page is still over a target, its own budget: what it measures now,
- * with room, so it cannot get worse unnoticed. Each is a known debt.
- *
- * The move from the Directory's list to its cards swaps a hundred-row table
- * for a grid of cards in one frame: about 50 ms of style and layout and the
- * commit around them, 115–136 ms in all. Wheeling through the cards lands a
- * page of people now and then, and that render is a frame of 50–80 ms.
+ * with room, so it cannot get worse unnoticed. Each is a known debt; there
+ * are none now.
  */
-const OVER_TARGET: Readonly<Record<string, number>> = {
-  'directory → cards': 170,
-  'directory cards': 100,
-};
+const OVER_TARGET: Readonly<Record<string, number>> = {};
 
 let stack: Stack;
 let browser: Browser;
@@ -508,6 +501,11 @@ describe(`Every page at ${String(N)} people`, () => {
       selector: '[role="list"] [data-person-id]',
     });
     await scrolling(page, 'directory cards', page.locator('main'));
+    // The switch is the address alone (no navigation): Back and Forward still move between views.
+    await page.goBack();
+    await page.locator('table tbody tr').first().waitFor();
+    await page.goForward();
+    await page.locator('[role="list"] [data-person-id]').first().waitFor();
     await clickToPaint(page, 'directory → org chart', view(page, 'org-chart', /^Org chart/), {
       path: /\/people\/directory\/org-chart/,
     });
