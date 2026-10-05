@@ -1,6 +1,11 @@
 'use client';
 
-import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
+import {
+  observeElementRect,
+  useVirtualizer,
+  useWindowVirtualizer,
+  type Virtualizer,
+} from '@tanstack/react-virtual';
 import {
   memo,
   useCallback,
@@ -185,6 +190,19 @@ const Drawn = memo(function Drawn<T>({
   renderItem: VirtualListProps<T>['renderItem'];
 }) => ReactNode;
 
+/**
+ * The box's size as the virtualizer follows it, from its first real size on,
+ * as `DataTable`'s: a box with no height yet (not laid out, in a test's DOM)
+ * keeps `initialHeight` and draws the rows that would fill it, not none.
+ */
+const observeSizedRect = (
+  instance: Virtualizer<HTMLDivElement, Element>,
+  cb: (rect: { width: number; height: number }) => void,
+): (() => void) | undefined =>
+  observeElementRect(instance, (rect) => {
+    if (rect.height > 0) cb(rect);
+  });
+
 /** A length React will not print in exponent form: rounded, never negative. */
 const px = (n: number): string => `${String(Math.max(0, Math.round(n)))}px`;
 
@@ -273,7 +291,12 @@ export function VirtualList<T>({
   // covers the frame a row now waits.
   const options = { estimateSize, overscan, initialRect, gap, useFlushSync: false };
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
-  const inBox = useVirtualizer({ ...options, count: page ? 0 : rows, getScrollElement });
+  const inBox = useVirtualizer({
+    ...options,
+    count: page ? 0 : rows,
+    getScrollElement,
+    observeElementRect: observeSizedRect,
+  });
   const inPage = useWindowVirtualizer({ ...options, count: page ? rows : 0, scrollMargin: margin });
   const virtualizer = page ? inPage : inBox;
 
@@ -311,6 +334,9 @@ export function VirtualList<T>({
     const box = outerRef.current;
     if (box !== null && 'checkVisibility' in box && !box.checkVisibility()) return;
     for (const li of fresh) {
+      // Not laid out (a test's DOM, a box not drawn yet): its estimate stands.
+      // Measured at nothing, every row fitted and the list drew from the end.
+      if (li.offsetHeight === 0) continue;
       measured.current.set(li, li.dataset['index'] ?? '');
       virtualizer.measureElement(li);
     }
