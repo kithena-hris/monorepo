@@ -3,69 +3,71 @@
 @import 'tailwindcss/utilities.css';
 @import 'nativewind/theme';
 
-/* The same token file the web system reads. One source of truth. */
+/*
+ * The web system's own token file and its `@theme` block: one source of truth.
+ * Every colour, shadow and radius utility (`bg-surface`, `text-fg-muted`,
+ * `rounded-lg`, `shadow-md`) is the web's, resolving to `var(--reach-*)`, so a
+ * token changed in `packages/ui` changes the phone too, light and dark.
+ */
 @import '../../ui/src/styles/tokens.css';
+@import '../../ui/src/styles/theme.css';
 
 @source './';
 
-@theme inline {
-  --color-canvas: var(--reach-color-canvas);
-  --color-surface: var(--reach-color-surface);
-  --color-fg: var(--reach-color-fg);
-  --color-fg-muted: var(--reach-color-fg-muted);
-  --color-fg-on-accent: var(--reach-color-fg-on-accent);
-  --color-fg-disabled: var(--reach-color-fg-disabled);
-  --color-accent: var(--reach-color-accent);
-  --color-accent-solid: var(--reach-color-accent-solid);
-  --color-accent-subtle: var(--reach-color-accent-subtle);
-  --color-accent-fg: var(--reach-color-accent-fg);
-  --color-surface-sunken: var(--reach-color-surface-sunken);
-  --color-danger-solid: var(--reach-color-danger-solid);
-}
-
 /*
- * Mobile sizes and the mobile type scale (Reach mobile design, `--r-m-*`).
- * Pixel values: a phone's point is the unit, and nothing here should follow a
- * root font size.
- *
- * Line heights are unitless ratios written as `calc(line / size)`, which is the
- * same length everywhere. Not `22px`: react-native-css 3.1.0-rc.0 multiplies a
- * line height that arrives through a variable by the font size, so `22px`
- * became 374pt on device while the web drew it correctly.
+ * The mobile layer, from the same token file (`--reach-m-*`). Utilities named
+ * for the phone so they never shadow a web one: `h-m-btn`, `rounded-m-card`,
+ * `text-body`.
  */
-@theme {
-  --spacing-m-btn: 52px;
-  --spacing-m-btn-sm: 36px;
-  --spacing-m-tap: 44px;
+@theme inline {
+  --spacing-m-margin: var(--reach-m-margin);
+  --spacing-m-tap: var(--reach-m-tap);
+  --spacing-m-btn: var(--reach-m-btn);
+  --spacing-m-btn-sm: var(--reach-m-btn-sm);
+  --spacing-m-field: var(--reach-m-field);
+  --spacing-m-cell: var(--reach-m-cell);
+  --spacing-m-cell-2line: var(--reach-m-cell-2line);
+  --spacing-m-navbar: var(--reach-m-navbar);
+  --spacing-m-tabbar: var(--reach-m-tabbar);
+  --radius-m-card: var(--reach-m-radius-card);
+  --radius-m-sheet: var(--reach-m-radius-sheet);
 
-  --text-large: 34px;
-  --text-large--line-height: calc(41 / 34);
-  --text-large--font-weight: 700;
-  --text-title1: 28px;
-  --text-title1--line-height: calc(34 / 28);
-  --text-title1--font-weight: 700;
-  --text-title2: 22px;
-  --text-title2--line-height: calc(28 / 22);
-  --text-title2--font-weight: 700;
-  --text-title3: 20px;
-  --text-title3--line-height: calc(25 / 20);
-  --text-title3--font-weight: 600;
-  --text-headline: 17px;
-  --text-headline--line-height: calc(22 / 17);
-  --text-headline--font-weight: 600;
-  --text-body: 17px;
-  --text-body--line-height: calc(22 / 17);
-  --text-body--font-weight: 400;
-  --text-callout: 16px;
-  --text-callout--line-height: calc(21 / 16);
-  --text-callout--font-weight: 400;
-  --text-subhead: 15px;
-  --text-subhead--line-height: calc(20 / 15);
-  --text-subhead--font-weight: 400;
-  --text-footnote: 13px;
-  --text-footnote--line-height: calc(18 / 13);
-  --text-footnote--font-weight: 400;
-  --text-caption: 12px;
-  --text-caption--line-height: calc(16 / 12);
-  --text-caption--font-weight: 500;
+  --text-display: var(--reach-m-display);
+  --text-display--line-height: var(--reach-m-display-leading);
+  --text-display--font-weight: var(--reach-m-display-weight);
+  --text-display--letter-spacing: var(--reach-m-display-tracking);
+  --text-large: var(--reach-m-large);
+  --text-large--line-height: var(--reach-m-large-leading);
+  --text-large--font-weight: var(--reach-m-large-weight);
+  --text-large--letter-spacing: var(--reach-m-large-tracking);
+  --text-title1: var(--reach-m-title1);
+  --text-title1--line-height: var(--reach-m-title1-leading);
+  --text-title1--font-weight: var(--reach-m-title1-weight);
+  --text-title1--letter-spacing: var(--reach-m-title1-tracking);
+  --text-title2: var(--reach-m-title2);
+  --text-title2--line-height: var(--reach-m-title2-leading);
+  --text-title2--font-weight: var(--reach-m-title2-weight);
+  --text-title2--letter-spacing: var(--reach-m-title2-tracking);
+  --text-title3: var(--reach-m-title3);
+  --text-title3--line-height: var(--reach-m-title3-leading);
+  --text-title3--font-weight: var(--reach-m-title3-weight);
+  --text-title3--letter-spacing: var(--reach-m-title3-tracking);
+  --text-headline: var(--reach-m-headline);
+  --text-headline--line-height: var(--reach-m-headline-leading);
+  --text-headline--font-weight: var(--reach-m-headline-weight);
+  --text-body: var(--reach-m-body);
+  --text-body--line-height: var(--reach-m-body-leading);
+  --text-body--font-weight: var(--reach-m-body-weight);
+  --text-callout: var(--reach-m-callout);
+  --text-callout--line-height: var(--reach-m-callout-leading);
+  --text-callout--font-weight: var(--reach-m-callout-weight);
+  --text-subhead: var(--reach-m-subhead);
+  --text-subhead--line-height: var(--reach-m-subhead-leading);
+  --text-subhead--font-weight: var(--reach-m-subhead-weight);
+  --text-footnote: var(--reach-m-footnote);
+  --text-footnote--line-height: var(--reach-m-footnote-leading);
+  --text-footnote--font-weight: var(--reach-m-footnote-weight);
+  --text-caption: var(--reach-m-caption);
+  --text-caption--line-height: var(--reach-m-caption-leading);
+  --text-caption--font-weight: var(--reach-m-caption-weight);
 }

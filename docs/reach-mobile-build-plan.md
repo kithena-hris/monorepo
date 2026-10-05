@@ -174,7 +174,7 @@ The package from the spike, made permanent: exports, `cn`, CVA, the providers
 **Done when** `pnpm boundaries` fails on a deliberate bad import and passes
 without it.
 
-### [ ] RMB-004 — Tokens, one source
+### [x] RMB-004 — Tokens, one source
 
 Colours, shadows, radii, the mobile sizes (`--r-m-margin`, `-tap`, `-btn`,
 `-field`, `-cell`, `-navbar`, `-tabbar`, `-radius-card`, `-radius-sheet`) and
