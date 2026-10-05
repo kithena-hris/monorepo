@@ -250,7 +250,12 @@ export function VirtualList<T>({
   const getScrollElement = useCallback(() => outerRef.current, []);
   const estimateSize = useCallback(() => estimateItemHeight, [estimateItemHeight]);
   const initialRect = { width: 0, height: initialHeight };
-  const options = { estimateSize, overscan, initialRect, gap };
+  // Rendered with the frame, not inside each scroll event: the virtualizer's
+  // default re-renders synchronously on every event (`flushSync`), and each
+  // commit forced a layout of the page. A grid of cards wheeled through laid
+  // the page out 87 times in two seconds, frames up to 85 ms. The overscan
+  // covers the frame a row now waits.
+  const options = { estimateSize, overscan, initialRect, gap, useFlushSync: false };
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inBox = useVirtualizer({ ...options, count: page ? 0 : rows, getScrollElement });
   const inPage = useWindowVirtualizer({ ...options, count: page ? rows : 0, scrollMargin: margin });
@@ -269,13 +274,17 @@ export function VirtualList<T>({
     // A list not drawn (a phone's, hidden at a desk) has no heights to give:
     // measured, every row is 0 tall, all of them fit, and each one drawn and
     // measured asked for more until React stopped it (five thousand rows).
+    // Which rows are new is a DOM query; whether the list is drawn is a style
+    // read, so it is asked only when there is something to measure.
+    const drawn = listRef.current?.querySelectorAll<HTMLElement>(':scope > [data-index]') ?? [];
+    const fresh = [...drawn].filter(
+      (li) => measured.current.get(li) !== (li.dataset['index'] ?? ''),
+    );
+    if (fresh.length === 0) return;
     const box = outerRef.current;
     if (box !== null && 'checkVisibility' in box && !box.checkVisibility()) return;
-    const drawn = listRef.current?.querySelectorAll<HTMLElement>(':scope > [data-index]') ?? [];
-    for (const li of drawn) {
-      const at = li.dataset['index'] ?? '';
-      if (measured.current.get(li) === at) continue;
-      measured.current.set(li, at);
+    for (const li of fresh) {
+      measured.current.set(li, li.dataset['index'] ?? '');
       virtualizer.measureElement(li);
     }
   });
@@ -286,12 +295,14 @@ export function VirtualList<T>({
   end.current = onEndReached;
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
-    // A list not drawn (a phone's, hidden at a desk) asks for nothing.
+    if (!wantsEnd || rows === 0 || lastDrawn < rows - 1 - Math.ceil(AHEAD / lanes)) return;
+    // A list not drawn (a phone's, hidden at a desk) asks for nothing. Asked
+    // only near the end: the question is a style and layout read, and this
+    // runs on every row a scroll brings, so asked first it laid the page out
+    // on every step of a scroll (700 ms over two seconds of a grid of cards).
     const box = outerRef.current;
     if (box !== null && 'checkVisibility' in box && !box.checkVisibility()) return;
-    if (wantsEnd && rows > 0 && lastDrawn >= rows - 1 - Math.ceil(AHEAD / lanes)) {
-      end.current?.();
-    }
+    end.current?.();
   }, [wantsEnd, lastDrawn, rows, lanes]);
 
   // "20 more loaded", as each page lands.

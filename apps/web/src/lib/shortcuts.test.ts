@@ -7,11 +7,11 @@ import {
   adjacentPage,
   destinationOf,
   effective,
-  prefsFrom,
   problemIn,
   problemWith,
   spoken,
 } from './shortcuts';
+import { prefsFrom } from './shortcut-prefs';
 
 describe('the shortcut table', () => {
   it('has no collisions: no two shortcuts share keys, and none starts another', () => {

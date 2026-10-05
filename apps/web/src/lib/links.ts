@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { PrefetchKind } from 'next/dist/client/components/router-reducer/router-reducer-types';
 import { useEffect } from 'react';
 
+import { warmRemotes } from '../components/remote-screen';
 import { DIRECTORY_VIEWS, viewHref } from './shortcuts';
 import { currentPlace, matchPath, type Place } from './remotes';
 
@@ -69,7 +70,8 @@ function inAppLink(target: EventTarget | null, origin: string): string | null {
  * what is already here. On intent rather than on sight: every prefetch is a
  * page rendered on the server, and a screen full of rows would be a storm.
  * Only where `isPage` says there is a page: prefetching a route handler would
- * run it — a download, an export — on a hover.
+ * run it — a download, an export — on a hover. The remotes' screens that are
+ * not loaded yet are fetched on the same intent (`warmRemotes`).
  */
 export function useInAppLinks(isPage: (path: string) => boolean): void {
   const router = useRouter();
@@ -85,7 +87,10 @@ export function useInAppLinks(isPage: (path: string) => boolean): void {
       const href = inAppLink(event.target, window.location.origin);
       if (href === null || href === warmed) return;
       warmed = href;
-      if (isPage(new URL(href, window.location.origin).pathname)) prefetchPage(router, href);
+      if (!isPage(new URL(href, window.location.origin).pathname)) return;
+      prefetchPage(router, href);
+      // The screen's code too, when its remote splits screens into chunks.
+      warmRemotes();
     };
     document.addEventListener('click', follow);
     for (const type of ['pointerover', 'focusin', 'touchstart'] as const) {
@@ -115,7 +120,11 @@ export interface WarmArea {
  * sidebar's sections: each is a screen with reads of its own, fetched on
  * intent (`useInAppLinks`).
  */
-export function pagesToWarm(pathname: string, search: string, areas: readonly WarmArea[]): string[] {
+export function pagesToWarm(
+  pathname: string,
+  search: string,
+  areas: readonly WarmArea[],
+): string[] {
   const pages = new Set<string>();
   for (const { places, routes } of areas) {
     const route = matchPath(routes, pathname)?.path ?? null;

@@ -4,6 +4,7 @@ import {
   Fragment,
   createContext,
   memo,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -384,6 +385,33 @@ function buildSpine(
   return current;
 }
 
+/**
+ * How many cards a chart opens with, at most, when nobody said what to fold.
+ *
+ * Every card is a box in a laid-out tree, so a chart of a thousand drew a
+ * thousand on arrival (1.5 s at a thousand people), most of them screens away.
+ * So it opens whole levels from the top while they fit, and folds the last
+ * level it shows: a company of 80 opens whole, one of 10,000 with its top two
+ * levels, and every branch is a press away. Search and focus still reach
+ * anybody.
+ */
+const OPENING_CARDS = 100;
+
+function openingCollapsed(nodes: readonly OrgNode[]): readonly string[] {
+  if (nodes.length <= OPENING_CARDS) return [];
+  let level = buildTree(nodes).roots;
+  let shown = level.length;
+  for (;;) {
+    const next = level.flatMap((tree) => tree.children);
+    if (next.length === 0) return [];
+    if (shown + next.length > OPENING_CARDS) {
+      return level.filter((tree) => tree.children.length > 0).map((tree) => tree.node.id);
+    }
+    shown += next.length;
+    level = next;
+  }
+}
+
 /** Depth-first, skipping the reports of anything collapsed. Navigation order. */
 function flatten(roots: readonly TreeNode[], collapsed: ReadonlySet<string>): VisibleRow[] {
   const rows: VisibleRow[] = [];
@@ -477,7 +505,7 @@ export function OrgChart({
   ...events
 }: OrgChartProps): JSX.Element {
   const [uncontrolledCollapsed, setUncontrolledCollapsed] = useState<readonly string[]>(
-    defaultCollapsed ?? [],
+    () => defaultCollapsed ?? (collapsed === undefined ? openingCollapsed(nodes) : []),
   );
   const [uncontrolledFocus, setUncontrolledFocus] = useState<string | null>(defaultFocusId);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -1145,11 +1173,66 @@ export function OrgChart({
 
   // Counted once, not once per row. `nodes.filter` inside a map over `nodes`
   // is O(n squared), which is invisible at 24 people and not at 4,000.
-  const directReports = new Map<string, number>();
-  for (const node of nodes) {
-    if (node.parentId === undefined) continue;
-    directReports.set(node.parentId, (directReports.get(node.parentId) ?? 0) + 1);
-  }
+  //
+  // And the table of everybody, for a screen reader, made once per roster:
+  // six elements a person, 12,000 at 2,000 people, which every hover, zoom
+  // step and drag frame re-rendered when it was written in the body below.
+  const { csvRows, peopleTable } = useMemo(() => {
+    const reports = new Map<string, number>();
+    for (const node of nodes) {
+      if (node.parentId === undefined) continue;
+      reports.set(node.parentId, (reports.get(node.parentId) ?? 0) + 1);
+    }
+    return {
+      csvRows: nodes.map((node) => ({ label: node.name, value: reports.get(node.id) ?? 0 })),
+      peopleTable: (
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Title</th>
+              <th scope="col">Reports to</th>
+              <th scope="col">Direct reports</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {nodes.map((node) => (
+              <tr key={node.id}>
+                <th scope="row">{node.name}</th>
+                <td>{node.title ?? '—'}</td>
+                <td>{nodeIndex.get(node.parentId ?? '')?.name ?? '—'}</td>
+                <td>{reports.get(node.id) ?? 0}</td>
+                <td>{node.status ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ),
+    };
+  }, [nodes, nodeIndex, label]);
+  // Drawn after the chart, when the browser is idle and in a transition React
+  // can pause, so a press that opens the chart never waits for it. Not on the
+  // server either, so the first render in the browser matches the HTML.
+  const [described, setDescribed] = useState(false);
+  useEffect(() => {
+    const describe = (): void => {
+      startTransition(() => {
+        setDescribed(true);
+      });
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(describe, { timeout: 2000 });
+      return () => {
+        window.cancelIdleCallback(id);
+      };
+    }
+    const id = setTimeout(describe, 200);
+    return () => {
+      clearTimeout(id);
+    };
+  }, []);
   const draggingNode = nodeById(draggingId);
   /** The copy that follows the pointer, so a drop can glide from where it is. */
   const dragOverlay = useRef<HTMLDivElement | null>(null);
@@ -1459,10 +1542,7 @@ export function OrgChart({
         label={label}
         // The CSV of an org chart is its headcount by manager, which is the
         // number people are usually right-clicking to get at.
-        rows={nodes.map((node) => ({
-          label: node.name,
-          value: directReports.get(node.id) ?? 0,
-        }))}
+        rows={csvRows}
         {...(menuItems ? { menuItems } : {})}
         className={cn('w-full', className)}
       >
@@ -1661,30 +1741,18 @@ export function OrgChart({
           </div>
         )}
 
-        <div className="sr-only">
-          <table>
-            <caption>{label}</caption>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Title</th>
-                <th scope="col">Reports to</th>
-                <th scope="col">Direct reports</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {nodes.map((node) => (
-                <tr key={node.id}>
-                  <th scope="row">{node.name}</th>
-                  <td>{node.title ?? '—'}</td>
-                  <td>{nodeIndex.get(node.parentId ?? '')?.name ?? '—'}</td>
-                  <td>{directReports.get(node.id) ?? 0}</td>
-                  <td>{node.status ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/*
+          Read by a screen reader, never drawn: off the page, where
+          `content-visibility: auto` lets the browser skip laying it out
+          while it stays in the accessibility tree. Merely clipped to a pixel
+          (`sr-only`) it was laid out whole on every layout of the page,
+          70 ms a time at 2,000 people.
+        */}
+        <div
+          className="sr-only"
+          style={{ insetInlineStart: '-100000px', top: 0, contentVisibility: 'auto' }}
+        >
+          {described ? peopleTable : null}
         </div>
       </ChartFrame>
     </OrgContext.Provider>
