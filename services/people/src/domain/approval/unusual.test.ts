@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
 import {
   ALL_CHECKS,
@@ -6,6 +7,10 @@ import {
   DEFAULT_CHECKS,
   evidenceOf,
   flaggedNow,
+  isCheckCode,
+  MANAGER_PAY,
+  payReach,
+  payReadable,
   rowSummary,
   unusual,
   type Around,
@@ -414,5 +419,87 @@ describe('what is kept of a change’s flags, and what it says to each decider',
     expect(kept(big, { colleagues: { name: 'Nora' }, at: WORKDAY })).toEqual([
       { code: 'raise', magnitude: '38' },
     ]);
+  });
+});
+
+describe('pay a decider reads only through a reporting line (MANAGER_PAY)', () => {
+  const define = (
+    key: string,
+    visibility: AttributeDefinitionInput['visibility'],
+    over: Partial<AttributeDefinitionInput> = {},
+  ) =>
+    AttributeDefinition.parse({
+      key,
+      sectionKey: 'pay',
+      label: { default: key },
+      dataType: 'money',
+      typeConfig: { kind: 'money' },
+      requiredness: { mode: 'never' },
+      ownership: ['hr'],
+      visibility,
+      collectAt: 'hr_only',
+      classification: {
+        classification: 'confidential',
+        piiKind: 'none',
+        exportable: true,
+        aiEligible: false,
+      },
+      classificationSource: 'human',
+      origin: 'tenant',
+      ...over,
+    });
+  const definitions = [
+    define('hr_pay', ['self', 'hr']),
+    define('chain_pay', ['self', 'manager', 'manager_chain']),
+    define('direct_pay', ['self', 'manager']),
+    define('finance_pay', ['self', 'finance']),
+  ];
+  // An HR decider, as their tenant roles make them to everybody.
+  const hr = { isHr: true, isFinance: false, isAdmin: false };
+  const stranger = { direct: false, chain: false };
+  const manager = { direct: true, chain: true };
+  const above = { direct: false, chain: true };
+
+  it('is a company setting beside the checks, on unless switched off', () => {
+    expect(MANAGER_PAY).toEqual({
+      code: 'manager_pay',
+      title: 'Pay that only a person’s manager can see',
+      detail: 'Count it in Flagged for the managers who can',
+      on: true,
+    });
+    expect(isCheckCode(MANAGER_PAY.code)).toBe(false);
+  });
+
+  it('counted, is read on exactly the people the line reaches', () => {
+    const reach = payReach(definitions, hr, true);
+    expect(reach).toEqual({ everyone: ['hr_pay'], chain: ['chain_pay'], direct: ['direct_pay'] });
+    expect(payReadable(reach, 'hr_pay', stranger)).toBe(true);
+    expect(payReadable(reach, 'chain_pay', manager)).toBe(true);
+    expect(payReadable(reach, 'chain_pay', above)).toBe(true);
+    expect(payReadable(reach, 'chain_pay', stranger)).toBe(false);
+    expect(payReadable(reach, 'direct_pay', manager)).toBe(true);
+    expect(payReadable(reach, 'direct_pay', above)).toBe(false);
+    // Nobody reads it, whoever they are to the person.
+    expect(payReadable(reach, 'finance_pay', manager)).toBe(false);
+  });
+
+  it('left out, is read only where the decider reads it on everybody', () => {
+    const reach = payReach(definitions, hr, false);
+    expect(reach).toEqual({ everyone: ['hr_pay'], chain: [], direct: [] });
+    expect(payReadable(reach, 'chain_pay', manager)).toBe(false);
+    expect(payReadable(reach, 'direct_pay', manager)).toBe(false);
+    expect(payReadable(reach, 'hr_pay', stranger)).toBe(true);
+  });
+
+  it('never counts a custom rule: a count could not say whom it holds for', () => {
+    const ruled = define('ruled_pay', ['self'], {
+      visibilityRules: [
+        {
+          scopes: ['hr', 'manager'],
+          when: { combine: 'all', clauses: [{ operand: 'country', in: ['ES'] }] },
+        },
+      ],
+    });
+    expect(payReach([ruled], hr, true)).toEqual({ everyone: [], chain: [], direct: [] });
   });
 });
