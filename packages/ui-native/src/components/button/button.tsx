@@ -116,17 +116,23 @@ export type ButtonProps = ButtonVariants & {
   loading?: boolean;
   /** Screen-reader text for the spinner. */
   loadingLabel?: string;
-  /** An `<Icon>`. The button sizes and colours it. */
-  startIcon?: ReactElement<IconProps>;
-  endIcon?: ReactElement<IconProps>;
+  /**
+   * An `<Icon>`, or anything drawn at a `size` in a `tone` (the Reach mark).
+   * The button sizes and colours it unless it says otherwise.
+   */
+  startIcon?: ReactElement<ButtonGlyph>;
+  endIcon?: ReactElement<ButtonGlyph>;
   /** Required for an icon-only button; otherwise the label is read. */
   accessibilityLabel?: string;
   /** Placement in the layout around it (`flex-1` in a row of two). The look is the variant's. */
   className?: string | undefined;
 };
 
+/** What a button needs of its icon: a size and a tone it can set. */
+type ButtonGlyph = { size?: number | undefined; tone?: IconProps['tone'] };
+
 function sized(
-  icon: ReactElement<IconProps> | undefined,
+  icon: ReactElement<ButtonGlyph> | undefined,
   size: number,
   iconTone: IconProps['tone'],
 ) {

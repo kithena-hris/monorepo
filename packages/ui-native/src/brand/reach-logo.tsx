@@ -146,7 +146,7 @@ export function ReachLogo({
       accessibilityLabel="Reach"
       role="img"
       aria-label="Reach"
-      className={cn('flex-row items-center self-start', className)}
+      className={cn('flex-row items-center', className)}
       style={{ gap: Math.round(side * 0.36) }}
     >
       <ReachMark size={side} tile={tone} />

@@ -224,7 +224,7 @@ layout primitives (`Stack`, `Inline`, `Split`, `AutoGrid`, `Container`,
 
 **Done when** their stories match `ref/` side by side and pass axe.
 
-### [ ] RMB-008 — Foundations stories
+### [x] RMB-008 — Foundations stories
 
 `Foundations/Tokens`, `Motion`, `Typography`, `Icons`, `App marks`, `Brand`
 (the Reach mark and lockup only), `Responsive`. `Patterns` waits for lane P.
