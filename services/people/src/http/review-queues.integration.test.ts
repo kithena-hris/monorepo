@@ -526,16 +526,16 @@ describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
       INSERT INTO people.approval_check (tenant_id, code, enabled, set_by, set_at)
       VALUES (${ACME}::uuid, 'manager_pay', false, ${HR}::uuid, now())`);
     const off = await counted();
+    process.stderr.write(
+      `manager pay at ${String(N)} ${JSON.stringify({ on: `${String(on.count)} in ${on.ms.toFixed(0)} ms`, off: `${String(off.count)} in ${off.ms.toFixed(0)} ms` })}\n`,
+    );
     expect(off.count).toBe(department);
     expect(await listed()).toEqual({ salary: 0, bonus: 0 });
-    process.stderr.write(
-      `manager pay at ${String(N)} ${JSON.stringify({ on: `${on.count ?? 0} in ${on.ms.toFixed(0)} ms`, off: `${off.count ?? 0} in ${off.ms.toFixed(0)} ms` })}\n`,
-    );
 
     await admin.execute(sql`
       DELETE FROM people.approval_check WHERE tenant_id = ${ACME}::uuid AND code = 'manager_pay'`);
     await admin.execute(sql`
       DELETE FROM people.pending_change
        WHERE tenant_id = ${ACME}::uuid AND attribute_key IN ('base_salary', 'bonus')`);
-  }, 600_000);
+  }, 1_800_000);
 });

@@ -42,18 +42,24 @@ function payReadSql(tenantId: string, where: FlaggedWhere): SQL {
  * recent mark of the same requester's no smaller than it. The in-memory store
  * runs `flaggedNow` itself; `approvals.test.ts` and, against Postgres at a
  * company's scale, `review-queues.integration.test.ts` hold them to one answer.
+ *
+ * Whether pay is read stands beside the evidence's subquery, not inside it:
+ * nested, the planner charged the reporting line's walk to every change and
+ * joined people by a nested loop (5 s at 10,000 waiting, against 22 ms).
  */
 function flaggedSql(tenantId: string, where: FlaggedWhere) {
-  return sql`jsonb_array_length(c.flag_evidence) > 0 AND EXISTS (
+  const fires = (which: SQL) => sql`EXISTS (
     SELECT 1 FROM jsonb_to_recordset(c.flag_evidence) AS e(code text, magnitude numeric)
-     WHERE e.code = ANY(${sql.param([...where.enabled])}::text[])
-       AND (e.code NOT IN ('raise', 'band') OR ${payReadSql(tenantId, where)})
+     WHERE e.code = ANY(${sql.param([...where.enabled])}::text[]) AND ${which}
        AND NOT EXISTS (
          SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(where.marks)}::jsonb)
                     AS m(code text, "requestedBy" uuid, magnitude numeric, at timestamptz)
           WHERE m.code = e.code AND m."requestedBy" = c.requested_by
             AND m.at >= ${where.at}::timestamptz - make_interval(days => ${MARK_DAYS})
             AND (e.magnitude IS NULL OR m.magnitude IS NULL OR e.magnitude <= m.magnitude)))`;
+  return sql`jsonb_array_length(c.flag_evidence) > 0
+    AND (${fires(sql`e.code NOT IN ('raise', 'band')`)}
+         OR (${payReadSql(tenantId, where)} AND ${fires(sql`e.code IN ('raise', 'band')`)}))`;
 }
 
 /**
