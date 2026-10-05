@@ -138,7 +138,8 @@ export function inMemoryShareStore(): ShareStore & { readonly rows: Map<string, 
       ),
     waiting: (_tx, tenantId, at, limit, newest) => {
       const waiting = [...rows.values()].filter(
-        (q) => q.tenantId === tenantId && q.approval.state === 'pending' && q.approval.expiresAt > at,
+        (q) =>
+          q.tenantId === tenantId && q.approval.state === 'pending' && q.approval.expiresAt > at,
       );
       const place = (q: ShareRequest) => ({ at: q.approval.requestedAt, id: q.approval.id });
       return Promise.resolve(

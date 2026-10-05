@@ -772,14 +772,15 @@ export async function approvalsView(
     const now = deps.clock.instant();
     const since = new Date(Date.parse(now) - NINETY_DAYS_MS).toISOString();
     const place = decidedAfter === null ? null : DECIDED_CURSOR.exec(decidedAfter);
-    const read = isHr && !queueOnly
-      ? await pending.store.decided(tx, asking.tenantId, {
-          since,
-          until: now,
-          limit: DECIDED_PAGE + 1,
-          ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
-        })
-      : [];
+    const read =
+      isHr && !queueOnly
+        ? await pending.store.decided(tx, asking.tenantId, {
+            since,
+            until: now,
+            limit: DECIDED_PAGE + 1,
+            ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
+          })
+        : [];
     const decided = read.slice(0, DECIDED_PAGE);
     const lastDecided = decided.at(-1);
     const decidedNext =

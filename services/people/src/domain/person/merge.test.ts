@@ -89,9 +89,9 @@ describe('ranking the candidates', () => {
   });
 
   it('never pairs a record with itself', () => {
-    expect(candidates([{ a: A, b: A, signal: 'work_email', attributeKey: null }], new Set())).toEqual(
-      [],
-    );
+    expect(
+      candidates([{ a: A, b: A, signal: 'work_email', attributeKey: null }], new Set()),
+    ).toEqual([]);
   });
 });
 
@@ -186,9 +186,9 @@ describe('undoing a merge', () => {
 
   it('is refused for a record that was not merged, or merged somewhere else', () => {
     expect(unmergeRefusal(snapshot(B), survivor, false)?.code).toBe('UNMERGE_NOT_MERGED');
-    expect(unmergeRefusal(snapshot(B, { status: 'merged', mergedInto: C }), survivor, false)?.code).toBe(
-      'UNMERGE_NOT_MERGED',
-    );
+    expect(
+      unmergeRefusal(snapshot(B, { status: 'merged', mergedInto: C }), survivor, false)?.code,
+    ).toBe('UNMERGE_NOT_MERGED');
   });
 
   it('is refused once the tombstone was erased: there is nothing left to give back', () => {
@@ -247,9 +247,20 @@ describe('what an undo reverses on the survivor', () => {
 
   it('keeps a value changed since the merge, and says so, rather than clobbering it', () => {
     const edited = row('h4', 'given_name', 'Ada L.', '2026-09-27', '2026-09-27T09:00:00Z');
-    const corrected = row('h5', 'work_phone', '+34 601', '2026-09-26', '2026-09-27T09:00:00Z', 'h3');
+    const corrected = row(
+      'h5',
+      'work_phone',
+      '+34 601',
+      '2026-09-26',
+      '2026-09-27T09:00:00Z',
+      'h3',
+    );
     expect(
-      unmergePlan({ given_name: 'h2', work_phone: 'h3' }, [before, merge, phone, edited, corrected], new Set()),
+      unmergePlan(
+        { given_name: 'h2', work_phone: 'h3' },
+        [before, merge, phone, edited, corrected],
+        new Set(),
+      ),
     ).toEqual({
       reverse: [],
       kept: ['given_name', 'work_phone'],
@@ -258,9 +269,9 @@ describe('what an undo reverses on the survivor', () => {
 
   it('reads a backdated change recorded since as what stood before, not as a change to keep', () => {
     const backdated = row('h6', 'given_name', 'Ada K.', '2026-06-01', '2026-09-27T09:00:00Z');
-    expect(unmergePlan({ given_name: 'h2' }, [before, merge, backdated], new Set()).reverse).toEqual([
-      { key: 'given_name', supersedes: 'h2', value: 'Ada K.' },
-    ]);
+    expect(
+      unmergePlan({ given_name: 'h2' }, [before, merge, backdated], new Set()).reverse,
+    ).toEqual([{ key: 'given_name', supersedes: 'h2', value: 'Ada K.' }]);
   });
 
   it('keeps a key whose row is gone, having nothing to supersede', () => {

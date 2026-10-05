@@ -94,7 +94,8 @@ const duplicates = (n: number): DuplicateStore => {
     attributeKey: null,
   }));
   return {
-    signals: (_tx, _tenant, limit) => Promise.resolve(limit === null ? rows : rows.slice(0, limit)),
+    signals: (_tx: unknown, _tenant: string, limit: number | null) =>
+      Promise.resolve(limit === null ? rows : rows.slice(0, limit)),
     decided: () => Promise.resolve(new Set()),
   } as unknown as DuplicateStore;
 };
@@ -149,7 +150,7 @@ async function setup() {
     tenantId: TENANT,
     personId: TOM,
     attributeKey: 'department',
-    kind: 'set',
+    kind: 'value',
     sealed: false,
     value: `team ${String(i)}`,
     last4: null,

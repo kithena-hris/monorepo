@@ -6,11 +6,7 @@ import { sharesCount, sharesToDecide, type ShareDeps } from '../export/share.js'
 import { fullValuesCounts, fullValuesScreen, type FullValuesDeps } from '../export/full-values.js';
 import { flagChange, looking } from '../person/approval-flags.js';
 import { QUEUE_PAGE } from '../person/keyset.js';
-import {
-  approvalsInbox,
-  inboxCounts,
-  type PendingChangeDeps,
-} from '../person/pending-changes.js';
+import { approvalsInbox, inboxCounts, type PendingChangeDeps } from '../person/pending-changes.js';
 import type { Asking, PersonAccess } from '../person/person-access.js';
 import { actors, duplicateSource } from './people.js';
 import type { ScreenDeps } from './record.js';
@@ -78,10 +74,16 @@ export async function waitingView(
   // `inboxCounts`): the lists page, and a count read off a page was the page.
   // Who asked is read off each list's first page.
   const admin = deps.shares !== undefined && roles.has('people_admin');
-  const shares = admin && deps.shares !== undefined ? await sharesToDecide(tx, deps.shares, asking) : null;
-  const exports = admin && deps.shares !== undefined ? await sharesCount(tx, deps.shares, asking) : null;
+  const shares =
+    admin && deps.shares !== undefined ? await sharesToDecide(tx, deps.shares, asking) : null;
+  const exports =
+    admin && deps.shares !== undefined ? await sharesCount(tx, deps.shares, asking) : null;
   const exportsBy =
-    shares?.ok === true ? distinct(shares.value.map((s) => s.requestedBy.name)) : exports === null ? null : [];
+    shares?.ok === true
+      ? distinct(shares.value.map((s) => s.requestedBy.name))
+      : exports === null
+        ? null
+        : [];
   if (!roles.has('hr') && !roles.has('finance')) {
     return ok({
       identifiers: null,

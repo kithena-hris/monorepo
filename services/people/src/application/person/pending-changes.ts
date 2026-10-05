@@ -841,7 +841,9 @@ export async function approvalsInbox(
       one !== null &&
       one.approval.state === 'pending' &&
       (everyone.isHr || one.approval.requestedBy === me);
-    return listed ? inboxOf(tx, deps, asking, everyone.isHr, version, [one], null) : ok({ isHr: everyone.isHr, items: [], next: null });
+    return listed
+      ? inboxOf(tx, deps, asking, everyone.isHr, version, [one], null)
+      : ok({ isHr: everyone.isHr, items: [], next: null });
   }
   const read = await deps.store.open(tx, asking.tenantId, {
     ...(everyone.isHr ? {} : { requestedBy: me }),
@@ -871,7 +873,11 @@ async function inboxOf(
   open: readonly PendingChange[],
   next: Keyset | null,
 ): Promise<
-  Result<{ readonly isHr: boolean; readonly items: readonly InboxItem[]; readonly next: Keyset | null }>
+  Result<{
+    readonly isHr: boolean;
+    readonly items: readonly InboxItem[];
+    readonly next: Keyset | null;
+  }>
 > {
   const everyone = { isHr };
   const me = asking.viewer.accountId;

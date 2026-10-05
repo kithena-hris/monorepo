@@ -1112,7 +1112,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       }),
       changes: t.exposeInt('changes', {
         nullable: true,
-        description: 'Changes in HR’s Waiting tab: all but the viewer’s own that wait on somebody else.',
+        description:
+          'Changes in HR’s Waiting tab: all but the viewer’s own that wait on somebody else.',
       }),
       exports: t.exposeInt('exports', {
         nullable: true,
@@ -3658,7 +3659,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
             'Decided’s next page, from the last page’s `decidedNext`; the queue is left out.',
         }),
         after: t.arg.string({
-          description: 'The queue’s next page, from the last page’s `itemsNext`; Decided is left out.',
+          description:
+            'The queue’s next page, from the last page’s `itemsNext`; Decided is left out.',
         }),
         change: t.arg.id({ description: 'One change alone, wherever it is in the queue.' }),
       },
@@ -3680,13 +3682,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         after: t.arg.string({ description: 'The next page, from the last page’s `next`.' }),
         person: t.arg.id({ description: 'One person’s alone, wherever they are in the queue.' }),
       },
-      resolve: view<IdentifierReviewsView>((args: { after?: string | null; person?: string | null }) => {
-        const query = new URLSearchParams();
-        if (args.after) query.set('after', args.after);
-        if (args.person) query.set('person', args.person);
-        const qs = query.toString();
-        return `/v1/views/identifier-reviews${qs === '' ? '' : `?${qs}`}`;
-      }),
+      resolve: view<IdentifierReviewsView>(
+        (args: { after?: string | null; person?: string | null }) => {
+          const query = new URLSearchParams();
+          if (args.after) query.set('after', args.after);
+          if (args.person) query.set('person', args.person);
+          const qs = query.toString();
+          return `/v1/views/identifier-reviews${qs === '' ? '' : `?${qs}`}`;
+        },
+      ),
     }),
     peopleIdentifierCheck: t.field({
       type: FindingsRef,

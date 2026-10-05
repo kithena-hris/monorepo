@@ -815,7 +815,8 @@ export async function sharesPage(
   asking: Asking,
   after: Keyset | null,
 ): Promise<Result<{ readonly items: readonly ShareView[]; readonly next: Keyset | null }>> {
-  if (!effectiveRoles(asking.viewer.roles).has('people_admin')) return ok({ items: [], next: null });
+  if (!effectiveRoles(asking.viewer.roles).has('people_admin'))
+    return ok({ items: [], next: null });
   const now = deps.clock.instant();
   const read = await deps.shares.waiting(tx, asking.tenantId, now, WAITING_SHOWN + 1, { after });
   const page = read.slice(0, WAITING_SHOWN);

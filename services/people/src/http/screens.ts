@@ -718,7 +718,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   const approve = write(
     ImportRunInput,
     (asking, input) =>
-      runs === undefined ? Promise.resolve(noRuns()) : approveImport(runDeps(runs.store), asking, input),
+      runs === undefined
+        ? Promise.resolve(noRuns())
+        : approveImport(runDeps(runs.store), asking, input),
     {
       status: 202,
       resource: (_asking, _id, approved) => approved.runId,
@@ -952,9 +954,14 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: new RegExp(`^/v1/pending-changes/${UUID}/not-unusual$`),
-      handle: write(NoBody, (asking, _input, id) =>
-        flagged((tx, pending) => markNotUnusual(tx, pending, { ...asking, changeId: id }), asking),
-      { resource: (_asking, id) => id },
+      handle: write(
+        NoBody,
+        (asking, _input, id) =>
+          flagged(
+            (tx, pending) => markNotUnusual(tx, pending, { ...asking, changeId: id }),
+            asking,
+          ),
+        { resource: (_asking, id) => id },
       ),
     },
     {
@@ -991,7 +998,10 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: write(
         ApprovalCheckBody,
         (asking, input, id) =>
-          flagged((tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }), asking),
+          flagged(
+            (tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }),
+            asking,
+          ),
         { resource: (_asking, id) => id },
       ),
     },

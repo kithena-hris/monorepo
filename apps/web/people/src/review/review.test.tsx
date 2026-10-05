@@ -57,7 +57,10 @@ describe('Review’s chips', () => {
     screen.getAllByRole('radio').map((chip) => chip.textContent.replace(/\s+/gu, ' ').trim());
 
   it('counts every kind over everybody, All the most, the same whichever chip is chosen', async () => {
-    renderReview({ completeness, counts }, { onKindChange: vi.fn(), onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) });
+    renderReview(
+      { completeness, counts },
+      { onKindChange: vi.fn(), onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) },
+    );
     // People's counts, not what one read listed (nothing here but one missing row).
     const before = chips();
     expect(before).toEqual([
@@ -76,7 +79,10 @@ describe('Review’s chips', () => {
   });
 
   it('lists missing details in All, below the decisions, as it counts them', () => {
-    renderReview({ completeness, counts }, { onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) });
+    renderReview(
+      { completeness, counts },
+      { onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) },
+    );
     expect(screen.getByRole('grid', { name: 'Missing information' })).toBeInTheDocument();
     // Nothing to decide is not said over a list of what is missing.
     expect(screen.queryByText('Nothing waiting for you')).toBeNull();
