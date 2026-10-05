@@ -145,7 +145,8 @@ export function drizzleIdentifierReviews(
       return [...rows].map(fromRow);
     },
 
-    async pending(tx, tenantId, limit) {
+    async pending(tx, tenantId, limit, newest) {
+      const place = newest?.after ?? null;
       // Who entered each value: the history row's actor, or the held change's requester.
       const rows = await tx.execute<Row & { entered_by: Actor | null }>(sql`
         SELECT r.id, r.person_id, r.attribute_key, r.history_id, r.pending_change_id, r.value_hash,
@@ -159,9 +160,28 @@ export function drizzleIdentifierReviews(
           LEFT JOIN people.pending_change c
             ON c.tenant_id = r.tenant_id AND c.id = r.pending_change_id
          WHERE r.tenant_id = ${tenantId}::uuid AND r.state = 'pending'
-         ORDER BY r.created_at, r.id
+           AND (${place?.at ?? null}::timestamptz IS NULL
+                OR (r.created_at, r.id) < (${place?.at ?? null}::timestamptz, ${place?.id ?? null}::uuid))
+         ORDER BY ${newest === undefined ? sql`r.created_at, r.id` : sql`r.created_at DESC, r.id DESC`}
          LIMIT ${limit}`);
       return [...rows].map((r) => ({ ...fromRow(r), enteredBy: r.entered_by }));
+    },
+
+    async pendingCounts(tx, tenantId) {
+      const rows = await tx.execute<{ attribute_key: string; n: number | string }>(sql`
+        SELECT attribute_key, count(*) AS n FROM people.identifier_review
+         WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
+         GROUP BY attribute_key`);
+      return new Map([...rows].map((r) => [r.attribute_key, Number(r.n)]));
+    },
+
+    async pendingOn(tx, tenantId, keys) {
+      if (keys.length === 0) return [];
+      const rows = await tx.execute<{ person_id: string; attribute_key: string }>(sql`
+        SELECT person_id, attribute_key FROM people.identifier_review
+         WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
+           AND attribute_key = ANY(${sql.param([...keys])}::text[])`);
+      return [...rows].map((r) => ({ personId: r.person_id, attributeKey: r.attribute_key }));
     },
 
     async decided(tx, tenantId, since, limit, personId) {

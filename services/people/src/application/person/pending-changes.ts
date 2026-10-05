@@ -25,6 +25,7 @@ import type { ReviewFinding } from '../../domain/person/identifier-review.js';
 import type { IdentifierReviews } from './identifier-review.js';
 import { flagChange, looking, readableBy, type FlagDeps } from './approval-flags.js';
 import { LIFECYCLE_KEYS } from './core.js';
+import type { Keyset } from './keyset.js';
 import type {
   Asking,
   PersonReader,
@@ -107,13 +108,38 @@ export interface PendingChangeStore {
   find(tx: Tx, tenantId: string, id: string): Promise<PendingChange | null>;
   /**
    * Pending by their row — an expiry not yet recorded included — oldest
-   * first: one person's, one requester's, or the tenant's.
+   * first: one person's, one requester's, or the tenant's. With `newest`,
+   * newest first instead, from after its place: Review's queue, a page at a
+   * time.
    */
   open(
     tx: Tx,
     tenantId: string,
-    where: { readonly personId?: string; readonly requestedBy?: string; readonly limit: number },
+    where: {
+      readonly personId?: string;
+      readonly requestedBy?: string;
+      readonly limit: number;
+      readonly newest?: { readonly after: Keyset | null };
+    },
   ): Promise<readonly PendingChange[]>;
+  /**
+   * How many are still pending at `at` on these attributes, of a person on
+   * file: every one the inbox would list, counted rather than read. With
+   * `requestedBy`, one requester's; with `notInvolving`, none that account
+   * asked for or is the subject of; with `subjectAccount`, only those about
+   * the person that account signs in as.
+   */
+  count(
+    tx: Tx,
+    tenantId: string,
+    where: {
+      readonly at: string;
+      readonly keys: readonly string[];
+      readonly requestedBy?: string;
+      readonly notInvolving?: string;
+      readonly subjectAccount?: string;
+    },
+  ): Promise<number>;
   /** Every change to one person, whatever it became, oldest first: their subject access pack. */
   forPerson(tx: Tx, tenantId: string, personId: string): Promise<readonly PendingChange[]>;
   /**
@@ -788,15 +814,67 @@ export async function approvalsInbox(
     'store' | 'schemas' | 'reader' | 'relations' | 'clock' | 'roles' | 'reviews'
   >,
   asking: Asking,
-): Promise<Result<{ readonly isHr: boolean; readonly items: readonly InboxItem[] }>> {
+  /**
+   * Review's queue: newest first, `limit` at a time from after `after`, with
+   * the place of the next page. Without it, the first `INBOX`, oldest first.
+   */
+  page?:
+    | { readonly after: Keyset | null; readonly limit: number }
+    /** One change alone, wherever it is in the queue: what a link opens. */
+    | { readonly only: string },
+): Promise<
+  Result<{
+    readonly isHr: boolean;
+    readonly items: readonly InboxItem[];
+    /** Where the next page starts; null on the last, and without `page`. */
+    readonly next: Keyset | null;
+  }>
+> {
   const version = await deps.schemas.current(tx, asking.tenantId);
   const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-  if (!version) return ok({ isHr: everyone.isHr, items: [] });
+  if (!version) return ok({ isHr: everyone.isHr, items: [], next: null });
   const me = asking.viewer.accountId;
-  const open = await deps.store.open(tx, asking.tenantId, {
+  if (page !== undefined && 'only' in page) {
+    // The inbox's own scope: HR's, any waiting; anybody else's, their own.
+    const one = await deps.store.find(tx, asking.tenantId, page.only);
+    const listed =
+      one !== null &&
+      one.approval.state === 'pending' &&
+      (everyone.isHr || one.approval.requestedBy === me);
+    return listed ? inboxOf(tx, deps, asking, everyone.isHr, version, [one], null) : ok({ isHr: everyone.isHr, items: [], next: null });
+  }
+  const read = await deps.store.open(tx, asking.tenantId, {
     ...(everyone.isHr ? {} : { requestedBy: me }),
-    limit: INBOX,
+    limit: page === undefined ? INBOX : page.limit + 1,
+    ...(page === undefined ? {} : { newest: { after: page.after } }),
   });
+  const open = page === undefined ? read : read.slice(0, page.limit);
+  const last = open.at(-1);
+  // The last row read, shown or not: a lapsed one skipped still moves the place on.
+  const next =
+    page !== undefined && read.length > page.limit && last !== undefined
+      ? { at: last.approval.requestedAt, id: last.approval.id }
+      : null;
+  return inboxOf(tx, deps, asking, everyone.isHr, version, open, next);
+}
+
+/** The inbox's rows for these changes: still pending now, as this viewer may read each. */
+async function inboxOf(
+  tx: Tx,
+  deps: Pick<
+    PendingChangeDeps,
+    'store' | 'schemas' | 'reader' | 'relations' | 'clock' | 'roles' | 'reviews'
+  >,
+  asking: Asking,
+  isHr: boolean,
+  version: NonNullable<Awaited<ReturnType<PendingChangeDeps['schemas']['current']>>>,
+  open: readonly PendingChange[],
+  next: Keyset | null,
+): Promise<
+  Result<{ readonly isHr: boolean; readonly items: readonly InboxItem[]; readonly next: Keyset | null }>
+> {
+  const everyone = { isHr };
+  const me = asking.viewer.accountId;
   const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
   const now = deps.clock.instant();
   const hr = await hrHolders(tx, deps, asking.tenantId);
@@ -829,7 +907,58 @@ export async function approvalsInbox(
       ...(await standing(tx, deps, c, { me, isHr: everyone.isHr, subject, hr })),
     });
   }
-  return ok({ isHr: everyone.isHr, items });
+  return ok({ isHr: everyone.isHr, items, next });
+}
+
+/** How many changes the inbox holds for a viewer, counted over every one rather than read. */
+export interface InboxCounts {
+  readonly isHr: boolean;
+  /** Every change the inbox lists for them: HR's, the tenant's; anybody else's, their own. */
+  readonly all: number;
+  /** Those they may decide (`canDecide`): HR's, neither asked for by them nor about them. */
+  readonly decidable: number;
+  /** Their own, waiting on somebody else (Review's I asked): none they may approve alone. */
+  readonly asked: number;
+}
+
+/**
+ * The inbox's counts, by the same rules as its rows (`approvalsInbox`,
+ * `standing`): still pending now, on a field the schema still has, about
+ * somebody on file. Counted by the store, so they are the true totals however
+ * many wait, where the inbox reads a page.
+ */
+export async function inboxCounts(
+  tx: Tx,
+  deps: Pick<PendingChangeDeps, 'store' | 'schemas' | 'relations' | 'clock' | 'roles'>,
+  asking: Asking,
+): Promise<InboxCounts> {
+  const version = await deps.schemas.current(tx, asking.tenantId);
+  const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+  if (!version) return { isHr: everyone.isHr, all: 0, decidable: 0, asked: 0 };
+  const me = asking.viewer.accountId;
+  const where = {
+    at: deps.clock.instant(),
+    keys: version.document.attributes.map((d) => d.key as string),
+  };
+  const mine = await deps.store.count(tx, asking.tenantId, { ...where, requestedBy: me });
+  if (!everyone.isHr) return { isHr: false, all: mine, decidable: 0, asked: mine };
+  const all = await deps.store.count(tx, asking.tenantId, where);
+  const decidable = await deps.store.count(tx, asking.tenantId, { ...where, notInvolving: me });
+  // `mayApproveAlone`: theirs, with no other HR holder who is not its subject.
+  const hr = await hrHolders(tx, deps, asking.tenantId);
+  const others = hr.filter((a) => a !== me);
+  const alone = !hr.includes(me)
+    ? 0
+    : others.length === 0
+      ? mine
+      : others.length === 1 && others[0] !== undefined
+        ? await deps.store.count(tx, asking.tenantId, {
+            ...where,
+            requestedBy: me,
+            subjectAccount: others[0],
+          })
+        : 0;
+  return { isHr: true, all, decidable, asked: mine - alone };
 }
 
 /* ---------------------------------------------------------- who to tell -- */

@@ -78,8 +78,26 @@ export interface FullValuesStore {
   list(
     tx: PostgresJsDatabase,
     tenantId: string,
-    where: { readonly requestedBy: string | null; readonly limit: number },
+    where: {
+      readonly requestedBy: string | null;
+      readonly limit: number;
+      /** A keyset page: the requests older than this one. */
+      readonly before?: string | null;
+    },
   ): Promise<readonly FullValuesRequest[]>;
+  /**
+   * How many are still pending at `at`: one requester's, or with
+   * `notRequestedBy` everybody's but that account's.
+   */
+  count(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    where: {
+      readonly at: string;
+      readonly requestedBy?: string;
+      readonly notRequestedBy?: string;
+    },
+  ): Promise<number>;
   /**
    * Write `next` only if the stored row is still as `prior` left it: the same
    * state, and not yet issued or used. False when somebody got there first.
@@ -506,6 +524,8 @@ export interface FullValuesScreen {
     readonly note: string | null;
     readonly link: string | null;
   }[];
+  /** The id the next page of requests starts after; null on the last. Absent from an older People. */
+  readonly next?: string | null;
 }
 
 const SHOWN = 50;
@@ -518,6 +538,12 @@ export async function fullValuesScreen(
   tx: PostgresJsDatabase,
   deps: FullValuesDeps,
   asking: Asking,
+  page: {
+    /** A page after the first: the requests older than this one (`next`). */
+    readonly before?: string | null;
+    /** One request alone, wherever it is: what a link opens. */
+    readonly only?: string | null;
+  } = {},
 ): Promise<Result<FullValuesScreen>> {
   const finance = asking.viewer.roles.has('finance');
   const hr = asking.viewer.roles.has('hr');
@@ -529,10 +555,19 @@ export async function fullValuesScreen(
   const labels = new Map(
     version.document.attributes.map((d) => [d.key as string, d.label.default]),
   );
-  const listed = await deps.requests.list(tx, asking.tenantId, {
-    requestedBy: hr ? null : asking.viewer.accountId,
-    limit: SHOWN,
-  });
+  const one = page.only == null ? null : await deps.requests.find(tx, asking.tenantId, page.only);
+  const read =
+    page.only == null
+      ? await deps.requests.list(tx, asking.tenantId, {
+          requestedBy: hr ? null : asking.viewer.accountId,
+          limit: SHOWN + 1,
+          before: page.before ?? null,
+        })
+      : one === null
+        ? []
+        : [one];
+  const listed = read.slice(0, SHOWN);
+  const next = read.length > SHOWN ? (listed.at(-1)?.approval.id ?? null) : null;
 
   const names = new Map<string, string | null>();
   const nameOfAccount = async (accountId: string): Promise<string | null> => {
@@ -586,5 +621,27 @@ export async function fullValuesScreen(
           .map((d) => ({ key: d.key, label: d.label.default }))
       : [],
     requests,
+    next,
   });
+}
+
+/**
+ * How many requests for full values wait, counted over every one: for HR,
+ * everybody's but their own, which HR decides (null for anybody else); and
+ * the viewer's own, waiting on HR. The requests the screen lists, counted.
+ */
+export async function fullValuesCounts(
+  tx: PostgresJsDatabase,
+  deps: Pick<FullValuesDeps, 'requests' | 'clock'>,
+  asking: Asking,
+): Promise<{ readonly toDecide: number | null; readonly mine: number }> {
+  const at = deps.clock.instant();
+  const me = asking.viewer.accountId;
+  const hr = asking.viewer.roles.has('hr');
+  return {
+    toDecide: hr
+      ? await deps.requests.count(tx, asking.tenantId, { at, notRequestedBy: me })
+      : null,
+    mine: await deps.requests.count(tx, asking.tenantId, { at, requestedBy: me }),
+  };
 }

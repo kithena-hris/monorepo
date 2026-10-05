@@ -76,6 +76,41 @@ export function matchBand(signals: Candidate['signals']): MatchBand {
   return score >= 3 ? 'strong' : score === 2 ? 'likely' : 'possible';
 }
 
+const scoreOf = (signals: Candidate['signals']): number =>
+  signals.reduce((sum, s) => sum + STRENGTH[s.signal], 0);
+
+/**
+ * A page of the ranking (`candidates`), `limit` pairs after `place`, and the
+ * place of the next page: the last pair's strength and key, so a pair decided
+ * in between neither repeats one nor skips one. A place that is not one
+ * starts at the top. The ranking must be `candidates`' own, every signal on.
+ */
+export function duplicatePage(
+  ranked: readonly Candidate[],
+  place: string | null,
+  limit: number,
+): { readonly items: readonly Candidate[]; readonly next: string | null } {
+  const at = /^(\d+)~(.+)$/u.exec(place ?? '');
+  const score = at === null ? null : Number(at[1]);
+  const key = at?.[2] ?? '';
+  const rest =
+    score === null
+      ? ranked
+      : ranked.filter((c) => {
+          const s = scoreOf(c.signals);
+          return s < score || (s === score && pairKey(...c.personIds).localeCompare(key) > 0);
+        });
+  const items = rest.slice(0, limit);
+  const last = items.at(-1);
+  return {
+    items,
+    next:
+      rest.length > limit && last !== undefined
+        ? `${String(scoreOf(last.signals))}~${pairKey(...last.personIds)}`
+        : null,
+  };
+}
+
 /** One name for a pair, whichever way round it is asked. */
 export const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
 

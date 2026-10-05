@@ -18,6 +18,7 @@ import type { IdentifierReviews } from './identifier-review.js';
 import type { IdentifierReview } from '../../domain/person/identifier-review.js';
 import { utcCalendars } from '../org/org.js';
 import { factsOf } from './subject.js';
+import { after, newestFirst } from './keyset.js';
 
 /**
  * The person ports, in memory, for tests that are about a rule rather than
@@ -353,8 +354,31 @@ function inMemoryReviews(rows: IdentifierReview[]): IdentifierReviews {
     latest: (_tx, _tenant, personId, key) => Promise.resolve(of(personId, key).at(-1) ?? null),
     open: (_tx, _tenant, personId) =>
       Promise.resolve(rows.filter((r) => r.personId === personId && open(r))),
-    pending: (_tx, _tenant, limit) =>
-      Promise.resolve(rows.filter((r) => r.state === 'pending').slice(0, limit)),
+    pending: (_tx, _tenant, limit, newest) => {
+      const waiting = rows.filter((r) => r.state === 'pending');
+      const place = (r: IdentifierReview) => ({ at: r.createdAt, id: r.id });
+      return Promise.resolve(
+        (newest === undefined
+          ? waiting
+          : waiting
+              .filter((r) => after(place(r), newest.after))
+              .toSorted((a, b) => newestFirst(place(a), place(b)))
+        ).slice(0, limit),
+      );
+    },
+    pendingCounts: () => {
+      const by = new Map<string, number>();
+      for (const r of rows) {
+        if (r.state === 'pending') by.set(r.attributeKey, (by.get(r.attributeKey) ?? 0) + 1);
+      }
+      return Promise.resolve(by);
+    },
+    pendingOn: (_tx, _tenant, keys) =>
+      Promise.resolve(
+        rows
+          .filter((r) => r.state === 'pending' && keys.includes(r.attributeKey))
+          .map((r) => ({ personId: r.personId, attributeKey: r.attributeKey })),
+      ),
     decided: (_tx, _tenant, since, limit, personId) =>
       Promise.resolve(
         rows

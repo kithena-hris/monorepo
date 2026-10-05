@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { HistoryEntry } from './history.js';
 import {
   candidates,
+  duplicatePage,
   matchBand,
   mergeRefusal,
   pairKey,
@@ -67,6 +68,24 @@ describe('ranking the candidates', () => {
 
   it('names a pair the same whichever way round it is asked', () => {
     expect(pairKey(A, B)).toBe(pairKey(B, A));
+  });
+
+  it('pages the ranking from a place that holds however the list moves', () => {
+    const ranked = candidates(rows, new Set());
+    const first = duplicatePage(ranked, null, 2);
+    expect(first.items.map((c) => c.personIds)).toEqual([
+      [A, B],
+      [B, C],
+    ]);
+    expect(first.next).not.toBeNull();
+    const second = duplicatePage(ranked, first.next, 2);
+    expect(second.items.map((c) => c.personIds)).toEqual([[A, C]]);
+    expect(second.next).toBeNull();
+    // The pair the place names decided in between: the next page still starts after it.
+    const decided = candidates(rows, new Set([pairKey(B, C)]));
+    expect(duplicatePage(decided, first.next, 2).items.map((c) => c.personIds)).toEqual([[A, C]]);
+    // A place that is not one starts at the top.
+    expect(duplicatePage(ranked, 'nonsense', 1).items.map((c) => c.personIds)).toEqual([[A, B]]);
   });
 
   it('never pairs a record with itself', () => {

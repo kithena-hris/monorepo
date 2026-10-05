@@ -95,9 +95,22 @@ export function drizzleFullValuesStore(): FullValuesStore {
         SELECT * FROM people.full_values_request
          WHERE tenant_id = ${tenantId}::uuid
            AND (${where.requestedBy}::uuid IS NULL OR requested_by = ${where.requestedBy}::uuid)
+           AND (${where.before ?? null}::uuid IS NULL OR id < ${where.before ?? null}::uuid)
          ORDER BY id DESC
          LIMIT ${where.limit}`);
       return [...rows].map(fromRow);
+    },
+
+    async count(tx, tenantId, where) {
+      const rows = await tx.execute<{ n: number | string }>(sql`
+        SELECT count(*) AS n FROM people.full_values_request
+         WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
+           AND expires_at > ${where.at}::timestamptz
+           AND (${where.requestedBy ?? null}::uuid IS NULL
+                OR requested_by = ${where.requestedBy ?? null}::uuid)
+           AND (${where.notRequestedBy ?? null}::uuid IS NULL
+                OR requested_by <> ${where.notRequestedBy ?? null}::uuid)`);
+      return Number([...rows][0]?.n ?? 0);
     },
 
     async update(tx, prior, next) {
@@ -140,10 +153,22 @@ export function inMemoryFullValuesStore(): FullValuesStore & {
           .filter(
             (q) =>
               q.tenantId === tenantId &&
-              (where.requestedBy === null || q.approval.requestedBy === where.requestedBy),
+              (where.requestedBy === null || q.approval.requestedBy === where.requestedBy) &&
+              (where.before == null || q.approval.id < where.before),
           )
           .toSorted((a, b) => (a.approval.id < b.approval.id ? 1 : -1))
           .slice(0, where.limit),
+      ),
+    count: (_tx, tenantId, where) =>
+      Promise.resolve(
+        [...rows.values()].filter(
+          (q) =>
+            q.tenantId === tenantId &&
+            q.approval.state === 'pending' &&
+            q.approval.expiresAt > where.at &&
+            (where.requestedBy === undefined || q.approval.requestedBy === where.requestedBy) &&
+            (where.notRequestedBy === undefined || q.approval.requestedBy !== where.notRequestedBy),
+        ).length,
       ),
     update(_tx, prior, next) {
       const k = key(prior.tenantId, prior.approval.id);

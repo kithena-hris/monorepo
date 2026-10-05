@@ -288,9 +288,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       }),
     });
   const ReviewsRef = builder.objectRef<IdentifierReviewsView>('PeopleIdentifierReviews').implement({
-    description: 'HR’s queue of doubted national identifiers, oldest first.',
+    description: 'HR’s queue of doubted national identifiers, newest first, a page at a time.',
     fields: (t) => ({
       items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
+      next: t.exposeString('next', {
+        nullable: true,
+        description: 'The next page of the queue, as `after`; null on the last.',
+      }),
+
       decided: t.field({
         type: [DecidedReviewRef],
         description: 'Decided in the last 90 days, newest first.',
@@ -383,6 +388,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       'HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.',
     fields: (t) => ({
       items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
+      next: t.exposeString('next', {
+        nullable: true,
+        description: 'The next page of the queue, as `after`; null on the last.',
+      }),
       merges: t.field({ type: [MergedPairRef], resolve: (v) => list(v.merges) }),
       mergesNext: t.exposeString('mergesNext', {
         nullable: true,
@@ -403,12 +412,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     t.field({
       type: DuplicatesRef,
       description: 'Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.',
-      args: { a: t.arg.id(), b: t.arg.id(), mergesAfter: t.arg.string() },
+      args: { a: t.arg.id(), b: t.arg.id(), mergesAfter: t.arg.string(), after: t.arg.string() },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
         if (args.a) query.set('a', args.a);
         if (args.b) query.set('b', args.b);
         if (args.mergesAfter) query.set('mergesAfter', args.mergesAfter);
+        if (args.after) query.set('after', args.after);
         const qs = query.toString();
         return viaRest<DuplicatesView>(
           ctx,
@@ -785,7 +795,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     description: 'Changes waiting for approval: every one for HR, the viewer’s own otherwise.',
     fields: (t) => ({
       isHr: t.exposeBoolean('isHr'),
-      items: t.field({ type: [ApprovalItemRef], resolve: (v) => list(v.items) }),
+      items: t.field({
+        type: [ApprovalItemRef],
+        description: 'Waiting, newest first, a page at a time.',
+        resolve: (v) => list(v.items),
+      }),
+      itemsNext: t.exposeString('itemsNext', {
+        nullable: true,
+        description: 'The next page of the queue, as `after`; null on the last.',
+      }),
+
       decided: t.field({
         type: [ApprovalItemRef],
         description: 'HR’s: decided in the last 90 days, newest first, a page at a time.',
@@ -2159,6 +2178,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       canDecide: t.exposeBoolean('canDecide'),
       fields: t.field({ type: [FullValuesField], resolve: (s) => list(s.fields) }),
       requests: t.field({ type: [FullValuesItem], resolve: (s) => list(s.requests) }),
+      next: t.string({
+        nullable: true,
+        description: 'The next page of requests, as `before`; null on the last.',
+        resolve: (s) => s.next ?? null,
+      }),
     }),
   });
 
@@ -2371,7 +2395,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleFullValues: t.field({
       type: FullValuesScreenRef,
-      resolve: view<Screen>(() => '/v1/exports/full-values'),
+      args: {
+        before: t.arg.id({ description: 'The next page, from the last page’s `next`.' }),
+        request: t.arg.id({ description: 'One request alone, wherever it is.' }),
+      },
+      resolve: view<Screen>((args) => {
+        const query = new URLSearchParams();
+        if (typeof args['before'] === 'string') query.set('before', args['before']);
+        if (typeof args['request'] === 'string') query.set('request', args['request']);
+        const qs = query.toString();
+        return `/v1/exports/full-values${qs === '' ? '' : `?${qs}`}`;
+      }),
     }),
     fullValuesRequest: t.field({
       type: FullValues,
@@ -3623,17 +3657,36 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description:
             'Decided’s next page, from the last page’s `decidedNext`; the queue is left out.',
         }),
+        after: t.arg.string({
+          description: 'The queue’s next page, from the last page’s `itemsNext`; Decided is left out.',
+        }),
+        change: t.arg.id({ description: 'One change alone, wherever it is in the queue.' }),
       },
-      resolve: view<ApprovalsView>((args: { decidedAfter?: string | null }) =>
-        args.decidedAfter
-          ? `/v1/views/approvals?decidedAfter=${encodeURIComponent(args.decidedAfter)}`
-          : '/v1/views/approvals',
+      resolve: view<ApprovalsView>(
+        (args: { decidedAfter?: string | null; after?: string | null; change?: string | null }) => {
+          const query = new URLSearchParams();
+          if (args.decidedAfter) query.set('decidedAfter', args.decidedAfter);
+          if (args.after) query.set('after', args.after);
+          if (args.change) query.set('change', args.change);
+          const qs = query.toString();
+          return `/v1/views/approvals${qs === '' ? '' : `?${qs}`}`;
+        },
       ),
     }),
     peopleIdentifierReviews: t.field({
       type: ReviewsRef,
       description: 'Doubted national identifiers waiting for HR (PEO-125); HR only.',
-      resolve: view<IdentifierReviewsView>(() => '/v1/views/identifier-reviews'),
+      args: {
+        after: t.arg.string({ description: 'The next page, from the last page’s `next`.' }),
+        person: t.arg.id({ description: 'One person’s alone, wherever they are in the queue.' }),
+      },
+      resolve: view<IdentifierReviewsView>((args: { after?: string | null; person?: string | null }) => {
+        const query = new URLSearchParams();
+        if (args.after) query.set('after', args.after);
+        if (args.person) query.set('person', args.person);
+        const qs = query.toString();
+        return `/v1/views/identifier-reviews${qs === '' ? '' : `?${qs}`}`;
+      }),
     }),
     peopleIdentifierCheck: t.field({
       type: FindingsRef,

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 
 import type { ApprovalState } from '../../domain/approval/approval.js';
 import type { Gap } from '../../domain/export/share.js';
+import { after, newestFirst } from '../person/keyset.js';
 import { ShareChoice, type ShareRequest, type ShareStore } from './share.js';
 
 /**
@@ -82,14 +83,26 @@ export function drizzleShareStore(): ShareStore {
       return row ? fromRow(row) : null;
     },
 
-    async waiting(tx, tenantId, at, limit) {
+    async waiting(tx, tenantId, at, limit, newest) {
+      const place = newest?.after ?? null;
       const rows = await tx.execute<Row>(sql`
         SELECT * FROM people.export_share
          WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
            AND expires_at > ${at}::timestamptz
-         ORDER BY requested_at, id
+           AND (${place?.at ?? null}::timestamptz IS NULL
+                OR (requested_at, id) < (${place?.at ?? null}::timestamptz, ${place?.id ?? null}::uuid))
+         ORDER BY ${newest === undefined ? sql`requested_at, id` : sql`requested_at DESC, id DESC`}
          LIMIT ${limit}`);
       return [...rows].map(fromRow);
+    },
+
+    async waitingCount(tx, tenantId, at, notInvolving) {
+      const rows = await tx.execute<{ n: number | string }>(sql`
+        SELECT count(*) AS n FROM people.export_share
+         WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
+           AND expires_at > ${at}::timestamptz
+           AND requested_by <> ${notInvolving}::uuid AND recipient <> ${notInvolving}::uuid`);
+      return Number([...rows][0]?.n ?? 0);
     },
 
     async update(tx, prior, next) {
@@ -123,17 +136,30 @@ export function inMemoryShareStore(): ShareStore & { readonly rows: Map<string, 
       Promise.resolve(
         [...rows.values()].find((q) => q.tenantId === tenantId && q.exportId === exportId) ?? null,
       ),
-    waiting: (_tx, tenantId, at, limit) =>
+    waiting: (_tx, tenantId, at, limit, newest) => {
+      const waiting = [...rows.values()].filter(
+        (q) => q.tenantId === tenantId && q.approval.state === 'pending' && q.approval.expiresAt > at,
+      );
+      const place = (q: ShareRequest) => ({ at: q.approval.requestedAt, id: q.approval.id });
+      return Promise.resolve(
+        (newest === undefined
+          ? waiting.toSorted((a, b) => a.approval.requestedAt.localeCompare(b.approval.requestedAt))
+          : waiting
+              .filter((q) => after(place(q), newest.after))
+              .toSorted((a, b) => newestFirst(place(a), place(b)))
+        ).slice(0, limit),
+      );
+    },
+    waitingCount: (_tx, tenantId, at, notInvolving) =>
       Promise.resolve(
-        [...rows.values()]
-          .filter(
-            (q) =>
-              q.tenantId === tenantId &&
-              q.approval.state === 'pending' &&
-              q.approval.expiresAt > at,
-          )
-          .toSorted((a, b) => a.approval.requestedAt.localeCompare(b.approval.requestedAt))
-          .slice(0, limit),
+        [...rows.values()].filter(
+          (q) =>
+            q.tenantId === tenantId &&
+            q.approval.state === 'pending' &&
+            q.approval.expiresAt > at &&
+            q.approval.requestedBy !== notInvolving &&
+            q.recipient !== notInvolving,
+        ).length,
       ),
     update(_tx, prior, next) {
       const k = key(prior.tenantId, prior.approval.id);
