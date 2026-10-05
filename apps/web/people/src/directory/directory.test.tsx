@@ -533,7 +533,9 @@ describe('Directory', () => {
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
     // Said as it lands, to a screen reader too.
-    expect(screen.getByText('1 more loaded')).toBeInTheDocument();
+    expect(
+      await screen.findByText('1 more loaded', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Loads 100 at a time')).toBeInTheDocument();
     // No pager beside an infinite table.
     expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
@@ -594,7 +596,9 @@ describe('Directory', () => {
       next: null,
     });
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
-    expect(screen.getByText('1 more loaded')).toBeInTheDocument();
+    expect(
+      await screen.findByText('1 more loaded', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
     expect(await axeViolations(container)).toEqual([]);
     vi.unstubAllGlobals();

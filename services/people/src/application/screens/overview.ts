@@ -2,7 +2,7 @@ import { localDate, ok, type Result } from '@kithena/domain-kit';
 
 import { personZone } from '../../domain/org/calendar.js';
 import { atSignup, onSignupPage } from '../../domain/schema/signup.js';
-import { approvalsInbox } from '../person/pending-changes.js';
+import { approvalsInbox, inboxCounts } from '../person/pending-changes.js';
 import { REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { avatarsOf } from './photo.js';
@@ -427,9 +427,11 @@ async function approvalsPart(
     });
   }
   const flagged = inbox.value.isHr ? await flaggedToDecide(tx, pending, asking) : null;
+  // Counted over every one: the inbox reads the oldest few hundred.
+  const counted = await inboxCounts(tx, pending, asking);
   return {
     isHr: inbox.value.isHr,
-    total: all.length,
+    total: inbox.value.isHr ? counted.decidable : counted.all,
     flagged: flagged?.count ?? null,
     flagReason: flagged?.latest ?? null,
     items,

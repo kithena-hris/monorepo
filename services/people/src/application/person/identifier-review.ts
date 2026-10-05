@@ -17,6 +17,7 @@ import {
   type ReviewFinding,
 } from '../../domain/person/identifier-review.js';
 import { checkNationalId, type NationalIdCheck } from '../../country-packs/national-id.js';
+import type { Keyset } from './keyset.js';
 
 /**
  * HR's review of the national identifiers our checks doubted (PEO-125; PRD
@@ -49,8 +50,28 @@ export interface IdentifierReviews {
   ): Promise<IdentifierReview | null>;
   /** One person's reviews still waiting on somebody: pending or sent back. */
   open(tx: Tx, tenantId: string, personId: string): Promise<readonly IdentifierReview[]>;
-  /** HR's queue, oldest first, each with who entered the value where that is known. */
-  pending(tx: Tx, tenantId: string, limit: number): Promise<readonly QueuedReview[]>;
+  /**
+   * HR's queue, oldest first, each with who entered the value where that is
+   * known. With `newest`, newest first from after its place: Review's queue,
+   * a page at a time.
+   */
+  pending(
+    tx: Tx,
+    tenantId: string,
+    limit: number,
+    newest?: { readonly after: Keyset | null },
+  ): Promise<readonly QueuedReview[]>;
+  /**
+   * How many wait, by attribute: HR's queue counted, before who may read
+   * which (`identifierReviewCount` decides that).
+   */
+  pendingCounts(tx: Tx, tenantId: string): Promise<ReadonlyMap<string, number>>;
+  /** Whose reviews wait on these attributes: the few whose readers depend on whose they are. */
+  pendingOn(
+    tx: Tx,
+    tenantId: string,
+    keys: readonly string[],
+  ): Promise<readonly { readonly personId: string; readonly attributeKey: string }[]>;
   /**
    * Decided since an instant, whatever became of them after, newest decision
    * first: the tenant's, or with `personId` one person's.

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ApprovalItem } from '../approvals/approvals';
@@ -57,7 +57,10 @@ describe('Review’s chips', () => {
     screen.getAllByRole('radio').map((chip) => chip.textContent.replace(/\s+/gu, ' ').trim());
 
   it('counts every kind over everybody, All the most, the same whichever chip is chosen', async () => {
-    renderReview({ completeness, counts }, { onKindChange: vi.fn(), onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) });
+    renderReview(
+      { completeness, counts },
+      { onKindChange: vi.fn(), onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) },
+    );
     // People's counts, not what one read listed (nothing here but one missing row).
     const before = chips();
     expect(before).toEqual([
@@ -76,7 +79,10 @@ describe('Review’s chips', () => {
   });
 
   it('lists missing details in All, below the decisions, as it counts them', () => {
-    renderReview({ completeness, counts }, { onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) });
+    renderReview(
+      { completeness, counts },
+      { onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) },
+    );
     expect(screen.getByRole('grid', { name: 'Missing information' })).toBeInTheDocument();
     // Nothing to decide is not said over a list of what is missing.
     expect(screen.queryByText('Nothing waiting for you')).toBeNull();
@@ -395,3 +401,61 @@ const change: ApprovalItem = {
   name: 'Tom Fischer',
   readable: true,
 };
+
+describe('Review’s queues, a page at a time', () => {
+  const at = (minutes: number) =>
+    new Date(Date.parse('2026-09-24T09:00:00.000Z') - minutes * 60_000).toISOString();
+  const changeAt = (id: string, name: string, minutes: number): ApprovalItem => ({
+    ...change,
+    id,
+    name,
+    personId: id,
+    requestedAt: at(minutes),
+  });
+  const check = (personId: string, name: string, minutes: number) => ({
+    personId,
+    name,
+    attributeKey: 'es_nif',
+    label: 'NIF',
+    last4: null,
+    findings: [{ level: 'mismatch', code: 'x', message: 'does not compute' }],
+    enteredAt: at(minutes),
+  });
+
+  it('holds All’s older rows back until the queue with more has loaded past them', async () => {
+    let land: (page: { items: unknown[]; next: string | null }) => void = () => undefined;
+    const onMoreQueue = vi.fn(
+      () =>
+        new Promise<{ items: unknown[]; next: string | null } | null>((resolve) => {
+          land = resolve;
+        }),
+    );
+    renderReview(
+      {
+        approvals: {
+          isHr: true,
+          items: [changeAt('c1', 'Ana', 1), changeAt('c2', 'Ben', 3)],
+          itemsNext: 'next-changes',
+        },
+        identifiers: { items: [check('p1', 'Cleo', 2), check('p2', 'Dev', 10)] },
+      },
+      { onMoreQueue },
+    );
+    const list = () => screen.getByRole('list', { name: 'Waiting for a decision' });
+    // Dev's ID check is older than the last change loaded: a change between them may come.
+    expect(within(list()).queryByText('Dev')).toBeNull();
+    expect(within(list()).getByText('Cleo')).toBeInTheDocument();
+    await vi.waitFor(() => {
+      expect(onMoreQueue).toHaveBeenCalledWith('changes', 'next-changes');
+    });
+    await act(async () => {
+      land({ items: [changeAt('c3', 'Eve', 20)], next: null });
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(within(list()).getByText('Dev')).toBeInTheDocument();
+    });
+    expect(within(list()).getByText('Eve')).toBeInTheDocument();
+    expect(onMoreQueue).toHaveBeenCalledTimes(1);
+  });
+});

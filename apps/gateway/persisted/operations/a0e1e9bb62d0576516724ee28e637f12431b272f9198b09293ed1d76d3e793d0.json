@@ -1,0 +1,1 @@
+{"version":1,"body":"query FullValues($before: ID, $request: ID) {\n    peopleFullValues(before: $before, request: $request) {\n      canRequest canDecide\n      fields { key label }\n      requests { id state mine requestedBy reason fields people requestedAt expiresAt note link }\n      next\n    }\n  }"}

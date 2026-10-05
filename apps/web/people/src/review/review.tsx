@@ -11,7 +11,6 @@ import {
   FieldControl,
   FieldLabel,
   KeyValues,
-  List,
   ListDetail,
   ListItem,
   PageHeader,
@@ -21,11 +20,24 @@ import {
   DataTable,
   type DataColumn,
   Textarea,
+  VirtualList,
   icons,
+  useCoarsePointer,
   usePages,
   type RowAction,
+  type VirtualListHandle,
+  type VirtualRowProps,
 } from '@reach/ui';
-import { useCallback, useState, type ComponentProps, type JSX, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import {
   ChangeDetail,
@@ -58,6 +70,7 @@ import {
 } from '../export/full-values';
 import { FORMAT_LABEL, firstName, listed, spokenDate } from '../export/words';
 import { useHeld, useHeldAtOnce } from '../held';
+import { cutoffOf, useQueuePages, type MoreQueue, type QueueKind } from './queue-pages';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type { SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
@@ -122,6 +135,8 @@ export interface ReviewState {
    * where they decide none. Absent from an older shell.
    */
   readonly shares?: readonly ShareRequest[] | null;
+  /** The place of the next page of `shares`; null on the last. Absent from an older shell. */
+  readonly sharesNext?: string | null;
   /**
    * The request to send an export the address names (`?item=export-…`), or
    * null: one the viewer does not decide arrives from the email about it.
@@ -174,6 +189,8 @@ export interface ReviewProps extends ChangeActions {
   readonly onRemindAll?: MissingActions['onRemindAll'];
   readonly onRemind?: MissingActions['onRemind'];
   readonly onLoadMoreMissing?: MissingActions['onLoadMore'];
+  /** A queue's next page after its place, as the list scrolls; absent, the first page is all. */
+  readonly onMoreQueue?: MoreQueue;
   /** What is filled in (`?fill=`): `all`, the grid; a person's id, their dialog. */
   readonly fill?: string | null;
   readonly onFillChange?: (fill: string | null) => void;
@@ -390,6 +407,48 @@ function rowsOf(state: ReviewState, tab: ReviewTab, viewer: Viewer): Row[] {
   }
 }
 
+/** The queues a tab lists for a viewer: what All merges, and pages. */
+function kindsOf(tab: ReviewTab, viewer: Viewer): readonly QueueKind[] {
+  if (viewer !== 'hr') return ['changes'];
+  return tab === 'waiting'
+    ? ['changes', 'ids', 'duplicates', 'access', 'exports']
+    : tab === 'asked'
+      ? ['changes', 'access']
+      : ['changes'];
+}
+
+/**
+ * The host's operations, each telling the queue when a decision went through,
+ * so its row leaves a page kept from before at once (`useQueuePages`).
+ */
+function decidedBy<A extends Actions>(given: A, decided: (rowId: string) => void): A {
+  const after = <P extends unknown[]>(
+    run: ((...args: P) => Promise<Outcome>) | undefined,
+    rowOf: (...args: P) => string,
+  ) =>
+    run === undefined
+      ? undefined
+      : async (...args: P): Promise<Outcome> => {
+          const done = await run(...args);
+          if (done.ok) decided(rowOf(...args));
+          return done;
+        };
+  return {
+    ...given,
+    onDecide: after(given.onDecide, (id) => `change-${id}`),
+    onWithdraw: after(given.onWithdraw, (id) => `change-${id}`),
+    ...(given.onSelfApprove === undefined
+      ? {}
+      : { onSelfApprove: after(given.onSelfApprove, (id) => `change-${id}`) }),
+    onReviewIdentifier: after(given.onReviewIdentifier, (person, key) => `id-${person}~${key}`),
+    onDismiss: after(given.onDismiss, (a, b) => `dup-${a}~${b}`),
+    onDecideFullValues: after(given.onDecideFullValues, (id) => `access-${id}`),
+    ...(given.onDecideShare === undefined
+      ? {}
+      : { onDecideShare: after(given.onDecideShare, (id) => `export-${id}`) }),
+  };
+}
+
 /** Which chips a tab offers HR, in order. */
 const CHIPS: Readonly<Record<ReviewTab, readonly ReviewKind[]>> = {
   waiting: ['changes', 'ids', 'duplicates', 'access', 'exports', 'missing'],
@@ -409,14 +468,18 @@ export function Review({ load, ...props }: ReviewProps): JSX.Element {
 }
 
 function Queue({
-  state,
+  state: read,
   tab,
   kind: heldKind,
   onKindChange,
   item: heldItem,
   onItemChange,
-  ...actions
+  ...given
 }: Omit<ReviewProps, 'load'> & { readonly state: ReviewState }): JSX.Element {
+  // Every page of every queue loaded so far, and what was decided here gone from them.
+  const pages = useQueuePages(read, given.onMoreQueue);
+  const state = pages.state;
+  const actions = decidedBy(given, pages.decided);
   const viewer = viewerOf(state);
   const chips = viewer === 'hr' ? CHIPS[tab] : [];
   // A chip shows at once; the address follows (`useHeldAtOnce`).
@@ -494,8 +557,36 @@ function Queue({
     return undefined;
   };
 
-  const all = rowsOf(state, tab, viewer);
-  const rows = kind === null ? all : all.filter((r) => r.kind === kind);
+  // Read once for what the page holds, not on every render: a chip, a pick or
+  // a page of missing details renders the queue again, and each one rebuilt
+  // and sorted every row (ten thousand of them took a pick past a second).
+  const all = useMemo(() => rowsOf(state, tab, viewer), [state, tab, viewer]);
+  // In All, nothing older than where a queue with more to load ends: its
+  // next page would land among them. The open item shows wherever it is.
+  const queues = kindsOf(tab, viewer);
+  const cutoff = cutoffOf(kind === null ? queues : [kind as QueueKind], pages);
+  const rows = useMemo(
+    () =>
+      kind === null
+        ? all.filter((r) =>
+            r.id === picked
+              ? true
+              : r.at === null
+                ? !cutoff.dated
+                : cutoff.at === null || r.at >= cutoff.at,
+          )
+        : all.filter((r) => r.kind === kind),
+    [all, kind, cutoff.at, cutoff.dated, picked],
+  );
+  // The next page: the chip's own queue, or in All the one holding the rest back.
+  const blocking =
+    kind === null ? cutoff.blocking : pages.hasMore(kind as QueueKind) ? (kind as QueueKind) : null;
+  const loadMore =
+    blocking === null
+      ? undefined
+      : () => {
+          pages.load(blocking);
+        };
   // Decided counts what it lists (E9): each kind's decisions, and the merges.
   const decisions = tab === 'decided' ? decisionsOf(state) : [];
   const merged = tab === 'decided' ? (state.duplicates?.merges ?? []).length : 0;
@@ -503,7 +594,12 @@ function Queue({
   // read happened to list, so every chip says the same on every load. The
   // rows stand in only where People gave no count.
   const counts = state.counts ?? null;
-  const listedOf = (k: ReviewKind): number => all.filter((r) => r.kind === k).length;
+  const listed = useMemo(() => {
+    const by = new Map<ReviewKind, number>();
+    for (const r of all) by.set(r.kind, (by.get(r.kind) ?? 0) + 1);
+    return by;
+  }, [all]);
+  const listedOf = (k: ReviewKind): number => listed.get(k) ?? 0;
   const waitingOf = (k: ReviewKind): number => {
     const counted =
       k === 'missing'
@@ -562,7 +658,8 @@ function Queue({
         </ChipGroupItem>
         {chips.map((k) => (
           <ChipGroupItem key={k} value={k}>
-            {CHIP[k]} <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString('en-GB')}</span>
+            {CHIP[k]}{' '}
+            <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString('en-GB')}</span>
           </ChipGroupItem>
         ))}
       </ChipGroup>
@@ -596,7 +693,8 @@ function Queue({
     }
     // Missing details: its own chip, below the decisions in All (which counts
     // it), and the whole page while the grid over everybody is open.
-    const listsMissing = tab === 'waiting' && viewer === 'hr' && (kind === null || kind === 'missing');
+    const listsMissing =
+      tab === 'waiting' && viewer === 'hr' && (kind === null || kind === 'missing');
     const missing =
       !listsMissing && fill !== FILL_ALL ? null : state.completeness === null ? (
         kind === 'missing' ? (
@@ -624,7 +722,12 @@ function Queue({
           searchPeople={actions.searchPeople}
         />
       );
-    if (kind === "missing" || fill === FILL_ALL) {
+    // Each in its own place whatever the chip, so a chip that keeps one keeps
+    // it: the decisions' list from one kind to the next, and missing details
+    // between All and its own chip, are the same list with other rows in it.
+    // (Hidden rather than gone would keep them under every chip, but a hidden
+    // virtualized list measures its rows at nothing and draws all of them.)
+    if (kind === 'missing' || fill === FILL_ALL) {
       return (
         <Stack gap={5}>
           {null}
@@ -632,12 +735,15 @@ function Queue({
         </Stack>
       );
     }
-    const decisions = queue();
     // Nothing to decide, and missing details below: they are what All lists.
-    const nothingElse = rows.length === 0 && kind === null && missing !== null && state.completeness?.rows.length !== 0;
+    const nothingElse =
+      rows.length === 0 &&
+      kind === null &&
+      missing !== null &&
+      state.completeness?.rows.length !== 0;
     return (
       <Stack gap={5}>
-        {nothingElse ? null : decisions}
+        {nothingElse ? null : queue()}
         {missing}
       </Stack>
     );
@@ -711,12 +817,14 @@ function Queue({
         }}
         backLabel="All items"
         list={
-          <Rows
+          <QueueList
             rows={rows}
             current={current?.id ?? null}
             now={now}
             pick={pick}
             actionsOf={rowActions}
+            onEndReached={loadMore}
+            loadingMore={pages.loading !== null}
           />
         }
         detail={detail}
@@ -743,78 +851,154 @@ function Queue({
   );
 }
 
-/** The queue (E1): each row its person, its age, its kind and what it is, and why it is flagged. */
-function Rows({
+/** A row as the list draws it: `current` on the one open beside it. */
+type Listed = Row & { readonly current?: true };
+
+const listedKey = (row: Listed): string => row.id;
+
+/** A queue row's height before it is measured: a title, a line, and who asked. */
+const QUEUE_ROW = 84;
+
+/**
+ * The queue (E1): each row its person, its age, its kind and what it is, and
+ * why it is flagged.
+ *
+ * Only the rows near the view are drawn (`VirtualList`), in a box of its own
+ * at a desk and with the page as its scroll under a finger; J and K move
+ * through them, A and R decide a change, as its buttons do. Each row is drawn
+ * again only when it changes: picking an item redraws the row it leaves and
+ * the row it opens, never the list, and a chip swaps the rows in the same
+ * list. The row open beside it is kept in view.
+ */
+function QueueList({
   rows,
   current,
   now,
   pick,
   actionsOf,
+  onEndReached,
+  loadingMore = false,
 }: {
+  readonly onEndReached?: (() => void) | undefined;
+  readonly loadingMore?: boolean;
   readonly rows: readonly Row[];
   readonly current: string | null;
   readonly now: number;
   readonly pick: (id: string | null) => void;
   readonly actionsOf?: (row: Row) => readonly RowAction[] | undefined;
 }): JSX.Element {
+  const coarse = useCoarsePointer();
+  // The open row a copy marked `current`; every other row the same object as
+  // before, so a pick redraws two rows (`VirtualList` holds each on its item).
+  const items = useMemo(
+    (): readonly Listed[] =>
+      current === null
+        ? rows
+        : rows.map((r) => (r.id === current ? { ...r, current: true as const } : r)),
+    [rows, current],
+  );
+  // What a row does, read when it is used: the host hands down new callbacks
+  // on every render, and a row holding them would be drawn again each time.
+  const live = useRef({ now, pick, actionsOf });
+  live.current = { now, pick, actionsOf };
+  const renderItem = useCallback(
+    (row: Listed, _index: number, item: VirtualRowProps) => (
+      <QueueRow row={row} item={item} live={live} />
+    ),
+    [],
+  );
+  const list = useRef<VirtualListHandle>(null);
+  // At a desk the open row stays in view: a link's, and the first of a new chip.
+  useEffect(() => {
+    if (!coarse && current !== null) list.current?.revealItem(current);
+  }, [coarse, current, rows]);
   return (
-    // J and K through the rows; A and R decide a change, as its buttons do.
-    <List navigable aria-label="Waiting for a decision">
-      {rows.map((row) => (
-        <ListItem
-          key={row.id}
-          asChild
-          selected={row.id === current}
-          {...((): { actions?: readonly RowAction[] } => {
-            const actions = actionsOf?.(row);
-            return actions === undefined ? {} : { actions };
-          })()}
-          leading={<Avatar size="lg" name={row.name} src={row.avatarUrl ?? undefined} />}
-          description={
-            <span className="flex min-w-0 items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
-              {KIND_ICON[row.kind]}
-              <span className="truncate">{row.summary}</span>
-            </span>
+    <VirtualList
+      ref={list}
+      label="Waiting for a decision"
+      items={items}
+      itemKey={listedKey}
+      listItems
+      navigable
+      scroll={coarse ? 'page' : 'self'}
+      estimateItemHeight={QUEUE_ROW}
+      // A desk's box: as tall as its rows, up to most of the window.
+      {...(coarse ? {} : { className: 'max-h-[min(48rem,80dvh)]' })}
+      // The next page of the queue as the reader nears the end of this one.
+      {...(onEndReached === undefined ? {} : { onEndReached })}
+      loadingMore={loadingMore}
+      renderItem={renderItem}
+    />
+  );
+}
+
+function QueueRow({
+  row,
+  item,
+  live,
+}: {
+  readonly row: Listed;
+  readonly item: VirtualRowProps;
+  readonly live: {
+    readonly current: {
+      readonly now: number;
+      readonly pick: (id: string | null) => void;
+      readonly actionsOf?: ((row: Row) => readonly RowAction[] | undefined) | undefined;
+    };
+  };
+}): JSX.Element {
+  const actions = live.current.actionsOf?.(row);
+  const open = row.current === true;
+  return (
+    <ListItem
+      {...item}
+      asChild
+      selected={open}
+      {...(actions === undefined ? {} : { actions })}
+      leading={<Avatar size="lg" name={row.name} src={row.avatarUrl ?? undefined} />}
+      description={
+        <span className="flex min-w-0 items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
+          {KIND_ICON[row.kind]}
+          <span className="truncate">{row.summary}</span>
+        </span>
+      }
+      {...(row.flag || row.by
+        ? {
+            supporting: (
+              <>
+                {row.by ? <span className="block truncate">{row.by}</span> : null}
+                {row.flag ? (
+                  <span className="block font-medium text-warning-fg">
+                    <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
+                    {row.flag}
+                  </span>
+                ) : null}
+              </>
+            ),
           }
-          {...(row.flag || row.by
-            ? {
-                supporting: (
-                  <>
-                    {row.by ? <span className="block truncate">{row.by}</span> : null}
-                    {row.flag ? (
-                      <span className="block font-medium text-warning-fg">
-                        <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
-                        {row.flag}
-                      </span>
-                    ) : null}
-                  </>
-                ),
-              }
-            : {})}
-          {...(row.badge == null
-            ? {}
-            : {
-                trailing: (
-                  <Badge size="sm" tone={row.badge.tone}>
-                    {row.badge.text}
-                  </Badge>
-                ),
-              })}
-          {...(row.at === null ? {} : { meta: ago(row.at, now) })}
-        >
-          <button
-            type="button"
-            aria-current={row.id === current ? true : undefined}
-            onClick={() => {
-              pick(row.id);
-            }}
-          >
-            {row.name}
-            <span className="sr-only">, {CHIP[row.kind]}</span>
-          </button>
-        </ListItem>
-      ))}
-    </List>
+        : {})}
+      {...(row.badge == null
+        ? {}
+        : {
+            trailing: (
+              <Badge size="sm" tone={row.badge.tone}>
+                {row.badge.text}
+              </Badge>
+            ),
+          })}
+      {...(row.at === null ? {} : { meta: ago(row.at, live.current.now) })}
+    >
+      <button
+        type="button"
+        aria-current={open ? true : undefined}
+        onClick={() => {
+          live.current.pick(row.id);
+        }}
+      >
+        {row.name}
+        <span className="sr-only">, {CHIP[row.kind]}</span>
+      </button>
+    </ListItem>
   );
 }
 
@@ -1369,7 +1553,7 @@ function Finance({
               pick(null);
             }}
             backLabel="All items"
-            list={<Rows rows={rows} current={current?.id ?? null} now={now} pick={pick} />}
+            list={<QueueList rows={rows} current={current?.id ?? null} now={now} pick={pick} />}
             detail={
               current === null ? null : (
                 <Detail

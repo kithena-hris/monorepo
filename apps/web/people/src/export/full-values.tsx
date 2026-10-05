@@ -66,6 +66,8 @@ export interface FullValuesState {
   readonly canDecide: boolean;
   readonly fields: readonly { readonly key: string; readonly label: string }[];
   readonly requests: readonly FullValuesRequest[];
+  /** The place of the next page of requests; null on the last. Absent from an older People. */
+  readonly next?: string | null;
 }
 
 /** What a request for full values may have done to it, and asked. */

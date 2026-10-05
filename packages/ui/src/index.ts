@@ -575,6 +575,7 @@ export { ScrollPosition } from './components/scroll-position/scroll-position';
 export type { ScrollPositionProps } from './components/scroll-position/scroll-position';
 export {
   VirtualList,
+  type VirtualListHandle,
   type VirtualListProps,
   type VirtualRowProps,
 } from './components/virtual-list/virtual-list';

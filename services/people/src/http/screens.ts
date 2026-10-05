@@ -718,7 +718,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   const approve = write(
     ImportRunInput,
     (asking, input) =>
-      runs === undefined ? Promise.resolve(noRuns()) : approveImport(runDeps(runs.store), asking, input),
+      runs === undefined
+        ? Promise.resolve(noRuns())
+        : approveImport(runDeps(runs.store), asking, input),
     {
       status: 202,
       resource: (_asking, _id, approved) => approved.runId,
@@ -907,17 +909,39 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/identifier-reviews$/,
-      handle: async (asking) => answer(await identifierReviewsView(deps, asking)),
+      // `after`: the queue's next page, from the last page's `next`; `person`:
+      // one person's alone, wherever they are in it.
+      handle: async (asking, _r, _p, query) => {
+        const person = query.get('person');
+        if (person !== null && !new RegExp(`^${UUID}$`).test(person)) {
+          return refused(failure('BAD_REQUEST', 'person is a person id', ['person']));
+        }
+        return answer(
+          await identifierReviewsView(deps, asking, {
+            after: query.get('after')?.slice(0, 100) ?? null,
+            person,
+          }),
+        );
+      },
     },
     // The approvals inbox (PEO-077).
     {
       method: 'GET',
       pattern: /^\/v1\/views\/approvals$/,
-      // `decidedAfter`: Decided's next page, from the last page's `decidedNext`.
-      handle: async (asking, _r, _p, query) =>
-        answer(
-          await approvalsView(deps, asking, query.get('decidedAfter')?.slice(0, 100) ?? null),
-        ),
+      // `decidedAfter`: Decided's next page, from the last page's `decidedNext`;
+      // `after`: the queue's, from `itemsNext`; `change`: one change alone.
+      handle: async (asking, _r, _p, query) => {
+        const change = query.get('change');
+        if (change !== null && !new RegExp(`^${UUID}$`).test(change)) {
+          return refused(failure('BAD_REQUEST', 'change is a change id', ['change']));
+        }
+        return answer(
+          await approvalsView(deps, asking, query.get('decidedAfter')?.slice(0, 100) ?? null, {
+            after: query.get('after')?.slice(0, 100) ?? null,
+            only: change,
+          }),
+        );
+      },
     },
     // The viewer's own requests, decided (E10): an employee's Decided tab.
     {
@@ -930,9 +954,14 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: new RegExp(`^/v1/pending-changes/${UUID}/not-unusual$`),
-      handle: write(NoBody, (asking, _input, id) =>
-        flagged((tx, pending) => markNotUnusual(tx, pending, { ...asking, changeId: id }), asking),
-      { resource: (_asking, id) => id },
+      handle: write(
+        NoBody,
+        (asking, _input, id) =>
+          flagged(
+            (tx, pending) => markNotUnusual(tx, pending, { ...asking, changeId: id }),
+            asking,
+          ),
+        { resource: (_asking, id) => id },
       ),
     },
     {
@@ -969,7 +998,10 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: write(
         ApprovalCheckBody,
         (asking, input, id) =>
-          flagged((tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }), asking),
+          flagged(
+            (tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }),
+            asking,
+          ),
         { resource: (_asking, id) => id },
       ),
     },
@@ -993,6 +1025,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
             a === null || b === null ? null : [a, b],
             // Merged records' next page, from the last page's `mergesNext`.
             query.get('mergesAfter')?.slice(0, 100) ?? null,
+            // The queue's next page, from the last page's `next`.
+            query.get('after')?.slice(0, 100) ?? null,
           ),
         );
       },

@@ -264,7 +264,7 @@ describe('coming up and decided', () => {
     );
     expect(await screen.findByRole('link', { name: /^Hana Sato/ })).toBeTruthy();
     expect(onLoadMore).toHaveBeenCalledWith('place-1');
-    expect(screen.getByText('1 more loaded')).toBeTruthy();
+    expect(await screen.findByText('1 more loaded', undefined, { timeout: 5000 })).toBeTruthy();
   });
 });
 

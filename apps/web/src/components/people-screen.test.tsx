@@ -27,6 +27,7 @@ vi.mock('../app/(app)/people/actions', () => ({
   transferHistoryPage: vi.fn(),
   decidedPage: vi.fn(),
   mergesPage: vi.fn(),
+  queuePage: vi.fn(),
   screenPage: vi.fn(),
   withdrawPendingChange: vi.fn(),
   approveAlone: vi.fn(),
@@ -225,6 +226,19 @@ describe('the directory, which People answers from the address', () => {
     );
     call(props, 'onViewChange', 'cards');
     expect(router.push).toHaveBeenCalledWith('/people/directory/cards?q=ada&conditions=%5B%5D', {
+      scroll: false,
+    });
+  });
+
+  it('moves between the list and the cards in the address alone, the pages loaded kept', () => {
+    const props = open('/people/directory/list?q=ada', 'Directory');
+    expect(props['view']).toBe('list');
+    call(props, 'onViewChange', 'cards');
+    expect(router.push).not.toHaveBeenCalled();
+    expect(window.location.pathname + window.location.search).toBe('/people/directory/cards?q=ada');
+    // The org chart is another screen, with an answer of its own.
+    call(props, 'onViewChange', 'org-chart');
+    expect(router.push).toHaveBeenCalledWith('/people/directory/org-chart?q=ada', {
       scroll: false,
     });
   });

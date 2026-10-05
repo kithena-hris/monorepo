@@ -1181,12 +1181,21 @@ export function restRoutes(deps: RestDeps): Route[] {
     {
       method: 'GET',
       pattern: /^\/v1\/exports\/full-values$/,
-      handle: async (asking) => {
+      // `before`: the next page, from the last page's `next`; `request`: one alone.
+      handle: async (asking, _r, _p, query) => {
         const full = deps.fullValues;
         if (!full)
           return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+        const id = new RegExp(`^${UUID}$`);
+        const before = query.get('before');
+        const only = query.get('request');
+        if ((before !== null && !id.test(before)) || (only !== null && !id.test(only))) {
+          return refused(failure('BAD_REQUEST', 'before and request are request ids'));
+        }
         return respond(
-          await run(service, asking.tenantId, (tx) => fullValuesScreen(tx, full.deps, asking)),
+          await run(service, asking.tenantId, (tx) =>
+            fullValuesScreen(tx, full.deps, asking, { before, only }),
+          ),
           200,
           (screen) => screen,
         );
