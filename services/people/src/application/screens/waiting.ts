@@ -2,10 +2,11 @@ import { ok, type Result } from '@kithena/domain-kit';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { rowSummary } from '../../domain/approval/unusual.js';
-import { sharesToDecide, type ShareDeps } from '../export/share.js';
-import { fullValuesScreen, type FullValuesDeps } from '../export/full-values.js';
+import { sharesCount, sharesToDecide, type ShareDeps } from '../export/share.js';
+import { fullValuesCounts, fullValuesScreen, type FullValuesDeps } from '../export/full-values.js';
 import { flagChange, looking } from '../person/approval-flags.js';
-import { approvalsInbox, type PendingChangeDeps } from '../person/pending-changes.js';
+import { QUEUE_PAGE } from '../person/keyset.js';
+import { approvalsInbox, inboxCounts, type PendingChangeDeps } from '../person/pending-changes.js';
 import type { Asking, PersonAccess } from '../person/person-access.js';
 import { actors, duplicateSource } from './people.js';
 import type { ScreenDeps } from './record.js';
@@ -68,10 +69,19 @@ export async function waitingView(
   asking: Asking,
 ): Promise<Result<WaitingView>> {
   const { roles } = asking.viewer;
-  const shares = deps.shares === undefined ? null : await sharesToDecide(tx, deps.shares, asking);
-  const decidable = shares?.ok === true && roles.has('people_admin') ? shares.value : null;
-  const exports = decidable === null ? null : decidable.length;
-  const exportsBy = decidable === null ? null : distinct(decidable.map((s) => s.requestedBy.name));
+  // Counted over every one, as each list's own rules decide (`sharesCount`,
+  // `identifierReviewCount`, `duplicatePage`'s total, `fullValuesCounts`,
+  // `inboxCounts`): the lists page, and a count read off a page was the page.
+  // Who asked is read off each list's first page.
+  const sharing = roles.has('people_admin') ? deps.shares : undefined;
+  const shares = sharing === undefined ? null : await sharesToDecide(tx, sharing, asking);
+  const exports = sharing === undefined ? null : await sharesCount(tx, sharing, asking);
+  const exportsBy =
+    shares?.ok === true
+      ? distinct(shares.value.map((s) => s.requestedBy.name))
+      : exports === null
+        ? null
+        : [];
   if (!roles.has('hr') && !roles.has('finance')) {
     return ok({
       identifiers: null,
@@ -87,42 +97,43 @@ export async function waitingView(
       exportsBy,
     });
   }
-  const identifiers = await deps.access.identifierReviews(tx, asking);
-  const duplicates = await deps.access.duplicates(tx, asking);
+  const identifierCount = await deps.access.identifierReviewCount(tx, asking);
+  const identifiers = identifierCount.ok ? await deps.access.identifierReviews(tx, asking) : null;
+  const duplicates = await deps.access.duplicatePage(tx, {
+    ...asking,
+    after: null,
+    limit: QUEUE_PAGE,
+  });
   const full =
     deps.fullValues === undefined ? null : await fullValuesScreen(tx, deps.fullValues, asking);
+  const fullCounted =
+    deps.fullValues === undefined ? null : await fullValuesCounts(tx, deps.fullValues, asking);
   const hr = roles.has('hr');
   const inbox =
-    hr && deps.pending !== undefined ? await approvalsInbox(tx, deps.pending, asking) : null;
-  const mine =
-    inbox?.ok === true
-      ? inbox.value.items.filter((c) => c.mine && !c.canDecide && !c.canSelfApprove).length
-      : null;
-  // ponytail: the inbox is the store's first 200; a count query when a queue outgrows that.
-  const changes = inbox?.ok === true && mine !== null ? inbox.value.items.length - mine : null;
-  const fullMine =
-    full?.ok === true
-      ? full.value.requests.filter((r) => r.mine && r.state === 'pending').length
-      : 0;
+    hr && deps.pending !== undefined ? await inboxCounts(tx, deps.pending, asking) : null;
+  const mine = inbox === null ? null : inbox.asked;
+  const changes = inbox === null ? null : inbox.all - inbox.asked;
+  const fullMine = fullCounted?.mine ?? 0;
   // Only a decision waits on somebody who can make it; a request of one's own is not one.
   const toDecide =
     full?.ok === true && full.value.canDecide
       ? full.value.requests.filter((r) => r.state === 'pending' && !r.mine)
       : null;
-  const entered = identifiers.ok
-    ? identifiers.value.flatMap((r) => (r.enteredBy == null ? [] : [r.enteredBy]))
-    : [];
+  const entered =
+    identifiers?.ok === true
+      ? identifiers.value.flatMap((r) => (r.enteredBy == null ? [] : [r.enteredBy]))
+      : [];
   const named =
     deps.personOf === undefined
       ? null
       : await actors({ personOf: deps.personOf, service: deps }, tx, asking, entered);
   return ok({
-    identifiers: identifiers.ok ? identifiers.value.length : null,
-    duplicates: duplicates.ok ? duplicates.value.length : null,
-    accessRequests: toDecide === null ? null : toDecide.length,
-    identifiersBy: identifiers.ok ? distinct(named === null ? [] : entered.map(named)) : null,
+    identifiers: identifierCount.ok ? identifierCount.value : null,
+    duplicates: duplicates.ok ? duplicates.value.total : null,
+    accessRequests: toDecide === null ? null : (fullCounted?.toDecide ?? toDecide.length),
+    identifiersBy: identifierCount.ok ? distinct(named === null ? [] : entered.map(named)) : null,
     duplicatesBy: duplicates.ok
-      ? distinct(duplicates.value.map((c) => duplicateSource(c.signals)))
+      ? distinct(duplicates.value.items.map((c) => duplicateSource(c.signals)))
       : null,
     accessRequestsBy: toDecide === null ? null : distinct(toDecide.map((r) => r.requestedBy)),
     exportsBy,

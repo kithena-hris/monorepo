@@ -1062,6 +1062,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           // HR's Decided loads as it scrolls; the address opens the newest.
           onMoreDecided: actions.decidedPage,
           onMoreMerges: actions.mergesPage,
+          // Each decision queue past its first page, newest first, as the list scrolls.
+          onMoreQueue: actions.queuePage,
           kind: at('kind'),
           onKindChange: (kind: string | null) => {
             // A new chip starts at the top of its list.

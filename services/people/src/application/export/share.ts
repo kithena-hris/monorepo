@@ -27,6 +27,7 @@ import {
   type Share,
 } from '../../domain/export/share.js';
 import { mayManage } from '../../domain/report/schedule.js';
+import type { Keyset } from '../person/keyset.js';
 import { seenBy } from '../../domain/segment/segment.js';
 import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
 import type { ReminderCompany } from '../completeness/reminders.js';
@@ -142,8 +143,19 @@ export interface ShareStore {
   insert(tx: Tx, request: ShareRequest): Promise<void>;
   find(tx: Tx, tenantId: string, id: string): Promise<ShareRequest | null>;
   byExport(tx: Tx, tenantId: string, exportId: string): Promise<ShareRequest | null>;
-  /** Still waiting at `at`, oldest first: Review's Exports. */
-  waiting(tx: Tx, tenantId: string, at: string, limit: number): Promise<readonly ShareRequest[]>;
+  /**
+   * Still waiting at `at`, oldest first: Review's Exports. With `newest`,
+   * newest first from after its place, a page at a time.
+   */
+  waiting(
+    tx: Tx,
+    tenantId: string,
+    at: string,
+    limit: number,
+    newest?: { readonly after: Keyset | null },
+  ): Promise<readonly ShareRequest[]>;
+  /** How many still wait at `at` that `notInvolving` neither asked for nor would receive. */
+  waitingCount(tx: Tx, tenantId: string, at: string, notInvolving: string): Promise<number>;
   /** Write `next` only if the row is still as `prior` left it. False when somebody got there first. */
   update(tx: Tx, prior: ShareRequest, next: ShareRequest): Promise<boolean>;
 }
@@ -792,6 +804,54 @@ export async function shareView(
 
 /** How many requests to send Review lists at once. */
 const WAITING_SHOWN = 50;
+
+/**
+ * Review's Exports a page at a time: the requests this viewer may decide now,
+ * newest first, `WAITING_SHOWN` after `after`, with the next page's place.
+ */
+export async function sharesPage(
+  tx: Tx,
+  deps: ShareDeps,
+  asking: Asking,
+  after: Keyset | null,
+): Promise<Result<{ readonly items: readonly ShareView[]; readonly next: Keyset | null }>> {
+  if (!effectiveRoles(asking.viewer.roles).has('people_admin'))
+    return ok({ items: [], next: null });
+  const now = deps.clock.instant();
+  const read = await deps.shares.waiting(tx, asking.tenantId, now, WAITING_SHOWN + 1, { after });
+  const page = read.slice(0, WAITING_SHOWN);
+  const last = page.at(-1);
+  const next =
+    read.length > WAITING_SHOWN && last !== undefined
+      ? { at: last.approval.requestedAt, id: last.approval.id }
+      : null;
+  const waiting = page.filter((share) => mayDecideShare(share, asking.viewer, now));
+  if (waiting.length === 0) return ok({ items: [], next });
+  const accounts = await accountsOf(tx, deps, asking.tenantId);
+  const labels = await labelsOf(tx, deps, asking.tenantId);
+  const faces = await facesOf(
+    tx,
+    deps,
+    asking,
+    accounts,
+    waiting.map((share) => share.approval.requestedBy),
+  );
+  return ok({
+    items: waiting.map((share) => viewOf(share, asking, accounts, labels, faces, now)),
+    next,
+  });
+}
+
+/** How many requests to send this viewer may decide now, over every one: `mayDecideShare`, counted. */
+export async function sharesCount(tx: Tx, deps: ShareDeps, asking: Asking): Promise<number> {
+  if (!effectiveRoles(asking.viewer.roles).has('people_admin')) return 0;
+  return deps.shares.waitingCount(
+    tx,
+    asking.tenantId,
+    deps.clock.instant(),
+    asking.viewer.accountId,
+  );
+}
 
 /**
  * The requests to send an export this viewer may decide now (design E5):

@@ -70,6 +70,7 @@ import {
 } from '../export/full-values';
 import { FORMAT_LABEL, firstName, listed, spokenDate } from '../export/words';
 import { useHeld, useHeldAtOnce } from '../held';
+import { cutoffOf, useQueuePages, type MoreQueue, type QueueKind } from './queue-pages';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type { SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
@@ -134,6 +135,8 @@ export interface ReviewState {
    * where they decide none. Absent from an older shell.
    */
   readonly shares?: readonly ShareRequest[] | null;
+  /** The place of the next page of `shares`; null on the last. Absent from an older shell. */
+  readonly sharesNext?: string | null;
   /**
    * The request to send an export the address names (`?item=export-…`), or
    * null: one the viewer does not decide arrives from the email about it.
@@ -186,6 +189,8 @@ export interface ReviewProps extends ChangeActions {
   readonly onRemindAll?: MissingActions['onRemindAll'];
   readonly onRemind?: MissingActions['onRemind'];
   readonly onLoadMoreMissing?: MissingActions['onLoadMore'];
+  /** A queue's next page after its place, as the list scrolls; absent, the first page is all. */
+  readonly onMoreQueue?: MoreQueue;
   /** What is filled in (`?fill=`): `all`, the grid; a person's id, their dialog. */
   readonly fill?: string | null;
   readonly onFillChange?: (fill: string | null) => void;
@@ -402,6 +407,48 @@ function rowsOf(state: ReviewState, tab: ReviewTab, viewer: Viewer): Row[] {
   }
 }
 
+/** The queues a tab lists for a viewer: what All merges, and pages. */
+function kindsOf(tab: ReviewTab, viewer: Viewer): readonly QueueKind[] {
+  if (viewer !== 'hr') return ['changes'];
+  return tab === 'waiting'
+    ? ['changes', 'ids', 'duplicates', 'access', 'exports']
+    : tab === 'asked'
+      ? ['changes', 'access']
+      : ['changes'];
+}
+
+/**
+ * The host's operations, each telling the queue when a decision went through,
+ * so its row leaves a page kept from before at once (`useQueuePages`).
+ */
+function decidedBy<A extends Actions>(given: A, decided: (rowId: string) => void): A {
+  const after = <P extends unknown[]>(
+    run: ((...args: P) => Promise<Outcome>) | undefined,
+    rowOf: (...args: P) => string,
+  ) =>
+    run === undefined
+      ? undefined
+      : async (...args: P): Promise<Outcome> => {
+          const done = await run(...args);
+          if (done.ok) decided(rowOf(...args));
+          return done;
+        };
+  return {
+    ...given,
+    onDecide: after(given.onDecide, (id) => `change-${id}`),
+    onWithdraw: after(given.onWithdraw, (id) => `change-${id}`),
+    ...(given.onSelfApprove === undefined
+      ? {}
+      : { onSelfApprove: after(given.onSelfApprove, (id) => `change-${id}`) }),
+    onReviewIdentifier: after(given.onReviewIdentifier, (person, key) => `id-${person}~${key}`),
+    onDismiss: after(given.onDismiss, (a, b) => `dup-${a}~${b}`),
+    onDecideFullValues: after(given.onDecideFullValues, (id) => `access-${id}`),
+    ...(given.onDecideShare === undefined
+      ? {}
+      : { onDecideShare: after(given.onDecideShare, (id) => `export-${id}`) }),
+  };
+}
+
 /** Which chips a tab offers HR, in order. */
 const CHIPS: Readonly<Record<ReviewTab, readonly ReviewKind[]>> = {
   waiting: ['changes', 'ids', 'duplicates', 'access', 'exports', 'missing'],
@@ -421,14 +468,18 @@ export function Review({ load, ...props }: ReviewProps): JSX.Element {
 }
 
 function Queue({
-  state,
+  state: read,
   tab,
   kind: heldKind,
   onKindChange,
   item: heldItem,
   onItemChange,
-  ...actions
+  ...given
 }: Omit<ReviewProps, 'load'> & { readonly state: ReviewState }): JSX.Element {
+  // Every page of every queue loaded so far, and what was decided here gone from them.
+  const pages = useQueuePages(read, given.onMoreQueue);
+  const state = pages.state;
+  const actions = decidedBy(given, pages.decided);
   const viewer = viewerOf(state);
   const chips = viewer === 'hr' ? CHIPS[tab] : [];
   // A chip shows at once; the address follows (`useHeldAtOnce`).
@@ -510,10 +561,32 @@ function Queue({
   // a page of missing details renders the queue again, and each one rebuilt
   // and sorted every row (ten thousand of them took a pick past a second).
   const all = useMemo(() => rowsOf(state, tab, viewer), [state, tab, viewer]);
+  // In All, nothing older than where a queue with more to load ends: its
+  // next page would land among them. The open item shows wherever it is.
+  const queues = kindsOf(tab, viewer);
+  const cutoff = cutoffOf(kind === null ? queues : [kind as QueueKind], pages);
   const rows = useMemo(
-    () => (kind === null ? all : all.filter((r) => r.kind === kind)),
-    [all, kind],
+    () =>
+      kind === null
+        ? all.filter((r) =>
+            r.id === picked
+              ? true
+              : r.at === null
+                ? !cutoff.dated
+                : cutoff.at === null || r.at >= cutoff.at,
+          )
+        : all.filter((r) => r.kind === kind),
+    [all, kind, cutoff.at, cutoff.dated, picked],
   );
+  // The next page: the chip's own queue, or in All the one holding the rest back.
+  const blocking =
+    kind === null ? cutoff.blocking : pages.hasMore(kind as QueueKind) ? (kind as QueueKind) : null;
+  const loadMore =
+    blocking === null
+      ? undefined
+      : () => {
+          pages.load(blocking);
+        };
   // Decided counts what it lists (E9): each kind's decisions, and the merges.
   const decisions = tab === 'decided' ? decisionsOf(state) : [];
   const merged = tab === 'decided' ? (state.duplicates?.merges ?? []).length : 0;
@@ -585,7 +658,8 @@ function Queue({
         </ChipGroupItem>
         {chips.map((k) => (
           <ChipGroupItem key={k} value={k}>
-            {CHIP[k]} <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString('en-GB')}</span>
+            {CHIP[k]}{' '}
+            <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString('en-GB')}</span>
           </ChipGroupItem>
         ))}
       </ChipGroup>
@@ -619,7 +693,8 @@ function Queue({
     }
     // Missing details: its own chip, below the decisions in All (which counts
     // it), and the whole page while the grid over everybody is open.
-    const listsMissing = tab === 'waiting' && viewer === 'hr' && (kind === null || kind === 'missing');
+    const listsMissing =
+      tab === 'waiting' && viewer === 'hr' && (kind === null || kind === 'missing');
     const missing =
       !listsMissing && fill !== FILL_ALL ? null : state.completeness === null ? (
         kind === 'missing' ? (
@@ -748,6 +823,8 @@ function Queue({
             now={now}
             pick={pick}
             actionsOf={rowActions}
+            onEndReached={loadMore}
+            loadingMore={pages.loading !== null}
           />
         }
         detail={detail}
@@ -799,7 +876,11 @@ function QueueList({
   now,
   pick,
   actionsOf,
+  onEndReached,
+  loadingMore = false,
 }: {
+  readonly onEndReached?: (() => void) | undefined;
+  readonly loadingMore?: boolean;
   readonly rows: readonly Row[];
   readonly current: string | null;
   readonly now: number;
@@ -843,6 +924,9 @@ function QueueList({
       estimateItemHeight={QUEUE_ROW}
       // A desk's box: as tall as its rows, up to most of the window.
       {...(coarse ? {} : { className: 'max-h-[min(48rem,80dvh)]' })}
+      // The next page of the queue as the reader nears the end of this one.
+      {...(onEndReached === undefined ? {} : { onEndReached })}
+      loadingMore={loadingMore}
       renderItem={renderItem}
     />
   );
@@ -1469,14 +1553,7 @@ function Finance({
               pick(null);
             }}
             backLabel="All items"
-            list={
-              <QueueList
-                rows={rows}
-                current={current?.id ?? null}
-                now={now}
-                pick={pick}
-              />
-            }
+            list={<QueueList rows={rows} current={current?.id ?? null} now={now} pick={pick} />}
             detail={
               current === null ? null : (
                 <Detail

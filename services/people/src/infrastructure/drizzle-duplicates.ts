@@ -63,7 +63,7 @@ export function drizzleDuplicates(): DuplicateStore {
             JOIN live y ON y.id = u.conflict_with
            WHERE u.tenant_id = ${tenantId}::uuid AND u.conflict_with IS NOT NULL
         ) s
-        LIMIT ${limit}`);
+        ${limit === null ? sql`` : sql`LIMIT ${limit}`}`);
       return [...rows].map((r) => ({
         a: r.a,
         b: r.b,

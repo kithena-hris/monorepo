@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { outboxTable, publish } from '@kithena/db-kit';
 
+import { after, newestFirst } from './keyset.js';
 import type { Holding, PendingChange, PendingChangeStore } from './pending-changes.js';
 
 /**
@@ -106,15 +107,35 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
     },
 
     async open(tx, tenantId, where) {
+      const place = where.newest?.after ?? null;
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS} FROM people.pending_change
          WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
            AND (${where.personId ?? null}::uuid IS NULL OR person_id = ${where.personId ?? null}::uuid)
            AND (${where.requestedBy ?? null}::uuid IS NULL
                 OR requested_by = ${where.requestedBy ?? null}::uuid)
-         ORDER BY requested_at, id
+           AND (${place?.at ?? null}::timestamptz IS NULL
+                OR (requested_at, id) < (${place?.at ?? null}::timestamptz, ${place?.id ?? null}::uuid))
+         ORDER BY ${where.newest === undefined ? sql`requested_at, id` : sql`requested_at DESC, id DESC`}
          LIMIT ${where.limit}`);
       return [...rows].map(fromRow);
+    },
+
+    async count(tx, tenantId, where) {
+      const rows = await tx.execute<{ n: number | string }>(sql`
+        SELECT count(*) AS n FROM people.pending_change c
+          JOIN people.person p ON p.tenant_id = c.tenant_id AND p.id = c.person_id
+         WHERE c.tenant_id = ${tenantId}::uuid AND c.state = 'pending'
+           AND c.expires_at > ${where.at}::timestamptz
+           AND c.attribute_key = ANY(${sql.param([...where.keys])}::text[])
+           AND (${where.requestedBy ?? null}::uuid IS NULL
+                OR c.requested_by = ${where.requestedBy ?? null}::uuid)
+           AND (${where.notInvolving ?? null}::uuid IS NULL
+                OR (c.requested_by <> ${where.notInvolving ?? null}::uuid
+                    AND p.identity_account_id IS DISTINCT FROM ${where.notInvolving ?? null}::uuid))
+           AND (${where.subjectAccount ?? null}::uuid IS NULL
+                OR p.identity_account_id = ${where.subjectAccount ?? null}::uuid)`);
+      return Number([...rows][0]?.n ?? 0);
     },
 
     async forPerson(tx, tenantId, personId) {
@@ -174,7 +195,10 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
 }
 
 /** For tests: the same rules, with the "ciphertext" kept beside the row until it closes. */
-export function inMemoryPendingChangeStore(): PendingChangeStore & {
+export function inMemoryPendingChangeStore(
+  /** Whom each person signs in as, for `count`'s subject; nobody by default. */
+  subjects: ReadonlyMap<string, string> = new Map(),
+): PendingChangeStore & {
   readonly rows: Map<string, PendingChange>;
   readonly sealed: Map<string, string>;
 } {
@@ -190,18 +214,40 @@ export function inMemoryPendingChangeStore(): PendingChangeStore & {
       return Promise.resolve();
     },
     find: (_tx, tenantId, id) => Promise.resolve(rows.get(key(tenantId, id)) ?? null),
-    open: (_tx, tenantId, where) =>
+    open: (_tx, tenantId, where) => {
+      const listed = [...rows.values()].filter(
+        (c) =>
+          c.tenantId === tenantId &&
+          c.approval.state === 'pending' &&
+          (where.personId === undefined || c.personId === where.personId) &&
+          (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy),
+      );
+      const place = (c: PendingChange) => ({ at: c.approval.requestedAt, id: c.approval.id });
+      return Promise.resolve(
+        (where.newest === undefined
+          ? listed.toSorted((a, b) => (a.approval.requestedAt < b.approval.requestedAt ? -1 : 1))
+          : listed
+              .filter((c) => after(place(c), where.newest?.after ?? null))
+              .toSorted((a, b) => newestFirst(place(a), place(b)))
+        ).slice(0, where.limit),
+      );
+    },
+    // No people to join here: the subject is whoever `subjects` says signs in as them.
+    count: (_tx, tenantId, where) =>
       Promise.resolve(
-        [...rows.values()]
-          .filter(
-            (c) =>
-              c.tenantId === tenantId &&
-              c.approval.state === 'pending' &&
-              (where.personId === undefined || c.personId === where.personId) &&
-              (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy),
-          )
-          .toSorted((a, b) => (a.approval.requestedAt < b.approval.requestedAt ? -1 : 1))
-          .slice(0, where.limit),
+        [...rows.values()].filter((c) => {
+          const subject = subjects.get(c.personId) ?? null;
+          return (
+            c.tenantId === tenantId &&
+            c.approval.state === 'pending' &&
+            c.approval.expiresAt > where.at &&
+            where.keys.includes(c.attributeKey) &&
+            (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy) &&
+            (where.notInvolving === undefined ||
+              (c.approval.requestedBy !== where.notInvolving && subject !== where.notInvolving)) &&
+            (where.subjectAccount === undefined || subject === where.subjectAccount)
+          );
+        }).length,
       ),
     forPerson: (_tx, tenantId, personId) =>
       Promise.resolve(

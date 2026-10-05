@@ -16,8 +16,8 @@ type Tx = PostgresJsDatabase;
 
 /** `drizzleDuplicates` satisfies this. */
 export interface DuplicateStore {
-  /** Pairs of live records sharing a blocking signal, at most `limit` rows. */
-  signals(tx: Tx, tenantId: string, limit: number): Promise<readonly SignalRow[]>;
+  /** Pairs of live records sharing a blocking signal, at most `limit` rows; null for every one. */
+  signals(tx: Tx, tenantId: string, limit: number | null): Promise<readonly SignalRow[]>;
   /** Every pair a reviewer has decided and not since undone, by `pairKey`. */
   decided(tx: Tx, tenantId: string): Promise<ReadonlySet<string>>;
   /**

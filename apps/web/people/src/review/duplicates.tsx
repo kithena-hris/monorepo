@@ -114,6 +114,8 @@ export interface MergedPair {
 
 export interface DuplicatesState {
   readonly items: readonly DuplicatePair[];
+  /** The place of the queue's next page; null on the last. Absent from an older People. */
+  readonly next?: string | null;
   /** Absent from a state that predates undo: read as none. */
   readonly merges?: readonly MergedPair[];
   /** Merged records' next page; null on the last. Absent from an older People. */

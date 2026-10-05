@@ -51,6 +51,7 @@ import {
   type FlagStats,
 } from '../person/approval-flags.js';
 import { offersViewAs } from '../person/view-as.js';
+import { QUEUE_PAGE, cursorOf, keysetOf } from '../person/keyset.js';
 import {
   choicesOf,
   formValues,
@@ -689,7 +690,10 @@ export interface ApprovalItem extends PendingFieldView {
 export interface ApprovalsView {
   /** HR sees every change waiting in the tenant; anybody else, their own. */
   readonly isHr: boolean;
+  /** Newest first, a page at a time. */
   readonly items: readonly ApprovalItem[];
+  /** Where the next page of `items` starts; null on the last. */
+  readonly itemsNext: string | null;
   /** HR's: decided in the last 90 days, newest first, a page at a time. Empty for anybody else. */
   readonly decided: readonly ApprovalItem[];
   /** The place of the next page of `decided`, null on the last. */
@@ -730,6 +734,12 @@ export async function approvalsView(
    * page alone, without the queue, which is the first page's.
    */
   decidedAfter: string | null = null,
+  /**
+   * The queue's next page from this place (the last page's `itemsNext`), or
+   * one change alone wherever it is (`only`, what a link opens): the queue
+   * alone, without Decided, which is the first page's.
+   */
+  queue: { readonly after?: string | null; readonly only?: string | null } = {},
 ): Promise<Result<ApprovalsView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const pending = deps.service.pending;
@@ -737,6 +747,7 @@ export async function approvalsView(
       return ok({
         isHr: false,
         items: [],
+        itemsNext: null,
         decided: [],
         decidedNext: null,
         checks: null,
@@ -744,21 +755,32 @@ export async function approvalsView(
         last90: null,
       });
     }
-    const inbox = await approvalsInbox(tx, pending, asking);
+    const inbox = await approvalsInbox(
+      tx,
+      pending,
+      asking,
+      queue.only == null
+        ? { after: keysetOf(queue.after), limit: QUEUE_PAGE }
+        : { only: queue.only },
+    );
     if (!inbox.ok) return inbox;
     const isHr = inbox.value.isHr;
-    const queue = decidedAfter === null ? inbox.value.items : [];
+    const waiting = decidedAfter === null ? inbox.value.items : [];
+    const itemsNext =
+      decidedAfter === null && inbox.value.next !== null ? cursorOf(inbox.value.next) : null;
+    const queueOnly = queue.after != null || queue.only != null;
     const now = deps.clock.instant();
     const since = new Date(Date.parse(now) - NINETY_DAYS_MS).toISOString();
     const place = decidedAfter === null ? null : DECIDED_CURSOR.exec(decidedAfter);
-    const read = isHr
-      ? await pending.store.decided(tx, asking.tenantId, {
-          since,
-          until: now,
-          limit: DECIDED_PAGE + 1,
-          ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
-        })
-      : [];
+    const read =
+      isHr && !queueOnly
+        ? await pending.store.decided(tx, asking.tenantId, {
+            since,
+            until: now,
+            limit: DECIDED_PAGE + 1,
+            ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
+          })
+        : [];
     const decided = read.slice(0, DECIDED_PAGE);
     const lastDecided = decided.at(-1);
     const decidedNext =
@@ -772,11 +794,11 @@ export async function approvalsView(
       pending.flags === undefined
         ? []
         : await pending.flags.store.questions(tx, asking.tenantId, [
-            ...queue.map((c) => c.id),
+            ...waiting.map((c) => c.id),
             ...decided.map((c) => c.approval.id),
           ]);
     const by = await actors(deps, tx, asking, [
-      ...queue.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+      ...waiting.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
       ...decided.flatMap((c) => [
         { kind: 'user' as const, userId: c.approval.requestedBy },
         ...(c.approval.decidedBy === null
@@ -800,12 +822,12 @@ export async function approvalsView(
         }));
     const look = await looking(tx, pending, asking);
     const avatars = await avatarsOf(deps, tx, asking.tenantId, [
-      ...queue.map((c) => c.personId),
+      ...waiting.map((c) => c.personId),
       ...decided.map((c) => c.personId),
     ]);
 
     const items: ApprovalItem[] = [];
-    for (const c of queue) {
+    for (const c of waiting) {
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
       const change =
@@ -922,6 +944,7 @@ export async function approvalsView(
     return ok({
       isHr,
       items,
+      itemsNext,
       decided: decidedItems,
       decidedNext,
       checks: isHr ? checksOf(look.enabled) : null,
@@ -1350,8 +1373,11 @@ export interface DecidedIdentifierReview {
 }
 
 export interface IdentifierReviewsView {
+  /** Newest first, a page at a time. */
   readonly items: readonly IdentifierReviewItem[];
-  /** Decided in the last 90 days, newest first. */
+  /** Where the next page of `items` starts; null on the last. */
+  readonly next: string | null;
+  /** Decided in the last 90 days, newest first: the first page's alone. */
   readonly decided: readonly DecidedIdentifierReview[];
 }
 
@@ -1363,10 +1389,22 @@ export interface IdentifierReviewsView {
 export async function identifierReviewsView(
   deps: ScreenDeps,
   asking: Asking,
+  query: {
+    /** The page after this place (`next`); the first page without it. */
+    readonly after?: string | null;
+    /** One person's reviews alone, wherever they are in the queue: what a link opens. */
+    readonly person?: string | null;
+  } = {},
 ): Promise<Result<IdentifierReviewsView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
-    const queue = await deps.service.access.identifierReviews(tx, asking);
-    if (!queue.ok) return queue;
+    const page = await deps.service.access.identifierReviewPage(tx, {
+      ...asking,
+      after: keysetOf(query.after),
+      limit: QUEUE_PAGE,
+      ...(query.person == null ? {} : { personId: query.person }),
+    });
+    if (!page.ok) return page;
+    const queue = { value: page.value.items };
     const items: IdentifierReviewItem[] = [];
     const avatars = await avatarsOf(
       deps,
@@ -1395,6 +1433,9 @@ export async function identifierReviewsView(
         enteredBy: r.enteredBy == null ? null : enteredBy(r.enteredBy),
       });
     }
+    const next = page.value.next === null ? null : cursorOf(page.value.next);
+    // What was decided is the first page's: a later one, or one person's, is the queue alone.
+    if (query.after != null || query.person != null) return ok({ items, next, decided: [] });
     const since = new Date(Date.parse(deps.clock.instant()) - NINETY_DAYS_MS).toISOString();
     const closed = await deps.service.access.identifierReviews(tx, {
       ...asking,
@@ -1425,7 +1466,7 @@ export async function identifierReviewsView(
         note: r.note,
       });
     }
-    return ok({ items, decided });
+    return ok({ items, next, decided });
   });
 }
 
@@ -1478,6 +1519,8 @@ export interface DuplicatesView {
     /** Each one's photo, where they have one and the viewer may read them. */
     readonly avatarUrls: readonly [string | null, string | null];
   }[];
+  /** Where the next page of `items` starts; null on the last. */
+  readonly next: string | null;
   /**
    * Merges still standing, newest first, each with what undoing it would
    * do; empty beside a comparison.
@@ -1535,12 +1578,21 @@ export async function duplicatesView(
   pair: readonly [string, string] | null,
   /** Merged records' next page from this place: the page alone, without the queue. */
   mergesAfter: string | null = null,
+  /** The queue's next page from this place (`next`): the page alone, without the merges. */
+  after: string | null = null,
 ): Promise<Result<DuplicatesView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const access = deps.service.access;
-    const queued = await access.duplicates(tx, asking);
+    const queued = await access.duplicatePage(tx, {
+      ...asking,
+      after,
+      limit: QUEUE_PAGE,
+      // The pair a link names, wherever it ranks, beside the page.
+      ...(pair === null ? {} : { also: pair }),
+    });
     if (!queued.ok) return queued;
-    const queue = mergesAfter === null ? queued : { ...queued, value: [] };
+    const next = mergesAfter === null ? queued.value.next : null;
+    const queue = { value: mergesAfter === null ? queued.value.items : [] };
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const labelOf = (key: string) =>
@@ -1573,6 +1625,9 @@ export async function duplicatesView(
         flaggedBy: duplicateSource(c.signals),
       });
     }
+    if (pair === null && after !== null) {
+      return ok<DuplicatesView>({ items, next, merges: [], mergesNext: null, comparison: null });
+    }
     if (pair === null) {
       const place = mergesAfter === null ? null : MERGES_CURSOR.exec(mergesAfter);
       const standing = await access.merges(tx, {
@@ -1603,7 +1658,7 @@ export async function duplicatesView(
           refusal: undo.value.refusal?.message ?? null,
         });
       }
-      return ok<DuplicatesView>({ items, merges, mergesNext, comparison: null });
+      return ok<DuplicatesView>({ items, next, merges, mergesNext, comparison: null });
     }
 
     const [a, b] = pair;
@@ -1657,6 +1712,7 @@ export async function duplicatesView(
     });
     return ok({
       items,
+      next,
       merges: [],
       mergesNext: null,
       comparison: {

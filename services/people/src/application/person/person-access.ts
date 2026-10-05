@@ -90,13 +90,17 @@ import {
   type Carried,
   type HeldValues,
   type IdentifierReviews,
+  type QueuedReview,
   type ReviewItem,
 } from './identifier-review.js';
+import type { Keyset } from './keyset.js';
 import type { IdentifierReview, ReviewDecision } from '../../domain/person/identifier-review.js';
 import type { NationalIdCheck } from '../../country-packs/national-id.js';
 import {
   candidates,
+  duplicatePage,
   mergeRefusal,
+  pairKey,
   unmergePlan,
   unmergeRefusal,
   valuesTaken,
@@ -424,6 +428,26 @@ export interface PersonAccess {
     asking: Asking & { readonly limit?: number; readonly decidedSince?: string },
   ): Promise<Result<readonly ReviewItem[]>>;
   /**
+   * Review's queue of doubted identifiers, newest first, `limit` at a time
+   * from after `after`, by the same rules as `identifierReviews`; with the
+   * place of the next page, null on the last.
+   */
+  identifierReviewPage(
+    tx: Tx,
+    asking: Asking & {
+      readonly after: Keyset | null;
+      readonly limit: number;
+      /** One person's alone, whatever their place: the item a link names. */
+      readonly personId?: string;
+    },
+  ): Promise<Result<{ readonly items: readonly ReviewItem[]; readonly next: Keyset | null }>>;
+  /**
+   * How many doubted identifiers wait for this viewer, over every one: those
+   * on a field HR may read on anybody counted by the store, the rest one by
+   * one by whose they are. The rows `identifierReviewPage` lists, counted.
+   */
+  identifierReviewCount(tx: Tx, asking: Asking): Promise<Result<number>>;
+  /**
    * One person's open reviews, only on attributes the viewer may read. With
    * `decidedSince`, those HR decided since then instead, newest first: the
    * person's own Decided. Never a value.
@@ -451,6 +475,26 @@ export interface PersonAccess {
     tx: Tx,
     asking: Asking & { readonly limit?: number },
   ): Promise<Result<readonly Candidate[]>>;
+  /**
+   * Review's queue of suspected duplicates: the same ranking over every pair,
+   * `limit` after `after` (`duplicatePage`), with the next page's place and
+   * how many HR is shown in all.
+   */
+  duplicatePage(
+    tx: Tx,
+    asking: Asking & {
+      readonly after: string | null;
+      readonly limit: number;
+      /** This pair too, after the page, when it is not on it: the one a link names. */
+      readonly also?: readonly [string, string];
+    },
+  ): Promise<
+    Result<{
+      readonly items: readonly Candidate[];
+      readonly next: string | null;
+      readonly total: number;
+    }>
+  >;
   /** HR says two records are two people: the queue stops offering the pair. */
   dismissDuplicate(
     tx: Tx,
@@ -1741,6 +1785,42 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     },
   };
 
+  /**
+   * HR's queued reviews as HR's queue shows them: only on a field the viewer
+   * may read on that person, each with its label and the last four of the
+   * value where there are any.
+   */
+  async function shownReviews(
+    tx: Tx,
+    asking: Asking,
+    byKey: ReadonlyMap<string, AttributeDefinition>,
+    queued: readonly QueuedReview[],
+  ): Promise<ReviewItem[]> {
+    const items: ReviewItem[] = [];
+    // ponytail: one relation lookup per review, as `list` does per person.
+    for (const review of queued) {
+      const definition = byKey.get(review.attributeKey);
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        review.personId,
+      );
+      if (!definition || !visibleTo(definition, relations)) continue;
+      // A held value is not in the record yet: its last four are the change's.
+      const last4 =
+        review.pendingChangeId !== null
+          ? await heldValues.last4(tx, asking.tenantId, review.pendingChangeId)
+          : definition.encrypted
+            ? ((await deps.secrets.list(tx, asking.tenantId, review.personId)).find(
+                (s) => s.attributeKey === review.attributeKey,
+              )?.last4 ?? null)
+            : null;
+      items.push({ ...review, label: definition.label.default, last4 });
+    }
+    return items;
+  }
+
   /** The open review a reviewer asks about, if they may decide it (PEO-125). */
   async function reviewTarget(tx: Tx, asking: On<{ readonly attributeKey: string }>) {
     const version = await deps.schemas.current(tx, asking.tenantId);
@@ -2193,6 +2273,31 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const rows = await store.signals(tx, asking.tenantId, limit * 4);
       const ranked = candidates(rows, await store.decided(tx, asking.tenantId));
       return ok(shownTo(ranked, version.document.attributes, everyone).slice(0, limit));
+    },
+
+    async duplicatePage(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
+      const store = deps.duplicates;
+      if (!store) return ok({ items: [], next: null, total: 0 });
+      // Every pair, ranked: a page's place is only stable over the whole ranking.
+      const ranked = candidates(
+        await store.signals(tx, asking.tenantId, null),
+        await store.decided(tx, asking.tenantId),
+      );
+      const page = duplicatePage(ranked, asking.after, asking.limit);
+      const also = asking.also === undefined ? null : pairKey(...asking.also);
+      const named =
+        also === null || page.items.some((c) => pairKey(...c.personIds) === also)
+          ? []
+          : ranked.filter((c) => pairKey(...c.personIds) === also);
+      return ok({
+        items: shownTo([...page.items, ...named], version.document.attributes, everyone),
+        next: page.next,
+        total: shownTo(ranked, version.document.attributes, everyone).length,
+      });
     },
 
     async dismissDuplicate(tx, asking) {
@@ -3043,29 +3148,65 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
               asking.decidedSince,
               asking.limit ?? 100,
             );
-      const items: ReviewItem[] = [];
-      // ponytail: one relation lookup per review, as `list` does per person.
-      for (const review of pending) {
-        const definition = byKey.get(review.attributeKey);
+      return ok(await shownReviews(tx, asking, byKey, pending));
+    },
+
+    async identifierReviewPage(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews identifiers'));
+      if (!deps.reviews) return ok({ items: [], next: null });
+      const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+      if (asking.personId !== undefined) {
+        const theirs = (await deps.reviews.open(tx, asking.tenantId, asking.personId)).filter(
+          (r) => r.state === 'pending',
+        );
+        return ok({ items: await shownReviews(tx, asking, byKey, theirs), next: null });
+      }
+      const read = await deps.reviews.pending(tx, asking.tenantId, asking.limit + 1, {
+        after: asking.after,
+      });
+      const page = read.slice(0, asking.limit);
+      const last = page.at(-1);
+      return ok({
+        items: await shownReviews(tx, asking, byKey, page),
+        // The last read, shown or not, so a hidden one never stops the paging.
+        next:
+          read.length > asking.limit && last !== undefined
+            ? { at: last.createdAt, id: last.id }
+            : null,
+      });
+    },
+
+    async identifierReviewCount(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews identifiers'));
+      if (!deps.reviews) return ok(0);
+      const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+      let n = 0;
+      // A field HR reads on anybody is read on everybody: counted as it stands.
+      // One it reads only on some (their own, a report's) is asked of each.
+      const some: string[] = [];
+      for (const [key, count] of await deps.reviews.pendingCounts(tx, asking.tenantId)) {
+        const definition = byKey.get(key);
+        if (definition === undefined) continue;
+        if (visibleTo(definition, everyone)) n += count;
+        else some.push(key);
+      }
+      for (const r of await deps.reviews.pendingOn(tx, asking.tenantId, some)) {
+        const definition = byKey.get(r.attributeKey);
         const relations = await deps.relations.relations(
           tx,
           asking.tenantId,
           asking.viewer,
-          review.personId,
+          r.personId,
         );
-        if (!definition || !visibleTo(definition, relations)) continue;
-        // A held value is not in the record yet: its last four are the change's.
-        const last4 =
-          review.pendingChangeId !== null
-            ? await heldValues.last4(tx, asking.tenantId, review.pendingChangeId)
-            : definition.encrypted
-              ? ((await deps.secrets.list(tx, asking.tenantId, review.personId)).find(
-                  (s) => s.attributeKey === review.attributeKey,
-                )?.last4 ?? null)
-              : null;
-        items.push({ ...review, label: definition.label.default, last4 });
+        if (definition !== undefined && visibleTo(definition, relations)) n += 1;
       }
-      return ok(items);
+      return ok(n);
     },
 
     async personReviews(tx, asking) {

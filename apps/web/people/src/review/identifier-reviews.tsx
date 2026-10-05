@@ -78,6 +78,8 @@ export interface DecidedReview {
 
 export interface IdentifierReviewsState {
   readonly items: readonly ReviewItem[];
+  /** The place of the queue's next page; null on the last. Absent from an older People. */
+  readonly next?: string | null;
   /** Decided in the last 90 days, newest first. Absent from an older People. */
   readonly decided?: readonly DecidedReview[];
 }

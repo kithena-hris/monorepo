@@ -3,11 +3,13 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { run, type PeopleService } from '../application/person/service.js';
 import type { Asking } from '../application/person/person-access.js';
+import { cursorOf, keysetOf } from '../application/person/keyset.js';
 import {
   decideExportShare,
   exportRecord,
   previewShare,
   shareExport,
+  sharesPage,
   sharesToDecide,
   shareView,
   ShareAsk,
@@ -156,6 +158,26 @@ export function shareRoutes(deps: {
       handle: async (asking) => {
         const found = inShare(asking, (d, tx) => sharesToDecide(tx, d, asking));
         return found === null ? answer(ok([])) : answer(await found);
+      },
+    },
+    {
+      // The same, a page at a time, newest first: `{ items, next }`, `after` the last's `next`.
+      method: 'GET',
+      pattern: /^\/v1\/exports\/share\/waiting$/,
+      handle: async (asking, _request, _params, query) => {
+        const found = inShare(asking, (d, tx) =>
+          sharesPage(tx, d, asking, keysetOf(query.get('after'))),
+        );
+        if (found === null) return answer(ok({ items: [], next: null }));
+        const page = await found;
+        return answer(
+          page.ok
+            ? ok({
+                items: page.value.items,
+                next: page.value.next === null ? null : cursorOf(page.value.next),
+              })
+            : page,
+        );
       },
     },
     {

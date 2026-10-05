@@ -626,6 +626,13 @@ function screenPaths(): Record<string, unknown> {
         '{ status: sent, exportId } or the request waiting',
       ),
     },
+    '/v1/exports/share/waiting': {
+      get: {
+        summary:
+          'The same requests, newest first, a page at a time: `after` is the last page’s `next`',
+        responses: { 200: { description: '{ items, next }' }, ...failure },
+      },
+    },
     '/v1/exports/share/{id}': {
       get: {
         summary:
