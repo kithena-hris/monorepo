@@ -528,3 +528,26 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
     });
   });
 });
+
+describe.runIf(coarse)('Review at ten thousand items waiting, under a finger', () => {
+  it('lists with the page as its scroll, then opens an item with All items to go back', async () => {
+    mount();
+    const row = await vi.waitFor(() => rowOf('Person 2, ID checks'));
+    // The page scrolls, not a box of its own, and only the rows near the view are drawn.
+    expect(scrollerOf(row)).toBe(document.scrollingElement);
+    expect(queue().querySelectorAll('[data-list-row]').length).toBeLessThan(60);
+    act(() => {
+      fireEvent.click(row);
+    });
+    const back = await screen.findByRole('button', { name: 'All items' });
+    expect(
+      [...document.querySelectorAll('h2')].some((h) => h.textContent === 'Person 2 · National ID'),
+    ).toBe(true);
+    act(() => {
+      fireEvent.click(back);
+    });
+    await vi.waitFor(() => {
+      expect(rowOf('Person 2, ID checks')).toBeVisible();
+    });
+  });
+});
