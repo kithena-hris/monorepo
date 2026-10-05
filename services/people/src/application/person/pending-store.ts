@@ -40,7 +40,8 @@ function payReadSql(tenantId: string, where: FlaggedWhere): SQL {
  * `flaggedNow` in SQL, over `c.flag_evidence`: a check switched on, on a pay
  * field only where the decider reads pay (`payReadSql`), not quietened by a
  * recent mark of the same requester's no smaller than it. The in-memory store
- * runs `flaggedNow` itself; `pending-store.integration.test.ts` holds them equal.
+ * runs `flaggedNow` itself; `approvals.test.ts` and, against Postgres at a
+ * company's scale, `review-queues.integration.test.ts` hold them to one answer.
  */
 function flaggedSql(tenantId: string, where: FlaggedWhere) {
   return sql`jsonb_array_length(c.flag_evidence) > 0 AND EXISTS (
