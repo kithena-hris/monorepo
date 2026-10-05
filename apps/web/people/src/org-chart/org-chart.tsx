@@ -13,7 +13,7 @@ import {
   useCoarsePointer,
   type OrgNode,
 } from '@reach/ui';
-import type { JSX } from 'react';
+import { useMemo, type JSX } from 'react';
 
 import { ViewSwitch, type DirectoryView } from '../directory/directory';
 import { useHeld } from '../held';
@@ -100,25 +100,30 @@ function Body({
   const [orientation, setOrientation] = useHeld<Orientation>(layout, onLayoutChange, 'vertical');
   const [focused, setFocused] = useHeld<string | null>(focusId, onFocusChange, null);
   const [chosen, setPicked] = useHeld<string | null>(pickedId, onPickedChange, null);
-  const ids = new Set(state.people.map((p) => p.id));
+  // Derived once per roster, not on every render: a picked card, a focus or a
+  // direction change redrew the chart from a fresh array of nodes each time.
+  const { ids, managers, nodes } = useMemo(() => {
+    const present = new Set(state.people.map((p) => p.id));
+    return {
+      ids: present,
+      managers: new Set(state.people.flatMap((p) => (p.managerId === null ? [] : [p.managerId]))),
+      nodes: state.people.map((p): OrgNode => ({
+        id: p.id,
+        name: p.name,
+        ...(p.title === null ? {} : { title: p.title }),
+        ...(p.team === null ? {} : { meta: p.team }),
+        ...(p.managerId === null || !present.has(p.managerId) ? {} : { parentId: p.managerId }),
+        ...(p.avatarUrl === null ? {} : { avatarUrl: p.avatarUrl }),
+        ...(p.status === null || TONE[p.status] === undefined
+          ? {}
+          : { status: p.status, statusTone: TONE[p.status] }),
+      })),
+    };
+  }, [state.people]);
   // Somebody a link names who is not on this viewer's chart: no card.
   const picked = chosen !== null && ids.has(chosen) ? chosen : null;
   // Somebody a link focused who is not on this viewer's chart: everybody.
   const focus = focused !== null && ids.has(focused) ? focused : null;
-  const managers = new Set(
-    state.people.flatMap((p) => (p.managerId === null ? [] : [p.managerId])),
-  );
-  const nodes: OrgNode[] = state.people.map((p) => ({
-    id: p.id,
-    name: p.name,
-    ...(p.title === null ? {} : { title: p.title }),
-    ...(p.team === null ? {} : { meta: p.team }),
-    ...(p.managerId === null || !ids.has(p.managerId) ? {} : { parentId: p.managerId }),
-    ...(p.avatarUrl === null ? {} : { avatarUrl: p.avatarUrl }),
-    ...(p.status === null || TONE[p.status] === undefined
-      ? {}
-      : { status: p.status, statusTone: TONE[p.status] }),
-  }));
   const person = state.people.find((p) => p.id === picked) ?? null;
   const reports =
     person === null ? 0 : state.people.filter((p) => p.managerId === person.id).length;

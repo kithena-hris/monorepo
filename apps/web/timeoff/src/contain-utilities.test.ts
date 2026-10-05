@@ -40,8 +40,10 @@ describe('containUtilities', () => {
     // The screen, and a menu it portalled to the body.
     expect(matches('<div data-remote-host><div data-remote><p data-t></p></div></div>')).toBe(true);
     expect(matches('<div data-remote-host></div><div><p data-t></p></div>')).toBe(true);
-    // A host that marks only the screen keeps the old rule.
-    expect(matches('<div><nav data-t></nav><div data-remote></div></div>')).toBe(false);
+    // A host that marks nothing gets the remote's rules everywhere, as before
+    // there was a scope: the shell marks its page, and a `:has()` that
+    // guessed restyled the whole page on every change.
+    expect(matches('<div><nav data-t></nav><div data-remote></div></div>')).toBe(true);
   });
 
   it('leaves the theme, the base layer and nested rules alone, and scopes once', () => {

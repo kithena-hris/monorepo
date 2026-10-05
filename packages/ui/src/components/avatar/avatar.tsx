@@ -152,6 +152,9 @@ export function Avatar({
         <AvatarPrimitive.Image
           src={safeSrc}
           alt={name}
+          // Decoded off the main thread: a page of rows brings a photo each,
+          // and a synchronous decode is a dropped frame mid-scroll.
+          decoding="async"
           // Radix only mounts the image once it has decoded, so this animates
           // on arrival rather than on a half-painted image.
           className={cn(

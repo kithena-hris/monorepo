@@ -552,7 +552,11 @@ export { CircularProgress, Progress } from './components/progress/progress';
 export { Reveal, staggerStyle } from './components/reveal/reveal';
 export type { RevealProps } from './components/reveal/reveal';
 
-export { RichTextContent, RichTextEditor } from './components/rich-text/rich-text';
+export {
+  RichTextContent,
+  RichTextEditor,
+  preloadRichTextEditor,
+} from './components/rich-text/rich-text';
 export type { RichTextEditorProps, RichTextGroup } from './components/rich-text/rich-text';
 export type {
   CircularProgressProps,

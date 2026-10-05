@@ -105,6 +105,7 @@ function browserModuleOf(name: string, entry: string): Promise<Record<string, un
   if (promise === undefined) {
     promise = browserModule(name, entry).then((exports) => {
       loaded.set(entry, exports);
+      warmWhenIdle(exports);
       return exports;
     });
     loading.set(entry, promise);
@@ -127,6 +128,59 @@ function screenOf(name: string, route: RemoteRoute): Screen {
     name,
     route.component,
   );
+}
+
+/*
+ * A remote may put each screen in a chunk of its own, behind a `preload`
+ * that resolves once the screen can draw (`apps/web/people/src/split.tsx`).
+ * The shell never draws one before then: arriving by a navigation it waits
+ * here, outside the stage, so the previous screen stays until the next can
+ * draw, and no fallback stands in front of a screen somebody opened.
+ *
+ * And the chunks are fetched before anybody asks: every screen of a remote
+ * once the browser is next idle after its first, and at once when a pointer
+ * rests on any in-app link (`warmRemotes`, from `lib/links.ts`), so by the
+ * press the screen is here.
+ */
+type Preload = () => Promise<unknown>;
+const preloadOf = (screen: unknown): Preload | undefined => {
+  const preload = (screen as { preload?: unknown } | null)?.preload;
+  return typeof preload === 'function' ? (preload as Preload) : undefined;
+};
+
+function screenReady(name: string, route: RemoteRoute): Screen {
+  const screen = screenOf(name, route);
+  const preload = preloadOf(screen);
+  if (preload !== undefined) use(preload());
+  return screen;
+}
+
+function warm(exports: Record<string, unknown>): void {
+  // Where a page's own code ends and the code for later begins, for a test to tell apart.
+  if (performance.getEntriesByName('kithena:warm').length === 0) performance.mark('kithena:warm');
+  for (const screen of Object.values(exports)) {
+    preloadOf(screen)?.().catch(() => undefined);
+  }
+}
+
+function warmWhenIdle(exports: Record<string, unknown>): void {
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(
+      () => {
+        warm(exports);
+      },
+      { timeout: 3000 },
+    );
+  } else {
+    setTimeout(() => {
+      warm(exports);
+    }, 1000);
+  }
+}
+
+/** Every loaded remote's screens, fetched now: something on the page is about to open one. */
+export function warmRemotes(): void {
+  for (const exports of loaded.values()) warm(exports);
 }
 
 /*
@@ -499,7 +553,7 @@ function Drawn({
   }
   // Drawn from nothing, its code is waited for here, so the stage never draws
   // a frame of nothing while it loads; this boundary's skeleton stands in.
-  if (!fromServer) screenOf(name, route);
+  if (!fromServer) screenReady(name, route);
   // Marked like the server's HTML, so the remote's stylesheet applies here and
   // nowhere else on the page (`apps/web/people/src/contain-utilities.ts`).
   return (
@@ -531,7 +585,7 @@ function Loaded({
   readonly route: RemoteRoute;
   readonly children: ReactNode;
 }): ReactNode {
-  screenOf(name, route);
+  screenReady(name, route);
   return children;
 }
 

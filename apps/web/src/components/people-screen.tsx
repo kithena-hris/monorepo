@@ -365,7 +365,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   // nor what only the org chart reads: the same address `]` goes to.
   const switchView = (view: string): void => {
     const known = oneOf(view, DIRECTORY_VIEWS, null);
-    if (known !== null) go(viewHref(known, window.location.search));
+    // The same page in another view, from the switch in its own header: where
+    // the page is scrolled to stays, so Next is not asked to find the new
+    // view's top, which reads the layout of the page it has just changed.
+    if (known !== null) router.push(viewHref(known, window.location.search), { scroll: false });
   };
 
   // The import's steps: which upload People holds the file under (§14.2),

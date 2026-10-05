@@ -9,11 +9,9 @@ import {
   firstUnder,
   headerFrame,
   matchPath,
-  matchRoute,
   placesFor,
-  remoteNav,
-  remoteRoute,
 } from './remotes';
+import { matchRoute, remoteNav, remoteRoute } from './remote-manifest';
 import timeOff from '../../timeoff/public/routes.json';
 
 describe('matchRoute', () => {

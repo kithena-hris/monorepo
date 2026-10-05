@@ -8,7 +8,8 @@ import { accessToken } from './people';
 import { readPreference } from './preferences';
 import { currentPerson, displayName } from './session';
 import { shellData, type ShellData } from './shell';
-import { prefsFrom, type ShortcutPrefs } from './shortcuts';
+import { prefsFrom } from './shortcut-prefs';
+import type { ShortcutPrefs } from './shortcuts';
 import { SIDEBAR_COOKIE, sidebarCollapsedFrom } from './sidebar';
 import { RETURN_COOKIE } from './session-cookie';
 

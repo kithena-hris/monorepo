@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { FINANCE, HR, PEOPLE_NAV } from './people-nav.fixture';
 import timeOffManifest from '../../timeoff/public/routes.json';
-import { headerFrame, matchRoute, placesFor } from './remotes';
+import { matchRoute } from './remote-manifest';
+import { headerFrame, placesFor } from './remotes';
 import {
   countsOf,
   noticesOf,
