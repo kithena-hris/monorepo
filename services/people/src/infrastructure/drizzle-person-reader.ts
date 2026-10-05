@@ -16,6 +16,7 @@ import {
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { CORE_COLUMNS } from '../application/person/core.js';
+import { reportingLine } from '../application/person/reporting-line.js';
 import {
   LEAVERS,
   type GapsIn,
@@ -837,18 +838,7 @@ export function drizzleRelations(): RelationsResolver {
     /** Who they are, their reports and everybody below them, in one walk down, bounded like the walk up. */
     async reach(tx, tenantId, viewer) {
       const rows = await tx.execute<{ kind: 'self' | 'direct' | 'chain'; id: string }>(sql`
-        WITH RECURSIVE me AS (
-          SELECT id FROM people.person
-           WHERE tenant_id = ${tenantId}::uuid AND identity_account_id = ${viewer.accountId}::uuid
-        ),
-        below(id, depth) AS (
-          SELECT id, 1 FROM people.person
-           WHERE tenant_id = ${tenantId}::uuid AND manager_id IN (SELECT id FROM me)
-          UNION
-          SELECT p.id, b.depth + 1
-            FROM people.person p JOIN below b ON p.manager_id = b.id
-           WHERE p.tenant_id = ${tenantId}::uuid AND b.depth < 32
-        )
+        WITH RECURSIVE ${reportingLine(tenantId, viewer.accountId)}
         SELECT 'self' AS kind, id FROM me
         UNION ALL
         SELECT 'direct', id FROM below WHERE depth = 1

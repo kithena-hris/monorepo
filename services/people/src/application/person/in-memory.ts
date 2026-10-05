@@ -266,10 +266,17 @@ export function inMemoryPeople(
         const mine = [...rows.values()].find(
           (r) => r.snapshot.identityAccountId === viewer.accountId,
         );
+        // Up from their manager, bounded as `drizzleRelations` walks it.
+        let up = target?.fields.managerId ?? null;
+        let inChain = false;
+        for (let depth = 0; up && depth < 32 && !inChain; depth += 1) {
+          inChain = up === mine?.snapshot.id;
+          up = rows.get(up)?.fields.managerId ?? null;
+        }
         return Promise.resolve({
           isSelf: target?.snapshot.identityAccountId === viewer.accountId,
           isManager: mine !== undefined && target?.fields.managerId === mine.snapshot.id,
-          isInManagerChain: false,
+          isInManagerChain: inChain,
           isHr: viewer.roles.has('hr'),
           isFinance: viewer.roles.has('finance'),
           isAdmin: viewer.roles.has('people_admin'),

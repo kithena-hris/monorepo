@@ -1,8 +1,9 @@
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { outboxTable, publish } from '@kithena/db-kit';
 
-import { flaggedNow, MARK_DAYS } from '../../domain/approval/unusual.js';
+import { flaggedNow, MARK_DAYS, payReadable } from '../../domain/approval/unusual.js';
 import { after, newestFirst } from './keyset.js';
+import { reportingLine } from './reporting-line.js';
 import type {
   FlaggedWhere,
   Holding,
@@ -11,17 +12,41 @@ import type {
 } from './pending-changes.js';
 
 /**
- * `flaggedNow` in SQL, over `c.flag_evidence`: a check switched on, on a pay
- * field only where the decider reads pay, not quietened by a recent mark of
- * the same requester's no smaller than it. The in-memory store runs
- * `flaggedNow` itself; `pending-store.integration.test.ts` holds them equal.
+ * `payReadable` in SQL: the change's field is pay the decider reads on
+ * anybody, or on the people below them (`pay.chain`) or their own reports
+ * (`pay.direct`) when the change's person is one — their reporting line
+ * walked once per query (`reportingLine`), never per change. The line's
+ * arms are left out when the company counts no such pay (`MANAGER_PAY`).
  */
-function flaggedSql(where: FlaggedWhere) {
+function payReadSql(tenantId: string, where: FlaggedWhere): SQL {
+  const { pay } = where;
+  const keys = (k: readonly string[]) => sql`c.attribute_key = ANY(${sql.param([...k])}::text[])`;
+  const below = (depth: SQL) =>
+    sql`c.person_id IN (WITH RECURSIVE ${reportingLine(tenantId, where.decider)}
+                        SELECT id FROM below ${depth})`;
+  return sql`(${sql.join(
+    [
+      keys(pay.everyone),
+      ...(pay.chain.length === 0 ? [] : [sql`(${keys(pay.chain)} AND ${below(sql``)})`]),
+      ...(pay.direct.length === 0
+        ? []
+        : [sql`(${keys(pay.direct)} AND ${below(sql`WHERE depth = 1`)})`]),
+    ],
+    sql` OR `,
+  )})`;
+}
+
+/**
+ * `flaggedNow` in SQL, over `c.flag_evidence`: a check switched on, on a pay
+ * field only where the decider reads pay (`payReadSql`), not quietened by a
+ * recent mark of the same requester's no smaller than it. The in-memory store
+ * runs `flaggedNow` itself; `pending-store.integration.test.ts` holds them equal.
+ */
+function flaggedSql(tenantId: string, where: FlaggedWhere) {
   return sql`jsonb_array_length(c.flag_evidence) > 0 AND EXISTS (
     SELECT 1 FROM jsonb_to_recordset(c.flag_evidence) AS e(code text, magnitude numeric)
      WHERE e.code = ANY(${sql.param([...where.enabled])}::text[])
-       AND (e.code NOT IN ('raise', 'band')
-            OR c.attribute_key = ANY(${sql.param([...where.payKeys])}::text[]))
+       AND (e.code NOT IN ('raise', 'band') OR ${payReadSql(tenantId, where)})
        AND NOT EXISTS (
          SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(where.marks)}::jsonb)
                     AS m(code text, "requestedBy" uuid, magnitude numeric, at timestamptz)
@@ -137,7 +162,7 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS} FROM people.pending_change c
          WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
-           AND ${where.flagged === undefined ? sql`TRUE` : flaggedSql(where.flagged)}
+           AND ${where.flagged === undefined ? sql`TRUE` : flaggedSql(tenantId, where.flagged)}
            AND (${where.since ?? null}::timestamptz IS NULL
                 OR requested_at >= ${where.since ?? null}::timestamptz)
            AND (${where.personId ?? null}::uuid IS NULL OR person_id = ${where.personId ?? null}::uuid)
@@ -164,7 +189,7 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
                     AND p.identity_account_id IS DISTINCT FROM ${where.notInvolving ?? null}::uuid))
            AND (${where.subjectAccount ?? null}::uuid IS NULL
                 OR p.identity_account_id = ${where.subjectAccount ?? null}::uuid)
-           AND ${where.flagged === undefined ? sql`TRUE` : flaggedSql(where.flagged)}`);
+           AND ${where.flagged === undefined ? sql`TRUE` : flaggedSql(tenantId, where.flagged)}`);
       return Number([...rows][0]?.n ?? 0);
     },
 
@@ -231,19 +256,32 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
 }
 
 /** `flaggedSql`, in memory: what `flaggedNow` says of a change's evidence. */
-const flaggedIn = (c: PendingChange, where: FlaggedWhere): boolean =>
-  flaggedNow(c.flagEvidence ?? [], {
-    enabled: new Set(where.enabled),
-    marks: where.marks,
-    at: where.at,
-    requestedBy: c.approval.requestedBy,
-    payReadable: where.payKeys.includes(c.attributeKey),
-  }).length > 0;
+const flaggedIn = (
+  c: PendingChange,
+  where: FlaggedWhere,
+  line: (personId: string) => readonly string[],
+): boolean => {
+  const above = line(c.personId);
+  return (
+    flaggedNow(c.flagEvidence ?? [], {
+      enabled: new Set(where.enabled),
+      marks: where.marks,
+      at: where.at,
+      requestedBy: c.approval.requestedBy,
+      payReadable: payReadable(where.pay, c.attributeKey, {
+        direct: above[0] === where.decider,
+        chain: above.includes(where.decider),
+      }),
+    }).length > 0
+  );
+};
 
 /** For tests: the same rules, with the "ciphertext" kept beside the row until it closes. */
 export function inMemoryPendingChangeStore(
   /** Whom each person signs in as, for `count`'s subject; nobody by default. */
   subjects: ReadonlyMap<string, string> = new Map(),
+  /** The accounts of a person's managers, nearest first, for Flagged's pay; nobody by default. */
+  line: (personId: string) => readonly string[] = () => [],
 ): PendingChangeStore & {
   readonly rows: Map<string, PendingChange>;
   readonly sealed: Map<string, string>;
@@ -268,7 +306,7 @@ export function inMemoryPendingChangeStore(
           (where.personId === undefined || c.personId === where.personId) &&
           (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy) &&
           (where.since === undefined || c.approval.requestedAt >= where.since) &&
-          (where.flagged === undefined || flaggedIn(c, where.flagged)),
+          (where.flagged === undefined || flaggedIn(c, where.flagged, line)),
       );
       const place = (c: PendingChange) => ({ at: c.approval.requestedAt, id: c.approval.id });
       return Promise.resolve(
@@ -294,7 +332,7 @@ export function inMemoryPendingChangeStore(
             (where.notInvolving === undefined ||
               (c.approval.requestedBy !== where.notInvolving && subject !== where.notInvolving)) &&
             (where.subjectAccount === undefined || subject === where.subjectAccount) &&
-            (where.flagged === undefined || flaggedIn(c, where.flagged))
+            (where.flagged === undefined || flaggedIn(c, where.flagged, line))
           );
         }).length,
       ),

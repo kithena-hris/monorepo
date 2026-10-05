@@ -4,11 +4,13 @@ import type { AttributeDefinition } from '@kithena/contracts';
 
 import {
   CHECKS,
-  DEFAULT_CHECKS,
+  MANAGER_PAY,
   MARK_DAYS,
   CONTACT_DAYS,
   isCheckCode,
   payChangePercent,
+  payReach,
+  payReadable,
   unusual,
   type CheckCode,
   type Flagging,
@@ -17,7 +19,6 @@ import {
 } from '../../domain/approval/unusual.js';
 import { answerQuestion, askRequester, type Question } from '../../domain/approval/question.js';
 import { stateAt } from '../../domain/approval/approval.js';
-import { visibleTo } from '../../domain/access/field-access.js';
 import { personZone, placementOf } from '../../domain/org/calendar.js';
 import { mayEditPayBands } from '../../domain/pay/pay.js';
 import type { Calendars } from '../org/org.js';
@@ -62,7 +63,12 @@ export interface ApprovalFlagStore {
   setSwitch(
     tx: Tx,
     tenantId: string,
-    to: { readonly code: CheckCode; readonly on: boolean; readonly by: string; readonly at: string },
+    to: {
+      readonly code: CheckCode | typeof MANAGER_PAY.code;
+      readonly on: boolean;
+      readonly by: string;
+      readonly at: string;
+    },
   ): Promise<void>;
   /** The company's marks since an instant. */
   marks(tx: Tx, tenantId: string, since: string): Promise<readonly Mark[]>;
@@ -171,15 +177,23 @@ export interface PendingChangeDeps {
   };
 }
 
-/** The checks switched on in a company. */
-export async function enabledChecks(
+/** A company's switches: the checks on, and whether pay read through a reporting line counts. */
+export interface Switches {
+  readonly enabled: ReadonlySet<CheckCode>;
+  /** `MANAGER_PAY`. */
+  readonly managerPay: boolean;
+}
+
+export async function switchesOf(
   tx: Tx,
   flags: FlagDeps | undefined,
   tenantId: string,
-): Promise<ReadonlySet<CheckCode>> {
-  if (!flags) return DEFAULT_CHECKS;
-  const set = await flags.store.switches(tx, tenantId);
-  return new Set(CHECKS.filter((c) => set.get(c.code) ?? c.on).map((c) => c.code));
+): Promise<Switches> {
+  const set = flags ? await flags.store.switches(tx, tenantId) : new Map<string, boolean>();
+  return {
+    enabled: new Set(CHECKS.filter((c) => set.get(c.code) ?? c.on).map((c) => c.code)),
+    managerPay: set.get(MANAGER_PAY.code) ?? MANAGER_PAY.on,
+  };
 }
 
 const moneyOf = (value: unknown): Money | null =>
@@ -239,8 +253,7 @@ async function openedPay(
 }
 
 /** What surrounds one look at the inbox: read once, used for every change in it. */
-export interface Looking {
-  readonly enabled: ReadonlySet<CheckCode>;
+export interface Looking extends Switches {
   readonly marks: readonly Mark[];
   readonly definitions: readonly AttributeDefinition[];
   /** The decider's manager, as their own record holds it. */
@@ -259,7 +272,7 @@ export async function looking(
   const me = await deps.reader.personOf(tx, asking.tenantId, asking.viewer.accountId);
   const mine = me === null ? null : await deps.reader.record(tx, asking.tenantId, me);
   return {
-    enabled: await enabledChecks(tx, deps.flags, asking.tenantId),
+    ...(await switchesOf(tx, deps.flags, asking.tenantId)),
     marks:
       deps.flags === undefined
         ? []
@@ -410,23 +423,35 @@ export async function flagChange(
 /* ------------------------------------------------------------ settings -- */
 
 export interface CheckView {
-  readonly code: CheckCode;
+  readonly code: CheckCode | typeof MANAGER_PAY.code;
   readonly title: string;
   readonly detail: string;
   readonly on: boolean;
 }
 
-export const checksOf = (enabled: ReadonlySet<CheckCode>): CheckView[] =>
-  CHECKS.map((c) => ({ code: c.code, title: c.title, detail: c.detail, on: enabled.has(c.code) }));
+/** Every check, then the setting beside them (`MANAGER_PAY`), as AI8's card lists them. */
+export const checksOf = (switches: Switches): CheckView[] => [
+  ...CHECKS.map((c) => ({
+    code: c.code,
+    title: c.title,
+    detail: c.detail,
+    on: switches.enabled.has(c.code),
+  })),
+  { ...MANAGER_PAY, on: switches.managerPay },
+];
 
-/** A People administrator switches one check on or off (AI8). */
+/**
+ * A People administrator switches one check, or `MANAGER_PAY`, on or off
+ * (AI8). It holds from the next read: what each change's checks found is kept
+ * with pay read, and every read applies the switches as they are then.
+ */
 export async function setCheck(
   tx: Tx,
   deps: Pick<PendingChangeDeps, 'clock' | 'flags' | 'relations'>,
   asking: Asking & { readonly code: string; readonly on: boolean },
 ): Promise<Result<readonly CheckView[]>> {
   if (!deps.flags) return err(failure('UNAVAILABLE', 'Approval checks are not configured'));
-  if (!isCheckCode(asking.code)) {
+  if (!isCheckCode(asking.code) && asking.code !== MANAGER_PAY.code) {
     return err(failure('NOT_FOUND', `Kithena runs no check called ${asking.code}`));
   }
   const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
@@ -439,7 +464,7 @@ export async function setCheck(
     by: asking.viewer.accountId,
     at: deps.clock.instant(),
   });
-  return ok(checksOf(await enabledChecks(tx, deps.flags, asking.tenantId)));
+  return ok(checksOf(await switchesOf(tx, deps.flags, asking.tenantId)));
 }
 
 const NOBODY = '00000000-0000-0000-0000-000000000000';
@@ -487,7 +512,7 @@ export async function markNotUnusual(
   const look = await looking(tx, deps, asking);
   const found = await flagChange(tx, deps, look, {
     change,
-    readable: await readableBy(tx, deps, asking, change, look.definitions),
+    readable: await readableBy(tx, deps, asking, change, look),
     requesterName: asking.requesterName ?? 'the requester',
   });
   const at = deps.clock.instant();
@@ -506,23 +531,28 @@ export async function markNotUnusual(
   return ok({ marked: found.reasons.length });
 }
 
-/** Whether the viewer may read the field a change is to. */
+/**
+ * Whether the decider's pay checks may read the field a change is to, on its
+ * person (`payReadable`): by the rule the Flagged count and list apply in
+ * their query (`flaggedWhere`), so the detail pane flags what the list does.
+ */
 export async function readableBy(
   tx: Tx,
   deps: Pick<PendingChangeDeps, 'relations'>,
   asking: Asking,
   change: PendingChange,
-  definitions: readonly AttributeDefinition[],
+  look: Pick<Looking, 'definitions' | 'managerPay'>,
 ): Promise<boolean> {
-  const definition = definitions.find((d) => d.key === change.attributeKey);
-  if (definition === undefined) return false;
   const relations = await deps.relations.relations(
     tx,
     asking.tenantId,
     asking.viewer,
     change.personId,
   );
-  return visibleTo(definition, relations);
+  return payReadable(payReach(look.definitions, relations, look.managerPay), change.attributeKey, {
+    direct: relations.isManager,
+    chain: relations.isManager || relations.isInManagerChain,
+  });
 }
 
 /* ----------------------------------------------------------- questions -- */

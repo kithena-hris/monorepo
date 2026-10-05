@@ -26,7 +26,7 @@ import type { IdentifierReviews } from './identifier-review.js';
 import { flagChange, looking, readableBy, type FlagDeps } from './approval-flags.js';
 import { LIFECYCLE_KEYS } from './core.js';
 import type { Keyset } from './keyset.js';
-import type { CheckCode, Evidence, Mark } from '../../domain/approval/unusual.js';
+import type { CheckCode, Evidence, Mark, PayReach } from '../../domain/approval/unusual.js';
 import type {
   Asking,
   PersonReader,
@@ -112,11 +112,14 @@ export interface PendingChange {
 /**
  * Only the changes flagged for one decider now (`flaggedNow`), from what each
  * change's checks found: the switches on, the company's marks, and the pay
- * fields this decider may read on anybody.
+ * fields this decider may read, on anybody or through their reporting line to
+ * the person (`payReach`).
  */
 export interface FlaggedWhere {
   readonly enabled: readonly CheckCode[];
-  readonly payKeys: readonly string[];
+  readonly pay: PayReach;
+  /** The decider's account, whose reporting line `pay.chain` and `pay.direct` follow. */
+  readonly decider: string;
   readonly marks: readonly Mark[];
   readonly at: string;
 }
@@ -469,7 +472,7 @@ export async function decidePendingChange(
   const look = await looking(tx, deps, asking);
   const flagged = await flagChange(tx, deps, look, {
     change: prior,
-    readable: await readableBy(tx, deps, asking, prior, look.definitions),
+    readable: await readableBy(tx, deps, asking, prior, look),
     requesterName: 'the requester',
   });
   const decided = decideChange(prior.approval, {
