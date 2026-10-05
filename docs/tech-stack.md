@@ -102,7 +102,10 @@ every NativeWind or Expo bump:
    (`apps/mobile/metro.config.js`). pnpm gave `ui-native` its own
    `react-native-css`, which rewrites any `react-native` import that is not in
    its own copy, and the second copy recursed into itself until the stack
-   overflowed.
+   overflowed. Since RMB-007 the redirect applies to every importer and also
+   covers Gesture Handler, Safe Area and SVG: the workspace holds a
+   `react-native` per React it uses, and a library resolving its peer to the
+   Storybook's copy (lucide-react-native did) overflowed the same way.
 3. **Line heights are unitless ratios** (`calc(22 / 17)`), never px.
    `react-native-css` multiplies a line height reached through a variable by
    the font size, so `22px` drew as 374pt on a device.

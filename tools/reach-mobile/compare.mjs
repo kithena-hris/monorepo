@@ -14,6 +14,12 @@
  * http://localhost:6008, `pnpm --filter @reach/storybook-mobile dev`), or
  * starts one for the run.
  */
+/*
+ * Sequential on purpose: every await in a loop drives one shared page, and
+ * parallel navigations would read each other's DOM.
+ */
+/* eslint-disable no-await-in-loop */
+
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
