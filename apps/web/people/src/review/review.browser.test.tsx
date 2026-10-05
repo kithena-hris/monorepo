@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { CompletenessPage, CompletenessState, GapRow } from '../completeness/completeness-grid';
 import type { DuplicatePair } from './duplicates';
-import type { ReviewItem } from './identifier-reviews';
+import { idCheckId, type ReviewItem } from './identifier-reviews';
 import { Review, type ReviewState } from './review';
 import { NOTHING, actions } from './review.fixture';
 
@@ -172,11 +172,14 @@ let reread: () => void = () => undefined;
 /** The shell: the address in state, and everything handed down made again on each render. */
 function Host({
   onLoadMore,
+  opened = null,
 }: {
   readonly onLoadMore: (after: string) => Promise<CompletenessPage | null>;
+  /** The item the address opened the page on (`?item=`). */
+  readonly opened?: string | null;
 }): JSX.Element {
   const [kind, setKind] = useState<string | null>(null);
-  const [item, setItem] = useState<string | null>(null);
+  const [item, setItem] = useState<string | null>(opened);
   const [fill, setFill] = useState<string | null>(null);
   // The page read again, as the shell does after a save: the same answer, new objects.
   const [data, setData] = useState(STATE);
@@ -211,12 +214,12 @@ function Host({
   );
 }
 
-function mount() {
+function mount(opened: string | null = null) {
   const pages = missingPages();
   render(
     <TooltipProvider>
       <PageLayout>
-        <Host onLoadMore={pages.onLoadMore} />
+        <Host onLoadMore={pages.onLoadMore} opened={opened} />
       </PageLayout>
     </TooltipProvider>,
   );
@@ -389,7 +392,9 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
       const said = `mount ${mounted.toFixed(0)}, chips ${chips.toFixed(0)} (ids ${ids.toFixed(0)}, all ${back.toFixed(0)}, missing ${missing.toFixed(0)}, all ${all.toFixed(0)}, duplicates ${dups.toFixed(0)}), pick ${pick.toFixed(0)}, scroll frame ${scroll.toFixed(0)} ms; kept ${JSON.stringify(kept)}`;
       console.info('review', said);
       expect(Object.values(kept).every(Boolean), said).toBe(true);
-      expect({ said, chips: chips < 100 * room }).toEqual({ said, chips: true });
+      // Before: chips 1.1 to 3.6 s, a pick 1.6 s, a scroll frame 51 ms, mounting
+      // 3.8 s. A chip back to All also mounts missing details' first thousand.
+      expect({ said, chips: chips < 150 * room }).toEqual({ said, chips: true });
       expect({ said, pick: pick < 100 * room }).toEqual({ said, pick: true });
       expect({ said, scroll: scroll < 50 * room }).toEqual({ said, scroll: true });
     },
@@ -496,7 +501,8 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
         said,
         pages: true,
       });
-      expect({ said, scroll: Math.max(listScroll, gridScroll) < 50 * room }).toEqual({
+      // A dozen controls a row in the grid; before, its worst frame was 88 to 165 ms.
+      expect({ said, scroll: Math.max(listScroll, gridScroll) < 75 * room }).toEqual({
         said,
         scroll: true,
       });
@@ -505,4 +511,20 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
     },
     SCALE_TIMEOUT,
   );
+
+  it('opens on the item a link named, far down the list, in view beside its detail', async () => {
+    mount(`id-${idCheckId(idCheck(3000))}`);
+    const row = await vi.waitFor(() => rowOf('Person 3000, ID checks'));
+    expect(row).toHaveAttribute('aria-current', 'true');
+    expect(
+      [...document.querySelectorAll('h2')].some((h) => h.textContent === 'Person 3000 · National ID'),
+    ).toBe(true);
+    // The virtualizer settles its scroll over a frame or two, as rows are measured.
+    await vi.waitFor(() => {
+      const shownRow = rowOf('Person 3000, ID checks');
+      const box = scrollerOf(shownRow).getBoundingClientRect();
+      const at = shownRow.getBoundingClientRect();
+      expect(at.top >= box.top - 1 && at.bottom <= box.bottom + 1).toBe(true);
+    });
+  });
 });
