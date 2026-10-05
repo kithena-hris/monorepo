@@ -16,14 +16,21 @@
  * `:where()` adds no specificity, so inside those places the cascade is
  * exactly what the remote's own build intended.
  *
- * The host's page is the element it marks `[data-remote-host]`, and failing
- * that, the one holding `[data-remote]`. The mark is what matters: the
- * stylesheet stays on the page after the host navigates away from the remote
- * (React keeps a stylesheet it has hoisted), and with no `[data-remote]` left
- * the host's whole page was "a portal" — its sidebar `hidden` again, on
- * Settings, until a reload dropped the stylesheet. A host that marks neither
- * matches the second arm everywhere, and gets the old behaviour rather than an
- * unstyled screen.
+ * The host's page is the element it marks `[data-remote-host]`. The mark is
+ * what matters: the stylesheet stays on the page after the host navigates
+ * away from the remote (React keeps a stylesheet it has hoisted), and with no
+ * mark the host's whole page was "a portal" — its sidebar `hidden` again, on
+ * Settings, until a reload dropped the stylesheet. A host that does not mark
+ * its page matches the second arm everywhere, and gets the old behaviour
+ * rather than an unstyled screen.
+ *
+ * Never `:has()` here. The scope once also excluded "whatever holds
+ * `[data-remote]`" with `:has([data-remote])`, for a host that marks nothing.
+ * In front of every one of four hundred rules, it made every change to the
+ * page — a row, a tooltip, a letter in a field — restyle the whole document:
+ * 17 ms instead of 0.1 for one added element among 5,000, and 60 ms a time on
+ * a directory of a thousand, several times per press. The shell marks its page,
+ * so the fallback bought nothing.
  *
  * And its plain utilities — a class and its declarations, no variant — sit
  * one level down, in `utilities.remote`. The shell compiled Reach, and this
@@ -43,7 +50,7 @@
  * compiled `styles.css`.
  */
 export const REMOTE_SCOPE =
-  ':where([data-remote], body > :not([data-remote-host], :has([data-remote])))';
+  ':where([data-remote], body > :not([data-remote-host]))';
 
 interface Node {
   readonly type: string;
