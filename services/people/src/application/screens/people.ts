@@ -33,6 +33,7 @@ import type {
 import { approvalsInbox, pendingFor } from '../person/pending-changes.js';
 import {
   CHECKS,
+  COLLEAGUES_MINUTES,
   rowSummary,
   type CheckCode,
   type Comparison,
@@ -52,6 +53,7 @@ import {
 } from '../person/approval-flags.js';
 import { offersViewAs } from '../person/view-as.js';
 import { QUEUE_PAGE, cursorOf, keysetOf } from '../person/keyset.js';
+import { flaggedWhere } from '../person/flagged.js';
 import {
   choicesOf,
   formValues,
@@ -739,7 +741,12 @@ export async function approvalsView(
    * one change alone wherever it is (`only`, what a link opens): the queue
    * alone, without Decided, which is the first page's.
    */
-  queue: { readonly after?: string | null; readonly only?: string | null } = {},
+  queue: {
+    readonly after?: string | null;
+    readonly only?: string | null;
+    /** Review's Flagged: only what the checks flag for this decider, over every change. */
+    readonly flagged?: boolean;
+  } = {},
 ): Promise<Result<ApprovalsView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const pending = deps.service.pending;
@@ -755,12 +762,27 @@ export async function approvalsView(
         last90: null,
       });
     }
+    const flagged =
+      queue.flagged === true && queue.only == null ? await flaggedWhere(tx, pending, asking) : null;
     const inbox = await approvalsInbox(
       tx,
       pending,
       asking,
       queue.only == null
-        ? { after: keysetOf(queue.after), limit: QUEUE_PAGE }
+        ? {
+            after: keysetOf(queue.after),
+            limit: QUEUE_PAGE,
+            ...(flagged === null
+              ? {}
+              : {
+                  flagged: {
+                    where: flagged.where,
+                    recent: new Date(
+                      Date.parse(flagged.where.at) - COLLEAGUES_MINUTES * 60_000,
+                    ).toISOString(),
+                  },
+                }),
+          }
         : { only: queue.only },
     );
     if (!inbox.ok) return inbox;

@@ -3663,10 +3663,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
             'The queue’s next page, from the last page’s `itemsNext`; Decided is left out.',
         }),
         change: t.arg.id({ description: 'One change alone, wherever it is in the queue.' }),
+        flagged: t.arg.boolean({
+          description:
+            'Review’s Flagged: only what the checks flag for this decider, over every change waiting.',
+        }),
       },
       resolve: view<ApprovalsView>(
-        (args: { decidedAfter?: string | null; after?: string | null; change?: string | null }) => {
+        (args: {
+          decidedAfter?: string | null;
+          after?: string | null;
+          change?: string | null;
+          flagged?: boolean | null;
+        }) => {
           const query = new URLSearchParams();
+          if (args.flagged === true) query.set('flagged', '1');
           if (args.decidedAfter) query.set('decidedAfter', args.decidedAfter);
           if (args.after) query.set('after', args.after);
           if (args.change) query.set('change', args.change);

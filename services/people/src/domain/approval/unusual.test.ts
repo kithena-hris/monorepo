@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ALL_CHECKS,
   CHECKS,
   DEFAULT_CHECKS,
+  evidenceOf,
+  flaggedNow,
   rowSummary,
   unusual,
   type Around,
@@ -349,5 +352,67 @@ describe('the row’s summary', () => {
       ]),
     ).toBe('A 38% raise, above the band');
     expect(rowSummary([])).toBeNull();
+  });
+});
+
+describe('what is kept of a change’s flags, and what it says to each decider', () => {
+  const big = change({ pay: pay('6100000', '8400000') });
+  const bank = change({ dataType: 'bank_account', effectiveFrom: '2026-10-15' });
+  const contact = [{ kind: 'address' as const, at: '2026-09-20T09:00:00.000Z' }];
+  // Kept from every check on, nobody's marks, pay read, no decider: what any decider starts from.
+  const kept = (c: ChangeSeen, a: Partial<Around> = {}) =>
+    evidenceOf(unusual(c, around({ enabled: ALL_CHECKS, ...a })));
+  const now = (over: Partial<Parameters<typeof flaggedNow>[1]> = {}) => ({
+    enabled: DEFAULT_CHECKS,
+    marks: [],
+    at: '2026-09-22T12:00:00.000Z',
+    requestedBy: NORA,
+    payReadable: true,
+    ...over,
+  });
+
+  it('keeps each check’s code and its size, never a sentence or an amount', () => {
+    expect(kept(big)).toEqual([{ code: 'raise', magnitude: '38' }]);
+    expect(kept(bank, { contact })).toEqual([{ code: 'bank_after_contact', magnitude: null }]);
+  });
+
+  it('says the same as the checks would, under every switch, mark and reader', () => {
+    const cases: [ChangeSeen, Partial<Around>][] = [
+      [big, {}],
+      [bank, { contact }],
+      [change({ dataType: 'money', effectiveFrom: '2026-09-25' }), {}],
+    ];
+    const marks: Mark[] = [
+      { code: 'raise', requestedBy: NORA, magnitude: '40', at: '2026-09-01T10:00:00.000Z' },
+      { code: 'raise', requestedBy: NORA, magnitude: '30', at: '2026-09-01T10:00:00.000Z' },
+      { code: 'raise', requestedBy: NORA, magnitude: '40', at: '2026-06-01T10:00:00.000Z' },
+      {
+        code: 'bank_after_contact',
+        requestedBy: NORA,
+        magnitude: null,
+        at: '2026-09-01T10:00:00.000Z',
+      },
+    ];
+    for (const [c, a] of cases) {
+      const evidence = kept(c, a);
+      for (const enabled of [DEFAULT_CHECKS, new Set<CheckCode>(), ALL_CHECKS]) {
+        for (const mark of [[], ...marks.map((m) => [m])]) {
+          for (const payReadable of [true, false]) {
+            const live = codes(payReadable ? c : { ...c, pay: null }, {
+              ...a,
+              enabled,
+              marks: mark,
+            });
+            expect(flaggedNow(evidence, now({ enabled, marks: mark, payReadable }))).toEqual(live);
+          }
+        }
+      }
+    }
+  });
+
+  it('leaves close colleagues to the decider looking now: it depends on who and when', () => {
+    expect(kept(big, { colleagues: { name: 'Nora' }, at: WORKDAY })).toEqual([
+      { code: 'raise', magnitude: '38' },
+    ]);
   });
 });

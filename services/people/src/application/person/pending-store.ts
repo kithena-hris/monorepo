@@ -1,8 +1,34 @@
 import { sql } from 'drizzle-orm';
 import { outboxTable, publish } from '@kithena/db-kit';
 
+import { flaggedNow, MARK_DAYS } from '../../domain/approval/unusual.js';
 import { after, newestFirst } from './keyset.js';
-import type { Holding, PendingChange, PendingChangeStore } from './pending-changes.js';
+import type {
+  FlaggedWhere,
+  Holding,
+  PendingChange,
+  PendingChangeStore,
+} from './pending-changes.js';
+
+/**
+ * `flaggedNow` in SQL, over `c.flag_evidence`: a check switched on, on a pay
+ * field only where the decider reads pay, not quietened by a recent mark of
+ * the same requester's no smaller than it. The in-memory store runs
+ * `flaggedNow` itself; `pending-store.integration.test.ts` holds them equal.
+ */
+function flaggedSql(where: FlaggedWhere) {
+  return sql`jsonb_array_length(c.flag_evidence) > 0 AND EXISTS (
+    SELECT 1 FROM jsonb_to_recordset(c.flag_evidence) AS e(code text, magnitude numeric)
+     WHERE e.code = ANY(${sql.param([...where.enabled])}::text[])
+       AND (e.code NOT IN ('raise', 'band')
+            OR c.attribute_key = ANY(${sql.param([...where.payKeys])}::text[]))
+       AND NOT EXISTS (
+         SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(where.marks)}::jsonb)
+                    AS m(code text, "requestedBy" uuid, magnitude numeric, at timestamptz)
+          WHERE m.code = e.code AND m."requestedBy" = c.requested_by
+            AND m.at >= ${where.at}::timestamptz - make_interval(days => ${MARK_DAYS})
+            AND (e.magnitude IS NULL OR m.magnitude IS NULL OR e.magnitude <= m.magnitude)))`;
+}
 
 /**
  * `people.pending_change`, hand-written against
@@ -109,8 +135,11 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
     async open(tx, tenantId, where) {
       const place = where.newest?.after ?? null;
       const rows = await tx.execute<Row>(sql`
-        SELECT ${COLUMNS} FROM people.pending_change
+        SELECT ${COLUMNS} FROM people.pending_change c
          WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
+           AND ${where.flagged === undefined ? sql`TRUE` : flaggedSql(where.flagged)}
+           AND (${where.since ?? null}::timestamptz IS NULL
+                OR requested_at >= ${where.since ?? null}::timestamptz)
            AND (${where.personId ?? null}::uuid IS NULL OR person_id = ${where.personId ?? null}::uuid)
            AND (${where.requestedBy ?? null}::uuid IS NULL
                 OR requested_by = ${where.requestedBy ?? null}::uuid)
@@ -134,8 +163,15 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
                 OR (c.requested_by <> ${where.notInvolving ?? null}::uuid
                     AND p.identity_account_id IS DISTINCT FROM ${where.notInvolving ?? null}::uuid))
            AND (${where.subjectAccount ?? null}::uuid IS NULL
-                OR p.identity_account_id = ${where.subjectAccount ?? null}::uuid)`);
+                OR p.identity_account_id = ${where.subjectAccount ?? null}::uuid)
+           AND ${where.flagged === undefined ? sql`TRUE` : flaggedSql(where.flagged)}`);
       return Number([...rows][0]?.n ?? 0);
+    },
+
+    async setEvidence(tx, tenantId, id, evidence) {
+      await tx.execute(sql`
+        UPDATE people.pending_change SET flag_evidence = ${JSON.stringify(evidence)}::jsonb
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid AND state = 'pending'`);
     },
 
     async forPerson(tx, tenantId, personId) {
@@ -194,6 +230,16 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
   };
 }
 
+/** `flaggedSql`, in memory: what `flaggedNow` says of a change's evidence. */
+const flaggedIn = (c: PendingChange, where: FlaggedWhere): boolean =>
+  flaggedNow(c.flagEvidence ?? [], {
+    enabled: new Set(where.enabled),
+    marks: where.marks,
+    at: where.at,
+    requestedBy: c.approval.requestedBy,
+    payReadable: where.payKeys.includes(c.attributeKey),
+  }).length > 0;
+
 /** For tests: the same rules, with the "ciphertext" kept beside the row until it closes. */
 export function inMemoryPendingChangeStore(
   /** Whom each person signs in as, for `count`'s subject; nobody by default. */
@@ -220,7 +266,9 @@ export function inMemoryPendingChangeStore(
           c.tenantId === tenantId &&
           c.approval.state === 'pending' &&
           (where.personId === undefined || c.personId === where.personId) &&
-          (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy),
+          (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy) &&
+          (where.since === undefined || c.approval.requestedAt >= where.since) &&
+          (where.flagged === undefined || flaggedIn(c, where.flagged)),
       );
       const place = (c: PendingChange) => ({ at: c.approval.requestedAt, id: c.approval.id });
       return Promise.resolve(
@@ -245,10 +293,17 @@ export function inMemoryPendingChangeStore(
             (where.requestedBy === undefined || c.approval.requestedBy === where.requestedBy) &&
             (where.notInvolving === undefined ||
               (c.approval.requestedBy !== where.notInvolving && subject !== where.notInvolving)) &&
-            (where.subjectAccount === undefined || subject === where.subjectAccount)
+            (where.subjectAccount === undefined || subject === where.subjectAccount) &&
+            (where.flagged === undefined || flaggedIn(c, where.flagged))
           );
         }).length,
       ),
+    setEvidence(_tx, tenantId, id, evidence) {
+      const k = key(tenantId, id);
+      const c = rows.get(k);
+      if (c?.approval.state === 'pending') rows.set(k, { ...c, flagEvidence: evidence });
+      return Promise.resolve();
+    },
     forPerson: (_tx, tenantId, personId) =>
       Promise.resolve(
         [...rows.values()]

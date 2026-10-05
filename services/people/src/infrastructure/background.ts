@@ -38,7 +38,10 @@ import {
   drizzleScheduledRefusals,
   drizzleSchemaVersions,
 } from './drizzle-person-reader.js';
-import { keysFrom, staticKeyRing } from './envelope.js';
+import { keysFrom, open, seal, staticKeyRing } from './envelope.js';
+import { drizzleApprovalFlagStore } from '../application/person/approval-flag-store.js';
+import { retakeEvidence } from '../application/person/flagged.js';
+import { drizzlePendingChangeStore } from '../application/person/pending-store.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { foldSections } from '../application/schema/fold-sections.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
@@ -278,6 +281,43 @@ export async function startBackground(
       }),
     ),
   );
+
+  // What every waiting change's checks find, taken again hourly (Review's
+  // Flagged): what a change is compared with moves after it is asked for.
+  // Sealed values need the key ring, so without one there is nothing to take.
+  if (keys.length > 0) {
+    const ring = staticKeyRing(keys);
+    const evidenceSecrets = drizzleSecretStore(ring, logger);
+    const evidenceDeps = {
+      store: drizzlePendingChangeStore({
+        seal: (plaintext: string) => seal(plaintext, ring),
+        open: (sealedValue: { ciphertext: string; keyId: string }) => open(sealedValue, ring),
+      }),
+      clock: systemClock,
+      reader: drizzlePersonReader(),
+      schemas: drizzleSchemaVersions(),
+      flags: {
+        store: drizzleApprovalFlagStore(),
+        calendars: org,
+        sealed: {
+          current: (
+            tx: Parameters<typeof evidenceSecrets.reveal>[0],
+            where: Parameters<typeof evidenceSecrets.reveal>[1],
+          ) => evidenceSecrets.reveal(tx, where),
+        },
+      },
+    };
+    jobs.push(
+      every(HOUR, () =>
+        forEachTenant('flag-evidence', async (tenantId) => {
+          const taken = await inTenant(tenantId, (scope) =>
+            retakeEvidence(scope.tx, evidenceDeps, tenantId),
+          );
+          if (taken > 0) logger.info({ tenantId, taken }, 'flag evidence taken again');
+        }),
+      ),
+    );
+  }
 
   // The lifecycle's dated moves (§8.1), hourly, so each lands within an hour
   // of the person's own midnight; idempotent, so a second replica finds nobody

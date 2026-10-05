@@ -1,10 +1,9 @@
 import { ok, type Result } from '@kithena/domain-kit';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
-import { rowSummary } from '../../domain/approval/unusual.js';
 import { sharesCount, sharesToDecide, type ShareDeps } from '../export/share.js';
 import { fullValuesCounts, fullValuesScreen, type FullValuesDeps } from '../export/full-values.js';
-import { flagChange, looking } from '../person/approval-flags.js';
+import { flaggedCount } from '../person/flagged.js';
 import { QUEUE_PAGE } from '../person/keyset.js';
 import { approvalsInbox, inboxCounts, type PendingChangeDeps } from '../person/pending-changes.js';
 import type { Asking, PersonAccess } from '../person/person-access.js';
@@ -149,33 +148,14 @@ export async function waitingView(
 
 /**
  * The changes waiting for this viewer's decision that People's checks flag
- * (design AI7): how many, and the newest one's reasons in a line ("A 38%
- * raise"), as Review's Flagged tab lists them. Nobody's but whoever decides.
+ * (design AI7): how many, over every one, and the newest one's reasons in a
+ * line ("A 38% raise"), as Review's Flagged tab lists them. Nobody's but
+ * whoever decides (`flaggedCount`).
  */
 export async function flaggedToDecide(
   tx: PostgresJsDatabase,
   pending: PendingChangeDeps,
   asking: Asking,
 ): Promise<{ readonly count: number; readonly latest: string | null }> {
-  const inbox = await approvalsInbox(tx, pending, asking);
-  if (!inbox.ok || !inbox.value.isHr) return { count: 0, latest: null };
-  const deciding = inbox.value.items.filter((c) => c.canDecide || c.canSelfApprove);
-  if (deciding.length === 0) return { count: 0, latest: null };
-  const look = await looking(tx, pending, asking);
-  let count = 0;
-  let latest: string | null = null;
-  // Oldest first, as the inbox is: the last flagged is the newest.
-  for (const c of deciding) {
-    const change = await pending.store.find(tx, asking.tenantId, c.id);
-    if (change === null) continue;
-    const found = await flagChange(tx, pending, look, {
-      change,
-      readable: c.readable,
-      requesterName: 'the requester',
-    });
-    if (found.reasons.length === 0) continue;
-    count += 1;
-    latest = rowSummary(found.reasons);
-  }
-  return { count, latest };
+  return flaggedCount(tx, pending, asking);
 }

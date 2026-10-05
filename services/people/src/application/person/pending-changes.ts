@@ -26,6 +26,7 @@ import type { IdentifierReviews } from './identifier-review.js';
 import { flagChange, looking, readableBy, type FlagDeps } from './approval-flags.js';
 import { LIFECYCLE_KEYS } from './core.js';
 import type { Keyset } from './keyset.js';
+import type { CheckCode, Evidence, Mark } from '../../domain/approval/unusual.js';
 import type {
   Asking,
   PersonReader,
@@ -100,6 +101,24 @@ export interface PendingChange {
   readonly decidedAs: Exclude<DecidedAs, 'approver'> | null;
   /** The checks that flagged it when it was decided (`approval-flags.ts`); absent before. */
   readonly flags?: readonly string[];
+  /**
+   * What its checks found while it waits (`evidenceOf`), kept so the Flagged
+   * tab counts and lists from it; null until first taken. In-memory only:
+   * the database is asked through `flagged`, never read back.
+   */
+  readonly flagEvidence?: Evidence | null;
+}
+
+/**
+ * Only the changes flagged for one decider now (`flaggedNow`), from what each
+ * change's checks found: the switches on, the company's marks, and the pay
+ * fields this decider may read on anybody.
+ */
+export interface FlaggedWhere {
+  readonly enabled: readonly CheckCode[];
+  readonly payKeys: readonly string[];
+  readonly marks: readonly Mark[];
+  readonly at: string;
 }
 
 export interface PendingChangeStore {
@@ -120,8 +139,14 @@ export interface PendingChangeStore {
       readonly requestedBy?: string;
       readonly limit: number;
       readonly newest?: { readonly after: Keyset | null };
+      /** Only those flagged for a decider now. */
+      readonly flagged?: FlaggedWhere;
+      /** Only those asked for at or after this instant. */
+      readonly since?: string;
     },
   ): Promise<readonly PendingChange[]>;
+  /** Keep what a change's checks found, while it is still pending. */
+  setEvidence(tx: Tx, tenantId: string, id: string, evidence: Evidence): Promise<void>;
   /**
    * How many are still pending at `at` on these attributes, of a person on
    * file: every one the inbox would list, counted rather than read. With
@@ -138,6 +163,8 @@ export interface PendingChangeStore {
       readonly requestedBy?: string;
       readonly notInvolving?: string;
       readonly subjectAccount?: string;
+      /** Only those flagged for a decider now. */
+      readonly flagged?: FlaggedWhere;
     },
   ): Promise<number>;
   /** Every change to one person, whatever it became, oldest first: their subject access pack. */
@@ -176,6 +203,12 @@ export interface Holding {
   readonly publish: (tx: Tx, events: readonly PendingEvent[]) => Promise<void>;
   readonly clock: Clock;
   readonly newId: () => string;
+  /**
+   * Take what the change's checks find, in the same transaction it is held
+   * in (`takeEvidence`), so the Flagged tab counts it from the start. Absent,
+   * the hourly pass takes it.
+   */
+  readonly evidence?: (tx: Tx, change: PendingChange) => Promise<void>;
 }
 
 /**
@@ -330,6 +363,7 @@ export async function holdChange(
     decidedAs: null,
   };
   await deps.store.insert(tx, change, sealed ? JSON.stringify(input.value) : null);
+  await deps.evidence?.(tx, change);
   await deps.publish(tx, [
     event(
       deps,
@@ -819,7 +853,16 @@ export async function approvalsInbox(
    * the place of the next page. Without it, the first `INBOX`, oldest first.
    */
   page?:
-    | { readonly after: Keyset | null; readonly limit: number }
+    | {
+        readonly after: Keyset | null;
+        readonly limit: number;
+        /**
+         * Review's Flagged: only those the kept evidence flags for this decider
+         * (`flaggedWhere`), and on the first page every change asked for since
+         * `recent`, whose close-colleagues check only the decider runs.
+         */
+        readonly flagged?: { readonly where: FlaggedWhere; readonly recent: string };
+      }
     /** One change alone, wherever it is in the queue: what a link opens. */
     | { readonly only: string },
 ): Promise<
@@ -849,14 +892,35 @@ export async function approvalsInbox(
     ...(everyone.isHr ? {} : { requestedBy: me }),
     limit: page === undefined ? INBOX : page.limit + 1,
     ...(page === undefined ? {} : { newest: { after: page.after } }),
+    ...(page?.flagged === undefined ? {} : { flagged: page.flagged.where }),
   });
-  const open = page === undefined ? read : read.slice(0, page.limit);
-  const last = open.at(-1);
+  const paged = page === undefined ? read : read.slice(0, page.limit);
+  const last = paged.at(-1);
   // The last row read, shown or not: a lapsed one skipped still moves the place on.
   const next =
     page !== undefined && read.length > page.limit && last !== undefined
       ? { at: last.approval.requestedAt, id: last.approval.id }
       : null;
+  // The hour's newest on the first page of Flagged, whatever their evidence:
+  // whether close colleagues flags them is this decider's to say, now.
+  const recent =
+    page?.flagged === undefined || page.after !== null
+      ? []
+      : await deps.store.open(tx, asking.tenantId, {
+          ...(everyone.isHr ? {} : { requestedBy: me }),
+          limit: page.limit,
+          newest: { after: null },
+          since: page.flagged.recent,
+        });
+  const ids = new Set(paged.map((c) => c.approval.id));
+  const open =
+    recent.length === 0
+      ? paged
+      : [...recent.filter((c) => !ids.has(c.approval.id)), ...paged].toSorted(
+          (a, b) =>
+            Date.parse(b.approval.requestedAt) - Date.parse(a.approval.requestedAt) ||
+            (a.approval.id < b.approval.id ? 1 : -1),
+        );
   return inboxOf(tx, deps, asking, everyone.isHr, version, open, next);
 }
 
