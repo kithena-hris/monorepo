@@ -1,5 +1,6 @@
 import {
   Checkbox,
+  CurrencyField,
   Field,
   FieldDescription,
   FieldError,
@@ -7,9 +8,11 @@ import {
   Input,
   NumberField,
   PasswordField,
+  PhoneField,
   PinInput,
   RadioGroup,
   Rating,
+  SearchField,
   RadioGroupItem,
   Slider,
   Stack,
@@ -37,6 +40,10 @@ export function FormsGallery(): React.JSX.Element {
   const [bold, setBold] = useState(false);
   const [stars, setStars] = useState(4);
   const [band, setBand] = useState([40, 75]);
+  const [query, setQuery] = useState('');
+  const [amount, setAmount] = useState('124050');
+  const [phone, setPhone] = useState('151 2345 6789');
+  const [country, setCountry] = useState('DE');
   const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
@@ -98,6 +105,20 @@ export function FormsGallery(): React.JSX.Element {
         max={120}
         tip={(v) => `€${String(v)}k`}
       />
+      <SearchField value={query} onValueChange={setQuery} label="Search people" />
+      <Field>
+        <FieldLabel>Amount</FieldLabel>
+        <CurrencyField value={amount} onValueChange={setAmount} currency="EUR" />
+      </Field>
+      <Field>
+        <FieldLabel>Mobile</FieldLabel>
+        <PhoneField
+          value={phone}
+          onValueChange={setPhone}
+          country={country}
+          onCountryChange={setCountry}
+        />
+      </Field>
       <Rating value={stars} onChange={setStars} label="Delivery" showValue />
     </Stack>
   );

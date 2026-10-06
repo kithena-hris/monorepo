@@ -182,6 +182,23 @@ const profiles = {
   },
   number: { keyboardType: 'number-pad', inputMode: 'numeric' },
   decimal: { keyboardType: 'decimal-pad', inputMode: 'decimal' },
+  /** Letters and digits, read back in capitals, never corrected. */
+  iban: {
+    autoCapitalize: 'characters',
+    autoCorrect: false,
+    spellCheck: false,
+    autoComplete: 'off',
+  },
+  postcode: {
+    autoComplete: 'postal-code',
+    textContentType: 'postalCode',
+    autoCapitalize: 'characters',
+    autoCorrect: false,
+  },
+  /** Typed dates, times and durations: digits and the marks between them. */
+  date: { keyboardType: 'numbers-and-punctuation', autoCorrect: false },
+  time: { keyboardType: 'numbers-and-punctuation', autoCorrect: false },
+  duration: { keyboardType: 'numbers-and-punctuation', autoCorrect: false },
   password: {
     secureTextEntry: true,
     autoComplete: 'current-password',

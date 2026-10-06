@@ -136,6 +136,18 @@ export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
 export { Switch, SwitchTrack, type SwitchProps } from './components/switch/switch.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export {
+  commonDialCodes,
+  CurrencyField,
+  formatMinor,
+  parseMinor,
+  PhoneField,
+  SearchField,
+  type CurrencyFieldProps,
+  type DialCode,
+  type PhoneFieldProps,
+  type SearchFieldProps,
+} from './components/typed-fields/typed-fields.tsx';
+export {
   segmentItem,
   segmentText,
   segmentTrack,
