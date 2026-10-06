@@ -758,3 +758,19 @@ export {
   type FilterQueryProps,
   type QuerySuggestion,
 } from './components/filter-builder/complex-filters.tsx';
+export {
+  SortableList,
+  SortableRowText,
+  type SortableItem,
+  type SortableListProps,
+  type SortableMove,
+} from './components/sortable-list/sortable-list.tsx';
+export {
+  Kanban,
+  KanbanCardMeta,
+  type KanbanAction,
+  type KanbanColumnDef,
+  type KanbanMove,
+  type KanbanProps,
+  type KanbanTone,
+} from './components/kanban/kanban.tsx';

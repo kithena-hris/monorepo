@@ -8,11 +8,14 @@ import {
   type ColumnChooserValue,
   DataTable,
   FilterBuilder,
+  Kanban,
   type FilterGroup,
   KeyValues,
   ListItem,
   Money,
   move,
+  SortableList,
+  SortableRowText,
   Stack,
   Stat,
   TableTitle,
@@ -43,6 +46,7 @@ export function DataGallery(): React.JSX.Element {
       />
       <PeopleTable />
       <Filters />
+      <Moving />
       <VirtualList
         items={ROWS}
         label="Everyone"
@@ -129,6 +133,53 @@ function Filters(): React.JSX.Element {
         ]}
         value={columns}
         onChange={setColumns}
+      />
+    </Stack>
+  );
+}
+
+type Card = { id: string; title: string };
+
+/** A sortable list and a one-column board: long-press drags, menus move. */
+function Moving(): React.JSX.Element {
+  const [rows, setRows] = useState<Card[]>(
+    ['Payroll', 'Time off', 'Insights'].map((title) => ({ id: title, title })),
+  );
+  const [board, setBoard] = useState<Record<string, readonly Card[]>>({
+    applied: [{ id: 'hana', title: 'Hana Kim' }],
+    screen: [{ id: 'leo', title: 'Leo Rossi' }],
+  });
+  return (
+    <Stack gap={2}>
+      <SortableList
+        label="Order"
+        items={rows}
+        itemLabel={(r) => r.title}
+        onReorder={({ from, to }) => {
+          setRows(move(rows, from, to));
+        }}
+      >
+        {(r) => <SortableRowText title={r.title} />}
+      </SortableList>
+      <Kanban
+        label="Hiring"
+        layout="single"
+        cardMenu
+        columns={[
+          { id: 'applied', title: 'Applied' },
+          { id: 'screen', title: 'Screen', limit: 2 },
+        ]}
+        items={board}
+        cardTitle={(c) => c.title}
+        onMove={({ itemId, from, to, toIndex }) => {
+          const card = board[from]?.find((c) => c.id === itemId);
+          if (!card) return;
+          const rest = (board[from] ?? []).filter((c) => c.id !== itemId);
+          const next = { ...board, [from]: rest };
+          const target = [...(next[to] ?? [])];
+          target.splice(toIndex, 0, card);
+          setBoard({ ...next, [to]: target });
+        }}
       />
     </Stack>
   );

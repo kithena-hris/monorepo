@@ -122,3 +122,15 @@ export const STATUS_TONE = {
   Offboarding: 'warning',
   Invited: 'neutral',
 } as const;
+
+/** The design's sample candidates, for a hiring board: name, role, tags. */
+export const CANDIDATES = [
+  { name: 'Hana Kim', role: 'Product Designer', tags: ['Portfolio'] },
+  { name: 'Leo Rossi', role: 'Backend Engineer', tags: ['Referral'] },
+  { name: 'Ines Duarte', role: 'Account Executive', tags: [] },
+  { name: 'Ravi Patel', role: 'Data Analyst', tags: ['Remote'] },
+  { name: 'Maya Cohen', role: 'iOS Engineer', tags: ['Senior'] },
+  { name: 'Sam Okoro', role: 'Support Lead', tags: [] },
+  { name: 'Eva Novak', role: 'Recruiter', tags: ['Internal'] },
+  { name: 'Ali Rahman', role: 'Designer', tags: [] },
+] as const;
