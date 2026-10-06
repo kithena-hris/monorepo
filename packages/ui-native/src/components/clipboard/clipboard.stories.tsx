@@ -11,6 +11,7 @@ import { Card } from '../card/card.tsx';
 import { Alert } from '../feedback/feedback.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
 import { Text } from '../text/text.tsx';
+import { Tooltip } from '../tooltip/tooltip.tsx';
 import { CopyButton, CopyField } from './clipboard.tsx';
 
 const meta = {
@@ -69,8 +70,11 @@ export const Playground: Story = {
 export const IconOnly: Story = {
   name: 'Icon only',
   render: (args) => (
-    <Inline gap={2}>
-      <CopyButton {...args} label="Copy invite link" />
+    <Inline gap={2} className="min-h-24 items-start">
+      {/* An icon-only button names itself in a tooltip; a long press opens it on a phone. */}
+      <Tooltip content="Copy invite link" side="bottom" defaultOpen>
+        <CopyButton {...args} label="Copy invite link" />
+      </Tooltip>
       <View testID="press">
         <CopyButton {...args} label="Copy invite link" write={SUCCEED} resetAfter={LINGER} />
       </View>

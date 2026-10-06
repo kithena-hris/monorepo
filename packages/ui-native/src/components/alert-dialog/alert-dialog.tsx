@@ -4,7 +4,7 @@ import { styled } from 'react-native-css';
 
 import { cn } from '../../lib/cn.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
-import { flatStyle, InertOutside, usePresence } from '../../lib/overlay.tsx';
+import { flatStyle, InertOutside, quietFrame, usePresence } from '../../lib/overlay.tsx';
 import {
   BackGuard,
   CentredFrame,
@@ -43,12 +43,15 @@ export type AlertDialogContentProps = {
   className?: string | undefined;
   /** Draw in the `OverlayHost` of this name instead of the root one. */
   portalHost?: string;
+  /** The widest it may be, in points: 342 by default, as Dialog's. */
+  width?: number;
 };
 
 export function AlertDialogContent({
   children,
   className,
   portalHost,
+  width,
 }: AlertDialogContentProps): React.JSX.Element | null {
   const { open, onOpenChange } = AlertDialogPrimitive.useRootContext();
   const presence = usePresence(open);
@@ -64,12 +67,14 @@ export function AlertDialogContent({
       container={container}
     >
       <CentredFrame
+        width={width}
         scrimStyle={presence.scrimStyle}
         style={presence.style}
         scrim={<Overlay forceMount className="absolute inset-0 bg-overlay" />}
       >
         <Content
           forceMount
+          ref={quietFrame}
           onAccessibilityEscape={cancel}
           className={cn(centredSurface, className)}
         >
@@ -97,12 +102,25 @@ export function AlertDialogTitle({
   return <Title className={cn(dialogTitleClass, className)}>{children}</Title>;
 }
 
+/**
+ * What is at stake. `asChild` lends the description's role to one view of
+ * your own, for a description that is more than a sentence (a list of
+ * consequences), so a screen reader still reads it with the title.
+ */
 export function AlertDialogDescription({
   children,
   className,
+  asChild = false,
 }: {
   children?: ReactNode;
   className?: string | undefined;
+  asChild?: boolean;
 }): React.JSX.Element {
-  return <Description className={cn(dialogDescriptionClass, className)}>{children}</Description>;
+  return asChild ? (
+    <Description asChild className={cn(className)}>
+      {children}
+    </Description>
+  ) : (
+    <Description className={cn(dialogDescriptionClass, className)}>{children}</Description>
+  );
 }

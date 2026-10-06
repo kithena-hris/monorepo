@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './alert-dialog.tsx';
+import { DialogFooter, dialogTitleClass } from '../dialog/dialog.tsx';
 
 const meta = {
   title: 'Components/AlertDialog',
@@ -92,8 +93,19 @@ export const ConsequencesSpelledOut: Story = {
               <AlertDialogTitle>Offboard Diego Alvarez?</AlertDialogTitle>
             </AlertDialogHeader>
             {/* The list is the description, so a screen reader reads it with the title. */}
-            <AlertDialogDescription className="-mt-1.5 self-stretch text-left">
-              {CONSEQUENCES.map((line) => `•  ${line}`).join('\n')}
+            <AlertDialogDescription asChild className="-mt-1.5">
+              <View>
+                {CONSEQUENCES.map((line) => (
+                  <View key={line} className="flex-row">
+                    <Text variant="subhead" tone="muted" className="w-[18px] leading-[1.55]">
+                      •
+                    </Text>
+                    <Text variant="subhead" tone="muted" className="flex-1 leading-[1.55]">
+                      {line}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </AlertDialogDescription>
             <AlertDialogFooter>
               <AlertDialogCancel asChild>
@@ -180,36 +192,63 @@ export const WhenAnUndoIsBetter: Story = {
   parameters: designNote('alert-dialog', 'When an undo is better'),
   render: function UndoStory() {
     const [archived, setArchived] = useState(true);
-    return archived ? (
-      <View
-        accessibilityRole="alert"
-        className="flex-row items-center gap-3 rounded-[20px] bg-invert py-3 pr-2 pl-3.5 shadow-lg"
-      >
-        <View className="size-6 items-center justify-center rounded-full bg-success">
-          <Icon icon={Check} size={14} tone="on-accent" />
-        </View>
-        <Text tone="on-invert" weight="medium" className="flex-1">
-          Note archived
-        </Text>
-        <Button
-          size="xs"
-          variant="invert"
-          onPress={() => {
-            setArchived(false);
+    return (
+      <View className="gap-4">
+        {/*
+          The dialog this replaces, faded: a picture of what not to do, so it
+          is hidden from assistive technology and inert on the web.
+        */}
+        <View
+          aria-hidden
+          pointerEvents="none"
+          ref={(node: unknown) => {
+            // The DOM's `inert`; a story renders on the web only.
+            if (typeof node === 'object' && node !== null && 'inert' in node) {
+              (node as { inert: boolean }).inert = true;
+            }
           }}
+          className="w-[280px] gap-3.5 rounded-[30px] bg-surface-raised p-[22px] opacity-55 shadow-xl"
         >
-          Undo
-        </Button>
+          <Text className={dialogTitleClass}>Archive this note?</Text>
+          <DialogFooter>
+            <Button size="sm">Cancel</Button>
+            <Button size="sm" variant="primary">
+              Archive
+            </Button>
+          </DialogFooter>
+        </View>
+        {archived ? (
+          <View
+            accessibilityRole="alert"
+            className="w-[300px] flex-row items-center gap-3 rounded-[20px] bg-invert py-3 pr-2 pl-3.5 shadow-lg"
+          >
+            <View className="size-6 items-center justify-center rounded-full bg-success">
+              <Icon icon={Check} size={14} tone="on-accent" />
+            </View>
+            <Text variant="subhead" tone="on-invert" weight="semibold" className="flex-1">
+              Note archived
+            </Text>
+            <Button
+              size="xs"
+              variant="invert"
+              onPress={() => {
+                setArchived(false);
+              }}
+            >
+              Undo
+            </Button>
+          </View>
+        ) : (
+          <Button
+            className="self-start"
+            onPress={() => {
+              setArchived(true);
+            }}
+          >
+            Archive note
+          </Button>
+        )}
       </View>
-    ) : (
-      <Button
-        className="self-start"
-        onPress={() => {
-          setArchived(true);
-        }}
-      >
-        Archive note
-      </Button>
     );
   },
 };

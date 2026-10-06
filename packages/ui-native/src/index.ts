@@ -38,6 +38,23 @@ export {
 } from './lib/animate.ts';
 export { OverlayHost, type OverlayHostProps } from './lib/overlay-host.tsx';
 export { usePresence } from './lib/overlay.tsx';
+export {
+  FloatingRoot,
+  FloatingSurface,
+  floatingSurface,
+  useTriggerHandle,
+  type FloatingState,
+  type TriggerHandle,
+  LongPressTrigger,
+} from './lib/floating.tsx';
+export {
+  menuRowClass,
+  MenuHeading,
+  MenuRowContent,
+  MenuSeparator,
+  menuSurface,
+  type MenuRowContentProps,
+} from './lib/menu.tsx';
 
 export {
   Accordion,
@@ -79,6 +96,15 @@ export {
   type AvatarProps,
   type AvatarSize,
 } from './components/avatar/avatar.tsx';
+export {
+  ActionSheet,
+  ActionSheetContent,
+  ActionSheetItem,
+  ActionSheetTrigger,
+  type ActionSheetContentProps,
+  type ActionSheetItemProps,
+  type ActionSheetProps,
+} from './components/action-sheet/action-sheet.tsx';
 export {
   AlertDialog,
   AlertDialogAction,
@@ -239,6 +265,64 @@ export {
   useField,
   type FieldProps,
 } from './components/field/field.tsx';
+export {
+  CoachMark,
+  CoachMarkDot,
+  type CoachMarkProps,
+} from './components/coach-mark/coach-mark.tsx';
+export {
+  HoverCard,
+  HoverCardAction,
+  HoverCardContent,
+  HoverCardTrigger,
+  type HoverCardActionProps,
+  type HoverCardContentProps,
+  type HoverCardProps,
+} from './components/hover-card/hover-card.tsx';
+export {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+  type ContextMenuProps,
+} from './components/context-menu/context-menu.tsx';
+export {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+  type DropdownMenuCheckboxItemProps,
+  type DropdownMenuContentProps,
+  type DropdownMenuItemProps,
+  type DropdownMenuProps,
+  type DropdownMenuRadioItemProps,
+} from './components/dropdown-menu/dropdown-menu.tsx';
+export {
+  Command,
+  CommandPalette,
+  filterCommands,
+  type CommandItem,
+  type CommandPaletteProps,
+  type CommandProps,
+} from './components/command-palette/command-palette.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   AvatarUploader,
@@ -269,6 +353,15 @@ export {
   type SplitProps,
   type StackProps,
 } from './components/layout/layout.tsx';
+export {
+  Popover,
+  PopoverAnchor,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+  type PopoverContentProps,
+  type PopoverProps,
+} from './components/popover/popover.tsx';
 export {
   List,
   ListItem,
@@ -333,6 +426,18 @@ export {
   type SelectTriggerProps,
 } from './components/select/select.tsx';
 export {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  type SheetContentProps,
+} from './components/sheet/sheet.tsx';
+export {
   SegmentedControl,
   SegmentedControlItem,
   type SegmentedControlItemProps,
@@ -359,6 +464,7 @@ export {
   type ToastTone,
 } from './components/toast/toast.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
+export { Tooltip, type TooltipProps } from './components/tooltip/tooltip.tsx';
 export {
   ChoiceButton,
   commonDialCodes,
