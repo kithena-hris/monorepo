@@ -293,7 +293,7 @@ axe-clean, compared side by side.
 - [x] **RMB-023** Floating button
 - [x] **RMB-024** Kbd (shown, and hidden on touch), List item
 - [x] **RMB-025** Timeline (effective dating, approval chains), Carousel
-- [ ] **RMB-026** Accordion, Reveal (layout animation, stagger)
+- [x] **RMB-026** Accordion, Reveal (layout animation, stagger)
 - [ ] **RMB-027** Feedback (alerts, skeletons, empty states), Progress (linear, circular, indeterminate)
 - [ ] **RMB-028** Toast (undo, retry), Banner
 - [ ] **RMB-029** Notification centre

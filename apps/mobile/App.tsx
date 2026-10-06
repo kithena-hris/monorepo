@@ -1,4 +1,6 @@
 import {
+  Accordion,
+  AccordionItem,
   Avatar,
   AvatarGroup,
   Badge,
@@ -153,6 +155,15 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             Search
           </ListItem>
         </List>
+
+        <Accordion type="single" defaultValue="personal">
+          <AccordionItem value="personal" title="Personal details">
+            Name, pronouns and date of birth.
+          </AccordionItem>
+          <AccordionItem value="bank" title="Bank details">
+            Account holder, IBAN and BIC.
+          </AccordionItem>
+        </Accordion>
 
         <Timeline accessibilityLabel="Approval">
           <TimelineItem title="Submitted by Amara" timestamp="09:12" tone="accent" />

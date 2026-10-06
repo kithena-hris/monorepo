@@ -19,7 +19,9 @@ export {
   motionPresets,
   physics,
   PRESS_SCALE,
+  RISE,
   springs,
+  stagger,
   type Motion,
   type MotionPresets,
   type Pose,
@@ -37,6 +39,12 @@ export {
 export { OverlayHost, type OverlayHostProps } from './lib/overlay-host.tsx';
 export { usePresence } from './lib/overlay.tsx';
 
+export {
+  Accordion,
+  AccordionItem,
+  type AccordionItemProps,
+  type AccordionProps,
+} from './components/accordion/accordion.tsx';
 export {
   Avatar,
   AvatarGroup,
@@ -185,6 +193,7 @@ export {
   type RadioGroupItemProps,
   type RadioGroupProps,
 } from './components/radio-group/radio-group.tsx';
+export { Reveal, Stagger, staggerDelay, type RevealProps } from './components/reveal/reveal.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export {
   SegmentedControl,

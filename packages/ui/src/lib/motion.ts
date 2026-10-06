@@ -64,6 +64,13 @@ export const flyout = {
   exitTravel: 0.75,
 } as const;
 
+/**
+ * A staggered group: each neighbour `step` ms after the last, never more than
+ * `max` in all. 30 is the smallest step that reads as a sequence rather than
+ * one event; the ceiling keeps the fortieth card from looking broken.
+ */
+export const stagger = { step: 30, max: 180 } as const;
+
 /** Fade and rise: content arriving, half a rem below where it lands. */
 export const RISE = 8;
 

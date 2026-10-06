@@ -26,6 +26,7 @@ const meta = {
         'danger',
         'danger-soft',
         'invert',
+        'on-invert',
         'link',
       ],
     },
