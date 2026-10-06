@@ -10,6 +10,10 @@ const reachFavicon = readFileSync(
   'utf8',
 );
 
+// `device.tsx`'s PLATFORMS, by section name; main.ts runs in Node and cannot
+// import the preview's React Native code.
+const PLATFORM_SECTIONS = ['iOS', 'Android'] as const;
+
 const config: StorybookConfig = {
   // Relative to this directory: the Vitest integration resolves globs against
   // `configDir`, as in the web Storybook.
@@ -32,6 +36,34 @@ const config: StorybookConfig = {
   // compiler's internal API, which TypeScript 7 no longer exposes.
   typescript: { reactDocgen: 'react-docgen' },
   docs: { defaultName: 'Overview' },
+
+  /**
+   * Every story twice, under `iOS/` and `Android/`: the library's own stories
+   * indexed as Storybook indexes them, then listed once per platform with the
+   * section in front of the title. One file, one component, two entries; the
+   * decorator in `preview.tsx` reads the section back and declares that
+   * platform on `ReachProvider`. The deliberately broken gate story stays where
+   * it is, outside both.
+   */
+  experimental_indexers: (existing) => {
+    const csf = (existing ?? []).find((indexer) => indexer.test.test('a.stories.tsx'));
+    if (!csf) throw new Error('No CSF indexer to list each story per platform.');
+    return [
+      {
+        test: /packages\/ui-native\/src\/.*\.stories\.tsx?$/,
+        createIndex: async (fileName, options) => {
+          const entries = await csf.createIndex(fileName, options);
+          return PLATFORM_SECTIONS.flatMap((section) =>
+            entries.map(({ __id: _id, ...entry }) => ({
+              ...entry,
+              title: `${section}/${entry.title ?? options.makeTitle()}`,
+            })),
+          );
+        },
+      },
+      ...(existing ?? []),
+    ];
+  },
   // One device. The phone is fixed in `preview.tsx`, never chosen from a toolbar.
   features: { viewport: false, backgrounds: false, measure: false, outline: false },
   core: { disableTelemetry: true },

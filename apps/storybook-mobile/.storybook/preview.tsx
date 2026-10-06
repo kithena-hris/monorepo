@@ -6,6 +6,7 @@ import { View } from 'react-native-css/components';
 import { GLOBALS_UPDATED, SET_GLOBALS } from 'storybook/internal/core-events';
 import { addons } from 'storybook/preview-api';
 
+import { DeviceChrome, platformOf } from './device';
 import { darkDocsTheme, lightDocsTheme } from './manager-theme';
 
 import '@reach/ui-native/global.css';
@@ -61,23 +62,36 @@ function ReachDocsContainer({
 
 /**
  * Every story on one phone, 390 wide, under `ReachProvider`, which is what an
- * app puts at its root: the `dark` class, the safe area, the gesture root and
- * the portal host overlays open into. On the canvas the phone is 844 tall; on
- * a docs page each story takes only the height it needs.
+ * app puts at its root: the `dark` class, the platform, the safe area, the
+ * gesture root and the portal host overlays open into. On the canvas the phone
+ * is 844 tall and wears its platform's status bar and home indicator; on a docs
+ * page each story takes only the height it needs, without them.
  */
-const withPhone: Decorator = (Story, context) => (
-  <ReachProvider theme={context.globals['theme'] === 'dark' ? 'dark' : 'light'}>
-    <View
-      className="bg-canvas"
-      style={context.viewMode === 'docs' ? { width: 390 } : { width: 390, minHeight: 844 }}
-    >
-      {/* The design's phone frame pads 20 × 16; `reach-mobile:compare` shoots this view. */}
-      <View testID="reach-story" className="px-m-margin py-5">
-        <Story />
-      </View>
+const withPhone: Decorator = (Story, context) => {
+  const platform = platformOf(context.title);
+  const story = (
+    // The design's phone frame pads 20 × 16; `reach-mobile:compare` shoots this view.
+    <View testID="reach-story" className="px-m-margin py-5">
+      <Story />
     </View>
-  </ReachProvider>
-);
+  );
+  return (
+    <ReachProvider
+      theme={context.globals['theme'] === 'dark' ? 'dark' : 'light'}
+      platform={platform}
+    >
+      {context.viewMode === 'docs' ? (
+        <View className="bg-canvas" style={{ width: 390 }}>
+          {story}
+        </View>
+      ) : (
+        <View className="bg-canvas" style={{ width: 390, height: 844 }}>
+          <DeviceChrome platform={platform}>{story}</DeviceChrome>
+        </View>
+      )}
+    </ReachProvider>
+  );
+};
 
 const preview: Preview = {
   decorators: [withPhone],
@@ -94,25 +108,50 @@ const preview: Preview = {
     docs: { toc: true, container: ReachDocsContainer },
     options: {
       storySort: {
+        // The same tree under each platform's section (`device.tsx`'s PLATFORMS).
+        // Literal: Storybook reads this statically, so nothing here may be computed.
         order: [
           'Welcome',
-          'Foundations',
+          'iOS',
           [
-            'Tokens',
-            'Motion',
-            'Typography',
-            'Icons',
-            'App marks',
-            'Brand',
-            'Responsive',
-            'Patterns',
+            'Foundations',
+            [
+              'Tokens',
+              'Motion',
+              'Typography',
+              'Icons',
+              'App marks',
+              'Brand',
+              'Responsive',
+              'Patterns',
+            ],
+            'Layouts',
+            ['Presets', 'Hierarchical', 'Modal page'],
+            'Forms',
+            'Charts',
+            'Components',
+            '*',
           ],
-          'Layouts',
-          ['Presets', 'Hierarchical', 'Modal page'],
-          'Forms',
-          'Charts',
-          'Components',
-          '*',
+          'Android',
+          [
+            'Foundations',
+            [
+              'Tokens',
+              'Motion',
+              'Typography',
+              'Icons',
+              'App marks',
+              'Brand',
+              'Responsive',
+              'Patterns',
+            ],
+            'Layouts',
+            ['Presets', 'Hierarchical', 'Modal page'],
+            'Forms',
+            'Charts',
+            'Components',
+            '*',
+          ],
         ],
       },
     },
