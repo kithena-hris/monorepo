@@ -10,7 +10,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 /**
  * Every story as a test in Chromium at the one size this Storybook knows, a
  * 390×844 phone with a finger, with axe over each. Same gate as the web
- * Storybook's `storybook-phone` project.
+ * Storybook's `storybook-phone` project. Twice: once drawn for iOS and once
+ * for Android, as the sidebar lists them (`.storybook/device.tsx`).
  */
 export default defineConfig({
   plugins: [storybookTest({ configDir: join(here, '.storybook') })],
@@ -27,5 +28,10 @@ export default defineConfig({
       instances: [{ browser: 'chromium' }],
     },
     setupFiles: ['./.storybook/vitest.setup.ts'],
+    projects: (['ios', 'android'] as const).map((platform) => ({
+      extends: true,
+      define: { __REACH_PLATFORM__: JSON.stringify(platform) },
+      test: { name: `storybook-mobile (${platform})` },
+    })),
   },
 });
