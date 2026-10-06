@@ -10,6 +10,7 @@ import { Icon } from '../icon/icon.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
 import { Text } from '../text/text.tsx';
 import { RichTextEditor } from './rich-text-editor.tsx';
+import { textOf } from './text.ts';
 
 const meta = {
   title: 'Forms/RichTextEditor',
@@ -34,7 +35,7 @@ export const ACommentBox: Story = {
   name: 'A comment box',
   render: function CommentStory() {
     const [html, setHtml] = useState('');
-    const empty = html.replace(/<[^>]*>/g, '').trim() === '';
+    const empty = textOf(html).trim() === '';
     return (
       <RichTextEditor
         label="Comment"

@@ -25,6 +25,7 @@ import { useCssElement } from 'react-native-css';
 import { View } from 'react-native-css/components';
 
 import { LINK_ATTRIBUTES, type Command, type Engine, type EngineOptions } from './engine-types.ts';
+import { textOf } from './text.ts';
 
 /*
  * The editor on a device: TenTap, which runs Tiptap in a web view and bridges
@@ -217,6 +218,6 @@ export function useRichTextEngine(options: EngineOptions): Engine {
       editor.setLink(href);
     },
     // TenTap reports no count; the frame counts the text of the HTML instead.
-    characters: typeof html === 'string' ? html.replace(/<[^>]*>/g, '').length : 0,
+    characters: typeof html === 'string' ? textOf(html).length : 0,
   };
 }
