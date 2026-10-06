@@ -196,6 +196,36 @@ export {
   type ScatterPoint,
 } from './components/chart/pay-chart.tsx';
 export {
+  ComboChart,
+  StackedAreaChart,
+  type ComboChartProps,
+  type ComboPoint,
+  type StackedAreaChartProps,
+} from './components/chart/area-chart.tsx';
+export {
+  Gauge,
+  RadarChart,
+  type GaugeProps,
+  type RadarChartProps,
+  type RadarSeries,
+} from './components/chart/radial-chart.tsx';
+export {
+  BubbleChart,
+  BulletChart,
+  CohortChart,
+  HistogramChart,
+  TreemapChart,
+  type BubbleChartProps,
+  type BubblePoint,
+  type BulletChartProps,
+  type BulletMeasure,
+  type CohortChartProps,
+  type CohortRow,
+  type HistogramChartProps,
+  type TreemapChartProps,
+  type TreemapItem,
+} from './components/chart/part-chart.tsx';
+export {
   TimelineChart,
   type TimelineChartProps,
   type TimelineEntry,

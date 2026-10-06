@@ -333,7 +333,7 @@ readers, tap and long-press where the web hovers and right-clicks.
 - [x] **RMB-051** Timeline (Gantt)
 - [x] **RMB-052** Org chart (the expandable tree on a phone; search and the chain; vacancies; span)
 - [x] **RMB-053** Movement, Pay (bands, out of band, scatter)
-- [ ] **RMB-054** Combo, Stacked area, Gauge, Radar, Treemap, Histogram
+- [x] **RMB-054** Combo, Stacked area, Gauge, Radar, Treemap, Histogram
 - [ ] **RMB-055** Cohort, Bullet, Bubble, KPI dashboard
 
 ---
