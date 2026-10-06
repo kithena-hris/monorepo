@@ -20,6 +20,7 @@ import {
   Stat,
   TableTitle,
   Text,
+  TreeView,
   VirtualList,
 } from '@reach/ui-native';
 
@@ -47,6 +48,21 @@ export function DataGallery(): React.JSX.Element {
       <PeopleTable />
       <Filters />
       <Moving />
+      <TreeView
+        label="Documents"
+        defaultExpanded={['policies']}
+        nodes={[
+          {
+            id: 'policies',
+            label: 'Policies',
+            children: [
+              { id: 'leave', label: 'Leave policy.pdf' },
+              { id: 'conduct', label: 'Code of conduct.pdf' },
+            ],
+          },
+          { id: 'handbook', label: 'Handbook.pdf' },
+        ]}
+      />
       <VirtualList
         items={ROWS}
         label="Everyone"

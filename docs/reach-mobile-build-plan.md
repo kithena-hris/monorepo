@@ -320,7 +320,7 @@ axe-clean, compared side by side.
 - [x] **RMB-044** KeyValues, Money (minor units, locales, true minus), Stat (direction is not sentiment, sparkline)
 - [x] **RMB-045** ColumnChooser, FilterBuilder, Complex filters
 - [x] **RMB-046** SortableList (announced moves), Kanban (one column at a time, long-press drag, menu move, limits, locked)
-- [ ] **RMB-047** Tree view
+- [x] **RMB-047** Tree view
 - [ ] **RMB-048** Scheduler
 
 ### Lane E — charts

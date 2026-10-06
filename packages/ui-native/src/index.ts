@@ -774,3 +774,9 @@ export {
   type KanbanProps,
   type KanbanTone,
 } from './components/kanban/kanban.tsx';
+export {
+  TreeView,
+  treeChecked,
+  type TreeNode,
+  type TreeViewProps,
+} from './components/tree-view/tree-view.tsx';
