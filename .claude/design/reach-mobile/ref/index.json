@@ -1,0 +1,3956 @@
+{
+ "Foundations": [
+  {
+   "id": "tokens",
+   "name": "Tokens",
+   "group": "Foundations",
+   "desc": "The named values every component is built from. Use the semantic names, never raw colours.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Semantic colour",
+     "anchor": "tokens-semantic-colour",
+     "note": null
+    },
+    {
+     "title": "Primitive scales",
+     "anchor": "tokens-primitive-scales",
+     "note": null
+    },
+    {
+     "title": "Type",
+     "anchor": "tokens-type",
+     "note": null
+    },
+    {
+     "title": "Elevation",
+     "anchor": "tokens-elevation",
+     "note": null
+    },
+    {
+     "title": "Shape",
+     "anchor": "tokens-shape",
+     "note": null
+    },
+    {
+     "title": "Motion",
+     "anchor": "tokens-motion",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "motion",
+   "name": "Motion",
+   "group": "Foundations",
+   "desc": "Motion is calm and explains where things came from. It is always optional and turns off under reduced motion.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Duration, side by side",
+     "anchor": "motion-duration-side-by-side",
+     "note": null
+    },
+    {
+     "title": "Springs, raced",
+     "anchor": "motion-springs-raced",
+     "note": null
+    },
+    {
+     "title": "Easing, raced",
+     "anchor": "motion-easing-raced",
+     "note": null
+    },
+    {
+     "title": "Entrances and exits",
+     "anchor": "motion-entrances-and-exits",
+     "note": null
+    },
+    {
+     "title": "State, not just entrance",
+     "anchor": "motion-state-not-just-entrance",
+     "note": null
+    },
+    {
+     "title": "Loading",
+     "anchor": "motion-loading",
+     "note": null
+    },
+    {
+     "title": "Under reduced motion",
+     "anchor": "motion-under-reduced-motion",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "responsive",
+   "name": "Responsive",
+   "group": "Foundations",
+   "desc": "One product, many screens. Layout changes at breakpoints; tokens and components do not.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "What changes, and where",
+     "anchor": "responsive-what-changes-and-where",
+     "note": null
+    },
+    {
+     "title": "A table on a phone",
+     "anchor": "responsive-a-table-on-a-phone",
+     "note": "Each row becomes a card. The first column is the title, and the other columns wrap underneath it."
+    },
+    {
+     "title": "One shell, four devices",
+     "anchor": "responsive-one-shell-four-devices",
+     "note": null
+    },
+    {
+     "title": "Television",
+     "anchor": "responsive-television",
+     "note": "Read from 3 metres: body text 24px or larger, safe area 5% on every side, one focusable thing at a time."
+    }
+   ]
+  },
+  {
+   "id": "patterns",
+   "name": "Patterns",
+   "group": "Foundations",
+   "desc": "Whole screens that combine components. Copy these before inventing something new.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "People directory",
+     "anchor": "patterns-people-directory",
+     "note": null
+    },
+    {
+     "title": "Advanced filters",
+     "anchor": "patterns-advanced-filters",
+     "note": null
+    },
+    {
+     "title": "Infinite scrolling table",
+     "anchor": "patterns-infinite-scrolling-table",
+     "note": "Keep the header sticky and show the total. Load more before people reach the end."
+    },
+    {
+     "title": "Analytics dashboard",
+     "anchor": "patterns-analytics-dashboard",
+     "note": null
+    },
+    {
+     "title": "Approval queue",
+     "anchor": "patterns-approval-queue",
+     "note": "Tap a request to open it full screen, with Approve and Decline pinned at the bottom."
+    },
+    {
+     "title": "Loading, empty and failure",
+     "anchor": "patterns-loading-empty-and-failure",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "app-marks",
+   "name": "App marks",
+   "group": "Foundations",
+   "desc": "The Reach app icon. Always the squircle, never stretched, never recoloured outside the palette.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Brand",
+     "anchor": "app-marks-brand",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "app-marks-sizes",
+     "note": null
+    },
+    {
+     "title": "Mono",
+     "anchor": "app-marks-mono",
+     "note": null
+    },
+    {
+     "title": "In a button",
+     "anchor": "app-marks-in-a-button",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "brand",
+   "name": "Brand",
+   "group": "Foundations",
+   "desc": "The lockup pairs the mark with the wordmark set in the display face.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "The lockup",
+     "anchor": "brand-the-lockup",
+     "note": null
+    },
+    {
+     "title": "At size",
+     "anchor": "brand-at-size",
+     "note": null
+    },
+    {
+     "title": "On any surface",
+     "anchor": "brand-on-any-surface",
+     "note": null
+    },
+    {
+     "title": "Construction",
+     "anchor": "brand-construction",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "typography",
+   "name": "Typography",
+   "group": "Foundations",
+   "desc": "SF Pro on iOS and Roboto Flex on Android, set by the system. Body text is 17.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Scale",
+     "anchor": "typography-scale",
+     "note": null
+    },
+    {
+     "title": "Weights",
+     "anchor": "typography-weights",
+     "note": null
+    },
+    {
+     "title": "Tones",
+     "anchor": "typography-tones",
+     "note": null
+    },
+    {
+     "title": "Numbers",
+     "anchor": "typography-numbers",
+     "note": null
+    },
+    {
+     "title": "Prose",
+     "anchor": "typography-prose",
+     "note": null
+    },
+    {
+     "title": "Measure And Truncation",
+     "anchor": "typography-measure-and-truncation",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "icons",
+   "name": "Icons",
+   "group": "Foundations",
+   "desc": "Lucide, drawn at a 2px stroke. Icons support labels. They don’t replace them.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "The set",
+     "anchor": "icons-the-set",
+     "note": null
+    },
+    {
+     "title": "The whole library",
+     "anchor": "icons-the-whole-library",
+     "note": null
+    },
+    {
+     "title": "Sizing and alignment",
+     "anchor": "icons-sizing-and-alignment",
+     "note": null
+    },
+    {
+     "title": "Labelling",
+     "anchor": "icons-labelling",
+     "note": null
+    },
+    {
+     "title": "When the name disagrees with the glyph",
+     "anchor": "icons-when-the-name-disagrees-with-the-glyph",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "layout-presets",
+   "name": "Layout presets",
+   "group": "Layouts",
+   "desc": "Mobile screens follow one shell: status bar, top bar, large title, content, and a floating tab bar.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "layout-presets-playground",
+     "note": null
+    },
+    {
+     "title": "Stacked",
+     "anchor": "layout-presets-stacked",
+     "note": null
+    },
+    {
+     "title": "Sidebar and aside",
+     "anchor": "layout-presets-sidebar-and-aside",
+     "note": "On a phone, the aside becomes the detail screen you push to."
+    },
+    {
+     "title": "With a banner",
+     "anchor": "layout-presets-with-a-banner",
+     "note": null
+    },
+    {
+     "title": "With a sticky toolbar",
+     "anchor": "layout-presets-with-a-sticky-toolbar",
+     "note": null
+    },
+    {
+     "title": "Focused",
+     "anchor": "layout-presets-focused",
+     "note": null
+    },
+    {
+     "title": "Canvas",
+     "anchor": "layout-presets-canvas",
+     "note": null
+    },
+    {
+     "title": "PageHeader anatomy",
+     "anchor": "layout-presets-pageheader-anatomy",
+     "note": null
+    },
+    {
+     "title": "Collapsing the rails",
+     "anchor": "layout-presets-collapsing-the-rails",
+     "note": null
+    },
+    {
+     "title": "Three levels of navigation",
+     "anchor": "layout-presets-three-levels-of-navigation",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "hierarchical",
+   "name": "Hierarchical layout",
+   "group": "Layouts",
+   "desc": "List and detail. Wide screens show both. Narrow screens push the detail on top of the list.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "hierarchical-playground",
+     "note": null
+    },
+    {
+     "title": "The push, at md",
+     "anchor": "hierarchical-the-push-at-md",
+     "note": null
+    },
+    {
+     "title": "Three levels deep",
+     "anchor": "hierarchical-three-levels-deep",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "modal-page",
+   "name": "Modal page",
+   "group": "Layouts",
+   "desc": "A task that takes over the screen until it’s done or cancelled: onboarding, a new request, an import.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "modal-page-playground",
+     "note": null
+    },
+    {
+     "title": "The three sizes",
+     "anchor": "modal-page-the-three-sizes",
+     "note": null
+    },
+    {
+     "title": "A stepped flow",
+     "anchor": "modal-page-a-stepped-flow",
+     "note": null
+    },
+    {
+     "title": "Guarding unsaved work",
+     "anchor": "modal-page-guarding-unsaved-work",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "layout",
+   "name": "Layout primitives",
+   "group": "Layouts",
+   "desc": "Stack, Inline, Split, AutoGrid and Container. They handle spacing, so components never set their own margins.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "AutoGrid",
+     "anchor": "layout-autogrid",
+     "note": null
+    },
+    {
+     "title": "The same AutoGrid in three containers",
+     "anchor": "layout-the-same-autogrid-in-three-containers",
+     "note": null
+    },
+    {
+     "title": "Stack and Inline",
+     "anchor": "layout-stack-and-inline",
+     "note": null
+    },
+    {
+     "title": "Split",
+     "anchor": "layout-split",
+     "note": null
+    },
+    {
+     "title": "Container",
+     "anchor": "layout-container",
+     "note": null
+    },
+    {
+     "title": "Flex options",
+     "anchor": "layout-flex-options",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "scroll-area",
+   "name": "Scroll area",
+   "group": "Layouts",
+   "desc": "For fixed-height regions only. Page-level scroll is always the browser’s.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "scroll-area-playground",
+     "note": null
+    },
+    {
+     "title": "Horizontal",
+     "anchor": "scroll-area-horizontal",
+     "note": null
+    },
+    {
+     "title": "Always visible",
+     "anchor": "scroll-area-always-visible",
+     "note": "Show the bar when people need to know there is more, as in pickers."
+    },
+    {
+     "title": "A fixed panel with a scrolling body",
+     "anchor": "scroll-area-a-fixed-panel-with-a-scrolling-body",
+     "note": null
+    },
+    {
+     "title": "When to virtualize",
+     "anchor": "scroll-area-when-to-virtualize",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "separator",
+   "name": "Separator",
+   "group": "Layouts",
+   "desc": "A hairline between groups. Try spacing first.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "separator-playground",
+     "note": null
+    },
+    {
+     "title": "Between groups of actions",
+     "anchor": "separator-between-groups-of-actions",
+     "note": null
+    },
+    {
+     "title": "A real section break",
+     "anchor": "separator-a-real-section-break",
+     "note": null
+    },
+    {
+     "title": "When space is the better answer",
+     "anchor": "separator-when-space-is-the-better-answer",
+     "note": null
+    }
+   ]
+  }
+ ],
+ "Forms": [
+  {
+   "id": "field",
+   "name": "Field",
+   "group": "Forms",
+   "desc": "The wrapper for every form control: the label above, the control, then a hint or an error below it. Only one message shows at a time.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "field-playground",
+     "note": null
+    },
+    {
+     "title": "Text",
+     "anchor": "field-text",
+     "note": null
+    },
+    {
+     "title": "Caution",
+     "anchor": "field-caution",
+     "note": "Caution is for values that are allowed but unusual. It never blocks saving."
+    },
+    {
+     "title": "Sensitive",
+     "anchor": "field-sensitive",
+     "note": null
+    },
+    {
+     "title": "Missing",
+     "anchor": "field-missing",
+     "note": null
+    },
+    {
+     "title": "Invalid",
+     "anchor": "field-invalid",
+     "note": null
+    },
+    {
+     "title": "Disabled",
+     "anchor": "field-disabled",
+     "note": null
+    },
+    {
+     "title": "Adornments",
+     "anchor": "field-adornments",
+     "note": null
+    },
+    {
+     "title": "Horizontal",
+     "anchor": "field-horizontal",
+     "note": null
+    },
+    {
+     "title": "A whole form",
+     "anchor": "field-a-whole-form",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "input",
+   "name": "Input",
+   "group": "Forms",
+   "desc": "The bare text control. Use it inside Field unless it labels itself, as a search box does.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "input-playground",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "input-sizes",
+     "note": null
+    },
+    {
+     "title": "States",
+     "anchor": "input-states",
+     "note": null
+    },
+    {
+     "title": "Adornments",
+     "anchor": "input-adornments",
+     "note": null
+    },
+    {
+     "title": "Textarea",
+     "anchor": "input-textarea",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "number-field",
+   "name": "NumberField",
+   "group": "Forms",
+   "desc": "For counts and amounts. Empty means no value, and it never turns into 0 by itself.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "number-field-playground",
+     "note": null
+    },
+    {
+     "title": "Null is not zero",
+     "anchor": "number-field-null-is-not-zero",
+     "note": null
+    },
+    {
+     "title": "Decimals and locale",
+     "anchor": "number-field-decimals-and-locale",
+     "note": null
+    },
+    {
+     "title": "Prefixes, suffixes and sizes",
+     "anchor": "number-field-prefixes-suffixes-and-sizes",
+     "note": null
+    },
+    {
+     "title": "Bounds and validation",
+     "anchor": "number-field-bounds-and-validation",
+     "note": null
+    },
+    {
+     "title": "Disabled and read-only",
+     "anchor": "number-field-disabled-and-read-only",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "password-field",
+   "name": "PasswordField",
+   "group": "Forms",
+   "desc": "Masked by default with a reveal button. Always allow pasting, so password managers work.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "password-field-playground",
+     "note": null
+    },
+    {
+     "title": "Signing in",
+     "anchor": "password-field-signing-in",
+     "note": null
+    },
+    {
+     "title": "Setting a new one",
+     "anchor": "password-field-setting-a-new-one",
+     "note": null
+    },
+    {
+     "title": "Paste works: deliberately",
+     "anchor": "password-field-paste-works-deliberately",
+     "note": null
+    },
+    {
+     "title": "Invalid, disabled, sizes",
+     "anchor": "password-field-invalid-disabled-sizes",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "pin-input",
+   "name": "PinInput",
+   "group": "Forms",
+   "desc": "One box for each character. Typing moves to the next box, and pasting fills every box at once.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "pin-input-playground",
+     "note": null
+    },
+    {
+     "title": "Pasting a code",
+     "anchor": "pin-input-pasting-a-code",
+     "note": null
+    },
+    {
+     "title": "A verification screen",
+     "anchor": "pin-input-a-verification-screen",
+     "note": null
+    },
+    {
+     "title": "Lengths, groups and letters",
+     "anchor": "pin-input-lengths-groups-and-letters",
+     "note": null
+    },
+    {
+     "title": "A stored PIN",
+     "anchor": "pin-input-a-stored-pin",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "tags-input",
+   "name": "TagsInput",
+   "group": "Forms",
+   "desc": "A free list of short values, like skills or email addresses. Enter or a comma adds a tag. Backspace in an empty input removes the last one.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "tags-input-playground",
+     "note": null
+    },
+    {
+     "title": "From the keyboard",
+     "anchor": "tags-input-from-the-keyboard",
+     "note": null
+    },
+    {
+     "title": "Validation and duplicates",
+     "anchor": "tags-input-validation-and-duplicates",
+     "note": null
+    },
+    {
+     "title": "Markup is escaped",
+     "anchor": "tags-input-markup-is-escaped",
+     "note": null
+    },
+    {
+     "title": "A limit",
+     "anchor": "tags-input-a-limit",
+     "note": null
+    },
+    {
+     "title": "Sizes and states",
+     "anchor": "tags-input-sizes-and-states",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "rating",
+   "name": "Rating",
+   "group": "Forms",
+   "desc": "Pick a whole number from 1 to 5. Always say what each number means, because a star alone is ambiguous.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "rating-playground",
+     "note": null
+    },
+    {
+     "title": "With meanings",
+     "anchor": "rating-with-meanings",
+     "note": null
+    },
+    {
+     "title": "From the keyboard",
+     "anchor": "rating-from-the-keyboard",
+     "note": null
+    },
+    {
+     "title": "Displaying an average",
+     "anchor": "rating-displaying-an-average",
+     "note": null
+    },
+    {
+     "title": "Sizes and symbols",
+     "anchor": "rating-sizes-and-symbols",
+     "note": null
+    },
+    {
+     "title": "In a review form",
+     "anchor": "rating-in-a-review-form",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "select",
+   "name": "Select",
+   "group": "Forms",
+   "desc": "Pick one value from a short, fixed list. Over about 10 options, use Combobox instead.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "select-playground",
+     "note": null
+    },
+    {
+     "title": "Placeholder",
+     "anchor": "select-placeholder",
+     "note": null
+    },
+    {
+     "title": "Grouped",
+     "anchor": "select-grouped",
+     "note": null
+    },
+    {
+     "title": "In a field",
+     "anchor": "select-in-a-field",
+     "note": null
+    },
+    {
+     "title": "Controlled",
+     "anchor": "select-controlled",
+     "note": null
+    },
+    {
+     "title": "Disabled",
+     "anchor": "select-disabled",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "combobox",
+   "name": "Combobox",
+   "group": "Forms",
+   "desc": "Type to filter a long list. Matches are highlighted, and Enter picks the first one.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "combobox-playground",
+     "note": null
+    },
+    {
+     "title": "Grouped options",
+     "anchor": "combobox-grouped-options",
+     "note": null
+    },
+    {
+     "title": "Multiple",
+     "anchor": "combobox-multiple",
+     "note": null
+    },
+    {
+     "title": "Multiple, with removable chips",
+     "anchor": "combobox-multiple-with-removable-chips",
+     "note": null
+    },
+    {
+     "title": "With icons and avatars",
+     "anchor": "combobox-with-icons-and-avatars",
+     "note": null
+    },
+    {
+     "title": "Server-side search",
+     "anchor": "combobox-server-side-search",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "combobox-sizes",
+     "note": null
+    },
+    {
+     "title": "In a Field",
+     "anchor": "combobox-in-a-field",
+     "note": null
+    },
+    {
+     "title": "In A Dialog",
+     "anchor": "combobox-in-a-dialog",
+     "note": null
+    },
+    {
+     "title": "Creating a new option",
+     "anchor": "combobox-creating-a-new-option",
+     "note": null
+    },
+    {
+     "title": "Nothing found",
+     "anchor": "combobox-nothing-found",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "checkbox",
+   "name": "Checkbox",
+   "group": "Forms",
+   "desc": "For turning options on or off as part of a form you then save. For a setting that applies straight away, use Switch.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "checkbox-playground",
+     "note": null
+    },
+    {
+     "title": "Checkbox states",
+     "anchor": "checkbox-checkbox-states",
+     "note": null
+    },
+    {
+     "title": "Indeterminate",
+     "anchor": "checkbox-indeterminate",
+     "note": null
+    },
+    {
+     "title": "Checkbox or switch?",
+     "anchor": "checkbox-checkbox-or-switch",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "radio-group",
+   "name": "RadioGroup",
+   "group": "Forms",
+   "desc": "Pick exactly one of two to five options when everyone needs to see the choices side by side.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "radio-group-playground",
+     "note": null
+    },
+    {
+     "title": "With consequences spelled out",
+     "anchor": "radio-group-with-consequences-spelled-out",
+     "note": null
+    },
+    {
+     "title": "As cards",
+     "anchor": "radio-group-as-cards",
+     "note": null
+    },
+    {
+     "title": "Horizontal",
+     "anchor": "radio-group-horizontal",
+     "note": null
+    },
+    {
+     "title": "A disabled option",
+     "anchor": "radio-group-a-disabled-option",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "switch",
+   "name": "Switch",
+   "group": "Forms",
+   "desc": "For a setting that applies the moment you flip it. If it takes a moment, show a spinner and roll back if it fails.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "switch-playground",
+     "note": null
+    },
+    {
+     "title": "With a label",
+     "anchor": "switch-with-a-label",
+     "note": null
+    },
+    {
+     "title": "A settings list",
+     "anchor": "switch-a-settings-list",
+     "note": null
+    },
+    {
+     "title": "Disabled",
+     "anchor": "switch-disabled",
+     "note": null
+    },
+    {
+     "title": "Committing, and failing",
+     "anchor": "switch-committing-and-failing",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "toggle",
+   "name": "Toggle",
+   "group": "Forms",
+   "desc": "A button that stays pressed. Use it for view options and formatting, not for settings.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "toggle-playground",
+     "note": null
+    },
+    {
+     "title": "Variants",
+     "anchor": "toggle-variants",
+     "note": null
+    },
+    {
+     "title": "Icon only",
+     "anchor": "toggle-icon-only",
+     "note": null
+    },
+    {
+     "title": "Segmented, one of several",
+     "anchor": "toggle-segmented-one-of-several",
+     "note": null
+    },
+    {
+     "title": "Segmented: several at once",
+     "anchor": "toggle-segmented-several-at-once",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "toggle-sizes",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "slider",
+   "name": "Slider",
+   "group": "Forms",
+   "desc": "For picking a rough value where the range matters more than the exact number. Pair it with a number input when the exact value matters.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "slider-playground",
+     "note": null
+    },
+    {
+     "title": "Two-thumb range",
+     "anchor": "slider-two-thumb-range",
+     "note": null
+    },
+    {
+     "title": "Discrete steps",
+     "anchor": "slider-discrete-steps",
+     "note": null
+    },
+    {
+     "title": "Paired with a number input",
+     "anchor": "slider-paired-with-a-number-input",
+     "note": null
+    },
+    {
+     "title": "Vertical",
+     "anchor": "slider-vertical",
+     "note": null
+    },
+    {
+     "title": "Disabled",
+     "anchor": "slider-disabled",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "calendar",
+   "name": "Calendar",
+   "group": "Forms",
+   "desc": "A month grid for picking days. It shows leave, holidays and blocked days so you don’t have to guess.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "calendar-playground",
+     "note": null
+    },
+    {
+     "title": "Range",
+     "anchor": "calendar-range",
+     "note": null
+    },
+    {
+     "title": "Weekends and holidays blocked",
+     "anchor": "calendar-weekends-and-holidays-blocked",
+     "note": null
+    },
+    {
+     "title": "Existing leave marked",
+     "anchor": "calendar-existing-leave-marked",
+     "note": null
+    },
+    {
+     "title": "Locales and week starts",
+     "anchor": "calendar-locales-and-week-starts",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "date-picker",
+   "name": "DatePicker",
+   "group": "Forms",
+   "desc": "A field that opens a calendar. You can always type the date instead.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "date-picker-playground",
+     "note": null
+    },
+    {
+     "title": "Range with presets",
+     "anchor": "date-picker-range-with-presets",
+     "note": null
+    },
+    {
+     "title": "With a valid window",
+     "anchor": "date-picker-with-a-valid-window",
+     "note": null
+    },
+    {
+     "title": "A start and an end",
+     "anchor": "date-picker-a-start-and-an-end",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "date-picker-sizes",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "typed-fields",
+   "name": "Typed fields",
+   "group": "Forms",
+   "desc": "Fields for a specific kind of value. Each one brings the right keyboard, format and checks.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Every type",
+     "anchor": "typed-fields-every-type",
+     "note": null
+    },
+    {
+     "title": "Search",
+     "anchor": "typed-fields-search",
+     "note": null
+    },
+    {
+     "title": "Money",
+     "anchor": "typed-fields-money",
+     "note": null
+    },
+    {
+     "title": "Phone number",
+     "anchor": "typed-fields-phone-number",
+     "note": null
+    },
+    {
+     "title": "On a phone",
+     "anchor": "typed-fields-on-a-phone",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "image-uploader",
+   "name": "ImageUploader",
+   "group": "Forms",
+   "desc": "Upload images with a preview. It checks size and file type before uploading, and says exactly what went wrong.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "image-uploader-playground",
+     "note": null
+    },
+    {
+     "title": "Several files",
+     "anchor": "image-uploader-several-files",
+     "note": null
+    },
+    {
+     "title": "With a dimension floor",
+     "anchor": "image-uploader-with-a-dimension-floor",
+     "note": null
+    },
+    {
+     "title": "In flight",
+     "anchor": "image-uploader-in-flight",
+     "note": null
+    },
+    {
+     "title": "Invalid and disabled",
+     "anchor": "image-uploader-invalid-and-disabled",
+     "note": null
+    },
+    {
+     "title": "AvatarUploader",
+     "anchor": "image-uploader-avataruploader",
+     "note": null
+    },
+    {
+     "title": "AvatarUploader — shapes and ratios",
+     "anchor": "image-uploader-avataruploader-shapes-and-ratios",
+     "note": null
+    },
+    {
+     "title": "AvatarUploader — an already-stored image",
+     "anchor": "image-uploader-avataruploader-an-already-stored-image",
+     "note": null
+    },
+    {
+     "title": "AvatarUploader — the photo is the control",
+     "anchor": "image-uploader-avataruploader-the-photo-is-the-control",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "dropzone",
+   "name": "Dropzone",
+   "group": "Forms",
+   "desc": "A large target for dragging files onto. Clicking it always opens the file browser too.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "dropzone-playground",
+     "note": null
+    },
+    {
+     "title": "Inline, in a row",
+     "anchor": "dropzone-inline-in-a-row",
+     "note": null
+    },
+    {
+     "title": "Disabled",
+     "anchor": "dropzone-disabled",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "rich-text-editor",
+   "name": "RichTextEditor",
+   "group": "Forms",
+   "desc": "Formatted text for policies, notes and comments. It stores safe HTML and reads it back the same way.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "rich-text-editor-playground",
+     "note": null
+    },
+    {
+     "title": "A comment box",
+     "anchor": "rich-text-editor-a-comment-box",
+     "note": null
+    },
+    {
+     "title": "Every group",
+     "anchor": "rich-text-editor-every-group",
+     "note": null
+    },
+    {
+     "title": "No toolbar",
+     "anchor": "rich-text-editor-no-toolbar",
+     "note": null
+    },
+    {
+     "title": "Invalid, disabled and read-only",
+     "anchor": "rich-text-editor-invalid-disabled-and-read-only",
+     "note": null
+    },
+    {
+     "title": "What it stores, and how it reads back",
+     "anchor": "rich-text-editor-what-it-stores-and-how-it-reads-back",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "file-uploader",
+   "name": "FileUploader",
+   "group": "Forms",
+   "desc": "Upload documents with a row for each file. Each row shows progress, lets you retry, and says why a file was refused.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "file-uploader-playground",
+     "note": null
+    },
+    {
+     "title": "Uploading, failing, retrying",
+     "anchor": "file-uploader-uploading-failing-retrying",
+     "note": null
+    },
+    {
+     "title": "Everything refused says why",
+     "anchor": "file-uploader-everything-refused-says-why",
+     "note": null
+    },
+    {
+     "title": "One file, as a button",
+     "anchor": "file-uploader-one-file-as-a-button",
+     "note": null
+    },
+    {
+     "title": "Hostile filenames",
+     "anchor": "file-uploader-hostile-filenames",
+     "note": null
+    },
+    {
+     "title": "Disabled, invalid and full",
+     "anchor": "file-uploader-disabled-invalid-and-full",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "time-picker",
+   "name": "TimePicker",
+   "group": "Forms",
+   "desc": "Pick a time with the system wheel. You can type the time with a hardware keyboard.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "time-picker-playground",
+     "note": null
+    },
+    {
+     "title": "12-hour clocks",
+     "anchor": "time-picker-12-hour-clocks",
+     "note": null
+    },
+    {
+     "title": "Time range",
+     "anchor": "time-picker-time-range",
+     "note": null
+    },
+    {
+     "title": "Duration",
+     "anchor": "time-picker-duration",
+     "note": null
+    },
+    {
+     "title": "Time zones",
+     "anchor": "time-picker-time-zones",
+     "note": null
+    },
+    {
+     "title": "Invalid and disabled",
+     "anchor": "time-picker-invalid-and-disabled",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "form-sections",
+   "name": "Form sections",
+   "group": "Forms",
+   "desc": "How long forms are laid out: titled sections, one column on phones, and a save bar that only appears once something has changed.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Sections",
+     "anchor": "form-sections-sections",
+     "note": null
+    },
+    {
+     "title": "Unsaved changes bar",
+     "anchor": "form-sections-unsaved-changes-bar",
+     "note": null
+    },
+    {
+     "title": "Read, then edit",
+     "anchor": "form-sections-read-then-edit",
+     "note": "Most profile data is read far more often than it’s edited, so show values first and edit in place."
+    },
+    {
+     "title": "Validation summary",
+     "anchor": "form-sections-validation-summary",
+     "note": null
+    }
+   ]
+  }
+ ],
+ "Components": [
+  {
+   "id": "accordion",
+   "name": "Accordion",
+   "group": "Disclosure",
+   "desc": "Hide sections people only sometimes need. If most people need it, don’t hide it.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "accordion-playground",
+     "note": null
+    },
+    {
+     "title": "Multiple open",
+     "anchor": "accordion-multiple-open",
+     "note": null
+    },
+    {
+     "title": "With a status in the header",
+     "anchor": "accordion-with-a-status-in-the-header",
+     "note": null
+    },
+    {
+     "title": "A disabled section",
+     "anchor": "accordion-a-disabled-section",
+     "note": null
+    },
+    {
+     "title": "Directly under the page title",
+     "anchor": "accordion-directly-under-the-page-title",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "alert-dialog",
+   "name": "AlertDialog",
+   "group": "Overlays",
+   "desc": "Interrupts to confirm something that can’t be undone. Name the action on the button, never just OK.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "alert-dialog-playground",
+     "note": null
+    },
+    {
+     "title": "Consequences spelled out",
+     "anchor": "alert-dialog-consequences-spelled-out",
+     "note": null
+    },
+    {
+     "title": "Type to confirm",
+     "anchor": "alert-dialog-type-to-confirm",
+     "note": null
+    },
+    {
+     "title": "When an undo is better",
+     "anchor": "alert-dialog-when-an-undo-is-better",
+     "note": "If the action can be undone, skip the dialog. Do it straight away and offer Undo."
+    }
+   ]
+  },
+  {
+   "id": "avatar",
+   "name": "Avatar",
+   "group": "Display",
+   "desc": "A person’s photo or initials. Initials get a stable colour worked out from the name.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "avatar-playground",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "avatar-sizes",
+     "note": null
+    },
+    {
+     "title": "Name handling",
+     "anchor": "avatar-name-handling",
+     "note": null
+    },
+    {
+     "title": "Custom fallback",
+     "anchor": "avatar-custom-fallback",
+     "note": null
+    },
+    {
+     "title": "Group",
+     "anchor": "avatar-group",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "badge",
+   "name": "Badge",
+   "group": "Display",
+   "desc": "A short status or count. Tone carries meaning, so use it the same way everywhere.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "badge-playground",
+     "note": null
+    },
+    {
+     "title": "Tones",
+     "anchor": "badge-tones",
+     "note": null
+    },
+    {
+     "title": "Sensitive",
+     "anchor": "badge-sensitive",
+     "note": "Mark sensitive data with a lock so people know who else can see it."
+    },
+    {
+     "title": "Attention",
+     "anchor": "badge-attention",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "badge-sizes",
+     "note": null
+    },
+    {
+     "title": "With a dot",
+     "anchor": "badge-with-a-dot",
+     "note": null
+    },
+    {
+     "title": "In a table row",
+     "anchor": "badge-in-a-table-row",
+     "note": null
+    },
+    {
+     "title": "Removable, as a chip",
+     "anchor": "badge-removable-as-a-chip",
+     "note": null
+    },
+    {
+     "title": "On icons and avatars",
+     "anchor": "badge-on-icons-and-avatars",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "breadcrumb",
+   "name": "Breadcrumb",
+   "group": "Navigation",
+   "desc": "Shows where you are in a hierarchy. Every item except the last is a link.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "breadcrumb-playground",
+     "note": null
+    },
+    {
+     "title": "Collapsing on a phone",
+     "anchor": "breadcrumb-collapsing-on-a-phone",
+     "note": null
+    },
+    {
+     "title": "A different separator",
+     "anchor": "breadcrumb-a-different-separator",
+     "note": null
+    },
+    {
+     "title": "With a long label",
+     "anchor": "breadcrumb-with-a-long-label",
+     "note": null
+    },
+    {
+     "title": "With Section Menu",
+     "anchor": "breadcrumb-with-section-menu",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "button",
+   "name": "Button",
+   "group": "Actions",
+   "desc": "One primary per view. Labels are verbs that say exactly what happens.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "button-playground",
+     "note": null
+    },
+    {
+     "title": "Variants",
+     "anchor": "button-variants",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "button-sizes",
+     "note": null
+    },
+    {
+     "title": "With icons",
+     "anchor": "button-with-icons",
+     "note": null
+    },
+    {
+     "title": "Loading",
+     "anchor": "button-loading",
+     "note": "Keep the width steady and the label in place. The spinner takes the icon’s spot."
+    },
+    {
+     "title": "Disabled",
+     "anchor": "button-disabled",
+     "note": null
+    },
+    {
+     "title": "Full width",
+     "anchor": "button-full-width",
+     "note": null
+    },
+    {
+     "title": "As a link",
+     "anchor": "button-as-a-link",
+     "note": null
+    },
+    {
+     "title": "In context",
+     "anchor": "button-in-context",
+     "note": null
+    },
+    {
+     "title": "Under a finger",
+     "anchor": "button-under-a-finger",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "card",
+   "name": "Card",
+   "group": "Display",
+   "desc": "A surface that groups related content. Don’t nest cards inside cards.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "card-playground",
+     "note": null
+    },
+    {
+     "title": "Variants",
+     "anchor": "card-variants",
+     "note": null
+    },
+    {
+     "title": "Attention",
+     "anchor": "card-attention",
+     "note": null
+    },
+    {
+     "title": "Stat tile",
+     "anchor": "card-stat-tile",
+     "note": null
+    },
+    {
+     "title": "Composed",
+     "anchor": "card-composed",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "chat",
+   "name": "Chat",
+   "group": "Communication",
+   "desc": "Direct messages about a request or a person. Your messages sit on the right in indigo.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Conversation",
+     "anchor": "chat-conversation",
+     "note": null
+    },
+    {
+     "title": "Writing",
+     "anchor": "chat-writing",
+     "note": null
+    },
+    {
+     "title": "From You",
+     "anchor": "chat-from-you",
+     "note": null
+    },
+    {
+     "title": "In A Window",
+     "anchor": "chat-in-a-window",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "clipboard",
+   "name": "Clipboard",
+   "group": "Actions",
+   "desc": "Copy a value in one tap. Confirm it in place, so there’s no toast to chase.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "clipboard-playground",
+     "note": null
+    },
+    {
+     "title": "Icon only",
+     "anchor": "clipboard-icon-only",
+     "note": null
+    },
+    {
+     "title": "CopyField",
+     "anchor": "clipboard-copyfield",
+     "note": null
+    },
+    {
+     "title": "In a table",
+     "anchor": "clipboard-in-a-table",
+     "note": null
+    },
+    {
+     "title": "useClipboard",
+     "anchor": "clipboard-useclipboard",
+     "note": null
+    },
+    {
+     "title": "When it is refused",
+     "anchor": "clipboard-when-it-is-refused",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "context-menu",
+   "name": "ContextMenu",
+   "group": "Overlays",
+   "desc": "Long-press a row to open its actions. Every action must also be available somewhere you can see.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "context-menu-playground",
+     "note": null
+    },
+    {
+     "title": "Submenus and state",
+     "anchor": "context-menu-submenus-and-state",
+     "note": null
+    },
+    {
+     "title": "On table rows, with the same commands elsewhere",
+     "anchor": "context-menu-on-table-rows-with-the-same-commands-elsewhere",
+     "note": "The row’s ⋯ button opens the same menu, so the actions are always discoverable."
+    },
+    {
+     "title": "Unavailable commands",
+     "anchor": "context-menu-unavailable-commands",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "dialog",
+   "name": "Dialog",
+   "group": "Overlays",
+   "desc": "A focused task over the page. Esc and the close button always dismiss it. On a phone it becomes a sheet.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "dialog-playground",
+     "note": null
+    },
+    {
+     "title": "With a form",
+     "anchor": "dialog-with-a-form",
+     "note": null
+    },
+    {
+     "title": "Destructive",
+     "anchor": "dialog-destructive",
+     "note": null
+    },
+    {
+     "title": "Controlled",
+     "anchor": "dialog-controlled",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "dropdown-menu",
+   "name": "Dropdown menu",
+   "group": "Overlays",
+   "desc": "A list of actions or options behind a button.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Row actions",
+     "anchor": "dropdown-menu-row-actions",
+     "note": null
+    },
+    {
+     "title": "Opens on hover",
+     "anchor": "dropdown-menu-opens-on-hover",
+     "note": null
+    },
+    {
+     "title": "Checkbox items",
+     "anchor": "dropdown-menu-checkbox-items",
+     "note": null
+    },
+    {
+     "title": "Radio items",
+     "anchor": "dropdown-menu-radio-items",
+     "note": null
+    },
+    {
+     "title": "With sections, icons and shortcuts",
+     "anchor": "dropdown-menu-with-sections-icons-and-shortcuts",
+     "note": null
+    },
+    {
+     "title": "Submenu",
+     "anchor": "dropdown-menu-submenu",
+     "note": null
+    },
+    {
+     "title": "Searchable",
+     "anchor": "dropdown-menu-searchable",
+     "note": null
+    },
+    {
+     "title": "Account menu",
+     "anchor": "dropdown-menu-account-menu",
+     "note": null
+    },
+    {
+     "title": "Split button",
+     "anchor": "dropdown-menu-split-button",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "feedback",
+   "name": "Feedback",
+   "group": "Feedback",
+   "desc": "Alerts, skeletons and empty states: how the page tells you what’s going on.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "feedback-playground",
+     "note": null
+    },
+    {
+     "title": "Alert tones",
+     "anchor": "feedback-alert-tones",
+     "note": null
+    },
+    {
+     "title": "Alert variations",
+     "anchor": "feedback-alert-variations",
+     "note": null
+    },
+    {
+     "title": "Skeletons",
+     "anchor": "feedback-skeletons",
+     "note": null
+    },
+    {
+     "title": "Empty states",
+     "anchor": "feedback-empty-states",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "kbd",
+   "name": "Kbd",
+   "group": "Display",
+   "desc": "Shows a keyboard key. On touch devices, hide shortcuts or leave them out.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "kbd-playground",
+     "note": null
+    },
+    {
+     "title": "Named keys",
+     "anchor": "kbd-named-keys",
+     "note": null
+    },
+    {
+     "title": "Combinations",
+     "anchor": "kbd-combinations",
+     "note": null
+    },
+    {
+     "title": "In a search field",
+     "anchor": "kbd-in-a-search-field",
+     "note": null
+    },
+    {
+     "title": "In a tooltip",
+     "anchor": "kbd-in-a-tooltip",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "nav",
+   "name": "Nav",
+   "group": "Navigation",
+   "desc": "Section navigation for the sidebar. On a phone, top-level sections move to the tab bar.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Section Navigation",
+     "anchor": "nav-section-navigation",
+     "note": null
+    },
+    {
+     "title": "Sections On Demand",
+     "anchor": "nav-sections-on-demand",
+     "note": null
+    },
+    {
+     "title": "Described Menu",
+     "anchor": "nav-described-menu",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "popover",
+   "name": "Popover",
+   "group": "Overlays",
+   "desc": "Extra content or controls anchored to a trigger. It closes when you click outside it.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "popover-playground",
+     "note": null
+    },
+    {
+     "title": "A working column chooser",
+     "anchor": "popover-a-working-column-chooser",
+     "note": null
+    },
+    {
+     "title": "Every side",
+     "anchor": "popover-every-side",
+     "note": null
+    },
+    {
+     "title": "Holding a real control",
+     "anchor": "popover-holding-a-real-control",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "progress",
+   "name": "Progress",
+   "group": "Feedback",
+   "desc": "Shows how far along something is. Use indeterminate only when you really can’t tell.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "progress-playground",
+     "note": null
+    },
+    {
+     "title": "Indeterminate",
+     "anchor": "progress-indeterminate",
+     "note": null
+    },
+    {
+     "title": "A running job",
+     "anchor": "progress-a-running-job",
+     "note": null
+    },
+    {
+     "title": "Tones",
+     "anchor": "progress-tones",
+     "note": null
+    },
+    {
+     "title": "Circular",
+     "anchor": "progress-circular",
+     "note": null
+    },
+    {
+     "title": "In a table row",
+     "anchor": "progress-in-a-table-row",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "reveal",
+   "name": "Reveal",
+   "group": "Motion",
+   "desc": "Animates content in and out without layout jumps. It respects reduced motion.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "reveal-playground",
+     "note": null
+    },
+    {
+     "title": "Against a conditional render",
+     "anchor": "reveal-against-a-conditional-render",
+     "note": null
+    },
+    {
+     "title": "A selection bar",
+     "anchor": "reveal-a-selection-bar",
+     "note": null
+    },
+    {
+     "title": "staggerStyle",
+     "anchor": "reveal-staggerstyle",
+     "note": null
+    },
+    {
+     "title": "An error message",
+     "anchor": "reveal-an-error-message",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "sheet",
+   "name": "Sheet",
+   "group": "Overlays",
+   "desc": "Slides up from the bottom for choices and short tasks. Drag it down or tap outside to close.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "sheet-playground",
+     "note": null
+    },
+    {
+     "title": "Every side",
+     "anchor": "sheet-every-side",
+     "note": null
+    },
+    {
+     "title": "A record opened from a queue",
+     "anchor": "sheet-a-record-opened-from-a-queue",
+     "note": null
+    },
+    {
+     "title": "Swipe to dismiss",
+     "anchor": "sheet-swipe-to-dismiss",
+     "note": null
+    },
+    {
+     "title": "Guarding unsaved changes",
+     "anchor": "sheet-guarding-unsaved-changes",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "spinner",
+   "name": "Spinner",
+   "group": "Feedback",
+   "desc": "For short waits on a single thing. For whole areas, use skeletons.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "spinner-playground",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "spinner-sizes",
+     "note": null
+    },
+    {
+     "title": "Inheriting colour",
+     "anchor": "spinner-inheriting-colour",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "stepper",
+   "name": "Stepper",
+   "group": "Navigation",
+   "desc": "Shows progress through a flow with a fixed number of steps. More than 5 steps is too many.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "stepper-playground",
+     "note": null
+    },
+    {
+     "title": "Vertical",
+     "anchor": "stepper-vertical",
+     "note": null
+    },
+    {
+     "title": "A step that failed",
+     "anchor": "stepper-a-step-that-failed",
+     "note": null
+    },
+    {
+     "title": "Driving a wizard",
+     "anchor": "stepper-driving-a-wizard",
+     "note": null
+    },
+    {
+     "title": "On a phone",
+     "anchor": "stepper-on-a-phone",
+     "note": null
+    },
+    {
+     "title": "Clickable completed steps",
+     "anchor": "stepper-clickable-completed-steps",
+     "note": "Finished steps are links back. Future steps can’t be clicked until the current one is valid."
+    },
+    {
+     "title": "With an optional step",
+     "anchor": "stepper-with-an-optional-step",
+     "note": null
+    },
+    {
+     "title": "Dots",
+     "anchor": "stepper-dots",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "tabs",
+   "name": "Tabs",
+   "group": "Navigation",
+   "desc": "Switch between views of the same thing. Don’t use tabs to move through steps.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "tabs-playground",
+     "note": null
+    },
+    {
+     "title": "With icons and counts",
+     "anchor": "tabs-with-icons-and-counts",
+     "note": null
+    },
+    {
+     "title": "Manual activation",
+     "anchor": "tabs-manual-activation",
+     "note": null
+    },
+    {
+     "title": "Controlled",
+     "anchor": "tabs-controlled",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "timeline",
+   "name": "Timeline",
+   "group": "Display",
+   "desc": "Events in order: history, approvals and changes that take effect on a set date.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "timeline-playground",
+     "note": null
+    },
+    {
+     "title": "Effective dating",
+     "anchor": "timeline-effective-dating",
+     "note": null
+    },
+    {
+     "title": "An approval chain in progress",
+     "anchor": "timeline-an-approval-chain-in-progress",
+     "note": null
+    },
+    {
+     "title": "Tones",
+     "anchor": "timeline-tones",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "toast",
+   "name": "Toast",
+   "group": "Feedback",
+   "desc": "Brief confirmation after an action. It goes away by itself, so never put anything essential in one.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "toast-playground",
+     "note": null
+    },
+    {
+     "title": "Tones",
+     "anchor": "toast-tones",
+     "note": null
+    },
+    {
+     "title": "With an undo",
+     "anchor": "toast-with-an-undo",
+     "note": null
+    },
+    {
+     "title": "A failure with a retry",
+     "anchor": "toast-a-failure-with-a-retry",
+     "note": null
+    },
+    {
+     "title": "When it should not be a toast",
+     "anchor": "toast-when-it-should-not-be-a-toast",
+     "note": "If people must act on it or would miss it, use a dialog or an inline alert."
+    }
+   ]
+  },
+  {
+   "id": "tooltip",
+   "name": "Tooltip",
+   "group": "Overlays",
+   "desc": "Phones have no hover. Use visible labels instead, or long-press on icon-only controls.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "tooltip-playground",
+     "note": null
+    },
+    {
+     "title": "Sides",
+     "anchor": "tooltip-sides",
+     "note": null
+    },
+    {
+     "title": "On an icon-only control",
+     "anchor": "tooltip-on-an-icon-only-control",
+     "note": null
+    },
+    {
+     "title": "What not to put in one",
+     "anchor": "tooltip-what-not-to-put-in-one",
+     "note": "If it needs a sentence, use a popover or put the text on the page."
+    }
+   ]
+  },
+  {
+   "id": "chip",
+   "name": "Chip",
+   "group": "Actions",
+   "desc": "Compact, tappable choices. Filter chips narrow results, input chips hold values, and suggestion chips offer a next step. For a status, use a Badge.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "chip-playground",
+     "note": null
+    },
+    {
+     "title": "Filter chips",
+     "anchor": "chip-filter-chips",
+     "note": "More than one can be on at a time. The tick shows the state, so it doesn’t rely on colour alone."
+    },
+    {
+     "title": "Choice chips",
+     "anchor": "chip-choice-chips",
+     "note": "Exactly one is on, like a radio group."
+    },
+    {
+     "title": "Input chips",
+     "anchor": "chip-input-chips",
+     "note": null
+    },
+    {
+     "title": "Suggestion chips",
+     "anchor": "chip-suggestion-chips",
+     "note": null
+    },
+    {
+     "title": "Key and value",
+     "anchor": "chip-key-and-value",
+     "note": null
+    },
+    {
+     "title": "Overflow",
+     "anchor": "chip-overflow",
+     "note": ""
+    },
+    {
+     "title": "Disabled",
+     "anchor": "chip-disabled",
+     "note": null
+    },
+    {
+     "title": "Chip, badge or button?",
+     "anchor": "chip-chip-badge-or-button",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "segmented-control",
+   "name": "Segmented control",
+   "group": "Actions",
+   "desc": "Switches between 2 to 5 views of the same content. Use it when the options are short and equally important.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "segmented-control-playground",
+     "note": null
+    },
+    {
+     "title": "With icons",
+     "anchor": "segmented-control-with-icons",
+     "note": null
+    },
+    {
+     "title": "Full width",
+     "anchor": "segmented-control-full-width",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "segmented-control-sizes",
+     "note": null
+    },
+    {
+     "title": "In a toolbar",
+     "anchor": "segmented-control-in-a-toolbar",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "floating-button",
+   "name": "Floating button",
+   "group": "Actions",
+   "desc": "The single most important action on a screen, floating above the content and the tab bar. One per screen, never destructive.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "floating-button-playground",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "floating-button-sizes",
+     "note": null
+    },
+    {
+     "title": "Extended",
+     "anchor": "floating-button-extended",
+     "note": null
+    },
+    {
+     "title": "Colours",
+     "anchor": "floating-button-colours",
+     "note": null
+    },
+    {
+     "title": "Shapes",
+     "anchor": "floating-button-shapes",
+     "note": null
+    },
+    {
+     "title": "Shrinks as you scroll",
+     "anchor": "floating-button-shrinks-as-you-scroll",
+     "note": "The label collapses when scrolling down and returns when scrolling up."
+    },
+    {
+     "title": "Speed dial",
+     "anchor": "floating-button-speed-dial",
+     "note": "Three actions at most. The scrim dims the page, and tapping it closes the menu."
+    },
+    {
+     "title": "In context",
+     "anchor": "floating-button-in-context",
+     "note": null
+    },
+    {
+     "title": "Don’t",
+     "anchor": "floating-button-don-t",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "banner",
+   "name": "Banner",
+   "group": "Feedback",
+   "desc": "A full-width message at the top of the page about the whole app or account. Only one banner shows at a time.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "banner-playground",
+     "note": null
+    },
+    {
+     "title": "Tones",
+     "anchor": "banner-tones",
+     "note": null
+    },
+    {
+     "title": "Critical, solid",
+     "anchor": "banner-critical-solid",
+     "note": null
+    },
+    {
+     "title": "With actions",
+     "anchor": "banner-with-actions",
+     "note": null
+    },
+    {
+     "title": "Maintenance countdown",
+     "anchor": "banner-maintenance-countdown",
+     "note": null
+    },
+    {
+     "title": "Announcement",
+     "anchor": "banner-announcement",
+     "note": null
+    },
+    {
+     "title": "When there are several",
+     "anchor": "banner-when-there-are-several",
+     "note": null
+    },
+    {
+     "title": "Banner, alert or toast?",
+     "anchor": "banner-banner-alert-or-toast",
+     "note": null
+    },
+    {
+     "title": "On the page",
+     "anchor": "banner-on-the-page",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "notification-center",
+   "name": "Notification centre",
+   "group": "Feedback",
+   "desc": "Everything that needs your attention, in one list. Unread items are tinted, and an item you can act on has its buttons inline.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "notification-center-playground",
+     "note": null
+    },
+    {
+     "title": "Grouped by day",
+     "anchor": "notification-center-grouped-by-day",
+     "note": null
+    },
+    {
+     "title": "With inline actions",
+     "anchor": "notification-center-with-inline-actions",
+     "note": null
+    },
+    {
+     "title": "All caught up",
+     "anchor": "notification-center-all-caught-up",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "ai-chat",
+   "name": "AI chat widget",
+   "group": "Communication",
+   "desc": "An assistant that answers questions from your policies and data, and can take action once you confirm. It cites its sources, and it always says when it’s unsure.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Launcher",
+     "anchor": "ai-chat-launcher",
+     "note": "The nudge shows once per session and never covers a primary action."
+    },
+    {
+     "title": "Welcome",
+     "anchor": "ai-chat-welcome",
+     "note": null
+    },
+    {
+     "title": "Conversation with sources",
+     "anchor": "ai-chat-conversation-with-sources",
+     "note": null
+    },
+    {
+     "title": "Streaming",
+     "anchor": "ai-chat-streaming",
+     "note": "The send button becomes Stop. Text streams in, but the layout never jumps under the reader."
+    },
+    {
+     "title": "Working on it",
+     "anchor": "ai-chat-working-on-it",
+     "note": null
+    },
+    {
+     "title": "Asking before it acts",
+     "anchor": "ai-chat-asking-before-it-acts",
+     "note": null
+    },
+    {
+     "title": "Unsure, or wrong",
+     "anchor": "ai-chat-unsure-or-wrong",
+     "note": null
+    },
+    {
+     "title": "Something went wrong",
+     "anchor": "ai-chat-something-went-wrong",
+     "note": null
+    },
+    {
+     "title": "Placements",
+     "anchor": "ai-chat-placements",
+     "note": null
+    },
+    {
+     "title": "Privacy and limits",
+     "anchor": "ai-chat-privacy-and-limits",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "tertiary-nav",
+   "name": "Tertiary navigation",
+   "group": "Navigation",
+   "desc": "Moves between sections of one screen. On a phone it’s a scrolling row of pills under the title, or a list you drill into.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "tertiary-nav-playground",
+     "note": null
+    },
+    {
+     "title": "Under primary tabs",
+     "anchor": "tertiary-nav-under-primary-tabs",
+     "note": "Line tabs for the area, and pills for the view inside it. Never put two rows of line tabs on top of each other."
+    },
+    {
+     "title": "As a table of contents",
+     "anchor": "tertiary-nav-as-a-table-of-contents",
+     "note": "The current section is highlighted as you scroll. Clicking a section jumps to it smoothly, or instantly under reduced motion."
+    },
+    {
+     "title": "With counts and status",
+     "anchor": "tertiary-nav-with-counts-and-status",
+     "note": null
+    },
+    {
+     "title": "Collapsed into a menu",
+     "anchor": "tertiary-nav-collapsed-into-a-menu",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "grouped-nav",
+   "name": "Grouped navigation",
+   "group": "Navigation",
+   "desc": "A long list of destinations in labelled groups, like Settings. Each row pushes a new screen.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "grouped-nav-playground",
+     "note": null
+    },
+    {
+     "title": "Collapsible groups",
+     "anchor": "grouped-nav-collapsible-groups",
+     "note": "Open and closed groups are remembered for each person. The group holding the current page always opens."
+    },
+    {
+     "title": "Search and filter",
+     "anchor": "grouped-nav-search-and-filter",
+     "note": null
+    },
+    {
+     "title": "Nested",
+     "anchor": "grouped-nav-nested",
+     "note": "On a phone each level is its own screen, so there’s never an indented tree."
+    },
+    {
+     "title": "Pinned and recent",
+     "anchor": "grouped-nav-pinned-and-recent",
+     "note": null
+    },
+    {
+     "title": "Badges, locks and upgrades",
+     "anchor": "grouped-nav-badges-locks-and-upgrades",
+     "note": null
+    },
+    {
+     "title": "From the keyboard",
+     "anchor": "grouped-nav-from-the-keyboard",
+     "note": null
+    },
+    {
+     "title": "Collapsed to a rail",
+     "anchor": "grouped-nav-collapsed-to-a-rail",
+     "note": ""
+    },
+    {
+     "title": "No matches",
+     "anchor": "grouped-nav-no-matches",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "app-bars",
+   "name": "App bars",
+   "group": "Navigation",
+   "desc": "The bars above and below the content: a large title that collapses as you scroll, and a floating tab bar for the top-level sections.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Large title",
+     "anchor": "app-bars-large-title",
+     "note": null
+    },
+    {
+     "title": "Compact, with back",
+     "anchor": "app-bars-compact-with-back",
+     "note": null
+    },
+    {
+     "title": "With search",
+     "anchor": "app-bars-with-search",
+     "note": null
+    },
+    {
+     "title": "Selection mode",
+     "anchor": "app-bars-selection-mode",
+     "note": null
+    },
+    {
+     "title": "Glass on scroll",
+     "anchor": "app-bars-glass-on-scroll",
+     "note": "Once content scrolls under it, the bar turns to glass and the large title shrinks into it."
+    },
+    {
+     "title": "Tab bar",
+     "anchor": "app-bars-tab-bar",
+     "note": null
+    },
+    {
+     "title": "Tab bar with badges",
+     "anchor": "app-bars-tab-bar-with-badges",
+     "note": null
+    },
+    {
+     "title": "On a tablet: the rail",
+     "anchor": "app-bars-on-a-tablet-the-rail",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "command-palette",
+   "name": "Command palette",
+   "group": "Overlays",
+   "desc": "Search everything and run actions from one field. On a phone it opens full screen from the search button.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "command-palette-playground",
+     "note": null
+    },
+    {
+     "title": "Typing",
+     "anchor": "command-palette-typing",
+     "note": null
+    },
+    {
+     "title": "Nested commands",
+     "anchor": "command-palette-nested-commands",
+     "note": null
+    },
+    {
+     "title": "Searching remotely",
+     "anchor": "command-palette-searching-remotely",
+     "note": null
+    },
+    {
+     "title": "No results",
+     "anchor": "command-palette-no-results",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "action-sheet",
+   "name": "Action sheet",
+   "group": "Overlays",
+   "desc": "A short list of actions that slides up from the bottom. The destructive action is red, and Cancel always sits apart.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "action-sheet-playground",
+     "note": null
+    },
+    {
+     "title": "With a title and a destructive action",
+     "anchor": "action-sheet-with-a-title-and-a-destructive-action",
+     "note": null
+    },
+    {
+     "title": "Share",
+     "anchor": "action-sheet-share",
+     "note": null
+    },
+    {
+     "title": "On larger screens",
+     "anchor": "action-sheet-on-larger-screens",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "hover-card",
+   "name": "Hover card",
+   "group": "Overlays",
+   "desc": "A peek at a person or record. On a phone, long-press opens the preview and its actions.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "hover-card-playground",
+     "note": null
+    },
+    {
+     "title": "Someone away",
+     "anchor": "hover-card-someone-away",
+     "note": null
+    },
+    {
+     "title": "Long-press preview",
+     "anchor": "hover-card-long-press-preview",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "list-item",
+   "name": "List item",
+   "group": "Display",
+   "desc": "The row that most lists are built from. The content in the middle is always the same, and what goes before and after it changes.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "One line",
+     "anchor": "list-item-one-line",
+     "note": null
+    },
+    {
+     "title": "Two lines",
+     "anchor": "list-item-two-lines",
+     "note": null
+    },
+    {
+     "title": "Three lines",
+     "anchor": "list-item-three-lines",
+     "note": null
+    },
+    {
+     "title": "Leading options",
+     "anchor": "list-item-leading-options",
+     "note": null
+    },
+    {
+     "title": "Trailing options",
+     "anchor": "list-item-trailing-options",
+     "note": null
+    },
+    {
+     "title": "Selected and disabled",
+     "anchor": "list-item-selected-and-disabled",
+     "note": null
+    },
+    {
+     "title": "Swipe actions",
+     "anchor": "list-item-swipe-actions",
+     "note": null
+    },
+    {
+     "title": "With section headers",
+     "anchor": "list-item-with-section-headers",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "carousel",
+   "name": "Carousel",
+   "group": "Display",
+   "desc": "Shows a few equal items side by side, where people swipe or scroll to see more. The next card always peeks in from the edge.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Cards that peek",
+     "anchor": "carousel-cards-that-peek",
+     "note": null
+    },
+    {
+     "title": "Hero with dots",
+     "anchor": "carousel-hero-with-dots",
+     "note": null
+    },
+    {
+     "title": "With controls",
+     "anchor": "carousel-with-controls",
+     "note": "Arrow buttons for pointer users, swipe for touch, and the arrow keys when it has focus. It never auto-plays."
+    }
+   ]
+  },
+  {
+   "id": "coach-mark",
+   "name": "Coach mark",
+   "group": "Overlays",
+   "desc": "Introduces one new feature, pointing at the actual control. Use it sparingly, and never for things a good label could explain.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Spotlight",
+     "anchor": "coach-mark-spotlight",
+     "note": null
+    },
+    {
+     "title": "A new-feature dot",
+     "anchor": "coach-mark-a-new-feature-dot",
+     "note": null
+    },
+    {
+     "title": "The rules",
+     "anchor": "coach-mark-the-rules",
+     "note": null
+    }
+   ]
+  }
+ ],
+ "Data": [
+  {
+   "id": "table",
+   "name": "Table",
+   "group": "Data",
+   "desc": "On a phone, each row becomes a card. The first column is the title, the key values sit underneath it, and tapping the card opens the detail.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Directory",
+     "anchor": "table-directory",
+     "note": null
+    },
+    {
+     "title": "Numeric alignment",
+     "anchor": "table-numeric-alignment",
+     "note": "Right-align numbers and money, and use the same number of decimals down the whole column."
+    },
+    {
+     "title": "Interactive rows",
+     "anchor": "table-interactive-rows",
+     "note": "The whole card is tappable, and the chevron shows it opens something."
+    },
+    {
+     "title": "Loading",
+     "anchor": "table-loading",
+     "note": null
+    },
+    {
+     "title": "Empty",
+     "anchor": "table-empty",
+     "note": null
+    },
+    {
+     "title": "DataTable: expandable rows",
+     "anchor": "table-datatable-expandable-rows",
+     "note": null
+    },
+    {
+     "title": "DataTable: selection and bulk actions",
+     "anchor": "table-datatable-selection-and-bulk-actions",
+     "note": null
+    },
+    {
+     "title": "DataTable: sorting",
+     "anchor": "table-datatable-sorting",
+     "note": "Click to sort, click again to reverse. Shift-click adds a second sort, and the small numbers show the order."
+    },
+    {
+     "title": "DataTable: drag to reorder",
+     "anchor": "table-datatable-drag-to-reorder",
+     "note": null
+    },
+    {
+     "title": "DataTable, all of it at once",
+     "anchor": "table-datatable-all-of-it-at-once",
+     "note": null
+    },
+    {
+     "title": "DataTable, on a phone",
+     "anchor": "table-datatable-on-a-phone",
+     "note": null
+    },
+    {
+     "title": "Virtualized",
+     "anchor": "table-virtualized",
+     "note": null
+    },
+    {
+     "title": "Infinite, striped, resizable",
+     "anchor": "table-infinite-striped-resizable",
+     "note": null
+    },
+    {
+     "title": "Grouped",
+     "anchor": "table-grouped",
+     "note": null
+    },
+    {
+     "title": "Virtualized, sorted",
+     "anchor": "table-virtualized-sorted",
+     "note": null
+    },
+    {
+     "title": "Virtualized, selection",
+     "anchor": "table-virtualized-selection",
+     "note": null
+    },
+    {
+     "title": "Virtualization off",
+     "anchor": "table-virtualization-off",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "column-chooser",
+   "name": "ColumnChooser",
+   "group": "Data",
+   "desc": "Lets people pick and reorder table columns. Their choice is saved for each table.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "column-chooser-playground",
+     "note": null
+    },
+    {
+     "title": "Driving a table",
+     "anchor": "column-chooser-driving-a-table",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "filter-builder",
+   "name": "FilterBuilder",
+   "group": "Data",
+   "desc": "Build filters out of conditions. Applied filters then show as chips above the results.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "filter-builder-playground",
+     "note": null
+    },
+    {
+     "title": "Nothing yet",
+     "anchor": "filter-builder-nothing-yet",
+     "note": null
+    },
+    {
+     "title": "Any condition",
+     "anchor": "filter-builder-any-condition",
+     "note": null
+    },
+    {
+     "title": "Applied, as removable chips",
+     "anchor": "filter-builder-applied-as-removable-chips",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "kanban",
+   "name": "Kanban",
+   "group": "Data",
+   "desc": "Move work between stages. Drag with a mouse or a finger, or use the keyboard or the card menu. Every drag has a non-drag alternative.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "kanban-playground",
+     "note": null
+    },
+    {
+     "title": "Without a mouse",
+     "anchor": "kanban-without-a-mouse",
+     "note": null
+    },
+    {
+     "title": "Limits and locked columns",
+     "anchor": "kanban-limits-and-locked-columns",
+     "note": "A full column refuses drops and says why. A locked column still shows its cards, but you can’t move them."
+    },
+    {
+     "title": "The gap opens in both columns",
+     "anchor": "kanban-the-gap-opens-in-both-columns",
+     "note": "The card’s old spot stays open until you drop it, so there’s always a clear way back."
+    },
+    {
+     "title": "On a phone",
+     "anchor": "kanban-on-a-phone",
+     "note": null
+    },
+    {
+     "title": "Handle positions",
+     "anchor": "kanban-handle-positions",
+     "note": null
+    },
+    {
+     "title": "The whole card drags",
+     "anchor": "kanban-the-whole-card-drags",
+     "note": null
+    },
+    {
+     "title": "Scroll speed and motion",
+     "anchor": "kanban-scroll-speed-and-motion",
+     "note": null
+    },
+    {
+     "title": "Menu only",
+     "anchor": "kanban-menu-only",
+     "note": null
+    },
+    {
+     "title": "Card and bulk actions",
+     "anchor": "kanban-card-and-bulk-actions",
+     "note": null
+    },
+    {
+     "title": "Adding and deleting sections",
+     "anchor": "kanban-adding-and-deleting-sections",
+     "note": "Deleting a section that has cards asks where to move them first."
+    },
+    {
+     "title": "A very long column",
+     "anchor": "kanban-a-very-long-column",
+     "note": null
+    },
+    {
+     "title": "Every column long",
+     "anchor": "kanban-every-column-long",
+     "note": "Each column scrolls on its own, and the headers stay in place."
+    },
+    {
+     "title": "Just below the threshold",
+     "anchor": "kanban-just-below-the-threshold",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "key-values",
+   "name": "KeyValues",
+   "group": "Data",
+   "desc": "Label and value pairs for record details. Keys are quiet and values are clear.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Default",
+     "anchor": "key-values-default",
+     "note": null
+    },
+    {
+     "title": "In A Card",
+     "anchor": "key-values-in-a-card",
+     "note": null
+    },
+    {
+     "title": "Rich Values",
+     "anchor": "key-values-rich-values",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "money",
+   "name": "Money",
+   "group": "Data",
+   "desc": "Money stays exact. It’s stored in minor units, formatted for the locale, and always shown with its currency.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "money-playground",
+     "note": null
+    },
+    {
+     "title": "Currencies",
+     "anchor": "money-currencies",
+     "note": null
+    },
+    {
+     "title": "Precision a double would lose",
+     "anchor": "money-precision-a-double-would-lose",
+     "note": null
+    },
+    {
+     "title": "Negative",
+     "anchor": "money-negative",
+     "note": null
+    },
+    {
+     "title": "Locales",
+     "anchor": "money-locales",
+     "note": null
+    },
+    {
+     "title": "In a column",
+     "anchor": "money-in-a-column",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "pagination",
+   "name": "Pagination",
+   "group": "Navigation",
+   "desc": "On a phone, pagination is \"Page 3 of 52\" between two arrows. Lists usually load more as you scroll instead.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "pagination-playground",
+     "note": null
+    },
+    {
+     "title": "How the window elides",
+     "anchor": "pagination-how-the-window-elides",
+     "note": null
+    },
+    {
+     "title": "Few enough not to elide",
+     "anchor": "pagination-few-enough-not-to-elide",
+     "note": null
+    },
+    {
+     "title": "Under a table",
+     "anchor": "pagination-under-a-table",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "sortable-list",
+   "name": "SortableList",
+   "group": "Data",
+   "desc": "Reorder a short list by dragging. Keyboard and screen readers are supported, and every move is announced.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "sortable-list-playground",
+     "note": null
+    },
+    {
+     "title": "A row that cannot move",
+     "anchor": "sortable-list-a-row-that-cannot-move",
+     "note": null
+    },
+    {
+     "title": "Dragging the whole row",
+     "anchor": "sortable-list-dragging-the-whole-row",
+     "note": null
+    },
+    {
+     "title": "Rows that say what they are",
+     "anchor": "sortable-list-rows-that-say-what-they-are",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "stat",
+   "name": "Stat",
+   "group": "Data",
+   "desc": "One number with context. Direction and sentiment are separate: fewer leavers is down, and that’s good.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "stat-playground",
+     "note": null
+    },
+    {
+     "title": "Direction is not sentiment",
+     "anchor": "stat-direction-is-not-sentiment",
+     "note": null
+    },
+    {
+     "title": "With money",
+     "anchor": "stat-with-money",
+     "note": null
+    },
+    {
+     "title": "With a sparkline",
+     "anchor": "stat-with-a-sparkline",
+     "note": null
+    },
+    {
+     "title": "In a narrow column",
+     "anchor": "stat-in-a-narrow-column",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "virtual-list",
+   "name": "VirtualList",
+   "group": "Data",
+   "desc": "Renders only the rows you can see, so 20,000 rows scroll smoothly. Row heights can vary.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Twenty Thousand",
+     "anchor": "virtual-list-twenty-thousand",
+     "note": null
+    },
+    {
+     "title": "Variable Heights",
+     "anchor": "virtual-list-variable-heights",
+     "note": null
+    },
+    {
+     "title": "Keyboard",
+     "anchor": "virtual-list-keyboard",
+     "note": null
+    },
+    {
+     "title": "Empty",
+     "anchor": "virtual-list-empty",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "complex-filters",
+   "name": "Complex filters",
+   "group": "Data",
+   "desc": "For big lists: saved views, facets with counts, nested and/or groups, and a way back when nothing matches. Every filter is shown as a chip you can remove.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Saved views",
+     "anchor": "complex-filters-saved-views",
+     "note": null
+    },
+    {
+     "title": "Facets with counts",
+     "anchor": "complex-filters-facets-with-counts",
+     "note": "Counts update as you pick, and an option with 0 results is dimmed but can still be picked."
+    },
+    {
+     "title": "Nested and/or groups",
+     "anchor": "complex-filters-nested-and-or-groups",
+     "note": "Two levels of groups at most. The plain-language summary underneath is what people actually read."
+    },
+    {
+     "title": "Ranges and dates",
+     "anchor": "complex-filters-ranges-and-dates",
+     "note": null
+    },
+    {
+     "title": "Query syntax",
+     "anchor": "complex-filters-query-syntax",
+     "note": "For power users. Every token turns into the same chip you’d get from the menus."
+    },
+    {
+     "title": "Saving a view",
+     "anchor": "complex-filters-saving-a-view",
+     "note": null
+    },
+    {
+     "title": "Zero results, with a way out",
+     "anchor": "complex-filters-zero-results-with-a-way-out",
+     "note": null
+    },
+    {
+     "title": "Filter sheet",
+     "anchor": "complex-filters-filter-sheet",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "tree-view",
+   "name": "Tree view",
+   "group": "Data",
+   "desc": "Nested items such as folders, departments or cost centres. Arrow keys move through it, and branches load when you open them.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "tree-view-playground",
+     "note": null
+    },
+    {
+     "title": "With checkboxes",
+     "anchor": "tree-view-with-checkboxes",
+     "note": "Checking a parent checks all its children. If only some children are checked, the parent shows a dash."
+    },
+    {
+     "title": "Loading a branch",
+     "anchor": "tree-view-loading-a-branch",
+     "note": null
+    },
+    {
+     "title": "Drag to move",
+     "anchor": "tree-view-drag-to-move",
+     "note": "Dropping onto a folder moves the item into it, and the folder is outlined while you hover."
+    },
+    {
+     "title": "From the keyboard",
+     "anchor": "tree-view-from-the-keyboard",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "scheduler",
+   "name": "Scheduler",
+   "group": "Data",
+   "desc": "A day view with a strip of dates, plus an agenda list. On a phone, the week view only works in landscape.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Day",
+     "anchor": "scheduler-day",
+     "note": null
+    },
+    {
+     "title": "Agenda",
+     "anchor": "scheduler-agenda",
+     "note": null
+    },
+    {
+     "title": "Clashes",
+     "anchor": "scheduler-clashes",
+     "note": "Overlapping events sit side by side, and a real clash has a red outline."
+    },
+    {
+     "title": "Picking a slot",
+     "anchor": "scheduler-picking-a-slot",
+     "note": null
+    }
+   ]
+  }
+ ],
+ "Charts": [
+  {
+   "id": "charts-overview",
+   "name": "Overview",
+   "group": "Charts",
+   "desc": "Every chart puts the number first and the chart under it. One colour means one series, and categories use the chart palette in order.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Every chart",
+     "anchor": "charts-overview-every-chart",
+     "note": null
+    },
+    {
+     "title": "The accessibility contract",
+     "anchor": "charts-overview-the-accessibility-contract",
+     "note": null
+    },
+    {
+     "title": "At every width",
+     "anchor": "charts-overview-at-every-width",
+     "note": null
+    },
+    {
+     "title": "Zoom, drag and right-click",
+     "anchor": "charts-overview-zoom-drag-and-right-click",
+     "note": "Pinch to zoom and drag to pan. Long-press opens the menu."
+    }
+   ]
+  },
+  {
+   "id": "bar",
+   "name": "Bar",
+   "group": "Charts",
+   "desc": "Compare amounts. Vertical bars suit periods of time, and horizontal bars suit named categories.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Vertical: periods",
+     "anchor": "bar-vertical-periods",
+     "note": null
+    },
+    {
+     "title": "With a target line",
+     "anchor": "bar-with-a-target-line",
+     "note": null
+    },
+    {
+     "title": "Horizontal: categories",
+     "anchor": "bar-horizontal-categories",
+     "note": null
+    },
+    {
+     "title": "Stacked and normalised",
+     "anchor": "bar-stacked-and-normalised",
+     "note": null
+    },
+    {
+     "title": "Selectable bars",
+     "anchor": "bar-selectable-bars",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "trend",
+   "name": "Trend",
+   "group": "Charts",
+   "desc": "How a value changes over time. The line is the data and the dashed line is the plan. Nothing else.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "trend-playground",
+     "note": null
+    },
+    {
+     "title": "Line or area",
+     "anchor": "trend-line-or-area",
+     "note": null
+    },
+    {
+     "title": "Two series",
+     "anchor": "trend-two-series",
+     "note": null
+    },
+    {
+     "title": "Small multiples",
+     "anchor": "trend-small-multiples",
+     "note": "Same scale, same size, one per team. Easier to compare than four lines on one chart."
+    },
+    {
+     "title": "Sparklines",
+     "anchor": "trend-sparklines",
+     "note": null
+    },
+    {
+     "title": "Hover, click and legend toggles",
+     "anchor": "trend-hover-click-and-legend-toggles",
+     "note": "Click a legend item to hide that series. The hidden one is struck through, and the axis rescales."
+    },
+    {
+     "title": "Zoom and pan",
+     "anchor": "trend-zoom-and-pan",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "distribution",
+   "name": "Distribution",
+   "group": "Charts",
+   "desc": "Parts of a whole. Use it for up to six parts, and go biggest first.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "distribution-playground",
+     "note": null
+    },
+    {
+     "title": "When it stops working",
+     "anchor": "distribution-when-it-stops-working",
+     "note": null
+    },
+    {
+     "title": "Sizes",
+     "anchor": "distribution-sizes",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "heatmap",
+   "name": "Heatmap",
+   "group": "Charts",
+   "desc": "Intensity across two dimensions, such as when people take leave. Darker means more.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "heatmap-playground",
+     "note": null
+    },
+    {
+     "title": "A fixed scale",
+     "anchor": "heatmap-a-fixed-scale",
+     "note": "When you compare heatmaps, lock them to one scale. Otherwise the same colour means different numbers."
+    },
+    {
+     "title": "Tones",
+     "anchor": "heatmap-tones",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "funnel",
+   "name": "Funnel",
+   "group": "Charts",
+   "desc": "How many make it through each stage. Look at the drop between stages, not the stages themselves.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "funnel-playground",
+     "note": null
+    },
+    {
+     "title": "Finding the bottleneck",
+     "anchor": "funnel-finding-the-bottleneck",
+     "note": null
+    },
+    {
+     "title": "Comparing two funnels",
+     "anchor": "funnel-comparing-two-funnels",
+     "note": null
+    },
+    {
+     "title": "When it does not narrow",
+     "anchor": "funnel-when-it-does-not-narrow",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "chart-timeline",
+   "name": "Timeline (Gantt)",
+   "group": "Charts",
+   "desc": "Who is doing what, and when. Lanes are people or projects, and bars are periods of time.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "chart-timeline-playground",
+     "note": null
+    },
+    {
+     "title": "Shapes",
+     "anchor": "chart-timeline-shapes",
+     "note": null
+    },
+    {
+     "title": "Day, week, month",
+     "anchor": "chart-timeline-day-week-month",
+     "note": null
+    },
+    {
+     "title": "Zoom, drag and select",
+     "anchor": "chart-timeline-zoom-drag-and-select",
+     "note": "Drag across empty days to select a range, then create leave or cover for those days."
+    },
+    {
+     "title": "Leave cover",
+     "anchor": "chart-timeline-leave-cover",
+     "note": null
+    },
+    {
+     "title": "Nothing scheduled",
+     "anchor": "chart-timeline-nothing-scheduled",
+     "note": null
+    },
+    {
+     "title": "When items collide",
+     "anchor": "chart-timeline-when-items-collide",
+     "note": "Overlapping items stack into rows. A real conflict gets a red outline."
+    },
+    {
+     "title": "Drag to reschedule",
+     "anchor": "chart-timeline-drag-to-reschedule",
+     "note": null
+    },
+    {
+     "title": "Telling lanes apart",
+     "anchor": "chart-timeline-telling-lanes-apart",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "org-chart",
+   "name": "Org chart",
+   "group": "Charts",
+   "desc": "On a phone the org chart is a tree you expand and collapse. Tap a person to open their profile, and use \"View as chart\" for the full canvas.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "org-chart-playground",
+     "note": null
+    },
+    {
+     "title": "Pan and zoom",
+     "anchor": "org-chart-pan-and-zoom",
+     "note": "Pinch the canvas view to zoom."
+    },
+    {
+     "title": "Search, focus and the chain",
+     "anchor": "org-chart-search-focus-and-the-chain",
+     "note": "Search dims everyone else and highlights the chain of managers up to the top."
+    },
+    {
+     "title": "Read-only for everyone else",
+     "anchor": "org-chart-read-only-for-everyone-else",
+     "note": null
+    },
+    {
+     "title": "Nothing moves under the pointer",
+     "anchor": "org-chart-nothing-moves-under-the-pointer",
+     "note": "Opening or closing a branch keeps the card you clicked exactly where it is. The rest of the chart shifts around it."
+    },
+    {
+     "title": "Drag to change a reporting line",
+     "anchor": "org-chart-drag-to-change-a-reporting-line",
+     "note": "Drop Mei on Tom to make him her manager. We ask you to confirm first, and the change takes effect from a date you choose."
+    },
+    {
+     "title": "Driving something else",
+     "anchor": "org-chart-driving-something-else",
+     "note": null
+    },
+    {
+     "title": "Vertical and horizontal",
+     "anchor": "org-chart-vertical-and-horizontal",
+     "note": null
+    },
+    {
+     "title": "Selecting a person",
+     "anchor": "org-chart-selecting-a-person",
+     "note": "Click or press Enter to select. The arrow keys move up, down and along the tree."
+    },
+    {
+     "title": "Custom cards",
+     "anchor": "org-chart-custom-cards",
+     "note": null
+    },
+    {
+     "title": "A circular reporting line",
+     "anchor": "org-chart-a-circular-reporting-line",
+     "note": null
+    },
+    {
+     "title": "Departments, collapsed",
+     "anchor": "org-chart-departments-collapsed",
+     "note": "Start collapsed to departments on big orgs. The number is the size of each branch, and clicking it expands one level."
+    },
+    {
+     "title": "Span of control and vacancies",
+     "anchor": "org-chart-span-of-control-and-vacancies",
+     "note": "A red outline flags a span over 7 direct reports. Open roles are shown as dashed cards."
+    }
+   ]
+  },
+  {
+   "id": "movement",
+   "name": "Movement",
+   "group": "Charts",
+   "desc": "How a number got from start to end. Green adds, red takes away, and indigo is a total.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "movement-playground",
+     "note": null
+    },
+    {
+     "title": "Reading the biggest step",
+     "anchor": "movement-reading-the-biggest-step",
+     "note": null
+    },
+    {
+     "title": "When it goes negative",
+     "anchor": "movement-when-it-goes-negative",
+     "note": "Below zero, the axis line becomes the reference, so the bars hang under it."
+    }
+   ]
+  },
+  {
+   "id": "pay",
+   "name": "Pay",
+   "group": "Charts",
+   "desc": "Salary bands and fairness. These charts are sensitive, so they only show to people who can see pay.",
+   "isNew": false,
+   "stories": [
+    {
+     "title": "Salary bands",
+     "anchor": "pay-salary-bands",
+     "note": null
+    },
+    {
+     "title": "Out of band",
+     "anchor": "pay-out-of-band",
+     "note": null
+    },
+    {
+     "title": "Median and middle half",
+     "anchor": "pay-median-and-middle-half",
+     "note": null
+    },
+    {
+     "title": "Pay equity scatter",
+     "anchor": "pay-pay-equity-scatter",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "combo",
+   "name": "Combo",
+   "group": "Charts",
+   "desc": "Bars and a line on one chart, when two measures share a time axis but have different units. Label both axes.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Hires and attrition",
+     "anchor": "combo-hires-and-attrition",
+     "note": null
+    },
+    {
+     "title": "Budget and spend",
+     "anchor": "combo-budget-and-spend",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "stacked-area",
+   "name": "Stacked area",
+   "group": "Charts",
+   "desc": "How a total changes over time, and what makes it up. Keep it to five layers or fewer, with the biggest at the bottom.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Headcount by team",
+     "anchor": "stacked-area-headcount-by-team",
+     "note": null
+    },
+    {
+     "title": "Normalised to 100%",
+     "anchor": "stacked-area-normalised-to-100",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "gauge",
+   "name": "Gauge",
+   "group": "Charts",
+   "desc": "Progress toward one target. Show the number large, and use a gauge only where \"how close are we\" is the question.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "gauge-playground",
+     "note": null
+    },
+    {
+     "title": "With a target",
+     "anchor": "gauge-with-a-target",
+     "note": null
+    },
+    {
+     "title": "Tones and sizes",
+     "anchor": "gauge-tones-and-sizes",
+     "note": null
+    },
+    {
+     "title": "In a stat tile",
+     "anchor": "gauge-in-a-stat-tile",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "radar",
+   "name": "Radar",
+   "group": "Charts",
+   "desc": "Compares a few items across five to eight qualities, such as skills in a review. For precise comparisons, use bars.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Playground",
+     "anchor": "radar-playground",
+     "note": null
+    },
+    {
+     "title": "Compared with the level",
+     "anchor": "radar-compared-with-the-level",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "treemap",
+   "name": "Treemap",
+   "group": "Charts",
+   "desc": "Parts of a whole when there are too many parts for a donut. The size of each area is its value.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Payroll cost by team",
+     "anchor": "treemap-payroll-cost-by-team",
+     "note": null
+    },
+    {
+     "title": "Highlighting one part",
+     "anchor": "treemap-highlighting-one-part",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "histogram",
+   "name": "Histogram",
+   "group": "Charts",
+   "desc": "How values are spread, such as salaries or tenure. The bars touch because the ranges are continuous.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Tenure",
+     "anchor": "histogram-tenure",
+     "note": null
+    },
+    {
+     "title": "Salary spread",
+     "anchor": "histogram-salary-spread",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "cohort",
+   "name": "Cohort",
+   "group": "Charts",
+   "desc": "How each group of joiners stays over time. Read across a row for one cohort, and down a column to compare cohorts.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Retention by joining quarter",
+     "anchor": "cohort-retention-by-joining-quarter",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "bullet",
+   "name": "Bullet",
+   "group": "Charts",
+   "desc": "One measure against a target and qualitative ranges. It fits many targets into far less space than gauges.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Goals",
+     "anchor": "bullet-goals",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "calendar-heatmap",
+   "name": "Calendar heatmap",
+   "group": "Charts",
+   "desc": "Activity per day across months, such as sick days or check-ins. Darker means more.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Sick days",
+     "anchor": "calendar-heatmap-sick-days",
+     "note": null
+    },
+    {
+     "title": "Check-ins",
+     "anchor": "calendar-heatmap-check-ins",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "bubble",
+   "name": "Bubble",
+   "group": "Charts",
+   "desc": "A scatter plot where bubble size is a third value. Label the bubbles directly, and keep it to around a dozen.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "Teams: size, tenure, engagement",
+     "anchor": "bubble-teams-size-tenure-engagement",
+     "note": null
+    }
+   ]
+  },
+  {
+   "id": "kpi-dashboard",
+   "name": "KPI dashboard",
+   "group": "Charts",
+   "desc": "How charts combine on one screen: numbers first, one hero chart, and supporting charts in a grid.",
+   "isNew": true,
+   "stories": [
+    {
+     "title": "People dashboard",
+     "anchor": "kpi-dashboard-people-dashboard",
+     "note": null
+    }
+   ]
+  }
+ ]
+}
