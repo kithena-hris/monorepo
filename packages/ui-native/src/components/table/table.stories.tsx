@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import { Info, Plus, SearchX } from 'lucide-react-native';
+import { Columns3, Download, Info, Plus, SearchX } from 'lucide-react-native';
 import { useState } from 'react';
 import { Text as CssText, View } from 'react-native-css/components';
 
@@ -11,7 +11,9 @@ import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
 import { Chip } from '../chip/chip.tsx';
 import { Alert, EmptyState } from '../feedback/feedback.tsx';
+import { Icon } from '../icon/icon.tsx';
 import { KeyValues } from '../key-values/key-values.tsx';
+import { Pagination } from '../pagination/pagination.tsx';
 import { Money } from '../money/money.tsx';
 import { Text } from '../text/text.tsx';
 import { SearchField } from '../typed-fields/typed-fields.tsx';
@@ -342,6 +344,42 @@ export const Reorderable: Story = {
       />
     );
   },
+};
+
+function Everything(): React.JSX.Element {
+  const [page, setPage] = useState(1);
+  return (
+    <DataTable
+      label="People"
+      rows={PEOPLE.slice(0, 6)}
+      columns={COLUMNS}
+      rowId={id}
+      toolbar={
+        <>
+          <Toolbar />
+          <View className="ml-auto flex-row gap-2">
+            <Button variant="secondary" size="sm" startIcon={<Icon icon={Columns3} />}>
+              Columns
+            </Button>
+            <Button variant="secondary" size="sm" startIcon={<Icon icon={Download} />}>
+              Export
+            </Button>
+          </View>
+        </>
+      }
+      selectable
+      defaultSelected={['Jonas Weber', 'Mei Tanaka']}
+      bulkActions={bulk}
+      defaultExpanded={['Mei Tanaka']}
+      renderDetail={(p) => <Note>{`${p.name} · ${p.role} · reports to Zara Ahmed`}</Note>}
+      footer={<Pagination page={page} pageCount={52} onPageChange={setPage} className="flex-1" />}
+    />
+  );
+}
+
+export const AllOfIt: Story = {
+  name: 'DataTable, all of it at once',
+  render: () => <Everything />,
 };
 
 export const OnAPhone: Story = {
