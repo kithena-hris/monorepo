@@ -7,6 +7,7 @@ import {
   useEffect,
   type ReactElement,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import { BackHandler, Platform } from 'react-native';
 import { styled } from 'react-native-css';
@@ -113,6 +114,12 @@ export type DialogContentProps = {
    * the form is clean, or the dialog becomes a trap.
    */
   guard?: () => boolean;
+  /**
+   * What takes focus when it opens, instead of the first focusable control:
+   * the selected row of a picker, say. Anything with `focus()`, such as a
+   * pressable's or a text input's ref.
+   */
+  initialFocus?: RefObject<{ focus: () => void } | null>;
   /** Draw in the `OverlayHost` of this name instead of the root one. */
   portalHost?: string;
   /**
@@ -130,6 +137,7 @@ export function DialogContent({
   guard,
   portalHost,
   width,
+  initialFocus,
 }: DialogContentProps): React.JSX.Element | null {
   const { open, onOpenChange } = DialogPrimitive.useRootContext();
   const presence = usePresence(open);
@@ -169,6 +177,15 @@ export function DialogContent({
           forceMount
           ref={quietFrame}
           onEscapeKeyDown={hold}
+          {...(initialFocus
+            ? {
+                onOpenAutoFocus: (event: Event) => {
+                  // Radix's DOM event, on the web only.
+                  (event as unknown as { preventDefault: () => void }).preventDefault();
+                  initialFocus.current?.focus();
+                },
+              }
+            : {})}
           onInteractOutside={hold}
           onAccessibilityEscape={dismiss}
           className={cn(centredSurface, className)}
