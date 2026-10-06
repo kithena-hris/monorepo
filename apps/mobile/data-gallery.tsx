@@ -2,8 +2,13 @@ import { useState } from 'react';
 
 import {
   Avatar,
+  AppliedFilters,
   BulkAction,
+  ColumnChooser,
+  type ColumnChooserValue,
   DataTable,
+  FilterBuilder,
+  type FilterGroup,
   KeyValues,
   ListItem,
   Money,
@@ -37,6 +42,7 @@ export function DataGallery(): React.JSX.Element {
         ]}
       />
       <PeopleTable />
+      <Filters />
       <VirtualList
         items={ROWS}
         label="Everyone"
@@ -78,5 +84,52 @@ function PeopleTable(): React.JSX.Element {
         setRows(move(rows, from, to));
       }}
     />
+  );
+}
+
+const FIELDS = [
+  {
+    id: 'team',
+    label: 'Team',
+    operators: [{ id: 'is', label: 'is', value: 'option' as const }],
+    options: ['Engineering', 'Design', 'Sales'].map((t) => ({ value: t, label: t })),
+  },
+  {
+    id: 'start',
+    label: 'Start date',
+    operators: [{ id: 'after', label: 'is after', value: 'date' as const }],
+  },
+];
+
+/** A filter builder, its applied chips, and the column chooser. */
+function Filters(): React.JSX.Element {
+  const [filter, setFilter] = useState<FilterGroup>({
+    match: 'all',
+    conditions: [{ id: 'c1', field: 'team', operator: 'is', values: ['Engineering'] }],
+  });
+  const [columns, setColumns] = useState<ColumnChooserValue>({
+    order: ['name', 'team', 'location'],
+    visible: ['name', 'team'],
+  });
+  return (
+    <Stack gap={2}>
+      <FilterBuilder fields={FIELDS} value={filter} onChange={setFilter} applyLabel="Show 48 people" />
+      <AppliedFilters
+        filters={filter.conditions.map((c) => ({ id: c.id, field: c.field, label: c.values.join(', ') }))}
+        onRemove={(id) => {
+          setFilter({ ...filter, conditions: filter.conditions.filter((c) => c.id !== id) });
+        }}
+      />
+      <ColumnChooser
+        inline
+        columns={[
+          { id: 'name', label: 'Name', locked: true },
+          { id: 'team', label: 'Team' },
+          { id: 'location', label: 'Location' },
+        ]}
+        value={columns}
+        onChange={setColumns}
+      />
+    </Stack>
   );
 }

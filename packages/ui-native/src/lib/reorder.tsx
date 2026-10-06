@@ -85,10 +85,13 @@ export function ReorderHandle({
   className,
 }: ReorderHandleProps): React.JSX.Element {
   if (locked) {
+    // Fixed order: the row cannot be picked up, and nothing is dropped in its place.
     return (
-      <View className={cn('min-h-m-tap w-6 items-center justify-center', className)}>
-        <Icon icon={Lock} size={size - 2} tone="subtle" label={`${label}: fixed in place`} />
-      </View>
+      <Sortable.Handle mode="fixed-order">
+        <View className={cn('min-h-m-tap w-6 items-center justify-center', className)}>
+          <Icon icon={Lock} size={size - 2} tone="subtle" label={`${label}: fixed in place`} />
+        </View>
+      </Sortable.Handle>
     );
   }
   return (

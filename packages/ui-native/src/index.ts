@@ -698,3 +698,35 @@ export {
   type ReorderHandleProps,
 } from './lib/reorder.tsx';
 export { Stat, type StatProps, type StatSentiment } from './components/stat/stat.tsx';
+export {
+  AppliedFilters,
+  describeCondition,
+  describeFilters,
+  FilterBuilder,
+  type AppliedFilter,
+  type AppliedFiltersProps,
+  type FilterBuilderProps,
+  type FilterCondition,
+  type FilterField,
+  type FilterGroup,
+  type FilterOperator,
+  type FilterSubgroup,
+  type FilterValueKind,
+} from './components/filter-builder/filter-builder.tsx';
+export {
+  ColumnChooser,
+  orderColumns,
+  type ColumnChoice,
+  type ColumnChooserProps,
+  type ColumnChooserValue,
+} from './components/column-chooser/column-chooser.tsx';
+export {
+  FacetList,
+  FilterGroupEditor,
+  FilterQuery,
+  type FacetListProps,
+  type FacetOption,
+  type FilterGroupEditorProps,
+  type FilterQueryProps,
+  type QuerySuggestion,
+} from './components/filter-builder/complex-filters.tsx';
