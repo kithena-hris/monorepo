@@ -25,6 +25,7 @@ export {
   type Transition,
 } from './lib/motion.ts';
 export { animateTo, useLayoutTransition, useMotion, usePress, type Press } from './lib/animate.ts';
+export { OverlayHost, usePresence, type OverlayHostProps } from './lib/overlay.tsx';
 
 export {
   Avatar,
@@ -35,9 +36,38 @@ export {
   type AvatarProps,
   type AvatarSize,
 } from './components/avatar/avatar.tsx';
+export {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogBody,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogIcon,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  type AlertDialogContentProps,
+} from './components/alert-dialog/alert-dialog.tsx';
 export { Badge, type BadgeProps } from './components/badge/badge.tsx';
 export { Button, type ButtonProps, type ButtonVariants } from './components/button/button.tsx';
 export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
+export {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogIcon,
+  DialogTitle,
+  DialogTrigger,
+  type DialogContentProps,
+  type DialogFooterProps,
+  type DialogIconProps,
+} from './components/dialog/dialog.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   AutoGrid,

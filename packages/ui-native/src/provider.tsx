@@ -1,4 +1,3 @@
-import { PortalHost } from '@rn-primitives/portal';
 import { createContext, useContext, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { View } from 'react-native-css/components';
@@ -7,6 +6,7 @@ import { useReducedMotion as useSystemReducedMotion } from 'react-native-reanima
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { cn } from './lib/cn.ts';
+import { OverlayHost } from './lib/overlay.tsx';
 
 export type Theme = 'light' | 'dark';
 
@@ -62,7 +62,7 @@ export function ReachProvider({
           <ReducedMotion.Provider value={reducedMotion ?? null}>
             <View className={cn('flex-1', resolved === 'dark' && 'dark')}>
               {children}
-              <PortalHost />
+              <OverlayHost />
             </View>
           </ReducedMotion.Provider>
         </ThemeContext.Provider>

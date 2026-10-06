@@ -23,6 +23,23 @@ export function designDocs(id: string): { docs: { description: { component: stri
 }
 
 /**
+ * `designDocs`, for a component whose stories open a modal overlay: on the docs
+ * page each story renders in its own frame, because an open modal traps focus
+ * and locks the scroll of whatever page it is on.
+ */
+export function overlayDocs(
+  id: string,
+  height = 640,
+): {
+  docs: {
+    description: { component: string };
+    story: { inline: false; iframeHeight: number };
+  };
+} {
+  return { docs: { ...designDocs(id).docs, story: { inline: false, iframeHeight: height } } };
+}
+
+/**
  * A story's note from the design, when it has one, as the story's docs
  * description. Spread into a story's `parameters`.
  */

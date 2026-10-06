@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cloneElement, isValidElement, type ReactElement } from 'react';
-import { Linking } from 'react-native';
+import { cloneElement, isValidElement, type ReactElement, type Ref } from 'react';
+import { Linking, type View as RNView } from 'react-native';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import Animated from 'react-native-reanimated';
 
@@ -126,6 +126,8 @@ export type ButtonProps = ButtonVariants & {
   accessibilityLabel?: string;
   /** Placement in the layout around it (`flex-1` in a row of two). The look is the variant's. */
   className?: string | undefined;
+  /** The pressable view: an overlay trigger measures it and returns focus to it. */
+  ref?: Ref<RNView>;
 };
 
 /** What a button needs of its icon: a size and a tone it can set. */
@@ -160,6 +162,7 @@ export function Button({
   endIcon,
   accessibilityLabel,
   className,
+  ref,
 }: ButtonProps): React.JSX.Element {
   const press = usePress();
   const v = variant ?? 'secondary';
@@ -171,6 +174,7 @@ export function Button({
 
   return (
     <Pressable
+      ref={ref}
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={accessibilityLabel ?? children}
       accessibilityState={{ disabled: inert, busy: loading }}
