@@ -188,6 +188,14 @@ export {
   type WaterfallStep,
 } from './components/chart/movement-chart.tsx';
 export {
+  RangeChart,
+  ScatterChart,
+  type RangeBand,
+  type RangeChartProps,
+  type ScatterChartProps,
+  type ScatterPoint,
+} from './components/chart/pay-chart.tsx';
+export {
   TimelineChart,
   type TimelineChartProps,
   type TimelineEntry,
