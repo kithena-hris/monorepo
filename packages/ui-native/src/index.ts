@@ -102,6 +102,18 @@ export {
   type DialogIconProps,
 } from './components/dialog/dialog.tsx';
 export {
+  checkFile,
+  displayName,
+  Dropzone,
+  formatBytes,
+  middleTruncate,
+  type DropzoneProps,
+  type Pick,
+  type PickedFile,
+  type Refusal,
+  type Rejection,
+} from './components/dropzone/dropzone.tsx';
+export {
   Field,
   FieldControl,
   FieldDescription,
@@ -111,6 +123,13 @@ export {
   type FieldProps,
 } from './components/field/field.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
+export {
+  AvatarUploader,
+  ImageUploader,
+  type AvatarUploaderProps,
+  type ImageUploaderProps,
+  type UploadedImage,
+} from './components/image-uploader/image-uploader.tsx';
 export {
   FieldBox,
   Input,

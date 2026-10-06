@@ -3,7 +3,9 @@ import {
   Checkbox,
   Combobox,
   DatePicker,
+  Dropzone,
   CurrencyField,
+  AvatarUploader,
   Field,
   FieldDescription,
   FieldError,
@@ -161,6 +163,9 @@ export function FormsGallery(): React.JSX.Element {
       <Calendar today="2026-10-01" selected={start} onSelect={setStart} />
       <DatePicker label="Start date" value={start} onChange={setStart} today="2026-10-01" />
       <TimePicker label="Start" value={time} onChange={setTime} />
+      {/* Reach opens no picker: the app's own goes here (expo-image-picker). */}
+      <AvatarUploader name="Priya Shah" pick={() => Promise.resolve([])} onPick={() => undefined} />
+      <Dropzone pick={() => Promise.resolve([])} onFiles={() => undefined} />
     </Stack>
   );
 }
