@@ -1,5 +1,13 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Bell, CircleAlert, CircleCheck, Info, Sparkles, TriangleAlert, X } from 'lucide-react-native';
+import {
+  Bell,
+  CircleAlert,
+  CircleCheck,
+  Info,
+  Sparkles,
+  TriangleAlert,
+  X,
+} from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Platform, type LayoutChangeEvent } from 'react-native';
 import { useCssElement } from 'react-native-css';
@@ -137,7 +145,11 @@ export function Alert({
 
   return (
     <View
-      {...(WEB ? { role: urgent ? ('alert' as const) : ('status' as const) } : urgent ? { role: 'alert' as const } : {})}
+      {...(WEB
+        ? { role: urgent ? ('alert' as const) : ('status' as const) }
+        : urgent
+          ? { role: 'alert' as const }
+          : {})}
       aria-live={urgent ? 'assertive' : 'polite'}
       className={cn(alert({ tone: t, variant }), className)}
     >
@@ -148,7 +160,9 @@ export function Alert({
       )}
       <View className="min-w-0 flex-1 gap-1">
         {title ? (
-          <CssText className={cn('text-callout font-semibold leading-[1.35]', text)}>{title}</CssText>
+          <CssText className={cn('text-callout font-semibold leading-[1.35]', text)}>
+            {title}
+          </CssText>
         ) : null}
         {children ? (
           typeof children === 'string' ? (
@@ -190,7 +204,11 @@ function Sweep({ width }: { width: number }): React.JSX.Element {
   const x = useSharedValue(-width);
   useEffect(() => {
     x.value = -width;
-    x.value = withRepeat(withTiming(width, { duration: SHIMMER_MS, easing: Easing.linear }), -1, false);
+    x.value = withRepeat(
+      withTiming(width, { duration: SHIMMER_MS, easing: Easing.linear }),
+      -1,
+      false,
+    );
     return () => {
       cancelAnimation(x);
     };
@@ -240,7 +258,9 @@ export function Skeleton({ className }: SkeletonProps): React.JSX.Element {
   return (
     <View
       aria-hidden
-      {...(WEB ? {} : { accessible: false, importantForAccessibility: 'no-hide-descendants' as const })}
+      {...(WEB
+        ? {}
+        : { accessible: false, importantForAccessibility: 'no-hide-descendants' as const })}
       onLayout={(e: LayoutChangeEvent) => {
         setWidth(Math.round(e.nativeEvent.layout.width));
       }}
@@ -293,7 +313,9 @@ export function EmptyState({
           {description}
         </CssText>
       ) : null}
-      {action ? <View className="mt-1.5 flex-row flex-wrap justify-center gap-2">{action}</View> : null}
+      {action ? (
+        <View className="mt-1.5 flex-row flex-wrap justify-center gap-2">{action}</View>
+      ) : null}
     </View>
   );
 }

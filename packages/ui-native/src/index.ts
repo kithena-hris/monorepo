@@ -24,7 +24,14 @@ export {
   type Side,
   type Transition,
 } from './lib/motion.ts';
-export { animateTo, useLayoutTransition, useMotion, usePress, type Press } from './lib/animate.ts';
+export {
+  animateTo,
+  useLayoutTransition,
+  useMotion,
+  usePress,
+  usePulse,
+  type Press,
+} from './lib/animate.ts';
 export { OverlayHost, type OverlayHostProps } from './lib/overlay-host.tsx';
 export { usePresence } from './lib/overlay.tsx';
 
@@ -54,6 +61,7 @@ export {
 export { Badge, type BadgeProps } from './components/badge/badge.tsx';
 export { Button, type ButtonProps, type ButtonVariants } from './components/button/button.tsx';
 export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
+export { Carousel, slideAt, type CarouselProps } from './components/carousel/carousel.tsx';
 export {
   Chip,
   ChipGroup,
@@ -132,6 +140,12 @@ export {
 } from './components/segmented-control/segmented-control.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
+export {
+  Timeline,
+  TimelineItem,
+  type TimelineItemProps,
+  type TimelineProps,
+} from './components/timeline/timeline.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export {
   ReachLogo,

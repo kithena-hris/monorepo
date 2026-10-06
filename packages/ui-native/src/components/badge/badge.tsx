@@ -1,18 +1,10 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Lock, Sparkles, TriangleAlert, X } from 'lucide-react-native';
-import { useEffect } from 'react';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
+import { usePulse } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
-import { useReducedMotion } from '../../provider.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
 
 type Tone =
@@ -125,24 +117,8 @@ const glyph: Partial<Record<Tone, LucideIcon>> = {
   assistant: Sparkles,
 };
 
-/** How long one breath of a live dot takes. Decoration: it stops under reduced motion. */
-const PULSE_MS = 800;
-
 function Dot({ className, pulse }: { className: string; pulse: boolean }): React.JSX.Element {
-  const reduced = useReducedMotion();
-  const opacity = useSharedValue(1);
-  useEffect(() => {
-    if (!pulse || reduced) return undefined;
-    opacity.value = withRepeat(
-      withTiming(0.35, { duration: PULSE_MS, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-    return () => {
-      cancelAnimation(opacity);
-    };
-  }, [opacity, pulse, reduced]);
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const style = usePulse(pulse);
   return (
     <Animated.View style={style}>
       <View className={cn('size-1.5 rounded-full', className)} />

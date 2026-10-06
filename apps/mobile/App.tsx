@@ -23,6 +23,8 @@ import {
   Spinner,
   Stack,
   Text,
+  Timeline,
+  TimelineItem,
 } from '@reach/ui-native';
 import { StatusBar } from 'expo-status-bar';
 import { Download, Lock, Moon, Plus, Sun } from 'lucide-react-native';
@@ -150,6 +152,17 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             Search
           </ListItem>
         </List>
+
+        <Timeline accessibilityLabel="Approval">
+          <TimelineItem title="Submitted by Amara" timestamp="09:12" tone="accent" />
+          <TimelineItem
+            title="Waiting for Nora Becker"
+            timestamp="Now"
+            tone="warning"
+            status="current"
+          />
+          <TimelineItem title="Payroll" status="upcoming" />
+        </Timeline>
 
         <Inline gap={3}>
           <FloatingButton label="New request" />

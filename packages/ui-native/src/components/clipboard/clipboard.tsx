@@ -152,7 +152,13 @@ export function CopyButton({
     ...(write ? { write } : {}),
   });
   const copied = status === 'copied';
-  const text = children ? (copied ? copiedLabel : children) : copied && sayCopied ? copiedLabel : '';
+  const text = children
+    ? copied
+      ? copiedLabel
+      : children
+    : copied && sayCopied
+      ? copiedLabel
+      : '';
   return (
     <View>
       <Button

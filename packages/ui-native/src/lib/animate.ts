@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  cancelAnimation,
   Easing,
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSpring,
   withTiming,
   type SharedValue,
@@ -83,4 +85,30 @@ export function usePress(): Press {
       scale.value = animateTo(1, press.transition);
     },
   };
+}
+
+/** How long one breath of a live marker takes, each way. */
+const PULSE_MS = 800;
+
+/**
+ * A breath for something live: a pulsing dot, the step being waited on. It is
+ * decoration, so it stops under reduced motion and when `active` is false.
+ * For a bare `Animated.View` (RMB-001).
+ */
+export function usePulse(active: boolean): ReturnType<typeof useAnimatedStyle> {
+  const reduced = useReducedMotion();
+  const opacity = useSharedValue(1);
+  useEffect(() => {
+    if (!active || reduced) return undefined;
+    opacity.value = withRepeat(
+      withTiming(0.35, { duration: PULSE_MS, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+    return () => {
+      cancelAnimation(opacity);
+      opacity.value = 1;
+    };
+  }, [opacity, active, reduced]);
+  return useAnimatedStyle(() => ({ opacity: opacity.value }));
 }
