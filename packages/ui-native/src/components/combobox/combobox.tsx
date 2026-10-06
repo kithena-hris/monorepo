@@ -4,8 +4,8 @@ import { Pressable, ScrollView, Text as CssText, View } from 'react-native-css/c
 
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
-import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
+import { Chip } from '../chip/chip.tsx';
 import {
   Dialog,
   DialogContent,
@@ -319,9 +319,8 @@ function ChipsBox({
       )}
     >
       {chosen.map((option) => (
-        <Badge
+        <Chip
           key={option.value}
-          size="lg"
           {...(disabled
             ? {}
             : {
@@ -331,7 +330,7 @@ function ChipsBox({
               })}
         >
           {option.label}
-        </Badge>
+        </Chip>
       ))}
       <DialogTrigger asChild disabled={disabled}>
         <Pressable
