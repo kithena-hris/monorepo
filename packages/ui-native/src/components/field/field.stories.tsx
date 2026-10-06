@@ -74,7 +74,7 @@ export const Playground: Story = {
 export const TextStory: Story = {
   name: 'Text',
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <TextField label="Job title" initial="Senior Engineer" />
       <TextField label="Team" placeholder="e.g. Platform" />
     </Stack>
@@ -135,7 +135,7 @@ function PrivateField({
 
 export const Sensitive: Story = {
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <PrivateField
         label="Date of birth"
         masked="••/••/1991"
@@ -169,7 +169,7 @@ export const Invalid: Story = {
 
 export const Disabled: Story = {
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <TextField
         label="Employee ID"
         initial="RCH-00412"
@@ -188,7 +188,7 @@ export const Disabled: Story = {
 
 export const Adornments: Story = {
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <TextField label="Website" initial="reach.co" startAdornment="https://" />
       <TextField
         label="Search"
@@ -202,7 +202,7 @@ export const Adornments: Story = {
 
 export const Horizontal: Story = {
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <TextField label="First name" initial="Priya" />
       <TextField label="Last name" initial="Shah" />
       <Text variant="subhead" tone="muted">

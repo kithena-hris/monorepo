@@ -308,7 +308,7 @@ export type TextareaProps = Omit<InputProps, 'type' | 'size' | 'startAdornment' 
 
 /** Several lines. The label stays above it, and it grows as it fills. */
 export function Textarea({
-  rows = 4,
+  rows = 3,
   onChange,
   onChangeText,
   endAdornment,
