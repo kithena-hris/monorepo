@@ -1,5 +1,8 @@
 import {
   Accordion,
+  AssistantComposer,
+  AssistantMessage,
+  AssistantPanel,
   Alert,
   CircularProgress,
   Progress,
@@ -210,6 +213,27 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             </ChatMessage>
           </ChatLog>
         </ChatWindow>
+
+        <View style={{ height: 360 }}>
+          <AssistantPanel
+            title="Assistant"
+            badge="Beta"
+            subtitle="Knows your policies and your team"
+            className="flex-1"
+            composer={
+              <AssistantComposer
+                value=""
+                onValueChange={() => undefined}
+                onSubmit={() => undefined}
+              />
+            }
+          >
+            <AssistantMessage from="user">Who is out next week?</AssistantMessage>
+            <AssistantMessage from="assistant">
+              3 people on your team: Amara (Mon–Fri), Omar (Wed) and Yuki (Fri).
+            </AssistantMessage>
+          </AssistantPanel>
+        </View>
 
         <Accordion type="single" defaultValue="personal">
           <AccordionItem value="personal" title="Personal details">
