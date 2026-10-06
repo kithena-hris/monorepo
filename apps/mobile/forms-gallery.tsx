@@ -27,6 +27,7 @@ import {
   Slider,
   Stack,
   Switch,
+  TagsInput,
   Text,
   Textarea,
   TimePicker,
@@ -59,6 +60,7 @@ export function FormsGallery(): React.JSX.Element {
   const [offices, setOffices] = useState<string | readonly string[] | null>(['Berlin']);
   const [start, setStart] = useState<string | null>('2026-10-14');
   const [time, setTime] = useState<string | null>('09:30');
+  const [skills, setSkills] = useState<readonly string[]>(['React', 'TypeScript']);
   const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
@@ -165,6 +167,7 @@ export function FormsGallery(): React.JSX.Element {
       <TimePicker label="Start" value={time} onChange={setTime} />
       {/* Reach opens no picker: the app's own goes here (expo-image-picker). */}
       <AvatarUploader name="Priya Shah" pick={() => Promise.resolve([])} onPick={() => undefined} />
+      <TagsInput label="Skills" value={skills} onChange={setSkills} placeholder="Add a skill" />
       <Dropzone pick={() => Promise.resolve([])} onFiles={() => undefined} />
     </Stack>
   );

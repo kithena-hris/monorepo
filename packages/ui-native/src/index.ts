@@ -306,6 +306,7 @@ export {
   type PhoneFieldProps,
   type SearchFieldProps,
 } from './components/typed-fields/typed-fields.tsx';
+export { isEmailish, TagsInput, type TagsInputProps } from './components/tags-input/tags-input.tsx';
 export {
   formatDuration,
   formatTime,
