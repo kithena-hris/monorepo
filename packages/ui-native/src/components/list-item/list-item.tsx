@@ -106,6 +106,12 @@ export type ListItemProps = {
   fullSwipe?: boolean;
   /** Starts with the actions showing: a first-run hint that the row can be pulled. */
   defaultSwipeOpen?: boolean;
+  /**
+   * Off when the container names its own rows, as a `VirtualList` does (it
+   * carries each row's position in the whole list): the row then draws
+   * without its own list-item role.
+   */
+  listitem?: boolean;
   className?: string | undefined;
 };
 
@@ -196,6 +202,7 @@ export function ListItem({
   swipeActions,
   fullSwipe = true,
   defaultSwipeOpen = false,
+  listitem = true,
   selected = false,
   disabled = false,
   accessibilityLabel,
@@ -251,9 +258,10 @@ export function ListItem({
       </Swipeable>
     );
   }
-  if (body) return <View role="listitem">{body}</View>;
+  const item = listitem ? { role: 'listitem' as const } : {};
+  if (body) return <View {...item}>{body}</View>;
   return (
-    <View role="listitem" {...(disabled ? { 'aria-disabled': true } : {})} className={row}>
+    <View {...item} {...(disabled ? { 'aria-disabled': true } : {})} className={row}>
       <Body {...content} />
     </View>
   );

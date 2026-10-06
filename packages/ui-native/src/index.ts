@@ -505,3 +505,10 @@ export {
   type ReachLogoProps,
   type ReachMarkProps,
 } from './brand/reach-logo.tsx';
+export {
+  VirtualList,
+  type VirtualListHandle,
+  type VirtualListProps,
+  type VirtualRow,
+  type VirtualWindow,
+} from './components/virtual-list/virtual-list.tsx';

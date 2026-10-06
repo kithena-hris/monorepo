@@ -12,6 +12,7 @@
   "dependencies": {
     "@10play/tentap-editor": "1.0.1",
     "@reach/ui-native": "workspace:*",
+    "@shopify/flash-list": "2.0.2",
     "expo": "57.0.26",
     "expo-clipboard": "~57.0.2",
     "expo-status-bar": "~57.0.1",

@@ -9,6 +9,9 @@ export const PEOPLE = [
     team: 'Engineering',
     location: 'Berlin',
     status: 'Active',
+    start: '2 Sep 2024',
+    /** Annual base, in euro cents. */
+    salary: 9_200_000,
   },
   {
     name: 'Jonas Weber',
@@ -16,6 +19,8 @@ export const PEOPLE = [
     team: 'Engineering',
     location: 'Berlin',
     status: 'Active',
+    start: '14 Jan 2021',
+    salary: 11_800_000,
   },
   {
     name: 'Amara Okafor',
@@ -23,6 +28,8 @@ export const PEOPLE = [
     team: 'Design',
     location: 'London',
     status: 'On leave',
+    start: '20 Jun 2022',
+    salary: 8_400_000,
   },
   {
     name: 'Lucas Moreau',
@@ -30,6 +37,8 @@ export const PEOPLE = [
     team: 'Sales',
     location: 'Paris',
     status: 'Onboarding',
+    start: '21 Sep 2026',
+    salary: 7_100_000,
   },
   {
     name: 'Mei Tanaka',
@@ -37,6 +46,8 @@ export const PEOPLE = [
     team: 'Finance',
     location: 'Remote',
     status: 'Active',
+    start: '6 Mar 2023',
+    salary: 7_800_000,
   },
   {
     name: 'Diego Alvarez',
@@ -44,6 +55,8 @@ export const PEOPLE = [
     team: 'Support',
     location: 'Madrid',
     status: 'Offboarding',
+    start: '2 Nov 2020',
+    salary: 6_600_000,
   },
   {
     name: 'Sofia Lindqvist',
@@ -51,6 +64,8 @@ export const PEOPLE = [
     team: 'People',
     location: 'Stockholm',
     status: 'Active',
+    start: '10 Feb 2025',
+    salary: 6_900_000,
   },
   {
     name: 'Nora Becker',
@@ -58,6 +73,8 @@ export const PEOPLE = [
     team: 'People',
     location: 'Berlin',
     status: 'Active',
+    start: '1 Apr 2019',
+    salary: 12_400_000,
   },
   {
     name: 'Omar Haddad',
@@ -65,6 +82,8 @@ export const PEOPLE = [
     team: 'Engineering',
     location: 'Remote',
     status: 'Active',
+    start: '18 Jul 2023',
+    salary: 8_800_000,
   },
   {
     name: 'Yuki Sato',
@@ -72,6 +91,8 @@ export const PEOPLE = [
     team: 'Engineering',
     location: 'Tokyo',
     status: 'Invited',
+    start: '1 Oct 2026',
+    salary: 9_000_000,
   },
   {
     name: 'Tom Fischer',
@@ -79,6 +100,8 @@ export const PEOPLE = [
     team: 'Sales',
     location: 'Munich',
     status: 'Active',
+    start: '9 May 2022',
+    salary: 9_700_000,
   },
   {
     name: 'Zara Ahmed',
@@ -86,6 +109,8 @@ export const PEOPLE = [
     team: 'Finance',
     location: 'London',
     status: 'Active',
+    start: '3 Aug 2021',
+    salary: 10_900_000,
   },
 ] as const;
 
