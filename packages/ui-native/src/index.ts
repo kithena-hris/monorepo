@@ -197,6 +197,15 @@ export {
   type TimelineUnit,
 } from './components/chart/timeline-chart.tsx';
 export {
+  OrgChart,
+  type OrgChartProps,
+  type OrgMove,
+  type OrgNode,
+  type OrgNodeInfo,
+  type OrgStatusTone,
+  type OrgViewerRole,
+} from './components/org-chart/org-chart.tsx';
+export {
   Chip,
   ChipGroup,
   ChipGroupItem,
