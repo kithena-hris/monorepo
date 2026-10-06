@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designNote, overlayDocs } from '../../docs/design.ts';
-import { Stage, StandInField } from '../../docs/stage.tsx';
+import { Stage, StandInField, settled } from '../../docs/stage.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
@@ -25,6 +25,8 @@ const meta = {
   title: 'Components/AlertDialog',
   component: AlertDialogContent,
   parameters: overlayDocs('alert-dialog'),
+  // axe runs after this, on the open dialog, not on its fade in.
+  play: settled,
 } satisfies Meta<typeof AlertDialogContent>;
 
 export default meta;

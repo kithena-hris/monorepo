@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 import { styled } from 'react-native-css';
 
 import { cn } from '../../lib/cn.ts';
-import { useOverlayContainer, usePresence } from '../../lib/overlay.tsx';
+import { useOverlayContainer } from '../../lib/overlay-host.tsx';
+import { flatStyle, InertOutside, usePresence } from '../../lib/overlay.tsx';
 import {
   BackGuard,
   CentredFrame,
@@ -32,10 +33,10 @@ export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 export const AlertDialogCancel = AlertDialogPrimitive.Cancel;
 export const AlertDialogAction = AlertDialogPrimitive.Action;
 
-const Overlay = styled(AlertDialogPrimitive.Overlay);
-const Content = styled(AlertDialogPrimitive.Content);
-const Title = styled(AlertDialogPrimitive.Title);
-const Description = styled(AlertDialogPrimitive.Description);
+const Overlay = styled(flatStyle(AlertDialogPrimitive.Overlay));
+const Content = styled(flatStyle(AlertDialogPrimitive.Content));
+const Title = styled(flatStyle(AlertDialogPrimitive.Title));
+const Description = styled(flatStyle(AlertDialogPrimitive.Description));
 
 export type AlertDialogContentProps = {
   children?: ReactNode;
@@ -75,6 +76,7 @@ export function AlertDialogContent({
           {children}
         </Content>
         <BackGuard onBack={cancel} />
+        <InertOutside />
       </CentredFrame>
     </AlertDialogPrimitive.Portal>
   );

@@ -25,7 +25,8 @@ export {
   type Transition,
 } from './lib/motion.ts';
 export { animateTo, useLayoutTransition, useMotion, usePress, type Press } from './lib/animate.ts';
-export { OverlayHost, usePresence, type OverlayHostProps } from './lib/overlay.tsx';
+export { OverlayHost, type OverlayHostProps } from './lib/overlay-host.tsx';
+export { usePresence } from './lib/overlay.tsx';
 
 export {
   Avatar,

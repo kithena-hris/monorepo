@@ -3,7 +3,7 @@ import { ChevronsUpDown, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 
 import { overlayDocs } from '../../docs/design.ts';
-import { Stage, StandInCheck, StandInField } from '../../docs/stage.tsx';
+import { Stage, StandInCheck, StandInField, settled } from '../../docs/stage.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -27,6 +27,8 @@ const meta = {
   title: 'Components/Dialog',
   component: DialogContent,
   parameters: overlayDocs('dialog'),
+  // axe runs after this, on the open dialog, not on its fade in.
+  play: settled,
 } satisfies Meta<typeof DialogContent>;
 
 export default meta;

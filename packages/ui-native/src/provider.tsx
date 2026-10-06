@@ -6,7 +6,7 @@ import { useReducedMotion as useSystemReducedMotion } from 'react-native-reanima
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { cn } from './lib/cn.ts';
-import { OverlayHost } from './lib/overlay.tsx';
+import { OverlayHost } from './lib/overlay-host.tsx';
 
 export type Theme = 'light' | 'dark';
 

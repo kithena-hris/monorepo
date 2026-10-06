@@ -1,7 +1,5 @@
-import { PortalHost } from '@rn-primitives/portal';
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Platform } from 'react-native';
-import { View } from 'react-native-css/components';
+import { useEffect, useState, type ComponentType } from 'react';
+import { Platform, StyleSheet, type StyleProp } from 'react-native';
 import {
   useAnimatedStyle,
   useSharedValue,
@@ -13,69 +11,6 @@ import type { ViewStyle } from 'react-native';
 
 import { animateTo, useMotion } from './animate.ts';
 import type { Pose, Side } from './motion.ts';
-
-/*
- * Where overlays draw.
- *
- * On a device a portal is `@rn-primitives/portal`: a host renders whatever was
- * sent to its name. On the web the primitives are Radix, which portals into a
- * DOM element, `document.body` unless told otherwise; body is outside the view
- * `ReachProvider` puts the `dark` class on, so a menu opened in dark mode would
- * be light. Each host therefore registers its element by name, and an overlay
- * asks for the element of the host it was sent to.
- */
-const ROOT = '__reach_root__';
-const elements = new Map<string, HTMLElement>();
-const listeners = new Set<() => void>();
-
-function register(name: string, element: HTMLElement | null): void {
-  if (element) elements.set(name, element);
-  else elements.delete(name);
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export type OverlayHostProps = {
-  /**
-   * Overlays sent to this name (`portalHost`) draw here, over this host's
-   * parent. Leave it unset for the root host, which `ReachProvider` already
-   * renders: an app needs a named one only to keep an overlay inside a region.
-   */
-  name?: string;
-};
-
-/** Where overlays draw: over the whole of its parent, which must be positioned. */
-export function OverlayHost({ name }: OverlayHostProps): React.JSX.Element {
-  if (Platform.OS !== 'web') return <PortalHost {...(name ? { name } : {})} />;
-  return (
-    <View
-      pointerEvents="box-none"
-      className="absolute inset-0"
-      ref={(node: unknown) => {
-        register(name ?? ROOT, node as HTMLElement | null);
-      }}
-    />
-  );
-}
-
-/**
- * The DOM element a Radix portal should render into, for the host `name`.
- * `undefined` on a device, where `hostName` does the same job.
- */
-export function useOverlayContainer(name?: string): HTMLElement | undefined {
-  const key = name ?? ROOT;
-  return useSyncExternalStore(
-    subscribe,
-    () => elements.get(key),
-    () => undefined,
-  );
-}
 
 type Presence = {
   /** Draw the overlay: true while open, and while it animates closed. */
@@ -135,14 +70,63 @@ export function usePresence(open: boolean, side: Side = 'bottom'): Presence {
     // The shared values are stable; the presets change only with reduced motion.
   }, [open, side, popoverIn, popoverOut, opacity, translateX, translateY, scale]);
 
+  // Clamped: a spring in, or an exit easing that dips, would pass through 0 and 1.
   const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+    opacity: Math.min(1, Math.max(0, opacity.value)),
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
       { scale: scale.value },
     ],
   }));
-  const scrimStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const scrimStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, Math.max(0, opacity.value)),
+  }));
   return { mounted, style, scrimStyle };
+}
+
+/**
+ * A primitive whose `style` reaches a Radix `Slot` on the web, given one style
+ * object instead of the array `styled` builds. `Slot` merges styles by object
+ * spread, so an array arrives at the DOM as `{0: …, 1: …}` and React throws
+ * setting an indexed property on `CSSStyleDeclaration`. On a device the array
+ * is fine and this passes it through.
+ */
+export function flatStyle<P extends { style?: unknown }>(
+  Component: ComponentType<P>,
+): ComponentType<P> {
+  if (Platform.OS !== 'web') return Component;
+  function Flat(props: P): React.JSX.Element {
+    return <Component {...props} style={StyleSheet.flatten(props.style as StyleProp<ViewStyle>)} />;
+  }
+  Flat.displayName = `Flat(${Component.displayName ?? Component.name})`;
+  return Flat;
+}
+
+type InertElement = { inert: boolean };
+type DomDocument = { querySelectorAll(selectors: string): ArrayLike<InertElement> };
+
+/**
+ * On the web, what a modal hides is made inert as well. Radix marks everything
+ * outside an open modal `aria-hidden` and traps focus itself, which leaves the
+ * page behind it focusable but unannounced: axe's `aria-hidden-focus`, and a
+ * switch user's dead end. `inert` is what a browser does for a native
+ * `<dialog>`. The inertness goes when it unmounts.
+ *
+ * Render it inside the portal, after the primitive's content: effects run in
+ * tree order, so it sees the page once Radix has hidden it.
+ */
+export function InertOutside(): null {
+  useEffect(() => {
+    const doc = (globalThis as { document?: DomDocument }).document;
+    if (Platform.OS !== 'web' || !doc) return undefined;
+    const hidden = Array.from(doc.querySelectorAll('[data-aria-hidden="true"]')).filter(
+      (element) => !element.inert,
+    );
+    for (const element of hidden) element.inert = true;
+    return () => {
+      for (const element of hidden) element.inert = false;
+    };
+  }, []);
+  return null;
 }

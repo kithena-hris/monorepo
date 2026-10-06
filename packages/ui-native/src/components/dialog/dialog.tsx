@@ -14,7 +14,8 @@ import { View } from 'react-native-css/components';
 import Animated from 'react-native-reanimated';
 
 import { cn } from '../../lib/cn.ts';
-import { useOverlayContainer, usePresence } from '../../lib/overlay.tsx';
+import { useOverlayContainer } from '../../lib/overlay-host.tsx';
+import { flatStyle, InertOutside, usePresence } from '../../lib/overlay.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
 
@@ -33,10 +34,10 @@ export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
-const Overlay = styled(DialogPrimitive.Overlay);
-const Content = styled(DialogPrimitive.Content);
-const Title = styled(DialogPrimitive.Title);
-const Description = styled(DialogPrimitive.Description);
+const Overlay = styled(flatStyle(DialogPrimitive.Overlay));
+const Content = styled(flatStyle(DialogPrimitive.Content));
+const Title = styled(flatStyle(DialogPrimitive.Title));
+const Description = styled(flatStyle(DialogPrimitive.Description));
 
 const WEB = Platform.OS === 'web';
 
@@ -131,7 +132,9 @@ export function DialogContent({
     if (!guard?.()) onOpenChange(false);
   };
   const hold = (event: Event): void => {
-    if (guard?.()) event.preventDefault();
+    // Radix's DOM event, on the web only. Under React Native's own types (the
+    // app's, with no DOM library) `Event` has no `preventDefault`.
+    if (guard?.()) (event as unknown as { preventDefault: () => void }).preventDefault();
   };
 
   return (
@@ -174,6 +177,7 @@ export function DialogContent({
           ) : null}
         </Content>
         <BackGuard onBack={dismiss} />
+        <InertOutside />
       </CentredFrame>
     </DialogPrimitive.Portal>
   );
@@ -235,7 +239,11 @@ export type DialogFooterProps = {
  * The actions. On a phone they share the row equally, so neither is a small
  * target; Cancel first, the confirming action last, on the thumb's side.
  */
-export function DialogFooter({ children, stack = false, className }: DialogFooterProps) {
+export function DialogFooter({
+  children,
+  stack = false,
+  className,
+}: DialogFooterProps): React.JSX.Element {
   return (
     <View className={cn('mt-1 gap-2', stack ? 'flex-col' : 'flex-row', className)}>
       {Children.map(children, (child) =>
@@ -267,7 +275,11 @@ export type DialogIconProps = {
  * The glyph above the title, in a tinted disc. Decorative: the title says what
  * is at stake.
  */
-export function DialogIcon({ icon, tone = 'accent', className }: DialogIconProps) {
+export function DialogIcon({
+  icon,
+  tone = 'accent',
+  className,
+}: DialogIconProps): React.JSX.Element {
   return (
     <View
       className={cn(
