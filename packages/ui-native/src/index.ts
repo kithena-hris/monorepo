@@ -106,6 +106,20 @@ export {
   type ActionSheetProps,
 } from './components/action-sheet/action-sheet.tsx';
 export {
+  AppBar,
+  LargeTitle,
+  NavigationRail,
+  SelectionBar,
+  TabBar,
+  useAppBarScroll,
+  type AppBarBack,
+  type AppBarProps,
+  type NavigationRailProps,
+  type NavItem,
+  type SelectionBarProps,
+  type TabBarProps,
+} from './components/app-bar/app-bar.tsx';
+export {
   AlertDialog,
   AlertDialogAction,
   AlertDialogBody,
@@ -143,6 +157,132 @@ export {
   type ChatMessageProps,
   type ChatWindowProps,
 } from './components/chat/chat.tsx';
+export {
+  AxisLabels,
+  ChartCard,
+  ChartDataTable,
+  ChartFrame,
+  ChartGrid,
+  ChartLegend,
+  ChartReadout,
+  ChartZoomControls,
+  toCsv,
+  useChartWindow,
+  type ChartCardProps,
+  type ChartFrameProps,
+  type ChartLegendItem,
+  type ChartMenuItem,
+  type ChartPoint,
+  type ChartWindow,
+  type UseChartWindowResult,
+} from './components/chart/parts.tsx';
+export {
+  bgTone,
+  inkTone,
+  seriesTone,
+  seriesTones,
+  type ChartTone,
+} from './components/chart/tones.ts';
+export {
+  binValues,
+  linearFit,
+  radarPoints,
+  squarify,
+  type HistogramBin,
+} from './components/chart/geometry.ts';
+export {
+  BarChart,
+  HorizontalBarChart,
+  StackedBarChart,
+  type BarChartProps,
+  type HorizontalBarChartProps,
+  type StackedBarChartProps,
+  type StackedSeries,
+} from './components/chart/bar-chart.tsx';
+export {
+  ChartBrush,
+  Sparkline,
+  TrendChart,
+  type SparklineProps,
+  type TrendChartProps,
+  type TrendSeries,
+} from './components/chart/trend-chart.tsx';
+export {
+  CalendarHeatmap,
+  ChartScaleKey,
+  DonutChart,
+  FunnelChart,
+  HeatmapChart,
+  type CalendarDay,
+  type CalendarHeatmapProps,
+  type DonutChartProps,
+  type DonutSlice,
+  type FunnelChartProps,
+  type FunnelStage,
+  type HeatmapCell,
+  type HeatmapChartProps,
+} from './components/chart/distribution-chart.tsx';
+export {
+  WaterfallChart,
+  type WaterfallChartProps,
+  type WaterfallStep,
+} from './components/chart/movement-chart.tsx';
+export {
+  RangeChart,
+  ScatterChart,
+  type RangeBand,
+  type RangeChartProps,
+  type ScatterChartProps,
+  type ScatterPoint,
+} from './components/chart/pay-chart.tsx';
+export {
+  ComboChart,
+  StackedAreaChart,
+  type ComboChartProps,
+  type ComboPoint,
+  type StackedAreaChartProps,
+} from './components/chart/area-chart.tsx';
+export {
+  Gauge,
+  RadarChart,
+  type GaugeProps,
+  type RadarChartProps,
+  type RadarSeries,
+} from './components/chart/radial-chart.tsx';
+export {
+  BubbleChart,
+  BulletChart,
+  CohortChart,
+  HistogramChart,
+  TreemapChart,
+  type BubbleChartProps,
+  type BubblePoint,
+  type BulletChartProps,
+  type BulletMeasure,
+  type CohortChartProps,
+  type CohortRow,
+  type HistogramChartProps,
+  type TreemapChartProps,
+  type TreemapItem,
+} from './components/chart/part-chart.tsx';
+export {
+  TimelineChart,
+  type TimelineChartProps,
+  type TimelineEntry,
+  type TimelineMove,
+  type TimelineRow,
+  type TimelineSeparator,
+  type TimelineUnit,
+} from './components/chart/timeline-chart.tsx';
+export {
+  OrgChart,
+  type OrgChartProps,
+  type OrgMove,
+  type OrgNode,
+  type OrgNodeInfo,
+  type OrgStatusTone,
+  type OrgViewerRole,
+} from './components/org-chart/org-chart.tsx';
 export {
   Chip,
   ChipGroup,
@@ -354,6 +494,11 @@ export {
   type StackProps,
 } from './components/layout/layout.tsx';
 export {
+  Pagination,
+  paginationRange,
+  type PaginationProps,
+} from './components/pagination/pagination.tsx';
+export {
   Popover,
   PopoverAnchor,
   PopoverClose,
@@ -463,6 +608,20 @@ export {
   type ToastProviderProps,
   type ToastTone,
 } from './components/toast/toast.tsx';
+export {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  type TabsListProps,
+  type TabsProps,
+  type TabsTriggerProps,
+} from './components/tabs/tabs.tsx';
+export {
+  TableOfContents,
+  type ContentsItem,
+  type TableOfContentsProps,
+} from './components/tertiary-nav/tertiary-nav.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export { Tooltip, type TooltipProps } from './components/tooltip/tooltip.tsx';
 export {

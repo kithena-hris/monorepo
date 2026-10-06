@@ -12,6 +12,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react-native';
+import { useState } from 'react';
 import { ScrollView, View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
@@ -22,6 +23,7 @@ import { Icon } from '../icon/icon.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
 import { List, ListItem } from '../list-item/list-item.tsx';
 import { Text } from '../text/text.tsx';
+import { TabBar, type NavItem } from '../app-bar/app-bar.tsx';
 import { FloatingButton, SpeedDial, useCollapseOnScroll } from './floating-button.tsx';
 
 const meta = {
@@ -148,35 +150,19 @@ export const SpeedDialStory: Story = {
 };
 
 const REQUESTS = ['Vacation · 14–18 Oct', 'Sick · 2 Sep', 'Vacation · 5–9 Aug'];
-const TABS = [
-  [House, 'Home'],
-  [Users, 'People'],
-  [Wallet, 'Pay'],
-  [User, 'Me'],
-] as const;
+const TABS: NavItem[] = [
+  { key: 'home', label: 'Home', icon: House },
+  { key: 'people', label: 'People', icon: Users },
+  { key: 'pay', label: 'Pay', icon: Wallet },
+  { key: 'me', label: 'Me', icon: User },
+];
 
-/*
- * A stand-in for lane C's tab bar (RMB-037) until it lands: the design's
- * glass bar, so the button can be seen floating above it.
- */
-function TabBarStandIn(): React.JSX.Element {
+/** The app's tab bar, floating at the bottom of the screen. */
+function Tabs(): React.JSX.Element {
+  const [section, setSection] = useState('home');
   return (
-    <View className="absolute bottom-3 left-2.5 right-2.5 h-12 flex-row items-center rounded-full border border-border bg-surface-raised px-1 shadow-md">
-      {TABS.map(([icon, label], i) => (
-        <View
-          key={label}
-          className={`h-10 flex-1 items-center justify-center gap-0.5 rounded-full ${i === 0 ? 'bg-accent-subtle' : ''}`}
-        >
-          <Icon icon={icon} size={16} tone={i === 0 ? 'accent' : 'muted'} />
-          <Text
-            tone={i === 0 ? 'accent' : 'muted'}
-            weight="semibold"
-            className="text-[9px] leading-none"
-          >
-            {label}
-          </Text>
-        </View>
-      ))}
+    <View className="absolute inset-x-2 bottom-2">
+      <TabBar items={TABS} value={section} onValueChange={setSection} />
     </View>
   );
 }
@@ -225,8 +211,8 @@ export const InContext: Story = {
             </List>
           </View>
         </ScrollView>
-        <TabBarStandIn />
-        <View className="absolute bottom-[76px] right-4">
+        <Tabs />
+        <View className="absolute bottom-[88px] right-4">
           <FloatingButton label="New request" collapsed={collapsed} />
         </View>
       </View>

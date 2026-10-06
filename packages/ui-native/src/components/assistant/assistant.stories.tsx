@@ -18,6 +18,7 @@ import { Card } from '../card/card.tsx';
 import { Alert } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
+import { TabBar, type NavItem } from '../app-bar/app-bar.tsx';
 import {
   AssistantAction,
   AssistantComposer,
@@ -285,32 +286,19 @@ export const SomethingWentWrong: Story = {
   ),
 };
 
-const TABS = [
-  [House, 'Home'],
-  [Users, 'People'],
-  [Wallet, 'Pay'],
-  [User, 'Me'],
-] as const;
+const TABS: NavItem[] = [
+  { key: 'home', label: 'Home', icon: House },
+  { key: 'people', label: 'People', icon: Users },
+  { key: 'pay', label: 'Pay', icon: Wallet },
+  { key: 'me', label: 'Me', icon: User },
+];
 
-/* A stand-in for lane C's tab bar (RMB-037) until it lands. */
-function TabBarStandIn(): React.JSX.Element {
+/** The app's tab bar, floating at the bottom of the screen. */
+function Tabs(): React.JSX.Element {
+  const [section, setSection] = useState('people');
   return (
-    <View className="absolute bottom-3 left-2.5 right-2.5 h-12 flex-row items-center rounded-full border border-border bg-surface-raised px-1 shadow-md">
-      {TABS.map(([icon, label], i) => (
-        <View
-          key={label}
-          className={`h-10 flex-1 items-center justify-center gap-0.5 rounded-full ${i === 1 ? 'bg-accent-subtle' : ''}`}
-        >
-          <Icon icon={icon} size={16} tone={i === 1 ? 'accent' : 'muted'} />
-          <Text
-            tone={i === 1 ? 'accent' : 'muted'}
-            weight="semibold"
-            className="text-[9px] leading-none"
-          >
-            {label}
-          </Text>
-        </View>
-      ))}
+    <View className="absolute inset-x-2 bottom-2">
+      <TabBar items={TABS} value={section} onValueChange={setSection} />
     </View>
   );
 }
@@ -328,8 +316,8 @@ export const Placements: Story = {
     const [open, setOpen] = useState(true);
     return (
       <Screen height={560}>
-        <TabBarStandIn />
-        <AssistantWidget open={open} onOpenChange={setOpen} bottomInset={44} height={420}>
+        <Tabs />
+        <AssistantWidget open={open} onOpenChange={setOpen} bottomInset={60} height={420}>
           <AssistantPanel
             title="Reach Assistant"
             badge="Beta"

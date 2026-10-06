@@ -307,11 +307,11 @@ axe-clean, compared side by side.
 - [x] **RMB-034** Popover, Tooltip (long-press), Hover card (press on a phone), Coach mark
 - [x] **RMB-035** Dropdown menu and ContextMenu (long-press; checkbox, radio, submenus, unavailable with a reason)
 - [x] **RMB-036** Command palette
-- [ ] **RMB-037** App bars (large title collapsing into the bar, back, close), the tab bar
-- [ ] **RMB-038** Tabs, Tertiary navigation, Segmented-as-tabs
+- [x] **RMB-037** App bars (large title collapsing into the bar, back, close), the tab bar
+- [x] **RMB-038** Tabs, Tertiary navigation, Segmented-as-tabs
 - [ ] **RMB-039** Nav, Grouped navigation
 - [ ] **RMB-040** Breadcrumb (collapsing to the back link), Stepper (progress bar with "2 of 3" on a phone, dots)
-- [ ] **RMB-041** Pagination ("Page 3 of 52")
+- [x] **RMB-041** Pagination ("Page 3 of 52")
 
 ### Lane D — data
 
@@ -328,13 +328,13 @@ axe-clean, compared side by side.
 Hand-drawn on `react-native-svg`; the number first, a hidden summary for screen
 readers, tap and long-press where the web hovers and right-clicks.
 
-- [ ] **RMB-049** Chart card, legend, axes; Overview; Bar; Trend (line, area, plan, small multiples, sparklines)
-- [ ] **RMB-050** Distribution, Heatmap, Calendar heatmap, Funnel
-- [ ] **RMB-051** Timeline (Gantt)
-- [ ] **RMB-052** Org chart (the expandable tree on a phone; search and the chain; vacancies; span)
-- [ ] **RMB-053** Movement, Pay (bands, out of band, scatter)
-- [ ] **RMB-054** Combo, Stacked area, Gauge, Radar, Treemap, Histogram
-- [ ] **RMB-055** Cohort, Bullet, Bubble, KPI dashboard
+- [x] **RMB-049** Chart card, legend, axes; Overview; Bar; Trend (line, area, plan, small multiples, sparklines)
+- [x] **RMB-050** Distribution, Heatmap, Calendar heatmap, Funnel
+- [x] **RMB-051** Timeline (Gantt)
+- [x] **RMB-052** Org chart (the expandable tree on a phone; search and the chain; vacancies; span)
+- [x] **RMB-053** Movement, Pay (bands, out of band, scatter)
+- [x] **RMB-054** Combo, Stacked area, Gauge, Radar, Treemap, Histogram
+- [x] **RMB-055** Cohort, Bullet, Bubble, KPI dashboard
 
 ---
 

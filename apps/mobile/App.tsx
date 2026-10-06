@@ -48,6 +48,7 @@ import { useState } from 'react';
 import { Appearance, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChartsGallery } from './charts-gallery.tsx';
 import { DataGallery } from './data-gallery.tsx';
 import { FormsGallery } from './forms-gallery.tsx';
 import { OverlayGallery } from './overlays.tsx';
@@ -280,6 +281,7 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
 
         <OverlayGallery />
         <FormsGallery />
+        <ChartsGallery />
         <DataGallery />
       </ScrollView>
     </View>
