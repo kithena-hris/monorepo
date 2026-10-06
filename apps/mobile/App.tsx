@@ -7,6 +7,7 @@ import {
   Avatar,
   AvatarGroup,
   Badge,
+  Banner,
   Button,
   Card,
   CardDescription,
@@ -29,6 +30,7 @@ import {
   Stack,
   Text,
   Timeline,
+  Toast,
   TimelineItem,
 } from '@reach/ui-native';
 import { StatusBar } from 'expo-status-bar';
@@ -158,6 +160,13 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             Search
           </ListItem>
         </List>
+
+        <Banner rounded tone="info" title="Heads up.">
+          Your manager changes on 1 Nov.
+        </Banner>
+        <Toast title="3 people archived" action={{ label: 'Undo', onPress: () => undefined }}>
+          They’re hidden from the directory.
+        </Toast>
 
         <Alert tone="warning" title="2 contracts expire soon">
           Renew them before 12 Oct.

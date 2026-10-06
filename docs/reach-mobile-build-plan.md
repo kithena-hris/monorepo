@@ -295,7 +295,7 @@ axe-clean, compared side by side.
 - [x] **RMB-025** Timeline (effective dating, approval chains), Carousel
 - [x] **RMB-026** Accordion, Reveal (layout animation, stagger)
 - [x] **RMB-027** Feedback (alerts, skeletons, empty states), Progress (linear, circular, indeterminate)
-- [ ] **RMB-028** Toast (undo, retry), Banner
+- [x] **RMB-028** Toast (undo, retry), Banner
 - [ ] **RMB-029** Notification centre
 - [ ] **RMB-030** Chat (bubbles, typing, failed send)
 - [ ] **RMB-031** AI chat widget (a compact card above the tab bar, never full screen)
