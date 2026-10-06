@@ -79,6 +79,50 @@ export function CentredFrame({
   );
 }
 
+/** A full-screen dialog's surface: the page's own canvas, edge to edge. */
+const fullSurface = 'flex-1 bg-canvas outline-none';
+
+type FramedElement = {
+  parentElement: { style: Record<'display' | 'flex' | 'flexDirection', string> } | null;
+};
+
+/**
+ * `quietFrame` for a full-screen dialog: on the web Radix's own element, which
+ * carries the role, sits between the frame and the surface, and it must fill
+ * the frame for the surface to.
+ */
+function fullFrame(node: unknown): void {
+  quietFrame(node);
+  if (!WEB || !node) return;
+  const parent = (node as FramedElement).parentElement;
+  if (!parent) return;
+  parent.style.display = 'flex';
+  parent.style.flexDirection = 'column';
+  parent.style.flex = '1';
+}
+
+/**
+ * The full-screen dialog's frame: the host's whole area, no scrim (nothing
+ * of the page shows), on the same motion as a centred one.
+ */
+function Frame({
+  full,
+  children,
+  ...centred
+}: Parameters<typeof CentredFrame>[0] & { full: boolean }): React.JSX.Element {
+  if (!full) return <CentredFrame {...centred}>{children}</CentredFrame>;
+  return (
+    <View pointerEvents="box-none" className="absolute inset-0">
+      {/* The motion on a bare Animated.View, the classes inside it (RMB-001). */}
+      <Animated.View
+        style={[{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }, centred.style]}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
 /**
  * Android's back button, routed through the guard. Rendered after the
  * primitive's content so its listener is the newer one, which Android asks
@@ -127,6 +171,19 @@ export type DialogContentProps = {
    * narrower screen keeps a 16-point margin either side instead.
    */
   width?: number;
+  /**
+   * `full`: the modal page, a task that takes the whole screen until it is
+   * done or cancelled (an import, onboarding, a new request). On a phone a
+   * modal page is always full screen. It has no padding, scrim or close
+   * button of its own: compose an `AppBar` at its top, with a close control
+   * that runs the same `guard`.
+   */
+  size?: 'default' | 'full';
+  /**
+   * Names a full-screen dialog for a screen reader, which reads it as the
+   * dialog's title: the `AppBar` above its content draws the visible one.
+   */
+  label?: string;
 };
 
 export function DialogContent({
@@ -138,9 +195,12 @@ export function DialogContent({
   portalHost,
   width,
   initialFocus,
+  size = 'default',
+  label,
 }: DialogContentProps): React.JSX.Element | null {
   const { open, onOpenChange } = DialogPrimitive.useRootContext();
   const presence = usePresence(open);
+  const full = size === 'full';
   const container = useOverlayContainer(portalHost);
   if (!presence.mounted) return null;
 
@@ -159,7 +219,8 @@ export function DialogContent({
       {...(portalHost ? { hostName: portalHost } : {})}
       container={container}
     >
-      <CentredFrame
+      <Frame
+        full={full}
         width={width}
         scrimStyle={presence.scrimStyle}
         style={presence.style}
@@ -175,7 +236,7 @@ export function DialogContent({
       >
         <Content
           forceMount
-          ref={quietFrame}
+          ref={full ? fullFrame : quietFrame}
           onEscapeKeyDown={hold}
           {...(initialFocus
             ? {
@@ -188,8 +249,11 @@ export function DialogContent({
             : {})}
           onInteractOutside={hold}
           onAccessibilityEscape={dismiss}
-          className={cn(centredSurface, className)}
+          className={cn(full ? fullSurface : centredSurface, className)}
         >
+          {label ? (
+            <Title className="absolute h-px w-px overflow-hidden opacity-0">{label}</Title>
+          ) : null}
           {children}
           {showCloseButton ? (
             <View className="absolute top-3 right-3">
@@ -205,7 +269,7 @@ export function DialogContent({
         </Content>
         <BackGuard onBack={dismiss} />
         <InertOutside />
-      </CentredFrame>
+      </Frame>
     </DialogPrimitive.Portal>
   );
 }

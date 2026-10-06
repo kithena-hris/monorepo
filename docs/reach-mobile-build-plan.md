@@ -340,7 +340,7 @@ readers, tap and long-press where the web hovers and right-clicks.
 
 ## Phase 3 — layouts, patterns, the native proof (lane P)
 
-- [ ] **RMB-056** Layout presets (status bar, top bar, large title, content, floating tab bar), Hierarchical (push, three levels), Modal page (full screen, stepped, guarding)
+- [x] **RMB-056** Layout presets (status bar, top bar, large title, content, floating tab bar), Hierarchical (push, three levels), Modal page (full screen, stepped, guarding)
 - [ ] **RMB-057** Foundations/Patterns: directory, filters, infinite table, dashboard, approval queue, loading / empty / failure — composed only from the library
 - [ ] **RMB-058** `apps/mobile` renders a gallery of every component under Metro; `expo export` for iOS and Android in CI
 - [ ] **RMB-059** Parity is empty, axe is clean, compare reviewed for every component

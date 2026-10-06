@@ -107,7 +107,7 @@ jobs:
           # build graph, a patch, a shared tsconfig, or this workflow itself.
           shared='^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json|tsconfig[^/]*\.json|patches/|\.github/actions/|\.github/workflows/ci\.yml)'
           # What Storybook, axe, the contrast sweep and the docs site render.
-          ui='^(packages/ui/|packages/ui-native/|apps/storybook/|apps/storybook-mobile/|apps/docs/|tools/a11y/|tools/storybook/|tools/reach-mobile/)'
+          ui='^(packages/ui/|packages/ui-native/|apps/storybook/|apps/storybook-mobile/|apps/mobile/|apps/docs/|tools/a11y/|tools/storybook/|tools/reach-mobile/)'
           # What codegen, the contract tests and supergraph composition read.
           contracts='^(packages/contracts/|packages/graphql-kit/|services/|platform/|apps/gateway/|tools/codegen/)'
           # What the web acceptance stack runs: the shell and its remotes, People,
@@ -666,13 +666,36 @@ jobs:
       - name: axe over every story
         run: pnpm --filter @reach/storybook-mobile test:stories
 
+  # The native proof: `apps/mobile`, a gallery of every Reach Mobile component,
+  # bundled by Metro for iOS and Android. Storybook renders through
+  # react-native-web; this is what catches a component, a native singleton or
+  # a NativeWind workaround that only breaks under the device's own bundler.
+  design-system-mobile-export:
+    name: design-system (mobile export)
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: expo export, iOS and Android
+        run: pnpm --filter @reach/mobile export
+
   # The required check: green only when every design-system shard and every
   # axe shard are, or when both were skipped because the change cannot reach
   # them. A matrix job's result is success only when all its shards are, so
   # the shard counts can change without touching the branch ruleset.
   design-system-all:
     name: design-system
-    needs: [changes, design-system, design-system-axe, design-system-mobile]
+    needs: [changes, design-system, design-system-axe, design-system-mobile, design-system-mobile-export]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -684,15 +707,16 @@ jobs:
           SHARDS: ${{ needs.design-system.result }}
           AXE: ${{ needs.design-system-axe.result }}
           MOBILE: ${{ needs.design-system-mobile.result }}
+          EXPORT: ${{ needs.design-system-mobile-export.result }}
         run: |
-          echo "changes: $CHANGES (ui=$UI), shards: $SHARDS, axe: $AXE, mobile: $MOBILE"
+          echo "changes: $CHANGES (ui=$UI), shards: $SHARDS, axe: $AXE, mobile: $MOBILE, export: $EXPORT"
           # A failed detector skips both matrices; that is not a pass.
           [ "$CHANGES" = success ] || exit 1
           if [ "$UI" != true ]; then
             echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). On main it runs unless this tree already passed it in its pull request."
             exit 0
           fi
-          [ "$SHARDS" = success ] && [ "$AXE" = success ] && [ "$MOBILE" = success ]
+          [ "$SHARDS" = success ] && [ "$AXE" = success ] && [ "$MOBILE" = success ] && [ "$EXPORT" = success ]
 
   # The record `changes` reads on main: once every required check of a pull
   # request run is green, a `ci/tested-tree` status on the PR's head naming the
