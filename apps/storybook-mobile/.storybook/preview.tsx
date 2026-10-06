@@ -64,7 +64,9 @@ function ReachDocsContainer({
  * Every story on one phone, 390 wide, under `ReachProvider`, which is what an
  * app puts at its root: the `dark` class, the platform, the safe area, the
  * gesture root and the portal host overlays open into. On the canvas the phone
- * is 844 tall and wears its platform's status bar and home indicator; on a docs
+ * is at least 844 tall (a longer story makes it longer, so the home indicator
+ * stays under the story) and wears its platform's status bar and home
+ * indicator; on a docs
  * page each story takes only the height it needs, without them.
  */
 const withPhone: Decorator = (Story, context) => {
@@ -85,7 +87,7 @@ const withPhone: Decorator = (Story, context) => {
           {story}
         </View>
       ) : (
-        <View className="bg-canvas" style={{ width: 390, height: 844 }}>
+        <View className="bg-canvas" style={{ width: 390, minHeight: 844 }}>
           <DeviceChrome platform={platform}>{story}</DeviceChrome>
         </View>
       )}
