@@ -186,6 +186,13 @@ export {
   type UploadStatus,
 } from './components/file-uploader/file-uploader.tsx';
 export {
+  FormSaveBar,
+  FormSection,
+  FormSections,
+  type FormSaveBarProps,
+  type FormSectionProps,
+} from './components/form-sections/form-sections.tsx';
+export {
   Field,
   FieldControl,
   FieldDescription,

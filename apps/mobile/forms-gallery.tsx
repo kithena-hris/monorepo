@@ -8,6 +8,8 @@ import {
   AvatarUploader,
   Field,
   FileUploader,
+  FormSaveBar,
+  FormSection,
   FieldDescription,
   FieldError,
   FieldLabel,
@@ -172,6 +174,15 @@ export function FormsGallery(): React.JSX.Element {
       <AvatarUploader name="Priya Shah" pick={() => Promise.resolve([])} onPick={() => undefined} />
       <TagsInput label="Skills" value={skills} onChange={setSkills} placeholder="Add a skill" />
       <Dropzone pick={() => Promise.resolve([])} onFiles={() => undefined} />
+      <FormSection title="Emergency contact" description="Only HR can see this">
+        <FormSaveBar
+          open={name !== 'Priya'}
+          onSave={() => undefined}
+          onDiscard={() => {
+            setName('Priya');
+          }}
+        />
+      </FormSection>
       <FileUploader value={files} onChange={setFiles} pick={() => Promise.resolve([])} />
     </Stack>
   );
