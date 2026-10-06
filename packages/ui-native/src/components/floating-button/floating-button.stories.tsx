@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
-import { Stage } from '../../docs/stage.tsx';
+import { settled, Stage } from '../../docs/stage.tsx';
 import { Button } from '../button/button.tsx';
 import { Card } from '../card/card.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -130,6 +130,8 @@ export const ShrinksAsYouScroll: Story = {
 export const SpeedDialStory: Story = {
   name: 'Speed dial',
   parameters: designNote('floating-button', 'Speed dial'),
+  // It opens as it renders; axe reads the actions once they have faded in.
+  play: settled,
   render: () => (
     <Stage height={440}>
       {(host) => (
