@@ -1,5 +1,5 @@
 import { Copy, Maximize2, ZoomIn, ZoomOut } from 'lucide-react-native';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ComponentProps, type ReactNode } from 'react';
 import { Platform, type LayoutChangeEvent } from 'react-native';
 import { useCssElement } from 'react-native-css';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
@@ -8,9 +8,15 @@ import Svg from 'react-native-svg';
 import { cn } from '../../lib/cn.ts';
 import { Button } from '../button/button.tsx';
 import { useClipboard } from '../clipboard/clipboard.tsx';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../dialog/dialog.tsx';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '../context-menu/context-menu.tsx';
 import { Icon } from '../icon/icon.tsx';
-import { List, ListItem } from '../list-item/list-item.tsx';
 import { bgTone, borderTone, type ChartTone } from './tones.ts';
 
 /**
@@ -571,9 +577,10 @@ export interface ChartFrameProps {
 /**
  * What every chart is wrapped in: the hidden summary and table a screen reader
  * reads instead of the marks, and the menu a long-press opens where the web
- * right-clicks (zoom, reset, copy as CSV). The menu is a screen-reader action
- * too, so it is never behind a gesture alone, and it opens centred: a short
- * task on a phone is a dialog, not a sheet.
+ * right-clicks (zoom, reset, copy as CSV): the library's ContextMenu, opened
+ * at the chart. The menu is a screen-reader action too, so it is never behind
+ * a gesture alone, and everything in it is also on the page (the zoom buttons,
+ * the hidden table).
  */
 export function ChartFrame({
   label,
@@ -635,76 +642,80 @@ export function ChartFrame({
   ];
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Pressable
-        // The frame is not a control: its marks are, and the summary is read.
-        accessible={false}
-        focusable={false}
-        delayLongPress={450}
-        onLongPress={() => {
-          setOpen(true);
-        }}
-        className={cn('min-w-0', className)}
-        {...(WEB ? { role: 'figure', 'aria-label': label } : {})}
-      >
-        {WEB ? (
-          summary ? (
+    <ContextMenu open={open} onOpenChange={setOpen}>
+      <ContextMenuTrigger>
+        <FrameSurface label={label} className={className}>
+          {WEB ? (
+            summary ? (
+              <View style={hiddenStyle}>
+                <CssText>{summary}</CssText>
+              </View>
+            ) : null
+          ) : (
             <View style={hiddenStyle}>
-              <CssText>{summary}</CssText>
+              <CssText
+                accessible
+                accessibilityLabel={summary ? `${label}. ${summary}` : label}
+                accessibilityHint="Chart options are in the actions"
+                accessibilityActions={[{ name: 'menu', label: 'Chart options' }]}
+                onAccessibilityAction={() => {
+                  setOpen(true);
+                }}
+              >
+                {summary ?? ''}
+              </CssText>
             </View>
-          ) : null
-        ) : (
-          <View style={hiddenStyle}>
-            <CssText
-              accessible
-              accessibilityLabel={summary ? `${label}. ${summary}` : label}
-              accessibilityHint="Chart options are in the actions"
-              accessibilityActions={[{ name: 'menu', label: 'Chart options' }]}
-              onAccessibilityAction={() => {
-                setOpen(true);
-              }}
-            >
-              {summary ?? ''}
-            </CssText>
-          </View>
-        )}
-        {children}
-        <ChartDataTable
-          caption={label}
-          data={rows}
-          {...(valueLabel === undefined ? {} : { valueLabel })}
-          {...(format === undefined ? {} : { format })}
-        />
-      </Pressable>
-      <DialogContent
-        {...(portalHost === undefined ? {} : { portalHost })}
-        className="gap-2 px-0 pb-2"
-      >
-        <DialogHeader className="px-5">
-          <DialogTitle>{label}</DialogTitle>
-        </DialogHeader>
-        <List className="rounded-none bg-transparent shadow-none">
-          {commands.map((command) => (
-            <ListItem
-              key={command.label}
-              disabled={command.disabled ?? false}
-              {...(command.icon
-                ? {
-                    leading: (
-                      <Icon icon={command.icon} tone={command.disabled ? 'disabled' : 'muted'} />
-                    ),
-                  }
-                : {})}
-              onPress={() => {
-                command.onPress();
-                if (command.label !== 'Copy as CSV') setOpen(false);
-              }}
-            >
-              {command.label}
-            </ListItem>
-          ))}
-        </List>
-      </DialogContent>
-    </Dialog>
+          )}
+          {children}
+          <ChartDataTable
+            caption={label}
+            data={rows}
+            {...(valueLabel === undefined ? {} : { valueLabel })}
+            {...(format === undefined ? {} : { format })}
+          />
+        </FrameSurface>
+      </ContextMenuTrigger>
+      <ContextMenuContent label={label} {...(portalHost === undefined ? {} : { portalHost })}>
+        <ContextMenuLabel>{label}</ContextMenuLabel>
+        <ContextMenuSeparator />
+        {commands.map((command) => (
+          <ContextMenuItem
+            key={command.label}
+            disabled={command.disabled ?? false}
+            {...(command.icon ? { icon: command.icon } : {})}
+            onSelect={command.onPress}
+          >
+            {command.label}
+          </ContextMenuItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/**
+ * The chart's own surface, and the context menu's trigger: it takes the
+ * trigger's props (a long press on a device, a right click on the web). It is
+ * not a control itself: its marks are, and the summary is what is read.
+ */
+function FrameSurface({
+  label,
+  className,
+  children,
+  ...trigger
+}: Omit<ComponentProps<typeof Pressable>, 'className'> & {
+  label: string;
+  className?: string | undefined;
+}): React.JSX.Element {
+  return (
+    <Pressable
+      {...trigger}
+      accessible={false}
+      focusable={false}
+      className={cn('min-w-0', className)}
+      {...(WEB ? { role: 'figure', 'aria-label': label } : {})}
+    >
+      {children}
+    </Pressable>
   );
 }

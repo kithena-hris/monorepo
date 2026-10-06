@@ -1,11 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { HEADCOUNT, HIRES, MONTHS, byMonth, series } from '../../docs/charts.ts';
 import { designDocs, designNote } from '../../docs/design.ts';
 import { settled } from '../../docs/stage.tsx';
-import { OverlayHost } from '../../lib/overlay-host.tsx';
 import { Stack } from '../layout/layout.tsx';
 import { Text } from '../text/text.tsx';
 import { BarChart } from './bar-chart.tsx';
@@ -179,10 +178,10 @@ export const AtEveryWidth: Story = {
 };
 
 function ZoomDragAndMenu(): React.JSX.Element {
-  const host = useId();
   const [open, setOpen] = useState(true);
   return (
-    <Stack gap={3}>
+    // Room under the chart for the menu the long-press opens there.
+    <View style={{ minHeight: 720 }}>
       <ChartCard title="Headcount" value="312">
         <TrendChart
           label="Headcount, 2026"
@@ -195,14 +194,9 @@ function ZoomDragAndMenu(): React.JSX.Element {
           series={[{ label: 'Headcount', data: series(HEADCOUNT, MONTHS) }]}
           menuOpen={open}
           onMenuOpenChange={setOpen}
-          portalHost={host}
         />
       </ChartCard>
-      {/* Where the long-press menu opens in this story: under the chart, as the design draws it. */}
-      <View className="relative overflow-hidden rounded-[24px]" style={{ height: 400 }}>
-        <OverlayHost name={host} />
-      </View>
-    </Stack>
+    </View>
   );
 }
 

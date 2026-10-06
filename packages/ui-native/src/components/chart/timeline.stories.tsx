@@ -226,6 +226,7 @@ export const WhenItemsCollide: Story = {
     label: 'Priya and Omar, 9 to 20 March',
     summary: 'Priya is on call during her vacation, which clashes.',
     domain: fortnight,
+    shadeWeekends: false,
     rows: [
       person('Priya Shah', [
         entry('c1', 'Vacation', 0, 4, { tone: 'info' }),
@@ -272,7 +273,8 @@ export const TellingLanesApart: Story = {
   args: {
     label: 'Team plans, 9 to 20 March',
     domain: fortnight,
-    separator: 'banded',
+    separator: 'both',
+    shadeWeekends: false,
     rows: [
       {
         label: 'Engineering',
