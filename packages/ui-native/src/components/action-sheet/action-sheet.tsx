@@ -1,5 +1,13 @@
 import * as DialogPrimitive from '@rn-primitives/dialog';
-import { Children, useCallback, useEffect, useState, type ReactNode } from 'react';
+import {
+  Children,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 import { styled } from 'react-native-css';
 import { Pressable, View } from 'react-native-css/components';
 
@@ -7,6 +15,12 @@ import { cn } from '../../lib/cn.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
 import { flatStyle, InertOutside, quietFrame } from '../../lib/overlay.tsx';
 import { BackGuard } from '../dialog/dialog.tsx';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/dropdown-menu.tsx';
 import { type LucideIcon, Icon } from '../icon/icon.tsx';
 import { EdgePanel } from '../sheet/sheet.tsx';
 import { Text } from '../text/text.tsx';
@@ -20,8 +34,63 @@ import { Text } from '../text/text.tsx';
  * and Escape, the back button, VoiceOver's escape gesture and a press on the
  * scrim cancel it. Each action closes the sheet after it runs.
  */
-export const ActionSheet = DialogPrimitive.Root;
-export const ActionSheetTrigger = DialogPrimitive.Trigger;
+export type ActionSheetProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * `menu` on a screen wide enough for one (a tablet's regular width, which
+   * the app decides, as it decides its layout): the same actions as a
+   * dropdown menu beside the button that asked. A sheet otherwise.
+   */
+  presentation?: 'sheet' | 'menu';
+  children?: ReactNode;
+};
+
+const AsMenu = createContext(false);
+
+export function ActionSheet({
+  open,
+  defaultOpen,
+  onOpenChange,
+  presentation = 'sheet',
+  children,
+}: ActionSheetProps): React.JSX.Element {
+  const state = {
+    ...(open === undefined ? {} : { open }),
+    ...(defaultOpen === undefined ? {} : { defaultOpen }),
+    ...(onOpenChange === undefined ? {} : { onOpenChange }),
+  };
+  if (presentation === 'menu') {
+    return (
+      <AsMenu.Provider value>
+        <DropdownMenu {...state}>{children}</DropdownMenu>
+      </AsMenu.Provider>
+    );
+  }
+  return (
+    <AsMenu.Provider value={false}>
+      <DialogPrimitive.Root {...state}>{children}</DialogPrimitive.Root>
+    </AsMenu.Provider>
+  );
+}
+
+/**
+ * The button that opens it: one child, which receives the trigger's props.
+ * `asChild` is accepted for Radix's shape; the child is always the trigger.
+ */
+export function ActionSheetTrigger({
+  children,
+}: {
+  children: ReactNode;
+  asChild?: boolean;
+}): React.JSX.Element {
+  return useContext(AsMenu) ? (
+    <DropdownMenuTrigger>{children}</DropdownMenuTrigger>
+  ) : (
+    <DialogPrimitive.Trigger asChild>{children}</DialogPrimitive.Trigger>
+  );
+}
 
 const Content = styled(flatStyle(DialogPrimitive.Content));
 const Title = styled(flatStyle(DialogPrimitive.Title));
@@ -60,7 +129,23 @@ export type ActionSheetContentProps = {
   children?: ReactNode;
 };
 
-export function ActionSheetContent({
+export function ActionSheetContent(props: ActionSheetContentProps): React.JSX.Element | null {
+  if (useContext(AsMenu)) {
+    const { title, label = 'Actions', portalHost, children } = props;
+    return (
+      <DropdownMenuContent
+        label={typeof title === 'string' ? title : label}
+        className="w-[220px]"
+        {...(portalHost ? { portalHost } : {})}
+      >
+        {children}
+      </DropdownMenuContent>
+    );
+  }
+  return <SheetContent {...props} />;
+}
+
+function SheetContent({
   title,
   description,
   label = 'Actions',
@@ -156,11 +241,28 @@ export type ActionSheetItemProps = {
   disabled?: boolean;
   icon?: LucideIcon;
   className?: string | undefined;
-  children?: ReactNode;
+  children: string;
 };
 
 /** One action: runs `onSelect`, then the sheet closes. */
-export function ActionSheetItem({
+export function ActionSheetItem(props: ActionSheetItemProps): React.JSX.Element {
+  if (useContext(AsMenu)) {
+    const { onSelect, destructive = false, disabled = false, icon, children } = props;
+    return (
+      <DropdownMenuItem
+        destructive={destructive}
+        disabled={disabled}
+        {...(icon ? { icon } : {})}
+        {...(onSelect ? { onSelect } : {})}
+      >
+        {children}
+      </DropdownMenuItem>
+    );
+  }
+  return <SheetItem {...props} />;
+}
+
+function SheetItem({
   onSelect,
   destructive = false,
   disabled = false,

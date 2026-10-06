@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import { Ellipsis, Link, Mail, Share } from 'lucide-react-native';
+import { Copy, Ellipsis, Link, Mail, Pencil, Share, Trash2 } from 'lucide-react-native';
 import { ScrollView, View } from 'react-native-css/components';
 
 import { overlayDocs } from '../../docs/design.ts';
@@ -124,5 +124,33 @@ export const ShareSheet: Story = {
         )}
       </Stage>
     </ActionSheet>
+  ),
+};
+
+export const OnLargerScreens: Story = {
+  name: 'On larger screens',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'With `presentation="menu"`, for a screen wide enough (the app decides, as it decides its layout), the same actions open as a dropdown menu beside the button that asked.',
+      },
+    },
+  },
+  render: () => (
+    <View className="min-h-[220px] items-start">
+      <ActionSheet presentation="menu" defaultOpen>
+        <ActionSheetTrigger>
+          <Button startIcon={<Icon icon={Ellipsis} />} accessibilityLabel="More actions" />
+        </ActionSheetTrigger>
+        <ActionSheetContent label="More actions">
+          <ActionSheetItem icon={Pencil}>Edit request</ActionSheetItem>
+          <ActionSheetItem icon={Copy}>Duplicate</ActionSheetItem>
+          <ActionSheetItem icon={Trash2} destructive>
+            Delete request
+          </ActionSheetItem>
+        </ActionSheetContent>
+      </ActionSheet>
+    </View>
   ),
 };

@@ -63,6 +63,7 @@ export {
   ActionSheetTrigger,
   type ActionSheetContentProps,
   type ActionSheetItemProps,
+  type ActionSheetProps,
 } from './components/action-sheet/action-sheet.tsx';
 export {
   AlertDialog,
@@ -125,6 +126,42 @@ export {
   type HoverCardContentProps,
   type HoverCardProps,
 } from './components/hover-card/hover-card.tsx';
+export {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+  type ContextMenuProps,
+} from './components/context-menu/context-menu.tsx';
+export {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+  type DropdownMenuCheckboxItemProps,
+  type DropdownMenuContentProps,
+  type DropdownMenuItemProps,
+  type DropdownMenuProps,
+  type DropdownMenuRadioItemProps,
+} from './components/dropdown-menu/dropdown-menu.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   FieldBox,
