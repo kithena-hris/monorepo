@@ -2,6 +2,11 @@ import { useState } from 'react';
 
 import {
   Avatar,
+  Badge,
+  FacetList,
+  FilterGroupEditor,
+  FilterQuery,
+  KanbanCardMeta,
   AppliedFilters,
   BulkAction,
   ColumnChooser,
@@ -99,7 +104,10 @@ export function DataGallery(): React.JSX.Element {
   );
 }
 
-const TEAM = NAMES.map((name, i) => ({ name, team: ['Engineering', 'Design', 'Sales', 'Finance', 'People'][i] ?? '' }));
+const TEAM = NAMES.map((name, i) => ({
+  name,
+  team: ['Engineering', 'Design', 'Sales', 'Finance', 'People'][i] ?? '',
+}));
 type Member = (typeof TEAM)[number];
 
 /** A table as cards: select, reorder by long-press, a bulk bar. */
@@ -147,11 +155,23 @@ function Filters(): React.JSX.Element {
     order: ['name', 'team', 'location'],
     visible: ['name', 'team'],
   });
+  const [teams, setTeams] = useState<readonly string[]>(['Engineering']);
+  const [tokens, setTokens] = useState<readonly string[]>(['team:eng']);
+  const [text, setText] = useState('');
   return (
     <Stack gap={2}>
-      <FilterBuilder fields={FIELDS} value={filter} onChange={setFilter} applyLabel="Show 48 people" />
+      <FilterBuilder
+        fields={FIELDS}
+        value={filter}
+        onChange={setFilter}
+        applyLabel="Show 48 people"
+      />
       <AppliedFilters
-        filters={filter.conditions.map((c) => ({ id: c.id, field: c.field, label: c.values.join(', ') }))}
+        filters={filter.conditions.map((c) => ({
+          id: c.id,
+          field: c.field,
+          label: c.values.join(', '),
+        }))}
         onRemove={(id) => {
           setFilter({ ...filter, conditions: filter.conditions.filter((c) => c.id !== id) });
         }}
@@ -166,6 +186,18 @@ function Filters(): React.JSX.Element {
         value={columns}
         onChange={setColumns}
       />
+      <FacetList
+        title="Team"
+        selected={teams}
+        onSelectedChange={setTeams}
+        options={[
+          { value: 'Engineering', label: 'Engineering', count: 124 },
+          { value: 'Sales', label: 'Sales', count: 64 },
+          { value: 'Design', label: 'Design', count: 28 },
+        ]}
+      />
+      <FilterGroupEditor fields={FIELDS} value={filter} onChange={setFilter} />
+      <FilterQuery tokens={tokens} onTokensChange={setTokens} text={text} onTextChange={setText} />
     </Stack>
   );
 }
@@ -203,6 +235,11 @@ function Moving(): React.JSX.Element {
         ]}
         items={board}
         cardTitle={(c) => c.title}
+        renderCard={(c) => (
+          <KanbanCardMeta description="Applied 2 days ago">
+            <Badge size="sm">{c.id === 'hana' ? 'Referral' : 'Inbound'}</Badge>
+          </KanbanCardMeta>
+        )}
         onMove={({ itemId, from, to, toIndex }) => {
           const card = board[from]?.find((c) => c.id === itemId);
           if (!card) return;

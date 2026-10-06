@@ -1,10 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
+import { KeyValues } from '../key-values/key-values.tsx';
 import { Download, Network } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designDocs } from '../../docs/design.ts';
-import { Stage, StandInKeyValues, settled } from '../../docs/stage.tsx';
+import { Stage, settled } from '../../docs/stage.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
@@ -78,12 +79,12 @@ export const TheRules: Story = {
   args: { title: '', children: null },
   render: () => (
     <View className="rounded-[22px] bg-surface p-3 shadow-sm">
-      <StandInKeyValues
-        pairs={[
-          ['How many', 'One tour, three steps at most'],
-          ['When', 'The first time someone reaches the feature, never at sign-in'],
-          ['Dismiss', 'Esc, Skip, or tapping outside. It never shows again'],
-          ['Reduced motion', 'No pulse. The dot stays solid'],
+      <KeyValues
+        items={[
+          { label: 'How many', value: 'One tour, three steps at most' },
+          { label: 'When', value: 'The first time someone reaches the feature, never at sign-in' },
+          { label: 'Dismiss', value: 'Esc, Skip, or tapping outside. It never shows again' },
+          { label: 'Reduced motion', value: 'No pulse. The dot stays solid' },
         ]}
       />
     </View>

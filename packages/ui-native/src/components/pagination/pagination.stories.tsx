@@ -4,8 +4,7 @@ import { View } from 'react-native-css/components';
 
 import { designDocs } from '../../docs/design.ts';
 import { PEOPLE } from '../../docs/people.ts';
-import { Avatar } from '../avatar/avatar.tsx';
-import { Text } from '../text/text.tsx';
+import { DataTable, TableTitle } from '../table/table.tsx';
 import { Pagination } from './pagination.tsx';
 
 const meta = {
@@ -64,30 +63,23 @@ export const UnderATable: Story = {
   render: function TableStory() {
     const [page, setPage] = useState(3);
     return (
-      <View className="overflow-hidden rounded-[22px] bg-surface shadow-sm">
-        {PEOPLE.slice(0, 3).map((person) => (
-          <View
-            key={person.name}
-            className="flex-row items-center gap-3 border-b border-border px-4 py-3.5"
-          >
-            <Avatar name={person.name} size={40} decorative />
-            <View className="min-w-0 flex-1">
-              <Text weight="semibold" className="text-[16px]">
-                {person.name}
-              </Text>
-              <Text variant="footnote" tone="muted" className="text-[14px]">
-                {person.role}
-              </Text>
-            </View>
-            <Text variant="subhead" tone="muted">
-              {person.team}
-            </Text>
-          </View>
-        ))}
-        <View className="p-3">
-          <Pagination page={page} pageCount={32} onPageChange={setPage} />
-        </View>
-      </View>
+      <DataTable
+        label="People"
+        rows={PEOPLE.slice(0, 3)}
+        rowId={(person) => person.name}
+        columns={[
+          {
+            id: 'name',
+            header: 'Name',
+            cell: (person) => (
+              <TableTitle title={person.name} description={person.role} avatar={person.name} />
+            ),
+          },
+          { id: 'team', header: 'Team', cell: (person) => person.team },
+          { id: 'location', header: 'Location', cell: (person) => person.location },
+        ]}
+        footer={<Pagination page={page} pageCount={32} onPageChange={setPage} className="flex-1" />}
+      />
     );
   },
 };

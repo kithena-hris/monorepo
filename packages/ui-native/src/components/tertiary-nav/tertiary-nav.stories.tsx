@@ -1,10 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
+import { KeyValues } from '../key-values/key-values.tsx';
 import { ChevronDown, ChevronsUpDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
-import { Stage, StandInKeyValues, settled } from '../../docs/stage.tsx';
+import { Stage, settled } from '../../docs/stage.tsx';
 import {
   ActionSheet,
   ActionSheetContent,
@@ -50,12 +51,12 @@ export const Playground: Story = {
             </TabsList>
           </Tabs>
           <View className="rounded-[22px] bg-surface p-3.5 shadow-sm">
-            <StandInKeyValues
-              pairs={[
-                ['Team', 'Engineering'],
-                ['Manager', 'Jonas Weber'],
-                ['Contract', 'Permanent'],
-                ['Hours', '40 per week'],
+            <KeyValues
+              items={[
+                { label: 'Team', value: 'Engineering' },
+                { label: 'Manager', value: 'Jonas Weber' },
+                { label: 'Contract', value: 'Permanent' },
+                { label: 'Hours', value: '40 per week' },
               ]}
             />
           </View>

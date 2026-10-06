@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
+import { KeyValues } from '../key-values/key-values.tsx';
 import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designNote, overlayDocs } from '../../docs/design.ts';
-import { Stage, StandInField, StandInKeyValues, settled } from '../../docs/stage.tsx';
+import { Stage, StandInField, settled } from '../../docs/stage.tsx';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,11 +55,11 @@ export const Playground: Story = {
             <SheetHeader>
               <SheetTitle>Priya Shah</SheetTitle>
             </SheetHeader>
-            <StandInKeyValues
-              pairs={[
-                ['Team', 'Engineering'],
-                ['Manager', 'Jonas Weber'],
-                ['Location', 'Berlin'],
+            <KeyValues
+              items={[
+                { label: 'Team', value: 'Engineering' },
+                { label: 'Manager', value: 'Jonas Weber' },
+                { label: 'Location', value: 'Berlin' },
               ]}
             />
           </SheetContent>
@@ -135,10 +136,10 @@ export const RecordDetail: Story = {
                 </Text>
               </View>
             </View>
-            <StandInKeyValues
-              pairs={[
-                ['Dates', '14–18 Oct'],
-                ['Balance after', '9.5 days'],
+            <KeyValues
+              items={[
+                { label: 'Dates', value: '14–18 Oct' },
+                { label: 'Balance after', value: '9.5 days' },
               ]}
             />
             <SheetFooter>

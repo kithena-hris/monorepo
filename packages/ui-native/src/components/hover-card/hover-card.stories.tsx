@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
+import { KeyValues } from '../key-values/key-values.tsx';
 import { Copy, MessageCircle, Users } from 'lucide-react-native';
 import type { ComponentProps } from 'react';
 import { Pressable, View } from 'react-native-css/components';
 
 import { designDocs } from '../../docs/design.ts';
 import { PEOPLE } from '../../docs/people.ts';
-import { StandInKeyValues, settled } from '../../docs/stage.tsx';
+import { settled } from '../../docs/stage.tsx';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -68,7 +69,7 @@ function Preview({
           </Text>
         </View>
       </View>
-      <StandInKeyValues pairs={facts} />
+      <KeyValues items={facts.map(([label, value]) => ({ label, value }))} />
       <View className="flex-row gap-2">
         <Button size="sm" startIcon={<Icon icon={MessageCircle} />} className="flex-1">
           Message

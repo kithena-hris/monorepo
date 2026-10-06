@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
+import { KeyValues } from '../components/key-values/key-values.tsx';
 import { Ellipsis, X } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native-css/components';
@@ -8,6 +9,7 @@ import { Avatar } from '../components/avatar/avatar.tsx';
 import { Banner } from '../components/banner/banner.tsx';
 import { Button } from '../components/button/button.tsx';
 import { Card } from '../components/card/card.tsx';
+import { Stat } from '../components/stat/stat.tsx';
 import { type DateRange } from '../components/calendar/calendar.tsx';
 import { ChipGroup, ChipGroupItem } from '../components/chip/chip.tsx';
 import { DatePicker } from '../components/date-picker/date-picker.tsx';
@@ -32,7 +34,6 @@ import {
   ScreenNote,
   ScreenTabBar,
 } from '../docs/screen.tsx';
-import { StandInKeyValues } from '../docs/stage.tsx';
 
 /*
  * The shell every phone screen follows, composed from the library: the top
@@ -105,36 +106,11 @@ export const Playground: Story = {
   ),
 };
 
-/** A figure on the home screen: what it is, then the number and its unit. */
-function Figure({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-}): React.JSX.Element {
-  return (
-    <Card>
-      <Text tone="muted">{label}</Text>
-      <Inline gap={1} className="items-baseline">
-        <Text variant="title1" weight="bold" tabular>
-          {value}
-        </Text>
-        <Text variant="callout" weight="semibold" tone="muted">
-          {unit}
-        </Text>
-      </Inline>
-    </Card>
-  );
-}
-
 export const Stacked: Story = {
   render: () => (
     <TabScreen title="Home" tab="home" trailing={<Avatar name="Priya Shah" size="md" />}>
-      <Figure label="Vacation left" value="14.5" unit="days" />
-      <Figure label="Next payday" value="2" unit="days" />
+      <Stat label="Vacation left" value="14.5" unit="days" />
+      <Stat label="Next payday" value="2" unit="days" />
     </TabScreen>
   ),
 };
@@ -168,11 +144,11 @@ export const SidebarAndAside: Story = {
           </Stack>
         </Inline>
         <Card className="py-2.5">
-          <StandInKeyValues
-            pairs={[
-              ['Team', 'Engineering'],
-              ['Manager', 'Jonas Weber'],
-              ['Location', 'Berlin'],
+          <KeyValues
+            items={[
+              { label: 'Team', value: 'Engineering' },
+              { label: 'Manager', value: 'Jonas Weber' },
+              { label: 'Location', value: 'Berlin' },
             ]}
           />
         </Card>

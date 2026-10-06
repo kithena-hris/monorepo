@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
+import { KeyValues } from '../components/key-values/key-values.tsx';
 import { useEffect, useState, type ReactNode } from 'react';
 import { View } from 'react-native-css/components';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -21,7 +22,6 @@ import {
   ScreenNote,
   ScreenTabBar,
 } from '../docs/screen.tsx';
-import { StandInKeyValues } from '../docs/stage.tsx';
 
 /*
  * List and detail. A phone has room for one, so a row pushes its detail on
@@ -71,10 +71,10 @@ function Detail({ name }: { name: string }): React.JSX.Element {
         </Text>
       </Inline>
       <Card className="py-2.5">
-        <StandInKeyValues
-          pairs={[
-            ['Team', person.team],
-            ['Manager', 'Jonas Weber'],
+        <KeyValues
+          items={[
+            { label: 'Team', value: person.team },
+            { label: 'Manager', value: 'Jonas Weber' },
           ]}
         />
       </Card>
