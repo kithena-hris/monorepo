@@ -697,3 +697,4 @@ export {
   useAnnouncer,
   type ReorderHandleProps,
 } from './lib/reorder.tsx';
+export { Stat, type StatProps, type StatSentiment } from './components/stat/stat.tsx';

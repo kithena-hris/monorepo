@@ -317,7 +317,7 @@ axe-clean, compared side by side.
 
 - [x] **RMB-042** VirtualList (FlashList, variable heights, 20,000 rows)
 - [x] **RMB-043** Table as cards: directory, numbers right-aligned, interactive, loading, empty, expandable, selection with a bulk bar, sorting, reorder, grouped, virtualized, infinite
-- [ ] **RMB-044** KeyValues, Money (minor units, locales, true minus), Stat (direction is not sentiment, sparkline)
+- [x] **RMB-044** KeyValues, Money (minor units, locales, true minus), Stat (direction is not sentiment, sparkline)
 - [ ] **RMB-045** ColumnChooser, FilterBuilder, Complex filters
 - [ ] **RMB-046** SortableList (announced moves), Kanban (one column at a time, long-press drag, menu move, limits, locked)
 - [ ] **RMB-047** Tree view

@@ -21,6 +21,11 @@ export type MoneyFormat = {
   currencyDisplay?: 'symbol' | 'narrowSymbol' | 'code' | 'name' | undefined;
   /** Brackets instead of a minus, `(€1,240.50)`, for a ledger. */
   accounting?: boolean | undefined;
+  /**
+   * Whole units only, for a headline figure: the minor digits are dropped,
+   * not rounded, so use it where they are zero or do not matter.
+   */
+  hideFraction?: boolean | undefined;
 };
 
 /** The currency's own number of minor-unit digits. */
@@ -60,20 +65,23 @@ export function formatMoney(
     hideCurrency = false,
     currencyDisplay = 'symbol',
     accounting = false,
+    hideFraction = false,
   }: MoneyFormat = {},
 ): string {
   const places = exponent ?? currencyExponent(currency, locale);
   const decimal = minorUnitsToDecimalString(minorUnits, places);
   const negative = decimal.startsWith('-') && /[1-9]/.test(decimal);
-  const [whole = '0', fraction = ''] = decimal.replace('-', '').split('.');
+  const [whole = '0', exact = ''] = decimal.replace('-', '').split('.');
+  const fraction = hideFraction ? '' : exact;
+  const shown = hideFraction ? 0 : places;
 
   const format = new Intl.NumberFormat(locale, {
     style: hideCurrency ? 'decimal' : 'currency',
     currency,
     currencyDisplay,
     currencySign: accounting ? 'accounting' : 'standard',
-    minimumFractionDigits: places,
-    maximumFractionDigits: places,
+    minimumFractionDigits: shown,
+    maximumFractionDigits: shown,
   });
   // A sample in the locale's shape: seven integer digits show its grouping.
   const parts = format.formatToParts(negative ? -1234567 : 1234567);

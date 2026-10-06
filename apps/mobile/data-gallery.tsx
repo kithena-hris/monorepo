@@ -4,9 +4,12 @@ import {
   Avatar,
   BulkAction,
   DataTable,
+  KeyValues,
   ListItem,
+  Money,
   move,
   Stack,
+  Stat,
   TableTitle,
   Text,
   VirtualList,
@@ -23,6 +26,16 @@ export function DataGallery(): React.JSX.Element {
   return (
     <Stack gap={2}>
       <Text variant="headline">Data</Text>
+      <Stat label="Headcount" value="312" delta="+12 this quarter" sentiment="positive" />
+      <KeyValues
+        items={[
+          { label: 'Team', value: 'Engineering' },
+          {
+            label: 'Salary',
+            value: <Money minorUnits="900719925474099" currency="EUR" locale="en-GB" />,
+          },
+        ]}
+      />
       <PeopleTable />
       <VirtualList
         items={ROWS}
