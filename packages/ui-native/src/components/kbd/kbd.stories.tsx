@@ -1,12 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import { Search } from 'lucide-react-native';
+import { useState } from 'react';
 
 import { designDocs } from '../../docs/design.ts';
-import { StandInSearch, StandInTip } from '../../docs/stand-ins.tsx';
+import { StandInTip } from '../../docs/stand-ins.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
 import { Text } from '../text/text.tsx';
+import { SearchField } from '../typed-fields/typed-fields.tsx';
 import { Kbd, KbdGroup } from './kbd.tsx';
 
 const meta = {
@@ -70,7 +72,10 @@ export const InASearchField: Story = {
       },
     },
   },
-  render: () => <StandInSearch placeholder="Search everything" />,
+  render: function SearchStory() {
+    const [query, setQuery] = useState('');
+    return <SearchField value={query} onValueChange={setQuery} placeholder="Search everything" />;
+  },
 };
 
 export const InATooltip: Story = {
