@@ -1,7 +1,15 @@
 import {
+  Calendar,
   Checkbox,
+  Combobox,
+  DatePicker,
+  Dropzone,
   CurrencyField,
+  AvatarUploader,
   Field,
+  FileUploader,
+  FormSaveBar,
+  FormSection,
   FieldDescription,
   FieldError,
   FieldLabel,
@@ -12,14 +20,23 @@ import {
   PinInput,
   RadioGroup,
   Rating,
+  RichTextEditor,
   SearchField,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   RadioGroupItem,
   Slider,
   Stack,
   Switch,
+  TagsInput,
   Text,
   Textarea,
+  TimePicker,
   Toggle,
+  type UploadItem,
   ToggleGroup,
   ToggleGroupItem,
 } from '@reach/ui-native';
@@ -44,6 +61,12 @@ export function FormsGallery(): React.JSX.Element {
   const [amount, setAmount] = useState('124050');
   const [phone, setPhone] = useState('151 2345 6789');
   const [country, setCountry] = useState('DE');
+  const [team, setTeam] = useState('design');
+  const [offices, setOffices] = useState<string | readonly string[] | null>(['Berlin']);
+  const [start, setStart] = useState<string | null>('2026-10-14');
+  const [time, setTime] = useState<string | null>('09:30');
+  const [skills, setSkills] = useState<readonly string[]>(['React', 'TypeScript']);
+  const [files, setFiles] = useState<readonly UploadItem[]>([]);
   const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
@@ -120,6 +143,49 @@ export function FormsGallery(): React.JSX.Element {
         />
       </Field>
       <Rating value={stars} onChange={setStars} label="Delivery" showValue />
+      <Field>
+        <FieldLabel>Team</FieldLabel>
+        <Select value={team} onValueChange={setTeam}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="engineering">Engineering</SelectItem>
+            <SelectItem value="design">Design</SelectItem>
+            <SelectItem value="sales">Sales</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Combobox
+        label="Offices"
+        multiple
+        chips
+        placeholder="Add an office"
+        options={['Berlin', 'London', 'Paris', 'Madrid', 'Remote'].map((o) => ({
+          value: o,
+          label: o,
+        }))}
+        value={offices}
+        onChange={setOffices}
+      />
+      <Calendar today="2026-10-01" selected={start} onSelect={setStart} />
+      <DatePicker label="Start date" value={start} onChange={setStart} today="2026-10-01" />
+      <TimePicker label="Start" value={time} onChange={setTime} />
+      {/* Reach opens no picker: the app's own goes here (expo-image-picker). */}
+      <AvatarUploader name="Priya Shah" pick={() => Promise.resolve([])} onPick={() => undefined} />
+      <TagsInput label="Skills" value={skills} onChange={setSkills} placeholder="Add a skill" />
+      <Dropzone pick={() => Promise.resolve([])} onFiles={() => undefined} />
+      <FormSection title="Emergency contact" description="Only HR can see this">
+        <FormSaveBar
+          open={name !== 'Priya'}
+          onSave={() => undefined}
+          onDiscard={() => {
+            setName('Priya');
+          }}
+        />
+      </FormSection>
+      <RichTextEditor label="Welcome note" value="<p>Welcome to the team!</p>" />
+      <FileUploader value={files} onChange={setFiles} pick={() => Promise.resolve([])} />
     </Stack>
   );
 }

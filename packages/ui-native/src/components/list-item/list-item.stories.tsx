@@ -3,15 +3,27 @@ import { Archive, Calendar, Check, FileText, Trash2 } from 'lucide-react-native'
 import { useState } from 'react';
 
 import { designDocs } from '../../docs/design.ts';
-import { StandInCheckbox, StandInSwitch } from '../../docs/stand-ins.tsx';
 import { PEOPLE, STATUS_TONE } from '../../docs/people.ts';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
+import { Checkbox } from '../checkbox/checkbox.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Stack } from '../layout/layout.tsx';
+import { Switch } from '../switch/switch.tsx';
 import { Text } from '../text/text.tsx';
 import { List, ListItem } from './list-item.tsx';
+
+/** The row's own checkbox, named by the row it sits in. */
+function RowCheckbox(): React.JSX.Element {
+  const [on, setOn] = useState(true);
+  return <Checkbox checked={on} onCheckedChange={setOn} accessibilityLabel="Checkbox" />;
+}
+
+function RowSwitch(): React.JSX.Element {
+  const [on, setOn] = useState(true);
+  return <Switch checked={on} onCheckedChange={setOn} accessibilityLabel="Switch" />;
+}
 
 const meta = {
   title: 'Components/List item',
@@ -103,10 +115,7 @@ export const LeadingOptions: Story = {
       <ListItem leading={<Icon icon={FileText} tone="muted" />} description="Files">
         Plain icon
       </ListItem>
-      <ListItem
-        leading={<StandInCheckbox label="Checkbox" defaultChecked />}
-        description="Selection"
-      >
+      <ListItem leading={<RowCheckbox />} description="Selection">
         Checkbox
       </ListItem>
     </List>
@@ -130,10 +139,7 @@ export const TrailingOptions: Story = {
       >
         Value
       </ListItem>
-      <ListItem
-        description="Applies straight away"
-        trailing={<StandInSwitch label="Switch" defaultOn />}
-      >
+      <ListItem description="Applies straight away" trailing={<RowSwitch />}>
         Switch
       </ListItem>
       <ListItem

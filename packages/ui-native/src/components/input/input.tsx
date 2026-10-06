@@ -90,7 +90,11 @@ export function FieldBox({
       className={cn(
         'relative flex-row gap-2.5 rounded-[16px] pl-4',
         tight ? 'pr-1' : 'pr-4',
-        multiline ? 'min-h-28 items-start' : size === 'sm' ? 'h-11 items-center' : 'h-m-field items-center',
+        multiline
+          ? 'min-h-28 items-start'
+          : size === 'sm'
+            ? 'h-11 items-center'
+            : 'h-m-field items-center',
         focused ? 'bg-surface' : readOnly ? 'bg-transparent' : 'bg-surface-sunken',
         disabled && 'opacity-50',
         className,

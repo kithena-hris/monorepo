@@ -50,6 +50,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChartsGallery } from './charts-gallery.tsx';
 import { FormsGallery } from './forms-gallery.tsx';
+import { OverlayGallery } from './overlays.tsx';
+
 import './global.css';
 
 const PEOPLE = ['Priya Shah', 'Jonas Weber', 'Amara Okafor', 'Lucas Moreau', 'Mei Tanaka'];
@@ -276,6 +278,7 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
           </Inline>
         </Card>
 
+        <OverlayGallery />
         <FormsGallery />
         <ChartsGallery />
       </ScrollView>

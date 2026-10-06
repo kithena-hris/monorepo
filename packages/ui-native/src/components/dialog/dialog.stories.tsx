@@ -3,12 +3,11 @@ import { ChevronsUpDown, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 
 import { overlayDocs } from '../../docs/design.ts';
-import { Stage, StandInCheck, StandInField, settled } from '../../docs/stage.tsx';
+import { Stage, StandInCheck, StandInField, StandInProgress, settled } from '../../docs/stage.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
-import { Spinner } from '../spinner/spinner.tsx';
 import { Text } from '../text/text.tsx';
 import {
   Dialog,
@@ -165,7 +164,7 @@ export const Controlled: Story = {
           >
             Open dialog
           </Button>
-          <Badge tone="accent">{`open = ${String(open)}`}</Badge>
+          <Badge tone="accent" className="self-center">{`open = ${String(open)}`}</Badge>
         </Inline>
         <Text variant="subhead" tone="muted" className="leading-[1.5]">
           The parent owns the open state, so it can close the dialog after an async save finishes.
@@ -173,11 +172,11 @@ export const Controlled: Story = {
         <Dialog open={open} onOpenChange={setOpen}>
           <Stage height={220}>
             {(host) => (
-              <DialogContent portalHost={host} className="max-w-[300px] self-center">
+              <DialogContent portalHost={host} width={300}>
                 <DialogHeader>
                   <DialogTitle>Saving…</DialogTitle>
                 </DialogHeader>
-                <Spinner label="Saving" className="self-center" />
+                <StandInProgress label="Saving" />
               </DialogContent>
             )}
           </Stage>

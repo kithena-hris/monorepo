@@ -5,6 +5,7 @@ import { ReachMark } from '../../brand/reach-logo.tsx';
 import { designDocs } from '../../docs/design.ts';
 import { Button } from '../button/button.tsx';
 import { Card } from '../card/card.tsx';
+import { Alert } from '../feedback/feedback.tsx';
 import { Field, FieldLabel } from '../field/field.tsx';
 import { Input } from '../input/input.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
@@ -110,10 +111,9 @@ export const PasteWorks: Story = {
   render: () => (
     <Stack className="gap-3.5">
       <Live initial="Kx9-vR2m-Tq7w-Lp" autoFocus />
-      <Text variant="subhead" tone="muted">
-        Pasted from your password manager. We never block paste: blocking it pushes people to
-        weaker passwords.
-      </Text>
+      <Alert tone="success" title="Pasted from your password manager">
+        We never block paste. Blocking it pushes people to weaker passwords.
+      </Alert>
     </Stack>
   ),
 };

@@ -38,6 +38,23 @@ export {
 } from './lib/animate.ts';
 export { OverlayHost, type OverlayHostProps } from './lib/overlay-host.tsx';
 export { usePresence } from './lib/overlay.tsx';
+export {
+  FloatingRoot,
+  FloatingSurface,
+  floatingSurface,
+  useTriggerHandle,
+  type FloatingState,
+  type TriggerHandle,
+  LongPressTrigger,
+} from './lib/floating.tsx';
+export {
+  menuRowClass,
+  MenuHeading,
+  MenuRowContent,
+  MenuSeparator,
+  menuSurface,
+  type MenuRowContentProps,
+} from './lib/menu.tsx';
 
 export {
   Accordion,
@@ -79,6 +96,15 @@ export {
   type AvatarProps,
   type AvatarSize,
 } from './components/avatar/avatar.tsx';
+export {
+  ActionSheet,
+  ActionSheetContent,
+  ActionSheetItem,
+  ActionSheetTrigger,
+  type ActionSheetContentProps,
+  type ActionSheetItemProps,
+  type ActionSheetProps,
+} from './components/action-sheet/action-sheet.tsx';
 export {
   AlertDialog,
   AlertDialogAction,
@@ -268,6 +294,30 @@ export {
   type CheckedState,
 } from './components/checkbox/checkbox.tsx';
 export {
+  addDays,
+  addMonths,
+  Calendar,
+  CalendarLegend,
+  daysBetween,
+  formatDate,
+  parseDate,
+  type CalendarMarker,
+  type CalendarProps,
+  type CalendarTone,
+  type DateRange,
+  type IsoDate,
+} from './components/calendar/calendar.tsx';
+export {
+  Combobox,
+  type ComboboxOption,
+  type ComboboxProps,
+} from './components/combobox/combobox.tsx';
+export {
+  DatePicker,
+  type DatePickerPreset,
+  type DatePickerProps,
+} from './components/date-picker/date-picker.tsx';
+export {
   Dialog,
   DialogBody,
   DialogClose,
@@ -282,6 +332,18 @@ export {
   type DialogFooterProps,
   type DialogIconProps,
 } from './components/dialog/dialog.tsx';
+export {
+  checkFile,
+  displayName,
+  Dropzone,
+  formatBytes,
+  middleTruncate,
+  type DropzoneProps,
+  type Pick,
+  type PickedFile,
+  type Refusal,
+  type Rejection,
+} from './components/dropzone/dropzone.tsx';
 export {
   FloatingButton,
   SpeedDial,
@@ -307,6 +369,20 @@ export {
   type SkeletonProps,
 } from './components/feedback/feedback.tsx';
 export {
+  FileRow,
+  FileUploader,
+  type FileUploaderProps,
+  type UploadItem,
+  type UploadStatus,
+} from './components/file-uploader/file-uploader.tsx';
+export {
+  FormSaveBar,
+  FormSection,
+  FormSections,
+  type FormSaveBarProps,
+  type FormSectionProps,
+} from './components/form-sections/form-sections.tsx';
+export {
   Field,
   FieldControl,
   FieldDescription,
@@ -315,7 +391,72 @@ export {
   useField,
   type FieldProps,
 } from './components/field/field.tsx';
+export {
+  CoachMark,
+  CoachMarkDot,
+  type CoachMarkProps,
+} from './components/coach-mark/coach-mark.tsx';
+export {
+  HoverCard,
+  HoverCardAction,
+  HoverCardContent,
+  HoverCardTrigger,
+  type HoverCardActionProps,
+  type HoverCardContentProps,
+  type HoverCardProps,
+} from './components/hover-card/hover-card.tsx';
+export {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+  type ContextMenuProps,
+} from './components/context-menu/context-menu.tsx';
+export {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+  type DropdownMenuCheckboxItemProps,
+  type DropdownMenuContentProps,
+  type DropdownMenuItemProps,
+  type DropdownMenuProps,
+  type DropdownMenuRadioItemProps,
+} from './components/dropdown-menu/dropdown-menu.tsx';
+export {
+  Command,
+  CommandPalette,
+  filterCommands,
+  type CommandItem,
+  type CommandPaletteProps,
+  type CommandProps,
+} from './components/command-palette/command-palette.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
+export {
+  AvatarUploader,
+  ImageUploader,
+  type AvatarUploaderProps,
+  type ImageUploaderProps,
+  type UploadedImage,
+} from './components/image-uploader/image-uploader.tsx';
 export {
   FieldBox,
   Input,
@@ -338,6 +479,15 @@ export {
   type SplitProps,
   type StackProps,
 } from './components/layout/layout.tsx';
+export {
+  Popover,
+  PopoverAnchor,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+  type PopoverContentProps,
+  type PopoverProps,
+} from './components/popover/popover.tsx';
 export {
   List,
   ListItem,
@@ -381,7 +531,38 @@ export {
   type ProgressTone,
 } from './components/progress/progress.tsx';
 export { Reveal, Stagger, staggerDelay, type RevealProps } from './components/reveal/reveal.tsx';
+export {
+  RichTextEditor,
+  type RichTextEditorProps,
+  type RichTextGroup,
+} from './components/rich-text-editor/rich-text-editor.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+  type SelectContentProps,
+  type SelectItemProps,
+  type SelectProps,
+  type SelectTriggerProps,
+} from './components/select/select.tsx';
+export {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  type SheetContentProps,
+} from './components/sheet/sheet.tsx';
 export {
   SegmentedControl,
   SegmentedControlItem,
@@ -409,7 +590,9 @@ export {
   type ToastTone,
 } from './components/toast/toast.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
+export { Tooltip, type TooltipProps } from './components/tooltip/tooltip.tsx';
 export {
+  ChoiceButton,
   commonDialCodes,
   CurrencyField,
   formatMinor,
@@ -421,6 +604,15 @@ export {
   type PhoneFieldProps,
   type SearchFieldProps,
 } from './components/typed-fields/typed-fields.tsx';
+export { isEmailish, TagsInput, type TagsInputProps } from './components/tags-input/tags-input.tsx';
+export {
+  formatDuration,
+  formatTime,
+  parseTime,
+  TimePicker,
+  TimeWheel,
+  type TimePickerProps,
+} from './components/time-picker/time-picker.tsx';
 export {
   segmentItem,
   segmentText,
