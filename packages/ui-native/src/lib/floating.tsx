@@ -1,11 +1,16 @@
+import * as PopoverPrimitive from '@rn-primitives/popover';
 import {
+  cloneElement,
   createContext,
+  isValidElement,
   useContext,
   useEffect,
   useRef,
+  type ReactElement,
   type ReactNode,
   type RefObject,
 } from 'react';
+import type { View as RNView } from 'react-native';
 import { Platform } from 'react-native';
 import { View } from 'react-native-css/components';
 import Animated from 'react-native-reanimated';
@@ -116,3 +121,40 @@ export function FloatingSurface({
 
 /** Whether this is the web, where Radix positions and dismisses the content. */
 export const WEB = Platform.OS === 'web';
+
+type NativeRoot = {
+  onOpenChange: (open: boolean) => void;
+  setTriggerPosition?: (position: {
+    width: number;
+    height: number;
+    pageX: number;
+    pageY: number;
+  }) => void;
+};
+
+/**
+ * The control, opened by a long press: measured the way the primitive's own
+ * trigger measures, while a press still does what the control does.
+ */
+export function LongPressTrigger({ children }: { children: ReactElement }): React.JSX.Element {
+  const root = PopoverPrimitive.useRootContext() as unknown as NativeRoot;
+  const handle = useTriggerHandle();
+  const node = useRef<RNView | null>(null);
+  const show = (): void => {
+    node.current?.measure((_x, _y, width, height, pageX, pageY) => {
+      root.setTriggerPosition?.({ width, height, pageX, pageY });
+      root.onOpenChange(true);
+    });
+  };
+  handle.current = {
+    open: show,
+    close: () => {
+      root.onOpenChange(false);
+    },
+  };
+  if (!isValidElement(children)) return <>{children}</>;
+  return cloneElement(children as ReactElement<{ onLongPress?: () => void; ref?: unknown }>, {
+    ref: node,
+    onLongPress: show,
+  });
+}

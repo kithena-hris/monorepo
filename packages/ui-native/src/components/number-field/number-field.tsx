@@ -87,36 +87,37 @@ export function NumberField({
   const inert = disabled || readOnly;
 
   // A value to read has nothing to step, and its unit reads as part of it.
-  const steppers = hideSteppers || readOnly ? null : (
-    <View className="-mr-1.5 flex-row gap-0.5">
-      <Button
-        variant="ghost"
-        size="xs"
-        startIcon={<Icon icon={Minus} />}
-        accessibilityLabel={`Decrease ${label}`}
-        disabled={inert || atMin}
-        onPress={() => {
-          stepBy(-1);
-        }}
-      />
-      <Button
-        variant="ghost"
-        size="xs"
-        startIcon={<Icon icon={Plus} />}
-        accessibilityLabel={`Increase ${label}`}
-        disabled={inert || atMax}
-        onPress={() => {
-          stepBy(1);
-        }}
-      />
-    </View>
-  );
+  const steppers =
+    hideSteppers || readOnly ? null : (
+      <View className="-mr-1.5 flex-row gap-0.5">
+        <Button
+          variant="ghost"
+          size="xs"
+          startIcon={<Icon icon={Minus} />}
+          accessibilityLabel={`Decrease ${label}`}
+          disabled={inert || atMin}
+          onPress={() => {
+            stepBy(-1);
+          }}
+        />
+        <Button
+          variant="ghost"
+          size="xs"
+          startIcon={<Icon icon={Plus} />}
+          accessibilityLabel={`Increase ${label}`}
+          disabled={inert || atMax}
+          onPress={() => {
+            stepBy(1);
+          }}
+        />
+      </View>
+    );
   const inlineUnit = readOnly && typeof suffix === 'string' && value !== null;
   const unit = inlineUnit ? null : typeof suffix === 'string' ? (
-      <CssText className="text-[17px] text-fg-muted">{suffix}</CssText>
-    ) : (
-      suffix
-    );
+    <CssText className="text-[17px] text-fg-muted">{suffix}</CssText>
+  ) : (
+    suffix
+  );
 
   return (
     <Field invalid={invalid || Boolean(error)} disabled={disabled} className={className}>

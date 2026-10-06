@@ -1,20 +1,18 @@
 import * as PopoverPrimitive from '@rn-primitives/popover';
 import * as TooltipPrimitive from '@rn-primitives/tooltip';
-import {
-  cloneElement,
-  isValidElement,
-  useRef,
-  useState,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
-import type { View as RNView } from 'react-native';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { styled } from 'react-native-css';
 import { View } from 'react-native-css/components';
 import Animated from 'react-native-reanimated';
 
 import { cn } from '../../lib/cn.ts';
-import { FloatingRoot, useTriggerHandle, WEB, type FloatingState } from '../../lib/floating.tsx';
+import {
+  FloatingRoot,
+  LongPressTrigger,
+  useTriggerHandle,
+  WEB,
+  type FloatingState,
+} from '../../lib/floating.tsx';
 import type { Side } from '../../lib/motion.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
 import { flatStyle, usePresence } from '../../lib/overlay.tsx';
@@ -144,33 +142,6 @@ function NativeTooltip({
   );
 }
 
-/**
- * The control, opened by a long press: measured the way the primitive's own
- * trigger measures, while a press still does what the control does.
- */
-function LongPressTrigger({ children }: { children: ReactElement }): React.JSX.Element {
-  const root = PopoverPrimitive.useRootContext() as unknown as NativeRoot;
-  const handle = useTriggerHandle();
-  const node = useRef<RNView | null>(null);
-  const show = (): void => {
-    node.current?.measure((_x, _y, width, height, pageX, pageY) => {
-      root.setTriggerPosition?.({ width, height, pageX, pageY });
-      root.onOpenChange(true);
-    });
-  };
-  handle.current = {
-    open: show,
-    close: () => {
-      root.onOpenChange(false);
-    },
-  };
-  if (!isValidElement(children)) return <>{children}</>;
-  return cloneElement(children as ReactElement<{ onLongPress?: () => void; ref?: unknown }>, {
-    ref: node,
-    onLongPress: show,
-  });
-}
-
 function NativeBubble({
   side,
   shortcut,
@@ -211,16 +182,6 @@ function NativeBubble({
     </PopoverPrimitive.Portal>
   );
 }
-
-type NativeRoot = {
-  onOpenChange: (open: boolean) => void;
-  setTriggerPosition?: (position: {
-    width: number;
-    height: number;
-    pageX: number;
-    pageY: number;
-  }) => void;
-};
 
 const ARROW = 10;
 

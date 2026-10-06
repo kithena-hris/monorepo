@@ -36,7 +36,16 @@ export {
   useTriggerHandle,
   type FloatingState,
   type TriggerHandle,
+  LongPressTrigger,
 } from './lib/floating.tsx';
+export {
+  menuRowClass,
+  MenuHeading,
+  MenuRowContent,
+  MenuSeparator,
+  menuSurface,
+  type MenuRowContentProps,
+} from './lib/menu.tsx';
 
 export {
   Avatar,
@@ -102,6 +111,20 @@ export {
   useField,
   type FieldProps,
 } from './components/field/field.tsx';
+export {
+  CoachMark,
+  CoachMarkDot,
+  type CoachMarkProps,
+} from './components/coach-mark/coach-mark.tsx';
+export {
+  HoverCard,
+  HoverCardAction,
+  HoverCardContent,
+  HoverCardTrigger,
+  type HoverCardActionProps,
+  type HoverCardContentProps,
+  type HoverCardProps,
+} from './components/hover-card/hover-card.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   FieldBox,

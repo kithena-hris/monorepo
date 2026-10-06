@@ -35,8 +35,9 @@ export function Stage({
         <View className="h-20 rounded-[14px] bg-surface" />
         <View className="h-20 rounded-[14px] bg-surface" />
       </View>
-      <OverlayHost name={host} />
       {children(host)}
+      {/* Last, so what opens in it draws over anything the story placed on the page. */}
+      <OverlayHost name={host} />
     </View>
   );
 }
@@ -247,7 +248,7 @@ export function StandInKeyValues({
             i < pairs.length - 1 && 'border-b border-border',
           )}
         >
-          <Text variant="callout" tone="muted">
+          <Text variant="callout" tone="muted" className="shrink-0">
             {key}
           </Text>
           <Text variant="callout" weight="medium" className="shrink text-right">

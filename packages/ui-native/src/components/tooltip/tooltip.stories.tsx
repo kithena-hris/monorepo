@@ -55,7 +55,7 @@ export const OnAnIconButton: Story = {
   name: 'On an icon-only control',
   args: { content: '', children: <View /> },
   render: () => (
-    <View className="items-start gap-4 pt-[88px] pl-10">
+    <View className="items-start gap-4 pt-16 pl-6">
       <Tooltip
         content="Notifications"
         defaultOpen
@@ -68,7 +68,7 @@ export const OnAnIconButton: Story = {
       >
         <Button startIcon={<Icon icon={Bell} />} accessibilityLabel="Notifications" />
       </Tooltip>
-      <Text variant="subhead" tone="muted" className="-ml-10 self-stretch leading-[1.5]">
+      <Text variant="subhead" tone="muted" className="-ml-6 self-stretch leading-[1.5]">
         The tooltip text matches the accessibility label. On a phone a long press opens it.
       </Text>
     </View>

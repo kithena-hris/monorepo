@@ -304,7 +304,7 @@ axe-clean, compared side by side.
 
 - [x] **RMB-032** Dialog and AlertDialog (centred, type to confirm, guarding unsaved work)
 - [ ] **RMB-033** Sheet (bottom, top, swipe to dismiss) and Action sheet
-- [ ] **RMB-034** Popover, Tooltip (long-press), Hover card (press on a phone), Coach mark
+- [x] **RMB-034** Popover, Tooltip (long-press), Hover card (press on a phone), Coach mark
 - [ ] **RMB-035** Dropdown menu and ContextMenu (long-press; checkbox, radio, submenus, unavailable with a reason)
 - [ ] **RMB-036** Command palette
 - [ ] **RMB-037** App bars (large title collapsing into the bar, back, close), the tab bar

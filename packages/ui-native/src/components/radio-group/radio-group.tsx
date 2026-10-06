@@ -9,12 +9,7 @@ import { cn } from '../../lib/cn.ts';
 import { flatStyle } from '../../lib/overlay.tsx';
 import { useField, fieldName } from '../field/field.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
-import {
-  segmentItem,
-  segmentText,
-  segmentTrack,
-  segmentTrackFull,
-} from '../toggle/toggle.tsx';
+import { segmentItem, segmentText, segmentTrack, segmentTrackFull } from '../toggle/toggle.tsx';
 
 const Root = styled(flatStyle(RadioGroupPrimitive.Root));
 const Item = styled(flatStyle(RadioGroupPrimitive.Item));
@@ -232,7 +227,9 @@ export function RadioCard({
           <RadioDot checked={checked} disabled={disabled} invalid={group.invalid} />
           <View className="min-w-0 flex-1">
             {typeof children === 'string' ? (
-              <CssText className="text-body font-semibold leading-[1.4] text-fg">{children}</CssText>
+              <CssText className="text-body font-semibold leading-[1.4] text-fg">
+                {children}
+              </CssText>
             ) : (
               children
             )}

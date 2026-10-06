@@ -152,12 +152,7 @@ export function Switch({
           {error ? <SwitchError>{error}</SwitchError> : null}
         </View>
       ) : null}
-      <SwitchTrack
-        checked={checked}
-        disabled={disabled}
-        invalid={invalid}
-        loading={loading}
-      />
+      <SwitchTrack checked={checked} disabled={disabled} invalid={invalid} loading={loading} />
     </Root>
   );
 }

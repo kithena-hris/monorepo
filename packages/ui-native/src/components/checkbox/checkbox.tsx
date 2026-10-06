@@ -66,11 +66,7 @@ export function CheckboxBox({
       )}
     >
       {on ? (
-        <Icon
-          icon={checked === 'indeterminate' ? Minus : Check}
-          size={18}
-          tone="on-accent"
-        />
+        <Icon icon={checked === 'indeterminate' ? Minus : Check} size={18} tone="on-accent" />
       ) : null}
       {focused ? (
         <View
@@ -164,4 +160,3 @@ export function Checkbox({
     </Root>
   );
 }
-
