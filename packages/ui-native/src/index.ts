@@ -179,6 +179,13 @@ export {
   type SkeletonProps,
 } from './components/feedback/feedback.tsx';
 export {
+  FileRow,
+  FileUploader,
+  type FileUploaderProps,
+  type UploadItem,
+  type UploadStatus,
+} from './components/file-uploader/file-uploader.tsx';
+export {
   Field,
   FieldControl,
   FieldDescription,

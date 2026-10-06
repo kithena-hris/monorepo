@@ -7,6 +7,7 @@ import {
   CurrencyField,
   AvatarUploader,
   Field,
+  FileUploader,
   FieldDescription,
   FieldError,
   FieldLabel,
@@ -32,6 +33,7 @@ import {
   Textarea,
   TimePicker,
   Toggle,
+  type UploadItem,
   ToggleGroup,
   ToggleGroupItem,
 } from '@reach/ui-native';
@@ -61,6 +63,7 @@ export function FormsGallery(): React.JSX.Element {
   const [start, setStart] = useState<string | null>('2026-10-14');
   const [time, setTime] = useState<string | null>('09:30');
   const [skills, setSkills] = useState<readonly string[]>(['React', 'TypeScript']);
+  const [files, setFiles] = useState<readonly UploadItem[]>([]);
   const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
@@ -169,6 +172,7 @@ export function FormsGallery(): React.JSX.Element {
       <AvatarUploader name="Priya Shah" pick={() => Promise.resolve([])} onPick={() => undefined} />
       <TagsInput label="Skills" value={skills} onChange={setSkills} placeholder="Add a skill" />
       <Dropzone pick={() => Promise.resolve([])} onFiles={() => undefined} />
+      <FileUploader value={files} onChange={setFiles} pick={() => Promise.resolve([])} />
     </Stack>
   );
 }
