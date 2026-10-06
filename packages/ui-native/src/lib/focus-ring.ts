@@ -22,7 +22,7 @@ export function useFocusRing(): {
         setFocused(true);
         return;
       }
-      const target = event.nativeEvent as { target?: Focusable };
+      const target = event.nativeEvent as unknown as { target?: Focusable };
       setFocused(target.target?.matches?.(':focus-visible') ?? true);
     },
     onBlur: () => {

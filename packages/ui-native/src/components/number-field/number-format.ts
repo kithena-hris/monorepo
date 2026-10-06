@@ -12,7 +12,11 @@ function separators(locale: string | undefined): { group: string; decimal: strin
 }
 
 /** `0.8` as `0,8` in German, `92000` as `92 000,00` in French with two places. */
-export function formatNumber(value: number | null, locale?: string, precision?: number): string {
+export function formatNumber(
+  value: number | null,
+  locale?: string,
+  precision?: number,
+): string {
   if (value === null) return '';
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: precision ?? 0,

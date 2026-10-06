@@ -111,8 +111,8 @@ export const PasteWorks: Story = {
     <Stack className="gap-3.5">
       <Live initial="Kx9-vR2m-Tq7w-Lp" autoFocus />
       <Text variant="subhead" tone="muted">
-        Pasted from your password manager. We never block paste: blocking it pushes people to weaker
-        passwords.
+        Pasted from your password manager. We never block paste: blocking it pushes people to
+        weaker passwords.
       </Text>
     </Stack>
   ),
