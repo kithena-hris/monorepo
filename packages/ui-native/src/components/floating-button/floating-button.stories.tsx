@@ -23,7 +23,7 @@ import { Icon } from '../icon/icon.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
 import { List, ListItem } from '../list-item/list-item.tsx';
 import { Text } from '../text/text.tsx';
-import { TabBar, type NavItem } from '../app-bar/app-bar.tsx';
+import { TabBar, type TabBarItem } from '../app-bar/app-bar.tsx';
 import { FloatingButton, SpeedDial, useCollapseOnScroll } from './floating-button.tsx';
 
 const meta = {
@@ -150,7 +150,7 @@ export const SpeedDialStory: Story = {
 };
 
 const REQUESTS = ['Vacation · 14–18 Oct', 'Sick · 2 Sep', 'Vacation · 5–9 Aug'];
-const TABS: NavItem[] = [
+const TABS: TabBarItem[] = [
   { key: 'home', label: 'Home', icon: House },
   { key: 'people', label: 'People', icon: Users },
   { key: 'pay', label: 'Pay', icon: Wallet },

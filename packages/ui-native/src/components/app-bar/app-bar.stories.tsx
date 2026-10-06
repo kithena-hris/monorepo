@@ -18,7 +18,7 @@ import {
   NavigationRail,
   SelectionBar,
   TabBar,
-  type NavItem,
+  type TabBarItem,
 } from './app-bar.tsx';
 
 const meta = {
@@ -149,7 +149,7 @@ export const GlassOnScroll: Story = {
   ),
 };
 
-const SECTIONS: NavItem[] = [
+const SECTIONS: TabBarItem[] = [
   { key: 'home', label: 'Home', icon: House },
   { key: 'people', label: 'People', icon: Users },
   { key: 'time-off', label: 'Time off', icon: Calendar },

@@ -115,7 +115,7 @@ export {
   type AppBarBack,
   type AppBarProps,
   type NavigationRailProps,
-  type NavItem,
+  type TabBarItem,
   type SelectionBarProps,
   type TabBarProps,
 } from './components/app-bar/app-bar.tsx';
@@ -622,6 +622,26 @@ export {
   type ContentsItem,
   type TableOfContentsProps,
 } from './components/tertiary-nav/tertiary-nav.tsx';
+export {
+  Breadcrumb,
+  BreadcrumbBack,
+  type BreadcrumbItem,
+  type BreadcrumbProps,
+} from './components/breadcrumb/breadcrumb.tsx';
+export {
+  Nav,
+  NavGroup,
+  NavItem,
+  type NavGroupProps,
+  type NavItemProps,
+} from './components/nav/nav.tsx';
+export {
+  filterNavGroups,
+  GroupedNav,
+  type GroupedNavGroup,
+  type GroupedNavItem,
+  type GroupedNavProps,
+} from './components/nav/grouped-nav.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export { Tooltip, type TooltipProps } from './components/tooltip/tooltip.tsx';
 export {
