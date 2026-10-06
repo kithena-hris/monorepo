@@ -9,6 +9,7 @@ import { cn } from '../../lib/cn.ts';
 import { physics } from '../../lib/motion.ts';
 import { useReducedMotion } from '../../provider.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
+import { segmentItem, segmentText, segmentTrack, segmentTrackFull } from '../toggle/toggle.tsx';
 
 /*
  * Two to five views of the same content, one always on, as the web's: a radio
@@ -112,11 +113,8 @@ export function SegmentedControl({
       <View
         role="radiogroup"
         {...(accessibilityLabel ? { 'aria-label': accessibilityLabel } : {})}
-        className={cn(
-          'flex-row items-center gap-0.5 rounded-full bg-surface-sunken p-[3px]',
-          fullWidth && 'self-stretch',
-          className,
-        )}
+        // One segmented look with ToggleGroup and a horizontal RadioGroup.
+        className={cn(segmentTrack, 'items-center', fullWidth && segmentTrackFull, className)}
       >
         {slot ? (
           // The slide on a bare Animated.View, the surface on a view inside it (RMB-001).
@@ -172,25 +170,21 @@ export function SegmentedControlItem({
         const { x, width } = e.nativeEvent.layout;
         state.place(value, { x, width });
       }}
-      style={
-        iconOnly ? { height: h, width: h } : { height: h, paddingHorizontal: Math.round(h * 0.42) }
-      }
+      // The fill is the sliding thumb's, so the segment itself is drawn off.
       className={cn(
-        'flex-row items-center justify-center gap-1.5 rounded-full',
-        state.fullWidth && 'flex-1',
+        segmentItem({
+          on: false,
+          size: state.size === 'sm' ? 'sm' : 'md',
+          iconOnly,
+          fullWidth: state.fullWidth,
+        }),
         disabled && 'opacity-45',
         className,
       )}
     >
       {icon ? <Icon icon={icon} size={16} tone={on ? 'default' : 'muted'} /> : null}
       {children ? (
-        <CssText
-          numberOfLines={1}
-          className={cn(
-            'text-subhead font-semibold leading-none',
-            on ? 'text-fg' : 'text-fg-muted',
-          )}
-        >
+        <CssText numberOfLines={1} className={cn(segmentText(on), 'leading-none')}>
           {children}
         </CssText>
       ) : null}
