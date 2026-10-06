@@ -1,3 +1,6 @@
+import { Calendar, House, Info, Pencil, Search, Trash2, User, Users } from 'lucide-react-native';
+import { useState } from 'react';
+
 import {
   ActionSheet,
   ActionSheetContent,
@@ -12,6 +15,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AppBar,
+  CommandPalette,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Icon,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  TabBar,
+  Tooltip,
   Button,
   Dialog,
   DialogClose,
@@ -36,8 +55,11 @@ import {
  * provider's host, slide and drag natively, and answer the back button.
  */
 export function OverlayGallery(): React.JSX.Element {
+  const [section, setSection] = useState('people');
+  const [searching, setSearching] = useState(false);
   return (
     <Stack gap={2}>
+      <AppBar title="Priya Shah" back={{ label: 'People', onPress: () => undefined }} scrolled />
       <Text variant="headline">Overlays</Text>
       <Inline gap={2}>
         <Dialog>
@@ -103,7 +125,66 @@ export function OverlayGallery(): React.JSX.Element {
             <ActionSheetItem destructive>Delete request</ActionSheetItem>
           </ActionSheetContent>
         </ActionSheet>
+        <Popover>
+          <PopoverTrigger>
+            <Button>Popover</Button>
+          </PopoverTrigger>
+          <PopoverContent label="Working hours" className="w-[260px]">
+            <Text>Mon–Fri, 9:00–17:30 CET</Text>
+          </PopoverContent>
+        </Popover>
+
+        <Tooltip content="Search">
+          <Button
+            startIcon={<Icon icon={Search} />}
+            accessibilityLabel="Search"
+            onPress={() => {
+              setSearching(true);
+            }}
+          />
+        </Tooltip>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Button>Menu</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent label="Request actions">
+            <DropdownMenuItem icon={Pencil}>Edit request</DropdownMenuItem>
+            <DropdownMenuItem icon={Trash2} destructive>
+              Delete request
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </Inline>
+
+      <ContextMenu>
+        <ContextMenuTrigger>
+          <Button startIcon={<Icon icon={Info} />}>Long-press me</Button>
+        </ContextMenuTrigger>
+        <ContextMenuContent label="Actions">
+          <ContextMenuItem icon={Pencil}>Rename</ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <TabBar
+        items={[
+          { key: 'home', label: 'Home', icon: House },
+          { key: 'people', label: 'People', icon: Users },
+          { key: 'time-off', label: 'Time off', icon: Calendar, badge: 3 },
+          { key: 'me', label: 'Me', icon: User },
+        ]}
+        value={section}
+        onValueChange={setSection}
+      />
+
+      <CommandPalette
+        open={searching}
+        onOpenChange={setSearching}
+        items={[
+          { id: 'time-off', label: 'Request time off', icon: Calendar, group: 'Actions' },
+          { id: 'people', label: 'People', icon: Users, group: 'Go to' },
+        ]}
+      />
     </Stack>
   );
 }

@@ -106,6 +106,20 @@ export {
   type ActionSheetProps,
 } from './components/action-sheet/action-sheet.tsx';
 export {
+  AppBar,
+  LargeTitle,
+  NavigationRail,
+  SelectionBar,
+  TabBar,
+  useAppBarScroll,
+  type AppBarBack,
+  type AppBarProps,
+  type NavigationRailProps,
+  type NavItem,
+  type SelectionBarProps,
+  type TabBarProps,
+} from './components/app-bar/app-bar.tsx';
+export {
   AlertDialog,
   AlertDialogAction,
   AlertDialogBody,

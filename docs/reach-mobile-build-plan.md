@@ -307,7 +307,7 @@ axe-clean, compared side by side.
 - [x] **RMB-034** Popover, Tooltip (long-press), Hover card (press on a phone), Coach mark
 - [x] **RMB-035** Dropdown menu and ContextMenu (long-press; checkbox, radio, submenus, unavailable with a reason)
 - [x] **RMB-036** Command palette
-- [ ] **RMB-037** App bars (large title collapsing into the bar, back, close), the tab bar
+- [x] **RMB-037** App bars (large title collapsing into the bar, back, close), the tab bar
 - [ ] **RMB-038** Tabs, Tertiary navigation, Segmented-as-tabs
 - [ ] **RMB-039** Nav, Grouped navigation
 - [ ] **RMB-040** Breadcrumb (collapsing to the back link), Stepper (progress bar with "2 of 3" on a phone, dots)
