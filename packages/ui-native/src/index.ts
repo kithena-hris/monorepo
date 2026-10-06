@@ -642,6 +642,14 @@ export {
   type GroupedNavItem,
   type GroupedNavProps,
 } from './components/nav/grouped-nav.tsx';
+export {
+  Stepper,
+  StepperDots,
+  StepperProgress,
+  type StepperProps,
+  type StepperStep,
+  type StepStatus,
+} from './components/stepper/stepper.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export { Tooltip, type TooltipProps } from './components/tooltip/tooltip.tsx';
 export {

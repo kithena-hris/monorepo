@@ -34,6 +34,8 @@ export type BreadcrumbItem = {
    * `DropdownMenuContent` (items, radio items, checkbox items).
    */
   menu?: ReactNode;
+  /** The menu starts open. */
+  defaultMenuOpen?: boolean;
 };
 
 export type BreadcrumbProps = {
@@ -46,12 +48,14 @@ export type BreadcrumbProps = {
   maxItems?: number;
   /** Names the landmark. */
   label?: string;
+  /** Draw the menus in the `OverlayHost` of this name instead of the root one. */
+  portalHost?: string;
   className?: string | undefined;
 };
 
 function Separator({ kind }: { kind: 'chevron' | 'slash' | 'dot' }): React.JSX.Element {
   return kind === 'chevron' ? (
-    <Icon icon={ChevronRight} size={14} tone="subtle" />
+    <Icon icon={ChevronRight} size={14} tone="subtle" className="shrink-0" />
   ) : (
     <Text variant="subhead" tone="subtle" aria-hidden>
       {kind === 'slash' ? '/' : '·'}
@@ -62,7 +66,15 @@ function Separator({ kind }: { kind: 'chevron' | 'slash' | 'dot' }): React.JSX.E
 const link =
   'rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus';
 
-function Crumb({ item, last }: { item: BreadcrumbItem; last: boolean }): React.JSX.Element {
+function Crumb({
+  item,
+  last,
+  host,
+}: {
+  item: BreadcrumbItem;
+  last: boolean;
+  host: { portalHost?: string };
+}): React.JSX.Element {
   const label = (
     <>
       {item.icon ? <Icon icon={item.icon} size={14} tone={last ? 'default' : 'muted'} /> : null}
@@ -79,7 +91,7 @@ function Crumb({ item, last }: { item: BreadcrumbItem; last: boolean }): React.J
   );
   if (item.menu) {
     return (
-      <DropdownMenu>
+      <DropdownMenu defaultOpen={item.defaultMenuOpen ?? false}>
         <DropdownMenuTrigger>
           <Pressable
             accessibilityRole="button"
@@ -93,7 +105,9 @@ function Crumb({ item, last }: { item: BreadcrumbItem; last: boolean }): React.J
             <Icon icon={ChevronsUpDown} size={13} tone="muted" />
           </Pressable>
         </DropdownMenuTrigger>
-        <DropdownMenuContent label={item.label}>{item.menu}</DropdownMenuContent>
+        <DropdownMenuContent label={item.label} {...host}>
+          {item.menu}
+        </DropdownMenuContent>
       </DropdownMenu>
     );
   }
@@ -119,7 +133,13 @@ function Crumb({ item, last }: { item: BreadcrumbItem; last: boolean }): React.J
 }
 
 /** The folded middle: "…", which opens the items it hides. */
-function Folded({ items }: { items: readonly BreadcrumbItem[] }): React.JSX.Element {
+function Folded({
+  items,
+  host,
+}: {
+  items: readonly BreadcrumbItem[];
+  host: { portalHost?: string };
+}): React.JSX.Element {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>
@@ -134,7 +154,7 @@ function Folded({ items }: { items: readonly BreadcrumbItem[] }): React.JSX.Elem
           <Icon icon={Ellipsis} size={15} tone="muted" />
         </Pressable>
       </DropdownMenuTrigger>
-      <DropdownMenuContent label="Hidden levels">
+      <DropdownMenuContent label="Hidden levels" {...host}>
         {items.map((item) => (
           <DropdownMenuItem
             key={item.label}
@@ -154,6 +174,7 @@ export function Breadcrumb({
   separator = 'chevron',
   maxItems,
   label = 'Breadcrumb',
+  portalHost,
   className,
 }: BreadcrumbProps): React.JSX.Element {
   const keep = maxItems === undefined ? items.length : Math.max(3, maxItems);
@@ -162,6 +183,7 @@ export function Breadcrumb({
   const shown: readonly (BreadcrumbItem | 'folded')[] = fold
     ? [items[0] as BreadcrumbItem, 'folded', ...tail]
     : items;
+  const host = portalHost === undefined ? {} : { portalHost };
   const hidden = fold ? items.slice(1, items.length - (keep - 2)) : [];
   return (
     <View
@@ -172,7 +194,11 @@ export function Breadcrumb({
         const last = index === shown.length - 1;
         return (
           <Fragment key={item === 'folded' ? '…' : `${item.label}-${String(index)}`}>
-            {item === 'folded' ? <Folded items={hidden} /> : <Crumb item={item} last={last} />}
+            {item === 'folded' ? (
+              <Folded items={hidden} host={host} />
+            ) : (
+              <Crumb item={item} last={last} host={host} />
+            )}
             {last ? null : <Separator kind={separator} />}
           </Fragment>
         );
