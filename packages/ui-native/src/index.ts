@@ -46,6 +46,16 @@ export {
   type ChipGroupProps,
   type ChipProps,
 } from './components/chip/chip.tsx';
+export {
+  CopyButton,
+  CopyField,
+  useClipboard,
+  type ClipboardStatus,
+  type CopyButtonProps,
+  type CopyFieldProps,
+  type UseClipboardOptions,
+  type UseClipboardResult,
+} from './components/clipboard/clipboard.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   AutoGrid,

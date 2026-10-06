@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@reach/ui-native": "workspace:*",
-    "expo-clipboard": "~57.0.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-native": "0.86.3",

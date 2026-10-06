@@ -6,10 +6,15 @@ import {
   Card,
   CardDescription,
   CardTitle,
+  ChipGroup,
+  ChipGroupItem,
+  CopyField,
   Icon,
   Inline,
   ReachLogo,
   ReachProvider,
+  SegmentedControl,
+  SegmentedControlItem,
   Separator,
   Spinner,
   Stack,
@@ -108,6 +113,22 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             Engineering
           </Badge>
         </Inline>
+
+        <ChipGroup type="multiple" defaultValue={['Engineering']} accessibilityLabel="Teams">
+          {['All', 'Engineering', 'Design', 'Sales'].map((team) => (
+            <ChipGroupItem key={team} value={team}>
+              {team}
+            </ChipGroupItem>
+          ))}
+        </ChipGroup>
+
+        <SegmentedControl defaultValue="week" fullWidth accessibilityLabel="Period">
+          <SegmentedControlItem value="day">Day</SegmentedControlItem>
+          <SegmentedControlItem value="week">Week</SegmentedControlItem>
+          <SegmentedControlItem value="month">Month</SegmentedControlItem>
+        </SegmentedControl>
+
+        <CopyField label="Employee ID" value="RCH-00412" mono />
 
         <Card>
           <CardTitle>Approve 5 days off?</CardTitle>

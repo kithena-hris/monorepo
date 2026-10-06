@@ -168,8 +168,10 @@ function Which({
   return (
     <Card className="items-start gap-2 p-3.5">
       {example}
-      <Text weight="semibold">{title}</Text>
-      <Text variant="subhead" tone="muted">
+      <Text weight="semibold" className="leading-[1.4]">
+        {title}
+      </Text>
+      <Text variant="subhead" tone="muted" className="leading-[1.5]">
         {description}
       </Text>
     </Card>

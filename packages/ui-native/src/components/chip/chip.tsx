@@ -84,8 +84,12 @@ function Content({
       {tick && !icon && !startIcon ? <Icon icon={Check} size={14} tone={ink.icon} /> : null}
       {startIcon}
       {icon ? <Icon icon={icon} size={14} tone={ink.icon} /> : null}
+      {field ? (
+        <CssText numberOfLines={1} className="text-subhead font-medium leading-none text-fg-muted">
+          {field}
+        </CssText>
+      ) : null}
       <CssText numberOfLines={1} className={cn('text-subhead font-medium leading-none', ink.text)}>
-        {field ? <CssText className="text-fg-muted">{field} </CssText> : null}
         {children}
       </CssText>
     </>

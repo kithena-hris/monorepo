@@ -283,7 +283,7 @@ axe-clean, compared side by side.
 
 ### Lane B — actions, display, feedback
 
-- [ ] **RMB-022** Chip, Segmented control, Clipboard (`useClipboard`)
+- [x] **RMB-022** Chip, Segmented control, Clipboard (`useClipboard`)
 - [ ] **RMB-023** Floating button
 - [ ] **RMB-024** Kbd (shown, and hidden on touch), List item
 - [ ] **RMB-025** Timeline (effective dating, approval chains), Carousel
