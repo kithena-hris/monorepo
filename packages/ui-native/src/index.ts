@@ -27,6 +27,14 @@ export {
 export { animateTo, useLayoutTransition, useMotion, usePress, type Press } from './lib/animate.ts';
 export { OverlayHost, type OverlayHostProps } from './lib/overlay-host.tsx';
 export { usePresence } from './lib/overlay.tsx';
+export {
+  FloatingRoot,
+  FloatingSurface,
+  floatingSurface,
+  useTriggerHandle,
+  type FloatingState,
+  type TriggerHandle,
+} from './lib/floating.tsx';
 
 export {
   Avatar,
@@ -91,6 +99,15 @@ export {
   type SplitProps,
   type StackProps,
 } from './components/layout/layout.tsx';
+export {
+  Popover,
+  PopoverAnchor,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+  type PopoverContentProps,
+  type PopoverProps,
+} from './components/popover/popover.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export {
   Sheet,
@@ -107,6 +124,7 @@ export {
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
+export { Tooltip, type TooltipProps } from './components/tooltip/tooltip.tsx';
 export {
   ReachLogo,
   ReachMark,

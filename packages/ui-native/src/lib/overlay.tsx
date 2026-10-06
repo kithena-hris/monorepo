@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Platform, StyleSheet, type StyleProp } from 'react-native';
 import {
   useAnimatedStyle,
@@ -33,6 +33,14 @@ type Presence = {
 export function usePresence(open: boolean, side: Side = 'bottom'): Presence {
   const { popoverIn, popoverOut } = useMotion();
   const [mounted, setMounted] = useState(open);
+  // Read when an exit finishes: an overlay reopened while it was leaving, or
+  // one that mounted closed and then opened before its first (empty) exit
+  // ended, stays.
+  const isOpen = useRef(open);
+  isOpen.current = open;
+  const finish = useCallback(() => {
+    if (!isOpen.current) setMounted(false);
+  }, []);
   const opacity = useSharedValue(0);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -62,13 +70,13 @@ export function usePresence(open: boolean, side: Side = 'bottom'): Presence {
         key === 'opacity'
           ? (finished) => {
               'worklet';
-              if (finished) scheduleOnRN(setMounted, false);
+              if (finished) scheduleOnRN(finish);
             }
           : undefined,
       );
     }
     // The shared values are stable; the presets change only with reduced motion.
-  }, [open, side, popoverIn, popoverOut, opacity, translateX, translateY, scale]);
+  }, [open, side, popoverIn, popoverOut, opacity, translateX, translateY, scale, finish]);
 
   // Clamped: a spring in, or an exit easing that dips, would pass through 0 and 1.
   const style = useAnimatedStyle(() => ({
@@ -167,4 +175,25 @@ export function quietFrame(node: unknown): void {
   if (Platform.OS !== 'web' || !node) return;
   const parent = (node as FramedNode).parentElement;
   if (parent) parent.style.outline = 'none';
+}
+
+type LabelledNode = {
+  parentElement: {
+    style: { outline: string };
+    setAttribute(name: string, value: string): void;
+  } | null;
+};
+
+/**
+ * `quietFrame`, and on the web the accessible name on Radix's own element,
+ * which carries the role: a name given to the content view inside it would
+ * name nothing. On a device the content view is the element, and takes
+ * `accessibilityLabel` directly.
+ */
+export function labelledFrame(label: string | undefined): (node: unknown) => void {
+  return (node) => {
+    quietFrame(node);
+    if (Platform.OS !== 'web' || !node || !label) return;
+    (node as LabelledNode).parentElement?.setAttribute('aria-label', label);
+  };
 }

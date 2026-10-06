@@ -128,6 +128,11 @@ export type ButtonProps = ButtonVariants & {
   className?: string | undefined;
   /** The pressable view: an overlay trigger measures it and returns focus to it. */
   ref?: Ref<RNView>;
+  /**
+   * A press held past the long-press delay, instead of `onPress`: on a phone,
+   * how a tooltip or a preview opens.
+   */
+  onLongPress?: () => void;
 };
 
 /** What a button needs of its icon: a size and a tone it can set. */
@@ -163,6 +168,11 @@ export function Button({
   accessibilityLabel,
   className,
   ref,
+  onLongPress,
+  // An overlay's trigger (`asChild`) hands its button ARIA state and, on the
+  // web, Radix's pointer, focus and key handlers: the menu's `aria-expanded`,
+  // the tooltip's hover. They reach the pressable unchanged.
+  ...trigger
 }: ButtonProps): React.JSX.Element {
   const press = usePress();
   const v = variant ?? 'secondary';
@@ -174,7 +184,9 @@ export function Button({
 
   return (
     <Pressable
+      {...trigger}
       ref={ref}
+      {...(onLongPress ? { onLongPress } : {})}
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={accessibilityLabel ?? children}
       accessibilityState={{ disabled: inert, busy: loading }}
