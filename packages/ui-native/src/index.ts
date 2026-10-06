@@ -265,6 +265,14 @@ export {
   type DropdownMenuProps,
   type DropdownMenuRadioItemProps,
 } from './components/dropdown-menu/dropdown-menu.tsx';
+export {
+  Command,
+  CommandPalette,
+  filterCommands,
+  type CommandItem,
+  type CommandPaletteProps,
+  type CommandProps,
+} from './components/command-palette/command-palette.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   FieldBox,
