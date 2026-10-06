@@ -3,10 +3,10 @@ import { Platform } from 'react-native';
 import { Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { usePlatform } from '../../provider.tsx';
 
 /**
- * A keyboard key, as the web's: `mod` is ⌘ on Apple platforms and Ctrl
- * elsewhere, and a named key is read by its name, since "⌘" is read as
+ * A keyboard key, as the web's: `mod` is ⌘ on iOS and Ctrl on Android, and a named key is read by its name, since "⌘" is read as
  * nothing at all.
  *
  * A phone has no keyboard, so a shortcut is usually left out there. When the
@@ -82,14 +82,6 @@ const isName = (key: string): key is KeyName => NAMES.has(key);
 const WEB = Platform.OS === 'web';
 
 type Media = { matchMedia?: (query: string) => { matches: boolean } };
-type Agent = { navigator?: { userAgent?: string } };
-
-function apple(): boolean {
-  if (Platform.OS === 'ios') return true;
-  if (!WEB) return false;
-  const agent = (globalThis as Agent).navigator?.userAgent ?? '';
-  return /Mac|iPhone|iPad|iPod/.test(agent);
-}
 
 /**
  * Whether a keyboard is likely to hand: a fine pointer on the web, an iPad on
@@ -129,9 +121,11 @@ export function Kbd({
   className,
 }: KbdProps): React.JSX.Element | null {
   const keyboard = useHasKeyboard();
+  // Apple's glyphs for iOS, the key's printed name for Android.
+  const apple = usePlatform() === 'ios';
   if (touch === 'hide' && !keyboard) return null;
   const named = isName(children);
-  const label = named ? (apple() ? glyph[children].apple : glyph[children].other) : children;
+  const label = named ? (apple ? glyph[children].apple : glyph[children].other) : children;
   const name = named ? spoken[children] : SYMBOLS[children];
   return (
     <View

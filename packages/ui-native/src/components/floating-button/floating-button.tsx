@@ -11,6 +11,7 @@ import { useLayoutTransition, usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
 import { flatStyle, InertOutside, usePresence } from '../../lib/overlay.tsx';
+import { usePlatform } from '../../provider.tsx';
 import { BackGuard } from '../dialog/dialog.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
 
@@ -74,6 +75,10 @@ export type FloatingButtonProps = {
   /** `primary` by default. Never a danger colour: nothing destructive floats. */
   variant?: Variant;
   size?: Size;
+  /**
+   * A circle on iOS, as the design draws it; a rounded square on Android,
+   * Material's floating action button. Set it to have one shape everywhere.
+   */
   shape?: 'circle' | 'rounded';
   /**
    * Folds the label away, leaving the icon: while the page scrolls down.
@@ -97,13 +102,15 @@ export function FloatingButton({
   onPress,
   variant = 'primary',
   size = 'md',
-  shape = 'circle',
+  shape: chosen,
   collapsed = false,
   accessibilityState,
   className,
 }: FloatingButtonProps): React.JSX.Element {
   const press = usePress();
   const layout = useLayoutTransition();
+  const platform = usePlatform();
+  const shape = chosen ?? (platform === 'android' ? 'rounded' : 'circle');
   const extended = Boolean(label) && !collapsed;
   const [text, tone] = ink[variant];
   const slop = Math.max(0, (TAP - SIDE[size]) / 2);

@@ -96,7 +96,7 @@ export const Shapes: Story = {
   render: () => (
     <Inline gap={6}>
       <Stack gap={2} align="center">
-        <FloatingButton accessibilityLabel="New request" />
+        <FloatingButton shape="circle" accessibilityLabel="New request" />
         <Caption>Circle · default</Caption>
       </Stack>
       <Stack gap={2} align="center">
