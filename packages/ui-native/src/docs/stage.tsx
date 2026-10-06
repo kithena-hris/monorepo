@@ -19,8 +19,9 @@ export function Stage({
   children,
 }: {
   height?: number;
-  trigger?: ReactNode;
-  children: (host: string) => ReactNode;
+  /** The page's first line. A function receives the host's name, for a control that opens its own overlay. */
+  trigger?: ReactNode | ((host: string) => ReactNode);
+  children?: (host: string) => ReactNode;
 }): React.JSX.Element {
   const host = useId();
   return (
@@ -29,13 +30,15 @@ export function Stage({
       style={{ height }}
     >
       <View className="gap-3 p-5">
-        {trigger ?? <View className="h-[18px] w-2/5 rounded-[6px] bg-surface-active" />}
+        {(typeof trigger === 'function' ? trigger(host) : trigger) ?? (
+          <View className="h-[18px] w-2/5 rounded-[6px] bg-surface-active" />
+        )}
         <View className="h-2.5 w-[70%] rounded-[5px] bg-surface-sunken" />
         <View className="h-20 rounded-[14px] bg-surface" />
         <View className="h-20 rounded-[14px] bg-surface" />
         <View className="h-20 rounded-[14px] bg-surface" />
       </View>
-      {children(host)}
+      {children?.(host)}
       {/* Last, so what opens in it draws over anything the story placed on the page. */}
       <OverlayHost name={host} />
     </View>

@@ -277,15 +277,15 @@ axe-clean, compared side by side.
 - [x] **RMB-010** Field (label, hint, error, caution, sensitive, optional, read-only), Input, Textarea
 - [x] **RMB-011** NumberField (null is not zero, locale decimals), PasswordField (paste allowed), PinInput
 - [x] **RMB-012** Checkbox, RadioGroup (cards, horizontal → segmented), Switch (committing, failing), Toggle
-- [ ] **RMB-013** Select and Combobox (single, multiple, grouped, avatars, server search), as centred lists
-- [ ] **RMB-014** TagsInput (escaping, limits), Rating (meanings, average)
+- [x] **RMB-013** Select and Combobox (single, multiple, grouped, avatars, server search), as centred lists
+- [x] **RMB-014** TagsInput (escaping, limits), Rating (meanings, average)
 - [x] **RMB-015** Slider (range, steps, paired, vertical)
-- [ ] **RMB-016** Calendar (range, blocked days, marks, locales), DatePicker, TimePicker
+- [x] **RMB-016** Calendar (range, blocked days, marks, locales), DatePicker, TimePicker
 - [x] **RMB-017** Typed fields (email, URL, phone, money, percent, date, time, duration, IBAN, postcode, each with its keyboard)
-- [ ] **RMB-018** ImageUploader, AvatarUploader (shapes, in-flight, refused), Dropzone (on a phone, a picker)
-- [ ] **RMB-019** FileUploader (progress, retry, refusal reasons, hostile names)
-- [ ] **RMB-020** RichTextEditor (TenTap; stores the same HTML the web editor does)
-- [ ] **RMB-021** Form sections
+- [x] **RMB-018** ImageUploader, AvatarUploader (shapes, in-flight, refused), Dropzone (on a phone, a picker)
+- [x] **RMB-019** FileUploader (progress, retry, refusal reasons, hostile names)
+- [x] **RMB-020** RichTextEditor (TenTap; stores the same HTML the web editor does)
+- [x] **RMB-021** Form sections
 
 ### Lane B — actions, display, feedback
 

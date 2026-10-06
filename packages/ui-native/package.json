@@ -16,6 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@10play/tentap-editor": "1.0.1",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@reach/ui": "workspace:*",
     "@rn-primitives/accordion": "^1.5.2",
@@ -33,6 +34,11 @@
     "@rn-primitives/toggle": "^1.5.2",
     "@rn-primitives/toggle-group": "^1.5.2",
     "@rn-primitives/tooltip": "^1.5.2",
+    "@tiptap/extension-text-align": "^3.31.3",
+    "@tiptap/extensions": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react-native": "^1.52.0",
@@ -48,6 +54,7 @@
     "react-native-reanimated": "^4.5.1",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-svg": "^15.15.4",
+    "react-native-webview": "^13.16.1",
     "react-native-worklets": "^0.10.1",
     "tailwindcss": "^4.3.3"
   },
@@ -63,6 +70,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "0.21.3",
+    "react-native-webview": "13.16.1",
     "react-native-worklets": "0.10.1",
     "storybook": "10.6.1",
     "tailwindcss": "^4.3.3",

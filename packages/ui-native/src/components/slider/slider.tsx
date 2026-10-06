@@ -77,8 +77,7 @@ export function Slider({
     return Math.min(max, Math.max(min, Number(stepped.toFixed(10))));
   };
   const pct = (v: number): number => (span === 0 ? 0 : ((v - min) / span) * 100);
-  const format = (v: number): string =>
-    typeof tip === 'function' ? tip(v) : String(v);
+  const format = (v: number): string => (typeof tip === 'function' ? tip(v) : String(v));
 
   /** Moves thumb `i` to `v`, keeping a range's thumbs in order. */
   const move = (i: number, v: number): number[] => {
@@ -183,7 +182,10 @@ export function Slider({
               percent={pct(v)}
               vertical={vertical}
               disabled={disabled}
-              label={thumbLabels?.[i] ?? (value.length > 1 ? `${label}, ${i === 0 ? 'minimum' : 'maximum'}` : label)}
+              label={
+                thumbLabels?.[i] ??
+                (value.length > 1 ? `${label}, ${i === 0 ? 'minimum' : 'maximum'}` : label)
+              }
               min={min}
               max={max}
               text={format(v)}

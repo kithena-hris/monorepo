@@ -8,7 +8,7 @@ import { animateTo } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { physics, springs } from '../../lib/motion.ts';
 import { flatStyle } from '../../lib/overlay.tsx';
-import { useReducedMotion } from '../../provider.tsx';
+import { usePlatform, useReducedMotion } from '../../provider.tsx';
 import { fieldHint, fieldName, useField } from '../field/field.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
 
@@ -16,6 +16,11 @@ const Root = styled(flatStyle(SwitchPrimitive.Root));
 
 /** The iOS switch: a 51 × 31 track, a 27pt thumb 2pt in from either end. */
 const TRAVEL = 51 - 27 - 4;
+/**
+ * Material 3's on Android: a 52 × 32 track, outlined while off, the thumb
+ * growing from 16 to 24 as it crosses to the end. Its centre travels 16 → 36.
+ */
+const M3_TRAVEL = 20;
 /** The switch is 31 tall; `hitSlop` takes it to 44 without spacing a list apart. */
 const SLOP = { top: 7, bottom: 7, left: 4, right: 4 };
 
@@ -58,7 +63,9 @@ export function SwitchTrack({
   loading?: boolean;
 }): React.JSX.Element {
   const reduced = useReducedMotion();
-  const x = useSharedValue(checked ? TRAVEL : 0);
+  const android = usePlatform() === 'android';
+  const travel = android ? M3_TRAVEL : TRAVEL;
+  const x = useSharedValue(checked ? travel : 0);
   // The thumb is the one physical object in a switch, so it moves on the snap
   // spring; colour has no mass and simply changes. Reduced motion: it jumps.
   const mounted = useRef(false);
@@ -68,21 +75,49 @@ export function SwitchTrack({
       mounted.current = true;
       return;
     }
-    const to = checked ? TRAVEL : 0;
+    const to = checked ? travel : 0;
     x.value = reduced ? to : animateTo(to, physics(springs.snap));
-  }, [checked, reduced, x]);
+  }, [checked, reduced, x, travel]);
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  const on = checked
+    ? disabled
+      ? 'bg-surface-active'
+      : invalid
+        ? 'bg-danger'
+        : android
+          ? 'bg-accent-solid'
+          : 'bg-success'
+    : 'bg-surface-active';
+  if (android)
+    return (
+      <View
+        className={cn(
+          'h-8 w-[52px] justify-center rounded-full',
+          on,
+          !checked && 'border-2 border-fg-muted',
+          disabled && 'opacity-50',
+        )}
+      >
+        {/* A 32pt cell whose centre is the thumb's; the border is inside it while off. */}
+        <Animated.View style={[{ position: 'absolute', left: checked ? 0 : -2 }, thumb]}>
+          <View className="size-8 items-center justify-center">
+            <View
+              className={cn(
+                'items-center justify-center rounded-full',
+                checked || loading ? 'size-6 bg-white' : 'size-4 bg-fg-muted',
+              )}
+            >
+              {loading ? <Spinner size={16} decorative /> : null}
+            </View>
+          </View>
+        </Animated.View>
+      </View>
+    );
   return (
     <View
       className={cn(
         'h-[31px] w-[51px] justify-center rounded-full px-0.5',
-        checked
-          ? disabled
-            ? 'bg-surface-active'
-            : invalid
-              ? 'bg-danger'
-              : 'bg-success'
-          : 'bg-surface-active',
+        on,
         disabled && 'opacity-50',
       )}
     >
@@ -152,12 +187,7 @@ export function Switch({
           {error ? <SwitchError>{error}</SwitchError> : null}
         </View>
       ) : null}
-      <SwitchTrack
-        checked={checked}
-        disabled={disabled}
-        invalid={invalid}
-        loading={loading}
-      />
+      <SwitchTrack checked={checked} disabled={disabled} invalid={invalid} loading={loading} />
     </Root>
   );
 }

@@ -51,13 +51,17 @@ export const WithConsequencesSpelledOut: Story = {
         value="keep"
         description="Their profile stays read-only in the directory for 7 years."
       >
-        <Text weight="semibold" className="leading-[1.4]">Keep their data</Text>
+        <Text weight="semibold" className="leading-[1.4]">
+          Keep their data
+        </Text>
       </RadioGroupItem>
       <RadioGroupItem
         value="anonymise"
         description="Their name is replaced with an ID. This can’t be undone."
       >
-        <Text weight="semibold" className="leading-[1.4]">Anonymise their data</Text>
+        <Text weight="semibold" className="leading-[1.4]">
+          Anonymise their data
+        </Text>
       </RadioGroupItem>
     </Live>
   ),
