@@ -193,6 +193,13 @@ export {
   type RadioGroupItemProps,
   type RadioGroupProps,
 } from './components/radio-group/radio-group.tsx';
+export {
+  CircularProgress,
+  Progress,
+  type CircularProgressProps,
+  type ProgressProps,
+  type ProgressTone,
+} from './components/progress/progress.tsx';
 export { Reveal, Stagger, staggerDelay, type RevealProps } from './components/reveal/reveal.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export {

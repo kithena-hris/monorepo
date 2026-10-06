@@ -1,5 +1,8 @@
 import {
   Accordion,
+  Alert,
+  CircularProgress,
+  Progress,
   AccordionItem,
   Avatar,
   AvatarGroup,
@@ -155,6 +158,15 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             Search
           </ListItem>
         </List>
+
+        <Alert tone="warning" title="2 contracts expire soon">
+          Renew them before 12 Oct.
+        </Alert>
+
+        <Inline gap={4} wrap={false}>
+          <Progress value={64} label="Onboarding" valueLabel="7 of 11 tasks" className="flex-1" />
+          <CircularProgress value={null} size={40} label="Loading" />
+        </Inline>
 
         <Accordion type="single" defaultValue="personal">
           <AccordionItem value="personal" title="Personal details">
