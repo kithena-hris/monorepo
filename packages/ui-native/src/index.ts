@@ -368,6 +368,11 @@ export {
   type StackProps,
 } from './components/layout/layout.tsx';
 export {
+  Pagination,
+  paginationRange,
+  type PaginationProps,
+} from './components/pagination/pagination.tsx';
+export {
   Popover,
   PopoverAnchor,
   PopoverClose,

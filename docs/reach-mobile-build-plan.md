@@ -311,7 +311,7 @@ axe-clean, compared side by side.
 - [x] **RMB-038** Tabs, Tertiary navigation, Segmented-as-tabs
 - [ ] **RMB-039** Nav, Grouped navigation
 - [ ] **RMB-040** Breadcrumb (collapsing to the back link), Stepper (progress bar with "2 of 3" on a phone, dots)
-- [ ] **RMB-041** Pagination ("Page 3 of 52")
+- [x] **RMB-041** Pagination ("Page 3 of 52")
 
 ### Lane D — data
 
