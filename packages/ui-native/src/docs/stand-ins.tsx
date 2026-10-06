@@ -1,9 +1,8 @@
 import { Check, Search } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native-css/components';
 
 import { Icon } from '../components/icon/icon.tsx';
-import { Text } from '../components/text/text.tsx';
 import { cn } from '../lib/cn.ts';
 
 /*
