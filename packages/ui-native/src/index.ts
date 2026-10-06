@@ -19,17 +19,32 @@ export {
   motionPresets,
   physics,
   PRESS_SCALE,
+  RISE,
   springs,
+  stagger,
   type Motion,
   type MotionPresets,
   type Pose,
   type Side,
   type Transition,
 } from './lib/motion.ts';
-export { animateTo, useLayoutTransition, useMotion, usePress, type Press } from './lib/animate.ts';
+export {
+  animateTo,
+  useLayoutTransition,
+  useMotion,
+  usePress,
+  usePulse,
+  type Press,
+} from './lib/animate.ts';
 export { OverlayHost, type OverlayHostProps } from './lib/overlay-host.tsx';
 export { usePresence } from './lib/overlay.tsx';
 
+export {
+  Accordion,
+  AccordionItem,
+  type AccordionItemProps,
+  type AccordionProps,
+} from './components/accordion/accordion.tsx';
 export {
   Avatar,
   AvatarGroup,
@@ -53,9 +68,35 @@ export {
   AlertDialogTrigger,
   type AlertDialogContentProps,
 } from './components/alert-dialog/alert-dialog.tsx';
+export {
+  Banner,
+  BannerStack,
+  type BannerProps,
+  type BannerStackProps,
+  type BannerTone,
+} from './components/banner/banner.tsx';
 export { Badge, type BadgeProps } from './components/badge/badge.tsx';
 export { Button, type ButtonProps, type ButtonVariants } from './components/button/button.tsx';
 export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
+export { Carousel, slideAt, type CarouselProps } from './components/carousel/carousel.tsx';
+export {
+  Chip,
+  ChipGroup,
+  ChipGroupItem,
+  type ChipGroupItemProps,
+  type ChipGroupProps,
+  type ChipProps,
+} from './components/chip/chip.tsx';
+export {
+  CopyButton,
+  CopyField,
+  useClipboard,
+  type ClipboardStatus,
+  type CopyButtonProps,
+  type CopyFieldProps,
+  type UseClipboardOptions,
+  type UseClipboardResult,
+} from './components/clipboard/clipboard.tsx';
 export {
   Checkbox,
   CheckboxBox,
@@ -114,6 +155,30 @@ export {
   type Rejection,
 } from './components/dropzone/dropzone.tsx';
 export {
+  FloatingButton,
+  SpeedDial,
+  useCollapseOnScroll,
+  type FloatingButtonProps,
+  type SpeedDialAction,
+  type SpeedDialProps,
+} from './components/floating-button/floating-button.tsx';
+export {
+  Kbd,
+  KbdGroup,
+  useHasKeyboard,
+  type KbdGroupProps,
+  type KbdProps,
+} from './components/kbd/kbd.tsx';
+export {
+  Alert,
+  EmptyState,
+  Skeleton,
+  type AlertProps,
+  type AlertTone,
+  type EmptyStateProps,
+  type SkeletonProps,
+} from './components/feedback/feedback.tsx';
+export {
   Field,
   FieldControl,
   FieldDescription,
@@ -152,6 +217,13 @@ export {
   type SplitProps,
   type StackProps,
 } from './components/layout/layout.tsx';
+export {
+  List,
+  ListItem,
+  type ListItemProps,
+  type ListProps,
+  type SwipeAction,
+} from './components/list-item/list-item.tsx';
 export { NumberField, type NumberFieldProps } from './components/number-field/number-field.tsx';
 export { formatNumber, parseNumber } from './components/number-field/number-format.ts';
 export {
@@ -171,6 +243,14 @@ export {
   type RadioGroupItemProps,
   type RadioGroupProps,
 } from './components/radio-group/radio-group.tsx';
+export {
+  CircularProgress,
+  Progress,
+  type CircularProgressProps,
+  type ProgressProps,
+  type ProgressTone,
+} from './components/progress/progress.tsx';
+export { Reveal, Stagger, staggerDelay, type RevealProps } from './components/reveal/reveal.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export {
   Select,
@@ -186,10 +266,32 @@ export {
   type SelectProps,
   type SelectTriggerProps,
 } from './components/select/select.tsx';
+export {
+  SegmentedControl,
+  SegmentedControlItem,
+  type SegmentedControlItemProps,
+  type SegmentedControlProps,
+} from './components/segmented-control/segmented-control.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Slider, type SliderProps } from './components/slider/slider.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
+export {
+  Timeline,
+  TimelineItem,
+  type TimelineItemProps,
+  type TimelineProps,
+} from './components/timeline/timeline.tsx';
 export { Switch, SwitchTrack, type SwitchProps } from './components/switch/switch.tsx';
+export {
+  Toast,
+  ToastProvider,
+  useToast,
+  type ToastAction,
+  type ToastOptions,
+  type ToastProps,
+  type ToastProviderProps,
+  type ToastTone,
+} from './components/toast/toast.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export {
   ChoiceButton,

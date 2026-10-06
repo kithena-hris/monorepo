@@ -3,7 +3,16 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { durations, easings, flyout, gentleSpring, PRESS_SCALE, RISE, springs } from './motion';
+import {
+  durations,
+  easings,
+  flyout,
+  gentleSpring,
+  PRESS_SCALE,
+  RISE,
+  springs,
+  stagger,
+} from './motion';
 
 /*
  * `motion.ts` is the source; `theme.css` is the web's copy of it, in the form
@@ -42,6 +51,11 @@ describe('theme.css agrees with motion.ts', () => {
     expect(declared('--animate-flyout-out')).toBe(
       'flyout-out var(--animate-duration-fast) var(--ease-exit)',
     );
+  });
+
+  it('on the stagger step and its ceiling', () => {
+    expect(declared('--animate-stagger-step')).toBe(`${String(stagger.step)}ms`);
+    expect(declared('--animate-stagger-max')).toBe(`${String(stagger.max)}ms`);
   });
 
   it('on the rise content arrives from', () => {

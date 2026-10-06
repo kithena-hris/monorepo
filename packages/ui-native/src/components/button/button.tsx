@@ -26,6 +26,8 @@ const button = cva('flex-row items-center justify-center gap-2 rounded-control',
       danger: 'bg-danger-solid',
       'danger-soft': 'bg-danger-subtle',
       invert: 'bg-invert',
+      /** On an inverted bar (a selection bar, a snackbar): a wash of the bar's ink. */
+      'on-invert': 'overflow-hidden bg-transparent',
       link: 'bg-transparent',
     },
     size: {
@@ -61,6 +63,7 @@ const button = cva('flex-row items-center justify-center gap-2 rounded-control',
     { pressed: true, variant: 'danger', class: 'bg-danger-hover' },
     { pressed: true, variant: 'danger-soft', class: 'bg-danger-border' },
     { pressed: true, variant: 'invert', class: 'opacity-90' },
+    { pressed: true, variant: 'on-invert', class: 'opacity-80' },
   ],
   defaultVariants: {
     variant: 'secondary',
@@ -81,6 +84,7 @@ const tone = {
   danger: 'on-accent',
   'danger-soft': 'danger',
   invert: 'on-invert',
+  'on-invert': 'on-invert',
   link: 'accent',
 } as const satisfies Record<string, NonNullable<IconProps['tone']>>;
 
@@ -207,6 +211,9 @@ export function Button({
             }),
           )}
         >
+          {v === 'on-invert' ? (
+            <View className="absolute inset-0 bg-fg-on-invert opacity-[0.14]" />
+          ) : null}
           {loading ? (
             <Spinner size={ICON[s] - 2} tone={tone[v]} decorative />
           ) : (

@@ -1,19 +1,37 @@
 import {
+  Accordion,
+  Alert,
+  CircularProgress,
+  Progress,
+  AccordionItem,
   Avatar,
   AvatarGroup,
   Badge,
+  Banner,
   Button,
   Card,
   CardDescription,
   CardTitle,
+  ChipGroup,
+  ChipGroupItem,
+  CopyField,
+  FloatingButton,
   Icon,
   Inline,
+  KbdGroup,
+  List,
+  ListItem,
   ReachLogo,
   ReachProvider,
+  SegmentedControl,
+  SegmentedControlItem,
   Separator,
   Spinner,
   Stack,
   Text,
+  Timeline,
+  Toast,
+  TimelineItem,
 } from '@reach/ui-native';
 import { StatusBar } from 'expo-status-bar';
 import { Download, Lock, Moon, Plus, Sun } from 'lucide-react-native';
@@ -108,6 +126,80 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
           <Badge size="lg" tone="accent" onRemove={() => undefined}>
             Engineering
           </Badge>
+        </Inline>
+
+        <ChipGroup type="multiple" defaultValue={['Engineering']} accessibilityLabel="Teams">
+          {['All', 'Engineering', 'Design', 'Sales'].map((team) => (
+            <ChipGroupItem key={team} value={team}>
+              {team}
+            </ChipGroupItem>
+          ))}
+        </ChipGroup>
+
+        <SegmentedControl defaultValue="week" fullWidth accessibilityLabel="Period">
+          <SegmentedControlItem value="day">Day</SegmentedControlItem>
+          <SegmentedControlItem value="week">Week</SegmentedControlItem>
+          <SegmentedControlItem value="month">Month</SegmentedControlItem>
+        </SegmentedControl>
+
+        <CopyField label="Employee ID" value="RCH-00412" mono />
+
+        <List>
+          <ListItem
+            leading={<Avatar name="Amara Okafor" decorative />}
+            description="Product Designer"
+            chevron
+            onPress={() => undefined}
+          >
+            Amara Okafor
+          </ListItem>
+          <ListItem
+            description="Shown only with a keyboard to hand"
+            trailing={<KbdGroup keys={['⌘', 'K']} touch="hide" />}
+          >
+            Search
+          </ListItem>
+        </List>
+
+        <Banner rounded tone="info" title="Heads up.">
+          Your manager changes on 1 Nov.
+        </Banner>
+        <Toast title="3 people archived" action={{ label: 'Undo', onPress: () => undefined }}>
+          They’re hidden from the directory.
+        </Toast>
+
+        <Alert tone="warning" title="2 contracts expire soon">
+          Renew them before 12 Oct.
+        </Alert>
+
+        <Inline gap={4} wrap={false}>
+          <Progress value={64} label="Onboarding" valueLabel="7 of 11 tasks" className="flex-1" />
+          <CircularProgress value={null} size={40} label="Loading" />
+        </Inline>
+
+        <Accordion type="single" defaultValue="personal">
+          <AccordionItem value="personal" title="Personal details">
+            Name, pronouns and date of birth.
+          </AccordionItem>
+          <AccordionItem value="bank" title="Bank details">
+            Account holder, IBAN and BIC.
+          </AccordionItem>
+        </Accordion>
+
+        <Timeline accessibilityLabel="Approval">
+          <TimelineItem title="Submitted by Amara" timestamp="09:12" tone="accent" />
+          <TimelineItem
+            title="Waiting for Nora Becker"
+            timestamp="Now"
+            tone="warning"
+            status="current"
+          />
+          <TimelineItem title="Payroll" status="upcoming" />
+        </Timeline>
+
+        <Inline gap={3}>
+          <FloatingButton label="New request" />
+          <FloatingButton variant="surface" accessibilityLabel="New request" />
         </Inline>
 
         <Card>
