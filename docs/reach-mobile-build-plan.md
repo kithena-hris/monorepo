@@ -31,8 +31,14 @@ Data 13 / 80, Charts 21 / 75. `ref/index.json` lists every story by title.
   Storybook 10.6 with `@storybook/react-native-web-vite`, so the same Storybook
   the web library uses, rendering the native components through
   react-native-web. **Mobile view only**: a fixed 390 × 844 viewport, light and
-  dark. Titles and docs pages mirror `apps/storybook` (`Components/Button`,
-  `Forms/Field`, `Charts/Bar`). axe runs over every story, as on the web.
+  dark. **Every story twice, under `iOS/` and `Android/`**: one component and
+  one story file, listed in each platform's section, in that platform's status
+  bar and home indicator, with the platform declared on `ReachProvider` so a
+  component that genuinely differs (it reads `usePlatform()`, never
+  `Platform.OS`) shows both. Inside each section, titles and docs pages mirror
+  `apps/storybook` (`iOS/Components/Button`, `Android/Forms/Field`). axe runs
+  over every story once per platform; `reach-mobile:compare` puts iOS,
+  Android and the design side by side.
 - **`apps/mobile`**: a minimal Expo app that renders the library natively, so
   every component is proven under Metro and not only on react-native-web. The
   product app (Expo Router, screens) is a later plan.
