@@ -239,8 +239,11 @@ export function PhoneField({
 
 type Option = { value: string; label: string };
 
-/** A value inside a field that opens a centred list of the others. */
-function ChoiceButton({
+/**
+ * A value inside a field that opens a centred list of the others: a currency's
+ * code, a country's dial code, a time zone. For a field's adornment.
+ */
+export function ChoiceButton({
   label,
   value,
   options,

@@ -1,6 +1,8 @@
 import {
+  Calendar,
   Checkbox,
   Combobox,
+  DatePicker,
   CurrencyField,
   Field,
   FieldDescription,
@@ -25,6 +27,7 @@ import {
   Switch,
   Text,
   Textarea,
+  TimePicker,
   Toggle,
   ToggleGroup,
   ToggleGroupItem,
@@ -52,6 +55,8 @@ export function FormsGallery(): React.JSX.Element {
   const [country, setCountry] = useState('DE');
   const [team, setTeam] = useState('design');
   const [offices, setOffices] = useState<string | readonly string[] | null>(['Berlin']);
+  const [start, setStart] = useState<string | null>('2026-10-14');
+  const [time, setTime] = useState<string | null>('09:30');
   const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
@@ -153,6 +158,9 @@ export function FormsGallery(): React.JSX.Element {
         value={offices}
         onChange={setOffices}
       />
+      <Calendar today="2026-10-01" selected={start} onSelect={setStart} />
+      <DatePicker label="Start date" value={start} onChange={setStart} today="2026-10-01" />
+      <TimePicker label="Start" value={time} onChange={setTime} />
     </Stack>
   );
 }

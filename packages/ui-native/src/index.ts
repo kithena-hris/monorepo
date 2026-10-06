@@ -63,10 +63,29 @@ export {
   type CheckedState,
 } from './components/checkbox/checkbox.tsx';
 export {
+  addDays,
+  addMonths,
+  Calendar,
+  CalendarLegend,
+  daysBetween,
+  formatDate,
+  parseDate,
+  type CalendarMarker,
+  type CalendarProps,
+  type CalendarTone,
+  type DateRange,
+  type IsoDate,
+} from './components/calendar/calendar.tsx';
+export {
   Combobox,
   type ComboboxOption,
   type ComboboxProps,
 } from './components/combobox/combobox.tsx';
+export {
+  DatePicker,
+  type DatePickerPreset,
+  type DatePickerProps,
+} from './components/date-picker/date-picker.tsx';
 export {
   Dialog,
   DialogBody,
@@ -114,10 +133,7 @@ export {
   type SplitProps,
   type StackProps,
 } from './components/layout/layout.tsx';
-export {
-  NumberField,
-  type NumberFieldProps,
-} from './components/number-field/number-field.tsx';
+export { NumberField, type NumberFieldProps } from './components/number-field/number-field.tsx';
 export { formatNumber, parseNumber } from './components/number-field/number-format.ts';
 export {
   defaultPasswordRequirements,
@@ -157,6 +173,7 @@ export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
 export { Switch, SwitchTrack, type SwitchProps } from './components/switch/switch.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export {
+  ChoiceButton,
   commonDialCodes,
   CurrencyField,
   formatMinor,
@@ -168,6 +185,14 @@ export {
   type PhoneFieldProps,
   type SearchFieldProps,
 } from './components/typed-fields/typed-fields.tsx';
+export {
+  formatDuration,
+  formatTime,
+  parseTime,
+  TimePicker,
+  TimeWheel,
+  type TimePickerProps,
+} from './components/time-picker/time-picker.tsx';
 export {
   segmentItem,
   segmentText,

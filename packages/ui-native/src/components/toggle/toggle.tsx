@@ -102,7 +102,12 @@ export function Toggle({
       accessibilityLabel={accessibilityLabel ?? children}
       accessibilityState={{ selected: pressed, disabled }}
       aria-pressed={pressed}
-      className={cn('self-start', shape === 'square' ? 'rounded-[10px]' : 'rounded-full', disabled && 'opacity-45', className)}
+      className={cn(
+        'self-start',
+        shape === 'square' ? 'rounded-[10px]' : 'rounded-full',
+        disabled && 'opacity-45',
+        className,
+      )}
     >
       <Animated.View style={press.style}>
         <View className={toggle({ variant, size, iconOnly, shape, on: pressed })}>
@@ -174,7 +179,11 @@ type GroupBase = {
 
 export type ToggleGroupProps = GroupBase &
   (
-    | { type: 'single'; value: string | undefined; onValueChange: (value: string | undefined) => void }
+    | {
+        type: 'single';
+        value: string | undefined;
+        onValueChange: (value: string | undefined) => void;
+      }
     | { type: 'multiple'; value: string[]; onValueChange: (value: string[]) => void }
   );
 
@@ -199,7 +208,12 @@ export function ToggleGroup(props: ToggleGroupProps): React.JSX.Element {
         {...root}
         disabled={disabled}
         accessibilityLabel={props.accessibilityLabel}
-        className={cn(segmentTrack, fullWidth && segmentTrackFull, disabled && 'opacity-45', className)}
+        className={cn(
+          segmentTrack,
+          fullWidth && segmentTrackFull,
+          disabled && 'opacity-45',
+          className,
+        )}
       >
         {children}
       </GroupRoot>
@@ -243,7 +257,9 @@ export function ToggleGroupItem({
         : { 'aria-pressed': on, accessibilityState: { selected: on, disabled } })}
       className={cn(segmentItem({ on, size, iconOnly, fullWidth }), className)}
     >
-      {icon ? <Icon icon={icon} size={size === 'sm' ? 14 : 16} tone={on ? 'default' : 'muted'} /> : null}
+      {icon ? (
+        <Icon icon={icon} size={size === 'sm' ? 14 : 16} tone={on ? 'default' : 'muted'} />
+      ) : null}
       {children ? (
         <CssText numberOfLines={1} className={segmentText(on)}>
           {children}

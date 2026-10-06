@@ -46,13 +46,7 @@ export const defaultPasswordRequirements: readonly PasswordRequirement[] = [
 ];
 
 const strengthLabel = ['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'] as const;
-const strengthTone = [
-  'bg-danger',
-  'bg-danger',
-  'bg-warning',
-  'bg-success',
-  'bg-success',
-] as const;
+const strengthTone = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-success', 'bg-success'] as const;
 
 /** The web's estimate, 0 to 4: length, and the kinds of character in it. */
 function estimateStrength(value: string): number {
