@@ -328,13 +328,13 @@ axe-clean, compared side by side.
 Hand-drawn on `react-native-svg`; the number first, a hidden summary for screen
 readers, tap and long-press where the web hovers and right-clicks.
 
-- [ ] **RMB-049** Chart card, legend, axes; Overview; Bar; Trend (line, area, plan, small multiples, sparklines)
-- [ ] **RMB-050** Distribution, Heatmap, Calendar heatmap, Funnel
-- [ ] **RMB-051** Timeline (Gantt)
-- [ ] **RMB-052** Org chart (the expandable tree on a phone; search and the chain; vacancies; span)
-- [ ] **RMB-053** Movement, Pay (bands, out of band, scatter)
-- [ ] **RMB-054** Combo, Stacked area, Gauge, Radar, Treemap, Histogram
-- [ ] **RMB-055** Cohort, Bullet, Bubble, KPI dashboard
+- [x] **RMB-049** Chart card, legend, axes; Overview; Bar; Trend (line, area, plan, small multiples, sparklines)
+- [x] **RMB-050** Distribution, Heatmap, Calendar heatmap, Funnel
+- [x] **RMB-051** Timeline (Gantt)
+- [x] **RMB-052** Org chart (the expandable tree on a phone; search and the chain; vacancies; span)
+- [x] **RMB-053** Movement, Pay (bands, out of band, scatter)
+- [x] **RMB-054** Combo, Stacked area, Gauge, Radar, Treemap, Histogram
+- [x] **RMB-055** Cohort, Bullet, Bubble, KPI dashboard
 
 ---
 
