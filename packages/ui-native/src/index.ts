@@ -87,6 +87,14 @@ export {
   type DialogFooterProps,
   type DialogIconProps,
 } from './components/dialog/dialog.tsx';
+export {
+  FloatingButton,
+  SpeedDial,
+  useCollapseOnScroll,
+  type FloatingButtonProps,
+  type SpeedDialAction,
+  type SpeedDialProps,
+} from './components/floating-button/floating-button.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   AutoGrid,

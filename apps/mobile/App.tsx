@@ -9,6 +9,7 @@ import {
   ChipGroup,
   ChipGroupItem,
   CopyField,
+  FloatingButton,
   Icon,
   Inline,
   ReachLogo,
@@ -129,6 +130,11 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
         </SegmentedControl>
 
         <CopyField label="Employee ID" value="RCH-00412" mono />
+
+        <Inline gap={3}>
+          <FloatingButton label="New request" />
+          <FloatingButton variant="surface" accessibilityLabel="New request" />
+        </Inline>
 
         <Card>
           <CardTitle>Approve 5 days off?</CardTitle>
