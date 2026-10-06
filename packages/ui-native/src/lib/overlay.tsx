@@ -130,3 +130,18 @@ export function InertOutside(): null {
   }, []);
   return null;
 }
+
+type FramedNode = { parentElement: { style: { outline: string } } | null };
+
+/**
+ * A ref for a primitive's content on the web, where Radix wraps it in a bare
+ * element of its own that takes focus when the overlay holds nothing
+ * focusable (a "Saving…" dialog). That element has no radius and the overlay's
+ * full width, so the browser's ring is drawn around a box that is not there.
+ * It is not a control, so it gets no ring; the content itself is unchanged.
+ */
+export function quietFrame(node: unknown): void {
+  if (Platform.OS !== 'web' || !node) return;
+  const parent = (node as FramedNode).parentElement;
+  if (parent) parent.style.outline = 'none';
+}

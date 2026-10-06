@@ -193,3 +193,19 @@ export function settled(): Promise<void> {
     check();
   });
 }
+
+/**
+ * A stand-in for lane B's indeterminate Progress: the design's bar, still.
+ * Swap for the library's own once it exists.
+ */
+export function StandInProgress({ label }: { label: string }): React.JSX.Element {
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      className="h-2 overflow-hidden rounded-full bg-surface-active"
+    >
+      <View className="h-2 w-2/5 rounded-full bg-accent" />
+    </View>
+  );
+}

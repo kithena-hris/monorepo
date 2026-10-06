@@ -15,7 +15,7 @@ import Animated from 'react-native-reanimated';
 
 import { cn } from '../../lib/cn.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
-import { flatStyle, InertOutside, usePresence } from '../../lib/overlay.tsx';
+import { flatStyle, InertOutside, quietFrame, usePresence } from '../../lib/overlay.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
 
@@ -56,9 +56,11 @@ export function CentredFrame({
   scrim,
   scrimStyle,
   style,
+  width = WIDTH,
   children,
 }: {
   scrim: ReactNode;
+  width?: number | undefined;
   scrimStyle: ReturnType<typeof usePresence>['scrimStyle'];
   style: ReturnType<typeof usePresence>['style'];
   children: ReactNode;
@@ -71,7 +73,7 @@ export function CentredFrame({
         {scrim}
       </Animated.View>
       {/* The motion on a bare Animated.View, the classes inside it (RMB-001). */}
-      <Animated.View style={[{ width: '100%', maxWidth: WIDTH }, style]}>{children}</Animated.View>
+      <Animated.View style={[{ width: '100%', maxWidth: width }, style]}>{children}</Animated.View>
     </View>
   );
 }
@@ -113,6 +115,11 @@ export type DialogContentProps = {
   guard?: () => boolean;
   /** Draw in the `OverlayHost` of this name instead of the root one. */
   portalHost?: string;
+  /**
+   * The widest it may be, in points: 342 by default, the phone's dialog. A
+   * narrower screen keeps a 16-point margin either side instead.
+   */
+  width?: number;
 };
 
 export function DialogContent({
@@ -122,6 +129,7 @@ export function DialogContent({
   closeLabel = 'Close',
   guard,
   portalHost,
+  width,
 }: DialogContentProps): React.JSX.Element | null {
   const { open, onOpenChange } = DialogPrimitive.useRootContext();
   const presence = usePresence(open);
@@ -144,6 +152,7 @@ export function DialogContent({
       container={container}
     >
       <CentredFrame
+        width={width}
         scrimStyle={presence.scrimStyle}
         style={presence.style}
         scrim={
@@ -158,6 +167,7 @@ export function DialogContent({
       >
         <Content
           forceMount
+          ref={quietFrame}
           onEscapeKeyDown={hold}
           onInteractOutside={hold}
           onAccessibilityEscape={dismiss}
@@ -207,14 +217,26 @@ export function DialogTitle({
   return <Title className={cn(dialogTitleClass, className)}>{children}</Title>;
 }
 
+/**
+ * The line under the title. `asChild` lends the description's role to one
+ * view of your own, for a description that is more than a sentence.
+ */
 export function DialogDescription({
   children,
   className,
+  asChild = false,
 }: {
   children?: ReactNode;
   className?: string | undefined;
+  asChild?: boolean;
 }): React.JSX.Element {
-  return <Description className={cn(dialogDescriptionClass, className)}>{children}</Description>;
+  return asChild ? (
+    <Description asChild className={cn(className)}>
+      {children}
+    </Description>
+  ) : (
+    <Description className={cn(dialogDescriptionClass, className)}>{children}</Description>
+  );
 }
 
 /** Fields or anything else between the header and the actions. */
@@ -235,6 +257,14 @@ export type DialogFooterProps = {
   className?: string | undefined;
 };
 
+/*
+ * Equal shares of the row, but never narrower than the label: a long label
+ * ("Delete team") takes what it needs and the other gives way, as the design's
+ * `flex: 1` with a CSS minimum does. Yoga has no content minimum, so on a
+ * device the label shrinks to its share.
+ */
+const FOOTER_ITEM = WEB ? 'flex-1 min-w-fit' : 'flex-1';
+
 /**
  * The actions. On a phone they share the row equally, so neither is a small
  * target; Cancel first, the confirming action last, on the thumb's side.
@@ -249,7 +279,7 @@ export function DialogFooter({
       {Children.map(children, (child) =>
         isValidElement<{ className?: string }>(child)
           ? cloneElement(child as ReactElement<{ className?: string }>, {
-              className: cn(!stack && 'flex-1', child.props.className),
+              className: cn(!stack && FOOTER_ITEM, child.props.className),
             })
           : child,
       )}

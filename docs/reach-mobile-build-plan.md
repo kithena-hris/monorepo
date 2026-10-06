@@ -296,7 +296,7 @@ axe-clean, compared side by side.
 
 ### Lane C — overlays and navigation
 
-- [ ] **RMB-032** Dialog and AlertDialog (centred, type to confirm, guarding unsaved work)
+- [x] **RMB-032** Dialog and AlertDialog (centred, type to confirm, guarding unsaved work)
 - [ ] **RMB-033** Sheet (bottom, top, swipe to dismiss) and Action sheet
 - [ ] **RMB-034** Popover, Tooltip (long-press), Hover card (press on a phone), Coach mark
 - [ ] **RMB-035** Dropdown menu and ContextMenu (long-press; checkbox, radio, submenus, unavailable with a reason)
