@@ -118,6 +118,76 @@ export {
   type ChatWindowProps,
 } from './components/chat/chat.tsx';
 export {
+  AxisLabels,
+  ChartCard,
+  ChartDataTable,
+  ChartFrame,
+  ChartGrid,
+  ChartLegend,
+  ChartReadout,
+  ChartZoomControls,
+  toCsv,
+  useChartWindow,
+  type ChartCardProps,
+  type ChartFrameProps,
+  type ChartLegendItem,
+  type ChartMenuItem,
+  type ChartPoint,
+  type ChartWindow,
+  type UseChartWindowResult,
+} from './components/chart/parts.tsx';
+export {
+  bgTone,
+  inkTone,
+  seriesTone,
+  seriesTones,
+  type ChartTone,
+} from './components/chart/tones.ts';
+export {
+  binValues,
+  linearFit,
+  radarPoints,
+  squarify,
+  type HistogramBin,
+} from './components/chart/geometry.ts';
+export {
+  BarChart,
+  HorizontalBarChart,
+  StackedBarChart,
+  type BarChartProps,
+  type HorizontalBarChartProps,
+  type StackedBarChartProps,
+  type StackedSeries,
+} from './components/chart/bar-chart.tsx';
+export {
+  ChartBrush,
+  Sparkline,
+  TrendChart,
+  type SparklineProps,
+  type TrendChartProps,
+  type TrendSeries,
+} from './components/chart/trend-chart.tsx';
+export {
+  CalendarHeatmap,
+  ChartScaleKey,
+  DonutChart,
+  FunnelChart,
+  HeatmapChart,
+  type CalendarDay,
+  type CalendarHeatmapProps,
+  type DonutChartProps,
+  type DonutSlice,
+  type FunnelChartProps,
+  type FunnelStage,
+  type HeatmapCell,
+  type HeatmapChartProps,
+} from './components/chart/distribution-chart.tsx';
+export {
+  WaterfallChart,
+  type WaterfallChartProps,
+  type WaterfallStep,
+} from './components/chart/movement-chart.tsx';
+export {
   Chip,
   ChipGroup,
   ChipGroupItem,
