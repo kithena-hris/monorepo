@@ -83,6 +83,12 @@ export {
   type UseClipboardResult,
 } from './components/clipboard/clipboard.tsx';
 export {
+  Checkbox,
+  CheckboxBox,
+  type CheckboxProps,
+  type CheckedState,
+} from './components/checkbox/checkbox.tsx';
+export {
   Dialog,
   DialogBody,
   DialogClose,
@@ -112,7 +118,25 @@ export {
   type KbdGroupProps,
   type KbdProps,
 } from './components/kbd/kbd.tsx';
+export {
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  useField,
+  type FieldProps,
+} from './components/field/field.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
+export {
+  FieldBox,
+  Input,
+  Textarea,
+  type FieldBoxProps,
+  type InputProps,
+  type InputType,
+  type TextareaProps,
+} from './components/input/input.tsx';
 export {
   AutoGrid,
   Container,
@@ -133,6 +157,25 @@ export {
   type ListProps,
   type SwipeAction,
 } from './components/list-item/list-item.tsx';
+export { NumberField, type NumberFieldProps } from './components/number-field/number-field.tsx';
+export { formatNumber, parseNumber } from './components/number-field/number-format.ts';
+export {
+  defaultPasswordRequirements,
+  PasswordField,
+  type PasswordFieldProps,
+  type PasswordRequirement,
+} from './components/password-field/password-field.tsx';
+export { PinInput, type PinInputProps } from './components/pin-input/pin-input.tsx';
+export { Rating, ratingSymbols, type RatingProps } from './components/rating/rating.tsx';
+export {
+  RadioCard,
+  RadioDot,
+  RadioGroup,
+  RadioGroupItem,
+  type RadioCardProps,
+  type RadioGroupItemProps,
+  type RadioGroupProps,
+} from './components/radio-group/radio-group.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export {
   SegmentedControl,
@@ -141,6 +184,7 @@ export {
   type SegmentedControlProps,
 } from './components/segmented-control/segmented-control.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
+export { Slider, type SliderProps } from './components/slider/slider.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
 export {
   Timeline,
@@ -148,7 +192,32 @@ export {
   type TimelineItemProps,
   type TimelineProps,
 } from './components/timeline/timeline.tsx';
+export { Switch, SwitchTrack, type SwitchProps } from './components/switch/switch.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
+export {
+  commonDialCodes,
+  CurrencyField,
+  formatMinor,
+  parseMinor,
+  PhoneField,
+  SearchField,
+  type CurrencyFieldProps,
+  type DialCode,
+  type PhoneFieldProps,
+  type SearchFieldProps,
+} from './components/typed-fields/typed-fields.tsx';
+export {
+  segmentItem,
+  segmentText,
+  segmentTrack,
+  segmentTrackFull,
+  Toggle,
+  ToggleGroup,
+  ToggleGroupItem,
+  type ToggleGroupItemProps,
+  type ToggleGroupProps,
+  type ToggleProps,
+} from './components/toggle/toggle.tsx';
 export {
   ReachLogo,
   ReachMark,
