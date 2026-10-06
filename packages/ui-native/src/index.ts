@@ -188,6 +188,15 @@ export {
   type WaterfallStep,
 } from './components/chart/movement-chart.tsx';
 export {
+  TimelineChart,
+  type TimelineChartProps,
+  type TimelineEntry,
+  type TimelineMove,
+  type TimelineRow,
+  type TimelineSeparator,
+  type TimelineUnit,
+} from './components/chart/timeline-chart.tsx';
+export {
   Chip,
   ChipGroup,
   ChipGroupItem,
