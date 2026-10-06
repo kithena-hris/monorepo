@@ -39,9 +39,26 @@ import {
   type UploadItem,
   ToggleGroup,
   ToggleGroupItem,
+  CalendarLegend,
+  FileRow,
+  ChoiceButton,
+  FormSections,
+  ImageUploader,
+  Inline,
+  RadioCard,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
+  type UploadedImage,
 } from '@reach/ui-native';
-import { Bold } from 'lucide-react-native';
+import { Bold, Mail, Smartphone } from 'lucide-react-native';
 import { useState } from 'react';
+
+const ZONES = [
+  { value: 'Europe/Berlin', label: 'CET' },
+  { value: 'Europe/London', label: 'GMT' },
+  { value: 'Asia/Tokyo', label: 'JST' },
+];
 
 /** Lane A's form controls, rendered by Metro on a device. */
 export function FormsGallery(): React.JSX.Element {
@@ -58,6 +75,9 @@ export function FormsGallery(): React.JSX.Element {
   const [stars, setStars] = useState(4);
   const [band, setBand] = useState([40, 75]);
   const [query, setQuery] = useState('');
+  const [delivery, setDelivery] = useState('email');
+  const [zone, setZone] = useState('Europe/Berlin');
+  const [images, setImages] = useState<readonly UploadedImage[]>([]);
   const [amount, setAmount] = useState('124050');
   const [phone, setPhone] = useState('151 2345 6789');
   const [country, setCountry] = useState('DE');
@@ -150,12 +170,35 @@ export function FormsGallery(): React.JSX.Element {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="engineering">Engineering</SelectItem>
-            <SelectItem value="design">Design</SelectItem>
+            <SelectGroup>
+              <SelectLabel>Product</SelectLabel>
+              <SelectItem value="engineering">Engineering</SelectItem>
+              <SelectItem value="design">Design</SelectItem>
+            </SelectGroup>
+            <SelectSeparator />
             <SelectItem value="sales">Sales</SelectItem>
           </SelectContent>
         </Select>
       </Field>
+      <RadioGroup value={delivery} onValueChange={setDelivery} accessibilityLabel="Payslip">
+        <RadioCard value="email" icon={Mail} description="A PDF to your work address">
+          By email
+        </RadioCard>
+        <RadioCard value="app" icon={Smartphone} description="In the app only">
+          In the app
+        </RadioCard>
+      </RadioGroup>
+      <Inline gap={2}>
+        <Text tone="muted">Time zone</Text>
+        <ChoiceButton
+          label="Time zone"
+          value={zone}
+          display={ZONES.find((z) => z.value === zone)?.label ?? zone}
+          options={ZONES}
+          onChange={setZone}
+          className="text-subhead font-semibold text-fg-muted"
+        />
+      </Inline>
       <Combobox
         label="Offices"
         multiple
@@ -169,12 +212,27 @@ export function FormsGallery(): React.JSX.Element {
         onChange={setOffices}
       />
       <Calendar today="2026-10-01" selected={start} onSelect={setStart} />
+      <CalendarLegend items={[{ tone: 'neutral', label: '3 Oct · Day of German Unity' }]} />
       <DatePicker label="Start date" value={start} onChange={setStart} today="2026-10-01" />
       <TimePicker label="Start" value={time} onChange={setTime} />
       {/* Reach opens no picker: the app's own goes here (expo-image-picker). */}
       <AvatarUploader name="Priya Shah" pick={() => Promise.resolve([])} onPick={() => undefined} />
       <TagsInput label="Skills" value={skills} onChange={setSkills} placeholder="Add a skill" />
       <Dropzone pick={() => Promise.resolve([])} onFiles={() => undefined} />
+      <ImageUploader
+        label="Office photo"
+        value={images}
+        onChange={setImages}
+        pick={() => Promise.resolve([])}
+      />
+      <FormSections>
+        <FormSection title="Personal" description="Shown on your profile">
+          <Field>
+            <FieldLabel>Preferred name</FieldLabel>
+            <Input value={name} onChange={setName} />
+          </Field>
+        </FormSection>
+      </FormSections>
       <FormSection title="Emergency contact" description="Only HR can see this">
         <FormSaveBar
           open={name !== 'Priya'}
@@ -185,6 +243,15 @@ export function FormsGallery(): React.JSX.Element {
         />
       </FormSection>
       <RichTextEditor label="Welcome note" value="<p>Welcome to the team!</p>" />
+      <FileRow
+        item={{
+          id: 'policy',
+          name: 'Leave policy 2025.pdf',
+          size: 240_000,
+          type: 'application/pdf',
+          status: 'done',
+        }}
+      />
       <FileUploader value={files} onChange={setFiles} pick={() => Promise.resolve([])} />
     </Stack>
   );
