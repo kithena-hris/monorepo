@@ -477,6 +477,20 @@ export {
   type ToastProviderProps,
   type ToastTone,
 } from './components/toast/toast.tsx';
+export {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  type TabsListProps,
+  type TabsProps,
+  type TabsTriggerProps,
+} from './components/tabs/tabs.tsx';
+export {
+  TableOfContents,
+  type ContentsItem,
+  type TableOfContentsProps,
+} from './components/tertiary-nav/tertiary-nav.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
 export { Tooltip, type TooltipProps } from './components/tooltip/tooltip.tsx';
 export {

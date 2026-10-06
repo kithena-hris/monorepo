@@ -308,7 +308,7 @@ axe-clean, compared side by side.
 - [x] **RMB-035** Dropdown menu and ContextMenu (long-press; checkbox, radio, submenus, unavailable with a reason)
 - [x] **RMB-036** Command palette
 - [x] **RMB-037** App bars (large title collapsing into the bar, back, close), the tab bar
-- [ ] **RMB-038** Tabs, Tertiary navigation, Segmented-as-tabs
+- [x] **RMB-038** Tabs, Tertiary navigation, Segmented-as-tabs
 - [ ] **RMB-039** Nav, Grouped navigation
 - [ ] **RMB-040** Breadcrumb (collapsing to the back link), Stepper (progress bar with "2 of 3" on a phone, dots)
 - [ ] **RMB-041** Pagination ("Page 3 of 52")

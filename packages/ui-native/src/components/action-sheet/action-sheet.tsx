@@ -188,6 +188,19 @@ function SheetContent({
           forceMount
           ref={quietFrame}
           onAccessibilityEscape={cancel}
+          // Focus the current choice, when there is one, not the first row.
+          onOpenAutoFocus={(event: Event) => {
+            const dom = event as unknown as {
+              preventDefault: () => void;
+              currentTarget: {
+                querySelector: (selector: string) => { focus: () => void } | null;
+              } | null;
+            };
+            const current = dom.currentTarget?.querySelector('[data-selected="true"]');
+            if (!current) return;
+            dom.preventDefault();
+            current.focus();
+          }}
           className={cn('gap-2 outline-none', className)}
         >
           <View className={card}>
@@ -239,6 +252,8 @@ export type ActionSheetItemProps = {
   /** Deletes or loses data. Red; confirm separately, colour is not consent. */
   destructive?: boolean;
   disabled?: boolean;
+  /** The current choice, when the sheet picks one of several: set in bold. */
+  selected?: boolean;
   icon?: LucideIcon;
   className?: string | undefined;
   children: string;
@@ -266,6 +281,7 @@ function SheetItem({
   onSelect,
   destructive = false,
   disabled = false,
+  selected = false,
   icon,
   className,
   children,
@@ -275,7 +291,9 @@ function SheetItem({
     <Close asChild disabled={disabled}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled, selected }}
+        // Marks the current choice for the sheet to focus when it opens.
+        {...(selected ? { dataSet: { selected: 'true' } } : {})}
         disabled={disabled}
         {...(onSelect ? { onPress: onSelect } : {})}
         className={cn(
@@ -285,7 +303,7 @@ function SheetItem({
         )}
       >
         {icon ? <Icon icon={icon} size={18} tone={tone} /> : null}
-        <Text tone={tone} className="text-[18px] leading-[1.2]">
+        <Text tone={tone} className={cn('text-[18px] leading-[1.2]', selected && 'font-semibold')}>
           {children}
         </Text>
       </Pressable>
