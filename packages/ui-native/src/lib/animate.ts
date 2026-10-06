@@ -24,15 +24,21 @@ export function useMotion(): MotionPresets {
  * The easing is built before the worklet runs: `Easing.bezier` returns a
  * factory Reanimated serialises, not a function a worklet can call.
  */
-export function animateTo(to: number, transition: Transition): number {
+export function animateTo(
+  to: number,
+  transition: Transition,
+  /** A worklet, called when the animation ends or is interrupted. */
+  done?: (finished?: boolean) => void,
+): number {
   if (transition.type === 'spring') {
     const { mass, stiffness, damping } = transition;
-    return withSpring(to, { mass, stiffness, damping });
+    return withSpring(to, { mass, stiffness, damping }, done);
   }
-  return withTiming(to, {
-    duration: transition.duration,
-    easing: Easing.bezier(...transition.easing),
-  });
+  return withTiming(
+    to,
+    { duration: transition.duration, easing: Easing.bezier(...transition.easing) },
+    done,
+  );
 }
 
 /** A layout change on the move spring, or none under reduced motion. Pass to `layout`. */
