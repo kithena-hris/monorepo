@@ -209,3 +209,31 @@ export function StandInProgress({ label }: { label: string }): React.JSX.Element
     </View>
   );
 }
+
+/** A stand-in for lane D's KeyValues on a phone: label left, value right. */
+export function StandInKeyValues({
+  pairs,
+}: {
+  pairs: readonly (readonly [string, string])[];
+}): React.JSX.Element {
+  return (
+    <View>
+      {pairs.map(([key, value], i) => (
+        <View
+          key={key}
+          className={cn(
+            'min-h-[52px] flex-row items-center justify-between gap-4 py-2.5',
+            i < pairs.length - 1 && 'border-b border-border',
+          )}
+        >
+          <Text variant="callout" tone="muted">
+            {key}
+          </Text>
+          <Text variant="callout" weight="medium" className="shrink text-right">
+            {value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}

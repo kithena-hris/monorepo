@@ -203,7 +203,9 @@ export const WhenAnUndoIsBetter: Story = {
           pointerEvents="none"
           ref={(node: unknown) => {
             // The DOM's `inert`; a story renders on the web only.
-            if (node && 'inert' in node) (node as { inert: boolean }).inert = true;
+            if (typeof node === 'object' && node !== null && 'inert' in node) {
+              (node as { inert: boolean }).inert = true;
+            }
           }}
           className="w-[280px] gap-3.5 rounded-[30px] bg-surface-raised p-[22px] opacity-55 shadow-xl"
         >

@@ -38,6 +38,14 @@ export {
   type AvatarSize,
 } from './components/avatar/avatar.tsx';
 export {
+  ActionSheet,
+  ActionSheetContent,
+  ActionSheetItem,
+  ActionSheetTrigger,
+  type ActionSheetContentProps,
+  type ActionSheetItemProps,
+} from './components/action-sheet/action-sheet.tsx';
+export {
   AlertDialog,
   AlertDialogAction,
   AlertDialogBody,
@@ -84,6 +92,18 @@ export {
   type StackProps,
 } from './components/layout/layout.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
+export {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  type SheetContentProps,
+} from './components/sheet/sheet.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';

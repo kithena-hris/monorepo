@@ -104,7 +104,11 @@ export function flatStyle<P extends { style?: unknown }>(
 }
 
 type InertElement = { inert: boolean };
-type DomDocument = { querySelectorAll(selectors: string): ArrayLike<InertElement> };
+type Observer = { observe(target: unknown, options: object): void; disconnect(): void };
+type DomDocument = {
+  body: unknown;
+  querySelectorAll(selectors: string): ArrayLike<InertElement>;
+};
 
 /**
  * On the web, what a modal hides is made inert as well. Radix marks everything
@@ -113,19 +117,38 @@ type DomDocument = { querySelectorAll(selectors: string): ArrayLike<InertElement
  * switch user's dead end. `inert` is what a browser does for a native
  * `<dialog>`. The inertness goes when it unmounts.
  *
- * Render it inside the portal, after the primitive's content: effects run in
- * tree order, so it sees the page once Radix has hidden it.
+ * Render it inside the portal, beside the primitive's content. It watches for
+ * Radix's marking rather than reading it once, because a sheet's content
+ * mounts a frame later than this (once its frame is measured), and Radix
+ * hides the page only then.
  */
 export function InertOutside(): null {
   useEffect(() => {
-    const doc = (globalThis as { document?: DomDocument }).document;
-    if (Platform.OS !== 'web' || !doc) return undefined;
-    const hidden = Array.from(doc.querySelectorAll('[data-aria-hidden="true"]')).filter(
-      (element) => !element.inert,
-    );
-    for (const element of hidden) element.inert = true;
+    const scope = globalThis as {
+      document?: DomDocument;
+      MutationObserver?: new (callback: () => void) => Observer;
+    };
+    const doc = scope.document;
+    if (Platform.OS !== 'web' || !doc || !scope.MutationObserver) return undefined;
+    const made = new Set<InertElement>();
+    const sweep = (): void => {
+      for (const element of Array.from(doc.querySelectorAll('[data-aria-hidden="true"]'))) {
+        if (!element.inert) {
+          element.inert = true;
+          made.add(element);
+        }
+      }
+    };
+    sweep();
+    const observer = new scope.MutationObserver(sweep);
+    observer.observe(doc.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-aria-hidden'],
+    });
     return () => {
-      for (const element of hidden) element.inert = false;
+      observer.disconnect();
+      for (const element of made) element.inert = false;
     };
   }, []);
   return null;
