@@ -70,6 +70,18 @@ export {
   type SplitProps,
   type StackProps,
 } from './components/layout/layout.tsx';
+export {
+  NumberField,
+  type NumberFieldProps,
+} from './components/number-field/number-field.tsx';
+export { formatNumber, parseNumber } from './components/number-field/number-format.ts';
+export {
+  defaultPasswordRequirements,
+  PasswordField,
+  type PasswordFieldProps,
+  type PasswordRequirement,
+} from './components/password-field/password-field.tsx';
+export { PinInput, type PinInputProps } from './components/pin-input/pin-input.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
