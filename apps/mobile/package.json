@@ -10,6 +10,7 @@
     "typecheck:authoritative": "tsc6 --noEmit"
   },
   "dependencies": {
+    "@10play/tentap-editor": "1.0.1",
     "@reach/ui-native": "workspace:*",
     "expo": "57.0.26",
     "expo-clipboard": "~57.0.2",
@@ -24,6 +25,7 @@
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
+    "react-native-webview": "13.16.1",
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {

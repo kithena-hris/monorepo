@@ -312,6 +312,11 @@ export {
   type ProgressTone,
 } from './components/progress/progress.tsx';
 export { Reveal, Stagger, staggerDelay, type RevealProps } from './components/reveal/reveal.tsx';
+export {
+  RichTextEditor,
+  type RichTextEditorProps,
+  type RichTextGroup,
+} from './components/rich-text-editor/rich-text-editor.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export {
   Select,

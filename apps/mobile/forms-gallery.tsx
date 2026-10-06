@@ -20,6 +20,7 @@ import {
   PinInput,
   RadioGroup,
   Rating,
+  RichTextEditor,
   SearchField,
   Select,
   SelectContent,
@@ -183,6 +184,7 @@ export function FormsGallery(): React.JSX.Element {
           }}
         />
       </FormSection>
+      <RichTextEditor label="Welcome note" value="<p>Welcome to the team!</p>" />
       <FileUploader value={files} onChange={setFiles} pick={() => Promise.resolve([])} />
     </Stack>
   );
