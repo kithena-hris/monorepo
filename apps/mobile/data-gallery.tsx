@@ -1,4 +1,16 @@
-import { Avatar, ListItem, Stack, Text, VirtualList } from '@reach/ui-native';
+import { useState } from 'react';
+
+import {
+  Avatar,
+  BulkAction,
+  DataTable,
+  ListItem,
+  move,
+  Stack,
+  TableTitle,
+  Text,
+  VirtualList,
+} from '@reach/ui-native';
 
 const NAMES = ['Priya Shah', 'Jonas Weber', 'Amara Okafor', 'Lucas Moreau', 'Mei Tanaka'];
 const ROWS = Array.from({ length: 20_000 }, (_, id) => ({
@@ -11,6 +23,7 @@ export function DataGallery(): React.JSX.Element {
   return (
     <Stack gap={2}>
       <Text variant="headline">Data</Text>
+      <PeopleTable />
       <VirtualList
         items={ROWS}
         label="Everyone"
@@ -28,5 +41,29 @@ export function DataGallery(): React.JSX.Element {
         )}
       />
     </Stack>
+  );
+}
+
+const TEAM = NAMES.map((name, i) => ({ name, team: ['Engineering', 'Design', 'Sales', 'Finance', 'People'][i] ?? '' }));
+type Member = (typeof TEAM)[number];
+
+/** A table as cards: select, reorder by long-press, a bulk bar. */
+function PeopleTable(): React.JSX.Element {
+  const [rows, setRows] = useState<Member[]>(TEAM);
+  return (
+    <DataTable
+      label="People"
+      rows={rows}
+      rowId={(p) => p.name}
+      columns={[
+        { id: 'name', header: 'Name', cell: (p) => <TableTitle title={p.name} avatar={p.name} /> },
+        { id: 'team', header: 'Team', cell: (p) => p.team },
+      ]}
+      selectable
+      bulkActions={() => <BulkAction>Export</BulkAction>}
+      onReorder={({ from, to }) => {
+        setRows(move(rows, from, to));
+      }}
+    />
   );
 }

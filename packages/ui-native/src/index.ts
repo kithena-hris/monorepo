@@ -512,3 +512,29 @@ export {
   type VirtualRow,
   type VirtualWindow,
 } from './components/virtual-list/virtual-list.tsx';
+export {
+  BulkAction,
+  DataTable,
+  describeSorts,
+  TableTitle,
+  type DataColumn,
+  type DataTableProps,
+  type DataTableReorder,
+  type DataTableSort,
+  type SortDirection,
+} from './components/table/table.tsx';
+export { KeyValues, type KeyValue, type KeyValuesProps } from './components/key-values/key-values.tsx';
+export { Money, type MoneyProps } from './components/money/money.tsx';
+export {
+  currencyExponent,
+  formatMoney,
+  minorUnitsToDecimalString,
+  type MoneyFormat,
+} from './lib/money.ts';
+export {
+  DRAG_DELAY,
+  move,
+  ReorderHandle,
+  useAnnouncer,
+  type ReorderHandleProps,
+} from './lib/reorder.tsx';

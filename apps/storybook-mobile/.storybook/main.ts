@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { transformAsync } from '@babel/core';
 import tailwindcss from '@tailwindcss/vite';
 import type { StorybookConfig } from '@storybook/react-native-web-vite';
+import type { Plugin } from 'vite';
 
 // The web Storybook's favicon: one mark, one file.
 const reachFavicon = readFileSync(
@@ -13,6 +15,35 @@ const reachFavicon = readFileSync(
 // `device.tsx`'s PLATFORMS, by section name; main.ts runs in Node and cannot
 // import the preview's React Native code.
 const PLATFORM_SECTIONS = ['iOS', 'Android'] as const;
+
+/*
+ * Third-party code that leaves its worklets to the worklets Babel plugin,
+ * which Metro runs on a device. Vite would pre-bundle it untouched, and
+ * React's plugin skips `node_modules`, so `workletLibraries` below runs the
+ * plugin over it (the framework's `modulesToTranspile` cannot see through
+ * pnpm's `.pnpm/` path, and hands the plugin a file name with Vite's query).
+ */
+const WORKLET_LIBRARIES = ['react-native-sortables'];
+
+function workletLibraries(): Plugin {
+  const match = new RegExp(`/node_modules/(${WORKLET_LIBRARIES.join('|')})/.*\\.js$`);
+  return {
+    name: 'reach:worklet-libraries',
+    enforce: 'pre',
+    async transform(code, id) {
+      const file = id.split('?')[0] ?? id;
+      if (!match.test(file)) return null;
+      const out = await transformAsync(code, {
+        filename: file,
+        babelrc: false,
+        configFile: false,
+        sourceMaps: true,
+        plugins: ['react-native-worklets/plugin'],
+      });
+      return out?.code ? { code: out.code, map: out.map ?? null } : null;
+    },
+  };
+}
 
 const config: StorybookConfig = {
   // Relative to this directory: the Vitest integration resolves globs against
@@ -90,7 +121,12 @@ const config: StorybookConfig = {
 
   viteFinal: (vite) => ({
     ...vite,
-    plugins: [...(vite.plugins ?? []), tailwindcss()],
+    plugins: [...(vite.plugins ?? []), tailwindcss(), workletLibraries()],
+    // Pre-bundling would skip the plugin those libraries need.
+    optimizeDeps: {
+      ...vite.optimizeDeps,
+      exclude: [...(vite.optimizeDeps?.exclude ?? []), ...WORKLET_LIBRARIES],
+    },
     resolve: {
       ...vite.resolve,
       // `@reach/ui-native` is a workspace link whose own devDependencies pin
