@@ -201,6 +201,15 @@ export {
   type RadioGroupProps,
 } from './components/radio-group/radio-group.tsx';
 export {
+  NotificationCenter,
+  NotificationGroup,
+  NotificationItem,
+  NotificationList,
+  type NotificationAction,
+  type NotificationCenterProps,
+  type NotificationItemProps,
+} from './components/notification-center/notification-center.tsx';
+export {
   CircularProgress,
   Progress,
   type CircularProgressProps,

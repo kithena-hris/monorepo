@@ -20,6 +20,8 @@ import {
   Inline,
   KbdGroup,
   List,
+  NotificationItem,
+  NotificationList,
   ListItem,
   ReachLogo,
   ReachProvider,
@@ -176,6 +178,21 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
           <Progress value={64} label="Onboarding" valueLabel="7 of 11 tasks" className="flex-1" />
           <CircularProgress value={null} size={40} label="Loading" />
         </Inline>
+
+        <NotificationList>
+          <NotificationItem
+            avatar={<Avatar name="Amara Okafor" size={36} decorative />}
+            title="Amara requested 5 days off"
+            description="14–18 Oct · 9.5 days left after"
+            time="12m"
+            unread
+            actions={[
+              { label: 'Decline', onPress: () => undefined },
+              { label: 'Approve', onPress: () => undefined, variant: 'primary' },
+            ]}
+            last
+          />
+        </NotificationList>
 
         <Accordion type="single" defaultValue="personal">
           <AccordionItem value="personal" title="Personal details">
