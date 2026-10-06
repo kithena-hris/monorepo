@@ -197,7 +197,7 @@ export function SelectionBar({
   );
 }
 
-export type NavItem = {
+export type TabBarItem = {
   key: string;
   label: string;
   icon: LucideIcon;
@@ -206,7 +206,7 @@ export type NavItem = {
 };
 
 export type TabBarProps = {
-  items: readonly NavItem[];
+  items: readonly TabBarItem[];
   value: string;
   onValueChange: (key: string) => void;
   /** Names the bar for a screen reader. */

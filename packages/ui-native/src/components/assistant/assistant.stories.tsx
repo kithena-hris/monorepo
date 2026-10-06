@@ -18,7 +18,7 @@ import { Card } from '../card/card.tsx';
 import { Alert } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
-import { TabBar, type NavItem } from '../app-bar/app-bar.tsx';
+import { TabBar, type TabBarItem } from '../app-bar/app-bar.tsx';
 import {
   AssistantAction,
   AssistantComposer,
@@ -286,7 +286,7 @@ export const SomethingWentWrong: Story = {
   ),
 };
 
-const TABS: NavItem[] = [
+const TABS: TabBarItem[] = [
   { key: 'home', label: 'Home', icon: House },
   { key: 'people', label: 'People', icon: Users },
   { key: 'pay', label: 'Pay', icon: Wallet },
