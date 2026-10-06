@@ -119,6 +119,7 @@ export {
   type PasswordRequirement,
 } from './components/password-field/password-field.tsx';
 export { PinInput, type PinInputProps } from './components/pin-input/pin-input.tsx';
+export { Rating, ratingSymbols, type RatingProps } from './components/rating/rating.tsx';
 export {
   RadioCard,
   RadioDot,
