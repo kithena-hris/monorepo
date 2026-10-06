@@ -38,6 +38,14 @@ export {
 export { Badge, type BadgeProps } from './components/badge/badge.tsx';
 export { Button, type ButtonProps, type ButtonVariants } from './components/button/button.tsx';
 export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
+export {
+  Chip,
+  ChipGroup,
+  ChipGroupItem,
+  type ChipGroupItemProps,
+  type ChipGroupProps,
+  type ChipProps,
+} from './components/chip/chip.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   AutoGrid,
@@ -53,6 +61,12 @@ export {
   type StackProps,
 } from './components/layout/layout.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
+export {
+  SegmentedControl,
+  SegmentedControlItem,
+  type SegmentedControlItemProps,
+  type SegmentedControlProps,
+} from './components/segmented-control/segmented-control.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
