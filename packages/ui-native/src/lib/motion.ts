@@ -17,10 +17,11 @@ import {
   PRESS_SCALE,
   RISE,
   springs,
+  stagger,
   type SpringConfig,
 } from '@reach/ui/motion';
 
-export { durations, easings, gentleSpring, PRESS_SCALE, springs };
+export { durations, easings, gentleSpring, PRESS_SCALE, RISE, springs, stagger };
 
 export type Bezier = readonly [number, number, number, number];
 export type Timing = { type: 'timing'; duration: number; easing: Bezier };

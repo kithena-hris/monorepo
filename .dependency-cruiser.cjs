@@ -171,6 +171,11 @@ module.exports = {
            * `vitest/config`, which gives it an outgoing dependency and takes it
            * out of the rule's reach on its own.
            */
+          /*
+           * A React Native platform file: the bundler picks `x.web.ts` over
+           * `x.ts` for the web, so an import names the plain one only.
+           */
+          '^packages/ui-native/src/.+\\.web\\.tsx?$',
           '(^|/)modern\\.config\\.ts$',
           '(^|/)postcss\\.config\\.mjs$',
           // A service worker is fetched by URL, never imported (TOF-108).

@@ -25,7 +25,7 @@ const config = getDefaultConfig(__dirname);
 // @rn-primitives/portal resolved its peer to the other one: the same stack
 // overflow, reached through `node_modules` instead of workspace source.
 const SINGLETONS =
-  /^(react|react-native|react-native-css|nativewind|react-native-reanimated|react-native-worklets|react-native-gesture-handler|react-native-safe-area-context|react-native-svg)(\/|$)/;
+  /^(react|react-native|react-native-css|nativewind|react-native-reanimated|react-native-worklets|react-native-gesture-handler|react-native-safe-area-context|react-native-svg|expo-clipboard)(\/|$)/;
 const appRoot = `${__dirname}/package.json`;
 config.resolver.resolveRequest = (context, moduleName, platform) =>
   context.resolveRequest(

@@ -170,7 +170,7 @@ export const Composed: Story = {
   render: () => (
     <Card>
       <Stack gap={3} className="gap-3.5">
-        <Inline gap={3} wrap={false} align="start">
+        <Inline gap={3} wrap={false} align="center">
           <Avatar name="Amara Okafor" size="xl" decorative />
           <View className="flex-1">
             <Text weight="bold">Amara Okafor</Text>
