@@ -12,6 +12,9 @@ import {
   FloatingButton,
   Icon,
   Inline,
+  KbdGroup,
+  List,
+  ListItem,
   ReachLogo,
   ReachProvider,
   SegmentedControl,
@@ -130,6 +133,23 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
         </SegmentedControl>
 
         <CopyField label="Employee ID" value="RCH-00412" mono />
+
+        <List>
+          <ListItem
+            leading={<Avatar name="Amara Okafor" decorative />}
+            description="Product Designer"
+            chevron
+            onPress={() => undefined}
+          >
+            Amara Okafor
+          </ListItem>
+          <ListItem
+            description="Shown only with a keyboard to hand"
+            trailing={<KbdGroup keys={['⌘', 'K']} touch="hide" />}
+          >
+            Search
+          </ListItem>
+        </List>
 
         <Inline gap={3}>
           <FloatingButton label="New request" />

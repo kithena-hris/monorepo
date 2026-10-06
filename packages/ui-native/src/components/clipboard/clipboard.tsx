@@ -221,7 +221,7 @@ export function CopyField({
   return (
     <View
       className={cn(
-        'h-m-field flex-row items-center gap-2.5 rounded-2xl border border-border pl-4 pr-1',
+        'h-m-field flex-row items-center gap-2.5 rounded-[16px] border border-border pl-4 pr-1',
         className,
       )}
     >

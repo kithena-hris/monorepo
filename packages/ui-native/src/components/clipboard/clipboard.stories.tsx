@@ -36,6 +36,7 @@ type Root = { querySelectorAll: (selector: string) => Iterable<Target & { blur: 
 const pressMarked: Story['play'] = async ({ canvasElement }) => {
   const root = canvasElement as unknown as Root;
   for (const el of root.querySelectorAll('[data-testid="press"] [role="button"]')) {
+    // oxlint-disable-next-line no-await-in-loop -- one press at a time, in order
     await userEvent.click(el);
     // The press leaves focus behind; the confirmation is the state to show, not the ring.
     el.blur();

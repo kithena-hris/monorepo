@@ -95,6 +95,13 @@ export {
   type SpeedDialAction,
   type SpeedDialProps,
 } from './components/floating-button/floating-button.tsx';
+export {
+  Kbd,
+  KbdGroup,
+  useHasKeyboard,
+  type KbdGroupProps,
+  type KbdProps,
+} from './components/kbd/kbd.tsx';
 export { Icon, iconVariants, type IconProps, type LucideIcon } from './components/icon/icon.tsx';
 export {
   AutoGrid,
@@ -109,6 +116,13 @@ export {
   type SplitProps,
   type StackProps,
 } from './components/layout/layout.tsx';
+export {
+  List,
+  ListItem,
+  type ListItemProps,
+  type ListProps,
+  type SwipeAction,
+} from './components/list-item/list-item.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export {
   SegmentedControl,

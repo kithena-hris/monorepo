@@ -4,12 +4,8 @@ import { Children, Fragment, isValidElement, useState, type ReactNode } from 're
 import { Platform, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { cn } from '../../lib/cn.ts';
 import { physics } from '../../lib/motion.ts';
@@ -145,7 +141,7 @@ function Body({
         <View
           aria-hidden
           className={cn(
-            'size-[30px] items-center justify-center rounded-lg',
+            'size-[30px] items-center justify-center rounded-[8px]',
             iconTone ? TILE[iconTone] : 'bg-surface-sunken',
           )}
         >
@@ -155,7 +151,7 @@ function Body({
         <View>{leading}</View>
       ) : null}
       <View className="min-w-0 flex-1 gap-0.5">
-        <View className="flex-row items-baseline justify-between gap-2">
+        <View className="flex-row items-start justify-between gap-2">
           <CssText
             numberOfLines={1}
             className={cn(
@@ -166,11 +162,20 @@ function Body({
             {children}
           </CssText>
           {meta ? (
-            <CssText className="text-caption font-normal text-fg-subtle">{meta}</CssText>
+            <CssText className="text-[12px] font-normal leading-none text-fg-subtle">
+              {meta}
+            </CssText>
           ) : null}
         </View>
         {description ? (
-          <CssText numberOfLines={1} className="text-[14px] leading-[1.3] text-fg-muted">
+          <CssText
+            numberOfLines={1}
+            // Under a message's title the sender is a byline, a size down.
+            className={cn(
+              'leading-[1.3] text-fg-muted',
+              supporting ? 'text-[13px]' : 'text-[14px]',
+            )}
+          >
             {description}
           </CssText>
         ) : null}
@@ -310,11 +315,11 @@ function Swipeable({
       });
       if (rest === 'full') {
         settle(0);
-        runOnJS(run)(0);
-        runOnJS(setRevealed)(false);
+        scheduleOnRN(run, 0);
+        scheduleOnRN(setRevealed, false);
       } else {
         settle(rest === 'open' ? tray : 0);
-        runOnJS(setRevealed)(rest === 'open');
+        scheduleOnRN(setRevealed, rest === 'open');
       }
     });
 

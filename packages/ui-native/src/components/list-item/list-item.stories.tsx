@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import { Archive, Check, Trash2 } from 'lucide-react-native';
+import { Archive, Calendar, Check, FileText, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { designDocs } from '../../docs/design.ts';
+import { StandInCheckbox, StandInSwitch } from '../../docs/stand-ins.tsx';
 import { PEOPLE, STATUS_TONE } from '../../docs/people.ts';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Badge } from '../badge/badge.tsx';
+import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Stack } from '../layout/layout.tsx';
 import { Text } from '../text/text.tsx';
@@ -88,6 +90,66 @@ export const ThreeLines: Story = {
   ),
 };
 
+export const LeadingOptions: Story = {
+  name: 'Leading options',
+  render: () => (
+    <List>
+      <ListItem leading={<Avatar name="Priya Shah" size={40} decorative />} description="People">
+        Avatar
+      </ListItem>
+      <ListItem icon={Calendar} iconTone={3} description="Settings and destinations">
+        Icon tile
+      </ListItem>
+      <ListItem leading={<Icon icon={FileText} tone="muted" />} description="Files">
+        Plain icon
+      </ListItem>
+      <ListItem
+        leading={<StandInCheckbox label="Checkbox" defaultChecked />}
+        description="Selection"
+      >
+        Checkbox
+      </ListItem>
+    </List>
+  ),
+};
+
+export const TrailingOptions: Story = {
+  name: 'Trailing options',
+  render: () => (
+    <List>
+      <ListItem description="Opens something" chevron onPress={() => undefined}>
+        Chevron
+      </ListItem>
+      <ListItem
+        description="Read-only detail"
+        trailing={
+          <Text variant="callout" tone="muted">
+            Berlin
+          </Text>
+        }
+      >
+        Value
+      </ListItem>
+      <ListItem
+        description="Applies straight away"
+        trailing={<StandInSwitch label="Switch" defaultOn />}
+      >
+        Switch
+      </ListItem>
+      <ListItem
+        description="One action"
+        trailing={
+          <Button size="xs" variant="primary" onPress={() => undefined}>
+            Approve
+          </Button>
+        }
+      >
+        Button
+      </ListItem>
+    </List>
+  ),
+};
+
 export const SelectedAndDisabled: Story = {
   name: 'Selected and disabled',
   render: () => (
@@ -129,17 +191,12 @@ export const SwipeActions: Story = {
     return (
       <Stack gap={2} className="gap-2.5">
         <List>
-          {(
-            [
-              ['Amara Okafor', 'Vacation · 14–18 Oct'],
-              ['Mei Tanaka', 'Expense · €248.00'],
-            ] as const
-          ).map(([name, request]) => (
+          {([['Amara Okafor', 'Vacation · 14–18 Oct']] as const).map(([name, request]) => (
             <ListItem
               key={name}
               leading={<Avatar name={name} size="lg" decorative />}
               description={request}
-              defaultSwipeOpen={name === 'Amara Okafor'}
+              defaultSwipeOpen
               swipeActions={[
                 {
                   label: 'Archive',
@@ -164,7 +221,7 @@ export const SwipeActions: Story = {
             </ListItem>
           ))}
         </List>
-        <Text variant="subhead" tone="muted" accessibilityRole="text">
+        <Text variant="subhead" tone="muted" accessibilityRole="text" className="leading-[1.5]">
           {done ??
             'Swipe left to reveal actions, and a full swipe runs the first one. The same actions are in the long-press menu.'}
         </Text>
@@ -189,7 +246,7 @@ export const WithSectionHeaders: Story = {
             weight="semibold"
             tone="subtle"
             accessibilityRole="header"
-            className="px-4"
+            className="px-4 text-[12px] leading-none"
           >
             {heading}
           </Text>
