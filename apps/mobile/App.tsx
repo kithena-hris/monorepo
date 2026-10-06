@@ -1,5 +1,8 @@
 import {
   Accordion,
+  AssistantComposer,
+  AssistantMessage,
+  AssistantPanel,
   Alert,
   CircularProgress,
   Progress,
@@ -12,6 +15,10 @@ import {
   Card,
   CardDescription,
   CardTitle,
+  ChatComposer,
+  ChatLog,
+  ChatMessage,
+  ChatWindow,
   ChipGroup,
   ChipGroupItem,
   CopyField,
@@ -20,6 +27,8 @@ import {
   Inline,
   KbdGroup,
   List,
+  NotificationItem,
+  NotificationList,
   ListItem,
   ReachLogo,
   ReachProvider,
@@ -176,6 +185,55 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
           <Progress value={64} label="Onboarding" valueLabel="7 of 11 tasks" className="flex-1" />
           <CircularProgress value={null} size={40} label="Loading" />
         </Inline>
+
+        <NotificationList>
+          <NotificationItem
+            avatar={<Avatar name="Amara Okafor" size={36} decorative />}
+            title="Amara requested 5 days off"
+            description="14–18 Oct · 9.5 days left after"
+            time="12m"
+            unread
+            actions={[
+              { label: 'Decline', onPress: () => undefined },
+              { label: 'Approve', onPress: () => undefined, variant: 'primary' },
+            ]}
+            last
+          />
+        </NotificationList>
+
+        <ChatWindow
+          composer={<ChatComposer onSend={() => undefined} placeholder="Message Jonas" />}
+        >
+          <ChatLog accessibilityLabel="Conversation with Jonas Weber">
+            <ChatMessage author="Jonas Weber" meta="09:12">
+              Can you cover Amara’s reviews next week?
+            </ChatMessage>
+            <ChatMessage from="self" meta="09:14 · Read">
+              Yes, happy to. Which ones?
+            </ChatMessage>
+          </ChatLog>
+        </ChatWindow>
+
+        <View style={{ height: 360 }}>
+          <AssistantPanel
+            title="Assistant"
+            badge="Beta"
+            subtitle="Knows your policies and your team"
+            className="flex-1"
+            composer={
+              <AssistantComposer
+                value=""
+                onValueChange={() => undefined}
+                onSubmit={() => undefined}
+              />
+            }
+          >
+            <AssistantMessage from="user">Who is out next week?</AssistantMessage>
+            <AssistantMessage from="assistant">
+              3 people on your team: Amara (Mon–Fri), Omar (Wed) and Yuki (Fri).
+            </AssistantMessage>
+          </AssistantPanel>
+        </View>
 
         <Accordion type="single" defaultValue="personal">
           <AccordionItem value="personal" title="Personal details">

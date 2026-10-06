@@ -46,6 +46,31 @@ export {
   type AccordionProps,
 } from './components/accordion/accordion.tsx';
 export {
+  AssistantAction,
+  AssistantComposer,
+  AssistantDetails,
+  AssistantFeedback,
+  AssistantLauncher,
+  AssistantMark,
+  AssistantMessage,
+  AssistantPanel,
+  AssistantSource,
+  AssistantSources,
+  AssistantStep,
+  AssistantSteps,
+  AssistantSuggestion,
+  AssistantSuggestions,
+  AssistantText,
+  AssistantWidget,
+  Strong,
+  type AssistantActionProps,
+  type AssistantComposerProps,
+  type AssistantLauncherProps,
+  type AssistantMessageProps,
+  type AssistantPanelProps,
+  type AssistantWidgetProps,
+} from './components/assistant/assistant.tsx';
+export {
   Avatar,
   AvatarGroup,
   avatarToneOf,
@@ -79,6 +104,19 @@ export { Badge, type BadgeProps } from './components/badge/badge.tsx';
 export { Button, type ButtonProps, type ButtonVariants } from './components/button/button.tsx';
 export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
 export { Carousel, slideAt, type CarouselProps } from './components/carousel/carousel.tsx';
+export {
+  ChatComposer,
+  ChatHeader,
+  ChatLog,
+  ChatMessage,
+  ChatTyping,
+  ChatWindow,
+  type ChatComposerProps,
+  type ChatHeaderProps,
+  type ChatLogProps,
+  type ChatMessageProps,
+  type ChatWindowProps,
+} from './components/chat/chat.tsx';
 export {
   Chip,
   ChipGroup,
@@ -257,6 +295,15 @@ export {
   type RadioGroupItemProps,
   type RadioGroupProps,
 } from './components/radio-group/radio-group.tsx';
+export {
+  NotificationCenter,
+  NotificationGroup,
+  NotificationItem,
+  NotificationList,
+  type NotificationAction,
+  type NotificationCenterProps,
+  type NotificationItemProps,
+} from './components/notification-center/notification-center.tsx';
 export {
   CircularProgress,
   Progress,

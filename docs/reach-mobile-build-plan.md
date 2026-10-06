@@ -296,9 +296,9 @@ axe-clean, compared side by side.
 - [x] **RMB-026** Accordion, Reveal (layout animation, stagger)
 - [x] **RMB-027** Feedback (alerts, skeletons, empty states), Progress (linear, circular, indeterminate)
 - [x] **RMB-028** Toast (undo, retry), Banner
-- [ ] **RMB-029** Notification centre
-- [ ] **RMB-030** Chat (bubbles, typing, failed send)
-- [ ] **RMB-031** AI chat widget (a compact card above the tab bar, never full screen)
+- [x] **RMB-029** Notification centre
+- [x] **RMB-030** Chat (bubbles, typing, failed send)
+- [x] **RMB-031** AI chat widget (a compact card above the tab bar, never full screen)
 
 ### Lane C — overlays and navigation
 
