@@ -8,6 +8,7 @@ import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
 import { flatStyle } from '../../lib/overlay.tsx';
+import { usePlatform } from '../../provider.tsx';
 import { fieldHint, fieldName, useField } from '../field/field.tsx';
 import { Icon } from '../icon/icon.tsx';
 
@@ -52,30 +53,43 @@ export function CheckboxBox({
   focused?: boolean;
 }): React.JSX.Element {
   const on = checked !== false;
+  // Material 3's on Android: an 18pt square with 2pt corners and a 2pt
+  // outline, in the same 24pt cell so rows line up either way.
+  const android = usePlatform() === 'android';
   return (
-    <View
-      className={cn(
-        'size-6 items-center justify-center rounded-[8px]',
-        on
-          ? disabled
-            ? 'bg-surface-active'
-            : pressed
-              ? 'bg-accent-active'
-              : 'bg-accent-solid'
-          : cn('border-[1.5px]', invalid ? 'border-danger' : 'border-border-strong'),
-      )}
-    >
-      {on ? (
-        <Icon
-          icon={checked === 'indeterminate' ? Minus : Check}
-          size={18}
-          tone="on-accent"
-        />
-      ) : null}
+    <View className="size-6 items-center justify-center">
+      <View
+        className={cn(
+          android
+            ? 'size-[18px] items-center justify-center rounded-[2px]'
+            : 'size-6 items-center justify-center rounded-[8px]',
+          on
+            ? disabled
+              ? 'bg-surface-active'
+              : pressed
+                ? 'bg-accent-active'
+                : 'bg-accent-solid'
+            : cn(
+                android ? 'border-2' : 'border-[1.5px]',
+                invalid ? 'border-danger' : android ? 'border-fg-muted' : 'border-border-strong',
+              ),
+        )}
+      >
+        {on ? (
+          <Icon
+            icon={checked === 'indeterminate' ? Minus : Check}
+            size={android ? 14 : 18}
+            tone="on-accent"
+          />
+        ) : null}
+      </View>
       {focused ? (
         <View
           style={{ pointerEvents: 'none' }}
-          className="absolute -inset-[5px] rounded-[13px] border-[3px] border-border-focus"
+          className={cn(
+            'absolute border-[3px] border-border-focus',
+            android ? '-inset-[2px] rounded-[6px]' : '-inset-[5px] rounded-[13px]',
+          )}
         />
       ) : null}
     </View>
@@ -164,4 +178,3 @@ export function Checkbox({
     </Root>
   );
 }
-
