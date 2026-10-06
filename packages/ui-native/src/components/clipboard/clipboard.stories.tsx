@@ -5,6 +5,7 @@ import { View } from 'react-native-css/components';
 import { userEvent } from 'storybook/test';
 
 import { designDocs, designNote } from '../../docs/design.ts';
+import { settled } from '../../docs/stage.tsx';
 import { PEOPLE } from '../../docs/people.ts';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Card } from '../card/card.tsx';
@@ -42,6 +43,8 @@ const pressMarked: Story['play'] = async ({ canvasElement }) => {
     // The press leaves focus behind; the confirmation is the state to show, not the ring.
     el.blur();
   }
+  // "Icon only" opens a tooltip as it renders; axe reads it once it has faded in.
+  await settled();
 };
 
 export const Playground: Story = {
