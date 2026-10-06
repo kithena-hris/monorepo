@@ -1,5 +1,6 @@
 import {
   Checkbox,
+  Combobox,
   CurrencyField,
   Field,
   FieldDescription,
@@ -13,6 +14,11 @@ import {
   RadioGroup,
   Rating,
   SearchField,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   RadioGroupItem,
   Slider,
   Stack,
@@ -44,6 +50,8 @@ export function FormsGallery(): React.JSX.Element {
   const [amount, setAmount] = useState('124050');
   const [phone, setPhone] = useState('151 2345 6789');
   const [country, setCountry] = useState('DE');
+  const [team, setTeam] = useState('design');
+  const [offices, setOffices] = useState<string | readonly string[] | null>(['Berlin']);
   const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
@@ -120,6 +128,31 @@ export function FormsGallery(): React.JSX.Element {
         />
       </Field>
       <Rating value={stars} onChange={setStars} label="Delivery" showValue />
+      <Field>
+        <FieldLabel>Team</FieldLabel>
+        <Select value={team} onValueChange={setTeam}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="engineering">Engineering</SelectItem>
+            <SelectItem value="design">Design</SelectItem>
+            <SelectItem value="sales">Sales</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Combobox
+        label="Offices"
+        multiple
+        chips
+        placeholder="Add an office"
+        options={['Berlin', 'London', 'Paris', 'Madrid', 'Remote'].map((o) => ({
+          value: o,
+          label: o,
+        }))}
+        value={offices}
+        onChange={setOffices}
+      />
     </Stack>
   );
 }

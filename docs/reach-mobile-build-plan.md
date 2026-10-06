@@ -277,7 +277,7 @@ axe-clean, compared side by side.
 - [x] **RMB-010** Field (label, hint, error, caution, sensitive, optional, read-only), Input, Textarea
 - [x] **RMB-011** NumberField (null is not zero, locale decimals), PasswordField (paste allowed), PinInput
 - [x] **RMB-012** Checkbox, RadioGroup (cards, horizontal → segmented), Switch (committing, failing), Toggle
-- [ ] **RMB-013** Select and Combobox (single, multiple, grouped, avatars, server search), as centred lists
+- [x] **RMB-013** Select and Combobox (single, multiple, grouped, avatars, server search), as centred lists
 - [ ] **RMB-014** TagsInput (escaping, limits), Rating (meanings, average)
 - [x] **RMB-015** Slider (range, steps, paired, vertical)
 - [ ] **RMB-016** Calendar (range, blocked days, marks, locales), DatePicker, TimePicker

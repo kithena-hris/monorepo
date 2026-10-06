@@ -63,6 +63,11 @@ export {
   type CheckedState,
 } from './components/checkbox/checkbox.tsx';
 export {
+  Combobox,
+  type ComboboxOption,
+  type ComboboxProps,
+} from './components/combobox/combobox.tsx';
+export {
   Dialog,
   DialogBody,
   DialogClose,
@@ -132,6 +137,20 @@ export {
   type RadioGroupProps,
 } from './components/radio-group/radio-group.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+  type SelectContentProps,
+  type SelectItemProps,
+  type SelectProps,
+  type SelectTriggerProps,
+} from './components/select/select.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Slider, type SliderProps } from './components/slider/slider.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
