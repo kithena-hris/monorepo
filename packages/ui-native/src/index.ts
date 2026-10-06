@@ -5,8 +5,10 @@
 export { cn } from './lib/cn.ts';
 export {
   ReachProvider,
+  usePlatform,
   useReducedMotion,
   useTheme,
+  type Platform,
   type ReachProviderProps,
   type Theme,
 } from './provider.tsx';

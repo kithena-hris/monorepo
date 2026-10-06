@@ -7,8 +7,9 @@
  * Screenshots every Storybook story of the component (the iframe, at the one
  * phone the mobile Storybook knows, 390 wide) and the matching figure in the
  * design's `ref/<category>-<theme>.html`, and writes them side by side to
- * `.compare/<component>/<story>.png`: Storybook on the left, the design on the
- * right, light above dark. `.compare/` is gitignored.
+ * `.compare/<component>/<story>.png`: the story as iOS draws it, then as
+ * Android draws it, then the design, light above dark. `.compare/` is
+ * gitignored.
  *
  * Uses a Storybook already running on $STORYBOOK_URL (default
  * http://localhost:6008, `pnpm --filter @reach/storybook-mobile dev`), or
@@ -116,35 +117,54 @@ for (const { category, component } of located) {
   const outDir = join(repoRoot, '.compare', component.id);
   mkdirSync(outDir, { recursive: true });
   for (const story of component.stories) {
-    const entry = Object.values(entries).find(
-      (e) => e.type === 'story' && e.title === component.title && e.name === story.name,
-    );
-    if (!entry) {
+    // The story under each platform's section (`apps/storybook-mobile/.storybook/device.tsx`).
+    const platforms = ['iOS', 'Android'].map((section) => ({
+      section,
+      entry: Object.values(entries).find(
+        (e) =>
+          e.type === 'story' &&
+          e.title === `${section}/${component.title}` &&
+          e.name === story.name,
+      ),
+    }));
+    if (platforms.some((p) => !p.entry)) {
       console.log(`  missing in Storybook: ${component.title} › ${story.name}`);
       unmatched += 1;
       continue;
     }
-    const cells = [];
+    const rows = [];
     for (const theme of ['light', 'dark']) {
-      const mine = await shootStory(entry.id, theme);
+      const shots = [];
+      for (const { section, entry } of platforms) {
+        shots.push({ label: section, png: (await shootStory(entry.id, theme)).toString('base64') });
+      }
       const theirs = await shootDesign(category, story.anchor, theme);
-      cells.push({ theme, mine: mine.toString('base64'), theirs: theirs?.toString('base64') });
+      shots.push({ label: 'Design', png: theirs?.toString('base64') });
+      rows.push({ theme, shots });
     }
     await sheet.setContent(
       `<body style="margin:0;padding:16px;background:#888;font:600 13px system-ui;color:#fff">` +
         `<div style="margin-bottom:8px">${component.title} › ${story.name}</div>` +
-        cells
+        rows
           .map(
-            (c) =>
+            (row) =>
               `<div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:16px">` +
-              `<figure style="margin:0"><figcaption>Storybook · ${c.theme}</figcaption><img style="width:390px" src="data:image/png;base64,${c.mine}"></figure>` +
-              `<figure style="margin:0"><figcaption>Design · ${c.theme}</figcaption>${c.theirs ? `<img style="width:390px" src="data:image/png;base64,${c.theirs}">` : '<p>No figure</p>'}</figure>` +
+              row.shots
+                .map(
+                  (shot) =>
+                    `<figure style="margin:0"><figcaption>${shot.label} · ${row.theme}</figcaption>` +
+                    (shot.png
+                      ? `<img style="width:390px" src="data:image/png;base64,${shot.png}">`
+                      : '<p>No figure</p>') +
+                    `</figure>`,
+                )
+                .join('') +
               `</div>`,
           )
           .join('') +
         `</body>`,
     );
-    await sheet.setViewportSize({ width: 860, height: 400 });
+    await sheet.setViewportSize({ width: 1266, height: 400 });
     const path = join(outDir, `${slug(story.name)}.png`);
     await sheet.screenshot({ path, fullPage: true });
     written += 1;
