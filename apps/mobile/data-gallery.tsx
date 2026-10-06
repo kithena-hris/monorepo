@@ -9,6 +9,7 @@ import {
   DataTable,
   FilterBuilder,
   Kanban,
+  Scheduler,
   type FilterGroup,
   KeyValues,
   ListItem,
@@ -48,6 +49,21 @@ export function DataGallery(): React.JSX.Element {
       <PeopleTable />
       <Filters />
       <Moving />
+      <Scheduler
+        label="Schedule"
+        columns={[
+          { id: 'wed', label: 'Wed 14', weekday: 'W', day: '14' },
+          { id: 'thu', label: 'Thu 15', weekday: 'T', day: '15' },
+        ]}
+        today="wed"
+        startHour={9}
+        endHour={13}
+        events={[
+          { id: 's1', column: 'wed', start: 540, end: 600, title: 'Standup', tone: 'info' },
+          { id: 's2', column: 'wed', start: 570, end: 660, title: 'Interview', tone: 'accent' },
+        ]}
+        onPickSlot={() => undefined}
+      />
       <TreeView
         label="Documents"
         defaultExpanded={['policies']}

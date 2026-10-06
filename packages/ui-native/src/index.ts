@@ -780,3 +780,14 @@ export {
   type TreeNode,
   type TreeViewProps,
 } from './components/tree-view/tree-view.tsx';
+export {
+  formatMinutes,
+  layoutLanes,
+  Scheduler,
+  type Minutes,
+  type SchedulerColumn,
+  type SchedulerEvent,
+  type SchedulerProps,
+  type SchedulerSlot,
+  type SchedulerTone,
+} from './components/scheduler/scheduler.tsx';
