@@ -273,7 +273,7 @@ axe-clean, compared side by side.
 - [x] **RMB-012** Checkbox, RadioGroup (cards, horizontal → segmented), Switch (committing, failing), Toggle
 - [ ] **RMB-013** Select and Combobox (single, multiple, grouped, avatars, server search), as centred lists
 - [ ] **RMB-014** TagsInput (escaping, limits), Rating (meanings, average)
-- [ ] **RMB-015** Slider (range, steps, paired, vertical)
+- [x] **RMB-015** Slider (range, steps, paired, vertical)
 - [ ] **RMB-016** Calendar (range, blocked days, marks, locales), DatePicker, TimePicker
 - [ ] **RMB-017** Typed fields (email, URL, phone, money, percent, date, time, duration, IBAN, postcode, each with its keyboard)
 - [ ] **RMB-018** ImageUploader, AvatarUploader (shapes, in-flight, refused), Dropzone (on a phone, a picker)

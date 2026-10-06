@@ -131,6 +131,7 @@ export {
 } from './components/radio-group/radio-group.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
+export { Slider, type SliderProps } from './components/slider/slider.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
 export { Switch, SwitchTrack, type SwitchProps } from './components/switch/switch.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';

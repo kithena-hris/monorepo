@@ -11,6 +11,7 @@ import {
   RadioGroup,
   Rating,
   RadioGroupItem,
+  Slider,
   Stack,
   Switch,
   Text,
@@ -35,6 +36,7 @@ export function FormsGallery(): React.JSX.Element {
   const [notify, setNotify] = useState(true);
   const [bold, setBold] = useState(false);
   const [stars, setStars] = useState(4);
+  const [band, setBand] = useState([40, 75]);
   const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
@@ -88,6 +90,14 @@ export function FormsGallery(): React.JSX.Element {
         <ToggleGroupItem value="week">Week</ToggleGroupItem>
         <ToggleGroupItem value="month">Month</ToggleGroupItem>
       </ToggleGroup>
+      <Slider
+        value={band}
+        onValueChange={setBand}
+        label="Salary band"
+        min={20}
+        max={120}
+        tip={(v) => `€${String(v)}k`}
+      />
       <Rating value={stars} onChange={setStars} label="Delivery" showValue />
     </Stack>
   );

@@ -14,6 +14,8 @@ export type NumberFieldProps = {
   onChange: (value: number | null) => void;
   /** Required. A number field with no label is a box. */
   label: string;
+  /** The label is read, not drawn: for a field whose row already names it. */
+  hideLabel?: boolean;
   hint?: string;
   /** Shown while invalid, in place of the hint. */
   error?: string;
@@ -50,6 +52,7 @@ export function NumberField({
   value,
   onChange,
   label,
+  hideLabel = false,
   hint,
   error,
   min,
@@ -117,8 +120,9 @@ export function NumberField({
 
   return (
     <Field invalid={invalid || Boolean(error)} disabled={disabled} className={className}>
-      <FieldLabel>{label}</FieldLabel>
+      {hideLabel ? null : <FieldLabel>{label}</FieldLabel>}
       <Input
+        {...(hideLabel ? { accessibilityLabel: label } : {})}
         type={precision === 0 ? 'number' : 'decimal'}
         size={size}
         readOnly={readOnly}
