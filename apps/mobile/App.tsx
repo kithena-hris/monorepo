@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { Appearance, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FormsGallery } from './forms-gallery.tsx';
 import './global.css';
 
 const PEOPLE = ['Priya Shah', 'Jonas Weber', 'Amara Okafor', 'Lucas Moreau', 'Mei Tanaka'];
@@ -123,6 +124,8 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             </Button>
           </Inline>
         </Card>
+
+        <FormsGallery />
       </ScrollView>
     </View>
   );

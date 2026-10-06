@@ -269,7 +269,7 @@ axe-clean, compared side by side.
 ### Lane A — Forms
 
 - [x] **RMB-010** Field (label, hint, error, caution, sensitive, optional, read-only), Input, Textarea
-- [ ] **RMB-011** NumberField (null is not zero, locale decimals), PasswordField (paste allowed), PinInput
+- [x] **RMB-011** NumberField (null is not zero, locale decimals), PasswordField (paste allowed), PinInput
 - [ ] **RMB-012** Checkbox, RadioGroup (cards, horizontal → segmented), Switch (committing, failing), Toggle
 - [ ] **RMB-013** Select and Combobox (single, multiple, grouped, avatars, server search), as centred lists
 - [ ] **RMB-014** TagsInput (escaping, limits), Rating (meanings, average)

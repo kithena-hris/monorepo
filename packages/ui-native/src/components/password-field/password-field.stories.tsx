@@ -54,7 +54,7 @@ function SignIn(): React.JSX.Element {
     <Card>
       <Stack className="gap-3.5">
         <Inline className="gap-2.5" wrap={false}>
-          <ReachMark size={36} />
+          <ReachMark size={36} tile />
           <Text variant="title3" weight="bold">
             Sign in to Reach
           </Text>
@@ -108,7 +108,7 @@ export const SettingANewOne: Story = {
 export const PasteWorks: Story = {
   name: 'Paste works: deliberately',
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <Live initial="Kx9-vR2m-Tq7w-Lp" autoFocus />
       <Text variant="subhead" tone="muted">
         Pasted from your password manager. We never block paste: blocking it pushes people to
@@ -121,10 +121,10 @@ export const PasteWorks: Story = {
 export const InvalidDisabledSizes: Story = {
   name: 'Invalid, disabled, sizes',
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <Live initial="Wrong" error="That password isn’t right. 2 tries left." />
       <Live initial="Disabled" disabled />
-      <Live initial="Compact1" size="sm" />
+      <Live initial="Compact1" size="sm" hideLabel />
     </Stack>
   ),
 };

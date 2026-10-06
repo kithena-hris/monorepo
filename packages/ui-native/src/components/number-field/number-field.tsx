@@ -83,7 +83,8 @@ export function NumberField({
   const atMax = max !== undefined && value !== null && value >= max;
   const inert = disabled || readOnly;
 
-  const steppers = hideSteppers ? null : (
+  // A value to read has nothing to step, and its unit reads as part of it.
+  const steppers = hideSteppers || readOnly ? null : (
     <View className="-mr-1.5 flex-row gap-0.5">
       <Button
         variant="ghost"
@@ -107,8 +108,8 @@ export function NumberField({
       />
     </View>
   );
-  const unit =
-    typeof suffix === 'string' ? (
+  const inlineUnit = readOnly && typeof suffix === 'string' && value !== null;
+  const unit = inlineUnit ? null : typeof suffix === 'string' ? (
       <CssText className="text-[17px] text-fg-muted">{suffix}</CssText>
     ) : (
       suffix
@@ -121,7 +122,11 @@ export function NumberField({
         type={precision === 0 ? 'number' : 'decimal'}
         size={size}
         readOnly={readOnly}
-        value={draft ?? formatNumber(value, locale, precision)}
+        value={
+          inlineUnit
+            ? `${formatNumber(value, locale, precision)} ${suffix}`
+            : (draft ?? formatNumber(value, locale, precision))
+        }
         {...(placeholder === undefined ? {} : { placeholder })}
         onChange={setDraft}
         onBlur={() => {

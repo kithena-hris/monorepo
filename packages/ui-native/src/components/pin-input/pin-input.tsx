@@ -21,6 +21,11 @@ export type PinInputProps = {
   groupAfter?: number;
   disabled?: boolean;
   invalid?: boolean;
+  /**
+   * The code was checked and accepted: every box rings in success. A full
+   * code is not yet a right one, so filling the last box alone does not.
+   */
+  accepted?: boolean;
   autoFocus?: boolean;
   className?: string | undefined;
 };
@@ -42,12 +47,12 @@ export function PinInput({
   groupAfter,
   disabled = false,
   invalid = false,
+  accepted = false,
   autoFocus = false,
   className,
 }: PinInputProps): React.JSX.Element {
   const [focused, setFocused] = useState(false);
   const allowed = type === 'numeric' ? /\d/ : /[a-z0-9]/i;
-  const complete = value.length === length;
 
   const change = (raw: string): void => {
     const next = Array.from(raw)
@@ -62,12 +67,12 @@ export function PinInput({
   const ring = (i: number): string | null => {
     if (invalid) return 'border-2 border-danger';
     if (focused && i === Math.min(value.length, length - 1)) return 'border-2 border-accent';
-    if (complete) return 'border-2 border-success';
+    if (accepted) return 'border-2 border-success';
     return null;
   };
 
   return (
-    <View className={cn('gap-2', className)}>
+    <View className={cn('gap-3', className)}>
       <View className={cn('relative flex-row gap-2 self-start', disabled && 'opacity-50')}>
         {Array.from({ length }, (_, i) => {
           const char = value[i];

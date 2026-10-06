@@ -39,7 +39,7 @@ export const PastingACode: Story = {
   name: 'Pasting a code',
   render: () => (
     <Stack gap={3}>
-      <Live initial="482917" />
+      <Live initial="482917" accepted />
       <Text variant="subhead" tone="muted">
         Pasted 482917. All six boxes filled, and the form submitted.
       </Text>

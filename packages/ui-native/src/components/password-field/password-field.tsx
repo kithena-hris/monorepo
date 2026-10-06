@@ -14,6 +14,8 @@ export type PasswordFieldProps = {
   value: string;
   onChange: (value: string) => void;
   label: string;
+  /** The label is read, not drawn: for a row that already says what the field is. */
+  hideLabel?: boolean;
   hint?: string;
   /** Shown while invalid, in place of the hint. */
   error?: string;
@@ -72,6 +74,7 @@ export function PasswordField({
   value,
   onChange,
   label,
+  hideLabel = false,
   hint,
   error,
   autoComplete,
@@ -87,14 +90,19 @@ export function PasswordField({
 }: PasswordFieldProps): React.JSX.Element {
   const [revealed, setRevealed] = useState(defaultRevealed);
   const strength = useMemo(() => estimateStrength(value), [value]);
-  const checks = (requirements ?? []).map((rule) => ({ ...rule, met: rule.test(value) }));
+  const checks = (requirements ?? []).map((rule) => ({
+    id: rule.id,
+    label: rule.label,
+    met: rule.test(value),
+  }));
   const met = checks.filter((rule) => rule.met).length;
 
   return (
     <View className={cn('gap-3', className)}>
       <Field invalid={invalid || Boolean(error)} disabled={disabled}>
-        <FieldLabel>{label}</FieldLabel>
+        {hideLabel ? null : <FieldLabel>{label}</FieldLabel>}
         <Input
+          {...(hideLabel ? { accessibilityLabel: label } : {})}
           type="password"
           secure={!revealed}
           autoComplete={autoComplete}
@@ -145,7 +153,7 @@ export function PasswordField({
           <View className="h-2 overflow-hidden rounded-full bg-surface-active">
             <View
               className={cn('h-full rounded-full', strengthTone[strength])}
-              style={{ width: `${(strength / 4) * 100}%` }}
+              style={{ width: `${String((strength / 4) * 100)}%` as `${number}%` }}
             />
           </View>
         </View>

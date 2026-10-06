@@ -31,7 +31,7 @@ export const Playground: Story = {
 export const NullIsNotZero: Story = {
   name: 'Null is not zero',
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <Live
         label="Overtime hours"
         initial={null}
@@ -46,7 +46,7 @@ export const NullIsNotZero: Story = {
 export const DecimalsAndLocale: Story = {
   name: 'Decimals and locale',
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <Live label="FTE (en-GB)" initial={0.8} locale="en-GB" step={0.1} min={0} max={1} />
       <Live label="FTE (de-DE)" initial={0.8} locale="de-DE" step={0.1} min={0} max={1} />
       <Live
@@ -75,7 +75,7 @@ export const PrefixesSuffixesAndSizes: Story = {
 export const BoundsAndValidation: Story = {
   name: 'Bounds and validation',
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <Live
         label="Days off"
         initial={18}
@@ -97,7 +97,7 @@ export const BoundsAndValidation: Story = {
 export const DisabledAndReadOnly: Story = {
   name: 'Disabled and read-only',
   render: () => (
-    <Stack gap={3}>
+    <Stack className="gap-3.5">
       <Live label="Carry-over" initial={5} disabled />
       <Live label="Accrued" initial={23.5} suffix="days" readOnly hideSteppers />
     </Stack>
