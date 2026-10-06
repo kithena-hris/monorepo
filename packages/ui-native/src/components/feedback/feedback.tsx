@@ -281,10 +281,20 @@ export type EmptyStateProps = {
   description?: string;
   /** The next step: one button, or two. */
   action?: ReactNode;
-  /** `accent` for an invitation ("Invite your team") rather than a report that nothing is here. */
-  tone?: 'neutral' | 'accent';
+  /**
+   * `accent` for an invitation ("Invite your team") rather than a report that
+   * nothing is here; `danger` for a failure ("Couldn't load people"), whose
+   * action is to try again.
+   */
+  tone?: 'neutral' | 'accent' | 'danger';
   className?: string | undefined;
 };
+
+const EMPTY_DISC = {
+  neutral: 'bg-surface-sunken',
+  accent: 'bg-accent-subtle',
+  danger: 'bg-danger-subtle',
+} as const;
 
 /** Nothing to show. Name the reason and offer the next step. */
 export function EmptyState({
@@ -298,13 +308,8 @@ export function EmptyState({
   return (
     <View className={cn('items-center gap-2.5 px-4 py-7', className)}>
       {icon ? (
-        <View
-          className={cn(
-            'size-14 items-center justify-center rounded-full',
-            tone === 'accent' ? 'bg-accent-subtle' : 'bg-surface-sunken',
-          )}
-        >
-          <Icon icon={icon} size={26} tone={tone === 'accent' ? 'accent' : 'muted'} />
+        <View className={cn('size-14 items-center justify-center rounded-full', EMPTY_DISC[tone])}>
+          <Icon icon={icon} size={26} tone={tone === 'neutral' ? 'muted' : tone} />
         </View>
       ) : null}
       <CssText className="text-center text-headline font-semibold text-fg">{title}</CssText>
