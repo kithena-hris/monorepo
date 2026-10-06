@@ -1,4 +1,5 @@
 import {
+  Checkbox,
   Field,
   FieldDescription,
   FieldError,
@@ -7,10 +8,17 @@ import {
   NumberField,
   PasswordField,
   PinInput,
+  RadioGroup,
+  RadioGroupItem,
   Stack,
+  Switch,
   Text,
   Textarea,
+  Toggle,
+  ToggleGroup,
+  ToggleGroupItem,
 } from '@reach/ui-native';
+import { Bold } from 'lucide-react-native';
 import { useState } from 'react';
 
 /** Lane A's form controls, rendered by Metro on a device. */
@@ -21,6 +29,11 @@ export function FormsGallery(): React.JSX.Element {
   const [days, setDays] = useState<number | null>(5);
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('48');
+  const [summary, setSummary] = useState(true);
+  const [schedule, setSchedule] = useState('monthly');
+  const [notify, setNotify] = useState(true);
+  const [bold, setBold] = useState(false);
+  const [range, setRange] = useState<string | undefined>('week');
   return (
     <Stack className="gap-3.5">
       <Text variant="title3">Forms</Text>
@@ -47,6 +60,32 @@ export function FormsGallery(): React.JSX.Element {
         showStrength
       />
       <PinInput label="Verification code" value={code} onChange={setCode} groupAfter={3} />
+      <Checkbox checked={summary} onCheckedChange={setSummary}>
+        Send me a weekly summary
+      </Checkbox>
+      <RadioGroup value={schedule} onValueChange={setSchedule} accessibilityLabel="Pay schedule">
+        <RadioGroupItem value="monthly">Monthly</RadioGroupItem>
+        <RadioGroupItem value="weekly" description="Paid every Friday">
+          Weekly
+        </RadioGroupItem>
+      </RadioGroup>
+      <Switch checked={notify} onCheckedChange={setNotify} description="A summary every Monday">
+        Email notifications
+      </Switch>
+      <Toggle pressed={bold} onPressedChange={setBold} icon={Bold}>
+        Bold
+      </Toggle>
+      <ToggleGroup
+        type="single"
+        value={range}
+        onValueChange={setRange}
+        fullWidth
+        accessibilityLabel="Range"
+      >
+        <ToggleGroupItem value="day">Day</ToggleGroupItem>
+        <ToggleGroupItem value="week">Week</ToggleGroupItem>
+        <ToggleGroupItem value="month">Month</ToggleGroupItem>
+      </ToggleGroup>
     </Stack>
   );
 }

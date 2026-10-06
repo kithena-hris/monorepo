@@ -55,6 +55,12 @@ export { Badge, type BadgeProps } from './components/badge/badge.tsx';
 export { Button, type ButtonProps, type ButtonVariants } from './components/button/button.tsx';
 export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
 export {
+  Checkbox,
+  CheckboxBox,
+  type CheckboxProps,
+  type CheckedState,
+} from './components/checkbox/checkbox.tsx';
+export {
   Dialog,
   DialogBody,
   DialogClose,
@@ -113,10 +119,32 @@ export {
   type PasswordRequirement,
 } from './components/password-field/password-field.tsx';
 export { PinInput, type PinInputProps } from './components/pin-input/pin-input.tsx';
+export {
+  RadioCard,
+  RadioDot,
+  RadioGroup,
+  RadioGroupItem,
+  type RadioCardProps,
+  type RadioGroupItemProps,
+  type RadioGroupProps,
+} from './components/radio-group/radio-group.tsx';
 export { ScrollArea, type ScrollAreaProps } from './components/scroll-area/scroll-area.tsx';
 export { Separator, type SeparatorProps } from './components/separator/separator.tsx';
 export { Spinner, type SpinnerProps } from './components/spinner/spinner.tsx';
+export { Switch, SwitchTrack, type SwitchProps } from './components/switch/switch.tsx';
 export { Text, textVariants, type TextProps } from './components/text/text.tsx';
+export {
+  segmentItem,
+  segmentText,
+  segmentTrack,
+  segmentTrackFull,
+  Toggle,
+  ToggleGroup,
+  ToggleGroupItem,
+  type ToggleGroupItemProps,
+  type ToggleGroupProps,
+  type ToggleProps,
+} from './components/toggle/toggle.tsx';
 export {
   ReachLogo,
   ReachMark,
