@@ -12,6 +12,10 @@ import {
   Card,
   CardDescription,
   CardTitle,
+  ChatComposer,
+  ChatLog,
+  ChatMessage,
+  ChatWindow,
   ChipGroup,
   ChipGroupItem,
   CopyField,
@@ -193,6 +197,19 @@ function Gallery({ dark, onToggle }: { dark: boolean; onToggle: () => void }): R
             last
           />
         </NotificationList>
+
+        <ChatWindow
+          composer={<ChatComposer onSend={() => undefined} placeholder="Message Jonas" />}
+        >
+          <ChatLog accessibilityLabel="Conversation with Jonas Weber">
+            <ChatMessage author="Jonas Weber" meta="09:12">
+              Can you cover Amara’s reviews next week?
+            </ChatMessage>
+            <ChatMessage from="self" meta="09:14 · Read">
+              Yes, happy to. Which ones?
+            </ChatMessage>
+          </ChatLog>
+        </ChatWindow>
 
         <Accordion type="single" defaultValue="personal">
           <AccordionItem value="personal" title="Personal details">

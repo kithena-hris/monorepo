@@ -80,6 +80,19 @@ export { Button, type ButtonProps, type ButtonVariants } from './components/butt
 export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
 export { Carousel, slideAt, type CarouselProps } from './components/carousel/carousel.tsx';
 export {
+  ChatComposer,
+  ChatHeader,
+  ChatLog,
+  ChatMessage,
+  ChatTyping,
+  ChatWindow,
+  type ChatComposerProps,
+  type ChatHeaderProps,
+  type ChatLogProps,
+  type ChatMessageProps,
+  type ChatWindowProps,
+} from './components/chat/chat.tsx';
+export {
   Chip,
   ChipGroup,
   ChipGroupItem,

@@ -5,6 +5,7 @@ import {
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSpring,
   withTiming,
@@ -95,20 +96,27 @@ const PULSE_MS = 800;
  * decoration, so it stops under reduced motion and when `active` is false.
  * For a bare `Animated.View` (RMB-001).
  */
-export function usePulse(active: boolean): ReturnType<typeof useAnimatedStyle> {
+export function usePulse(
+  active: boolean,
+  /** Starts this many ms late, for a row of dots breathing in turn. */
+  delay = 0,
+): ReturnType<typeof useAnimatedStyle> {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(1);
   useEffect(() => {
     if (!active || reduced) return undefined;
-    opacity.value = withRepeat(
-      withTiming(0.35, { duration: PULSE_MS, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(0.35, { duration: PULSE_MS, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true,
+      ),
     );
     return () => {
       cancelAnimation(opacity);
       opacity.value = 1;
     };
-  }, [opacity, active, reduced]);
+  }, [opacity, active, reduced, delay]);
   return useAnimatedStyle(() => ({ opacity: opacity.value }));
 }
