@@ -2,7 +2,7 @@ import { durations } from '@reach/ui/motion';
 import { GripVertical, Lock } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Platform, type AccessibilityActionEvent } from 'react-native';
-import { Pressable, View } from 'react-native-css/components';
+import { Pressable, Text, View } from 'react-native-css/components';
 import Sortable from 'react-native-sortables';
 
 import { Icon } from '../components/icon/icon.tsx';
@@ -55,7 +55,7 @@ export function useAnnouncer(): { announce: (message: string) => void; region: R
       // Visually hidden, read aloud.
       className="absolute h-px w-px overflow-hidden opacity-0"
     >
-      {message}
+      <Text>{message}</Text>
     </View>
   ) : null;
   return { announce, region };
