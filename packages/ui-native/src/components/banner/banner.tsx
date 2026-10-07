@@ -45,6 +45,16 @@ const solidFill = {
   neutral: 'bg-invert',
 } as const satisfies Record<BannerTone, string>;
 
+/** The ink on each solid fill, as the web's: white on the fills dark enough, the surface on the two that are not. */
+const solidInk = {
+  info: 'text-surface',
+  success: 'text-fg-on-solid',
+  warning: 'text-surface',
+  danger: 'text-fg-on-solid',
+  accent: 'text-fg-on-accent',
+  neutral: 'text-fg-on-invert',
+} as const satisfies Record<BannerTone, string>;
+
 const glyphTone = {
   info: 'info',
   success: 'success',
@@ -68,10 +78,11 @@ const WEB = Platform.OS === 'web';
 export type BannerProps = {
   tone?: BannerTone;
   /**
-   * `soft` by default. `solid` for something that blocks work. `inverted` for
-   * the app's own news, a maintenance window, in the dark of a toast.
+   * `soft` by default. `solid` for something that blocks work. `invert` for
+   * the app's own news, a maintenance window, in the dark of a toast. The
+   * web's names.
    */
-  variant?: 'soft' | 'solid' | 'inverted';
+  emphasis?: 'soft' | 'solid' | 'invert';
   /** The lead, in bold, before the message: "Payroll closes tomorrow at 17:00." */
   title?: string;
   /** The message. */
@@ -90,7 +101,7 @@ export type BannerProps = {
 
 export function Banner({
   tone = 'info',
-  variant = 'soft',
+  emphasis: variant = 'soft',
   title,
   children,
   icon,
@@ -102,14 +113,15 @@ export function Banner({
 }: BannerProps): React.JSX.Element {
   const filled = variant !== 'soft';
   const ink = filled ? 'on-invert' : glyphTone[tone];
-  const text = variant === 'inverted' ? 'text-fg-on-invert' : filled ? 'text-white' : 'text-fg';
+  const text =
+    variant === 'invert' ? 'text-fg-on-invert' : variant === 'solid' ? solidInk[tone] : 'text-fg';
   const urgent = tone === 'danger' || tone === 'warning';
   return (
     <View
       {...(WEB ? { role: urgent ? ('alert' as const) : ('status' as const) } : {})}
       className={cn(
         'flex-row flex-wrap items-start gap-3 px-4 py-3',
-        variant === 'inverted' ? 'bg-invert' : variant === 'solid' ? solidFill[tone] : wash[tone],
+        variant === 'invert' ? 'bg-invert' : variant === 'solid' ? solidFill[tone] : wash[tone],
         rounded && 'rounded-[18px]',
         className,
       )}
@@ -119,7 +131,7 @@ export function Banner({
           icon={icon ?? glyph[tone]}
           size={18}
           tone={ink}
-          {...(variant === 'solid' ? { className: 'text-white' } : {})}
+          {...(variant === 'solid' ? { className: solidInk[tone] } : {})}
         />
       </View>
       <CssText className={cn('min-w-0 flex-1 text-subhead leading-[1.45]', text)}>
@@ -137,7 +149,7 @@ export function Banner({
                 icon={X}
                 size={16}
                 tone={filled ? 'on-invert' : 'muted'}
-                {...(variant === 'solid' ? { className: 'text-white' } : {})}
+                {...(variant === 'solid' ? { className: solidInk[tone] } : {})}
               />
             }
             onPress={onDismiss}

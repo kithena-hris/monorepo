@@ -152,7 +152,7 @@ function Body({
             iconTone ? TILE[iconTone] : 'bg-surface-sunken',
           )}
         >
-          <Icon icon={icon} size={16} {...(iconTone ? { className: 'text-white' } : {})} />
+          <Icon icon={icon} size={16} {...(iconTone ? { className: 'text-fg-on-solid' } : {})} />
         </View>
       ) : leading ? (
         <View>{leading}</View>

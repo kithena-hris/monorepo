@@ -117,7 +117,7 @@ export const CriticalSolid: Story = {
     <Banner
       rounded
       tone="danger"
-      variant="solid"
+      emphasis="solid"
       title="Payroll failed for 3 people."
       actions={
         <Button size="xs" variant="invert">
@@ -159,7 +159,7 @@ export const MaintenanceCountdown: Story = {
   render: () => (
     <Banner
       rounded
-      variant="inverted"
+      emphasis="invert"
       icon={Wrench}
       title="Reach is read-only in 14 min."
       actions={
