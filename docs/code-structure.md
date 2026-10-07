@@ -35,6 +35,7 @@ apps/
     tenants/                 remote
   docs/                    design.kithena.com        ← Reach, unchanged
   storybook/               storybook.kithena.com     ← Reach, unchanged
+  storybook-mobile/        storybook-mobile.kithena.com ← Reach on a phone
 
 platform/
   identity/                accounts, credentials, sessions, tenant registry

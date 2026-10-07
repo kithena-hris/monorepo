@@ -39,12 +39,13 @@ than quietly working around it.
   live in `packages/ui/src/brand`, because a mark is presentation and nothing
   else.
 
-  **Reach is used internally for now**, but its two sites are public:
-  `design.kithena.com` and `storybook.kithena.com`. That is not the preference —
+  **Reach is used internally for now**, but its three sites are public:
+  `design.kithena.com`, `storybook.kithena.com` and
+  `storybook-mobile.kithena.com`. That is not the preference —
   Vercel's Hobby plan cannot protect a production deployment or a custom domain
   at all, and the API refuses `ssoProtection` on production outright. Assume
-  anything in `apps/docs` or a non-excluded story is world-readable, because it
-  is.
+  anything in `apps/docs` or a non-excluded story, web or mobile, is
+  world-readable, because it is.
 
   This is exactly why `pnpm docs:brand-leak` is a merge gate rather than a
   convention, and why `.storybook/main.ts` excludes the mark's stories: the two
