@@ -102,8 +102,8 @@ export const ASectionBreak: Story = {
 export const WhitespaceInstead: Story = {
   name: 'When space is the better answer',
   render: () => (
-    <Inline gap={3} wrap={false} align="start">
-      <View className="flex-1 rounded-sm bg-danger-subtle p-3">
+    <Stack gap={3}>
+      <View className="rounded-sm bg-danger-subtle p-3">
         <Stack gap={1} className="gap-1.5">
           <Text variant="footnote">Name</Text>
           <Separator />
@@ -115,7 +115,7 @@ export const WhitespaceInstead: Story = {
           Too many lines
         </Text>
       </View>
-      <View className="flex-1 rounded-sm bg-success-subtle p-3">
+      <View className="rounded-sm bg-success-subtle p-3">
         <Stack gap={3} className="gap-3.5">
           <Text variant="footnote">Name</Text>
           <Text variant="footnote">Email</Text>
@@ -125,6 +125,6 @@ export const WhitespaceInstead: Story = {
           Space does it
         </Text>
       </View>
-    </Inline>
+    </Stack>
   ),
 };
