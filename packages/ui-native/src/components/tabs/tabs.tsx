@@ -1,9 +1,19 @@
 import * as TabsPrimitive from '@rn-primitives/tabs';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { Platform, type LayoutChangeEvent } from 'react-native';
 import { styled } from 'react-native-css';
 import { ScrollView, View } from 'react-native-css/components';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
+import { animateTo, useMotion } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { flatStyle } from '../../lib/overlay.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
@@ -63,8 +73,72 @@ export function Tabs({
   );
 }
 
-type ListLook = { variant: 'line' | 'pill'; scroll: boolean };
+type Slot = { x: number; width: number };
+type ListLook = {
+  variant: 'line' | 'pill';
+  scroll: boolean;
+  /** A tab reports where it sits, so the line can slide to it. */
+  place?: (value: string, slot: Slot) => void;
+};
 const Look = createContext<ListLook>({ variant: 'line', scroll: false });
+
+/** The underline's inset from its tab's edges. */
+const LINE_INSET = 12;
+
+/**
+ * The line under the selected tab, sliding from tab to tab on the move
+ * spring as the web's indicator does. It lands where it is the first time,
+ * and jumps under reduced motion. Values on the UI thread; a tab reports its
+ * place only when its layout changes.
+ */
+function useLine(): {
+  place: (value: string, slot: Slot) => void;
+  line: React.JSX.Element | null;
+} {
+  const { value } = TabsPrimitive.useRootContext();
+  const { layout } = useMotion();
+  const [slots, setSlots] = useState<Partial<Record<string, Slot>>>({});
+  const x = useSharedValue(0);
+  const width = useSharedValue(0);
+  const placed = useRef(false);
+  const slot = slots[value];
+  useEffect(() => {
+    if (!slot) return;
+    const toX = slot.x + LINE_INSET;
+    const toWidth = Math.max(0, slot.width - 2 * LINE_INSET);
+    if (!placed.current || !layout) {
+      x.value = toX;
+      width.value = toWidth;
+      placed.current = true;
+      return;
+    }
+    x.value = animateTo(toX, layout);
+    width.value = animateTo(toWidth, layout);
+  }, [slot, layout, x, width]);
+  const style = useAnimatedStyle(() => ({
+    width: width.value,
+    transform: [{ translateX: x.value }],
+  }));
+  const place = useCallback((key: string, next: Slot) => {
+    setSlots((prev) => {
+      const old = prev[key];
+      return old && old.x === next.x && old.width === next.width ? prev : { ...prev, [key]: next };
+    });
+  }, []);
+  return {
+    place,
+    line: slot ? (
+      // The slide on a bare Animated.View, the colour on a view inside it (RMB-001).
+      <Animated.View
+        pointerEvents="none"
+        aria-hidden
+        style={[{ position: 'absolute', bottom: -1, left: 0, height: 3 }, style]}
+      >
+        <View className="flex-1 rounded-t-[3px] bg-accent" />
+      </Animated.View>
+    ) : null,
+  };
+}
 
 export type TabsListProps = {
   variant?: 'line' | 'pill';
@@ -87,6 +161,7 @@ export function TabsList({
   children,
   className,
 }: TabsListProps): React.JSX.Element {
+  const { place, line } = useLine();
   const list = (
     <List
       {...(accessibilityLabel ? { accessibilityLabel } : {})}
@@ -98,10 +173,11 @@ export function TabsList({
       )}
     >
       {children}
+      {variant === 'line' ? line : null}
     </List>
   );
   return (
-    <Look.Provider value={{ variant, scroll }}>
+    <Look.Provider value={{ variant, scroll, place }}>
       {scroll ? (
         // The row bleeds to the screen's edges as it scrolls, its first tab
         // still lined up with the content.
@@ -164,7 +240,7 @@ export function TabsTrigger({
   count,
   disabled = false,
 }: TabsTriggerProps): React.JSX.Element {
-  const { variant, scroll } = useContext(Look);
+  const { variant, scroll, place } = useContext(Look);
   const { value: selected } = TabsPrimitive.useRootContext();
   const on = selected === value;
   const ref = useNoOrphanControls();
@@ -175,6 +251,10 @@ export function TabsTrigger({
       ref={ref}
       value={value}
       disabled={disabled}
+      onLayout={(event: LayoutChangeEvent) => {
+        const { x, width } = event.nativeEvent.layout;
+        place?.(value, { x, width });
+      }}
       className={cn(
         'flex-row items-center gap-2',
         'focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-border-focus',
@@ -204,9 +284,6 @@ export function TabsTrigger({
           </Text>
         </View>
       )}
-      {!pill && on ? (
-        <View className="absolute inset-x-3 bottom-0 h-[3px] rounded-t-[3px] bg-accent" />
-      ) : null}
     </Trigger>
   );
 }
