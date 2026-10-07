@@ -127,22 +127,22 @@ export function SortableList<T extends SortableItem>({
   return (
     <View className={cn(className)}>
       <View role="list" aria-label={label}>
-      <Sortable.Grid
-        data={items as T[]}
-        columns={1}
-        rowGap={appearance === 'cards' ? 8 : 2}
-        keyExtractor={idOf}
-        customHandle
-        {...drag}
-        onDragStart={({ key }) => {
-          setLifted(key);
-        }}
-        onDragEnd={({ fromIndex, toIndex }) => {
-          setLifted(null);
-          reorder(fromIndex, toIndex);
-        }}
-        renderItem={({ item, index }) => <View role="listitem">{row(item, index)}</View>}
-      />
+        <Sortable.Grid
+          data={items as T[]}
+          columns={1}
+          rowGap={appearance === 'cards' ? 8 : 2}
+          keyExtractor={idOf}
+          customHandle
+          {...drag}
+          onDragStart={({ key }) => {
+            setLifted(key);
+          }}
+          onDragEnd={({ fromIndex, toIndex }) => {
+            setLifted(null);
+            reorder(fromIndex, toIndex);
+          }}
+          renderItem={({ item, index }) => <View role="listitem">{row(item, index)}</View>}
+        />
       </View>
       {region}
     </View>

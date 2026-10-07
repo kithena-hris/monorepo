@@ -11,7 +11,13 @@ const meta = {
   title: 'Components/Stat',
   component: Stat,
   parameters: designDocs('stat'),
-  args: { label: 'Headcount', value: '312', delta: '+12 this quarter', direction: 'up', sentiment: 'positive' },
+  args: {
+    label: 'Headcount',
+    value: '312',
+    delta: '+12 this quarter',
+    direction: 'up',
+    sentiment: 'positive',
+  },
 } satisfies Meta<typeof Stat>;
 
 export default meta;
@@ -43,7 +49,9 @@ export const WithMoney: Story = {
     <AutoGrid minItemWidth={150} gap={3}>
       <Stat
         label="Payroll, September"
-        value={<Money minorUnits="128430000" currency="EUR" locale="en-GB" exponent={2} hideFraction />}
+        value={
+          <Money minorUnits="128430000" currency="EUR" locale="en-GB" exponent={2} hideFraction />
+        }
         delta="+2.1% on August"
         direction="up"
       />
@@ -108,7 +116,14 @@ export const InANarrowColumn: Story = {
   name: 'In a narrow column',
   render: () => (
     <View className="gap-2.5">
-      <Stat label="Headcount" value="312" direction="up" delta="+12" sentiment="positive" size={28} />
+      <Stat
+        label="Headcount"
+        value="312"
+        direction="up"
+        delta="+12"
+        sentiment="positive"
+        size={28}
+      />
       <Stat
         label="Leavers"
         value="4"

@@ -42,7 +42,11 @@ function Part({ children, className }: { children: ReactNode; className: string 
   );
 }
 
-export function KeyValues({ items, layout = 'split', className }: KeyValuesProps): React.JSX.Element {
+export function KeyValues({
+  items,
+  layout = 'split',
+  className,
+}: KeyValuesProps): React.JSX.Element {
   if (layout === 'stacked') {
     return (
       <View role="list" className={cn('gap-3', className)}>

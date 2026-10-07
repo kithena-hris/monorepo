@@ -200,7 +200,12 @@ function PageButton({
             current ? 'bg-invert' : press.pressed && 'bg-surface-sunken',
           )}
         >
-          <Text variant="subhead" weight="semibold" tabular tone={current ? 'on-invert' : 'default'}>
+          <Text
+            variant="subhead"
+            weight="semibold"
+            tabular
+            tone={current ? 'on-invert' : 'default'}
+          >
             {String(page)}
           </Text>
         </View>

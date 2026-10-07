@@ -17,12 +17,43 @@ const WEEK = [
 ];
 
 const EVENTS: SchedulerEvent[] = [
-  { id: 'e1', column: 'mon', start: at(9), end: at(10), title: 'Standup', detail: 'Engineering', tone: 'info' },
-  { id: 'e2', column: 'mon', start: at(13), end: at(14, 30), title: 'Interview', detail: 'Hana Kim', tone: 'accent' },
-  { id: 'e3', column: 'tue', start: at(10), end: at(12), title: 'Design review', detail: 'Room 3', tone: 'success' },
+  {
+    id: 'e1',
+    column: 'mon',
+    start: at(9),
+    end: at(10),
+    title: 'Standup',
+    detail: 'Engineering',
+    tone: 'info',
+  },
+  {
+    id: 'e2',
+    column: 'mon',
+    start: at(13),
+    end: at(14, 30),
+    title: 'Interview',
+    detail: 'Hana Kim',
+    tone: 'accent',
+  },
+  {
+    id: 'e3',
+    column: 'tue',
+    start: at(10),
+    end: at(12),
+    title: 'Design review',
+    detail: 'Room 3',
+    tone: 'success',
+  },
   { id: 'e4', column: 'wed', start: at(9), end: at(10), title: 'Standup', tone: 'info' },
   { id: 'e5', column: 'wed', start: at(11), end: at(12), title: '1:1 Jonas', tone: 'accent' },
-  { id: 'e6', column: 'thu', start: at(9), end: at(17), title: 'Amara · Vacation', tone: 'warning' },
+  {
+    id: 'e6',
+    column: 'thu',
+    start: at(9),
+    end: at(17),
+    title: 'Amara · Vacation',
+    tone: 'warning',
+  },
   { id: 'e7', column: 'fri', start: at(14), end: at(16), title: 'Offsite prep', tone: 'success' },
 ];
 
@@ -50,9 +81,33 @@ export const Agenda: Story = {
         { id: 'tomorrow', label: 'Tomorrow' },
       ]}
       events={[
-        { id: 'a1', column: 'today', start: at(9), end: at(10), title: 'Standup', detail: 'Engineering', tone: 'info' },
-        { id: 'a2', column: 'today', start: at(11), end: at(12), title: '1:1 with Jonas', detail: 'Room 2', tone: 'accent' },
-        { id: 'a3', column: 'tomorrow', start: 0, end: at(24), title: 'Amara on vacation', tone: 'warning', allDay: true },
+        {
+          id: 'a1',
+          column: 'today',
+          start: at(9),
+          end: at(10),
+          title: 'Standup',
+          detail: 'Engineering',
+          tone: 'info',
+        },
+        {
+          id: 'a2',
+          column: 'today',
+          start: at(11),
+          end: at(12),
+          title: '1:1 with Jonas',
+          detail: 'Room 2',
+          tone: 'accent',
+        },
+        {
+          id: 'a3',
+          column: 'tomorrow',
+          start: 0,
+          end: at(24),
+          title: 'Amara on vacation',
+          tone: 'warning',
+          allDay: true,
+        },
       ]}
     />
   ),
@@ -69,8 +124,25 @@ export const Clashes: Story = {
       startHour={9}
       endHour={13}
       events={[
-        { id: 'c1', column: 'wed', start: at(9, 30), end: at(11), title: 'Interview', detail: 'Leo Rossi', tone: 'accent' },
-        { id: 'c2', column: 'wed', start: at(10), end: at(11, 30), title: 'Design review', detail: 'Clash', tone: 'danger', clash: true },
+        {
+          id: 'c1',
+          column: 'wed',
+          start: at(9, 30),
+          end: at(11),
+          title: 'Interview',
+          detail: 'Leo Rossi',
+          tone: 'accent',
+        },
+        {
+          id: 'c2',
+          column: 'wed',
+          start: at(10),
+          end: at(11, 30),
+          title: 'Design review',
+          detail: 'Clash',
+          tone: 'danger',
+          clash: true,
+        },
       ]}
     />
   ),

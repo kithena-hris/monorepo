@@ -42,7 +42,13 @@ export function DataGallery(): React.JSX.Element {
   return (
     <Stack gap={2}>
       <Text variant="headline">Data</Text>
-      <Stat label="Headcount" value="312" direction="up" delta="+12 this quarter" sentiment="positive" />
+      <Stat
+        label="Headcount"
+        value="312"
+        direction="up"
+        delta="+12 this quarter"
+        sentiment="positive"
+      />
       <KeyValues
         items={[
           { label: 'Team', value: 'Engineering' },

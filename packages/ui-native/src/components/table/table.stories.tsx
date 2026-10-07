@@ -93,7 +93,11 @@ const CHANGE = [
   ['−2.0%', 'danger'],
   ['—', 'muted'],
 ] as const;
-const CHANGE_TONE = { success: 'text-success-fg', danger: 'text-danger-fg', muted: 'text-fg-subtle' };
+const CHANGE_TONE = {
+  success: 'text-success-fg',
+  danger: 'text-danger-fg',
+  muted: 'text-fg-subtle',
+};
 
 type Paid = Person & { index: number };
 const PAID: Paid[] = PEOPLE.slice(0, 6).map((p, index) => ({ ...p, index }));
@@ -117,9 +121,7 @@ const MONEY_COLUMNS: DataColumn<Paid>[] = [
     id: 'bonus',
     header: 'Bonus',
     numeric: true,
-    cell: (p) => (
-      <Money minorUnits={String(BONUS[p.index] ?? 0)} currency="EUR" locale="en-GB" />
-    ),
+    cell: (p) => <Money minorUnits={String(BONUS[p.index] ?? 0)} currency="EUR" locale="en-GB" />,
   },
   {
     id: 'change',
@@ -494,20 +496,28 @@ const COUNTED_COLUMNS: DataColumn<Numbered>[] = MANY_COLUMNS.map((c, i) =>
 );
 
 type Scroller = { scrollTop: number; scrollHeight: number; dispatchEvent: (e: unknown) => boolean };
-type Canvas = { querySelectorAll: (selector: string) => ArrayLike<Scroller & { getAttribute: (name: string) => string | null }> };
+type Canvas = {
+  querySelectorAll: (
+    selector: string,
+  ) => ArrayLike<Scroller & { getAttribute: (name: string) => string | null }>;
+};
 
 /** Scrolls the table's list a long way down, as a fling would. */
 async function flingDown(canvasElement: unknown): Promise<void> {
   const canvas = canvasElement as Canvas;
   // FlashList's scroller: a list on the web (a `ul`), or a plain view when grouped.
   const scrollers = Array.from(canvas.querySelectorAll('ul, div')).filter(
-    (d) => d.scrollHeight > 5_000 && d.scrollHeight > (d as unknown as { clientHeight: number }).clientHeight + 1_000,
+    (d) =>
+      d.scrollHeight > 5_000 &&
+      d.scrollHeight > (d as unknown as { clientHeight: number }).clientHeight + 1_000,
   );
   const list = scrollers.at(-1);
   if (!list) throw new Error('No scrolling list in the table.');
   for (const to of [2_000, 40_000, 200_000]) {
     list.scrollTop = to;
-    list.dispatchEvent(new (globalThis as unknown as { Event: new (type: string) => unknown }).Event('scroll'));
+    list.dispatchEvent(
+      new (globalThis as unknown as { Event: new (type: string) => unknown }).Event('scroll'),
+    );
     // One step at a time on purpose: each lets the list draw before the next.
     // oxlint-disable-next-line no-await-in-loop
     await new Promise((done) => setTimeout(done, 120));

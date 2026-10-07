@@ -191,9 +191,7 @@ export function VirtualList<T>({
 
   if (count === 0) {
     return (
-      <View
-        className={cn('overflow-hidden rounded-m-card bg-surface p-4 shadow-sm', className)}
-      >
+      <View className={cn('overflow-hidden rounded-m-card bg-surface p-4 shadow-sm', className)}>
         {empty}
       </View>
     );
@@ -203,10 +201,7 @@ export function VirtualList<T>({
   return (
     <View
       style={{ height }}
-      className={cn(
-        'overflow-hidden rounded-m-card bg-surface shadow-sm',
-        className,
-      )}
+      className={cn('overflow-hidden rounded-m-card bg-surface shadow-sm', className)}
     >
       <FlashList
         ref={list}

@@ -11,11 +11,14 @@ import { DatePicker } from '../date-picker/date-picker.tsx';
 import { EmptyState } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Input } from '../input/input.tsx';
+import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control.tsx';
 import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from '../segmented-control/segmented-control.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../select/select.tsx';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../select/select.tsx';
 import { Text } from '../text/text.tsx';
 import {
   addCondition,

@@ -41,7 +41,12 @@ function Live({
         setRows(move(rows, from, to));
       }}
     >
-      {(r) => <SortableRowText title={r.title} {...(r.description ? { description: r.description } : {})} />}
+      {(r) => (
+        <SortableRowText
+          title={r.title}
+          {...(r.description ? { description: r.description } : {})}
+        />
+      )}
     </SortableList>
   );
 }

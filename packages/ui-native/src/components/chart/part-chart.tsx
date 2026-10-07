@@ -42,7 +42,11 @@ export function TreemapChart({
 }: TreemapChartProps): React.JSX.Element {
   const [width, onLayout] = useWidth();
   const rects = useMemo(
-    () => squarify(data.map((d) => d.value), { x: 0, y: 0, width, height }),
+    () =>
+      squarify(
+        data.map((d) => d.value),
+        { x: 0, y: 0, width, height },
+      ),
     [data, width, height],
   );
   const total = data.reduce((sum, d) => sum + d.value, 0) || 1;

@@ -28,10 +28,7 @@ import { Icon } from '../icon/icon.tsx';
 import { Input } from '../input/input.tsx';
 import { List, ListItem } from '../list-item/list-item.tsx';
 import { RadioGroup, RadioGroupItem } from '../radio-group/radio-group.tsx';
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from '../segmented-control/segmented-control.tsx';
+import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control.tsx';
 import {
   Sheet,
   SheetContent,

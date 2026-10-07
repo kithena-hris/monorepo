@@ -95,7 +95,12 @@ export const Negative: Story = {
   render: () => (
     <View className="gap-3">
       <Line label="Refund">
-        <Money minorUnits="-8600" currency="EUR" locale="en-GB" className="text-[17px] leading-none font-semibold" />
+        <Money
+          minorUnits="-8600"
+          currency="EUR"
+          locale="en-GB"
+          className="text-[17px] leading-none font-semibold"
+        />
       </Line>
       <Line label="Overpayment">
         <Money

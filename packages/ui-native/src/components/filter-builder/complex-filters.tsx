@@ -9,10 +9,7 @@ import { Button } from '../button/button.tsx';
 import { CheckboxBox } from '../checkbox/checkbox.tsx';
 import { Chip } from '../chip/chip.tsx';
 import { Icon } from '../icon/icon.tsx';
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from '../segmented-control/segmented-control.tsx';
+import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control.tsx';
 import { Text } from '../text/text.tsx';
 import {
   addGroup,
@@ -84,9 +81,7 @@ export function FacetList({
             aria-checked={on}
             accessibilityLabel={`${o.label}, ${String(o.count)} results`}
             onPress={() => {
-              onSelectedChange(
-                on ? selected.filter((v) => v !== o.value) : [...selected, o.value],
-              );
+              onSelectedChange(on ? selected.filter((v) => v !== o.value) : [...selected, o.value]);
             }}
             className="min-h-11 flex-row items-center gap-2.5"
           >
@@ -275,7 +270,12 @@ function Group({
           Condition
         </Button>
         {onAddGroup && !nested ? (
-          <Button variant="ghost" size="xs" startIcon={<Icon icon={FolderPlus} />} onPress={onAddGroup}>
+          <Button
+            variant="ghost"
+            size="xs"
+            startIcon={<Icon icon={FolderPlus} />}
+            onPress={onAddGroup}
+          >
             Group
           </Button>
         ) : null}

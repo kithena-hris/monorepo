@@ -244,7 +244,10 @@ function sortRows<T>(
   columns: readonly DataColumn<T>[],
 ): readonly T[] {
   const keys = sorts
-    .map((s) => ({ by: columns.find((c) => c.id === s.columnId)?.sortBy, sign: s.direction === 'ascending' ? 1 : -1 }))
+    .map((s) => ({
+      by: columns.find((c) => c.id === s.columnId)?.sortBy,
+      sign: s.direction === 'ascending' ? 1 : -1,
+    }))
     .filter((k): k is { by: (row: T) => string | number; sign: 1 | -1 } => k.by !== undefined);
   if (keys.length === 0) return rows;
   return rows.toSorted((a, b) => {
@@ -429,9 +432,7 @@ export function DataTable<T>({
         count: members.length,
         open,
       };
-      return open
-        ? [heading, ...members.map((i, k) => row(shown[i] as T, i, k > 0))]
-        : [heading];
+      return open ? [heading, ...members.map((i, k) => row(shown[i] as T, i, k > 0))] : [heading];
     });
   }, [shown, ids, rowId, groupBy, collapsed]);
 
@@ -455,12 +456,57 @@ export function DataTable<T>({
       name: (r, id) => describeRow?.(r) ?? (title ? textOf(title.cell(r)) : id),
     };
     // `title` and `others` are `columns` taken apart: covered by `columns`.
-  }, [columns, labelled, renderDetail, onRowPress, selectable, moves, striped, locked, shown.length, virtual, groupBy, describeRow]);
+  }, [
+    columns,
+    labelled,
+    renderDetail,
+    onRowPress,
+    selectable,
+    moves,
+    striped,
+    locked,
+    shown.length,
+    virtual,
+    groupBy,
+    describeRow,
+  ]);
 
   // What a card asks for, against the table's current state: stable, so no
   // card re-renders because the table did.
-  const live = useRef({ expanded, selected, collapsed, shown, ids, singleExpand, onRowPress, renderDetail, onReorder, locked, look, setExpanded, setSelected, setCollapsed, announce });
-  live.current = { expanded, selected, collapsed, shown, ids, singleExpand, onRowPress, renderDetail, onReorder, locked, look, setExpanded, setSelected, setCollapsed, announce };
+  const live = useRef({
+    expanded,
+    selected,
+    collapsed,
+    shown,
+    ids,
+    singleExpand,
+    onRowPress,
+    renderDetail,
+    onReorder,
+    locked,
+    look,
+    setExpanded,
+    setSelected,
+    setCollapsed,
+    announce,
+  });
+  live.current = {
+    expanded,
+    selected,
+    collapsed,
+    shown,
+    ids,
+    singleExpand,
+    onRowPress,
+    renderDetail,
+    onReorder,
+    locked,
+    look,
+    setExpanded,
+    setSelected,
+    setCollapsed,
+    announce,
+  };
   const api = useMemo((): Api<T> => {
     const reorder = (from: number, to: number): void => {
       const now = live.current;
@@ -502,7 +548,12 @@ export function DataTable<T>({
   const renderItem = useCallback(
     ({ item }: { item: Item<T> }): React.JSX.Element =>
       item.kind === 'heading' ? (
-        <GroupHeading group={item.group} count={item.count} open={item.open} onToggle={api.toggleGroup} />
+        <GroupHeading
+          group={item.group}
+          count={item.count}
+          open={item.open}
+          onToggle={api.toggleGroup}
+        />
       ) : (
         <TableCard
           row={item.row}
@@ -539,7 +590,10 @@ export function DataTable<T>({
     body = (
       <View role="progressbar" aria-label={`Loading ${label}`}>
         {Array.from({ length: 5 }, (_, k) => (
-          <View key={k} className={cn('flex-row items-center gap-3 p-4', k > 0 && 'border-t border-border')}>
+          <View
+            key={k}
+            className={cn('flex-row items-center gap-3 p-4', k > 0 && 'border-t border-border')}
+          >
             <Skeleton className="size-10 rounded-full" />
             <View className="flex-1 gap-2">
               <Skeleton className="h-3 w-[55%]" />
@@ -648,7 +702,10 @@ export function DataTable<T>({
     <View className={cn('gap-3', virtual && 'flex-1', className)}>
       {toolbar ? <View className="flex-row flex-wrap items-center gap-2">{toolbar}</View> : null}
       <View
-        className={cn('overflow-hidden rounded-m-card bg-surface shadow-sm', virtual && 'min-h-0 flex-1')}
+        className={cn(
+          'overflow-hidden rounded-m-card bg-surface shadow-sm',
+          virtual && 'min-h-0 flex-1',
+        )}
       >
         {selectable && !loading && shown.length > 0 ? (
           <Pressable
@@ -845,7 +902,9 @@ function TableCardImpl<T>({
       {opens ? (
         <Pressable
           accessibilityRole="button"
-          {...(renderDetail ? { accessibilityState: { expanded: open }, 'aria-expanded': open } : {})}
+          {...(renderDetail
+            ? { accessibilityState: { expanded: open }, 'aria-expanded': open }
+            : {})}
           onPress={() => {
             api.press(row, id);
           }}

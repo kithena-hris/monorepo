@@ -120,7 +120,12 @@ export function Stat({
             {delta}
           </Text>
           {deltaLabel ? (
-            <Text variant="footnote" tone="muted" numberOfLines={1} className="shrink leading-[1.2]">
+            <Text
+              variant="footnote"
+              tone="muted"
+              numberOfLines={1}
+              className="shrink leading-[1.2]"
+            >
               {deltaLabel}
             </Text>
           ) : null}

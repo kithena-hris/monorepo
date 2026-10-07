@@ -253,54 +253,59 @@ export function Scheduler({
         </View>
       ))}
       {/* Over the hour cells, past the hour labels: events, the slot being picked, the time now. */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 48, right: 0 }}>
-      {dayEvents.map((e) => {
-        const place = lanes.get(e.id) ?? { lane: 0, lanes: 1 };
-        const tone = TONE[e.tone ?? 'accent'];
-        return (
-          <View
-            key={e.id}
-            className="absolute px-[3px]"
-            style={{
-              top: y(e.start) + 2,
-              height: y(e.end) - y(e.start) - 4,
-              left: `${String((place.lane / place.lanes) * 100)}%` as `${number}%`,
-              width: `${String(100 / place.lanes)}%` as `${number}%`,
-            }}
-          >
-          <View
-            accessible
-            accessibilityLabel={`${e.title}${e.detail ? `, ${e.detail}` : ''}, ${formatMinutes(e.start)} to ${formatMinutes(e.end)}${e.clash ? ', clashes' : ''}`}
-            className={cn(
-              'flex-1 overflow-hidden rounded-[8px] py-1.5 pr-2 pl-[11px]',
-              e.tentative ? cn('border border-dashed', EDGE[e.tone ?? 'accent']) : tone.fill,
-              e.clash && 'border-2 border-danger',
-            )}
-          >
-            <View className={cn('absolute inset-y-0 left-0 w-[3px]', tone.bar)} />
-            <CssText className={cn('text-[12px] leading-[1.25] font-semibold', tone.ink)}>
-              {e.title}
-            </CssText>
-            {e.detail ? (
-              <CssText className={cn('text-[12px] leading-[1.25]', tone.ink)}>{e.detail}</CssText>
-            ) : null}
-          </View>
-          </View>
-        );
-      })}
-      <Animated.View
+      <View
         pointerEvents="none"
-        style={[{ position: 'absolute', left: 3, right: 3 }, draft]}
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 48, right: 0 }}
       >
-        <View className="flex-1 rounded-[8px] border-2 border-dashed border-accent bg-accent-subtle" />
-      </Animated.View>
-      {now !== undefined && column?.id === today && now >= top && now <= endHour * 60 ? (
-        <View
-          aria-hidden
-          className="absolute right-0 left-0 h-0.5 bg-danger"
-          style={{ top: y(now) }}
-        />
-      ) : null}
+        {dayEvents.map((e) => {
+          const place = lanes.get(e.id) ?? { lane: 0, lanes: 1 };
+          const tone = TONE[e.tone ?? 'accent'];
+          return (
+            <View
+              key={e.id}
+              className="absolute px-[3px]"
+              style={{
+                top: y(e.start) + 2,
+                height: y(e.end) - y(e.start) - 4,
+                left: `${String((place.lane / place.lanes) * 100)}%` as `${number}%`,
+                width: `${String(100 / place.lanes)}%` as `${number}%`,
+              }}
+            >
+              <View
+                accessible
+                accessibilityLabel={`${e.title}${e.detail ? `, ${e.detail}` : ''}, ${formatMinutes(e.start)} to ${formatMinutes(e.end)}${e.clash ? ', clashes' : ''}`}
+                className={cn(
+                  'flex-1 overflow-hidden rounded-[8px] py-1.5 pr-2 pl-[11px]',
+                  e.tentative ? cn('border border-dashed', EDGE[e.tone ?? 'accent']) : tone.fill,
+                  e.clash && 'border-2 border-danger',
+                )}
+              >
+                <View className={cn('absolute inset-y-0 left-0 w-[3px]', tone.bar)} />
+                <CssText className={cn('text-[12px] leading-[1.25] font-semibold', tone.ink)}>
+                  {e.title}
+                </CssText>
+                {e.detail ? (
+                  <CssText className={cn('text-[12px] leading-[1.25]', tone.ink)}>
+                    {e.detail}
+                  </CssText>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
+        <Animated.View
+          pointerEvents="none"
+          style={[{ position: 'absolute', left: 3, right: 3 }, draft]}
+        >
+          <View className="flex-1 rounded-[8px] border-2 border-dashed border-accent bg-accent-subtle" />
+        </Animated.View>
+        {now !== undefined && column?.id === today && now >= top && now <= endHour * 60 ? (
+          <View
+            aria-hidden
+            className="absolute right-0 left-0 h-0.5 bg-danger"
+            style={{ top: y(now) }}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -389,7 +394,9 @@ function Agenda({
       {columns.map((c) => {
         const day = events
           .filter((e) => e.column === c.id)
-          .toSorted((a, b) => Number(b.allDay ?? false) - Number(a.allDay ?? false) || a.start - b.start);
+          .toSorted(
+            (a, b) => Number(b.allDay ?? false) - Number(a.allDay ?? false) || a.start - b.start,
+          );
         if (day.length === 0) return null;
         return (
           <Fragment key={c.id}>

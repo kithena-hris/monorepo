@@ -64,7 +64,8 @@ export function ScrollArea({
     offset.value = horizontal ? e.contentOffset.x : e.contentOffset.y;
   });
   const thumbStyle = useAnimatedStyle(() => {
-    const at = travel > 0 ? (Math.min(Math.max(offset.value, 0), travel) / travel) * (track - thumb) : 0;
+    const at =
+      travel > 0 ? (Math.min(Math.max(offset.value, 0), travel) / travel) * (track - thumb) : 0;
     return horizontal
       ? { left: at, width: thumb, top: 0, bottom: 0 }
       : { top: at, height: thumb, left: 0, right: 0 };

@@ -284,7 +284,14 @@ export const AnalyticsDashboard: Story = {
           sentiment="positive"
           size={28}
         />
-        <Stat label="Open roles" value="18" direction="up" delta="4 more than Q2" sentiment="negative" size={28} />
+        <Stat
+          label="Open roles"
+          value="18"
+          direction="up"
+          delta="4 more than Q2"
+          sentiment="negative"
+          size={28}
+        />
       </AutoGrid>
       <ChartCard title="Hires by month" value="82">
         <BarChart

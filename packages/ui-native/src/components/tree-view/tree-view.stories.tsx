@@ -25,7 +25,11 @@ const DOCS: TreeViewNode[] = [
     ],
   },
   { id: 'contracts', label: 'Contracts', meta: 312, hasChildren: true },
-  { id: 'onboarding', label: 'Onboarding', children: [{ id: 'welcome', label: 'Welcome pack.pdf' }] },
+  {
+    id: 'onboarding',
+    label: 'Onboarding',
+    children: [{ id: 'welcome', label: 'Welcome pack.pdf' }],
+  },
   { id: 'handbook', label: 'Handbook.pdf' },
 ];
 
@@ -45,9 +49,7 @@ function Live(props: TreeViewProps): React.JSX.Element {
 }
 
 export const Playground: Story = {
-  render: (args) => (
-    <Live {...args} defaultExpanded={['policies', 'expenses']} selected="leave" />
-  ),
+  render: (args) => <Live {...args} defaultExpanded={['policies', 'expenses']} selected="leave" />,
 };
 
 const TEAMS: TreeViewNode[] = [
@@ -108,7 +110,11 @@ export const LoadingABranch: Story = {
       label="Documents"
       items={[
         { id: 'contracts', label: 'Contracts', meta: 312, hasChildren: true },
-        { id: 'policies', label: 'Policies', children: [{ id: 'leave', label: 'Leave policy.pdf' }] },
+        {
+          id: 'policies',
+          label: 'Policies',
+          children: [{ id: 'leave', label: 'Leave policy.pdf' }],
+        },
       ]}
       defaultExpanded={['contracts']}
       loading={['contracts']}
@@ -130,7 +136,11 @@ export const DragToMove: Story = {
         ],
       },
       { id: 'archive', label: 'Archive', children: [{ id: 'old', label: 'Old handbook.pdf' }] },
-      { id: 'onboarding', label: 'Onboarding', children: [{ id: 'welcome', label: 'Welcome pack.pdf' }] },
+      {
+        id: 'onboarding',
+        label: 'Onboarding',
+        children: [{ id: 'welcome', label: 'Welcome pack.pdf' }],
+      },
     ]);
     return (
       <TreeView

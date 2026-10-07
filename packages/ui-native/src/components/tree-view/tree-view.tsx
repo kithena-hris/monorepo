@@ -154,7 +154,9 @@ export function TreeView({
   const check = (n: TreeNode): void => {
     const all = leaves(n);
     const on = treeChecked(n, checked) === true;
-    const next = on ? checked.filter((id) => !all.includes(id)) : [...new Set([...checked, ...all])];
+    const next = on
+      ? checked.filter((id) => !all.includes(id))
+      : [...new Set([...checked, ...all])];
     setOwnChecked(next);
     onCheckedChange?.(next);
   };
@@ -230,7 +232,8 @@ export function TreeView({
     const isLoading = loading.includes(n.id);
     const isSelected = selected === n.id;
     // Its own folder is not somewhere to move it.
-    const home = held === null ? null : (visible.find((v) => v.node.id === held)?.parent?.id ?? null);
+    const home =
+      held === null ? null : (visible.find((v) => v.node.id === held)?.parent?.id ?? null);
     const target = held !== null && branch && n.id !== held && n.id !== home;
     const state = checkable ? treeChecked(n, checked) : false;
     return (
@@ -258,7 +261,9 @@ export function TreeView({
                 },
                 accessibilityActions: [
                   ...(branch ? [{ name: 'expand', label: open ? 'Close' : 'Open' }] : []),
-                  ...(checkable ? [{ name: 'check', label: state === true ? 'Uncheck' : 'Check' }] : []),
+                  ...(checkable
+                    ? [{ name: 'check', label: state === true ? 'Uncheck' : 'Check' }]
+                    : []),
                   ...(onMove && !branch ? [{ name: 'move', label: 'Move' }] : []),
                 ],
                 onAccessibilityAction: (e: AccessibilityActionEvent) => {
@@ -298,9 +303,11 @@ export function TreeView({
           {/* A touch target of its own, not a control: the row's actions say the same. */}
           <View
             aria-hidden
-            {...(branch ? tap(() => {
-              toggle(n);
-            }) : {})}
+            {...(branch
+              ? tap(() => {
+                  toggle(n);
+                })
+              : {})}
             hitSlop={12}
             className="w-4 items-center"
           >
@@ -353,10 +360,7 @@ export function TreeView({
           </View>
         ) : null}
         {open && isLoading ? (
-          <View
-            className="gap-2 py-1.5"
-            style={{ paddingLeft: 40 + (depth + 1) * 20 }}
-          >
+          <View className="gap-2 py-1.5" style={{ paddingLeft: 40 + (depth + 1) * 20 }}>
             <Skeleton className="h-2.5 w-1/2" />
             <Skeleton className="h-2.5 w-[35%]" />
           </View>
