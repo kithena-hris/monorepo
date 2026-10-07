@@ -33,6 +33,8 @@ export type TooltipProps = FloatingState & {
   /** A keyboard shortcut on a second line, for a hardware keyboard. */
   shortcut?: ReactNode;
   side?: Side;
+  /** Milliseconds of hover before it opens, on the web. */
+  delayDuration?: number;
   onOpenChange?: (open: boolean) => void;
   /** Draw in the `OverlayHost` of this name instead of the root one. */
   portalHost?: string;
@@ -59,6 +61,7 @@ function WebTooltip({
   content,
   shortcut,
   side = 'top',
+  delayDuration = 400,
   open,
   defaultOpen,
   onOpenChange,
@@ -69,7 +72,7 @@ function WebTooltip({
   const [shown, setShown] = useState(false);
   return (
     <TooltipPrimitive.Root
-      delayDuration={400}
+      delayDuration={delayDuration}
       onOpenChange={(next) => {
         setShown(next);
         onOpenChange?.(next);

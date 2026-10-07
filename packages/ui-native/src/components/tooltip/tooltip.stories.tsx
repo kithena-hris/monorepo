@@ -3,9 +3,10 @@ import { Bell, Download, Info } from 'lucide-react-native';
 import { View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
-import { StandInKey, settled } from '../../docs/stage.tsx';
+import { settled } from '../../docs/stage.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { Kbd } from '../kbd/kbd.tsx';
 import { Text } from '../text/text.tsx';
 import { Tooltip } from './tooltip.tsx';
 
@@ -61,8 +62,8 @@ export const OnAnIconButton: Story = {
         defaultOpen
         shortcut={
           <>
-            <StandInKey>G</StandInKey>
-            <StandInKey>N</StandInKey>
+            <Kbd inverted>G</Kbd>
+            <Kbd inverted>N</Kbd>
           </>
         }
       >
