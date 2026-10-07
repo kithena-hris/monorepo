@@ -46,9 +46,18 @@ describe('reason', () => {
         '@kithena/auth-shell',
         '@reach/docs',
         '@reach/storybook',
+        '@reach/storybook-mobile',
       ],
     );
-    expect(chosen(ui)).toEqual(['shell', 'auth', 'admin', 'docs', 'storybook', 'people-remote']);
+    expect(chosen(ui)).toEqual([
+      'shell',
+      'auth',
+      'admin',
+      'docs',
+      'storybook',
+      'storybook-mobile',
+      'people-remote',
+    ]);
   });
 
   it('ships a lockfile change to every JS target but not to migrations', () => {

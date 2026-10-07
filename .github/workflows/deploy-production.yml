@@ -41,7 +41,7 @@ on:
         type: boolean
         default: false
       design_system:
-        description: 'Reach docs and Storybook'
+        description: 'Reach docs and both Storybooks (web and mobile)'
         type: boolean
         default: false
       also_changed:
@@ -85,7 +85,7 @@ jobs:
             [ "$BACK_OFFICE" = true ] && t+=(admin)
             [ "$IDENTITY" = true ] && t+=(identity auth)
             [ "$MESSAGING" = true ] && t+=(messaging)
-            [ "$DESIGN_SYSTEM" = true ] && t+=(docs storybook)
+            [ "$DESIGN_SYSTEM" = true ] && t+=(docs storybook storybook-mobile)
           fi
           if [ "${#t[@]}" -eq 0 ] && [ "$ALSO_CHANGED" != true ]; then
             echo "::error::Nothing ticked. Tick what to deploy, or 'Also deploy anything else that changed'."
