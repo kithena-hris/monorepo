@@ -74,7 +74,11 @@ export function TagsInput({
   const [repeated, setRepeated] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const full = max !== undefined && value.length >= max;
-  const invalid = invalidProp ?? field?.invalid ?? Boolean(error);
+  // A value handed in that `validate` would refuse stays, marked, so an
+  // imported list shows what needs fixing instead of quietly losing it.
+  const failures = value.map((tag) => validate?.(tag) ?? null);
+  const failing = failures.find((f) => f !== null) ?? null;
+  const invalid = invalidProp ?? field?.invalid ?? Boolean(error ?? failing);
   const name = field?.parts.label ?? label;
 
   /** Adds each value it can, in order; returns what it could not take. */
@@ -137,8 +141,9 @@ export function TagsInput({
     setSelected(null);
   };
 
-  const messageTone = error ? 'text-danger-fg' : 'text-fg-muted';
-  const message = error ?? hint;
+  const problem = error ?? failing;
+  const messageTone = problem ? 'text-danger-fg' : 'text-fg-muted';
+  const message = problem ?? hint;
 
   return (
     <View className={cn('gap-1.5', className)}>
@@ -164,6 +169,8 @@ export function TagsInput({
           <Chip
             key={tag}
             selected={index === selected || tag === repeated}
+            invalid={failures[index] !== null}
+            {...(failures[index] ? { accessibilityLabel: `${tag}, ${failures[index]}` } : {})}
             {...(disabled
               ? {}
               : {

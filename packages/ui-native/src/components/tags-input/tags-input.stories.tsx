@@ -68,9 +68,9 @@ export const ValidationAndDuplicates: Story = {
     <Tags
       label="Invite"
       placeholder="Add an email address"
-      hint="Type or paste addresses: jonas@ is refused, and priya@reach.co is already on the list."
+      hint="Type or paste addresses: a duplicate lights up the tag it ran into."
       validate={(v) => (isEmailish(v) ? null : `${v} isn’t a full address.`)}
-      initial={['priya@reach.co']}
+      initial={['priya@reach.co', 'jonas@']}
     />
   ),
 };
