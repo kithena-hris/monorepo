@@ -178,7 +178,7 @@ export const Composed: Story = {
               Product Designer · London
             </Text>
           </View>
-          <Badge size="sm" dot tone="info">
+          <Badge size="sm" dot tone="info" className="self-center">
             On leave
           </Badge>
         </Inline>

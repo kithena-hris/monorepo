@@ -102,3 +102,52 @@ export function CardDescription({
     </Text>
   );
 }
+
+/*
+ * The web's layout parts. A phone card is padded by default, so these carry
+ * no padding of their own; on the web they pad an unpadded card.
+ */
+
+/** The title and its line on the start side, an action or a status on the end. */
+export function CardHeader({
+  children,
+  className,
+}: {
+  children?: ReactNode;
+  className?: string | undefined;
+}): React.JSX.Element {
+  return (
+    <View className={cn('flex-row items-start justify-between gap-4', className)}>{children}</View>
+  );
+}
+
+/** The card's body. */
+export function CardContent({
+  children,
+  className,
+}: {
+  children?: ReactNode;
+  className?: string | undefined;
+}): React.JSX.Element {
+  return <View className={cn(className)}>{children}</View>;
+}
+
+/** The actions, at the end, under a rule. */
+export function CardFooter({
+  children,
+  className,
+}: {
+  children?: ReactNode;
+  className?: string | undefined;
+}): React.JSX.Element {
+  return (
+    <View
+      className={cn(
+        'mt-2 flex-row items-center justify-end gap-2 border-t border-border pt-3',
+        className,
+      )}
+    >
+      {children}
+    </View>
+  );
+}

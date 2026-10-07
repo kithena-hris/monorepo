@@ -146,7 +146,15 @@ export {
 } from './components/banner/banner.tsx';
 export { Badge, type BadgeProps } from './components/badge/badge.tsx';
 export { Button, type ButtonProps, type ButtonVariants } from './components/button/button.tsx';
-export { Card, CardDescription, CardTitle, type CardProps } from './components/card/card.tsx';
+export {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  type CardProps,
+} from './components/card/card.tsx';
 export { Carousel, slideAt, type CarouselProps } from './components/carousel/carousel.tsx';
 export {
   ChatComposer,
