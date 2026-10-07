@@ -226,7 +226,10 @@ export function TimelineChart({
     })
     .onUpdate((e) => {
       const at = dayAt(e.x - labelWidth);
-      setPicking({ start: Math.min(anchor.current, at), end: Math.max(anchor.current, at) });
+      const start = Math.min(anchor.current, at);
+      const end = Math.max(anchor.current, at);
+      // A day is many frames wide: the same range keeps the same state, so nothing redraws.
+      setPicking((now) => (now?.start === start && now.end === end ? now : { start, end }));
     })
     .onEnd((e) => {
       const at = dayAt(e.x - labelWidth);
@@ -348,10 +351,11 @@ export function TimelineChart({
                     .enabled(canMove)
                     .activateAfterLongPress(350)
                     .onUpdate((ev) => {
-                      setDrag({
-                        id: item.id,
-                        delta: Math.round((ev.translationX / Math.max(plot, 1)) * days),
-                      });
+                      const delta = Math.round((ev.translationX / Math.max(plot, 1)) * days);
+                      // Redraw on a new day, not on every frame of the finger.
+                      setDrag((now) =>
+                        now?.id === item.id && now.delta === delta ? now : { id: item.id, delta },
+                      );
                     })
                     .onEnd((ev) => {
                       move(item, Math.round((ev.translationX / Math.max(plot, 1)) * days));

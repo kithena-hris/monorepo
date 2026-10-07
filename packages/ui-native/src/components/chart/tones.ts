@@ -40,9 +40,11 @@ export function seriesTone(index: number): ChartTone {
 }
 
 /*
- * Status tones are the solid status colour on a phone, as the design paints
- * them (`--r-danger`, not `--r-danger-text`): a mark is a shape, not text,
- * and the label beside it carries the meaning in words.
+ * Status tones point at the `-fg` end of each ramp, as the web's do, not the
+ * base the design paints: a base is mixed to sit on its own tinted wash, and
+ * a mark drawn straight onto the card (amber on white is 2.76:1) needs the
+ * 3:1 WCAG 1.4.11 asks of a graphical object. The categorical `chart-N` tones
+ * are the palette as the tokens define it.
  */
 export const bgTone: Record<ChartTone, string> = {
   'chart-1': 'bg-chart-1',
@@ -51,11 +53,11 @@ export const bgTone: Record<ChartTone, string> = {
   'chart-4': 'bg-chart-4',
   'chart-5': 'bg-chart-5',
   'chart-6': 'bg-chart-6',
-  accent: 'bg-accent',
-  success: 'bg-success',
-  warning: 'bg-warning',
-  danger: 'bg-danger',
-  info: 'bg-info',
+  accent: 'bg-accent-fg',
+  success: 'bg-success-fg',
+  warning: 'bg-warning-fg',
+  danger: 'bg-danger-fg',
+  info: 'bg-info-fg',
   neutral: 'bg-fg-subtle',
 };
 
@@ -67,11 +69,11 @@ export const inkTone: Record<ChartTone, string> = {
   'chart-4': 'text-chart-4',
   'chart-5': 'text-chart-5',
   'chart-6': 'text-chart-6',
-  accent: 'text-accent',
-  success: 'text-success',
-  warning: 'text-warning',
-  danger: 'text-danger',
-  info: 'text-info',
+  accent: 'text-accent-fg',
+  success: 'text-success-fg',
+  warning: 'text-warning-fg',
+  danger: 'text-danger-fg',
+  info: 'text-info-fg',
   neutral: 'text-fg-subtle',
 };
 
@@ -82,11 +84,11 @@ export const borderTone: Record<ChartTone, string> = {
   'chart-4': 'border-chart-4',
   'chart-5': 'border-chart-5',
   'chart-6': 'border-chart-6',
-  accent: 'border-accent',
-  success: 'border-success',
-  warning: 'border-warning',
-  danger: 'border-danger',
-  info: 'border-info',
+  accent: 'border-accent-fg',
+  success: 'border-success-fg',
+  warning: 'border-warning-fg',
+  danger: 'border-danger-fg',
+  info: 'border-info-fg',
   neutral: 'border-fg-subtle',
 };
 

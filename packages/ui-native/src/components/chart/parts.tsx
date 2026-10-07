@@ -443,11 +443,13 @@ export function useChartWindow(
     (next: ChartWindow): void => {
       const start = Math.max(0, Math.min(next.start, total - 2));
       const end = Math.max(start + 1, Math.min(next.end, total - 1));
+      // A pan or a pinch asks every frame; only a window that moved is news.
+      if (start === active.start && end === active.end) return;
       const clamped = { start, end };
       if (controlled === undefined) setInternal(clamped);
       onChange?.(clamped);
     },
-    [controlled, onChange, total],
+    [controlled, onChange, total, active.start, active.end],
   );
 
   const zoom = useCallback(

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import { Line } from 'react-native-svg';
 
@@ -273,6 +273,17 @@ export function ScatterChart({
   const groupTone = (g: string): ChartTone =>
     data.find((p) => p.group === g)?.tone ?? seriesTone(groups.indexOf(g));
   const shown = selectedLabel ?? inspected;
+  // A least-squares line per group: once per data, not once per tap on a dot.
+  const fits = useMemo(
+    () =>
+      new Map(
+        [...new Set(data.map((p) => p.group).filter((g): g is string => Boolean(g)))].map((g) => [
+          g,
+          linearFit(data.filter((p) => p.group === g)),
+        ]),
+      ),
+    [data],
+  );
 
   return (
     <ChartFrame
@@ -288,7 +299,7 @@ export function ScatterChart({
         <ChartGrid />
         {fitLines && width > 0
           ? groups.map((g) => {
-              const fit = linearFit(data.filter((p) => p.group === g));
+              const fit = fits.get(g);
               if (!fit) return null;
               return (
                 <Ink key={g} width={width} height={height} className={inkTone[groupTone(g)]}>

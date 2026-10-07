@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Text as CssText, View } from 'react-native-css/components';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Path, Polyline } from 'react-native-svg';
@@ -72,15 +72,18 @@ export function Sparkline({
 }: SparklineProps): React.JSX.Element {
   const [measured, onLayout] = useWidth();
   const width = fixed ?? measured;
-  const values = data.map((d) => d.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const x = (i: number): number => (data.length > 1 ? (i / (data.length - 1)) * width : 0);
-  // A flat series draws through the middle, not along the floor like a collapse.
-  const y = (v: number): number =>
-    max === min ? height / 2 : height - 3 - ((v - min) / span) * (height - 6);
-  const points = data.map((d, i): [number, number] => [x(i), y(d.value)]);
+  const { points, line } = useMemo(() => {
+    const values = data.map((d) => d.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min || 1;
+    const x = (i: number): number => (data.length > 1 ? (i / (data.length - 1)) * width : 0);
+    // A flat series draws through the middle, not along the floor like a collapse.
+    const y = (v: number): number =>
+      max === min ? height / 2 : height - 3 - ((v - min) / span) * (height - 6);
+    const at = data.map((d, i): [number, number] => [x(i), y(d.value)]);
+    return { points: at, line: linePath(at) };
+  }, [data, width, height]);
   const last = points.at(-1);
   const first = data[0];
   const end = data.at(-1);
@@ -101,13 +104,13 @@ export function Sparkline({
         <Ink width={width} height={height} className={inkTone[tone]}>
           {area ? (
             <Path
-              d={`${linePath(points)} L${width.toFixed(1)},${String(height)} L0,${String(height)} Z`}
+              d={`${line} L${width.toFixed(1)},${String(height)} L0,${String(height)} Z`}
               fill="currentColor"
               fillOpacity={0.15}
             />
           ) : null}
           <Path
-            d={linePath(points)}
+            d={line}
             fill="none"
             stroke="currentColor"
             strokeWidth={2}
@@ -221,23 +224,50 @@ export function TrendChart({
   const [width, onLayout] = useWidth();
 
   const toneOf = (entry: TrendSeries): ChartTone => entry.tone ?? seriesTone(series.indexOf(entry));
-  const visible = series.filter((entry) => !hidden.includes(entry.label));
-  const shownPeriods = windowState.slice(periods);
-  const n = shownPeriods.length;
-  const values = visible.flatMap((entry) => windowState.slice(entry.data).map((p) => p.value));
-  const top = values.length > 0 ? Math.max(...values) : 1;
-  const bottom = values.length > 0 ? Math.min(...values) : 0;
-  // A little air above and below, so a peak does not run along the top line.
-  const pad = (top - bottom) * 0.12 || 1;
-  const max = top + pad;
-  const min = bottom >= 0 ? Math.max(0, bottom - pad) : bottom - pad;
-  const span = max - min || 1;
+  const { end } = windowState.window;
+  // The geometry, once per data, window and size: a tap that reads a value out
+  // re-renders the chart, and recomputing every path for it would be waste.
+  const { visible, shownPeriods, n, min, span, paths } = useMemo(() => {
+    const on = series.filter((entry) => !hidden.includes(entry.label));
+    const cut = <V,>(list: readonly V[]): V[] => list.slice(start, end + 1);
+    const periodsShown = cut(periods);
+    const count = periodsShown.length;
+    const values = on.flatMap((entry) => cut(entry.data).map((p) => p.value));
+    const top = values.length > 0 ? Math.max(...values) : 1;
+    const bottom = values.length > 0 ? Math.min(...values) : 0;
+    // A little air above and below, so a peak does not run along the top line.
+    const pad = (top - bottom) * 0.12 || 1;
+    const max = top + pad;
+    const low = bottom >= 0 ? Math.max(0, bottom - pad) : bottom - pad;
+    const range = max - low || 1;
+    const px = (i: number): number => (count > 1 ? (i / (count - 1)) * width : 0);
+    const py = (v: number): number => height - ((v - low) / range) * height;
+    return {
+      visible: on,
+      shownPeriods: periodsShown,
+      n: count,
+      min: low,
+      span: range,
+      paths: new Map(
+        on.map((entry) => [
+          entry.label,
+          linePath(cut(entry.data).map((p, i): [number, number] => [px(i), py(p.value)])),
+        ]),
+      ),
+    };
+    // `periods` is read off `series`, which is listed.
+  }, [series, hidden, start, end, width, height]);
   const x = (i: number): number => (n > 1 ? (i / (n - 1)) * width : 0);
   const y = (v: number): number => height - ((v - min) / span) * height;
   const at = (px: number): number =>
     Math.min(n - 1, Math.max(0, Math.round((px / Math.max(width, 1)) * (n - 1))));
 
+  // A scrub crosses a period every few frames: only a new one is news.
+  const read = useRef(inspected);
+  read.current = inspected;
   const inspect = (index: number): void => {
+    if (index === read.current) return;
+    read.current = index;
     setInspected(index);
     if (onSelect) {
       onSelect({
@@ -256,8 +286,10 @@ export function TrendChart({
     .runOnJS(true)
     .onEnd((e) => {
       const index = at(e.x);
-      if (inspected === index) setInspected(undefined);
-      else inspect(index);
+      if (read.current === index) {
+        read.current = undefined;
+        setInspected(undefined);
+      } else inspect(index);
     });
   const drag = Gesture.Pan()
     .runOnJS(true)
@@ -319,10 +351,7 @@ export function TrendChart({
           {plain ? null : <ChartGrid />}
           {width > 0
             ? visible.map((entry) => {
-                const points = windowState
-                  .slice(entry.data)
-                  .map((p, i): [number, number] => [x(i), y(p.value)]);
-                const path = linePath(points);
+                const path = paths.get(entry.label) ?? '';
                 const fill = area && !entry.dashed && series.indexOf(entry) === 0;
                 return (
                   <Ink

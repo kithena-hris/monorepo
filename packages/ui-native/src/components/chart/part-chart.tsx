@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
@@ -41,9 +41,9 @@ export function TreemapChart({
   className,
 }: TreemapChartProps): React.JSX.Element {
   const [width, onLayout] = useWidth();
-  const rects = squarify(
-    data.map((d) => d.value),
-    { x: 0, y: 0, width, height },
+  const rects = useMemo(
+    () => squarify(data.map((d) => d.value), { x: 0, y: 0, width, height }),
+    [data, width, height],
   );
   const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
   return (

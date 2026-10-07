@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native-css/components';
 import { Path } from 'react-native-svg';
 
@@ -70,9 +70,15 @@ export function ComboChart({
   const column = (width - gap * (n - 1)) / Math.max(n, 1);
   const cx = (i: number): number => i * (column + gap) + column / 2;
   const cy = (v: number): number => height - (v / lineMax) * height;
-  const path = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'}${cx(i).toFixed(1)},${cy(d.line).toFixed(1)}`)
-    .join(' ');
+  // The line, once per data and size: a tap on a bar re-renders the chart.
+  const path = useMemo(
+    () =>
+      data
+        .map((d, i) => `${i === 0 ? 'M' : 'L'}${cx(i).toFixed(1)},${cy(d.line).toFixed(1)}`)
+        .join(' '),
+    // `cx` and `cy` are read off these.
+    [data, width, height],
+  );
   const quiet = barTone === 'quiet';
 
   return (
