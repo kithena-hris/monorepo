@@ -29,7 +29,12 @@ import {
  * people who type. Each ends as the same applied chips.
  */
 
-const WEB = Platform.OS === 'web';
+/** The platform's monospace face, as `Text`'s `mono` picks it: a phone takes one family name. */
+const MONO = Platform.select({
+  ios: 'Menlo',
+  android: 'monospace',
+  default: "ui-monospace, 'SF Mono', Menlo, monospace",
+});
 
 /* ------------------------------------------------------------------ facets */
 
@@ -385,7 +390,7 @@ export function FilterQuery({
           autoCapitalize="none"
           autoCorrect={false}
           accessibilityLabel={label}
-          style={{ fontFamily: WEB ? "ui-monospace, 'SF Mono', Menlo, monospace" : Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}
+          style={{ fontFamily: MONO }}
           className="min-w-20 flex-1 p-0 text-[15px] text-fg outline-none"
         />
       </View>
