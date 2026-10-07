@@ -248,13 +248,17 @@ export function ChartScaleKey({
       >
         {width > 0 ? (
           <Ink width={width} height={8} className={inkTone[tone]}>
-            <Defs>
-              <LinearGradient id={`ramp${id}`} x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor="currentColor" stopOpacity={0} />
-                <Stop offset="1" stopColor="currentColor" stopOpacity={1} />
-              </LinearGradient>
-            </Defs>
-            <Rect width={width} height={8} fill={`url(#ramp${id})`} />
+            {(color) => (
+              <>
+                <Defs>
+                  <LinearGradient id={`ramp${id}`} x1="0" y1="0" x2="1" y2="0">
+                    <Stop offset="0" stopColor={color} stopOpacity={0} />
+                    <Stop offset="1" stopColor={color} stopOpacity={1} />
+                  </LinearGradient>
+                </Defs>
+                <Rect width={width} height={8} fill={`url(#ramp${id})`} />
+              </>
+            )}
           </Ink>
         ) : null}
       </View>

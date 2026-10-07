@@ -20,9 +20,10 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { cn } from '../../lib/cn.ts';
+import { PaintedSvg } from '../../lib/painted-svg.tsx';
 import { useReducedMotion } from '../../provider.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
@@ -214,20 +215,20 @@ function Sweep({ width }: { width: number }): React.JSX.Element {
     };
   }, [x, width]);
   const move = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-  // The highlight, a band of `surface-hover` fading in and out, drawn in `currentColor`.
+  // The highlight, a band of `surface-hover` fading in and out.
   const band = useCssElement(
-    Svg,
+    PaintedSvg,
     {
       width,
       height: '100%',
       preserveAspectRatio: 'none',
       className: 'text-surface-hover',
-      children: [
+      paint: (color: string) => [
         <Defs key="defs">
           <LinearGradient id="reach-shimmer" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="currentColor" stopOpacity={0} />
-            <Stop offset="0.5" stopColor="currentColor" stopOpacity={1} />
-            <Stop offset="1" stopColor="currentColor" stopOpacity={0} />
+            <Stop offset="0" stopColor={color} stopOpacity={0} />
+            <Stop offset="0.5" stopColor={color} stopOpacity={1} />
+            <Stop offset="1" stopColor={color} stopOpacity={0} />
           </LinearGradient>
         </Defs>,
         <Rect key="band" width="100%" height="100%" fill="url(#reach-shimmer)" />,

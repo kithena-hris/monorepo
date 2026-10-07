@@ -3,9 +3,9 @@ import { useCallback, useState, type ComponentProps, type ReactNode } from 'reac
 import { Platform, type LayoutChangeEvent } from 'react-native';
 import { useCssElement } from 'react-native-css';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
-import Svg from 'react-native-svg';
 
 import { cn } from '../../lib/cn.ts';
+import { PaintedSvg } from '../../lib/painted-svg.tsx';
 import { Button } from '../button/button.tsx';
 import { useClipboard } from '../clipboard/clipboard.tsx';
 import {
@@ -86,16 +86,17 @@ export function Ink({
   width: number;
   height: number;
   className: string;
-  children: ReactNode;
+  /** Marks in `currentColor`, or, for a gradient, a function given the colour itself (`PaintedSvg`). */
+  children: ReactNode | ((color: string) => ReactNode);
 }): React.JSX.Element {
   const svg = useCssElement(
-    Svg,
+    PaintedSvg,
     {
       width,
       height,
       viewBox: `0 0 ${String(width)} ${String(height)}`,
       className,
-      children,
+      paint: typeof children === 'function' ? children : () => children,
     },
     inkMapping,
   );
