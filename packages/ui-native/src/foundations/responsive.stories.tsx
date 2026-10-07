@@ -178,7 +178,7 @@ function Device({
         </View>
       </Fit>
       <Text variant="caption" tone="muted" className="capitalize">
-        {kind}
+        {kind === 'tv' ? 'TV' : kind}
       </Text>
     </Stack>
   );
