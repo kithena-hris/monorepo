@@ -144,6 +144,10 @@ export type ChatMessageProps = {
   onRetry?: () => void;
   /** Under the bubble: the time, "Read", "Not sent · Tap to retry". */
   meta?: string;
+  /** Under the bubble and its meta: links, sources, actions. */
+  footer?: ReactNode;
+  /** A photo for the speaker's face, instead of initials. */
+  avatarSrc?: string;
   className?: string | undefined;
 };
 
@@ -155,6 +159,8 @@ export function ChatMessage({
   unsent = false,
   onRetry,
   meta,
+  footer,
+  avatarSrc,
   className,
 }: ChatMessageProps): React.JSX.Element {
   const self = from === 'self';
@@ -192,7 +198,7 @@ export function ChatMessage({
       {self ? null : continued ? (
         <View className="w-7" />
       ) : (
-        <Avatar name={speaker} size={28} decorative />
+        <Avatar name={speaker} size={28} decorative {...(avatarSrc ? { src: avatarSrc } : {})} />
       )}
       <View className={cn('max-w-[78%] gap-1', self ? 'items-end' : 'items-start')}>
         {onRetry ? (
@@ -209,6 +215,7 @@ export function ChatMessage({
         {meta ? (
           <CssText className="px-1.5 text-[11px] leading-none text-fg-subtle">{meta}</CssText>
         ) : null}
+        {footer}
       </View>
     </View>
   );
@@ -248,6 +255,21 @@ export function ChatTyping({
   );
 }
 
+/** A day or a gap in the thread: "Today", "Monday 14 October". */
+export function ChatDivider({
+  children,
+  className,
+}: {
+  children: string;
+  className?: string | undefined;
+}): React.JSX.Element {
+  return (
+    <CssText className={cn('py-1 text-center text-[12px] font-semibold text-fg-muted', className)}>
+      {children}
+    </CssText>
+  );
+}
+
 export type ChatComposerProps = {
   /** Called with the trimmed text; the composer then clears itself. */
   onSend: (text: string) => void;
@@ -258,6 +280,9 @@ export type ChatComposerProps = {
   defaultValue?: string;
   /** A reply is still being written: sending waits. */
   busy?: boolean;
+  disabled?: boolean;
+  /** Leading controls beside the box, such as an attach button. */
+  tools?: ReactNode;
 };
 
 /** Where a reply is written: a pill that grows with the text, and Send beside it. */
@@ -268,9 +293,11 @@ export function ChatComposer({
   sendLabel = 'Send',
   defaultValue = '',
   busy = false,
+  disabled = false,
+  tools,
 }: ChatComposerProps): React.JSX.Element {
   const [text, setText] = useState(defaultValue);
-  const ready = text.trim().length > 0 && !busy;
+  const ready = text.trim().length > 0 && !busy && !disabled;
   const send = (): void => {
     if (!ready) return;
     onSend(text.trim());
@@ -278,6 +305,7 @@ export function ChatComposer({
   };
   return (
     <View className="flex-row items-end gap-2 border-t border-border p-2.5">
+      {tools ? <View className="shrink-0 flex-row items-center self-center">{tools}</View> : null}
       <TextInput
         multiline
         // One row to start on the web, where a text area otherwise opens at two;
@@ -285,6 +313,7 @@ export function ChatComposer({
         {...(WEB ? { numberOfLines: 1 } : {})}
         value={text}
         onChangeText={setText}
+        editable={!disabled}
         accessibilityLabel={accessibilityLabel}
         placeholder={placeholder}
         className="min-h-11 flex-1 rounded-[22px] bg-surface-sunken px-3.5 py-2.5 text-[16px] leading-[1.4] text-fg caret-accent outline-none placeholder:text-fg-subtle"
@@ -295,6 +324,8 @@ export function ChatComposer({
         accessibilityLabel={sendLabel}
         startIcon={<Icon icon={ArrowUp} />}
         disabled={!ready}
+        loading={busy}
+        loadingLabel="Waiting for the reply"
         onPress={send}
       />
     </View>

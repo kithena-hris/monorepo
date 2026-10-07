@@ -158,6 +158,7 @@ export {
 export { Carousel, slideAt, type CarouselProps } from './components/carousel/carousel.tsx';
 export {
   ChatComposer,
+  ChatDivider,
   ChatHeader,
   ChatLog,
   ChatMessage,
