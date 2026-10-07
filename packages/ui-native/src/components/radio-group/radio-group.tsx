@@ -1,4 +1,5 @@
 import * as RadioGroupPrimitive from '@rn-primitives/radio-group';
+import { ArrowRight } from 'lucide-react-native';
 import { createContext, useContext, type ReactNode } from 'react';
 import { styled } from 'react-native-css';
 import { Text as CssText, View } from 'react-native-css/components';
@@ -190,6 +191,13 @@ export function RadioGroupItem({
 export type RadioCardProps = RadioGroupItemProps & {
   /** At the card's end: what the option is, at a glance. The dot stays. */
   icon?: LucideIcon;
+  /** Beside the title: a `Badge`, such as "Suggested". */
+  badge?: ReactNode;
+  /**
+   * What choosing this does, in a few words, under the description behind an
+   * arrow: "14 tasks", "Nobody asked today". The cost shown before the choice.
+   */
+  impact?: string;
 };
 
 /**
@@ -201,6 +209,8 @@ export function RadioCard({
   children,
   description,
   icon,
+  badge,
+  impact,
   disabled: disabledProp = false,
   className,
 }: RadioCardProps): React.JSX.Element {
@@ -226,15 +236,24 @@ export function RadioCard({
         >
           <RadioDot checked={checked} disabled={disabled} invalid={group.invalid} />
           <View className="min-w-0 flex-1">
-            {typeof children === 'string' ? (
-              <CssText className="text-body font-semibold leading-[1.4] text-fg">
-                {children}
-              </CssText>
-            ) : (
-              children
-            )}
+            <View className="flex-row flex-wrap items-center gap-2">
+              {typeof children === 'string' ? (
+                <CssText className="text-body font-semibold leading-[1.4] text-fg">
+                  {children}
+                </CssText>
+              ) : (
+                children
+              )}
+              {badge}
+            </View>
             {description ? (
               <CssText className="text-subhead leading-[1.5] text-fg-muted">{description}</CssText>
+            ) : null}
+            {impact ? (
+              <View className="mt-2 flex-row items-center gap-1.5">
+                <Icon icon={ArrowRight} size={12} tone="default" />
+                <CssText className="text-footnote font-semibold text-fg">{impact}</CssText>
+              </View>
             ) : null}
           </View>
           {icon ? <Icon icon={icon} size={20} tone="muted" /> : null}
