@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { BulkAction } from '../table/table.tsx';
 import {
   SegmentedControl,
   SegmentedControlItem,
@@ -51,6 +52,8 @@ export type KanbanTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
 export type KanbanColumnDef = {
   id: string;
   title: string;
+  /** A quiet line under the column's title. */
+  description?: string;
   tone?: KanbanTone;
   /** Refuses cards past this many. */
   limit?: number;
@@ -65,10 +68,44 @@ export type KanbanMove = { itemId: string; from: string; to: string; toIndex: nu
 export type KanbanAction<T> = {
   id: string;
   label: string;
+  /** A component, not an element: a phone's menu row sizes and tints it. */
   icon?: LucideIcon;
   destructive?: boolean;
+  /** Hide the command for these items: a permission they fail. */
+  hidden?: (items: readonly T[]) => boolean;
+  /** Show it, greyed. Prefer this to `hidden`: an absent command teaches nothing. */
+  disabled?: (items: readonly T[]) => boolean;
   run: (items: readonly T[]) => void;
 };
+
+/**
+ * Where the grip sits, as the web names the eight places. A phone draws it on
+ * the title's line: a `-start` place before the title, an `-end` one after it.
+ */
+export type KanbanHandlePosition =
+  | 'top-start'
+  | 'top-center'
+  | 'top-end'
+  | 'middle-start'
+  | 'middle-end'
+  | 'bottom-start'
+  | 'bottom-center'
+  | 'bottom-end';
+
+/** What starts a drag: a grip, the whole card, or nothing (the menu still moves it). */
+export type KanbanDragActivator =
+  | { mode: 'handle'; position?: KanbanHandlePosition }
+  | { mode: 'card' }
+  | { mode: 'none' };
+
+/** Card selection, for bulk actions. */
+export type KanbanSelection =
+  | { mode: 'none' }
+  | {
+      mode: 'multiple';
+      selected: readonly string[];
+      onSelectionChange: (ids: readonly string[]) => void;
+    };
 
 export type KanbanProps<T extends { id: string }> = {
   columns: readonly KanbanColumnDef[];
@@ -79,18 +116,16 @@ export type KanbanProps<T extends { id: string }> = {
   /** A card's title, and its name when a move is spoken. */
   cardTitle: (item: T) => string;
   /** Under the title: a role, tags, avatars. */
-  renderCard?: (item: T) => ReactNode;
-  /** Where the grip sits. `none`: the whole card is the drag target. */
-  handle?: 'left' | 'right' | 'none';
-  /** A ⋯ menu on each card with "Move to…", top and bottom, then these. */
+  renderCard?: (item: T, context: { columnId: string; dragging: boolean }) => ReactNode;
+  /** What starts a drag. A grip before the title by default. */
+  dragActivator?: KanbanDragActivator;
+  /** A ⋯ menu on each card with "Move to…", top and bottom, then `cardActions`. */
   cardMenu?: boolean;
   cardActions?: readonly KanbanAction<T>[];
-  /** A checkbox on each card and a bulk bar for the chosen ones. */
-  selectable?: boolean;
-  selected?: readonly string[];
-  onSelectedChange?: (selected: readonly string[]) => void;
-  /** The bar's buttons. */
-  bulkActions?: (items: T[]) => ReactNode;
+  /** A checkbox on each card, and a bulk bar for the chosen ones. */
+  selection?: KanbanSelection;
+  /** The bar's commands, for the selection. Requires `selection.mode: 'multiple'`. */
+  bulkActions?: readonly KanbanAction<T>[];
   /** A column's own menu: rename, delete. */
   columnActions?: readonly KanbanAction<KanbanColumnDef>[];
   /** "+" in a column's header. */
@@ -103,21 +138,24 @@ export type KanbanProps<T extends { id: string }> = {
   defaultColumn?: string;
   /** Each column this tall, its cards scrolling under a fixed header. */
   columnHeight?: number;
+  /** A board column's width, in points. 300 under a thumb, as on the web. */
+  columnWidth?: number;
   /** After the last column: a new section's form. */
   after?: ReactNode;
   /** The card the keyboard is on: a focus ring. */
   focusedId?: string;
   /** Opens this card's ⋯ menu as the board renders: for a walkthrough. */
   defaultMenuOpenFor?: string;
-  /** Off: cards move only from their menu. */
-  draggable?: boolean;
   /** The first column's cards alone, without the column: a card shown on its own. */
   bare?: boolean;
   className?: string | undefined;
 };
 
 const WEB = Platform.OS === 'web';
-const COLUMN = 300;
+const NO_SELECTION: KanbanSelection = { mode: 'none' };
+const GRIP: KanbanDragActivator = { mode: 'handle', position: 'top-start' };
+const NO_ACTIONS: readonly never[] = [];
+const itemKey = (item: { id: string }): string => item.id;
 
 const DOT: Record<KanbanTone, string> = {
   neutral: 'bg-fg-subtle',
@@ -135,33 +173,37 @@ export function Kanban<T extends { id: string }>({
   label,
   cardTitle,
   renderCard,
-  handle = 'left',
+  dragActivator = GRIP,
   cardMenu = false,
-  cardActions = [],
-  selectable = false,
-  selected: selectedProp,
-  onSelectedChange,
-  bulkActions,
+  cardActions = NO_ACTIONS,
+  selection = NO_SELECTION,
+  bulkActions = NO_ACTIONS,
   columnActions = [],
   onAddCard,
   renderColumnFooter,
   layout = 'board',
   defaultColumn,
   columnHeight,
+  columnWidth = 300,
   after,
   focusedId,
-  draggable = true,
   bare = false,
   defaultMenuOpenFor,
   className,
 }: KanbanProps<T>): React.JSX.Element {
   const { announce, region } = useAnnouncer();
-  const [own, setOwn] = useState<readonly string[]>([]);
-  const selected = selectedProp ?? own;
+  const selectable = selection.mode === 'multiple';
+  const selected = selection.mode === 'multiple' ? selection.selected : NO_ACTIONS;
   const setSelected = (next: readonly string[]): void => {
-    setOwn(next);
-    onSelectedChange?.(next);
+    if (selection.mode === 'multiple') selection.onSelectionChange(next);
   };
+  const draggable = dragActivator.mode !== 'none';
+  const handle =
+    dragActivator.mode === 'card'
+      ? 'none'
+      : dragActivator.mode === 'handle' && dragActivator.position?.endsWith('-end') === true
+        ? 'right'
+        : 'left';
   const [current, setCurrent] = useState(defaultColumn ?? columns[0]?.id ?? '');
   const [dragging, setDragging] = useState<string | null>(null);
   const [picked, setPicked] = useState<{ id: string; from: string; index: number } | null>(null);
@@ -359,18 +401,21 @@ export function Kanban<T extends { id: string }>({
             Move to bottom
           </DropdownMenuItem>
           {cardActions.length > 0 ? <DropdownMenuSeparator /> : null}
-          {cardActions.map((a) => (
-            <DropdownMenuItem
-              key={a.id}
-              {...(a.icon ? { icon: a.icon } : {})}
-              destructive={a.destructive ?? false}
-              onSelect={() => {
-                a.run([item]);
-              }}
-            >
-              {a.label}
-            </DropdownMenuItem>
-          ))}
+          {cardActions
+            .filter((a) => a.hidden?.([item]) !== true)
+            .map((a) => (
+              <DropdownMenuItem
+                key={a.id}
+                {...(a.icon ? { icon: a.icon } : {})}
+                destructive={a.destructive ?? false}
+                disabled={a.disabled?.([item]) ?? false}
+                onSelect={() => {
+                  a.run([item]);
+                }}
+              >
+                {a.label}
+              </DropdownMenuItem>
+            ))}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -412,7 +457,7 @@ export function Kanban<T extends { id: string }>({
             </Pressable>
           ) : null}
         </View>
-        {renderCard ? renderCard(item) : null}
+        {renderCard ? renderCard(item, { columnId: column.id, dragging: dragging === item.id }) : null}
         {focusedId === item.id || picked?.id === item.id ? (
           <View
             aria-hidden
@@ -445,12 +490,17 @@ export function Kanban<T extends { id: string }>({
           {count}
         </CssText>
         {column.locked ? <Icon icon={Lock} size={13} tone="subtle" label="Locked" /> : null}
+        {column.description ? (
+          <CssText numberOfLines={1} className="shrink text-[12px] leading-none text-fg-muted">
+            {column.description}
+          </CssText>
+        ) : null}
         <View className="ml-auto flex-row">
           {onAddCard && !column.locked ? (
             <Button
               variant="ghost"
               size="xs"
-              startIcon={<Icon icon={Plus} />}
+              startIcon={<Icon icon={Plus} size={16} tone="subtle" />}
               accessibilityLabel={`Add a card to ${column.title}`}
               onPress={() => {
                 onAddCard(column.id);
@@ -464,24 +514,27 @@ export function Kanban<T extends { id: string }>({
                 <Button
                   variant="ghost"
                   size="xs"
-                  startIcon={<Icon icon={Ellipsis} />}
+                  startIcon={<Icon icon={Ellipsis} size={16} tone="subtle" />}
                   accessibilityLabel={`Actions for ${column.title}`}
                   className="-my-2"
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent label={`Actions for ${column.title}`} className="w-[220px]">
-                {columnActions.map((a) => (
-                  <DropdownMenuItem
-                    key={a.id}
-                    {...(a.icon ? { icon: a.icon } : {})}
-                    destructive={a.destructive ?? false}
-                    onSelect={() => {
-                      a.run([column]);
-                    }}
-                  >
-                    {a.label}
-                  </DropdownMenuItem>
-                ))}
+                {columnActions
+                  .filter((a) => a.hidden?.([column]) !== true)
+                  .map((a) => (
+                    <DropdownMenuItem
+                      key={a.id}
+                      {...(a.icon ? { icon: a.icon } : {})}
+                      destructive={a.destructive ?? false}
+                      disabled={a.disabled?.([column]) ?? false}
+                      onSelect={() => {
+                        a.run([column]);
+                      }}
+                    >
+                      {a.label}
+                    </DropdownMenuItem>
+                  ))}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -498,7 +551,7 @@ export function Kanban<T extends { id: string }>({
         data={cards as T[]}
         columns={1}
         rowGap={8}
-        keyExtractor={(i) => i.id}
+        keyExtractor={itemKey}
         customHandle
         sortEnabled={draggable && !def.locked}
         {...dragMotion}
@@ -559,7 +612,7 @@ export function Kanban<T extends { id: string }>({
               data={cardsOf(c.id) as T[]}
               columns={1}
               rowGap={8}
-              keyExtractor={(i) => i.id}
+              keyExtractor={itemKey}
               customHandle
               sortEnabled={draggable}
               {...dragMotion}
@@ -592,11 +645,11 @@ export function Kanban<T extends { id: string }>({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={COLUMN + 12}
+            snapToInterval={columnWidth + 12}
             decelerationRate="fast"
             contentContainerStyle={{ gap: 12, alignItems: 'flex-start', paddingBottom: 6 }}
           >
-            {columns.map((c) => column(c, COLUMN))}
+            {columns.map((c) => column(c, columnWidth))}
             {after}
           </ScrollView>
         )}
@@ -606,7 +659,19 @@ export function Kanban<T extends { id: string }>({
               {`${String(chosen.length)} selected`}
             </CssText>
             <View className="mx-2 h-5 w-px bg-fg-on-invert opacity-25" />
-            {bulkActions?.(chosen)}
+            {bulkActions
+              .filter((a) => a.hidden?.(chosen) !== true)
+              .map((a) => (
+                <BulkAction
+                  key={a.id}
+                  disabled={a.disabled?.(chosen) ?? false}
+                  onPress={() => {
+                    a.run(chosen);
+                  }}
+                >
+                  {a.label}
+                </BulkAction>
+              ))}
           </View>
         ) : null}
         {region}

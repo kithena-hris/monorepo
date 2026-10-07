@@ -793,8 +793,11 @@ export {
   KanbanCardMeta,
   type KanbanAction,
   type KanbanColumnDef,
+  type KanbanDragActivator,
+  type KanbanHandlePosition,
   type KanbanMove,
   type KanbanProps,
+  type KanbanSelection,
   type KanbanTone,
 } from './components/kanban/kanban.tsx';
 export {

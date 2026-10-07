@@ -190,15 +190,23 @@ export function TableTitle({
 export function BulkAction({
   children,
   onPress,
+  disabled = false,
 }: {
   children: string;
   onPress?: () => void;
+  /** Greyed: the selection holds something the command cannot act on. */
+  disabled?: boolean;
 }): React.JSX.Element {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       {...(onPress ? { onPress } : {})}
-      className="h-9 items-center justify-center overflow-hidden rounded-full px-3.5"
+      className={cn(
+        'h-9 items-center justify-center overflow-hidden rounded-full px-3.5',
+        disabled && 'opacity-50',
+      )}
     >
       <View className="absolute inset-0 bg-fg-on-invert opacity-[0.14]" />
       <CssText className="text-subhead leading-none font-semibold text-fg-on-invert">

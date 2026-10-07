@@ -20,7 +20,6 @@ import {
 } from '../dialog/dialog.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Input } from '../input/input.tsx';
-import { BulkAction } from '../table/table.tsx';
 import { Text } from '../text/text.tsx';
 import {
   Kanban,
@@ -140,7 +139,11 @@ export const Playground: Story = {
     <Board
       columns={STAGES}
       start={STANDARD}
-      handle="left"
+      onAddCard={() => undefined}
+      columnActions={[
+        { id: 'rename', label: 'Rename', run: () => undefined },
+        { id: 'delete', label: 'Delete column', icon: Trash2, destructive: true, run: () => undefined },
+      ]}
       renderColumnFooter={(c) => (c.id === 'applied' ? <AddCard /> : null)}
     />
   ),
@@ -156,7 +159,6 @@ export const WithoutAMouse: Story = {
           { id: 'screen', title: 'Screen', count: 2 },
         ]}
         start={{ applied: [0, 1].map(kc), screen: [2, 3].map(kc) }}
-        handle="left"
         focusedId={kc(0).id}
       />
       <KeyHints
@@ -187,7 +189,6 @@ export const LimitsAndLocked: Story = {
         { id: 'hired', title: 'Hired', tone: 'success', locked: true, count: 6 },
       ]}
       start={{ interview: [4, 5, 6, 7].map(kc), offer: [0, 1].map(kc), hired: [2, 3].map(kc) }}
-      handle="left"
       cardMenu
     />
   ),
@@ -203,7 +204,6 @@ export const GapOpens: Story = {
         { id: 'interview', title: 'Interview', tone: 'accent', count: 4 },
       ]}
       start={{ screen: [0, 1].map(kc), interview: [2, 3, 4].map(kc) }}
-      handle="left"
     />
   ),
 };
@@ -217,7 +217,7 @@ export const OnAPhone: Story = {
         defaultColumn="screen"
         columns={STAGES.slice(0, 3)}
         start={{ applied: [0, 1, 7].map(kc), screen: [2, 3, 4].map(kc), interview: [5, 6].map(kc) }}
-        handle="none"
+        dragActivator={{ mode: 'card' }}
         cardMenu
       />
       <Note>One column at a time. Swipe or use the segmented control to switch. Long-press to drag.</Note>
@@ -234,16 +234,16 @@ export const HandlePositions: Story = {
     <View className="gap-3">
       {(
         [
-          ['Left handle', 'left', 0],
-          ['Right handle', 'right', 1],
-          ['No handle', 'none', 2],
+          ['Left handle', { mode: 'handle', position: 'top-start' }, 0],
+          ['Right handle', { mode: 'handle', position: 'top-end' }, 1],
+          ['No handle', { mode: 'card' }, 2],
         ] as const
-      ).map(([title, handle, i]) => (
+      ).map(([title, activator, i]) => (
         <View key={title} className="gap-1.5">
           <Text variant="caption" tone="muted">
             {title}
           </Text>
-          <Board bare columns={ONLY} start={one(i)} handle={handle} />
+          <Board bare columns={ONLY} start={one(i)} dragActivator={activator} />
         </View>
       ))}
     </View>
@@ -254,7 +254,7 @@ export const WholeCardDrags: Story = {
   name: 'The whole card drags',
   render: () => (
     <View className="gap-3">
-      <Board bare columns={ONLY} start={one(3)} handle="none" />
+      <Board bare columns={ONLY} start={one(3)} dragActivator={{ mode: 'card' }} />
       <Note>Without a handle, the whole card is the drag target. Links and buttons inside it still work.</Note>
     </View>
   ),
@@ -267,7 +267,6 @@ export const ScrollSpeed: Story = {
       <Board
         columns={STAGES.slice(0, 3)}
         start={{ applied: [0, 1].map(kc), screen: [2].map(kc), interview: [3].map(kc) }}
-        handle="left"
       />
       <Note>
         Near an edge, the board scrolls faster the closer you get. Under reduced motion, cards snap into place without gliding.
@@ -286,7 +285,7 @@ export const MenuOnly: Story = {
       bare
       columns={[{ id: 'only', title: 'Applied' }, ...STAGES.slice(1, 3)]}
       start={{ ...one(0), screen: [], interview: [] }}
-      draggable={false}
+      dragActivator={{ mode: 'none' }}
       cardMenu
       cardActions={[{ id: 'remove', label: 'Remove', icon: Trash2, destructive: true, run: () => undefined }]}
     />
@@ -300,16 +299,12 @@ function Bulk(): React.JSX.Element {
     <Board
       columns={STAGES.slice(0, 2)}
       start={{ applied: [0, 1, 2].map(kc), screen: [3].map(kc) }}
-      handle="left"
-      selectable
-      selected={selected}
-      onSelectedChange={setSelected}
-      bulkActions={() => (
-        <>
-          <BulkAction>Move to Screen</BulkAction>
-          <BulkAction>Reject</BulkAction>
-        </>
-      )}
+      dragActivator={{ mode: 'card' }}
+      selection={{ mode: 'multiple', selected, onSelectionChange: setSelected }}
+      bulkActions={[
+        { id: 'move', label: 'Move to Screen', run: () => undefined },
+        { id: 'reject', label: 'Reject', destructive: true, run: () => undefined },
+      ]}
     />
   );
 }
@@ -444,7 +439,6 @@ export const AVeryLongColumn: Story = {
         { id: 'screen', title: 'Screen', count: 2 },
       ]}
       start={{ applied: [0, 1, 2, 3, 4].map(kc), screen: [5, 6].map(kc) }}
-      handle="left"
       columnHeight={520}
       renderColumnFooter={(c) => (c.id === 'applied' ? <More n={43} /> : null)}
     />
@@ -460,7 +454,6 @@ export const EveryColumnLong: Story = {
       start={Object.fromEntries(
         STAGES.slice(0, 4).map((s, si) => [s.id, [0, 1, 2, 3].map((k) => kc(si + k + si * 4))]),
       )}
-      handle="left"
       columnHeight={460}
     />
   ),
@@ -473,7 +466,6 @@ export const JustBelowTheThreshold: Story = {
       <Board
         columns={[{ id: 'screen', title: 'Screen', count: 2 }]}
         start={{ screen: [0, 1].map(kc) }}
-        handle="left"
       />
       <Note>
         Nothing moves until the pointer travels 6px (or you long-press for 250ms on touch), so clicks and scrolls are never mistaken for drags.
