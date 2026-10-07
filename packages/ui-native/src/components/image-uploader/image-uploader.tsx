@@ -2,8 +2,10 @@ import { Camera, FileX, ImagePlus, X } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { useCssElement } from 'react-native-css';
 import { Image, Pressable, Text as CssText, View } from 'react-native-css/components';
+import Animated from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
+import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
 import { Avatar } from '../avatar/avatar.tsx';
@@ -232,50 +234,56 @@ function AddTile({
   round?: boolean;
 }): React.JSX.Element {
   const ring = useFocusRing();
+  const press = usePress();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label || 'Add a photo'}, ${name}`}
-      accessibilityState={{ disabled }}
-      aria-invalid={invalid || undefined}
-      disabled={disabled}
-      onPress={() => {
-        void pick().then((files) => {
-          if (files.length) onFiles(files);
-        });
-      }}
-      onFocus={ring.onFocus}
-      onBlur={ring.onBlur}
-      className={cn(
-        'items-center justify-center gap-1 border-2 border-dashed outline-none active:bg-surface-sunken',
-        round ? 'rounded-full' : 'rounded-[18px]',
-        invalid ? 'border-danger' : 'border-border-strong',
-        disabled && 'opacity-45',
-      )}
-      style={{ width: size, height: size }}
-    >
-      <Icon icon={icon} size={22} tone={invalid ? 'danger' : 'muted'} />
-      {label ? (
-        <CssText
-          aria-hidden
-          className={cn(
-            'px-1 text-center text-[11px] leading-[1.2] font-semibold',
-            invalid ? 'text-danger-fg' : 'text-fg-muted',
-          )}
-        >
-          {label}
-        </CssText>
-      ) : null}
-      {ring.focused ? (
-        <View
-          style={{ pointerEvents: 'none' }}
-          className={cn(
-            'absolute -inset-[5px] border-[3px] border-border-focus',
-            round ? 'rounded-full' : 'rounded-[23px]',
-          )}
-        />
-      ) : null}
-    </Pressable>
+    // The press on a bare Animated.View, the classes inside it (RMB-001).
+    <Animated.View style={press.style}>
+      <Pressable
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="button"
+        accessibilityLabel={`${label || 'Add a photo'}, ${name}`}
+        accessibilityState={{ disabled }}
+        aria-invalid={invalid || undefined}
+        disabled={disabled}
+        onPress={() => {
+          void pick().then((files) => {
+            if (files.length) onFiles(files);
+          });
+        }}
+        onFocus={ring.onFocus}
+        onBlur={ring.onBlur}
+        className={cn(
+          'items-center justify-center gap-1 border-2 border-dashed outline-none active:bg-surface-sunken',
+          round ? 'rounded-full' : 'rounded-[18px]',
+          invalid ? 'border-danger' : 'border-border-strong',
+          disabled && 'opacity-45',
+        )}
+        style={{ width: size, height: size }}
+      >
+        <Icon icon={icon} size={22} tone={invalid ? 'danger' : 'muted'} />
+        {label ? (
+          <CssText
+            aria-hidden
+            className={cn(
+              'px-1 text-center text-[11px] leading-[1.2] font-semibold',
+              invalid ? 'text-danger-fg' : 'text-fg-muted',
+            )}
+          >
+            {label}
+          </CssText>
+        ) : null}
+        {ring.focused ? (
+          <View
+            style={{ pointerEvents: 'none' }}
+            className={cn(
+              'absolute -inset-[5px] border-[3px] border-border-focus',
+              round ? 'rounded-full' : 'rounded-[23px]',
+            )}
+          />
+        ) : null}
+      </Pressable>
+    </Animated.View>
   );
 }
 
