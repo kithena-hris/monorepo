@@ -27,6 +27,7 @@ export const PeopleDashboard: Story = {
           label="Headcount"
           value="312"
           delta="+12"
+          direction="up"
           sentiment="positive"
           chart={
             <Sparkline
@@ -51,8 +52,8 @@ export const PeopleDashboard: Story = {
           direction="down"
           sentiment="positive"
         />
-        <Stat label="Open roles" value="18" delta="+4" sentiment="negative" />
-        <Stat label="eNPS" value="34" delta="+6" sentiment="positive" />
+        <Stat label="Open roles" value="18" direction="up" delta="+4" sentiment="negative" />
+        <Stat label="eNPS" value="34" direction="up" delta="+6" sentiment="positive" />
       </Stack>
       <ChartCard title="Headcount vs plan" value="312">
         <TrendChart

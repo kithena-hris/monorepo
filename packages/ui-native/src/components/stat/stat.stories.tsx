@@ -11,7 +11,7 @@ const meta = {
   title: 'Components/Stat',
   component: Stat,
   parameters: designDocs('stat'),
-  args: { label: 'Headcount', value: '312', delta: '+12 this quarter', sentiment: 'positive' },
+  args: { label: 'Headcount', value: '312', delta: '+12 this quarter', direction: 'up', sentiment: 'positive' },
 } satisfies Meta<typeof Stat>;
 
 export default meta;
@@ -45,6 +45,7 @@ export const WithMoney: Story = {
         label="Payroll, September"
         value={<Money minorUnits="128430000" currency="EUR" locale="en-GB" exponent={2} hideFraction />}
         delta="+2.1% on August"
+        direction="up"
       />
       <Stat
         label="Unclaimed expenses"
@@ -67,6 +68,7 @@ export const WithASparkline: Story = {
       <Stat
         label="Headcount"
         value="312"
+        direction="up"
         delta="+18.6% YoY"
         sentiment="positive"
         chart={
@@ -106,7 +108,7 @@ export const InANarrowColumn: Story = {
   name: 'In a narrow column',
   render: () => (
     <View className="gap-2.5">
-      <Stat label="Headcount" value="312" delta="+12" sentiment="positive" size={28} />
+      <Stat label="Headcount" value="312" direction="up" delta="+12" sentiment="positive" size={28} />
       <Stat
         label="Leavers"
         value="4"

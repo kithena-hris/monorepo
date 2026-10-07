@@ -21,16 +21,33 @@ export type StatProps = {
   value: ReactNode;
   /** After the value, half its size: `%`, `days`. */
   unit?: string;
+  /**
+   * The value before a change, printed small ahead of an arrow: "18 → 13".
+   * For a preview of what an action will do, not a trend over time (that is
+   * `delta`).
+   */
+  from?: ReactNode;
   /** The change: "+12 this quarter". */
   delta?: string;
-  /** Which way the number moved. Up by default. */
+  /** What the delta is measured against, quieter after it: "on August". */
+  deltaLabel?: string;
+  /** Which way the number moved. Flat by default. */
   direction?: 'up' | 'down' | 'flat';
   /** Whether that is good. Neutral by default: a change is not always news. */
   sentiment?: StatSentiment;
   /** A `Sparkline`, beside the value. */
   chart?: ReactNode;
   /** A line under the change. */
-  description?: string;
+  description?: ReactNode;
+  /** An `Icon` at the label's end. */
+  icon?: ReactNode;
+  /**
+   * A tile inside a card: on the card's sunken fill with no shadow of its
+   * own, so it reads as part of the card rather than a second card on top.
+   */
+  inset?: boolean;
+  /** Full width under the value, before the delta: a meter of what the number is out of. */
+  children?: ReactNode;
   /** The value's size, in points. 30 by default; 28 in a narrow column. */
   size?: number;
   className?: string | undefined;
@@ -44,25 +61,43 @@ export function Stat({
   label,
   value,
   unit,
+  from,
   delta,
-  direction = 'up',
+  deltaLabel,
+  direction = 'flat',
   sentiment = 'neutral',
   chart,
   description,
+  icon,
+  inset = false,
+  children,
   size = 30,
   className,
 }: StatProps): React.JSX.Element {
   const tone = TONE[sentiment];
   return (
-    <Card className={cn('min-w-0', className)}>
-      <Text variant="subhead" weight="medium" tone="muted">
-        {label}
-      </Text>
+    <Card variant={inset ? 'fill' : 'raised'} className={cn('min-w-0', className)}>
+      <View className="flex-row items-start justify-between gap-2">
+        <Text variant="subhead" weight="medium" tone="muted" className="shrink">
+          {label}
+        </Text>
+        {icon}
+      </View>
       <View className="min-w-0 flex-row flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <CssText
           className="shrink-0 leading-[1.05] font-bold tracking-[-0.03em] text-fg tabular-nums"
           style={{ fontSize: size }}
         >
+          {from === undefined ? null : (
+            <CssText
+              accessibilityLabel="from"
+              className="font-semibold tracking-normal text-fg-muted"
+              style={{ fontSize: size * 0.55 }}
+            >
+              {from}
+              {' → '}
+            </CssText>
+          )}
           {value}
           {unit ? (
             <CssText
@@ -73,23 +108,31 @@ export function Stat({
         </CssText>
         {chart}
       </View>
+      {children}
       {delta ? (
         <View
           accessible
-          accessibilityLabel={`${WORD[direction]}: ${delta}`}
+          accessibilityLabel={`${WORD[direction]}: ${delta}${deltaLabel ? ` ${deltaLabel}` : ''}`}
           className="flex-row items-center gap-1"
         >
           <Icon icon={ARROW[direction]} size={14} tone={tone} />
           <Text variant="footnote" weight="semibold" tone={tone} className="leading-[1.2]">
             {delta}
           </Text>
+          {deltaLabel ? (
+            <Text variant="footnote" tone="muted" numberOfLines={1} className="shrink leading-[1.2]">
+              {deltaLabel}
+            </Text>
+          ) : null}
         </View>
       ) : null}
-      {description ? (
+      {typeof description === 'string' ? (
         <Text variant="subhead" tone="muted" className="leading-[1.5]">
           {description}
         </Text>
-      ) : null}
+      ) : (
+        description
+      )}
     </Card>
   );
 }
