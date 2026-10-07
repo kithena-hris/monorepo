@@ -1,12 +1,16 @@
 import { Clock } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import {
-  Platform,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  type ScrollView as RNScrollView,
-} from 'react-native';
-import { ScrollView, Text as CssText, TextInput, View } from 'react-native-css/components';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
+import { Text as CssText, TextInput, View } from 'react-native-css/components';
+import Animated, {
+  interpolate,
+  useAnimatedRef,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
@@ -292,17 +296,22 @@ function WheelColumn({
   index: number;
   onIndex: (index: number) => void;
 }): React.JSX.Element {
-  const scroller = useRef<RNScrollView>(null);
-  const [offset, setOffset] = useState(index * ROW);
+  const scroller = useAnimatedRef<Animated.ScrollView>();
+  // Where the wheel is, on the UI thread: the rows scale and fade from it
+  // without a render per frame. The value changes once, when it lands.
+  const offset = useSharedValue(index * ROW);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ring = useFocusRing();
   const last = items.length - 1;
 
   // Follows the value when it changes from elsewhere: typed, or stepped.
   useEffect(() => {
-    scroller.current?.scrollTo({ y: index * ROW, animated: false });
-    setOffset(index * ROW);
-  }, [index]);
+    scroller.current?.scrollTo({
+      y: index * ROW,
+      animated: false,
+    });
+    offset.value = index * ROW;
+  }, [index, offset, scroller]);
   useEffect(
     () => () => {
       if (settle.current) clearTimeout(settle.current);
@@ -310,11 +319,41 @@ function WheelColumn({
     [],
   );
 
-  const land = (y: number): void => {
-    const next = Math.max(0, Math.min(last, Math.round(y / ROW)));
-    if (next !== index) onIndex(next);
-    else scroller.current?.scrollTo({ y: next * ROW, animated: true });
-  };
+  const land = useCallback(
+    (y: number): void => {
+      const next = Math.max(0, Math.min(last, Math.round(y / ROW)));
+      if (next !== index) onIndex(next);
+      else
+        scroller.current?.scrollTo({
+          y: next * ROW,
+          animated: true,
+        });
+    },
+    [last, index, onIndex, scroller],
+  );
+  // The web has no momentum events: land once the scrolling has stopped.
+  const settleWeb = useCallback(
+    (y: number): void => {
+      if (settle.current) clearTimeout(settle.current);
+      settle.current = setTimeout(() => {
+        land(y);
+      }, 120);
+    },
+    [land],
+  );
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      offset.value = e.contentOffset.y;
+      if (WEB) scheduleOnRN(settleWeb, e.contentOffset.y);
+    },
+    onEndDrag: (e) => {
+      // A drag that stops dead has no momentum to end.
+      if (!WEB && Math.abs(e.velocity?.y ?? 0) < 0.05) scheduleOnRN(land, e.contentOffset.y);
+    },
+    onMomentumEnd: (e) => {
+      if (!WEB) scheduleOnRN(land, e.contentOffset.y);
+    },
+  });
   const stepBy = (by: 1 | -1): void => {
     const next = Math.max(0, Math.min(last, index + by));
     if (next !== index) onIndex(next);
@@ -322,7 +361,7 @@ function WheelColumn({
 
   return (
     <View className="w-[72px]">
-      <ScrollView
+      <Animated.ScrollView
         ref={scroller}
         role="slider"
         aria-label={label}
@@ -358,46 +397,64 @@ function WheelColumn({
         scrollEventThrottle={16}
         contentOffset={{ x: 0, y: index * ROW }}
         contentContainerStyle={{ paddingVertical: ((VISIBLE - 1) / 2) * ROW }}
-        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
-          const y = event.nativeEvent.contentOffset.y;
-          setOffset(y);
-          // The web has no momentum events: land once the scrolling stops.
-          if (settle.current) clearTimeout(settle.current);
-          settle.current = setTimeout(() => {
-            land(y);
-          }, 120);
-        }}
-        className="h-[200px] outline-none"
+        onScroll={onScroll}
+        // The focus ring is drawn below; the browser's own outline is not.
+        style={{ height: VISIBLE * ROW, outlineWidth: 0 }}
       >
-        {items.map((item, i) => {
-          const distance = Math.min(2, Math.abs(i - offset / ROW));
-          const near = distance < 0.5;
-          return (
-            <View
-              key={`${item}-${String(i)}`}
-              aria-hidden
-              className="h-10 items-center justify-center"
-            >
-              <CssText
-                style={{ opacity: 1 - distance * 0.28 }}
-                className={cn(
-                  'leading-none tabular-nums',
-                  near ? 'text-[22px] font-semibold text-fg' : 'font-normal text-fg-subtle',
-                  !near && (distance < 1.5 ? 'text-[18px]' : 'text-[16px]'),
-                )}
-              >
-                {item}
-              </CssText>
-            </View>
-          );
-        })}
-      </ScrollView>
+        {items.map((item, i) => (
+          <WheelRow
+            key={`${item}-${String(i)}`}
+            item={item}
+            row={i}
+            chosen={i === index}
+            offset={offset}
+          />
+        ))}
+      </Animated.ScrollView>
+
       {ring.focused ? (
         <View
           style={{ pointerEvents: 'none' }}
           className="absolute top-1/2 right-0 left-0 -mt-[23px] h-[46px] rounded-[14px] border-[3px] border-border-focus"
         />
       ) : null}
+    </View>
+  );
+}
+
+/** One row of a wheel: full size on the line, smaller and fainter away from it. */
+function WheelRow({
+  item,
+  row,
+  chosen,
+  offset,
+}: {
+  item: string;
+  row: number;
+  chosen: boolean;
+  offset: SharedValue<number>;
+}): React.JSX.Element {
+  const style = useAnimatedStyle(() => {
+    const distance = Math.min(2, Math.abs(row - offset.value / ROW));
+    return {
+      opacity: 1 - distance * 0.28,
+      // 22 on the line, 18 a row away, 16 two away.
+      transform: [{ scale: interpolate(distance, [0, 1, 2], [1, 18 / 22, 16 / 22]) }],
+    };
+  });
+  return (
+    <View aria-hidden className="h-10 items-center justify-center">
+      {/* The motion on a bare Animated.View, the classes inside it (RMB-001). */}
+      <Animated.View style={style}>
+        <CssText
+          className={cn(
+            'text-[22px] leading-none tabular-nums',
+            chosen ? 'font-semibold text-fg' : 'font-normal text-fg-subtle',
+          )}
+        >
+          {item}
+        </CssText>
+      </Animated.View>
     </View>
   );
 }
