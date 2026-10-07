@@ -96,7 +96,7 @@ export function Toast({
         {loading ? (
           <Spinner size={14} tone="on-accent" decorative />
         ) : (
-          <Icon icon={glyph[tone]} size={14} className="text-white" />
+          <Icon icon={glyph[tone]} size={14} tone="on-accent" />
         )}
       </View>
       <View className="min-w-0 flex-1 gap-0.5">
@@ -131,7 +131,9 @@ export function Toast({
 const STAY_MS = 4000;
 const STAY_WITH_ACTION_MS = 8000;
 
-export type ToastOptions = Omit<ToastProps, 'className' | 'onDismiss'> & {
+export type ToastOptions = Omit<ToastProps, 'className' | 'onDismiss' | 'children'> & {
+  /** One line more: what happened, or what to do. */
+  description?: string;
   /** Milliseconds before it goes. */
   duration?: number;
 };
@@ -140,8 +142,9 @@ type Shown = ToastOptions & { id: number };
 
 type ToastApi = {
   /** Shows a toast, replacing the one up. Returns a function that takes it down. */
-  show: (toast: ToastOptions) => () => void;
-  dismiss: () => void;
+  toast: (options: ToastOptions) => () => void;
+  /** Takes down the toast that is up. */
+  dismissAll: () => void;
 };
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -183,7 +186,7 @@ export function ToastProvider({
       setShown((current) => (current?.id === id ? null : current));
     };
   }, []);
-  const api = useMemo(() => ({ show, dismiss }), [show, dismiss]);
+  const api = useMemo(() => ({ toast: show, dismissAll: dismiss }), [show, dismiss]);
   return (
     <ToastContext.Provider value={api}>
       <View className="flex-1">
@@ -216,7 +219,7 @@ function Viewport({
   useEffect(() => {
     if (!shown) return undefined;
     AccessibilityInfo.announceForAccessibility(
-      shown.children ? `${shown.title}. ${shown.children}` : shown.title,
+      shown.description ? `${shown.title}. ${shown.description}` : shown.title,
     );
     const stay = shown.duration ?? (shown.action ? STAY_WITH_ACTION_MS : STAY_MS);
     const timer = setTimeout(onDone, stay);
@@ -226,7 +229,7 @@ function Viewport({
   }, [shown, onDone]);
 
   if (!presence.mounted || !last) return null;
-  const { action, title, children, tone, loading } = last;
+  const { action, title, description, tone, loading } = last;
   return (
     <View
       pointerEvents="box-none"
@@ -237,7 +240,7 @@ function Viewport({
       <Animated.View style={presence.style}>
         <Toast
           title={title}
-          {...(children ? { children } : {})}
+          {...(description ? { children: description } : {})}
           {...(tone ? { tone } : {})}
           {...(loading ? { loading } : {})}
           {...(action

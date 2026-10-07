@@ -1,12 +1,13 @@
 import { springs } from '@reach/ui/motion';
 import { ChevronRight } from 'lucide-react-native';
-import { Children, Fragment, isValidElement, useState, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { Platform, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { physics } from '../../lib/motion.ts';
 import { useReducedMotion } from '../../provider.tsx';
@@ -209,7 +210,9 @@ export function ListItem({
   className,
   ...content
 }: ListItemProps): React.JSX.Element {
-  const [pressed, setPressed] = useState(false);
+  // The press is the web row's `active:` fill, without the scale: a full-width
+  // row that shrinks would pull away from its neighbours.
+  const { pressed, onPressIn, onPressOut } = usePress();
   const plain = !content.leading && !content.icon && !content.description;
   const row = cn(
     'w-full flex-row items-center gap-3 bg-surface px-4 py-2',
@@ -230,12 +233,8 @@ export function ListItem({
       accessibilityState={{ disabled, selected }}
       disabled={disabled}
       onPress={onPress}
-      onPressIn={() => {
-        setPressed(true);
-      }}
-      onPressOut={() => {
-        setPressed(false);
-      }}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       className={row}
     >
       <Body {...content} />
@@ -285,7 +284,6 @@ function Swipeable({
   const width = useSharedValue(0);
   const offset = useSharedValue(initiallyOpen ? tray : 0);
   const from = useSharedValue(0);
-  const [revealed, setRevealed] = useState(initiallyOpen);
 
   const run = (index: number): void => {
     actions[index]?.onSelect();
@@ -296,11 +294,9 @@ function Swipeable({
   };
   const close = (): void => {
     settle(0);
-    setRevealed(false);
   };
   const open = (): void => {
     settle(tray);
-    setRevealed(true);
   };
 
   // Whichever axis moves 8pt first owns the gesture: a vertical scroll is never stolen.
@@ -324,14 +320,13 @@ function Swipeable({
       if (rest === 'full') {
         settle(0);
         scheduleOnRN(run, 0);
-        scheduleOnRN(setRevealed, false);
       } else {
         settle(rest === 'open' ? tray : 0);
-        scheduleOnRN(setRevealed, rest === 'open');
       }
     });
 
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: -offset.value }] }));
+  const trayStyle = useAnimatedStyle(() => ({ opacity: offset.value > 0 ? 1 : 0 }));
 
   return (
     <View
@@ -351,38 +346,44 @@ function Swipeable({
             ...(label ? { accessibilityLabel: label } : {}),
           })}
     >
-      {/* Transparent at rest, so the list's rounded corner never shows their colour through the row. */}
-      <View
-        className={cn('absolute inset-y-0 right-0 flex-row', !revealed && 'opacity-0')}
-        {...(WEB
-          ? {}
-          : {
-              importantForAccessibility: 'no-hide-descendants' as const,
-              accessibilityElementsHidden: true,
-            })}
-      >
-        {actions.map((action, i) => {
-          const [fill, ink, tone] = actionTone[action.tone ?? 'neutral'];
-          return (
-            <Pressable
-              key={action.label}
-              accessibilityRole="button"
-              accessibilityLabel={action.name ?? action.label}
-              onFocus={open}
-              onBlur={close}
-              onPress={() => {
-                run(i);
-                close();
-              }}
-              style={{ width: ACTION }}
-              className={cn('items-center justify-center gap-1', fill)}
-            >
-              {action.icon ? <Icon icon={action.icon} size={18} tone={tone} /> : null}
-              <CssText className={cn('text-caption font-semibold', ink)}>{action.label}</CssText>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/*
+        Transparent at rest, so the list's rounded corner never shows their
+        colour through the row; drawn as soon as a finger moves the row, on
+        the UI thread, not once the drag has ended.
+      */}
+      <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, right: 0 }, trayStyle]}>
+        <View
+          className="flex-1 flex-row"
+          {...(WEB
+            ? {}
+            : {
+                importantForAccessibility: 'no-hide-descendants' as const,
+                accessibilityElementsHidden: true,
+              })}
+        >
+          {actions.map((action, i) => {
+            const [fill, ink, tone] = actionTone[action.tone ?? 'neutral'];
+            return (
+              <Pressable
+                key={action.label}
+                accessibilityRole="button"
+                accessibilityLabel={action.name ?? action.label}
+                onFocus={open}
+                onBlur={close}
+                onPress={() => {
+                  run(i);
+                  close();
+                }}
+                style={{ width: ACTION }}
+                className={cn('items-center justify-center gap-1', fill)}
+              >
+                {action.icon ? <Icon icon={action.icon} size={18} tone={tone} /> : null}
+                <CssText className={cn('text-caption font-semibold', ink)}>{action.label}</CssText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Animated.View>
       <GestureDetector gesture={pan}>
         {/* The slide on a bare Animated.View (RMB-001), the row inside it. */}
         <Animated.View style={slide}>{children}</Animated.View>

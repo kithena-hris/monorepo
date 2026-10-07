@@ -98,22 +98,22 @@ export const WhenItShouldNotBeAToast: Story = {
 };
 
 function Trigger(): React.JSX.Element {
-  const toast = useToast();
+  const { toast } = useToast();
   return (
     <Stack gap={2} align="start">
       <Button
         variant="primary"
         onPress={() => {
-          toast.show({ title: 'Request sent to Jonas' });
+          toast({ title: 'Request sent to Jonas' });
         }}
       >
         Send request
       </Button>
       <Button
         onPress={() => {
-          toast.show({
+          toast({
             title: '3 people archived',
-            children: 'They’re hidden from the directory.',
+            description: 'They’re hidden from the directory.',
             action: { label: 'Undo', onPress: noop },
           });
         }}

@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { Children, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import {
   Pressable,
   ScrollView,
@@ -26,9 +26,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePulse } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
+import { usePresence } from '../../lib/overlay.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
 import { ChatMessage } from '../chat/chat.tsx';
+import { BackGuard } from '../dialog/dialog.tsx';
 import { FloatingButton } from '../floating-button/floating-button.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
@@ -598,27 +600,42 @@ export function AssistantWidget({
   height = 440,
 }: AssistantWidgetProps): React.JSX.Element {
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
   const bottom = insets.bottom + bottomInset + 16;
-  if (open) {
-    return (
-      <View
-        pointerEvents="box-none"
-        className="absolute left-2.5 right-2.5"
-        style={{ bottom, height }}
-      >
-        {children}
-      </View>
-    );
-  }
+  // Compact on any phone: never taller than the space under the status bar.
+  const tall = Math.min(height, window.height - insets.top - bottom - 16);
+  // Out of the launcher's corner and back, as every pop-over surface moves.
+  const presence = usePresence(open, 'top');
   return (
-    <View pointerEvents="box-none" className="absolute right-4" style={{ bottom }}>
-      <AssistantLauncher
-        onOpen={() => {
-          onOpenChange(true);
-        }}
-        {...(nudge ? { nudge } : {})}
-        {...(onDismissNudge ? { onDismissNudge } : {})}
-      />
-    </View>
+    <>
+      {presence.mounted ? (
+        <View
+          pointerEvents={open ? 'box-none' : 'none'}
+          className="absolute left-2.5 right-2.5"
+          style={{ bottom, height: tall }}
+        >
+          {/* The motion on a bare Animated.View, the classes inside it (RMB-001). */}
+          <Animated.View style={[{ flex: 1 }, presence.style]}>{children}</Animated.View>
+          {open ? (
+            <BackGuard
+              onBack={() => {
+                onOpenChange(false);
+              }}
+            />
+          ) : null}
+        </View>
+      ) : null}
+      {open ? null : (
+        <View pointerEvents="box-none" className="absolute right-4" style={{ bottom }}>
+          <AssistantLauncher
+            onOpen={() => {
+              onOpenChange(true);
+            }}
+            {...(nudge ? { nudge } : {})}
+            {...(onDismissNudge ? { onDismissNudge } : {})}
+          />
+        </View>
+      )}
+    </>
   );
 }
