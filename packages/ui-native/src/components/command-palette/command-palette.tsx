@@ -4,11 +4,12 @@ import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
 import { styled } from 'react-native-css';
 import { Pressable, ScrollView, TextInput, View } from 'react-native-css/components';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cn } from '../../lib/cn.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
-import { flatStyle, InertOutside, quietFrame } from '../../lib/overlay.tsx';
+import { flatStyle, InertOutside, quietFrame, usePresence } from '../../lib/overlay.tsx';
 import { BackGuard } from '../dialog/dialog.tsx';
 import { Skeleton } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -409,42 +410,51 @@ export function CommandPalette({
 }: CommandPaletteProps): React.JSX.Element {
   const container = useOverlayContainer(portalHost);
   const insets = useSafeAreaInsets();
+  // In and out as a modal page moves: a rise from below, and back.
+  const presence = usePresence(open, 'top');
   const close = (): void => {
     onClose?.();
     onOpenChange(false);
   };
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      {open ? (
+      {presence.mounted ? (
         <DialogPrimitive.Portal
+          forceMount
           {...(portalHost ? { hostName: portalHost } : {})}
           container={container}
         >
-          <View
-            className="absolute inset-0 bg-canvas"
-            style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+          {/* The motion on a bare Animated.View, the classes inside it (RMB-001). */}
+          <Animated.View
+            style={[{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }, presence.style]}
           >
-            <Content
-              ref={quietFrame}
-              onOpenAutoFocus={(event: Event) => {
-                // The field takes focus itself (`autoFocus`), not the first tabbable.
-                (event as unknown as { preventDefault: () => void }).preventDefault();
-              }}
-              onAccessibilityEscape={close}
-              className="flex-1 outline-none"
+            <View
+              className="flex-1 bg-canvas"
+              style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
             >
-              <Title className="absolute h-px w-px overflow-hidden opacity-0">{label}</Title>
-              <Command
-                {...props}
-                label={label}
-                autoFocus
-                onClose={close}
-                className="flex-1 rounded-none shadow-none"
-              />
-            </Content>
-            <BackGuard onBack={close} />
-            <InertOutside />
-          </View>
+              <Content
+                forceMount
+                ref={quietFrame}
+                onOpenAutoFocus={(event: Event) => {
+                  // The field takes focus itself (`autoFocus`), not the first tabbable.
+                  (event as unknown as { preventDefault: () => void }).preventDefault();
+                }}
+                onAccessibilityEscape={close}
+                className="flex-1 outline-none"
+              >
+                <Title className="absolute h-px w-px overflow-hidden opacity-0">{label}</Title>
+                <Command
+                  {...props}
+                  label={label}
+                  autoFocus
+                  onClose={close}
+                  className="flex-1 rounded-none shadow-none"
+                />
+              </Content>
+              {open ? <BackGuard onBack={close} /> : null}
+              <InertOutside />
+            </View>
+          </Animated.View>
         </DialogPrimitive.Portal>
       ) : null}
     </DialogPrimitive.Root>
