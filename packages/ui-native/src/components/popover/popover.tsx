@@ -7,6 +7,7 @@ import { cn } from '../../lib/cn.ts';
 import {
   FloatingRoot,
   FloatingSurface,
+  useEdgeInsets,
   useTriggerHandle,
   WEB,
   type FloatingState,
@@ -123,6 +124,7 @@ export function PopoverContent({
   const { open, onOpenChange } = PopoverPrimitive.useRootContext();
   const presence = usePresence(open, side);
   const container = useOverlayContainer(portalHost);
+  const edge = useEdgeInsets();
   if (!presence.mounted) return null;
   const surface = (
     <Content
@@ -131,6 +133,7 @@ export function PopoverContent({
       side={side}
       align={align}
       sideOffset={sideOffset}
+      {...edge}
       // Focus goes to the popover, not its first field: on a phone a field
       // focused on open raises the keyboard over what was just opened.
       onOpenAutoFocus={(event: Event) => {

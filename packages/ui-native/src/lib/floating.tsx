@@ -14,6 +14,7 @@ import type { View as RNView } from 'react-native';
 import { Platform } from 'react-native';
 import { View } from 'react-native-css/components';
 import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cn } from './cn.ts';
 import type { usePresence } from './overlay.tsx';
@@ -121,6 +122,28 @@ export function FloatingSurface({
 
 /** Whether this is the web, where Radix positions and dismisses the content. */
 export const WEB = Platform.OS === 'web';
+
+/** How near a screen edge an anchored overlay may come: the web's collision padding. */
+export const EDGE_GAP = 12;
+
+/**
+ * Spread on a primitive's content so it keeps `EDGE_GAP` from every edge: on
+ * the web Radix's `collisionPadding`, on a device the primitive's `insets`,
+ * measured inside the safe area so nothing lands under the notch or the home
+ * indicator.
+ */
+export function useEdgeInsets(): Record<string, unknown> {
+  const safe = useSafeAreaInsets();
+  if (WEB) return { collisionPadding: EDGE_GAP };
+  return {
+    insets: {
+      top: safe.top + EDGE_GAP,
+      bottom: safe.bottom + EDGE_GAP,
+      left: safe.left + EDGE_GAP,
+      right: safe.right + EDGE_GAP,
+    },
+  };
+}
 
 type NativeRoot = {
   onOpenChange: (open: boolean) => void;

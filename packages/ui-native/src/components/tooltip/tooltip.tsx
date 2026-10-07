@@ -9,6 +9,7 @@ import { cn } from '../../lib/cn.ts';
 import {
   FloatingRoot,
   LongPressTrigger,
+  useEdgeInsets,
   useTriggerHandle,
   WEB,
   type FloatingState,
@@ -108,10 +109,18 @@ function WebBubble({
 }): React.JSX.Element | null {
   const presence = usePresence(open, side);
   const container = useOverlayContainer(portalHost);
+  const edge = useEdgeInsets();
   if (!presence.mounted) return null;
   return (
     <TooltipPrimitive.Portal forceMount container={container}>
-      <WebContent forceMount side={side} align="center" sideOffset={8} className="outline-none">
+      <WebContent
+        forceMount
+        side={side}
+        align="center"
+        sideOffset={8}
+        {...edge}
+        className="outline-none"
+      >
         <Bubble presence={presence} side={side} shortcut={shortcut}>
           {children}
         </Bubble>
@@ -155,6 +164,7 @@ function NativeBubble({
 }): React.JSX.Element | null {
   const { open, onOpenChange } = PopoverPrimitive.useRootContext();
   const presence = usePresence(open, side);
+  const edge = useEdgeInsets();
   if (!presence.mounted) return null;
   return (
     <PopoverPrimitive.Portal forceMount {...(portalHost ? { hostName: portalHost } : {})}>
@@ -173,6 +183,7 @@ function NativeBubble({
           side={side === 'bottom' ? 'bottom' : 'top'}
           align="center"
           sideOffset={8}
+          {...edge}
         >
           <Bubble presence={presence} side={side} shortcut={shortcut}>
             {children}

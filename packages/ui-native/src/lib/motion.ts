@@ -14,6 +14,8 @@ import {
   easings,
   flyout,
   gentleSpring,
+  HOVER_CLOSE_MS,
+  HOVER_OPEN_MS,
   PRESS_SCALE,
   RISE,
   springs,
@@ -21,7 +23,17 @@ import {
   type SpringConfig,
 } from '@reach/ui/motion';
 
-export { durations, easings, gentleSpring, PRESS_SCALE, RISE, springs, stagger };
+export {
+  durations,
+  easings,
+  gentleSpring,
+  HOVER_CLOSE_MS,
+  HOVER_OPEN_MS,
+  PRESS_SCALE,
+  RISE,
+  springs,
+  stagger,
+};
 
 export type Bezier = readonly [number, number, number, number];
 export type Timing = { type: 'timing'; duration: number; easing: Bezier };

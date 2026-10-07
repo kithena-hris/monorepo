@@ -6,7 +6,7 @@ import { View } from 'react-native-css/components';
 import Animated from 'react-native-reanimated';
 
 import { cn } from '../../lib/cn.ts';
-import { WEB } from '../../lib/floating.tsx';
+import { useEdgeInsets, WEB } from '../../lib/floating.tsx';
 import { menuRowClass, MenuRowContent, menuSurface } from '../../lib/menu.tsx';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
 import { flatStyle, InertOutside, labelledFrame, usePresence } from '../../lib/overlay.tsx';
@@ -139,6 +139,7 @@ export function menuParts(P: Primitive): MenuParts {
     const { open, onOpenChange } = P.useRootContext();
     const presence = usePresence(open, side);
     const container = useOverlayContainer(portalHost);
+    const edge = useEdgeInsets();
     if (!presence.mounted) return null;
     const content = (
       <Content
@@ -148,6 +149,7 @@ export function menuParts(P: Primitive): MenuParts {
         side={side}
         align={align}
         sideOffset={sideOffset}
+        {...edge}
         // On the web the name goes on Radix's element (`labelledFrame`): a
         // labelled view between a menu and its items breaks the menu's role.
         {...(label && !WEB ? { accessibilityLabel: label } : {})}
