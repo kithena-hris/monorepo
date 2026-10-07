@@ -1,7 +1,9 @@
 import { Upload } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
+import Animated from 'react-native-reanimated';
 
+import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
 import { Button } from '../button/button.tsx';
@@ -59,6 +61,7 @@ export function Dropzone({
   className,
 }: DropzoneProps): React.JSX.Element {
   const ring = useFocusRing();
+  const press = usePress();
   const [busy, setBusy] = useState(false);
   const inline = variant === 'inline';
   const open = (): void => {
@@ -135,25 +138,30 @@ export function Dropzone({
     );
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={error ?? hint}
-      accessibilityState={{ disabled, busy }}
-      aria-invalid={error ? true : undefined}
-      disabled={disabled}
-      onPress={open}
-      onFocus={ring.onFocus}
-      onBlur={ring.onBlur}
-      className={cn(frame, 'outline-none active:bg-surface-sunken')}
-    >
-      {body}
-      {ring.focused ? (
-        <View
-          style={{ pointerEvents: 'none' }}
-          className="absolute -inset-[5px] rounded-[27px] border-[3px] border-border-focus"
-        />
-      ) : null}
-    </Pressable>
+    // The press on a bare Animated.View, the classes inside it (RMB-001).
+    <Animated.View style={press.style}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityHint={error ?? hint}
+        accessibilityState={{ disabled, busy }}
+        aria-invalid={error ? true : undefined}
+        disabled={disabled}
+        onPress={open}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        onFocus={ring.onFocus}
+        onBlur={ring.onBlur}
+        className={cn(frame, 'outline-none active:bg-surface-sunken')}
+      >
+        {body}
+        {ring.focused ? (
+          <View
+            style={{ pointerEvents: 'none' }}
+            className="absolute -inset-[5px] rounded-[27px] border-[3px] border-border-focus"
+          />
+        ) : null}
+      </Pressable>
+    </Animated.View>
   );
 }
