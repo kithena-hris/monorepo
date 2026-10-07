@@ -312,7 +312,7 @@ const noop = (): void => undefined;
 
 /** Navigation, display and feedback beyond the first screenful. */
 function MoreComponents(): React.JSX.Element {
-  const toast = useToast();
+  const { toast } = useToast();
   const [tab, setTab] = useState('overview');
   const [page, setPage] = useState(2);
   const [nav, setNav] = useState('People');
@@ -445,7 +445,7 @@ function MoreComponents(): React.JSX.Element {
         </CopyButton>
         <Button
           onPress={() => {
-            toast.show({ title: 'Request sent to Jonas' });
+            toast({ title: 'Request sent to Jonas' });
           }}
         >
           Show a toast

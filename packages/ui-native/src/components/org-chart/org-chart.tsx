@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, UserPlus } from 'lucide-react-native';
-import { useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, type LayoutChangeEvent } from 'react-native';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -78,6 +78,10 @@ export interface OrgChartProps {
    */
   reassignable?: boolean;
   onReassign?: (move: OrgMove) => void;
+  /** Veto a move the data model would allow. Loops are already refused. */
+  canReassign?: (node: OrgNode, newManager: OrgNode) => boolean;
+  /** Fires with the person being dragged, then with `null` when it ends. */
+  onDraggingChange?: (node: OrgNode | null) => void;
   /** The screen-reader path to the same thing: the screen offers a picker. */
   onRequestReassign?: (node: OrgNode) => void;
   /** Replaces a row's two lines of text. The counts are handed over. */
@@ -140,6 +144,8 @@ export function OrgChart({
   viewerRole = 'viewer',
   reassignable = false,
   onReassign,
+  canReassign,
+  onDraggingChange,
   onRequestReassign,
   renderNode,
   className,
@@ -155,7 +161,10 @@ export function OrgChart({
   const canMove = reassign !== undefined;
   const [drag, setDrag] = useState<{ id: string; over: string | undefined } | null>(null);
   const rows = useRef(new Map<string, { y: number; height: number }>());
+  const lifted = useRef(false);
 
+  // The tree, once per set of people: a drag or a tap re-renders the chart.
+  const forest = useMemo(() => build(nodes), [nodes]);
   const needle = query?.trim().toLowerCase() ?? '';
   const matches = new Set(
     needle
@@ -178,12 +187,20 @@ export function OrgChart({
     for (const [id, box] of rows.current) if (y >= box.y && y < box.y + box.height) return id;
     return undefined;
   };
-  const valid = (id: string, target: string | undefined): target is string =>
-    target !== undefined &&
-    target !== parentOf.get(id) &&
-    !isUnder(nodes, target, id) &&
-    !(nodes.find((n) => n.id === target)?.locked ?? false) &&
-    !(nodes.find((n) => n.id === target)?.vacant ?? false);
+  const valid = (id: string, target: string | undefined): target is string => {
+    const to = nodes.find((n) => n.id === target);
+    const from = nodes.find((n) => n.id === id);
+    return (
+      target !== undefined &&
+      to !== undefined &&
+      from !== undefined &&
+      target !== parentOf.get(id) &&
+      !isUnder(nodes, target, id) &&
+      !(to.locked ?? false) &&
+      !(to.vacant ?? false) &&
+      (canReassign?.(from, to) ?? true)
+    );
+  };
 
   const items: ReactNode[] = [];
   const walk = (tree: TreeNode, depth: number): void => {
@@ -320,6 +337,8 @@ export function OrgChart({
         .activateAfterLongPress(350)
         .onStart(() => {
           setDrag({ id: node.id, over: undefined });
+          lifted.current = true;
+          onDraggingChange?.(node);
         })
         .onUpdate((e) => {
           const box = rows.current.get(node.id);
@@ -336,6 +355,9 @@ export function OrgChart({
         })
         .onFinalize(() => {
           setDrag(null);
+          // Only a drag that began ends: a tap never lifted anyone.
+          if (lifted.current) onDraggingChange?.(null);
+          lifted.current = false;
         });
       items.push(
         <GestureDetector key={node.id} gesture={lift}>
@@ -347,7 +369,7 @@ export function OrgChart({
     }
     if (open) for (const child of children) walk(child, depth + 1);
   };
-  for (const root of build(nodes)) walk(root, 0);
+  for (const root of forest) walk(root, 0);
 
   return (
     <View
