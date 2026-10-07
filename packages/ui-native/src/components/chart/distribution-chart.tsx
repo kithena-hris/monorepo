@@ -137,7 +137,7 @@ export function DonutChart({
     >
       {ring}
       {showLegend ? (
-        <View className="min-w-[170px] flex-1">
+        <View className="min-w-[200px] flex-1">
           {data.map((slice, index) => {
             const share = Math.round((slice.value / total) * 100);
             const selected = selectedIndex === index;
@@ -556,7 +556,7 @@ export function CalendarHeatmap({
   to,
   label,
   summary,
-  tone = 'success',
+  tone = 'chart-1',
   max,
   describe,
   scaleLabels,
