@@ -14,7 +14,7 @@ import { usePlatform } from '../../provider.tsx';
  * a device that can press it and drops it from one that cannot.
  */
 
-type KeyName =
+export type KeyName =
   | 'mod'
   | 'shift'
   | 'alt'
@@ -105,7 +105,9 @@ export type KbdProps = {
    * platform's glyph, or the character itself (`K`, `?`, `⌘` when the
    * shortcut is Apple's only).
    */
-  children: string;
+  children?: string;
+  /** The web's name for a named key: the same as passing it as `children`. */
+  keyName?: KeyName;
   /** In a tooltip or on a filled button: the cap washes the colour it sits on. */
   inverted?: boolean;
   /** `hide`: leave it out where there is no keyboard to press it on. */
@@ -115,7 +117,8 @@ export type KbdProps = {
 
 /** One keycap: a fill with a hairline along its bottom edge, so it reads as a key. */
 export function Kbd({
-  children,
+  children: text = '',
+  keyName,
   inverted = false,
   touch = 'show',
   className,
@@ -124,6 +127,7 @@ export function Kbd({
   // Apple's glyphs for iOS, the key's printed name for Android.
   const apple = usePlatform() === 'ios';
   if (touch === 'hide' && !keyboard) return null;
+  const children = keyName ?? text;
   const named = isName(children);
   const label = named ? (apple ? glyph[children].apple : glyph[children].other) : children;
   const name = named ? spoken[children] : SYMBOLS[children];
