@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designNote, overlayDocs } from '../../docs/design.ts';
-import { Stage, StandInField, settled } from '../../docs/stage.tsx';
+import { Stage, settled } from '../../docs/stage.tsx';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,8 @@ import {
 } from '../alert-dialog/alert-dialog.tsx';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Button } from '../button/button.tsx';
+import { Field, FieldLabel } from '../field/field.tsx';
+import { Input } from '../input/input.tsx';
 import { Text } from '../text/text.tsx';
 import {
   Sheet,
@@ -220,7 +222,10 @@ export const UnsavedChanges: Story = {
                   <SheetTitle>Edit profile</SheetTitle>
                 </SheetHeader>
                 <SheetBody>
-                  <StandInField label="Job title" value={title} onChangeText={setTitle} focused />
+                  <Field>
+                    <FieldLabel>Job title</FieldLabel>
+                    <Input value={title} onChangeText={setTitle} autoFocus />
+                  </Field>
                 </SheetBody>
               </SheetContent>
               <AlertDialog open={asking} onOpenChange={setAsking}>

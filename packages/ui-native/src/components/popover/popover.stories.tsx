@@ -4,9 +4,12 @@ import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designDocs } from '../../docs/design.ts';
-import { StandInCheck, StandInField, StandInSegmented, settled } from '../../docs/stage.tsx';
+import { settled } from '../../docs/stage.tsx';
 import { Button } from '../button/button.tsx';
+import { Checkbox } from '../checkbox/checkbox.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { Input } from '../input/input.tsx';
+import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control.tsx';
 import { Text } from '../text/text.tsx';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './popover.tsx';
 
@@ -46,36 +49,51 @@ const COLUMNS = ['Name', 'Team', 'Location', 'Status', 'Start date', 'Salary'];
 
 export const ColumnChooser: Story = {
   name: 'A working column chooser',
-  render: () => (
-    <View className="min-h-[460px] items-start">
-      <Popover defaultOpen>
-        <PopoverTrigger>
-          <Button size="sm" startIcon={<Icon icon={Columns3} />}>
-            Columns
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent label="Columns" className="w-[260px] gap-0.5">
-          <Text weight="semibold">Columns</Text>
-          {COLUMNS.map((column, i) => (
-            <View key={column} className="min-h-m-tap flex-row items-center gap-2.5">
-              <Icon icon={GripVertical} size={15} tone="subtle" />
-              <StandInCheck label={column} defaultChecked={i < 5} />
-            </View>
-          ))}
-          <View className="mt-1.5 flex-row justify-between">
-            <Button size="sm" variant="ghost">
-              Reset
+  render: function ColumnChooserStory() {
+    const [shown, setShown] = useState(() => new Set(COLUMNS.slice(0, 5)));
+    return (
+      <View className="min-h-[460px] items-start">
+        <Popover defaultOpen>
+          <PopoverTrigger>
+            <Button size="sm" startIcon={<Icon icon={Columns3} />}>
+              Columns
             </Button>
-            <PopoverClose asChild>
-              <Button size="sm" variant="primary">
-                Done
+          </PopoverTrigger>
+          <PopoverContent label="Columns" className="w-[260px] gap-0.5">
+            <Text weight="semibold">Columns</Text>
+            {COLUMNS.map((column) => (
+              <View key={column} className="min-h-m-tap flex-row items-center gap-2.5">
+                <Icon icon={GripVertical} size={15} tone="subtle" />
+                <Checkbox
+                  checked={shown.has(column)}
+                  onCheckedChange={(on) => {
+                    setShown((current) => {
+                      const next = new Set(current);
+                      if (on) next.add(column);
+                      else next.delete(column);
+                      return next;
+                    });
+                  }}
+                >
+                  {column}
+                </Checkbox>
+              </View>
+            ))}
+            <View className="mt-1.5 flex-row justify-between">
+              <Button size="sm" variant="ghost">
+                Reset
               </Button>
-            </PopoverClose>
-          </View>
-        </PopoverContent>
-      </Popover>
-    </View>
-  ),
+              <PopoverClose asChild>
+                <Button size="sm" variant="primary">
+                  Done
+                </Button>
+              </PopoverClose>
+            </View>
+          </PopoverContent>
+        </Popover>
+      </View>
+    );
+  },
 };
 
 export const Sides: Story = {
@@ -113,19 +131,25 @@ export const HoldingARealControl: Story = {
           </PopoverTrigger>
           <PopoverContent label="Filter" className="w-[300px] gap-2.5">
             <Text weight="semibold">Start date</Text>
-            <StandInField
-              value="After 1 Jan 2024"
+            <Input
+              size="sm"
+              defaultValue="After 1 Jan 2024"
               accessibilityLabel="Start date"
-              small
-              end={<Icon icon={Calendar} size={17} tone="muted" />}
+              endAdornment={<Icon icon={Calendar} size={17} tone="muted" />}
             />
             <Text weight="semibold">Status</Text>
-            <StandInSegmented
-              label="Status"
-              options={['Any', 'Active', 'Leave']}
+            <SegmentedControl
+              accessibilityLabel="Status"
               value={status}
-              onChange={setStatus}
-            />
+              onValueChange={setStatus}
+              fullWidth
+            >
+              {['Any', 'Active', 'Leave'].map((option) => (
+                <SegmentedControlItem key={option} value={option}>
+                  {option}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
             <View className="flex-row justify-end gap-1.5">
               <Button size="sm" variant="ghost">
                 Clear
