@@ -104,7 +104,8 @@ export const InATableRow: Story = {
               <Text
                 tone="muted"
                 weight="medium"
-                className="w-[34px] text-right text-[12px] leading-none tabular-nums"
+                numberOfLines={1}
+                className="min-w-[38px] text-right text-[12px] leading-none tabular-nums"
               >
                 {`${String(done)}%`}
               </Text>
