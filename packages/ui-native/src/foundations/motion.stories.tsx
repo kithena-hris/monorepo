@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import { Check, RotateCcw } from 'lucide-react-native';
+import { RotateCcw } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { useCssElement } from 'react-native-css';
@@ -10,10 +10,14 @@ import Svg, { Path } from 'react-native-svg';
 import { Badge } from '../components/badge/badge.tsx';
 import { Button } from '../components/button/button.tsx';
 import { Card } from '../components/card/card.tsx';
+import { CheckboxBox } from '../components/checkbox/checkbox.tsx';
+import { Skeleton } from '../components/feedback/feedback.tsx';
 import { Icon } from '../components/icon/icon.tsx';
 import { AutoGrid, Inline, Stack } from '../components/layout/layout.tsx';
+import { Progress } from '../components/progress/progress.tsx';
 import { Separator } from '../components/separator/separator.tsx';
 import { Spinner } from '../components/spinner/spinner.tsx';
+import { SwitchTrack } from '../components/switch/switch.tsx';
 import { Text } from '../components/text/text.tsx';
 import { designDocs } from '../docs/design.ts';
 import { animateTo } from '../lib/animate.ts';
@@ -312,7 +316,7 @@ export const StateTransitions: Story = {
     docs: {
       description: {
         story:
-          'Each control is drawn mid-change. The switch and the checkbox here are pictures, hidden from a screen reader; the controls themselves are Forms’.',
+          'Each control is drawn mid-change. The switch and the checkbox are Forms’ own track and box, hidden from a screen reader here.',
       },
     },
   },
@@ -324,19 +328,13 @@ export const StateTransitions: Story = {
         </View>
       </State>
       <State note={`Knob slides ${String(durations.normal)}ms`}>
-        <View
-          aria-hidden
-          className="h-8 w-[52px] justify-center rounded-full bg-success-solid px-0.5"
-        >
-          <View className="size-7 self-end rounded-full bg-fg-on-accent shadow-sm" />
+        <View aria-hidden>
+          <SwitchTrack checked />
         </View>
       </State>
       <State note="Tick draws in">
-        <View
-          aria-hidden
-          className="size-[22px] items-center justify-center rounded-xs bg-accent-solid"
-        >
-          <Icon icon={Check} size={14} tone="on-accent" />
+        <View aria-hidden>
+          <CheckboxBox checked />
         </View>
       </State>
       <State note="Counts roll">
@@ -354,20 +352,18 @@ export const LoadingMotion: Story = {
     docs: {
       description: {
         story:
-          'A spinner for a short wait on one thing, a skeleton where content will be, a bar when the length is unknown. The skeleton and the bar are drawn here; Feedback and Progress own them.',
+          'A spinner for a short wait on one thing, a skeleton where content will be, a bar when the length is unknown. The skeleton is Feedback’s and the bar is Progress’s.',
       },
     },
   },
   render: () => (
     <Inline gap={6} className="gap-7">
       <Spinner size={24} />
-      <View aria-hidden className="gap-2">
-        <View className="h-3 w-[180px] rounded-xs bg-surface-sunken" />
-        <View className="h-3 w-[120px] rounded-xs bg-surface-sunken" />
+      <View className="gap-2">
+        <Skeleton className="w-[180px]" />
+        <Skeleton className="w-[120px]" />
       </View>
-      <View aria-hidden className="h-2 w-[180px] overflow-hidden rounded-full bg-surface-active">
-        <View className="h-full w-[40%] rounded-full bg-accent" />
-      </View>
+      <Progress value={null} label="Loading" hideLabel className="w-[180px]" />
     </Inline>
   ),
 };
@@ -391,7 +387,7 @@ export const ReducedMotion: Story = {
     },
   },
   render: () => (
-    <Card padded={false} className="px-4 py-1">
+    <Card padded={false} className="p-3">
       {REDUCED.map(([what, becomes], i) => (
         <View key={what}>
           {i > 0 ? <Separator /> : null}
