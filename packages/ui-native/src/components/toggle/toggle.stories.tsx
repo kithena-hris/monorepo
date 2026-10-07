@@ -139,7 +139,7 @@ export const SegmentedSeveralAtOnce: Story = {
 
 export const Sizes: Story = {
   render: () => (
-    <Inline gap={2}>
+    <Inline gap={2} align="center">
       <Live initial size="sm">
         Small
       </Live>

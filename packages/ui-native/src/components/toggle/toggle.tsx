@@ -15,17 +15,17 @@ const ToggleRoot = styled(flatStyle(TogglePrimitive.Root));
 const GroupRoot = styled(flatStyle(ToggleGroupPrimitive.Root));
 const GroupItem = styled(flatStyle(ToggleGroupPrimitive.Item));
 
-const HEIGHT = { sm: 32, md: 40 } as const;
+const HEIGHT = { sm: 32, md: 40, lg: 48 } as const;
 
 /*
- * The mobile design's toggle: 40 under a thumb, 32 compact, a pill, 14pt
+ * The mobile design's toggle: 40 under a thumb, 32 compact, 48 large, a pill, 14pt
  * semibold. `fill` sits in the sunken fill and takes the accent wash when on;
  * `ghost` has no fill at rest; `outline` a hairline, and a stronger fill on.
  */
 const toggle = cva('flex-row items-center justify-center gap-1.5', {
   variants: {
     variant: { fill: '', ghost: '', outline: 'border-[1.5px] border-border-strong' },
-    size: { sm: 'h-8 px-[13px]', md: 'h-10 px-4' },
+    size: { sm: 'h-8 px-[13px]', md: 'h-10 px-4', lg: 'h-12 px-4' },
     iconOnly: { true: 'px-0', false: '' },
     /** `square`: a rounded square, for a run of formatting buttons. */
     shape: { pill: 'rounded-full', square: 'rounded-[10px]' },
@@ -34,6 +34,7 @@ const toggle = cva('flex-row items-center justify-center gap-1.5', {
   compoundVariants: [
     { iconOnly: true, size: 'sm', class: 'w-8' },
     { iconOnly: true, size: 'md', class: 'w-10' },
+    { iconOnly: true, size: 'lg', class: 'w-12' },
     { on: false, variant: 'fill', class: 'bg-surface-sunken' },
     { on: true, variant: ['fill', 'ghost'], class: 'bg-accent-subtle' },
     { on: true, variant: 'outline', class: 'bg-surface-active' },
@@ -64,8 +65,8 @@ export type ToggleProps = {
   variant?: 'fill' | 'ghost' | 'outline';
   /** `square` for a run of formatting buttons; a pill otherwise. */
   shape?: 'pill' | 'square';
-  /** `md` 40pt, `sm` 32; both reach 44 under a finger. */
-  size?: 'sm' | 'md';
+  /** `md` 40pt, `sm` 32, `lg` 48; each reaches 44 under a finger. */
+  size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   className?: string | undefined;
 };
@@ -90,7 +91,7 @@ export function Toggle({
   const press = usePress();
   const fg = tone(pressed, variant);
   const iconOnly = !children;
-  const slop = (44 - HEIGHT[size]) / 2;
+  const slop = Math.max(0, (44 - HEIGHT[size]) / 2);
   return (
     <ToggleRoot
       pressed={pressed}
