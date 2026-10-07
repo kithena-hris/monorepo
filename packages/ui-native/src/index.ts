@@ -786,6 +786,7 @@ export {
   TreeView,
   treeChecked,
   type TreeNode,
+  type TreeViewNode,
   type TreeViewProps,
 } from './components/tree-view/tree-view.tsx';
 export {

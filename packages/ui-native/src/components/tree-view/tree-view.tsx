@@ -22,29 +22,39 @@ import { Spinner } from '../spinner/spinner.tsx';
 export type TreeNode = {
   id: string;
   label: string;
-  /** Loaded children. A branch with none loaded yet sets `branch`. */
+  /** Loaded children. An empty array is a branch that turned out to be empty. */
   children?: readonly TreeNode[];
-  /** A branch whose children load when it opens. */
-  branch?: boolean;
-  /** After the label: how many items are inside. */
-  count?: number;
+  /** A branch whose children are not loaded yet: opening it is the cue to fetch them. */
+  hasChildren?: boolean;
+};
+
+export type TreeViewNode = TreeNode & {
+  children?: readonly TreeViewNode[];
+  /** A glyph before the label: an `Icon`. A folder or a page when left out. */
+  icon?: ReactNode;
+  /** Quiet text at the row's end, typically a count. */
+  meta?: ReactNode;
 };
 
 export type TreeViewProps = {
-  nodes: readonly TreeNode[];
+  items: readonly TreeViewNode[];
   /** The tree's accessible name. */
   label: string;
   expanded?: readonly string[];
   defaultExpanded?: readonly string[];
+  /** Also the cue to load a branch opened for the first time. */
   onExpandedChange?: (expanded: readonly string[]) => void;
   /** Branches whose children are on their way: a spinner, then skeleton rows. */
   loading?: readonly string[];
+  /** The one selected item. Without `onSelectedChange`, a tap on a branch opens it. */
   selected?: string | null;
-  onSelect?: (id: string) => void;
+  defaultSelected?: string | null;
+  onSelectedChange?: (id: string) => void;
   /** A checkbox on every row; checking a branch checks everything under it. */
   checkable?: boolean;
   /** The checked leaves. A branch's box follows them. */
   checked?: readonly string[];
+  defaultChecked?: readonly string[];
   onCheckedChange?: (checked: readonly string[]) => void;
   /** Long-press picks an item up; tapping a branch moves it in. */
   onMove?: (id: string, into: string) => void;
@@ -70,7 +80,7 @@ function tap(run: () => void): {
   };
 }
 
-const isBranch = (n: TreeNode): boolean => n.branch === true || (n.children?.length ?? 0) > 0;
+const isBranch = (n: TreeNode): boolean => n.children !== undefined || n.hasChildren === true;
 
 /** Every leaf under a node, or the node itself when it is one. */
 function leaves(n: TreeNode): string[] {
@@ -85,16 +95,18 @@ export function treeChecked(n: TreeNode, checked: readonly string[]): CheckedSta
 }
 
 export function TreeView({
-  nodes,
+  items: nodes,
   label,
   expanded: expandedProp,
   defaultExpanded = [],
   onExpandedChange,
   loading = [],
-  selected,
-  onSelect,
+  selected: selectedProp,
+  defaultSelected = null,
+  onSelectedChange,
   checkable = false,
-  checked = [],
+  checked: checkedProp,
+  defaultChecked = [],
   onCheckedChange,
   onMove,
   defaultHeld,
@@ -107,13 +119,25 @@ export function TreeView({
     setOwn(next);
     onExpandedChange?.(next);
   };
+  const [ownSelected, setOwnSelected] = useState(defaultSelected);
+  const selected = selectedProp === undefined ? ownSelected : selectedProp;
+  const select = (id: string): void => {
+    setOwnSelected(id);
+    onSelectedChange?.(id);
+  };
+  const [ownChecked, setOwnChecked] = useState(defaultChecked);
+  const checked = checkedProp ?? ownChecked;
   const [held, setHeld] = useState<string | null>(defaultHeld ?? null);
   const [focused, setFocused] = useState<string | null>(defaultFocused ?? null);
   const { announce, region } = useAnnouncer();
 
   // The rows on screen, in order, for the keyboard.
-  const visible: { node: TreeNode; depth: number; parent: TreeNode | null }[] = [];
-  const walk = (list: readonly TreeNode[], depth: number, parent: TreeNode | null): void => {
+  const visible: { node: TreeViewNode; depth: number; parent: TreeViewNode | null }[] = [];
+  const walk = (
+    list: readonly TreeViewNode[],
+    depth: number,
+    parent: TreeViewNode | null,
+  ): void => {
     for (const node of list) {
       visible.push({ node, depth, parent });
       if (expanded.includes(node.id) && node.children) walk(node.children, depth + 1, node);
@@ -130,14 +154,15 @@ export function TreeView({
   const check = (n: TreeNode): void => {
     const all = leaves(n);
     const on = treeChecked(n, checked) === true;
-    onCheckedChange?.(
-      on ? checked.filter((id) => !all.includes(id)) : [...new Set([...checked, ...all])],
-    );
+    const next = on ? checked.filter((id) => !all.includes(id)) : [...new Set([...checked, ...all])];
+    setOwnChecked(next);
+    onCheckedChange?.(next);
   };
 
   const press = (n: TreeNode): void => {
     if (held) {
-      if (isBranch(n) && n.id !== held) {
+      const home = visible.find((v) => v.node.id === held)?.parent?.id;
+      if (isBranch(n) && n.id !== held && n.id !== home) {
         onMove?.(held, n.id);
         announce(`${labelOf(held)} moved into ${n.label}.`);
         setHeld(null);
@@ -145,8 +170,8 @@ export function TreeView({
       return;
     }
     setFocused(n.id);
-    if (isBranch(n) && !onSelect) toggle(n);
-    else onSelect?.(n.id);
+    if (isBranch(n) && !onSelectedChange) toggle(n);
+    else select(n.id);
   };
 
   const onKeyDown = (e: { key: string; preventDefault: () => void }): void => {
@@ -199,18 +224,20 @@ export function TreeView({
     }
   };
 
-  const row = (n: TreeNode, depth: number, index: number, setsize: number): ReactNode => {
+  const row = (n: TreeViewNode, depth: number, index: number, setsize: number): ReactNode => {
     const branch = isBranch(n);
     const open = expanded.includes(n.id);
     const isLoading = loading.includes(n.id);
     const isSelected = selected === n.id;
-    const target = held !== null && branch && n.id !== held;
+    // Its own folder is not somewhere to move it.
+    const home = held === null ? null : (visible.find((v) => v.node.id === held)?.parent?.id ?? null);
+    const target = held !== null && branch && n.id !== held && n.id !== home;
     const state = checkable ? treeChecked(n, checked) : false;
     return (
       <Fragment key={n.id}>
         <Pressable
           nativeID={`tree-${n.id}`}
-          accessibilityLabel={`${n.label}${n.count !== undefined ? `, ${String(n.count)} items` : ''}`}
+          accessibilityLabel={`${n.label}${typeof n.meta === 'string' || typeof n.meta === 'number' ? `, ${String(n.meta)}` : ''}`}
           {...(WEB
             ? ({
                 role: 'treeitem',
@@ -257,7 +284,7 @@ export function TreeView({
             isSelected && 'bg-accent-subtle',
             target && 'border-2 border-accent bg-accent-subtle',
             focused === n.id && WEB && 'border-2 border-border-focus',
-            held === n.id && 'border-2 border-dashed border-border-strong bg-surface-sunken',
+            held === n.id && 'opacity-70',
           )}
         >
           {Array.from({ length: depth }, (_, k) => (
@@ -296,11 +323,13 @@ export function TreeView({
               <CheckboxBox checked={state} />
             </View>
           ) : null}
-          <Icon
-            icon={branch ? (open ? FolderOpen : Folder) : FileText}
-            size={16}
-            tone={branch ? 'accent' : 'muted'}
-          />
+          {n.icon ?? (
+            <Icon
+              icon={branch ? (open ? FolderOpen : Folder) : FileText}
+              size={16}
+              tone={branch ? 'accent' : 'muted'}
+            />
+          )}
           <CssText
             numberOfLines={1}
             className={cn(
@@ -310,11 +339,13 @@ export function TreeView({
           >
             {n.label}
           </CssText>
-          {n.count !== undefined ? (
+          {typeof n.meta === 'string' || typeof n.meta === 'number' ? (
             <CssText className="text-[12px] leading-none font-medium text-fg-subtle">
-              {n.count}
+              {n.meta}
             </CssText>
-          ) : null}
+          ) : (
+            n.meta
+          )}
         </Pressable>
         {open && n.children ? (
           <View {...(WEB ? ({ role: 'group' } as object) : {})}>

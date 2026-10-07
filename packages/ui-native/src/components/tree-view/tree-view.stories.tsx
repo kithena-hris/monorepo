@@ -4,13 +4,13 @@ import { View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
 import { KeyHints } from '../../docs/notes.tsx';
-import { TreeView, type TreeNode, type TreeViewProps } from './tree-view.tsx';
+import { TreeView, type TreeViewNode, type TreeViewProps } from './tree-view.tsx';
 
-const DOCS: TreeNode[] = [
+const DOCS: TreeViewNode[] = [
   {
     id: 'policies',
     label: 'Policies',
-    count: 4,
+    meta: 4,
     children: [
       { id: 'leave', label: 'Leave policy.pdf' },
       { id: 'conduct', label: 'Code of conduct.pdf' },
@@ -24,7 +24,7 @@ const DOCS: TreeNode[] = [
       },
     ],
   },
-  { id: 'contracts', label: 'Contracts', count: 312, branch: true },
+  { id: 'contracts', label: 'Contracts', meta: 312, hasChildren: true },
   { id: 'onboarding', label: 'Onboarding', children: [{ id: 'welcome', label: 'Welcome pack.pdf' }] },
   { id: 'handbook', label: 'Handbook.pdf' },
 ];
@@ -33,7 +33,7 @@ const meta = {
   title: 'Components/TreeView',
   component: TreeView,
   parameters: designDocs('tree-view'),
-  args: { nodes: DOCS, label: 'Documents' },
+  args: { items: DOCS, label: 'Documents' },
 } satisfies Meta<typeof TreeView>;
 
 export default meta;
@@ -41,7 +41,7 @@ type Story = StoryObj<typeof meta>;
 
 function Live(props: TreeViewProps): React.JSX.Element {
   const [selected, setSelected] = useState<string | null>(props.selected ?? null);
-  return <TreeView {...props} selected={selected} onSelect={setSelected} />;
+  return <TreeView {...props} selected={selected} onSelectedChange={setSelected} />;
 }
 
 export const Playground: Story = {
@@ -50,7 +50,7 @@ export const Playground: Story = {
   ),
 };
 
-const TEAMS: TreeNode[] = [
+const TEAMS: TreeViewNode[] = [
   {
     id: 'engineering',
     label: 'Engineering',
@@ -91,7 +91,7 @@ export const WithCheckboxes: Story = {
     return (
       <TreeView
         label="Teams"
-        nodes={TEAMS}
+        items={TEAMS}
         checkable
         checked={checked}
         onCheckedChange={setChecked}
@@ -106,8 +106,8 @@ export const LoadingABranch: Story = {
   render: () => (
     <TreeView
       label="Documents"
-      nodes={[
-        { id: 'contracts', label: 'Contracts', count: 312, branch: true },
+      items={[
+        { id: 'contracts', label: 'Contracts', meta: 312, hasChildren: true },
         { id: 'policies', label: 'Policies', children: [{ id: 'leave', label: 'Leave policy.pdf' }] },
       ]}
       defaultExpanded={['contracts']}
@@ -120,7 +120,7 @@ export const DragToMove: Story = {
   name: 'Drag to move',
   parameters: designNote('tree-view', 'Drag to move'),
   render: function MoveStory() {
-    const [nodes, setNodes] = useState<TreeNode[]>([
+    const [nodes, setNodes] = useState<TreeViewNode[]>([
       {
         id: 'policies',
         label: 'Policies',
@@ -135,7 +135,7 @@ export const DragToMove: Story = {
     return (
       <TreeView
         label="Documents"
-        nodes={nodes}
+        items={nodes}
         defaultExpanded={['policies']}
         defaultHeld="leave"
         onMove={(id, into) => {
@@ -162,7 +162,7 @@ export const FromTheKeyboard: Story = {
     <View className="gap-2.5">
       <TreeView
         label="Documents"
-        nodes={[
+        items={[
           {
             id: 'policies',
             label: 'Policies',
@@ -171,7 +171,7 @@ export const FromTheKeyboard: Story = {
               { id: 'conduct', label: 'Code of conduct.pdf' },
             ],
           },
-          { id: 'contracts', label: 'Contracts', branch: true },
+          { id: 'contracts', label: 'Contracts', hasChildren: true },
         ]}
         defaultExpanded={['policies']}
         defaultFocused="leave"

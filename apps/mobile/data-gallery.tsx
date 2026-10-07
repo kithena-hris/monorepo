@@ -72,7 +72,7 @@ export function DataGallery(): React.JSX.Element {
       <TreeView
         label="Documents"
         defaultExpanded={['policies']}
-        nodes={[
+        items={[
           {
             id: 'policies',
             label: 'Policies',
