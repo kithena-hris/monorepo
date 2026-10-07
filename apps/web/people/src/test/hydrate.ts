@@ -1,5 +1,5 @@
 import { act, createElement, Suspense, type ReactElement } from 'react';
-import { hydrateRoot } from 'react-dom/client';
+import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { onTestFinished, vi } from 'vitest';
 
@@ -14,10 +14,13 @@ import { onTestFinished, vi } from 'vitest';
  * mismatch is a recoverable error, or a console error in development) and the
  * live host, which stays in the page until the test finishes. An empty
  * `errors` means the first paint is what the browser keeps.
+ *
+ * The root is unmounted when the test finishes, before the host goes. Left
+ * mounted, work React had already scheduled (an effect's state update) could
+ * run after the test file's jsdom was torn down, and fail the whole run with
+ * "window is not defined" though every test passed.
  */
-export async function serveAndHydrate(
-  element: ReactElement,
-): Promise<{
+export async function serveAndHydrate(element: ReactElement): Promise<{
   readonly html: string;
   readonly errors: readonly string[];
   readonly host: HTMLElement;
@@ -27,7 +30,11 @@ export async function serveAndHydrate(
   const host = document.createElement('div');
   host.innerHTML = html;
   document.body.append(host);
+  let root: Root | undefined;
   onTestFinished(() => {
+    act(() => {
+      root?.unmount();
+    });
     host.remove();
   });
   const errors: string[] = [];
@@ -36,7 +43,7 @@ export async function serveAndHydrate(
   });
   try {
     await act(async () => {
-      hydrateRoot(host, tree, {
+      root = hydrateRoot(host, tree, {
         onRecoverableError: (error) => {
           errors.push(error instanceof Error ? error.message : String(error));
         },
