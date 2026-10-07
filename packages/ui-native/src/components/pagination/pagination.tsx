@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Pressable, View } from 'react-native-css/components';
+import Animated from 'react-native-reanimated';
 
+import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -21,6 +23,9 @@ export type PaginationProps = {
   numbered?: boolean;
   /** Pages either side of the current one before eliding. */
   siblings?: number;
+  /** Total row count, for the "Showing 21–40 of 912" summary above the arrows. */
+  totalItems?: number;
+  pageSize?: number;
   /** Names it for a screen reader, for a screen with more than one. */
   label?: string;
   className?: string | undefined;
@@ -66,9 +71,13 @@ export function Pagination({
   onPageChange,
   numbered = false,
   siblings = 1,
+  totalItems,
+  pageSize,
   label = 'Pagination',
   className,
 }: PaginationProps): React.JSX.Element {
+  const first = totalItems && pageSize ? (page - 1) * pageSize + 1 : null;
+  const last = totalItems && pageSize ? Math.min(page * pageSize, totalItems) : null;
   const previous = (
     <Button
       size="sm"
@@ -91,7 +100,7 @@ export function Pagination({
       }}
     />
   );
-  return (
+  const bar = (
     <View
       {...({ role: 'navigation', 'aria-label': label } as object)}
       className={cn(
@@ -115,33 +124,14 @@ export function Pagination({
               …
             </Text>
           ) : (
-            // A page is a circle, 40 across, the current one filled: the
-            // window has to fit a phone's width, where a button's padding
-            // would wrap it.
-            <Pressable
+            <PageButton
               key={item}
-              accessibilityRole="button"
-              accessibilityLabel={`Page ${String(item)}`}
-              accessibilityState={{ selected: item === page }}
-              {...(item === page ? ({ 'aria-current': 'page' } as object) : {})}
+              page={item}
+              current={item === page}
               onPress={() => {
                 onPageChange(item);
               }}
-              className={cn(
-                'h-10 min-w-10 items-center justify-center rounded-full px-1.5',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-                item === page ? 'bg-invert' : 'active:bg-surface-sunken',
-              )}
-            >
-              <Text
-                variant="subhead"
-                weight="semibold"
-                tabular
-                tone={item === page ? 'on-invert' : 'default'}
-              >
-                {String(item)}
-              </Text>
-            </Pressable>
+            />
           ),
         )
       ) : (
@@ -157,5 +147,64 @@ export function Pagination({
       )}
       {next}
     </View>
+  );
+  if (first === null || last === null || !totalItems) return bar;
+  return (
+    <View className="gap-2">
+      <Text variant="footnote" tone="muted" tabular className="text-center">
+        Showing{' '}
+        <Text variant="footnote" weight="medium" tabular>
+          {`${String(first)}–${String(last)}`}
+        </Text>{' '}
+        of{' '}
+        <Text variant="footnote" weight="medium" tabular>
+          {String(totalItems)}
+        </Text>
+      </Text>
+      {bar}
+    </View>
+  );
+}
+
+/**
+ * A page is a circle, 40 across, the current one filled: the window has to
+ * fit a phone's width, where a button's padding would wrap it. `hitSlop`
+ * makes the touch 44.
+ */
+function PageButton({
+  page,
+  current,
+  onPress,
+}: {
+  page: number;
+  current: boolean;
+  onPress: () => void;
+}): React.JSX.Element {
+  const press = usePress();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Page ${String(page)}`}
+      accessibilityState={{ selected: current }}
+      {...(current ? ({ 'aria-current': 'page' } as object) : {})}
+      hitSlop={2}
+      onPress={onPress}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+    >
+      <Animated.View style={press.style}>
+        <View
+          className={cn(
+            'h-10 min-w-10 items-center justify-center rounded-full px-1.5',
+            current ? 'bg-invert' : press.pressed && 'bg-surface-sunken',
+          )}
+        >
+          <Text variant="subhead" weight="semibold" tabular tone={current ? 'on-invert' : 'default'}>
+            {String(page)}
+          </Text>
+        </View>
+      </Animated.View>
+    </Pressable>
   );
 }

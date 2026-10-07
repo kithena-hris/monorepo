@@ -67,6 +67,7 @@ export const UnderATable: Story = {
         label="People"
         rows={PEOPLE.slice(0, 3)}
         rowId={(person) => person.name}
+        onRowPress={noop}
         columns={[
           {
             id: 'name',
