@@ -13,6 +13,8 @@ import { Platform } from 'react-native';
 import { View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { useAnnouncer } from '../../lib/reorder.tsx';
+import { Spinner } from '../spinner/spinner.tsx';
 
 /**
  * A long list with only the visible part mounted, on FlashList: rows are
@@ -25,8 +27,8 @@ import { cn } from '../../lib/cn.ts';
  */
 
 export type VirtualListHandle = {
-  /** Scrolls the row at `index` into view. */
-  scrollToIndex: (index: number) => void;
+  /** Scrolls the item with this key to the middle, if it is not in view; an unknown key does nothing. */
+  revealItem: (key: string) => void;
 };
 
 export type VirtualRow = {
@@ -65,6 +67,12 @@ export type VirtualListProps<T> = {
   onEndReached?: () => void;
   /** Under the last row while the next page loads. */
   footer?: ReactNode;
+  /** The next page is on its way: a spinner sits under the last row. */
+  loadingMore?: boolean;
+  /** What a screen reader hears as a page lands: "20 more people". */
+  moreLoaded?: (added: number) => string;
+  /** Space between rows, in points, in place of the hairlines. */
+  gap?: number;
   /**
    * Arrow keys move a highlighted row, Home and End jump, Page Down pages,
    * Enter opens. For a hardware keyboard: a tablet's, or the web's.
@@ -102,6 +110,9 @@ export function VirtualList<T>({
   empty,
   onEndReached,
   footer,
+  loadingMore = false,
+  moreLoaded,
+  gap,
   navigable = false,
   onOpen,
   defaultActive,
@@ -132,10 +143,25 @@ export function VirtualList<T>({
   }, [report]);
 
   useImperativeHandle(ref, () => ({
-    scrollToIndex: (index: number) => {
+    revealItem: (key: string) => {
+      const index = items.findIndex((item, i) => itemKey(item, i) === key);
+      if (index < 0) return;
+      const first = list.current?.getFirstVisibleIndex() ?? -1;
+      const shown = list.current?.computeVisibleIndices();
+      // In full view already: stay put, so the reader keeps their place.
+      if (first >= 0 && shown && index > shown.startIndex && index < shown.endIndex) return;
       void list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
     },
   }));
+
+  // A page landing is said aloud: the rows appear silently otherwise.
+  const loaded = useRef(items.length);
+  const { announce, region } = useAnnouncer();
+  useEffect(() => {
+    const added = items.length - loaded.current;
+    loaded.current = items.length;
+    if (added > 0 && moreLoaded) announce(moreLoaded(added));
+  }, [items.length, moreLoaded, announce]);
 
   const count = items.length;
   const move = (to: number): void => {
@@ -200,11 +226,24 @@ export function VirtualList<T>({
         onScroll={() => {
           // By row, not by offset: offsets are estimates until every row has been measured.
           const first = list.current?.getFirstVisibleIndex() ?? view.current.first;
+          // Only a new first row is news: a listener re-renders on every report.
+          if (first === view.current.first) return;
           view.current = { first, progress: count > 1 ? first / (count - 1) : 0 };
           report();
         }}
         scrollEventThrottle={64}
-        ListFooterComponent={footer ? <>{footer}</> : null}
+        ListFooterComponent={
+          footer || loadingMore ? (
+            <>
+              {footer}
+              {loadingMore ? (
+                <View className="h-[52px] items-center justify-center">
+                  <Spinner size={16} label="Loading more" />
+                </View>
+              ) : null}
+            </>
+          ) : null
+        }
         renderItem={({ item, index }) => (
           <Cell onMount={onMount}>
             <View
@@ -217,8 +256,9 @@ export function VirtualList<T>({
                     ...(navigable ? { role: 'option', 'aria-selected': index === active } : {}),
                   } as object)
                 : {})}
+              style={gap !== undefined && index < count - 1 ? { marginBottom: gap } : undefined}
               className={cn(
-                separators && index < count - 1 && 'border-b border-border',
+                gap === undefined && separators && index < count - 1 && 'border-b border-border',
                 index === active && 'bg-accent-subtle',
               )}
             >
@@ -227,6 +267,7 @@ export function VirtualList<T>({
           </Cell>
         )}
       />
+      {region}
     </View>
   );
 }

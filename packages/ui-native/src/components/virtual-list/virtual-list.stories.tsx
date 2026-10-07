@@ -107,7 +107,7 @@ export const VariableHeights: Story = {
     <VirtualList
       items={FEED}
       label="Activity"
-      height={306}
+      height={386}
       itemKey={(post) => String(post.id)}
       renderItem={(post) => (
         <View className="flex-row gap-3 px-4 py-3.5">
