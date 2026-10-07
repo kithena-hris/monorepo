@@ -323,7 +323,9 @@ export function OrgChart({
         })
         .onUpdate((e) => {
           const box = rows.current.get(node.id);
-          setDrag({ id: node.id, over: rowAt((box?.y ?? 0) + e.y) });
+          const over = rowAt((box?.y ?? 0) + e.y);
+          // Redraw when the person is over a new row, not on every frame of the finger.
+          setDrag((now) => (now?.id === node.id && now.over === over ? now : { id: node.id, over }));
         })
         .onEnd((e) => {
           const box = rows.current.get(node.id);
