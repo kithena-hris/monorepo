@@ -13,6 +13,7 @@ import { useState, type ReactNode } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
+import { settled } from '../../docs/stage.tsx';
 import { Button } from '../button/button.tsx';
 import { Card } from '../card/card.tsx';
 import { Alert } from '../feedback/feedback.tsx';
@@ -43,6 +44,8 @@ const meta = {
   title: 'Components/AI chat widget',
   component: AssistantPanel,
   parameters: designDocs('ai-chat'),
+  // The card fades in from the launcher; axe reads its colours once it has.
+  play: settled,
   args: { children: null },
 } satisfies Meta<typeof AssistantPanel>;
 

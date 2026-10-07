@@ -84,7 +84,8 @@ export function settled(): Promise<void> {
     const check = (): void => {
       const open = Array.from(
         document.querySelectorAll(
-          '[role="dialog"], [role="alertdialog"], [data-radix-popper-content-wrapper]',
+          // A region too: the assistant's card fades out of the launcher's corner.
+          '[role="dialog"], [role="alertdialog"], [role="region"], [data-radix-popper-content-wrapper]',
         ),
       );
       if ((open.length > 0 && open.every(opaque)) || Date.now() >= deadline) resolve();
