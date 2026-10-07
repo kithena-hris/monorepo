@@ -127,14 +127,14 @@ export const WEB = Platform.OS === 'web';
 export const EDGE_GAP = 12;
 
 /**
- * Spread on a primitive's content so it keeps `EDGE_GAP` from every edge: on
- * the web Radix's `collisionPadding`, on a device the primitive's `insets`,
- * measured inside the safe area so nothing lands under the notch or the home
- * indicator.
+ * Spread on a primitive's content so it keeps `EDGE_GAP` from every edge: the
+ * primitive's `insets`, measured inside the safe area on a device so nothing
+ * lands under the notch or the home indicator. On the web the menus and the
+ * hover card hand `insets` to Radix as its collision padding; the web popover
+ * and tooltip of `@rn-primitives` drop it, so there they reach the edge.
  */
-export function useEdgeInsets(): Record<string, unknown> {
+export function useEdgeInsets(): { insets: Insets } {
   const safe = useSafeAreaInsets();
-  if (WEB) return { collisionPadding: EDGE_GAP };
   return {
     insets: {
       top: safe.top + EDGE_GAP,
@@ -144,6 +144,8 @@ export function useEdgeInsets(): Record<string, unknown> {
     },
   };
 }
+
+type Insets = { top: number; bottom: number; left: number; right: number };
 
 type NativeRoot = {
   onOpenChange: (open: boolean) => void;
