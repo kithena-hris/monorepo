@@ -28,7 +28,7 @@ import {
   type FilterField,
   type FilterGroup,
   type FilterValueKind,
-} from './filter-model.ts';
+} from '@reach/ui/filter-model';
 
 /**
  * Filters built out of conditions, as the web's `FilterBuilder`: each a
@@ -37,7 +37,7 @@ import {
  * is a small stacked card (field, operator, then the value beside its remove
  * button) rather than a row of four, as the web draws it under a finger.
  *
- * The model is the web's, restated in `filter-model.ts`.
+ * The model is the web's own, `@reach/ui/filter-model`.
  */
 
 export {
@@ -49,7 +49,7 @@ export {
   removeItem,
   setMatch,
   updateCondition,
-} from './filter-model.ts';
+} from '@reach/ui/filter-model';
 export type {
   FilterCondition,
   FilterField,
@@ -57,7 +57,7 @@ export type {
   FilterOperator,
   FilterSubgroup,
   FilterValueKind,
-} from './filter-model.ts';
+} from '@reach/ui/filter-model';
 
 export type FilterBuilderProps = {
   fields: readonly FilterField[];

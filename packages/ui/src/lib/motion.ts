@@ -9,8 +9,8 @@
  *
  * Pure on purpose: no DOM, no React, no import beyond `spring.ts`. That is
  * what lets `@reach/ui-native` import it, and the dependency-cruiser rule that
- * keeps the rest of `packages/ui` out of the native library allows exactly
- * these two files.
+ * keeps the rest of `packages/ui` out of the native library lets these two
+ * files through (and the equally pure filter model, nothing else).
  */
 import { springs, type SpringConfig } from './spring';
 

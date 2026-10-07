@@ -129,7 +129,10 @@ duration, easing, the press scale, the popover's travel and the hover timings;
 `spring.ts` beside it holds the springs. Both are pure TypeScript with no DOM
 and no React, which is what lets `@reach/ui-native` import them: the
 dependency-cruiser rule that keeps `packages/ui` out of the native library
-allows exactly those two files. The web reads the same numbers as CSS
+lets those two files through. The only other file it lets through is the
+filter model (`@reach/ui/filter-model`), pure for the same reason, so the
+phone's FilterBuilder builds and describes a filter with the web's own
+functions rather than a copy. The web reads the same numbers as CSS
 custom properties, and `motion.test.ts` fails when `theme.css` and the module
 disagree, the same trade `spring.test.ts` already makes for the baked springs.
 

@@ -14,6 +14,14 @@
  * rendered label, so a relabelled option does not silently break a saved
  * filter. A range is two strings, either of which may be empty for "on or
  * after" and "on or before".
+ *
+ * ### Read by the phone too
+ *
+ * Pure on purpose: no DOM, no React, no import at all. `@reach/ui-native`
+ * reads this file as `@reach/ui/filter-model`, through the same door in the
+ * dependency-cruiser rule that `motion.ts` uses, so the two libraries build
+ * and describe a filter with one set of functions and one set of tests. Keep
+ * it import-free; a component import here would put DOM code on a phone.
  */
 
 /** What an operator asks for after it. */

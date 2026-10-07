@@ -122,8 +122,9 @@ than quietly working around it.
 
 - **Reach on a phone is `packages/ui-native`, on NativeWind 5.** Same names,
   same props where the platform allows, and the same `tokens.css`, read
-  directly rather than copied; motion comes from `@reach/ui/motion`, the one
-  module both libraries import. Behaviour nobody should hand-roll comes from a
+  directly rather than copied; motion comes from `@reach/ui/motion` and the
+  filter model from `@reach/ui/filter-model`, the only two pure modules both
+  libraries import. Behaviour nobody should hand-roll comes from a
   library (`@rn-primitives`, Reanimated, Gesture Handler, FlashList), never a
   second design system: Tamagui would be a second token source, gluestack and
   Paper someone else's look. The native app runs Expo SDK 57's React 19.2.3;

@@ -21,7 +21,7 @@ import {
   type FilterCondition,
   type FilterField,
   type FilterGroup,
-} from './filter-model.ts';
+} from '@reach/ui/filter-model';
 
 /**
  * The pieces a big list's filters are built from, past one row of
@@ -88,10 +88,17 @@ export function FacetList({
                 on ? selected.filter((v) => v !== o.value) : [...selected, o.value],
               );
             }}
-            className={cn('min-h-11 flex-row items-center gap-2.5', o.count === 0 && 'opacity-45')}
+            className="min-h-11 flex-row items-center gap-2.5"
           >
             <CheckboxBox checked={on} />
-            <CssText className="flex-1 text-callout leading-[1.2] text-fg">{o.label}</CssText>
+            <CssText
+              className={cn(
+                'flex-1 text-callout leading-[1.2]',
+                o.count === 0 ? 'text-fg-muted' : 'text-fg',
+              )}
+            >
+              {o.label}
+            </CssText>
             <CssText className="text-[12px] leading-none font-medium text-fg-subtle tabular-nums">
               {o.count}
             </CssText>
