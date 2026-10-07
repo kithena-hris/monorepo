@@ -123,6 +123,7 @@ function Directory(): React.JSX.Element {
       rows={PEOPLE.slice(0, 6)}
       columns={COLUMNS}
       rowId={(p) => p.name}
+      onRowPress={open}
       toolbar={<FilterBar />}
       footer={<Pagination page={page} pageCount={52} onPageChange={setPage} className="flex-1" />}
     />
@@ -223,6 +224,7 @@ function Infinite(): React.JSX.Element {
       rows={rows}
       columns={COLUMNS}
       rowId={(p) => p.name}
+      onRowPress={open}
       loadingMore={more}
       onEndReached={() => {
         if (more) setRows(PEOPLE.slice(0, rows.length + 4));
@@ -258,8 +260,8 @@ export const AnalyticsDashboard: Story = {
               tone="success"
               area={false}
               showLastPoint={false}
-              width={64}
-              height={32}
+              width={88}
+              height={24}
             />
           }
         />
@@ -339,7 +341,7 @@ const REQUESTS: readonly Request[] = [
     detail: (
       <Text variant="subhead" tone="muted">
         {'Expense · '}
-        <Money minorUnits="24800" currency="EUR" />
+        <Money minorUnits="24800" currency="EUR" className="text-fg-muted" />
       </Text>
     ),
     when: '1h',
@@ -396,7 +398,7 @@ function Queue(): React.JSX.Element {
               leading={<Avatar name={request.name} size={36} decorative />}
               description={request.detail}
               trailing={
-                <Text variant="footnote" tone="subtle">
+                <Text variant="caption" weight="regular" tone="subtle">
                   {request.when}
                 </Text>
               }
@@ -490,6 +492,7 @@ export const LoadingEmptyAndFailure: Story = {
       </Card>
       <Card>
         <EmptyState
+          className="py-2"
           icon={Users}
           title="No one here yet"
           description="Invite your team to see them in the directory."
@@ -502,6 +505,7 @@ export const LoadingEmptyAndFailure: Story = {
       </Card>
       <Card>
         <EmptyState
+          className="py-2"
           icon={WifiOff}
           tone="danger"
           title="Couldn’t load people"
