@@ -86,11 +86,16 @@ export type ProgressProps = {
   /** `null` for indeterminate: it has started and nobody can say how far it is. */
   value: number | null;
   max?: number;
-  /** What is in progress. Shown above the bar unless `hideLabel`. */
+  /** What is in progress: always read, and printed above the bar with `showValue`. */
   label: string;
+  /**
+   * Prints the label above the bar and the reading beside it, as the web's.
+   * Off by default: a bar in a row whose own text names it still has its name read.
+   */
+  showValue?: boolean;
   /** The right-hand reading: "7 of 11 tasks", "About 2 min left". Defaults to the percentage. */
   valueLabel?: string;
-  /** For a bar in a row whose own text names it: the name is still read. */
+  /** Keeps the label off the screen even with `showValue`. Unprinted is the default. */
   hideLabel?: boolean;
   tone?: ProgressTone;
   /** The bar's thickness: 8 by default, 6 in a dense row. */
@@ -103,12 +108,14 @@ export function Progress({
   max = 100,
   label,
   valueLabel,
+  showValue = false,
   hideLabel = false,
   tone = 'accent',
   thickness = 8,
   className,
 }: ProgressProps): React.JSX.Element {
   const indeterminate = value === null;
+  const printed = showValue && !hideLabel;
   const reduced = useReducedMotion();
   const [track, setTrack] = useState(0);
   const width = useSharedValue(indeterminate ? 0 : percent(value, max));
@@ -144,7 +151,7 @@ export function Progress({
     valueLabel ?? (indeterminate ? '' : `${String(Math.round(percent(value, max)))}%`);
   const meter = (
     <View
-      {...(hideLabel ? a11y(label, value, max, valueLabel) : {})}
+      {...(printed ? {} : a11y(label, value, max, valueLabel))}
       onLayout={(e: LayoutChangeEvent) => {
         setTrack(e.nativeEvent.layout.width);
       }}
@@ -162,7 +169,7 @@ export function Progress({
     </View>
   );
 
-  if (hideLabel) return <View className={cn('w-full', className)}>{meter}</View>;
+  if (!printed) return <View className={cn('w-full', className)}>{meter}</View>;
   return (
     <View {...a11y(label, value, max, valueLabel)} className={cn('w-full gap-2', className)}>
       <View className="flex-row justify-between gap-3">
@@ -224,6 +231,8 @@ export type CircularProgressProps = {
   /** Across, in points. 56 by default. */
   size?: number;
   tone?: ProgressTone;
+  /** Prints the rounded percentage in the middle, as the web's. */
+  showValue?: boolean;
   className?: string | undefined;
 };
 
@@ -234,6 +243,7 @@ export function CircularProgress({
   label,
   size = 56,
   tone = 'accent',
+  showValue = false,
   className,
 }: CircularProgressProps): React.JSX.Element {
   const indeterminate = value === null;
@@ -279,7 +289,7 @@ export function CircularProgress({
           className={stroke[tone]}
         />
       </Animated.View>
-      {indeterminate ? null : (
+      {indeterminate || !showValue ? null : (
         <CssText
           aria-hidden
           className="font-bold leading-none text-fg tabular-nums"

@@ -203,7 +203,13 @@ export function ComponentsGallery(): React.JSX.Element {
       </Alert>
 
       <Inline gap={4} wrap={false}>
-        <Progress value={64} label="Onboarding" valueLabel="7 of 11 tasks" className="flex-1" />
+        <Progress
+          showValue
+          value={64}
+          label="Onboarding"
+          valueLabel="7 of 11 tasks"
+          className="flex-1"
+        />
         <CircularProgress value={null} size={40} label="Loading" />
       </Inline>
 
