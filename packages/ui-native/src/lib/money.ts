@@ -87,12 +87,23 @@ export function formatMoney(
   const parts = format.formatToParts(negative ? -1234567 : 1234567);
   const group = parts.find((p) => p.type === 'group')?.value ?? '';
   const point = parts.find((p) => p.type === 'decimal')?.value ?? '.';
+  // The locale's grouping, read off the sample: the last group's size, then
+  // the size of those before it (3 and 3, or 3 and 2 in en-IN's 12,34,567),
+  // and whether a four-digit figure groups at all (es leaves 4200 whole).
+  const sizes = parts.filter((p) => p.type === 'integer').map((p) => p.value.length);
+  const primary = sizes.at(-1) ?? 3;
+  const secondary = sizes.length > 2 ? (sizes.at(-2) ?? primary) : primary;
+  const fewest = format.formatToParts(1234).some((p) => p.type === 'group') ? 1 : 2;
 
-  let grouped = '';
-  for (let i = 0; i < whole.length; i += 1) {
-    const left = whole.length - i;
-    grouped += whole[i] ?? '';
-    if (left > 1 && (left - 1) % 3 === 0) grouped += group;
+  let grouped = whole;
+  if (sizes.length > 1 && whole.length >= primary + fewest) {
+    let rest = whole.slice(0, -primary);
+    const tail = [whole.slice(-primary)];
+    while (rest.length > secondary) {
+      tail.unshift(rest.slice(-secondary));
+      rest = rest.slice(0, -secondary);
+    }
+    grouped = [rest, ...tail].join(group);
   }
   const figures = fraction ? `${grouped}${point}${fraction}` : grouped;
 

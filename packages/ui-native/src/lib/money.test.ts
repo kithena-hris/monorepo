@@ -14,23 +14,29 @@ describe('formatMoney', () => {
       ['9200050', 'EUR', 'fr-FR'],
       ['9200050', 'EUR', 'ja-JP'],
       ['12', 'EUR', 'en-GB'],
+      ['123456789', 'INR', 'en-IN'],
+      ['420050', 'EUR', 'es-ES'],
+      ['1234550', 'EUR', 'es-ES'],
+      ['100', 'EUR', 'en-GB'],
     ];
     for (const [minor, currency, locale] of cases) {
       const f = new Intl.NumberFormat(locale, { style: 'currency', currency });
       const places = f.resolvedOptions().maximumFractionDigits ?? 2;
-      expect(formatMoney(minor, currency, { locale })).toBe(
-        f.format(Number(minor) / 10 ** places),
-      );
+      expect(formatMoney(minor, currency, { locale })).toBe(f.format(Number(minor) / 10 ** places));
     }
   });
 
   it('keeps every digit a double would lose', () => {
-    expect(formatMoney('900719925474099', 'EUR', { locale: 'en-GB' })).toBe('€9,007,199,254,740.99');
+    expect(formatMoney('900719925474099', 'EUR', { locale: 'en-GB' })).toBe(
+      '€9,007,199,254,740.99',
+    );
   });
 
   it('uses a true minus, and brackets for a ledger', () => {
     expect(formatMoney('-8600', 'EUR', { locale: 'en-GB' })).toBe('−€86.00');
-    expect(formatMoney('-124050', 'EUR', { locale: 'en-GB', accounting: true })).toBe('(€1,240.50)');
+    expect(formatMoney('-124050', 'EUR', { locale: 'en-GB', accounting: true })).toBe(
+      '(€1,240.50)',
+    );
   });
 
   it('moves minor units by string arithmetic', () => {
