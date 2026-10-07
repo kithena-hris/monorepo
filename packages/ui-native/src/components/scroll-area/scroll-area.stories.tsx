@@ -97,7 +97,7 @@ export const AlwaysVisible: Story = {
   parameters: designNote('scroll-area', 'Always visible'),
   render: () => (
     <Card padded={false} className="overflow-hidden rounded-[20px]">
-      <ScrollArea className="h-[220px]" scrollbar="always" accessibilityLabel="Locations">
+      <ScrollArea className="h-[220px]" type="always" accessibilityLabel="Locations">
         {PEOPLE.slice(0, 8).map((p, i) => (
           <Row
             key={p.name}
