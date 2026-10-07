@@ -515,14 +515,6 @@ async function flingDown(canvasElement: unknown): Promise<void> {
 }
 
 export const Virtualized: Story = {
-  // Twenty thousand rows, a pool of cards: flung far down, still a handful mounted.
-  play: async ({ canvasElement }) => {
-    await flingDown(canvasElement);
-    await waitFor(async () => {
-      await expect(mounted.count).toBeGreaterThan(0);
-      await expect(mounted.count).toBeLessThan(100);
-    });
-  },
   render: () => (
     <View style={{ height: 560 }}>
       <DataTable
@@ -538,6 +530,30 @@ export const Virtualized: Story = {
 };
 
 const FIVE_THOUSAND = MANY.slice(0, 5_000);
+
+export const VirtualizedFlung: Story = {
+  name: 'Virtualized, flung',
+  // Five thousand rows, a pool of cards: flung far down, still a handful mounted.
+  play: async ({ canvasElement }) => {
+    await flingDown(canvasElement);
+    await waitFor(async () => {
+      await expect(mounted.count).toBeGreaterThan(0);
+      await expect(mounted.count).toBeLessThan(100);
+    });
+  },
+  render: () => (
+    <View style={{ height: 560 }}>
+      <DataTable
+        label="Everyone"
+        rows={FIVE_THOUSAND}
+        columns={COUNTED_COLUMNS}
+        rowId={(p) => String(p.n)}
+        onRowPress={open}
+        footer={<Rendering of={5_000} />}
+      />
+    </View>
+  ),
+};
 
 export const VirtualizedGrouped: Story = {
   name: 'Virtualized, grouped',
