@@ -1,5 +1,6 @@
 import {
   Accordion,
+  AccordionContent,
   AssistantComposer,
   AssistantMessage,
   AssistantPanel,
@@ -7,6 +8,7 @@ import {
   CircularProgress,
   Progress,
   AccordionItem,
+  AccordionTrigger,
   Avatar,
   AvatarGroup,
   Badge,
@@ -253,11 +255,13 @@ export function ComponentsGallery(): React.JSX.Element {
       </View>
 
       <Accordion type="single" defaultValue="personal">
-        <AccordionItem value="personal" title="Personal details">
-          Name, pronouns and date of birth.
+        <AccordionItem value="personal">
+          <AccordionTrigger>Personal details</AccordionTrigger>
+          <AccordionContent>Name, pronouns and date of birth.</AccordionContent>
         </AccordionItem>
-        <AccordionItem value="bank" title="Bank details">
-          Account holder, IBAN and BIC.
+        <AccordionItem value="bank">
+          <AccordionTrigger>Bank details</AccordionTrigger>
+          <AccordionContent>Account holder, IBAN and BIC.</AccordionContent>
         </AccordionItem>
       </Accordion>
 

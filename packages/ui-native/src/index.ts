@@ -58,9 +58,13 @@ export {
 
 export {
   Accordion,
+  AccordionContent,
   AccordionItem,
+  AccordionTrigger,
+  type AccordionContentProps,
   type AccordionItemProps,
   type AccordionProps,
+  type AccordionTriggerProps,
 } from './components/accordion/accordion.tsx';
 export {
   AssistantAction,
@@ -710,7 +714,11 @@ export {
   type DataTableSort,
   type SortDirection,
 } from './components/table/table.tsx';
-export { KeyValues, type KeyValue, type KeyValuesProps } from './components/key-values/key-values.tsx';
+export {
+  KeyValues,
+  type KeyValue,
+  type KeyValuesProps,
+} from './components/key-values/key-values.tsx';
 export { Money, type MoneyProps } from './components/money/money.tsx';
 export {
   currencyExponent,
