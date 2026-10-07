@@ -26,9 +26,17 @@ export type SortableListProps<T extends SortableItem> = {
   /** `row`: the whole row is the drag target; links and buttons in it still work. */
   activator?: 'handle' | 'row';
   /** A row's content: a title and a line under it, or anything else. */
-  children: (item: T, info: { index: number }) => ReactNode;
-  /** What a row is called when its move is spoken: "Jonas Weber, approver 2". */
-  itemLabel: (item: T, index: number) => string;
+  children: (item: T, info: { index: number; dragging: boolean }) => ReactNode;
+  /**
+   * What a row is called when its move is spoken: "Jonas Weber, approver 2".
+   * Without it a row is "item 3", which is true and useless.
+   */
+  itemLabel?: (item: T, index: number) => string;
+  /**
+   * `cards` (the default) draws every row as its own raised card. `plain`
+   * draws bare rows, for a list inside a modal or a panel that is already a surface.
+   */
+  appearance?: 'cards' | 'plain';
   className?: string | undefined;
 };
 
@@ -40,7 +48,8 @@ export function SortableList<T extends SortableItem>({
   onReorder,
   activator = 'handle',
   children,
-  itemLabel,
+  itemLabel = (_, index) => `item ${String(index + 1)}`,
+  appearance = 'cards',
   className,
 }: SortableListProps<T>): React.JSX.Element {
   const { announce, region } = useAnnouncer();
@@ -91,7 +100,10 @@ export function SortableList<T extends SortableItem>({
             } as object)
           : {})}
         className={cn(
-          'min-h-[60px] flex-row items-center gap-3 rounded-[14px] bg-surface px-3.5 py-2 shadow-sm',
+          'flex-row items-center gap-3',
+          appearance === 'cards'
+            ? 'min-h-[60px] rounded-[14px] bg-surface px-3.5 py-2 shadow-sm'
+            : 'min-h-11 rounded-[10px] px-1',
           lifted === item.id && 'bg-surface-raised shadow-lg',
         )}
       >
@@ -105,7 +117,7 @@ export function SortableList<T extends SortableItem>({
             }}
           />
         ) : null}
-        {children(item, { index })}
+        {children(item, { index, dragging: lifted === item.id })}
       </View>
     );
     return whole ? <Sortable.Handle>{content}</Sortable.Handle> : content;
@@ -117,8 +129,8 @@ export function SortableList<T extends SortableItem>({
       <Sortable.Grid
         data={items as T[]}
         columns={1}
-        rowGap={8}
-        keyExtractor={(i) => i.id}
+        rowGap={appearance === 'cards' ? 8 : 2}
+        keyExtractor={idOf}
         customHandle
         {...dragMotion}
         onDragStart={({ key }) => {
@@ -135,6 +147,8 @@ export function SortableList<T extends SortableItem>({
     </View>
   );
 }
+
+const idOf = (item: SortableItem): string => item.id;
 
 /** A row's text: its name, and a quieter line under it. */
 export function SortableRowText({
