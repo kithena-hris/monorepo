@@ -39,12 +39,13 @@ than quietly working around it.
   live in `packages/ui/src/brand`, because a mark is presentation and nothing
   else.
 
-  **Reach is used internally for now**, but its two sites are public:
-  `design.kithena.com` and `storybook.kithena.com`. That is not the preference —
+  **Reach is used internally for now**, but its three sites are public:
+  `design.kithena.com`, `storybook.kithena.com` and
+  `storybook-mobile.kithena.com`. That is not the preference —
   Vercel's Hobby plan cannot protect a production deployment or a custom domain
   at all, and the API refuses `ssoProtection` on production outright. Assume
-  anything in `apps/docs` or a non-excluded story is world-readable, because it
-  is.
+  anything in `apps/docs` or a non-excluded story, web or mobile, is
+  world-readable, because it is.
 
   This is exactly why `pnpm docs:brand-leak` is a merge gate rather than a
   convention, and why `.storybook/main.ts` excludes the mark's stories: the two
@@ -118,6 +119,18 @@ than quietly working around it.
   the module decides who may see what. In a chat app a private leave type is
   never written beside a name unless the company has switched that on in Time
   Off.
+
+- **Reach on a phone is `packages/ui-native`, on NativeWind 5.** Same names,
+  same props where the platform allows, and the same `tokens.css`, read
+  directly rather than copied; motion comes from `@reach/ui/motion` and the
+  filter model from `@reach/ui/filter-model`, the only two pure modules both
+  libraries import. Behaviour nobody should hand-roll comes from a
+  library (`@rn-primitives`, Reanimated, Gesture Handler, FlashList), never a
+  second design system: Tamagui would be a second token source, gluestack and
+  Paper someone else's look. The native app runs Expo SDK 57's React 19.2.3;
+  its Storybook (`apps/storybook-mobile`, react-native-web, one 390 × 844
+  phone) runs the repo's React 19.3. NativeWind is a release candidate, pinned
+  exactly, and its four workarounds are re-tested on every bump.
 
 Full reasoning lives in `docs/tech-stack.md`.
 

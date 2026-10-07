@@ -41,6 +41,7 @@ export const TARGETS = {
   messaging: { packages: ['@kithena/messaging'] },
   docs: { packages: ['@reach/docs'] },
   storybook: { packages: ['@reach/storybook'] },
+  'storybook-mobile': { packages: ['@reach/storybook-mobile'] },
   'people-remote': { packages: ['@kithena/web-people'] },
   'timeoff-remote': { packages: ['@kithena/web-timeoff'] },
   // The image is People plus the Compose files that run it on the VM.

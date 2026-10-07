@@ -1,0 +1,10 @@
+/*
+ * The page behind the phone. On the root, so the first frame is already the
+ * canvas colour in either theme; the tokens come from `@reach/ui-native/global.css`.
+ */
+html,
+.sb-show-main,
+.docs-story,
+.sbdocs-preview {
+  background-color: var(--reach-color-canvas);
+}

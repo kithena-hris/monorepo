@@ -1,0 +1,81 @@
+{
+  "name": "@reach/ui-native",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./global.css": "./src/global.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@10play/tentap-editor": "1.0.1",
+    "@gorhom/bottom-sheet": "^5.2.14",
+    "@reach/ui": "workspace:*",
+    "@rn-primitives/accordion": "^1.5.2",
+    "@rn-primitives/alert-dialog": "^1.5.2",
+    "@rn-primitives/checkbox": "^1.5.2",
+    "@rn-primitives/context-menu": "^1.5.2",
+    "@rn-primitives/dialog": "^1.5.2",
+    "@rn-primitives/dropdown-menu": "^1.5.2",
+    "@rn-primitives/hover-card": "^1.5.2",
+    "@rn-primitives/popover": "^1.5.2",
+    "@rn-primitives/portal": "^1.5.3",
+    "@rn-primitives/radio-group": "^1.5.2",
+    "@rn-primitives/switch": "^1.5.2",
+    "@rn-primitives/tabs": "^1.5.2",
+    "@rn-primitives/toggle": "^1.5.2",
+    "@rn-primitives/toggle-group": "^1.5.2",
+    "@rn-primitives/tooltip": "^1.5.2",
+    "@shopify/flash-list": "2.0.2",
+    "@tiptap/extension-text-align": "^3.31.3",
+    "@tiptap/extensions": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react-native": "^1.52.0",
+    "nativewind": "5.0.0-rc.0",
+    "react-native-css": "3.1.0-rc.0",
+    "react-native-sortables": "1.10.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "peerDependencies": {
+    "expo-clipboard": "~57.0.2",
+    "react": ">=19.2.3",
+    "react-native": ">=0.86",
+    "react-native-gesture-handler": "^2.32.0",
+    "react-native-reanimated": "^4.5.1",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-svg": "^15.15.4",
+    "react-native-webview": "^13.16.1",
+    "react-native-worklets": "^0.10.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@storybook/react-native-web-vite": "10.6.1",
+    "@types/react": "^19.3.0",
+    "expo-clipboard": "~57.0.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "0.21.3",
+    "react-native-webview": "13.16.1",
+    "react-native-worklets": "0.10.1",
+    "storybook": "10.6.1",
+    "tailwindcss": "^4.3.3",
+    "vitest": "^4.1.11"
+  }
+}

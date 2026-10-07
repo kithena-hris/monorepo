@@ -193,6 +193,73 @@
      * to 1.5px only makes it blurry.
      */
     --reach-focus-width: 0.125rem;
+
+    /* ---------------------------------------------------------------- */
+    /* Mobile                                                            */
+    /*                                                                  */
+    /* Reach on a phone (`@reach/ui-native`). Points on iOS, dp on        */
+    /* Android, at a 390pt-wide design. A phone is always a coarse        */
+    /* pointer, so these are its only sizes: no media query re-points     */
+    /* them. In px, not rem: a point is the unit on a phone and nothing   */
+    /* here should follow a root font size.                              */
+    /* ---------------------------------------------------------------- */
+    --reach-m-margin: 16px;
+    --reach-m-tap: 44px;
+    --reach-m-btn: 52px;
+    --reach-m-btn-sm: 36px;
+    --reach-m-field: 56px;
+    --reach-m-cell: 56px;
+    --reach-m-cell-2line: 72px;
+    --reach-m-navbar: 44px;
+    --reach-m-tabbar: 64px;
+    --reach-m-radius-card: 22px;
+    --reach-m-radius-sheet: 40px;
+
+    /*
+     * The mobile type scale: size, line height, weight, tracking. The line
+     * height is a unitless ratio, `calc(line / size)`, never px: react-native-css
+     * multiplies a line height that reaches it through a variable by the font
+     * size, so `22px` drew 374pt tall on a device. A ratio is the same length
+     * on both platforms. Tracking is in px for the same reason a size is.
+     */
+    --reach-m-display: 52px;
+    --reach-m-display-leading: 1;
+    --reach-m-display-weight: 700;
+    --reach-m-display-tracking: -1.82px;
+    --reach-m-large: 34px;
+    --reach-m-large-leading: calc(41 / 34);
+    --reach-m-large-weight: 700;
+    --reach-m-large-tracking: -0.68px;
+    --reach-m-title1: 28px;
+    --reach-m-title1-leading: calc(34 / 28);
+    --reach-m-title1-weight: 700;
+    --reach-m-title1-tracking: -0.56px;
+    --reach-m-title2: 22px;
+    --reach-m-title2-leading: calc(28 / 22);
+    --reach-m-title2-weight: 700;
+    --reach-m-title2-tracking: -0.22px;
+    --reach-m-title3: 20px;
+    --reach-m-title3-leading: calc(25 / 20);
+    --reach-m-title3-weight: 600;
+    --reach-m-title3-tracking: -0.2px;
+    --reach-m-headline: 17px;
+    --reach-m-headline-leading: calc(22 / 17);
+    --reach-m-headline-weight: 600;
+    --reach-m-body: 17px;
+    --reach-m-body-leading: calc(22 / 17);
+    --reach-m-body-weight: 400;
+    --reach-m-callout: 16px;
+    --reach-m-callout-leading: calc(21 / 16);
+    --reach-m-callout-weight: 400;
+    --reach-m-subhead: 15px;
+    --reach-m-subhead-leading: calc(20 / 15);
+    --reach-m-subhead-weight: 400;
+    --reach-m-footnote: 13px;
+    --reach-m-footnote-leading: calc(18 / 13);
+    --reach-m-footnote-weight: 400;
+    --reach-m-caption: 12px;
+    --reach-m-caption-leading: calc(16 / 12);
+    --reach-m-caption-weight: 500;
   }
 
   /* A thumb is roughly 10mm across and has no hover state to preview with.

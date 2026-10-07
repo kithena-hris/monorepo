@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Reach",
+    "slug": "reach-mobile",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": { "bundleIdentifier": "dev.reach.mobile" },
+    "android": { "package": "dev.reach.mobile" }
+  }
+}

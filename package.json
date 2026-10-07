@@ -33,7 +33,10 @@
     "hooks:install": "sh tools/scripts/install-gitleaks.sh",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
     "docs:brand-leak": "node tools/storybook/brand-leak.mjs",
-    "email:theme-drift": "node tools/email/theme-drift.mjs"
+    "email:theme-drift": "node tools/email/theme-drift.mjs",
+    "reach-mobile:parity": "node tools/reach-mobile/parity.mjs",
+    "reach-mobile:compare": "node tools/reach-mobile/compare.mjs",
+    "reach-mobile:import-design": "node tools/reach-mobile/import-design.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
@@ -56,6 +59,12 @@
         "typescript": "6 || 7"
       }
     },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-86w9-cpqp-85rv",
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
+    },
     "patchedDependencies": {
       "@pothos/plugin-federation@4.5.3": "patches/@pothos__plugin-federation@4.5.3.patch"
     },
@@ -64,6 +73,7 @@
       "uuid@8": ">=11.1.1",
       "uuid@9": ">=11.1.1",
       "uuid@10": ">=11.1.1",
+      "uuid@7": ">=11.1.1",
       "@opentelemetry/core": ">=2.8.0",
       "react-router": ">=7.18.2 <8",
       "serialize-javascript": ">=7.0.3",
@@ -75,9 +85,12 @@
       "js-yaml@>=4 <4.3.2": "^4.3.2",
       "tmp@<0.2.6": "^0.2.6",
       "adm-zip@<0.6.1": "^0.6.1",
+      "@expo/metro-config>lightningcss": "1.30.1",
       "brace-expansion@<1.1.21": "^1.1.21",
       "brace-expansion@>=2 <2.1.7": "^2.1.7",
+      "brace-expansion@>=4 <5.0.12": "^5.0.12",
       "source-map-js@<1.2.2": "^1.2.2",
+      "shell-quote@<1.11.0": "^1.11.0",
       "sharp@>=0.35 <0.35.5": "^0.35.5",
       "@graphql-tools/utils@<12.0.1": "^12.0.3",
       "axios@<1.20.0": "^1.20.0",

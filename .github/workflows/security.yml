@@ -84,6 +84,17 @@ jobs:
       # The gate is on what ships. A ReDoS in a linter cannot be reached by a
       # request to this product, and failing the build on it trains everyone to
       # ignore the job that is also meant to catch the one that matters.
+      #
+      # `pnpm.auditConfig.ignoreGhsas` in package.json lists the advisories this
+      # gate deliberately does not fail on. Each is here only because it has no
+      # patched release and is reachable only from build tooling that never
+      # ships, and comes out the day a fix exists:
+      #   GHSA-86w9-cpqp-85rv  node-forge <=1.4.0   apps/mobile > expo > @expo/cli
+      #   GHSA-vfj7-8cjw-p6xm  braces <=3.0.3       apps/mobile > expo > @expo/cli
+      # `@expo/cli` is Expo's build and dev-server CLI: it signs and serves a
+      # development build and runs `expo export`, and none of it is in the app
+      # bundle. The audit counts it because `expo` is the app's runtime
+      # dependency.
       - name: audit production deps
         run: pnpm audit --prod --audit-level low
 
