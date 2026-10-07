@@ -80,9 +80,9 @@ export const CustomFallback: Story = {
   render: () => (
     <Inline gap={3}>
       <Avatar name="" />
-      <Avatar name="Northwind" icon={Building2} shape="rounded" />
-      <Avatar name="Assistant" icon={Bot} />
-      <Avatar name="Design team" icon={Users} />
+      <Avatar name="Northwind" fallback={Building2} shape="rounded" />
+      <Avatar name="Assistant" fallback={Bot} />
+      <Avatar name="Design team" fallback={Users} />
     </Inline>
   ),
 };

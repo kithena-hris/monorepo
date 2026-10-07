@@ -90,8 +90,8 @@ export type AvatarProps = {
   src?: string;
   /** `contain` for a logo, which must never be cropped. */
   fit?: 'cover' | 'contain';
-  /** Overrides the initials: an icon for a team, a building, a bot. */
-  icon?: LucideIcon;
+  /** Overrides the initials: other text, or an icon for a team, a building, a bot. */
+  fallback?: LucideIcon | string;
   /** A presence dot on the lower edge. Colour only, so pair it with `statusLabel`. */
   status?: keyof typeof statusTone;
   statusLabel?: string;
@@ -102,7 +102,7 @@ export type AvatarProps = {
 
 /**
  * A person's photo or initials. Initials get a stable colour worked out from
- * the name; with no name and no icon, the silhouette.
+ * the name; with no name and no fallback, the silhouette.
  */
 export function Avatar({
   name,
@@ -111,14 +111,15 @@ export function Avatar({
   tone = 'auto',
   src,
   fit = 'cover',
-  icon,
+  fallback,
   status,
   statusLabel,
   decorative = false,
   className,
 }: AvatarProps): React.JSX.Element {
   const side = px(size);
-  const initials = initialsOf(name);
+  const icon = typeof fallback === 'string' ? undefined : fallback;
+  const initials = typeof fallback === 'string' ? fallback : initialsOf(name);
   const resolved = tone === 'auto' ? (initials && !icon ? avatarToneOf(name) : 'neutral') : tone;
   const radius = shape === 'circle' ? side / 2 : Math.round(side * 0.28);
   const dot = Math.max(8, Math.round(side * 0.28));
