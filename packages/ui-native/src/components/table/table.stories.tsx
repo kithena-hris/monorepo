@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import { Columns3, Download, Info, Plus, SearchX } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { expect, waitFor } from 'storybook/test';
 import { Text as CssText, View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
@@ -446,17 +447,125 @@ const MANY_COLUMNS: DataColumn<Numbered>[] = [
   { id: 'start', header: 'Start date', cell: (p) => p.start, hideOnCard: true },
 ];
 
+/*
+ * How many cards are mounted right now. FlashList keeps a pool of cells and
+ * hands each a new row as the list scrolls, so this is the pool's size, and
+ * it stays the same at row 20 and at row 19,000.
+ */
+const mounted = { count: 0, listeners: new Set<() => void>() };
+const tell = (): void => {
+  for (const listener of mounted.listeners) listener();
+};
+
+/** Counts itself while mounted: wrap the title cell in it. */
+function Counted({ children }: { children: ReactNode }): ReactNode {
+  useEffect(() => {
+    mounted.count += 1;
+    tell();
+    return () => {
+      mounted.count -= 1;
+      tell();
+    };
+  }, []);
+  return children;
+}
+
+function Rendering({ of }: { of: number }): React.JSX.Element {
+  const [n, setN] = useState(mounted.count);
+  useEffect(() => {
+    const listener = (): void => {
+      setN(mounted.count);
+    };
+    mounted.listeners.add(listener);
+    listener();
+    return () => {
+      mounted.listeners.delete(listener);
+    };
+  }, []);
+  return (
+    <Text variant="subhead" tone="muted" tabular>
+      {`Rendering ${String(n)} of ${count.format(of)}`}
+    </Text>
+  );
+}
+
+const COUNTED_COLUMNS: DataColumn<Numbered>[] = MANY_COLUMNS.map((c, i) =>
+  i === 0 ? { ...c, cell: (p: Numbered) => <Counted>{c.cell(p)}</Counted> } : c,
+);
+
+type Scroller = { scrollTop: number; scrollHeight: number; dispatchEvent: (e: unknown) => boolean };
+type Canvas = { querySelectorAll: (selector: string) => ArrayLike<Scroller & { getAttribute: (name: string) => string | null }> };
+
+/** Scrolls the table's list a long way down, as a fling would. */
+async function flingDown(canvasElement: unknown): Promise<void> {
+  const canvas = canvasElement as Canvas;
+  // FlashList's scroller: a list on the web (a `ul`), or a plain view when grouped.
+  const scrollers = Array.from(canvas.querySelectorAll('ul, div')).filter(
+    (d) => d.scrollHeight > 5_000 && d.scrollHeight > (d as unknown as { clientHeight: number }).clientHeight + 1_000,
+  );
+  const list = scrollers.at(-1);
+  if (!list) throw new Error('No scrolling list in the table.');
+  for (const to of [2_000, 40_000, 200_000]) {
+    list.scrollTop = to;
+    list.dispatchEvent(new (globalThis as unknown as { Event: new (type: string) => unknown }).Event('scroll'));
+    // One step at a time on purpose: each lets the list draw before the next.
+    // oxlint-disable-next-line no-await-in-loop
+    await new Promise((done) => setTimeout(done, 120));
+  }
+}
+
 export const Virtualized: Story = {
+  // Twenty thousand rows, a pool of cards: flung far down, still a handful mounted.
+  play: async ({ canvasElement }) => {
+    await flingDown(canvasElement);
+    await waitFor(async () => {
+      await expect(mounted.count).toBeGreaterThan(0);
+      await expect(mounted.count).toBeLessThan(100);
+    });
+  },
   render: () => (
-    <DataTable
-      label="Everyone"
-      rows={MANY.slice(18_200).concat(MANY.slice(0, 18_200))}
-      columns={MANY_COLUMNS}
-      rowId={(p) => String(p.n)}
-      onRowPress={open}
-      virtualHeight={480}
-      footer="Rendering 12 of 20,000"
-    />
+    <View style={{ height: 560 }}>
+      <DataTable
+        label="Everyone"
+        rows={MANY.slice(18_200).concat(MANY.slice(0, 18_200))}
+        columns={COUNTED_COLUMNS}
+        rowId={(p) => String(p.n)}
+        onRowPress={open}
+        footer={<Rendering of={20_000} />}
+      />
+    </View>
+  ),
+};
+
+const FIVE_THOUSAND = MANY.slice(0, 5_000);
+
+export const VirtualizedGrouped: Story = {
+  name: 'Virtualized, grouped',
+  // Five thousand rows under their teams' headings, one FlashList: the
+  // headings stick, a collapsed team takes its rows out of the list, and
+  // the mounted cards stay a handful however far it scrolls.
+  play: async ({ canvasElement }) => {
+    await flingDown(canvasElement);
+    await waitFor(async () => {
+      await expect(mounted.count).toBeGreaterThan(0);
+      await expect(mounted.count).toBeLessThan(100);
+      const canvas = canvasElement as Canvas;
+      await expect(canvas.querySelectorAll('[aria-expanded]').length).toBeGreaterThan(0);
+    });
+  },
+  render: () => (
+    <View style={{ height: 560 }}>
+      <DataTable
+        label="Everyone, by team"
+        rows={FIVE_THOUSAND}
+        columns={COUNTED_COLUMNS}
+        rowId={(p) => String(p.n)}
+        onRowPress={open}
+        groupBy={(p) => p.team}
+        defaultCollapsedGroups={['Sales']}
+        footer={<Rendering of={5_000} />}
+      />
+    </View>
   ),
 };
 
@@ -468,18 +577,20 @@ export const Infinite: Story = {
   render: function InfiniteStory() {
     const [rows, setRows] = useState<Numbered[]>(page(0));
     return (
-      <DataTable
-        label="People"
-        rows={rows}
-        columns={COLUMNS.slice(0, 4)}
-        rowId={(p) => String(p.n)}
-        onRowPress={open}
-        striped
-        loadingMore={rows.length < 60}
-        onEndReached={() => {
-          setRows([...rows, ...page(rows.length)]);
-        }}
-      />
+      <View style={{ height: 650 }}>
+        <DataTable
+          label="People"
+          rows={rows}
+          columns={COLUMNS.slice(0, 4)}
+          rowId={(p) => String(p.n)}
+          onRowPress={open}
+          striped
+          loadingMore={rows.length < 60}
+          onEndReached={() => {
+            setRows([...rows, ...page(rows.length)]);
+          }}
+        />
+      </View>
     );
   },
 };
@@ -511,41 +622,43 @@ export const Grouped: Story = {
 export const VirtualizedSorted: Story = {
   name: 'Virtualized, sorted',
   render: () => (
-    <DataTable
-      label="Everyone"
-      rows={MANY}
-      columns={MANY_COLUMNS}
-      rowId={(p) => String(p.n)}
-      onRowPress={open}
-      virtualHeight={440}
-      sortedOutside
-      defaultSort={[{ columnId: 'person', direction: 'ascending' }]}
-      footer="Sorted 20,000 rows on the server in 180 ms"
-    />
+    <View style={{ height: 540 }}>
+      <DataTable
+        label="Everyone"
+        rows={MANY}
+        columns={MANY_COLUMNS}
+        rowId={(p) => String(p.n)}
+        onRowPress={open}
+        sortedOutside
+        defaultSort={[{ columnId: 'person', direction: 'ascending' }]}
+        footer="Sorted 20,000 rows on the server in 180 ms"
+      />
+    </View>
   ),
 };
 
 export const VirtualizedSelection: Story = {
   name: 'Virtualized, selection',
   render: () => (
-    <DataTable
-      label="Everyone"
-      rows={MANY.slice(4000).concat(MANY.slice(0, 4000))}
-      columns={MANY_COLUMNS}
-      rowId={(p) => String(p.n)}
-      onRowPress={open}
-      virtualHeight={400}
-      selectable
-      total={20_000}
-      defaultSelected={MANY.map((p) => String(p.n))}
-      bulkActions={() => (
-        <>
-          <BulkAction>Export</BulkAction>
-          <BulkAction>Message</BulkAction>
-        </>
-      )}
-      footer="Select all picks every row that matches, not just the rows on screen."
-    />
+    <View style={{ height: 600 }}>
+      <DataTable
+        label="Everyone"
+        rows={MANY.slice(4000).concat(MANY.slice(0, 4000))}
+        columns={MANY_COLUMNS}
+        rowId={(p) => String(p.n)}
+        onRowPress={open}
+        selectable
+        total={20_000}
+        defaultSelected={MANY.map((p) => String(p.n))}
+        bulkActions={() => (
+          <>
+            <BulkAction>Export</BulkAction>
+            <BulkAction>Message</BulkAction>
+          </>
+        )}
+        footer="Select all picks every row that matches, not just the rows on screen."
+      />
+    </View>
   ),
 };
 

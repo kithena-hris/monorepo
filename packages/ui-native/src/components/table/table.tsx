@@ -1,5 +1,17 @@
 import { ArrowUpDown, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react-native';
-import { cloneElement, Fragment, isValidElement, useMemo, useState, type ReactNode } from 'react';
+import { FlashList } from '@shopify/flash-list';
+import {
+  cloneElement,
+  Fragment,
+  isValidElement,
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { Platform } from 'react-native';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import Sortable from 'react-native-sortables';
 
@@ -20,7 +32,6 @@ import { Skeleton } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Money, type MoneyProps } from '../money/money.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
-import { VirtualList } from '../virtual-list/virtual-list.tsx';
 
 /**
  * A table on a phone, as the design draws it: each row a card. The first
@@ -31,7 +42,7 @@ import { VirtualList } from '../virtual-list/virtual-list.tsx';
  * The web's `DataTable` props, where a phone has the same idea: columns with
  * `numeric`, `hideOnCard`, `cardTrailing`, `shortHeader` and `sortBy`; rows
  * that expand, select, sort, reorder and group; a virtual body for thousands
- * of rows and a footer that loads more.
+ * of rows (grouped too, the headings sticky) and a footer that loads more.
  */
 
 export type SortDirection = 'ascending' | 'descending';
@@ -123,9 +134,21 @@ export type DataTableProps<T> = {
   /** Under the cards: a count, pagination. */
   footer?: ReactNode;
 
-  /** Renders only the cards on screen, in a body this tall. For thousands of rows. */
-  virtualHeight?: number;
-  /** Near the end: load the next page. */
+  /**
+   * Draw only the cards on screen, on FlashList. Off, on, or `'auto'` (the
+   * default), which turns itself on past `virtualizeThreshold` rows or when
+   * `onEndReached` is set (a table that keeps loading starts virtual, so it
+   * never remounts mid-scroll). Ignored while rows are reorderable: a drag
+   * needs every row mounted to drop on. A virtual table fills its parent, so
+   * give the parent a height.
+   */
+  virtualize?: boolean | 'auto';
+  /** Row count past which `'auto'` virtualizes. */
+  virtualizeThreshold?: number;
+  /**
+   * Near the end of what is loaded: fetch the next page and append it. Not
+   * called while `loadingMore` is set, so it cannot fire twice for one page.
+   */
   onEndReached?: () => void;
   /** The next page is on its way: a spinner under the last card. */
   loadingMore?: boolean;
@@ -186,6 +209,11 @@ export function BulkAction({
 }
 
 const number = new Intl.NumberFormat('en-GB');
+
+const WEB = Platform.OS === 'web';
+
+/** An empty list that stays the same list, so a default never reads as a change. */
+const NONE: readonly string[] = [];
 
 /** "Name A–Z"; with more than one sort, "Team, then start date". */
 export function describeSorts<T>(
@@ -252,6 +280,52 @@ function useControlled<V>(
   ];
 }
 
+/** What the list draws: a group's heading, or a row. Flat, so one FlashList holds both. */
+type Item<T> =
+  | { kind: 'heading'; key: string; group: string; count: number; open: boolean }
+  | {
+      kind: 'row';
+      key: string;
+      row: T;
+      id: string;
+      /** Its place among every row shown, for striping, moving and a screen reader. */
+      index: number;
+      /** A hairline above it: not the first of its list or its group. */
+      divided: boolean;
+    };
+
+/** What every card is drawn from. One object, so a card re-renders when it changes and not otherwise. */
+type Look<T> = {
+  title: DataColumn<T> | undefined;
+  trailing: DataColumn<T> | undefined;
+  meta: readonly DataColumn<T>[];
+  labelled: boolean;
+  renderDetail: ((row: T) => ReactNode) | undefined;
+  opens: boolean;
+  selectable: boolean;
+  moves: boolean;
+  striped: boolean;
+  locked: readonly string[];
+  /** Every row shown: "position 3 of 5,000". */
+  setsize: number;
+  /** Rows aren't all mounted: each says where it sits. */
+  virtual: boolean;
+  /** A list of rows. Grouped, the rows sit under headings that are buttons, so not a list. */
+  listed: boolean;
+  name: (row: T, id: string) => string;
+};
+
+/** What a card can ask of the table. Stable for the table's life: it reads the table's current state. */
+type Api<T> = {
+  press: (row: T, id: string) => void;
+  pick: (id: string) => void;
+  reorder: (from: number, to: number) => void;
+  toggleGroup: (group: string) => void;
+};
+
+const keyOf = (item: Item<unknown>): string => item.key;
+const typeOf = (item: Item<unknown>): string => item.kind;
+
 export function DataTable<T>({
   rows,
   columns,
@@ -278,7 +352,7 @@ export function DataTable<T>({
   sortedOutside = false,
   reorderable = false,
   onReorder,
-  locked = [],
+  locked = NONE,
   groupBy,
   defaultCollapsedGroups = [],
   striped = false,
@@ -286,7 +360,8 @@ export function DataTable<T>({
   empty,
   toolbar,
   footer,
-  virtualHeight,
+  virtualize = 'auto',
+  virtualizeThreshold = 100,
   onEndReached,
   loadingMore = false,
   className,
@@ -308,153 +383,147 @@ export function DataTable<T>({
     () => (sortedOutside ? rows : sortRows(rows, sorts, columns)),
     [rows, sorts, columns, sortedOutside],
   );
-  const [title, ...others] = columns;
-  const trailing = columns.find((c) => c.cardTrailing);
-  const meta = others.filter((c) => c !== trailing && !c.hideOnCard);
-  const sortable = columns.filter((c) => c.sortBy);
-  const ids = shown.map(rowId);
+  const ids = useMemo(() => shown.map(rowId), [shown, rowId]);
   const count = total ?? rows.length;
-  const moves =
-    reorderable && sorts.length === 0 && groupBy === undefined && virtualHeight === undefined;
 
-  const picked = new Set(selected);
-  const all: CheckedState =
-    picked.size === 0 ? false : ids.every((id) => picked.has(id)) ? true : 'indeterminate';
+  // A dragged row means nothing in a sorted or grouped table: the next sort
+  // discards it, and a group has its own order.
+  const moves = reorderable && sorts.length === 0 && groupBy === undefined;
+  // Off while rows move: react-native-sortables, like dnd-kit on the web,
+  // needs every row mounted to drop on. A table that keeps loading would
+  // pass the threshold mid-scroll and remount what is on screen: it starts on.
+  const wants =
+    virtualize === 'auto'
+      ? shown.length >= virtualizeThreshold || onEndReached !== undefined
+      : virtualize;
+  const virtual = wants && !moves;
 
-  const reorder = (from: number, to: number): void => {
-    if (to < 0 || to >= shown.length || from === to) return;
-    const id = ids[from];
-    if (id === undefined || locked.includes(id) || locked.includes(ids[to] ?? '')) return;
-    onReorder?.({ id, from, to, order: move(ids, from, to) });
-    const row = shown[from] as T;
-    const name = describeRow?.(row) ?? (title ? textOf(title.cell(row)) : id);
-    announce(`${name}, moved to position ${String(to + 1)} of ${String(shown.length)}.`);
-  };
+  const items = useMemo((): Item<T>[] => {
+    const row = (r: T, index: number, divided: boolean): Item<T> => {
+      const id = ids[index] ?? rowId(r);
+      return { kind: 'row', key: `r:${id}`, row: r, id, index, divided };
+    };
+    if (!groupBy) return shown.map((r, i) => row(r, i, i > 0));
+    const groups = new Map<string, number[]>();
+    shown.forEach((r, i) => {
+      const key = groupBy(r);
+      const members = groups.get(key);
+      if (members) members.push(i);
+      else groups.set(key, [i]);
+    });
+    return [...groups].flatMap(([group, members]): Item<T>[] => {
+      const open = !collapsed.includes(group);
+      const heading: Item<T> = {
+        kind: 'heading',
+        key: `g:${group}`,
+        group,
+        count: members.length,
+        open,
+      };
+      return open
+        ? [heading, ...members.map((i, k) => row(shown[i] as T, i, k > 0))]
+        : [heading];
+    });
+  }, [shown, ids, rowId, groupBy, collapsed]);
 
-  const card = (row: T, index: number, item = true): React.JSX.Element => {
-    const id = rowId(row);
-    const isOpen = expanded.includes(id);
-    const isPicked = picked.has(id);
-    const opens = renderDetail !== undefined || onRowPress !== undefined;
-    const press = renderDetail
-      ? () => {
-          setExpanded(singleExpand ? (isOpen ? [] : [id]) : toggle(expanded, id));
+  const [title, ...others] = columns;
+  const look = useMemo((): Look<T> => {
+    const trailing = columns.find((c) => c.cardTrailing);
+    return {
+      title,
+      trailing,
+      meta: others.filter((c) => c !== trailing && !c.hideOnCard),
+      labelled,
+      renderDetail,
+      opens: renderDetail !== undefined || onRowPress !== undefined,
+      selectable,
+      moves,
+      striped,
+      locked,
+      setsize: shown.length,
+      virtual,
+      listed: groupBy === undefined,
+      name: (r, id) => describeRow?.(r) ?? (title ? textOf(title.cell(r)) : id),
+    };
+    // `title` and `others` are `columns` taken apart: covered by `columns`.
+  }, [columns, labelled, renderDetail, onRowPress, selectable, moves, striped, locked, shown.length, virtual, groupBy, describeRow]);
+
+  // What a card asks for, against the table's current state: stable, so no
+  // card re-renders because the table did.
+  const live = useRef({ expanded, selected, collapsed, shown, ids, singleExpand, onRowPress, renderDetail, onReorder, locked, look, setExpanded, setSelected, setCollapsed, announce });
+  live.current = { expanded, selected, collapsed, shown, ids, singleExpand, onRowPress, renderDetail, onReorder, locked, look, setExpanded, setSelected, setCollapsed, announce };
+  const api = useMemo((): Api<T> => {
+    const reorder = (from: number, to: number): void => {
+      const now = live.current;
+      if (to < 0 || to >= now.shown.length || from === to) return;
+      const id = now.ids[from];
+      if (id === undefined || now.locked.includes(id) || now.locked.includes(now.ids[to] ?? '')) {
+        return;
+      }
+      now.onReorder?.({ id, from, to, order: move(now.ids, from, to) });
+      now.announce(
+        `${now.look.name(now.shown[from] as T, id)}, moved to position ${String(to + 1)} of ${String(now.shown.length)}.`,
+      );
+    };
+    return {
+      press: (row, id) => {
+        const now = live.current;
+        if (now.renderDetail) {
+          const open = now.expanded.includes(id);
+          now.setExpanded(now.singleExpand ? (open ? [] : [id]) : toggle(now.expanded, id));
+        } else {
+          now.onRowPress?.(row);
         }
-      : onRowPress
-        ? () => {
-            onRowPress(row);
-          }
-        : undefined;
-    // A cell may build a tree of its own: once per card, not once per use.
-    const head = title?.cell(row);
-    const name = describeRow?.(row) ?? (title ? textOf(head) : id);
-    const body = (
-      <>
-        <View className="min-w-0 flex-1 gap-2">
-          <View className="min-w-0 flex-row items-center justify-between gap-2.5">
-            <View className="min-w-0 flex-1">
-              {typeof head === 'string' ? (
-                <CssText className="text-callout leading-[1.3] text-fg">{head}</CssText>
-              ) : (
-                head
-              )}
-            </View>
-            {trailing ? (
-              <CssText className="text-[15px] leading-[1.3] font-semibold text-fg tabular-nums">
-                {trailing.cell(row)}
-              </CssText>
-            ) : null}
-          </View>
-          {meta.length > 0 ? (
-            <View className="flex-row flex-wrap items-center gap-x-3.5 gap-y-1.5">
-              {meta.map((c) => (
-                <View key={c.id} className="min-w-0 flex-row items-center gap-1.5">
-                  {labelled ? (
-                    <CssText className="text-[14px] leading-[1.3] text-fg-subtle">
-                      {c.shortHeader ?? c.header}
-                    </CssText>
-                  ) : null}
-                  <Value>{c.cell(row)}</Value>
-                </View>
-              ))}
-            </View>
-          ) : null}
-          {isOpen && renderDetail ? (
-            <View className="mt-1 rounded-[14px] bg-surface-sunken px-3.5 py-3">
-              {renderDetail(row)}
-            </View>
-          ) : null}
-        </View>
-        {opens ? (
-          <View className="pt-2.5">
-            <Icon
-              icon={renderDetail ? (isOpen ? ChevronUp : ChevronDown) : ChevronRight}
-              size={18}
-              tone="subtle"
-            />
-          </View>
-        ) : null}
-      </>
-    );
-    return (
-      <View
-        {...(item ? { role: 'listitem' as const } : {})}
-        className={cn(
-          'flex-row items-start gap-3 px-4 py-3.5',
-          isPicked ? 'bg-accent-subtle' : striped && index % 2 === 1 ? 'bg-surface-sunken/60' : 'bg-surface',
-        )}
-      >
-        {selectable ? (
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityLabel={`Select ${name}`}
-            accessibilityState={{ checked: isPicked }}
-            aria-checked={isPicked}
-            hitSlop={10}
-            onPress={() => {
-              setSelected(toggle(selected, id));
-            }}
-            className="pt-2"
-          >
-            <CheckboxBox checked={isPicked} />
-          </Pressable>
-        ) : null}
-        {moves ? (
-          <ReorderHandle
-            label={`Move ${name}, position ${String(index + 1)} of ${String(shown.length)}`}
-            locked={locked.includes(id)}
-            onMove={(delta) => {
-              reorder(index, index + delta);
-            }}
-            className="-my-1"
-          />
-        ) : null}
-        {press ? (
-          <Pressable
-            accessibilityRole="button"
-            {...(renderDetail
-              ? { accessibilityState: { expanded: isOpen }, 'aria-expanded': isOpen }
-              : {})}
-            onPress={press}
-            className="min-w-0 flex-1 flex-row items-start gap-3"
-          >
-            {body}
-          </Pressable>
-        ) : (
-          <View className="min-w-0 flex-1 flex-row items-start gap-3">{body}</View>
-        )}
-      </View>
-    );
-  };
+      },
+      pick: (id) => {
+        live.current.setSelected(toggle(live.current.selected, id));
+      },
+      reorder,
+      toggleGroup: (group) => {
+        live.current.setCollapsed(toggle(live.current.collapsed, group));
+      },
+    };
+  }, []);
 
-  const hairline = <View aria-hidden className="h-px bg-border" />;
-  const listOf = (items: readonly T[], offset = 0): ReactNode =>
-    items.map((row, i) => (
-      <Fragment key={rowId(row)}>
-        {i > 0 ? hairline : null}
-        {card(row, offset + i)}
-      </Fragment>
-    ));
+  const open = useMemo(() => new Set(expanded), [expanded]);
+  const picked = useMemo(() => new Set(selected), [selected]);
+  const flags = useRef({ open, picked });
+  flags.current = { open, picked };
+
+  const renderItem = useCallback(
+    ({ item }: { item: Item<T> }): React.JSX.Element =>
+      item.kind === 'heading' ? (
+        <GroupHeading group={item.group} count={item.count} open={item.open} onToggle={api.toggleGroup} />
+      ) : (
+        <TableCard
+          row={item.row}
+          id={item.id}
+          index={item.index}
+          divided={item.divided}
+          open={flags.current.open.has(item.id)}
+          picked={flags.current.picked.has(item.id)}
+          look={look}
+          api={api}
+        />
+      ),
+    [look, api],
+  );
+  // The list draws again when what a card shows changes; each card then
+  // decides for itself, so only the rows that changed re-render.
+  const drawn = useMemo(() => ({ open, picked }), [open, picked]);
+  const sticky = useMemo(
+    () => items.flatMap((item, i) => (item.kind === 'heading' ? [i] : [])),
+    [items],
+  );
+  const end = useRef({ onEndReached, loadingMore });
+  end.current = { onEndReached, loadingMore };
+  // Not while a page is on its way: it could otherwise fire again before the rows arrive.
+  const reachedEnd = useCallback(() => {
+    if (!end.current.loadingMore) end.current.onEndReached?.();
+  }, []);
+
+  const allPicked = ids.length > 0 && ids.every((id) => picked.has(id));
+  const all: CheckedState = picked.size === 0 ? false : allPicked ? true : 'indeterminate';
 
   let body: ReactNode;
   if (loading) {
@@ -473,74 +542,54 @@ export function DataTable<T>({
     );
   } else if (shown.length === 0) {
     body = empty;
-  } else if (virtualHeight !== undefined) {
+  } else if (virtual) {
     body = (
-      <VirtualList
-        items={shown}
-        label={label}
-        height={virtualHeight}
-        itemKey={rowId}
-        renderItem={(row, i) => card(row, i, false)}
-        {...(onEndReached ? { onEndReached } : {})}
-        footer={loadingMore ? <LoadingMore /> : undefined}
-        className="rounded-none bg-transparent shadow-none"
+      <FlashList
+        data={items}
+        renderItem={renderItem}
+        keyExtractor={keyOf}
+        getItemType={typeOf}
+        extraData={drawn}
+        stickyHeaderIndices={sticky}
+        {...(groupBy ? {} : ({ role: 'list', 'aria-label': label } as object))}
+        onEndReached={reachedEnd}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? <LoadingMore /> : null}
       />
     );
-  } else if (groupBy) {
-    const groups = new Map<string, T[]>();
-    for (const row of shown) {
-      const key = groupBy(row);
-      groups.set(key, [...(groups.get(key) ?? []), row]);
-    }
-    let offset = 0;
-    body = [...groups].map(([group, members]) => {
-      const open = !collapsed.includes(group);
-      const start = offset;
-      offset += members.length;
-      return (
-        <View key={group}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
-            aria-expanded={open}
-            onPress={() => {
-              setCollapsed(toggle(collapsed, group));
-            }}
-            className="min-h-11 flex-row items-center gap-2 bg-surface-sunken px-4 py-3"
-          >
-            <Icon icon={open ? ChevronDown : ChevronRight} size={15} tone="muted" />
-            <CssText className="text-[14px] leading-none font-semibold text-fg">{group}</CssText>
-            <CssText className="text-[14px] leading-none font-medium text-fg-muted">
-              {members.length}
-            </CssText>
-          </Pressable>
-          {open ? <View role="list">{listOf(members, start)}</View> : null}
-        </View>
-      );
-    });
   } else if (moves) {
     body = (
-      <Sortable.Grid
-        data={shown as T[]}
-        columns={1}
-        keyExtractor={rowId}
-        customHandle
-        {...dragMotion}
-        onDragEnd={({ fromIndex, toIndex }) => {
-          reorder(fromIndex, toIndex);
-        }}
-        renderItem={({ item, index }) => (
-          <View>
-            {index > 0 ? hairline : null}
-            {card(item, index)}
-          </View>
-        )}
-      />
+      <View role="list" aria-label={label}>
+        <Sortable.Grid
+          data={items}
+          columns={1}
+          keyExtractor={keyOf}
+          customHandle
+          {...dragMotion}
+          onDragEnd={({ fromIndex, toIndex }) => {
+            api.reorder(fromIndex, toIndex);
+          }}
+          renderItem={renderItem}
+        />
+      </View>
     );
   } else {
-    body = listOf(shown);
+    body = groupBy ? (
+      <View aria-label={label}>
+        {items.map((item) => (
+          <Fragment key={item.key}>{renderItem({ item })}</Fragment>
+        ))}
+      </View>
+    ) : (
+      <View role="list" aria-label={label}>
+        {items.map((item) => (
+          <Fragment key={item.key}>{renderItem({ item })}</Fragment>
+        ))}
+      </View>
+    );
   }
 
+  const sortable = columns.filter((c) => c.sortBy);
   const sortRow =
     sorts.length > 0 && !loading && shown.length > 0 ? (
       <DropdownMenu>
@@ -586,11 +635,12 @@ export function DataTable<T>({
       </DropdownMenu>
     ) : null;
 
-  const allPicked = all === true;
   return (
-    <View className={cn('gap-3', className)}>
+    <View className={cn('gap-3', virtual && 'flex-1', className)}>
       {toolbar ? <View className="flex-row flex-wrap items-center gap-2">{toolbar}</View> : null}
-      <View className="overflow-hidden rounded-m-card bg-surface shadow-sm">
+      <View
+        className={cn('overflow-hidden rounded-m-card bg-surface shadow-sm', virtual && 'min-h-0 flex-1')}
+      >
         {selectable && !loading && shown.length > 0 ? (
           <Pressable
             accessibilityRole="checkbox"
@@ -608,14 +658,8 @@ export function DataTable<T>({
           </Pressable>
         ) : null}
         {sortRow}
-        <View
-          {...(virtualHeight === undefined && !groupBy && !loading && shown.length > 0
-            ? { role: 'list' as const, 'aria-label': label }
-            : {})}
-        >
-          {body}
-        </View>
-        {loadingMore && virtualHeight === undefined ? <LoadingMore /> : null}
+        {body}
+        {loadingMore && !virtual ? <LoadingMore /> : null}
       </View>
       {footer ? (
         <View className="flex-row flex-wrap items-center justify-between gap-2 px-1">
@@ -639,6 +683,175 @@ export function DataTable<T>({
     </View>
   );
 }
+
+/** A group's heading: its name and count, and it collapses. Sticky in a virtual body. */
+const GroupHeading = memo(function GroupHeading({
+  group,
+  count,
+  open,
+  onToggle,
+}: {
+  group: string;
+  count: number;
+  open: boolean;
+  onToggle: (group: string) => void;
+}): React.JSX.Element {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      aria-expanded={open}
+      onPress={() => {
+        onToggle(group);
+      }}
+      className="min-h-11 flex-row items-center gap-2 bg-surface-sunken px-4 py-3"
+    >
+      <Icon icon={open ? ChevronDown : ChevronRight} size={15} tone="muted" />
+      <CssText className="text-[14px] leading-none font-semibold text-fg">{group}</CssText>
+      <CssText className="text-[14px] leading-none font-medium text-fg-muted">{count}</CssText>
+    </Pressable>
+  );
+});
+
+type CardProps<T> = {
+  row: T;
+  id: string;
+  index: number;
+  divided: boolean;
+  open: boolean;
+  picked: boolean;
+  look: Look<T>;
+  api: Api<T>;
+};
+
+/**
+ * One row as a card. Memoised on the row and its own flags: selecting or
+ * opening one row re-renders that row, not the table.
+ */
+function TableCardImpl<T>({
+  row,
+  id,
+  index,
+  divided,
+  open,
+  picked,
+  look,
+  api,
+}: CardProps<T>): React.JSX.Element {
+  const { title, trailing, meta, labelled, renderDetail, opens, selectable, moves, striped } = look;
+  // A cell may build a tree of its own: once per card, not once per use.
+  const head = title?.cell(row);
+  const name = look.name(row, id);
+  const body = (
+    <>
+      <View className="min-w-0 flex-1 gap-2">
+        <View className="min-w-0 flex-row items-center justify-between gap-2.5">
+          <View className="min-w-0 flex-1">
+            {typeof head === 'string' ? (
+              <CssText className="text-callout leading-[1.3] text-fg">{head}</CssText>
+            ) : (
+              head
+            )}
+          </View>
+          {trailing ? (
+            <CssText className="text-[15px] leading-[1.3] font-semibold text-fg tabular-nums">
+              {trailing.cell(row)}
+            </CssText>
+          ) : null}
+        </View>
+        {meta.length > 0 ? (
+          <View className="flex-row flex-wrap items-center gap-x-3.5 gap-y-1.5">
+            {meta.map((c) => (
+              <View key={c.id} className="min-w-0 flex-row items-center gap-1.5">
+                {labelled ? (
+                  <CssText className="text-[14px] leading-[1.3] text-fg-subtle">
+                    {c.shortHeader ?? c.header}
+                  </CssText>
+                ) : null}
+                <Value>{c.cell(row)}</Value>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {open && renderDetail ? (
+          <View className="mt-1 rounded-[14px] bg-surface-sunken px-3.5 py-3">
+            {renderDetail(row)}
+          </View>
+        ) : null}
+      </View>
+      {opens ? (
+        <View className="pt-2.5">
+          <Icon
+            icon={renderDetail ? (open ? ChevronUp : ChevronDown) : ChevronRight}
+            size={18}
+            tone="subtle"
+          />
+        </View>
+      ) : null}
+    </>
+  );
+  return (
+    <View
+      // Only a window is mounted: each row says where it sits, or a screen
+      // reader would count the handful on screen as the whole table.
+      {...(look.listed ? { role: 'listitem' as const } : {})}
+      {...(WEB && look.virtual && look.listed
+        ? ({ 'aria-setsize': look.setsize, 'aria-posinset': index + 1 } as object)
+        : {})}
+      className={cn(
+        'flex-row items-start gap-3 px-4 py-3.5',
+        divided && 'border-t border-border',
+        picked
+          ? 'bg-accent-subtle'
+          : striped && index % 2 === 1
+            ? 'bg-surface-sunken/60'
+            : 'bg-surface',
+      )}
+    >
+      {selectable ? (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={`Select ${name}`}
+          accessibilityState={{ checked: picked }}
+          aria-checked={picked}
+          hitSlop={10}
+          onPress={() => {
+            api.pick(id);
+          }}
+          className="pt-2"
+        >
+          <CheckboxBox checked={picked} />
+        </Pressable>
+      ) : null}
+      {moves ? (
+        <ReorderHandle
+          label={`Move ${name}, position ${String(index + 1)} of ${String(look.setsize)}`}
+          locked={look.locked.includes(id)}
+          onMove={(delta) => {
+            api.reorder(index, index + delta);
+          }}
+          className="-my-1"
+        />
+      ) : null}
+      {opens ? (
+        <Pressable
+          accessibilityRole="button"
+          {...(renderDetail ? { accessibilityState: { expanded: open }, 'aria-expanded': open } : {})}
+          onPress={() => {
+            api.press(row, id);
+          }}
+          className="min-w-0 flex-1 flex-row items-start gap-3"
+        >
+          {body}
+        </Pressable>
+      ) : (
+        <View className="min-w-0 flex-1 flex-row items-start gap-3">{body}</View>
+      )}
+    </View>
+  );
+}
+
+const TableCard = memo(TableCardImpl) as typeof TableCardImpl;
 
 /** A value under the title: text in the card's quiet line, anything else as it is. */
 function Value({ children }: { children: ReactNode }): React.JSX.Element {
