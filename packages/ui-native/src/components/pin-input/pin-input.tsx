@@ -19,6 +19,8 @@ export type PinInputProps = {
   masked?: boolean;
   /** A gap after this many boxes, for a code read in groups. */
   groupAfter?: number;
+  /** `md`: 48 × 58, as the design draws it. `lg`: 56 × 64, for a code that is the whole screen. */
+  size?: 'md' | 'lg';
   disabled?: boolean;
   invalid?: boolean;
   /**
@@ -45,6 +47,7 @@ export function PinInput({
   type = 'numeric',
   masked = false,
   groupAfter,
+  size = 'md',
   disabled = false,
   invalid = false,
   accepted = false,
@@ -84,7 +87,8 @@ export function PinInput({
               ) : null}
               <View
                 className={cn(
-                  'h-[58px] w-12 items-center justify-center rounded-[14px]',
+                  'items-center justify-center rounded-[14px]',
+                  size === 'lg' ? 'h-16 w-14' : 'h-[58px] w-12',
                   current ? 'bg-surface' : 'bg-surface-sunken',
                 )}
               >
