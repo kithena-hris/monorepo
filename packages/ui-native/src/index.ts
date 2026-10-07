@@ -744,10 +744,16 @@ export {
 } from './lib/reorder.tsx';
 export { Stat, type StatProps, type StatSentiment } from './components/stat/stat.tsx';
 export {
+  addCondition,
+  addGroup,
   AppliedFilters,
-  describeCondition,
-  describeFilters,
+  conditionsOf,
+  describeFilter,
   FilterBuilder,
+  isConditionComplete,
+  removeItem,
+  setMatch,
+  updateCondition,
   type AppliedFilter,
   type AppliedFiltersProps,
   type FilterBuilderProps,

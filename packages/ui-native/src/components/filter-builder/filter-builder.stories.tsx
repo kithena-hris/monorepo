@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designDocs } from '../../docs/design.ts';
+import { Button } from '../button/button.tsx';
 import { Note } from '../../docs/notes.tsx';
 import { PEOPLE_FIELDS, TWO_CONDITIONS } from './fields.ts';
 import {
@@ -30,7 +31,18 @@ function Live(props: Omit<FilterBuilderProps, 'value' | 'onChange'> & { start: F
 }
 
 export const Playground: Story = {
-  render: () => <Live fields={PEOPLE_FIELDS} start={TWO_CONDITIONS} applyLabel="Show 48 people" />,
+  render: () => (
+    <Live
+      title="Filters"
+      fields={PEOPLE_FIELDS}
+      start={TWO_CONDITIONS}
+      action={
+        <Button variant="primary" size="sm">
+          Show 48 people
+        </Button>
+      }
+    />
+  ),
 };
 
 export const NothingYet: Story = {
@@ -49,8 +61,12 @@ export const AnyCondition: Story = {
   render: () => (
     <Live
       fields={PEOPLE_FIELDS}
-      matchControl
-      applyLabel="Show 96 people"
+      title="Filters"
+      action={
+        <Button variant="primary" size="sm">
+          Show 96 people
+        </Button>
+      }
       errors={{ c3: 'Enter an amount.' }}
       start={{
         match: 'any',

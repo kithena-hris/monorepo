@@ -51,6 +51,6 @@ export const TWO_CONDITIONS: FilterGroup = {
   match: 'all',
   conditions: [
     { id: 'c1', field: 'team', operator: 'is', values: ['Engineering'] },
-    { id: 'c2', field: 'start', operator: 'after', values: ['1 Jan 2024'] },
+    { id: 'c2', field: 'start', operator: 'after', values: ['2024-01-01'] },
   ],
 };

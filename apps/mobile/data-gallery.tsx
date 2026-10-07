@@ -9,6 +9,7 @@ import {
   KanbanCardMeta,
   AppliedFilters,
   BulkAction,
+  Button,
   ColumnChooser,
   type ColumnChooserValue,
   DataTable,
@@ -165,7 +166,12 @@ function Filters(): React.JSX.Element {
         fields={FIELDS}
         value={filter}
         onChange={setFilter}
-        applyLabel="Show 48 people"
+        title="Filters"
+        action={
+          <Button variant="primary" size="sm">
+            Show 48 people
+          </Button>
+        }
       />
       <AppliedFilters
         filters={filter.conditions.map((c) => ({

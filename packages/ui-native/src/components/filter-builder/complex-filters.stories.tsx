@@ -47,7 +47,7 @@ import { Text } from '../text/text.tsx';
 import { SearchField } from '../typed-fields/typed-fields.tsx';
 import { FacetList, FilterGroupEditor, FilterQuery } from './complex-filters.tsx';
 import { PEOPLE_FIELDS } from './fields.ts';
-import { AppliedFilters, describeFilters, type FilterGroup } from './filter-builder.tsx';
+import { AppliedFilters, describeFilter, type FilterGroup } from './filter-builder.tsx';
 
 const meta = {
   title: 'Components/Complex filters',
@@ -270,7 +270,7 @@ export const NestedGroups: Story = {
         </Text>
         <FilterGroupEditor fields={PEOPLE_FIELDS} value={value} onChange={setValue} />
         <View className="flex-row flex-wrap items-center gap-2.5">
-          <Note>{describeFilters(PEOPLE_FIELDS, value)}</Note>
+          <Note>{describeFilter(value, PEOPLE_FIELDS)}</Note>
           <Button variant="primary" size="sm" className="ml-auto">
             Apply · 64 people
           </Button>

@@ -14,7 +14,14 @@ import {
   SegmentedControlItem,
 } from '../segmented-control/segmented-control.tsx';
 import { Text } from '../text/text.tsx';
-import type { FilterCondition, FilterField, FilterGroup } from './filter-builder.tsx';
+import {
+  addGroup,
+  removeItem,
+  setMatch,
+  type FilterCondition,
+  type FilterField,
+  type FilterGroup,
+} from './filter-model.ts';
 
 /**
  * The pieces a big list's filters are built from, past one row of
@@ -112,7 +119,7 @@ const defaultId = (): string => {
 /**
  * Conditions in "all" or "any" groups, one level of nesting at most: deeper
  * than that, nobody can read the filter back. Each condition is a small card
- * with its values as chips; the sentence `describeFilters` writes belongs
+ * with its values as chips; the sentence `describeFilter` writes belongs
  * underneath, since that is what people actually read.
  */
 export function FilterGroupEditor({
@@ -123,29 +130,18 @@ export function FilterGroupEditor({
   newId = defaultId,
   className,
 }: FilterGroupEditorProps): React.JSX.Element {
-  const removeFrom = (groupId: string | null, id: string): void => {
-    if (groupId === null) {
-      onChange({ ...value, conditions: value.conditions.filter((c) => c.id !== id) });
-      return;
-    }
-    onChange({
-      ...value,
-      groups: (value.groups ?? []).map((g) =>
-        g.id === groupId ? { ...g, conditions: g.conditions.filter((c) => c.id !== id) } : g,
-      ),
-    });
+  const remove = (id: string): void => {
+    onChange(removeItem(value, id));
   };
   return (
     <Group
       fields={fields}
       match={value.match}
       onMatch={(match) => {
-        onChange({ ...value, match });
+        onChange(setMatch(value, null, match));
       }}
       conditions={value.conditions}
-      onRemove={(id) => {
-        removeFrom(null, id);
-      }}
+      onRemove={remove}
       {...(onAddCondition
         ? {
             onAddCondition: () => {
@@ -154,10 +150,7 @@ export function FilterGroupEditor({
           }
         : {})}
       onAddGroup={() => {
-        onChange({
-          ...value,
-          groups: [...(value.groups ?? []), { id: newId(), match: 'any', conditions: [] }],
-        });
+        onChange(addGroup(value, { id: newId(), match: 'any', conditions: [] }));
       }}
       className={className}
     >
@@ -168,15 +161,10 @@ export function FilterGroupEditor({
           fields={fields}
           match={g.match}
           onMatch={(match) => {
-            onChange({
-              ...value,
-              groups: (value.groups ?? []).map((x) => (x.id === g.id ? { ...x, match } : x)),
-            });
+            onChange(setMatch(value, g.id, match));
           }}
           conditions={g.conditions}
-          onRemove={(id) => {
-            removeFrom(g.id, id);
-          }}
+          onRemove={remove}
           {...(onAddCondition
             ? {
                 onAddCondition: () => {
@@ -185,7 +173,7 @@ export function FilterGroupEditor({
               }
             : {})}
           onRemoveGroup={() => {
-            onChange({ ...value, groups: (value.groups ?? []).filter((x) => x.id !== g.id) });
+            remove(g.id);
           }}
         />
       ))}
