@@ -1,4 +1,4 @@
-import { ChevronsUpDown, Plus, SearchX } from 'lucide-react-native';
+import { ChevronsUpDown, Plus, SearchX, X } from 'lucide-react-native';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text as CssText, View } from 'react-native-css/components';
 
@@ -65,6 +65,8 @@ export type ComboboxProps = {
   label: string;
   disabled?: boolean;
   invalid?: boolean;
+  /** Adds a clear button once something is chosen. */
+  clearable?: boolean;
   /** `sm` 44pt; `md` and `lg` 56 under a thumb. */
   size?: 'sm' | 'md' | 'lg';
   /**
@@ -105,6 +107,7 @@ export function Combobox({
   label,
   disabled: disabledProp,
   invalid: invalidProp,
+  clearable = false,
   size = 'md',
   onSearchChange,
   loading = false,
@@ -185,19 +188,39 @@ export function Combobox({
           className={className}
         />
       ) : (
-        <Trigger
-          name={name}
-          hint={state.hint}
-          shown={shown}
-          placeholder={placeholder}
-          icon={single?.icon}
-          size={size}
-          disabled={state.disabled}
-          invalid={state.invalid}
-          caution={state.caution}
-          open={open}
-          className={className}
-        />
+        <View className={cn('relative', className)}>
+          <Trigger
+            name={name}
+            hint={state.hint}
+            shown={shown}
+            placeholder={placeholder}
+            icon={single?.icon}
+            size={size}
+            disabled={state.disabled}
+            invalid={state.invalid}
+            caution={state.caution}
+            open={open}
+            clearing={clearable && chosen.length > 0 && !state.disabled}
+          />
+          {/*
+           * Beside the trigger, over its end, not inside it: a control nested
+           * in a button is flattened into the button's name and cannot be
+           * reached on its own.
+           */}
+          {clearable && chosen.length > 0 && !state.disabled ? (
+            <View className="absolute top-0 right-11 bottom-0 justify-center">
+              <Button
+                variant="ghost"
+                size="xs"
+                startIcon={<Icon icon={X} />}
+                accessibilityLabel={`Clear ${name}`}
+                onPress={() => {
+                  onChange(multiple ? [] : null);
+                }}
+              />
+            </View>
+          ) : null}
+        </View>
       )}
       <DialogContent {...(portalHost ? { portalHost } : {})} className="gap-2 px-1.5 pb-1.5">
         <DialogHeader className="px-4 pt-0.5 pb-1">
@@ -234,6 +257,7 @@ function Trigger({
   invalid,
   caution,
   open,
+  clearing = false,
   className,
 }: {
   name: string;
@@ -246,7 +270,9 @@ function Trigger({
   invalid: boolean;
   caution: boolean;
   open: boolean;
-  className: string | undefined;
+  /** Room at the end for the clear button drawn over it. */
+  clearing?: boolean;
+  className?: string | undefined;
 }): React.JSX.Element {
   const ring = useFocusRing();
   return (
@@ -274,7 +300,7 @@ function Trigger({
           <CssText
             aria-hidden
             numberOfLines={1}
-            className={cn(fieldText, !shown && 'text-fg-subtle')}
+            className={cn(fieldText, !shown && 'text-fg-subtle', clearing && 'pr-9')}
           >
             {shown || placeholder}
           </CssText>
