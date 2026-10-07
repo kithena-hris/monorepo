@@ -66,7 +66,7 @@ export const SectionsOnDemand: Story = {
         <NavItem level={2}>Design</NavItem>
         <NavItem level={2}>Sales</NavItem>
       </NavGroup>
-      <NavGroup label="Locations" collapsible defaultOpen={false} count={6}>
+      <NavGroup label="Locations" collapsible defaultOpen={false}>
         <NavItem level={2}>Berlin</NavItem>
         <NavItem level={2}>London</NavItem>
       </NavGroup>
