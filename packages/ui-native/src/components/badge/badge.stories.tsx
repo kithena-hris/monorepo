@@ -84,13 +84,13 @@ function Counted({
 export const Attention: Story = {
   render: () => (
     <Inline gap={2} className="gap-2.5">
-      <Badge tone="danger" variant="solid">
+      <Badge tone="danger" variant="solid" className="self-center">
         Action needed
       </Badge>
-      <Badge tone="warning" variant="solid">
+      <Badge tone="warning" variant="solid" className="self-center">
         3 overdue
       </Badge>
-      <Badge tone="accent" variant="solid">
+      <Badge tone="accent" variant="solid" className="self-center">
         New
       </Badge>
       <Counted icon={Bell} label="Notifications, 3 unread" count="3" />
@@ -101,11 +101,13 @@ export const Attention: Story = {
 export const Sizes: Story = {
   render: () => (
     <Inline gap={2}>
-      <Badge size="sm" tone="accent">
+      <Badge size="sm" tone="accent" className="self-center">
         Small
       </Badge>
-      <Badge tone="accent">Medium</Badge>
-      <Badge size="lg" tone="accent">
+      <Badge tone="accent" className="self-center">
+        Medium
+      </Badge>
+      <Badge size="lg" tone="accent" className="self-center">
         Large
       </Badge>
     </Inline>
