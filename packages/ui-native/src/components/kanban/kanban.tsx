@@ -14,7 +14,7 @@ import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import Sortable from 'react-native-sortables';
 
 import { cn } from '../../lib/cn.ts';
-import { dragMotion, useAnnouncer } from '../../lib/reorder.tsx';
+import { useAnnouncer, useDragMotion } from '../../lib/reorder.tsx';
 import { Button } from '../button/button.tsx';
 import { CheckboxBox } from '../checkbox/checkbox.tsx';
 import {
@@ -191,6 +191,7 @@ export function Kanban<T extends { id: string }>({
   defaultMenuOpenFor,
   className,
 }: KanbanProps<T>): React.JSX.Element {
+  const drag = useDragMotion();
   const { announce, region } = useAnnouncer();
   const selectable = selection.mode === 'multiple';
   const selected = selection.mode === 'multiple' ? selection.selected : NO_ACTIONS;
@@ -554,7 +555,7 @@ export function Kanban<T extends { id: string }>({
         keyExtractor={itemKey}
         customHandle
         sortEnabled={draggable && !def.locked}
-        {...dragMotion}
+        {...drag}
         onDragStart={({ key }) => {
           setDragging(key);
         }}
@@ -615,7 +616,7 @@ export function Kanban<T extends { id: string }>({
               keyExtractor={itemKey}
               customHandle
               sortEnabled={draggable}
-              {...dragMotion}
+              {...drag}
               onDragEnd={({ key, toIndex }) => {
                 moveCard(key, c.id, toIndex);
               }}

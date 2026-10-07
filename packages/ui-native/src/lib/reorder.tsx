@@ -6,6 +6,7 @@ import { Pressable, Text, View } from 'react-native-css/components';
 import Sortable from 'react-native-sortables';
 
 import { Icon } from '../components/icon/icon.tsx';
+import { useMotion } from './animate.ts';
 import { cn } from './cn.ts';
 
 /**
@@ -29,6 +30,30 @@ export const dragMotion = {
   activeItemShadowOpacity: 0.18,
   inactiveItemOpacity: 1,
 } as const;
+
+/**
+ * `dragMotion` for the reduce-motion setting in force: under reduced motion
+ * the lift does not grow and the drop lands at once, as every layout change
+ * jumps (`motionPresets(true).layout` is null). Spread on the sortable.
+ */
+export function useDragMotion(): {
+  activationAnimationDuration: number;
+  dropAnimationDuration: number;
+  dragActivationDelay: number;
+  activeItemScale: number;
+  activeItemShadowOpacity: number;
+  inactiveItemOpacity: number;
+} {
+  const { layout } = useMotion();
+  return layout
+    ? dragMotion
+    : {
+        ...dragMotion,
+        activationAnimationDuration: 0,
+        dropAnimationDuration: 0,
+        activeItemScale: 1,
+      };
+}
 
 /** Moves one entry of a list, returning a new list. */
 export function move<T>(items: readonly T[], from: number, to: number): T[] {

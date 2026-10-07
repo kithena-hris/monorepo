@@ -4,7 +4,7 @@ import { Text as CssText, View } from 'react-native-css/components';
 import Sortable from 'react-native-sortables';
 
 import { cn } from '../../lib/cn.ts';
-import { dragMotion, move, ReorderHandle, useAnnouncer } from '../../lib/reorder.tsx';
+import { move, ReorderHandle, useAnnouncer, useDragMotion } from '../../lib/reorder.tsx';
 
 /**
  * A short list reordered by dragging, as the web's `SortableList`: long-press
@@ -52,6 +52,7 @@ export function SortableList<T extends SortableItem>({
   appearance = 'cards',
   className,
 }: SortableListProps<T>): React.JSX.Element {
+  const drag = useDragMotion();
   const { announce, region } = useAnnouncer();
   const [lifted, setLifted] = useState<string | null>(null);
   const ids = items.map((i) => i.id);
@@ -132,7 +133,7 @@ export function SortableList<T extends SortableItem>({
         rowGap={appearance === 'cards' ? 8 : 2}
         keyExtractor={idOf}
         customHandle
-        {...dragMotion}
+        {...drag}
         onDragStart={({ key }) => {
           setLifted(key);
         }}

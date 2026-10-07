@@ -5,7 +5,7 @@ import Sortable from 'react-native-sortables';
 
 import { cn } from '../../lib/cn.ts';
 import { floatingSurface } from '../../lib/floating.tsx';
-import { dragMotion, move, ReorderHandle, useAnnouncer } from '../../lib/reorder.tsx';
+import { move, ReorderHandle, useAnnouncer, useDragMotion } from '../../lib/reorder.tsx';
 import { Button } from '../button/button.tsx';
 import { Checkbox } from '../checkbox/checkbox.tsx';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from '../dialog/dialog.tsx';
@@ -189,6 +189,7 @@ function Panel({
   done: React.ReactNode;
   className?: string | undefined;
 }): React.JSX.Element {
+  const drag = useDragMotion();
   const { announce, region } = useAnnouncer();
   const ids = ordered.map((c) => c.id);
   const needle = query.trim().toLowerCase();
@@ -267,7 +268,7 @@ function Panel({
           rowGap={4}
           keyExtractor={columnKey}
           customHandle
-          {...dragMotion}
+          {...drag}
           onDragEnd={({ fromIndex, toIndex }) => {
             reorder(fromIndex, toIndex);
           }}

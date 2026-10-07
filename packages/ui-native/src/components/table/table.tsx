@@ -16,7 +16,7 @@ import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import Sortable from 'react-native-sortables';
 
 import { cn } from '../../lib/cn.ts';
-import { dragMotion, move, ReorderHandle, useAnnouncer } from '../../lib/reorder.tsx';
+import { move, ReorderHandle, useAnnouncer, useDragMotion } from '../../lib/reorder.tsx';
 import { Avatar } from '../avatar/avatar.tsx';
 import { CheckboxBox, type CheckedState } from '../checkbox/checkbox.tsx';
 import {
@@ -374,6 +374,7 @@ export function DataTable<T>({
   loadingMore = false,
   className,
 }: DataTableProps<T>): React.JSX.Element {
+  const drag = useDragMotion();
   const [expanded, setExpanded] = useControlled(expandedProp, defaultExpanded, onExpandedChange);
   const [selected, setSelected] = useControlled(selectedProp, defaultSelected, onSelectedChange);
   const [sorts, setSorts] = useControlled(
@@ -573,7 +574,7 @@ export function DataTable<T>({
           columns={1}
           keyExtractor={keyOf}
           customHandle
-          {...dragMotion}
+          {...drag}
           onDragEnd={({ fromIndex, toIndex }) => {
             api.reorder(fromIndex, toIndex);
           }}
