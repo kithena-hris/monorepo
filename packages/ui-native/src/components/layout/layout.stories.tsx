@@ -127,10 +127,13 @@ export const SplitLayout: Story = {
 export const ContainerSizes: Story = {
   name: 'Container',
   render: () => (
-    <View className="rounded-md border border-border py-3">
-      <Container gutter={false} className="max-w-[70%]">
-        <Block>max-width 1280 · centred · margin from breakpoint</Block>
-      </Container>
+    // The 70% frame stands in for a wide screen: the container's own 1280 cap never binds on a phone.
+    <View className="items-center rounded-md border border-border py-3">
+      <View className="w-[70%]">
+        <Container gutter={false}>
+          <Block>max-width 1280 · centred · margin from breakpoint</Block>
+        </Container>
+      </View>
     </View>
   ),
 };
