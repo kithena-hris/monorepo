@@ -8,6 +8,7 @@ import {
   easings,
   flyout,
   gentleSpring,
+  modal,
   PRESS_SCALE,
   RISE,
   springs,
@@ -50,6 +51,18 @@ describe('theme.css agrees with motion.ts', () => {
     );
     expect(declared('--animate-flyout-out')).toBe(
       'flyout-out var(--animate-duration-fast) var(--ease-exit)',
+    );
+  });
+
+  it('on the scale a centred modal opens from', () => {
+    expect(
+      theme.match(new RegExp(`transform: scale\\(${String(modal.scale)}\\);`, 'g')),
+    ).toHaveLength(2);
+    expect(declared('--animate-scale-in')).toBe(
+      'scale-in var(--animate-duration-fast) var(--ease-entrance)',
+    );
+    expect(declared('--animate-scale-out')).toBe(
+      'scale-out var(--animate-duration-fast) var(--ease-exit)',
     );
   });
 

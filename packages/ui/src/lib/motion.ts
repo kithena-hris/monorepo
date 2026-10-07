@@ -65,6 +65,13 @@ export const flyout = {
 } as const;
 
 /**
+ * A centred modal, a dialog or an alert: a fade and a scale up from `scale`,
+ * in at `fast` with the entrance curve and out at `fast` with the exit. It
+ * does not travel: it was not opened from anywhere.
+ */
+export const modal = { scale: 0.96 } as const;
+
+/**
  * A staggered group: each neighbour `step` ms after the last, never more than
  * `max` in all. 30 is the smallest step that reads as a sequence rather than
  * one event; the ceiling keeps the fortieth card from looking broken.
