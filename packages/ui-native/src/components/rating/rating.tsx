@@ -78,8 +78,11 @@ export type RatingProps = {
    * stars with `showValue`: "3 of 5" means nothing until it means "Meets".
    */
   valueLabels?: readonly string[];
-  /** The symbol's side in points. 36 under a thumb; 22 beside an average. */
-  size?: number;
+  /**
+   * The web's sizes (`sm` 20, `md` 36, `lg` 40, its sizes under a thumb), or
+   * the symbol's side in points: 22 beside an average.
+   */
+  size?: keyof typeof SIZE | number;
   /** The word (or number) for the value, beside the symbols. */
   showValue?: boolean;
   /** Picking the current value again clears it. */
@@ -91,6 +94,8 @@ export type RatingProps = {
   tone?: keyof typeof toneClass;
   className?: string | undefined;
 };
+
+const SIZE = { sm: 20, md: 36, lg: 40 } as const;
 
 /**
  * A whole number from 1 to 5, as a row of stars. It is a radio group: one
@@ -104,7 +109,7 @@ export function Rating({
   label,
   max = 5,
   valueLabels,
-  size = 36,
+  size: sizeProp = 'md',
   showValue = false,
   clearable = true,
   readOnly = false,
@@ -114,6 +119,7 @@ export function Rating({
   className,
 }: RatingProps): React.JSX.Element {
   const ring = useFocusRing();
+  const size = typeof sizeProp === 'number' ? sizeProp : SIZE[sizeProp];
   const d = ratingSymbols[symbol];
   // Small symbols spread out so each still has a 44pt slice of the row.
   const gap = size >= 36 ? 4 : size >= 24 ? 8 : 16;
