@@ -1,14 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import { Columns3 } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native-css/components';
 
 import { designDocs } from '../../docs/design.ts';
 import { settled } from '../../docs/stage.tsx';
 import { PEOPLE } from '../../docs/people.ts';
-import { Button } from '../button/button.tsx';
-import { Icon } from '../icon/icon.tsx';
-import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover.tsx';
 import { DataTable, TableTitle, type DataColumn } from '../table/table.tsx';
 import { ColumnChooser, orderColumns, type ColumnChooserValue } from './column-chooser.tsx';
 
@@ -79,33 +75,20 @@ export const DrivingATable: Story = {
   render: function DrivingStory() {
     const start = { order: SMALL.map((c) => c.id), visible: ['name', 'team', 'manager'] };
     const [value, setValue] = useState<ColumnChooserValue>(start);
-    const [open, setOpen] = useState(false);
     const columns = orderColumns(SMALL, value.order)
       .filter((c) => c.locked || value.visible.includes(c.id))
       .flatMap((c) => (CELLS[c.id] ? [CELLS[c.id] as DataColumn<Person>] : []));
     return (
       <View className="gap-2">
         <View className="items-end">
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger>
-              <Button variant="tinted" size="sm" startIcon={<Icon icon={Columns3} />}>
-                Columns
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent label="Columns" align="end" className="w-[280px]">
-              <ColumnChooser
-                columns={SMALL}
-                value={value}
-                onChange={setValue}
-                onReset={() => {
-                  setValue(start);
-                }}
-                onDone={() => {
-                  setOpen(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <ColumnChooser
+            columns={SMALL}
+            value={value}
+            onChange={setValue}
+            onReset={() => {
+              setValue(start);
+            }}
+          />
         </View>
         <DataTable
           label="People"
