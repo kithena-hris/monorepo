@@ -778,7 +778,9 @@ export function Kanban<T extends { id: string }>({
         className={cn(
           'gap-2.5 rounded-[14px] bg-surface p-3 shadow-sm',
           lifted && 'bg-surface-raised shadow-lg',
-          column.locked && 'opacity-70',
+          // A locked column's cards are not dimmed, as on the web: they are
+          // still people to read, and at 70% their secondary text fell below
+          // the contrast minimum. The lock says it.
         )}
       >
         <View className="flex-row items-start gap-2">
