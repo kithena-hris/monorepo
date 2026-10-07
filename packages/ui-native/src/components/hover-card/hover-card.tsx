@@ -1,6 +1,7 @@
 import * as HoverCardPrimitive from '@rn-primitives/hover-card';
 import * as PopoverPrimitive from '@rn-primitives/popover';
 import { type ReactElement, type ReactNode } from 'react';
+import { StyleSheet } from 'react-native';
 import { styled } from 'react-native-css';
 import { Pressable, View } from 'react-native-css/components';
 import Animated from 'react-native-reanimated';
@@ -10,19 +11,21 @@ import {
   FloatingRoot,
   floatingSurface,
   LongPressTrigger,
+  useEdgeInsets,
   useTriggerHandle,
   WEB,
   type FloatingState,
 } from '../../lib/floating.tsx';
 import { menuRowClass, MenuRowContent, menuSurface } from '../../lib/menu.tsx';
+import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
 import { flatStyle, labelledFrame, usePresence } from '../../lib/overlay.tsx';
 import type { LucideIcon } from '../icon/icon.tsx';
 
 /**
  * A peek at a person or a record from its name, without leaving the page. On
- * the web it opens after 400 ms of hover, or on keyboard focus, and stays while
- * the pointer is over it. On a phone a long press opens it, with the
+ * the web it opens after `HOVER_OPEN_MS` of hover, or on keyboard focus, and
+ * stays while the pointer is over it. On a phone a long press opens it, with the
  * person's actions under the card, as the system's own previews do; a press
  * still follows the link.
  *
@@ -31,22 +34,25 @@ import type { LucideIcon } from '../icon/icon.tsx';
  */
 export type HoverCardProps = FloatingState & {
   onOpenChange?: (open: boolean) => void;
+  /** Milliseconds the pointer rests on the trigger before the card opens (web). */
+  openDelay?: number;
+  /** Milliseconds before the card closes once the pointer has left both (web). */
+  closeDelay?: number;
   children?: ReactNode;
 };
-
-const OPEN_DELAY = 400;
-const CLOSE_DELAY = 150;
 
 export function HoverCard({
   open,
   defaultOpen,
   onOpenChange,
+  openDelay = HOVER_OPEN_MS,
+  closeDelay = HOVER_CLOSE_MS,
   children,
 }: HoverCardProps): React.JSX.Element {
   const change = onOpenChange ? { onOpenChange } : {};
   if (WEB) {
     return (
-      <HoverCardPrimitive.Root openDelay={OPEN_DELAY} closeDelay={CLOSE_DELAY} {...change}>
+      <HoverCardPrimitive.Root openDelay={openDelay} closeDelay={closeDelay} {...change}>
         <FloatingRoot
           open={open}
           defaultOpen={defaultOpen}
@@ -109,6 +115,7 @@ export function HoverCardContent({
   const { open, onOpenChange } = useOpen();
   const presence = usePresence(open, 'bottom');
   const container = useOverlayContainer(portalHost);
+  const edge = useEdgeInsets();
   if (!presence.mounted) return null;
   const body = (
     // The motion on a bare Animated.View, the classes inside it (RMB-001).
@@ -128,6 +135,7 @@ export function HoverCardContent({
           side="bottom"
           align="start"
           sideOffset={8}
+          {...edge}
           className="outline-none"
         >
           {body}
@@ -138,18 +146,22 @@ export function HoverCardContent({
   return (
     <PopoverPrimitive.Portal forceMount {...(portalHost ? { hostName: portalHost } : {})}>
       <View pointerEvents="box-none" className="absolute inset-0">
-        <NativeOverlay
-          forceMount
-          onPress={() => {
-            onOpenChange(false);
-          }}
-          className="absolute inset-0"
-        />
+        {/* A long press dims the page, as the system's own previews do (the design's stage). */}
+        <Animated.View style={[StyleSheet.absoluteFill, presence.scrimStyle]}>
+          <NativeOverlay
+            forceMount
+            onPress={() => {
+              onOpenChange(false);
+            }}
+            className="absolute inset-0 bg-overlay"
+          />
+        </Animated.View>
         <NativeContent
           forceMount
           side="bottom"
           align="start"
           sideOffset={8}
+          {...edge}
           {...(label ? { accessibilityLabel: label } : {})}
         >
           {body}
