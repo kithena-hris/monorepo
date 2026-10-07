@@ -1,12 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import { Check, UserX } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { TextInput } from 'react-native';
 import { View } from 'react-native-css/components';
 
 import { designNote, overlayDocs } from '../../docs/design.ts';
-import { Stage, StandInField, settled } from '../../docs/stage.tsx';
+import { Stage, settled } from '../../docs/stage.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { Input } from '../input/input.tsx';
 import { Text } from '../text/text.tsx';
 import {
   AlertDialog,
@@ -134,6 +136,7 @@ export const TypeToConfirm: Story = {
   },
   render: function TypeToConfirmStory() {
     const [typed, setTyped] = useState('Desi');
+    const field = useRef<TextInput>(null);
     return (
       <AlertDialog
         defaultOpen
@@ -152,7 +155,7 @@ export const TypeToConfirm: Story = {
           }
         >
           {(host) => (
-            <AlertDialogContent portalHost={host}>
+            <AlertDialogContent portalHost={host} initialFocus={field}>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete the Design team?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -163,10 +166,11 @@ export const TypeToConfirm: Story = {
                   to confirm.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <StandInField
+              <Input
+                ref={field}
                 value={typed}
                 onChangeText={setTyped}
-                focused
+                autoCapitalize="words"
                 accessibilityLabel="Type Design to confirm"
               />
               <AlertDialogFooter>

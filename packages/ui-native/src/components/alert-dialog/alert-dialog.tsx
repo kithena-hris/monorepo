@@ -1,5 +1,5 @@
 import * as AlertDialogPrimitive from '@rn-primitives/alert-dialog';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { styled } from 'react-native-css';
 
 import { cn } from '../../lib/cn.ts';
@@ -45,6 +45,11 @@ export type AlertDialogContentProps = {
   portalHost?: string;
   /** The widest it may be, in points: 342 by default, as Dialog's. */
   width?: number;
+  /**
+   * What takes focus when it opens, instead of Cancel: the field of a
+   * type-to-confirm. Anything with `focus()`, such as a text input's ref.
+   */
+  initialFocus?: RefObject<{ focus: () => void } | null>;
 };
 
 export function AlertDialogContent({
@@ -52,6 +57,7 @@ export function AlertDialogContent({
   className,
   portalHost,
   width,
+  initialFocus,
 }: AlertDialogContentProps): React.JSX.Element | null {
   const { open, onOpenChange } = AlertDialogPrimitive.useRootContext();
   const presence = usePresence(open, 'centre');
@@ -76,6 +82,15 @@ export function AlertDialogContent({
           forceMount
           ref={quietFrame}
           onAccessibilityEscape={cancel}
+          {...(initialFocus
+            ? {
+                onOpenAutoFocus: (event: Event) => {
+                  // Radix's DOM event, on the web only.
+                  (event as unknown as { preventDefault: () => void }).preventDefault();
+                  initialFocus.current?.focus();
+                },
+              }
+            : {})}
           className={cn(centredSurface, className)}
         >
           {children}
