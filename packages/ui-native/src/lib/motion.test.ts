@@ -3,6 +3,7 @@ import {
   easings,
   flyout,
   gentleSpring,
+  modal,
   PRESS_SCALE,
   RISE,
   springs,
@@ -51,6 +52,26 @@ describe('the native presets use the shared values', () => {
     });
   });
 
+  it('modal: the web scale-in, a fade and a scale with no travel, at fast both ways', () => {
+    expect(presets.modalIn.from).toEqual({
+      opacity: 0,
+      translateX: 0,
+      translateY: 0,
+      scale: modal.scale,
+    });
+    expect(presets.modalIn.transition).toEqual({
+      type: 'timing',
+      duration: durations.fast,
+      easing: easings.entrance,
+    });
+    expect(presets.modalOut.to).toEqual(presets.modalIn.from);
+    expect(presets.modalOut.transition).toEqual({
+      type: 'timing',
+      duration: durations.fast,
+      easing: easings.exit,
+    });
+  });
+
   it('sheet: in on the gentle spring, out at fast', () => {
     expect(presets.sheet.slide).toBe(true);
     expect(presets.sheet.enter).toEqual(physics(gentleSpring));
@@ -91,7 +112,12 @@ describe('under reduced motion', () => {
 
   it('overlays and sheets cross-fade instead of travelling', () => {
     for (const side of ['top', 'right', 'bottom', 'left'] as const) {
-      for (const motion of [reduced.popoverIn(side), reduced.popoverOut(side)]) {
+      for (const motion of [
+        reduced.popoverIn(side),
+        reduced.popoverOut(side),
+        reduced.modalIn,
+        reduced.modalOut,
+      ]) {
         for (const pose of [motion.from, motion.to]) {
           expect(pose).toMatchObject({ translateX: 0, translateY: 0, scale: 1 });
         }

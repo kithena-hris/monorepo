@@ -23,15 +23,16 @@ type Presence = {
 
 /**
  * An overlay that animates out before it unmounts: the popover motion in from
- * `side`, and back out at the exit speed, from the shared presets. Under
- * reduced motion both are a cross-fade.
+ * `side`, or for a centred modal (`'centre'`) the web's scale-in, and back out
+ * at the exit speed, from the shared presets. Under reduced motion both are a
+ * cross-fade.
  *
  * The primitives unmount the moment they close, so an overlay renders its
  * portal with `forceMount` while `mounted` is true and this decides when that
  * ends.
  */
-export function usePresence(open: boolean, side: Side = 'bottom'): Presence {
-  const { popoverIn, popoverOut } = useMotion();
+export function usePresence(open: boolean, side: Side | 'centre' = 'bottom'): Presence {
+  const { popoverIn, popoverOut, modalIn, modalOut } = useMotion();
   const [mounted, setMounted] = useState(open);
   // Read when an exit finishes: an overlay reopened while it was leaving, or
   // one that mounted closed and then opened before its first (empty) exit
@@ -55,14 +56,14 @@ export function usePresence(open: boolean, side: Side = 'bottom'): Presence {
     ];
     if (open) {
       setMounted(true);
-      const motion = popoverIn(side);
+      const motion = side === 'centre' ? modalIn : popoverIn(side);
       for (const [value, key] of values) {
         value.value = motion.from[key];
         value.value = animateTo(motion.to[key], motion.transition);
       }
       return;
     }
-    const motion = popoverOut(side);
+    const motion = side === 'centre' ? modalOut : popoverOut(side);
     for (const [value, key] of values) {
       value.value = animateTo(
         motion.to[key],
@@ -76,7 +77,19 @@ export function usePresence(open: boolean, side: Side = 'bottom'): Presence {
       );
     }
     // The shared values are stable; the presets change only with reduced motion.
-  }, [open, side, popoverIn, popoverOut, opacity, translateX, translateY, scale, finish]);
+  }, [
+    open,
+    side,
+    popoverIn,
+    popoverOut,
+    modalIn,
+    modalOut,
+    opacity,
+    translateX,
+    translateY,
+    scale,
+    finish,
+  ]);
 
   // Clamped: a spring in, or an exit easing that dips, would pass through 0 and 1.
   const style = useAnimatedStyle(() => ({

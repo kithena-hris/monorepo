@@ -16,6 +16,7 @@ import {
   gentleSpring,
   HOVER_CLOSE_MS,
   HOVER_OPEN_MS,
+  modal,
   PRESS_SCALE,
   RISE,
   springs,
@@ -83,6 +84,8 @@ export interface MotionPresets {
   press: { scale: number; tint: boolean; transition: Timing };
   popoverIn: (side: Side) => Motion;
   popoverOut: (side: Side) => Motion;
+  modalIn: Motion;
+  modalOut: Motion;
   sheet: { slide: boolean; enter: Transition; exit: Transition };
   fadeRise: Motion & { transition: Timing };
   layout: Spring | null;
@@ -125,6 +128,22 @@ export function motionPresets(reduced: boolean): MotionPresets {
         transition: timing(durations.fast, easings.exit),
       };
     },
+
+    /** A centred dialog or alert: the web's scale-in, a fade and a scale, no travel. */
+    modalIn: reduced
+      ? { from: GONE, to: REST, transition: fadeIn }
+      : {
+          from: { ...GONE, scale: modal.scale },
+          to: REST,
+          transition: timing(durations.fast, easings.entrance),
+        },
+    modalOut: reduced
+      ? { from: REST, to: GONE, transition: fadeOut }
+      : {
+          from: REST,
+          to: { ...GONE, scale: modal.scale },
+          transition: timing(durations.fast, easings.exit),
+        },
 
     /**
      * A sheet. It travels its own height from the edge it is anchored to, so
