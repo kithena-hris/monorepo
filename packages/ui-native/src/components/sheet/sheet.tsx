@@ -13,9 +13,12 @@ import { Gesture, GestureDetector, State } from 'react-native-gesture-handler';
 import { styled } from 'react-native-css';
 import { View } from 'react-native-css/components';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   type SharedValue,
+  type WithSpringConfig,
+  type WithTimingConfig,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -94,18 +97,13 @@ const NO_SLIDER = { accessibilityRole: null, accessibilityLabel: null } as unkno
   'accessibilityRole' | 'accessibilityLabel'
 >;
 
-/** A spring or a timing from the shared presets, in gorhom's shape. */
-function gorhomConfig(transition: Transition): {
-  duration?: number;
-  mass?: number;
-  stiffness?: number;
-  damping?: number;
-} {
+/** A spring or a timing from the shared presets, in gorhom's shape: the easing too. */
+function gorhomConfig(transition: Transition): WithSpringConfig | WithTimingConfig {
   if (transition.type === 'spring') {
     const { mass, stiffness, damping } = transition;
     return { mass, stiffness, damping };
   }
-  return { duration: transition.duration };
+  return { duration: transition.duration, easing: Easing.bezier(...transition.easing) };
 }
 
 export function SheetContent({
@@ -139,6 +137,17 @@ export function SheetContent({
       forceMount
       ref={quietFrame}
       onEscapeKeyDown={hold}
+      // Focus goes to the sheet itself, not its first control, as a dialog's
+      // does: a field focused on open raises the keyboard over the sheet.
+      onOpenAutoFocus={(event: Event) => {
+        // Radix's DOM event, on the web only.
+        const dom = event as unknown as {
+          preventDefault: () => void;
+          currentTarget: { focus?: () => void } | null;
+        };
+        dom.preventDefault();
+        dom.currentTarget?.focus?.();
+      }}
       // The scrim dismisses, through `dismiss`; Radix's own outside press
       // would also fire on a drag that ends past the sheet.
       onInteractOutside={(event: Event) => {
