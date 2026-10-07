@@ -54,7 +54,7 @@ export function AlertDialogContent({
   width,
 }: AlertDialogContentProps): React.JSX.Element | null {
   const { open, onOpenChange } = AlertDialogPrimitive.useRootContext();
-  const presence = usePresence(open);
+  const presence = usePresence(open, 'centre');
   const container = useOverlayContainer(portalHost);
   if (!presence.mounted) return null;
   const cancel = (): void => {

@@ -1,13 +1,23 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import { ChevronsUpDown, Trash2 } from 'lucide-react-native';
+import { Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 
 import { overlayDocs } from '../../docs/design.ts';
-import { Stage, StandInCheck, StandInField, StandInProgress, settled } from '../../docs/stage.tsx';
+import { Stage, settled } from '../../docs/stage.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
-import { Icon } from '../icon/icon.tsx';
+import { Checkbox } from '../checkbox/checkbox.tsx';
+import { Field, FieldLabel } from '../field/field.tsx';
+import { Input } from '../input/input.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
+import { Progress } from '../progress/progress.tsx';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../select/select.tsx';
 import { Text } from '../text/text.tsx';
 import {
   Dialog,
@@ -66,43 +76,62 @@ export const Playground: Story = {
 
 export const WithAForm: Story = {
   name: 'With a form',
-  render: () => (
-    <Dialog defaultOpen>
-      <Stage
-        height={560}
-        trigger={
-          <DialogTrigger asChild>
-            <Button size="sm">Invite a person</Button>
-          </DialogTrigger>
-        }
-      >
-        {(host) => (
-          <DialogContent portalHost={host}>
-            <DialogHeader>
-              <DialogTitle>Invite a person</DialogTitle>
-            </DialogHeader>
-            <DialogBody>
-              <StandInField label="Email" value="yuki@reach.co" />
-              <StandInField
-                label="Team"
-                value="Engineering"
-                end={<Icon icon={ChevronsUpDown} size={19} tone="muted" />}
-              />
-              <StandInCheck label="Send a welcome email" defaultChecked />
-            </DialogBody>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button>Cancel</Button>
-              </DialogClose>
-              <DialogClose asChild>
-                <Button variant="primary">Send invite</Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        )}
-      </Stage>
-    </Dialog>
-  ),
+  render: function WithAFormStory() {
+    const [email, setEmail] = useState('yuki@reach.co');
+    const [welcome, setWelcome] = useState(true);
+    return (
+      <Dialog defaultOpen>
+        <Stage
+          height={560}
+          trigger={
+            <DialogTrigger asChild>
+              <Button size="sm">Invite a person</Button>
+            </DialogTrigger>
+          }
+        >
+          {(host) => (
+            <DialogContent portalHost={host}>
+              <DialogHeader>
+                <DialogTitle>Invite a person</DialogTitle>
+              </DialogHeader>
+              <DialogBody>
+                <Field>
+                  <FieldLabel>Email</FieldLabel>
+                  <Input type="email" value={email} onChangeText={setEmail} />
+                </Field>
+                <Field>
+                  <FieldLabel>Team</FieldLabel>
+                  <Select defaultValue="Engineering">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent portalHost={host}>
+                      {['Design', 'Engineering', 'People'].map((team) => (
+                        <SelectItem key={team} value={team}>
+                          {team}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Checkbox checked={welcome} onCheckedChange={setWelcome}>
+                  Send a welcome email
+                </Checkbox>
+              </DialogBody>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button>Cancel</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button variant="primary">Send invite</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          )}
+        </Stage>
+      </Dialog>
+    );
+  },
 };
 
 export const Destructive: Story = {
@@ -176,7 +205,7 @@ export const Controlled: Story = {
                 <DialogHeader>
                   <DialogTitle>Saving…</DialogTitle>
                 </DialogHeader>
-                <StandInProgress label="Saving" />
+                <Progress value={null} label="Saving" hideLabel />
               </DialogContent>
             )}
           </Stage>

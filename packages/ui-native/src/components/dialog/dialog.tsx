@@ -159,8 +159,8 @@ export type DialogContentProps = {
    */
   guard?: () => boolean;
   /**
-   * What takes focus when it opens, instead of the first focusable control:
-   * the selected row of a picker, say. Anything with `focus()`, such as a
+   * What takes focus when it opens, instead of the dialog itself: the
+   * selected row of a picker, say. Anything with `focus()`, such as a
    * pressable's or a text input's ref.
    */
   initialFocus?: RefObject<{ focus: () => void } | null>;
@@ -199,8 +199,9 @@ export function DialogContent({
   label,
 }: DialogContentProps): React.JSX.Element | null {
   const { open, onOpenChange } = DialogPrimitive.useRootContext();
-  const presence = usePresence(open);
   const full = size === 'full';
+  // A modal page rises into place; a centred dialog scales in, as the web's.
+  const presence = usePresence(open, full ? 'top' : 'centre');
   const container = useOverlayContainer(portalHost);
   if (!presence.mounted) return null;
 
@@ -238,15 +239,19 @@ export function DialogContent({
           forceMount
           ref={full ? fullFrame : quietFrame}
           onEscapeKeyDown={hold}
-          {...(initialFocus
-            ? {
-                onOpenAutoFocus: (event: Event) => {
-                  // Radix's DOM event, on the web only.
-                  (event as unknown as { preventDefault: () => void }).preventDefault();
-                  initialFocus.current?.focus();
-                },
-              }
-            : {})}
+          // Focus goes to `initialFocus`, or else to the dialog itself, not its
+          // first field: on a phone a field focused on open raises the keyboard
+          // over the dialog that was just opened. A screen reader reads the title.
+          onOpenAutoFocus={(event: Event) => {
+            // Radix's DOM event, on the web only.
+            const dom = event as unknown as {
+              preventDefault: () => void;
+              currentTarget: { focus?: () => void } | null;
+            };
+            dom.preventDefault();
+            if (initialFocus) initialFocus.current?.focus();
+            else dom.currentTarget?.focus?.();
+          }}
           onInteractOutside={hold}
           onAccessibilityEscape={dismiss}
           className={cn(full ? fullSurface : centredSurface, className)}
