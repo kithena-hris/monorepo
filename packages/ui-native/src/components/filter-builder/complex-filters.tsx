@@ -1,4 +1,4 @@
-import { FolderPlus, Plus, Trash2, X } from 'lucide-react-native';
+import { FolderPlus, Plus, Search, Trash2, X } from 'lucide-react-native';
 import { Fragment, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { Pressable, Text as CssText, TextInput, View } from 'react-native-css/components';
@@ -352,6 +352,7 @@ export function FilterQuery({
   return (
     <View className={cn('gap-1.5', className)}>
       <View className="min-h-m-field flex-row flex-wrap items-center gap-1.5 rounded-[16px] border-2 border-accent bg-surface px-3 py-2">
+        <Icon icon={Search} size={19} tone="muted" />
         {tokens.map((t, i) => (
           <Pressable
             key={`${t}-${String(i)}`}
