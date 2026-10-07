@@ -1,6 +1,8 @@
 import { Fragment, useState } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { cn } from '../../lib/cn.ts';
 
@@ -16,7 +18,19 @@ import { cn } from '../../lib/cn.ts';
 /** Minutes from midnight. */
 export type Minutes = number;
 
-export type SchedulerTone = 'accent' | 'info' | 'success' | 'warning' | 'danger' | 'neutral';
+export type SchedulerTone =
+  | 'accent'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'neutral'
+  | 'chart-1'
+  | 'chart-2'
+  | 'chart-3'
+  | 'chart-4'
+  | 'chart-5'
+  | 'chart-6';
 
 export type SchedulerColumn = {
   id: string;
@@ -38,6 +52,8 @@ export type SchedulerEvent = {
   /** A real conflict, not just an overlap. */
   clash?: boolean;
   allDay?: boolean;
+  /** Not confirmed: an outline in the tone and no wash. */
+  tentative?: boolean;
 };
 
 export type SchedulerSlot = { column: string; start: Minutes; end: Minutes };
@@ -47,11 +63,11 @@ export type SchedulerProps = {
   events: readonly SchedulerEvent[];
   /** The schedule's accessible name. */
   label: string;
-  /** `agenda`: a list grouped by column, in time order. */
-  view?: 'day' | 'agenda';
-  /** The day shown; the strip chooses it. */
-  selected?: string;
-  onSelect?: (column: string) => void;
+  /** `grid` draws the hours of one day; `agenda` lists the events day by day. */
+  view?: 'grid' | 'agenda';
+  /** The day shown under a finger; the strip chooses it. Uncontrolled when omitted. */
+  column?: string;
+  onColumnChange?: (column: string) => void;
   /** Hides the strip of dates, for a single day. */
   strip?: boolean;
   startHour?: number;
@@ -74,6 +90,30 @@ const TONE: Record<SchedulerTone, { fill: string; bar: string; ink: string }> = 
   warning: { fill: 'bg-warning-subtle', bar: 'bg-warning', ink: 'text-warning-fg' },
   danger: { fill: 'bg-danger-subtle', bar: 'bg-danger', ink: 'text-danger-fg' },
   neutral: { fill: 'bg-surface-sunken', bar: 'bg-fg-subtle', ink: 'text-fg' },
+  // The categorical tones have no subtle step: the wash is the tone thinned,
+  // and the text the ink that holds on any wash, as on the web.
+  'chart-1': { fill: 'bg-chart-1/20', bar: 'bg-chart-1', ink: 'text-fg' },
+  'chart-2': { fill: 'bg-chart-2/20', bar: 'bg-chart-2', ink: 'text-fg' },
+  'chart-3': { fill: 'bg-chart-3/20', bar: 'bg-chart-3', ink: 'text-fg' },
+  'chart-4': { fill: 'bg-chart-4/20', bar: 'bg-chart-4', ink: 'text-fg' },
+  'chart-5': { fill: 'bg-chart-5/20', bar: 'bg-chart-5', ink: 'text-fg' },
+  'chart-6': { fill: 'bg-chart-6/20', bar: 'bg-chart-6', ink: 'text-fg' },
+};
+
+/** A tentative event's edge, which has no wash of its own. */
+const EDGE: Record<SchedulerTone, string> = {
+  accent: 'border-accent',
+  info: 'border-info',
+  success: 'border-success',
+  warning: 'border-warning',
+  danger: 'border-danger',
+  neutral: 'border-fg-subtle',
+  'chart-1': 'border-chart-1',
+  'chart-2': 'border-chart-2',
+  'chart-3': 'border-chart-3',
+  'chart-4': 'border-chart-4',
+  'chart-5': 'border-chart-5',
+  'chart-6': 'border-chart-6',
 };
 
 /** "09:00", "All day". */
@@ -116,9 +156,9 @@ export function Scheduler({
   columns,
   events,
   label,
-  view = 'day',
-  selected: selectedProp,
-  onSelect,
+  view = 'grid',
+  column: columnProp,
+  onColumnChange,
   strip = true,
   startHour = 9,
   endHour = 17,
@@ -127,46 +167,67 @@ export function Scheduler({
   onPickSlot,
   className,
 }: SchedulerProps): React.JSX.Element {
-  const [own, setOwn] = useState(selectedProp ?? today ?? columns[0]?.id ?? '');
-  const selected = selectedProp ?? own;
-  const [draft, setDraft] = useState<{ from: number; to: number } | null>(null);
+  const [own, setOwn] = useState(columnProp ?? today ?? columns[0]?.id ?? '');
+  const selected = columnProp ?? own;
 
-  if (view === 'agenda') return <Agenda columns={columns} events={events} label={label} className={className} />;
+  // The slot being dragged out lives on the UI thread, in points from the
+  // grid's top, snapped as it goes: the finger never waits on a React render.
+  const from = useSharedValue(-1);
+  const to = useSharedValue(-1);
+  // A drag that became a pan is not also a tap on the hour it started in.
+  const panned = useSharedValue(false);
+  const draft = useAnimatedStyle(() => ({
+    top: Math.min(from.value, to.value),
+    height: Math.abs(to.value - from.value),
+    opacity: from.value >= 0 && to.value !== from.value ? 1 : 0,
+  }));
 
   const column = columns.find((c) => c.id === selected) ?? columns[0];
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const top = startHour * 60;
   const y = (m: Minutes): number => ((m - top) / 60) * HOUR;
-  const snap = (px: number): Minutes =>
-    Math.max(top, Math.min(endHour * 60, top + Math.round(((px / HOUR) * 60) / SNAP) * SNAP));
+  const span = (endHour - startHour) * 60;
+  const snap = (px: number): number => {
+    'worklet';
+    const minutes = Math.round(((px / HOUR) * 60) / SNAP) * SNAP;
+    return (Math.max(0, Math.min(span, minutes)) / 60) * HOUR;
+  };
   const dayEvents = events.filter((e) => e.column === column?.id && !e.allDay);
   const lanes = layoutLanes(dayEvents);
 
+  const pick = (a: number, b: number): void => {
+    if (column) {
+      onPickSlot?.({
+        column: column.id,
+        start: top + Math.round((Math.min(a, b) / HOUR) * 60),
+        end: top + Math.round((Math.max(a, b) / HOUR) * 60),
+      });
+    }
+  };
   const pan = Gesture.Pan()
-    .runOnJS(true)
     .activeOffsetY([-8, 8])
     .onBegin((e) => {
-      const at = snap(e.y);
-      setDraft({ from: at, to: at });
+      panned.value = false;
+      from.value = snap(e.y);
+      to.value = from.value;
+    })
+    .onStart(() => {
+      panned.value = true;
     })
     .onUpdate((e) => {
-      setDraft((d) => (d ? { ...d, to: snap(e.y) } : d));
+      to.value = snap(e.y);
     })
     .onEnd(() => {
-      setDraft((d) => {
-        if (d && column && d.to !== d.from) {
-          onPickSlot?.({
-            column: column.id,
-            start: Math.min(d.from, d.to),
-            end: Math.max(d.from, d.to),
-          });
-        }
-        return null;
-      });
+      if (to.value !== from.value) scheduleOnRN(pick, from.value, to.value);
     })
     .onFinalize(() => {
-      setDraft(null);
+      from.value = -1;
+      to.value = -1;
     });
+
+  if (view === 'agenda') {
+    return <Agenda columns={columns} events={events} label={label} className={className} />;
+  }
 
   const grid = (
     <View className="relative">
@@ -181,6 +242,10 @@ export function Scheduler({
             accessibilityHint={onPickSlot ? 'Picks this hour' : undefined}
             disabled={!onPickSlot}
             onPress={() => {
+              if (panned.value) {
+                panned.value = false;
+                return;
+              }
               if (column) onPickSlot?.({ column: column.id, start: h * 60, end: (h + 1) * 60 });
             }}
             className="flex-1 border-t border-l border-border"
@@ -208,7 +273,7 @@ export function Scheduler({
             accessibilityLabel={`${e.title}${e.detail ? `, ${e.detail}` : ''}, ${formatMinutes(e.start)} to ${formatMinutes(e.end)}${e.clash ? ', clashes' : ''}`}
             className={cn(
               'flex-1 overflow-hidden rounded-[8px] py-1.5 pr-2 pl-[11px]',
-              tone.fill,
+              e.tentative ? cn('border border-dashed', EDGE[e.tone ?? 'accent']) : tone.fill,
               e.clash && 'border-2 border-danger',
             )}
           >
@@ -223,18 +288,12 @@ export function Scheduler({
           </View>
         );
       })}
-      {draft && draft.to !== draft.from ? (
-        <View
-          pointerEvents="none"
-          className="absolute rounded-[8px] border-2 border-dashed border-accent bg-accent-subtle"
-          style={{
-            top: y(Math.min(draft.from, draft.to)),
-            height: Math.abs(y(draft.to) - y(draft.from)),
-            left: 3,
-            right: 3,
-          }}
-        />
-      ) : null}
+      <Animated.View
+        pointerEvents="none"
+        style={[{ position: 'absolute', left: 3, right: 3 }, draft]}
+      >
+        <View className="flex-1 rounded-[8px] border-2 border-dashed border-accent bg-accent-subtle" />
+      </Animated.View>
       {now !== undefined && column?.id === today && now >= top && now <= endHour * 60 ? (
         <View
           aria-hidden
@@ -261,7 +320,7 @@ export function Scheduler({
                 aria-checked={on}
                 onPress={() => {
                   setOwn(c.id);
-                  onSelect?.(c.id);
+                  onColumnChange?.(c.id);
                 }}
                 className={cn(
                   'h-14 flex-1 items-center justify-center gap-1 rounded-[14px]',
@@ -348,7 +407,7 @@ function Agenda({
                   <View
                     key={e.id}
                     role="listitem"
-                    className="flex-row items-stretch gap-3 px-4 py-2.5"
+                    className="flex-row items-stretch gap-3 px-4 py-3"
                   >
                     <CssText className="w-14 self-center text-[13px] leading-none font-semibold text-fg-muted tabular-nums">
                       {time}
