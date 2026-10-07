@@ -716,7 +716,7 @@ export {
 } from './components/table/table.tsx';
 export {
   KeyValues,
-  type KeyValue,
+  type KeyValueItem,
   type KeyValuesProps,
 } from './components/key-values/key-values.tsx';
 export { Money, type MoneyProps } from './components/money/money.tsx';
