@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
+import { expect, waitFor } from 'storybook/test';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 
 import { designDocs, designNote } from '../../docs/design.ts';
@@ -142,7 +143,13 @@ export const Playground: Story = {
       onAddCard={() => undefined}
       columnActions={[
         { id: 'rename', label: 'Rename', run: () => undefined },
-        { id: 'delete', label: 'Delete column', icon: Trash2, destructive: true, run: () => undefined },
+        {
+          id: 'delete',
+          label: 'Delete column',
+          icon: Trash2,
+          destructive: true,
+          run: () => undefined,
+        },
       ]}
       renderColumnFooter={(c) => (c.id === 'applied' ? <AddCard /> : null)}
     />
@@ -171,7 +178,7 @@ export const WithoutAMouse: Story = {
       />
       <View className="rounded-[10px] bg-surface-sunken px-3 py-2.5">
         <Text variant="footnote" weight="medium" tone="muted" className="leading-[1.4]">
-          Hana Kim picked up. Position 1 of 3 in Applied.
+          Picked up Hana Kim from Applied, position 1.
         </Text>
       </View>
     </View>
@@ -194,9 +201,111 @@ export const LimitsAndLocked: Story = {
   ),
 };
 
+/** The little of the DOM the drag test reads, typed here: the package has no DOM library. */
+type Dom = {
+  children: ArrayLike<Dom>;
+  innerText: string;
+  getAttribute: (name: string) => string | null;
+  querySelector: (selectors: string) => Dom | null;
+  querySelectorAll: (selectors: string) => ArrayLike<Dom>;
+  getBoundingClientRect: () => { left: number; top: number; width: number; height: number };
+  dispatchEvent: (event: unknown) => boolean;
+};
+type PointerEventCtor = new (type: string, init: Record<string, unknown>) => unknown;
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((done) => {
+    setTimeout(done, ms);
+  });
+
+/** Each column top to bottom: a card's name, `gap` for the preview's slot, `held` for the lifted card's own view. */
+function board(canvas: Dom): string[][] {
+  return Array.from(canvas.querySelectorAll('[role=list]')).map((list) =>
+    Array.from(list.children).map((child) => {
+      if (child.getAttribute('aria-hidden') === 'true') return 'gap';
+      if (child.getBoundingClientRect().height === 0) return 'held';
+      return child.innerText.split('\n')[0] ?? '';
+    }),
+  );
+}
+
+/**
+ * A finger on a card's grip: held past the long-press, moved by `dx`, `dy` in
+ * twenty steps, `during` checked while it is still down, then lifted and left
+ * to land.
+ */
+async function drag(
+  canvas: Dom,
+  card: string,
+  dx: number,
+  dy: number,
+  during?: () => Promise<void>,
+): Promise<void> {
+  const grip = canvas.querySelector(`[aria-label^="Move ${card}"]`);
+  if (!grip) throw new Error(`No grip for ${card}.`);
+  const Pointer = (globalThis as unknown as { PointerEvent: PointerEventCtor }).PointerEvent;
+  const r = grip.getBoundingClientRect();
+  const x = r.left + r.width / 2;
+  const y = r.top + r.height / 2;
+  const fire = (type: string, at: number): void => {
+    grip.dispatchEvent(
+      new Pointer(type, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        pointerId: 1,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        buttons: type === 'pointerup' ? 0 : 1,
+        clientX: x + dx * at,
+        clientY: y + dy * at,
+      }),
+    );
+  };
+  fire('pointerdown', 0);
+  await wait(450);
+  for (let step = 1; step <= 20; step += 1) {
+    fire('pointermove', step / 20);
+    // One step a frame or two, as a finger moves.
+    // oxlint-disable-next-line no-await-in-loop
+    await wait(32);
+  }
+  await during?.();
+  fire('pointerup', 1);
+  await wait(1200);
+}
+
 export const GapOpens: Story = {
   name: 'The gap opens in both columns',
   parameters: designNote('kanban', 'The gap opens in both columns'),
+  // Proven by dragging: off the board and back where it was, then across into
+  // Interview, where the gap opens under Ines Duarte and the card lands in it.
+  play: async ({ canvasElement }) => {
+    // Under Vitest only, as the web Storybook's test-only behaviour: browsing,
+    // the board stays at rest for a finger, and the comparison shoots it so.
+    if ((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE !== 'test') return;
+    const canvas = canvasElement as unknown as Dom;
+    await drag(canvas, 'Hana Kim', 0, -400);
+    await expect(board(canvas)).toEqual([
+      ['Hana Kim', 'Leo Rossi'],
+      ['Ines Duarte', 'Ravi Patel', 'Maya Cohen'],
+    ]);
+    await drag(canvas, 'Hana Kim', 300, 40, async () => {
+      await waitFor(async () => {
+        await expect(board(canvas)).toEqual([
+          ['held', 'Leo Rossi'],
+          ['Ines Duarte', 'gap', 'Ravi Patel', 'Maya Cohen'],
+        ]);
+      });
+    });
+    await waitFor(async () => {
+      await expect(board(canvas)).toEqual([
+        ['Leo Rossi'],
+        ['Ines Duarte', 'Hana Kim', 'Ravi Patel', 'Maya Cohen'],
+      ]);
+    });
+  },
   render: () => (
     <Board
       columns={[
@@ -220,7 +329,9 @@ export const OnAPhone: Story = {
         dragActivator={{ mode: 'card' }}
         cardMenu
       />
-      <Note>One column at a time. Swipe or use the segmented control to switch. Long-press to drag.</Note>
+      <Note>
+        One column at a time. Swipe or use the segmented control to switch. Long-press to drag.
+      </Note>
     </View>
   ),
 };
@@ -255,7 +366,9 @@ export const WholeCardDrags: Story = {
   render: () => (
     <View className="gap-3">
       <Board bare columns={ONLY} start={one(3)} dragActivator={{ mode: 'card' }} />
-      <Note>Without a handle, the whole card is the drag target. Links and buttons inside it still work.</Note>
+      <Note>
+        Without a handle, the whole card is the drag target. Links and buttons inside it still work.
+      </Note>
     </View>
   ),
 };
@@ -269,7 +382,8 @@ export const ScrollSpeed: Story = {
         start={{ applied: [0, 1].map(kc), screen: [2].map(kc), interview: [3].map(kc) }}
       />
       <Note>
-        Near an edge, the board scrolls faster the closer you get. Under reduced motion, cards snap into place without gliding.
+        Near an edge, the board scrolls faster the closer you get. Under reduced motion, cards snap
+        into place without gliding.
       </Note>
     </View>
   ),
@@ -280,15 +394,17 @@ export const MenuOnly: Story = {
   play: settled,
   render: () => (
     <View className="min-h-[300px]">
-    <Board
-      defaultMenuOpenFor={kc(0).id}
-      bare
-      columns={[{ id: 'only', title: 'Applied' }, ...STAGES.slice(1, 3)]}
-      start={{ ...one(0), screen: [], interview: [] }}
-      dragActivator={{ mode: 'none' }}
-      cardMenu
-      cardActions={[{ id: 'remove', label: 'Remove', icon: Trash2, destructive: true, run: () => undefined }]}
-    />
+      <Board
+        defaultMenuOpenFor={kc(0).id}
+        bare
+        columns={[{ id: 'only', title: 'Applied' }, ...STAGES.slice(1, 3)]}
+        start={{ ...one(0), screen: [], interview: [] }}
+        dragActivator={{ mode: 'none' }}
+        cardMenu
+        cardActions={[
+          { id: 'remove', label: 'Remove', icon: Trash2, destructive: true, run: () => undefined },
+        ]}
+      />
     </View>
   ),
 };
@@ -361,7 +477,12 @@ function Sections(): React.JSX.Element {
         ]}
         after={
           <View className="w-[300px] gap-2.5 rounded-[18px] border-[1.5px] border-dashed border-border-strong p-3">
-            <Input size="sm" value={name} onChange={setName} accessibilityLabel="New section name" />
+            <Input
+              size="sm"
+              value={name}
+              onChange={setName}
+              accessibilityLabel="New section name"
+            />
             <View className="flex-row gap-1.5">
               <Button
                 variant="primary"
@@ -468,9 +589,9 @@ export const JustBelowTheThreshold: Story = {
         start={{ screen: [0, 1].map(kc) }}
       />
       <Note>
-        Nothing moves until the pointer travels 6px (or you long-press for 250ms on touch), so clicks and scrolls are never mistaken for drags.
+        Nothing moves until a long-press of 250ms, so a tap or a scroll is never mistaken for a
+        drag.
       </Note>
     </View>
   ),
 };
-
