@@ -64,14 +64,18 @@ export type DataTableProps<T> = {
   label: string;
   /** Each value on a card after its column's name: for figures that mean nothing alone. */
   labelled?: boolean;
-  /** The whole card opens something: a chevron says so. */
+  /** The whole card opens something: a chevron says so. The web's `onRowClick`. */
   onRowPress?: (row: T) => void;
+  /** A word for what a row is, used in every generated control name. */
+  describeRow?: (row: T) => string;
 
   /** A card's details, under it when it is open. Tapping the card opens it. */
   renderDetail?: (row: T) => ReactNode;
   expanded?: readonly string[];
   defaultExpanded?: readonly string[];
   onExpandedChange?: (expanded: readonly string[]) => void;
+  /** Only one card open at a time. */
+  singleExpand?: boolean;
 
   /** A leading checkbox on each card, a select-all above, a bulk bar below. */
   selectable?: boolean;
@@ -86,14 +90,20 @@ export type DataTableProps<T> = {
    */
   total?: number;
 
-  /** First sort first. Sorted here when the columns say how (`sortBy`). */
-  sort?: readonly DataTableSort[];
-  defaultSort?: readonly DataTableSort[];
-  onSortChange?: (sort: readonly DataTableSort[]) => void;
+  /** A list is a multi-column sort, first sort first. Sorted here when the columns say how (`sortBy`). */
+  sort?: DataTableSort | readonly DataTableSort[] | null;
+  defaultSort?: DataTableSort | readonly DataTableSort[] | null;
+  /** Fires with the primary sort. `onSortsChange` has the whole list. */
+  onSortChange?: (sort: DataTableSort | null) => void;
+  onSortsChange?: (sorts: readonly DataTableSort[]) => void;
   /** The rows arrive sorted (by a server): the label shows, nothing is re-sorted here. */
   sortedOutside?: boolean;
 
-  /** A grip on each card: long-press and drag, or move from the keyboard or a screen reader. */
+  /**
+   * A grip on each card: long-press and drag, or move from the keyboard or a
+   * screen reader. Off while a sort is active, while grouped and in a virtual body.
+   */
+  reorderable?: boolean;
   onReorder?: (change: DataTableReorder) => void;
   /** Rows that cannot move, by id: a lock in place of the grip. */
   locked?: readonly string[];
@@ -213,6 +223,13 @@ function sortRows<T>(
   });
 }
 
+function toSortList(
+  sort: DataTableSort | readonly DataTableSort[] | null | undefined,
+): readonly DataTableSort[] {
+  if (sort === null || sort === undefined) return [];
+  return 'columnId' in sort ? [sort] : sort;
+}
+
 /** Adds an id to a list, or takes it out. */
 function toggle(list: readonly string[], id: string): string[] {
   return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -242,10 +259,12 @@ export function DataTable<T>({
   label,
   labelled = false,
   onRowPress,
+  describeRow,
   renderDetail,
   expanded: expandedProp,
   defaultExpanded = [],
   onExpandedChange,
+  singleExpand = false,
   selectable = false,
   selected: selectedProp,
   defaultSelected = [],
@@ -253,9 +272,11 @@ export function DataTable<T>({
   bulkActions,
   total,
   sort: sortProp,
-  defaultSort = [],
+  defaultSort,
   onSortChange,
+  onSortsChange,
   sortedOutside = false,
+  reorderable = false,
   onReorder,
   locked = [],
   groupBy,
@@ -272,7 +293,14 @@ export function DataTable<T>({
 }: DataTableProps<T>): React.JSX.Element {
   const [expanded, setExpanded] = useControlled(expandedProp, defaultExpanded, onExpandedChange);
   const [selected, setSelected] = useControlled(selectedProp, defaultSelected, onSelectedChange);
-  const [sorts, setSorts] = useControlled(sortProp, defaultSort, onSortChange);
+  const [sorts, setSorts] = useControlled(
+    sortProp === undefined ? undefined : toSortList(sortProp),
+    toSortList(defaultSort),
+    (next) => {
+      onSortsChange?.(next);
+      onSortChange?.(next[0] ?? null);
+    },
+  );
   const [collapsed, setCollapsed] = useState<readonly string[]>(defaultCollapsedGroups);
   const { announce, region } = useAnnouncer();
 
@@ -286,6 +314,8 @@ export function DataTable<T>({
   const sortable = columns.filter((c) => c.sortBy);
   const ids = shown.map(rowId);
   const count = total ?? rows.length;
+  const moves =
+    reorderable && sorts.length === 0 && groupBy === undefined && virtualHeight === undefined;
 
   const picked = new Set(selected);
   const all: CheckedState =
@@ -296,7 +326,8 @@ export function DataTable<T>({
     const id = ids[from];
     if (id === undefined || locked.includes(id) || locked.includes(ids[to] ?? '')) return;
     onReorder?.({ id, from, to, order: move(ids, from, to) });
-    const name = title ? textOf(title.cell(shown[from] as T)) : id;
+    const row = shown[from] as T;
+    const name = describeRow?.(row) ?? (title ? textOf(title.cell(row)) : id);
     announce(`${name}, moved to position ${String(to + 1)} of ${String(shown.length)}.`);
   };
 
@@ -307,25 +338,25 @@ export function DataTable<T>({
     const opens = renderDetail !== undefined || onRowPress !== undefined;
     const press = renderDetail
       ? () => {
-          setExpanded(toggle(expanded, id));
+          setExpanded(singleExpand ? (isOpen ? [] : [id]) : toggle(expanded, id));
         }
       : onRowPress
         ? () => {
             onRowPress(row);
           }
         : undefined;
-    const name = title ? textOf(title.cell(row)) : id;
+    // A cell may build a tree of its own: once per card, not once per use.
+    const head = title?.cell(row);
+    const name = describeRow?.(row) ?? (title ? textOf(head) : id);
     const body = (
       <>
         <View className="min-w-0 flex-1 gap-2">
           <View className="min-w-0 flex-row items-center justify-between gap-2.5">
             <View className="min-w-0 flex-1">
-              {typeof title?.cell(row) === 'string' ? (
-                <CssText className="text-callout leading-[1.3] text-fg">
-                  {title.cell(row)}
-                </CssText>
+              {typeof head === 'string' ? (
+                <CssText className="text-callout leading-[1.3] text-fg">{head}</CssText>
               ) : (
-                title?.cell(row)
+                head
               )}
             </View>
             {trailing ? (
@@ -388,7 +419,7 @@ export function DataTable<T>({
             <CheckboxBox checked={isPicked} />
           </Pressable>
         ) : null}
-        {onReorder ? (
+        {moves ? (
           <ReorderHandle
             label={`Move ${name}, position ${String(index + 1)} of ${String(shown.length)}`}
             locked={locked.includes(id)}
@@ -487,7 +518,7 @@ export function DataTable<T>({
         </View>
       );
     });
-  } else if (onReorder) {
+  } else if (moves) {
     body = (
       <Sortable.Grid
         data={shown as T[]}

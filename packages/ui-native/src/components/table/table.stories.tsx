@@ -338,6 +338,7 @@ export const Reorderable: Story = {
         columns={TASK_COLUMNS}
         rowId={(t) => t.title}
         onRowPress={() => undefined}
+        reorderable
         onReorder={({ from, to }) => {
           setTasks(move(tasks, from, to));
         }}

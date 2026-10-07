@@ -124,6 +124,7 @@ function PeopleTable(): React.JSX.Element {
       ]}
       selectable
       bulkActions={() => <BulkAction>Export</BulkAction>}
+      reorderable
       onReorder={({ from, to }) => {
         setRows(move(rows, from, to));
       }}
