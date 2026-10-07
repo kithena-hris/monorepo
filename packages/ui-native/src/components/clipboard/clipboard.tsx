@@ -8,6 +8,7 @@ import { writeText } from '../../lib/clipboard-write';
 import { cn } from '../../lib/cn.ts';
 import { Button, type ButtonProps } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { Tooltip } from '../tooltip/tooltip.tsx';
 
 /**
  * Copy to the clipboard, as the web's: the write can be refused and says so,
@@ -122,6 +123,11 @@ export type CopyButtonProps = Omit<ButtonProps, 'children' | 'onPress' | 'href' 
   write?: UseClipboardOptions['write'];
   /** An icon-only button that says "Copied" in words while confirming, as a field's does. */
   sayCopied?: boolean;
+  /**
+   * An icon-only button names itself in a tooltip, as the web's: a long press
+   * shows the label, and a copy shows "Copied" (or the refusal) until it reverts.
+   */
+  tooltip?: boolean;
 };
 
 /**
@@ -140,6 +146,7 @@ export function CopyButton({
   onError,
   write,
   sayCopied = false,
+  tooltip = true,
   variant = 'ghost',
   size = 'sm',
   accessibilityLabel,
@@ -159,27 +166,34 @@ export function CopyButton({
     : copied && sayCopied
       ? copiedLabel
       : '';
+  const button = (
+    <Button
+      {...props}
+      variant={copied ? 'tinted' : variant}
+      size={size}
+      accessibilityLabel={accessibilityLabel ?? children ?? label}
+      startIcon={
+        status === 'error' ? <Icon icon={X} tone="danger" /> : <Icon icon={copied ? Check : icon} />
+      }
+      onPress={() => {
+        void copy(value);
+      }}
+    >
+      {text}
+    </Button>
+  );
+  const said = copied ? copiedLabel : status === 'error' ? errorLabel : '';
   return (
     <View>
-      <Button
-        {...props}
-        variant={copied ? 'tinted' : variant}
-        size={size}
-        accessibilityLabel={accessibilityLabel ?? children ?? label}
-        startIcon={
-          status === 'error' ? (
-            <Icon icon={X} tone="danger" />
-          ) : (
-            <Icon icon={copied ? Check : icon} />
-          )
-        }
-        onPress={() => {
-          void copy(value);
-        }}
-      >
-        {text}
-      </Button>
-      <Announce message={copied ? copiedLabel : status === 'error' ? errorLabel : ''} />
+      {!children && !sayCopied && tooltip ? (
+        // Open while the outcome shows, and on a long press otherwise.
+        <Tooltip content={said || label} open={status !== 'idle'}>
+          {button}
+        </Tooltip>
+      ) : (
+        button
+      )}
+      <Announce message={said} />
     </View>
   );
 }

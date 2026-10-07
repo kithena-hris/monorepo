@@ -12,7 +12,6 @@ import { Card } from '../card/card.tsx';
 import { Alert } from '../feedback/feedback.tsx';
 import { Inline, Stack } from '../layout/layout.tsx';
 import { Text } from '../text/text.tsx';
-import { Tooltip } from '../tooltip/tooltip.tsx';
 import { CopyButton, CopyField } from './clipboard.tsx';
 
 const meta = {
@@ -35,17 +34,21 @@ const LINGER = 60_000;
 type Target = Parameters<typeof userEvent.click>[0];
 // This package's types have no DOM: the play function runs in the browser, so say what it uses.
 type Root = { querySelectorAll: (selector: string) => Iterable<Target & { blur: () => void }> };
-const pressMarked: Story['play'] = async ({ canvasElement }) => {
-  const root = canvasElement as unknown as Root;
-  for (const el of root.querySelectorAll('[data-testid="press"] [role="button"]')) {
-    // oxlint-disable-next-line no-await-in-loop -- one press at a time, in order
-    await userEvent.click(el);
-    // The press leaves focus behind; the confirmation is the state to show, not the ring.
-    el.blur();
-  }
-  // "Icon only" opens a tooltip as it renders; axe reads it once it has faded in.
-  await settled();
-};
+const pressMarked =
+  (blur: boolean): NonNullable<Story['play']> =>
+  async ({ canvasElement }) => {
+    const root = canvasElement as unknown as Root;
+    for (const el of root.querySelectorAll('[data-testid="press"] [role="button"]')) {
+      // oxlint-disable-next-line no-await-in-loop -- one press at a time, in order
+      await userEvent.click(el);
+      // The press leaves focus behind; the confirmation is the state to show, not
+      // the ring. Except for an icon-only button: on the web its "Copied"
+      // tooltip closes when the button loses focus.
+      if (blur) el.blur();
+    }
+    // "Icon only" opens its tooltip on the copy; axe reads it once it has faded in.
+    await settled();
+  };
 
 export const Playground: Story = {
   render: (args) => (
@@ -67,23 +70,21 @@ export const Playground: Story = {
       </View>
     </Inline>
   ),
-  play: pressMarked,
+  play: pressMarked(true),
 };
 
 export const IconOnly: Story = {
   name: 'Icon only',
   render: (args) => (
-    <Inline gap={2} className="min-h-24 items-start">
+    <Inline gap={2} align="end" wrap={false} className="min-h-24">
       {/* An icon-only button names itself in a tooltip; a long press opens it on a phone. */}
-      <Tooltip content="Copy invite link" side="bottom" defaultOpen>
-        <CopyButton {...args} label="Copy invite link" />
-      </Tooltip>
+      <CopyButton {...args} label="Copy invite link" />
       <View testID="press">
         <CopyButton {...args} label="Copy invite link" write={SUCCEED} resetAfter={LINGER} />
       </View>
     </Inline>
   ),
-  play: pressMarked,
+  play: pressMarked(false),
 };
 
 export const CopyFieldStory: Story = {
@@ -101,7 +102,7 @@ export const CopyFieldStory: Story = {
       </View>
     </Stack>
   ),
-  play: pressMarked,
+  play: pressMarked(true),
 };
 
 export const InATable: Story = {
@@ -143,7 +144,7 @@ export const InATable: Story = {
       })}
     </Card>
   ),
-  play: pressMarked,
+  play: pressMarked(true),
 };
 
 const SNIPPET = `const { copy, copied } = useClipboard({ timeout: 1600 });
