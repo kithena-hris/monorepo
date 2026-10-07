@@ -503,7 +503,7 @@ export function FunnelChart({
                 <View
                   className={cn(
                     'h-[26px] rounded-[8px]',
-                    isWorst ? 'bg-danger' : bgTone[stage.tone ?? tone],
+                    isWorst ? 'bg-danger-fg' : bgTone[stage.tone ?? tone],
                   )}
                   style={{
                     width: pct((stage.value / max) * 100 * 0.82),

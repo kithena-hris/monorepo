@@ -5,8 +5,8 @@ import { View } from 'react-native-css/components';
 import { HEADCOUNT, HIRES, MONTHS, byMonth, series } from '../../docs/charts.ts';
 import { designDocs, designNote } from '../../docs/design.ts';
 import { settled } from '../../docs/stage.tsx';
+import { KeyValues } from '../key-values/key-values.tsx';
 import { Stack } from '../layout/layout.tsx';
-import { Text } from '../text/text.tsx';
 import { BarChart } from './bar-chart.tsx';
 import { DonutChart, FunnelChart, HeatmapChart } from './distribution-chart.tsx';
 import { WaterfallChart } from './movement-chart.tsx';
@@ -125,19 +125,7 @@ export const TheAccessibilityContract: Story = {
           height={120}
         />
       </ChartCard>
-      <View>
-        {contract.map(([key, value], i) => (
-          <View
-            key={key}
-            className={`gap-1 py-2.5${i < contract.length - 1 ? ' border-b border-border' : ''}`}
-          >
-            <Text variant="subhead" tone="muted">
-              {key}
-            </Text>
-            <Text variant="subhead">{value}</Text>
-          </View>
-        ))}
-      </View>
+      <KeyValues items={contract.map(([key, value]) => ({ label: key, value }))} />
     </Stack>
   ),
 };

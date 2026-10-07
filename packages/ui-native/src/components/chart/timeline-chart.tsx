@@ -15,7 +15,7 @@ import {
   type IsoDate,
 } from './dates.ts';
 import { ChartFrame, decor, Ink, useWidth, WEB } from './parts.tsx';
-import { bgTone, borderTone, softTone, type ChartTone } from './tones.ts';
+import { bgTone, borderTone, type ChartTone, softTone, solidTone } from './tones.ts';
 
 export interface TimelineEntry {
   id: string;
@@ -429,7 +429,7 @@ export function TimelineChart({
                         item.tentative
                           ? cn('border-[1.5px] bg-transparent', borderTone[tone])
                           : item.emphasis
-                            ? bgTone[tone]
+                            ? solidTone[tone]
                             : softTone[tone].bg,
                         item.clash && 'border-2 border-danger',
                         selected && 'outline-2 outline-offset-2 outline-accent',

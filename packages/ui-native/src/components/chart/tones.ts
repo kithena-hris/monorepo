@@ -61,6 +61,26 @@ export const bgTone: Record<ChartTone, string> = {
   neutral: 'bg-fg-subtle',
 };
 
+/**
+ * A filled bar that carries white text (an emphasised timeline item): the
+ * base status colour, which the tokens already darken for that text, as the
+ * web's timeline does.
+ */
+export const solidTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
+  accent: 'bg-accent',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  info: 'bg-info',
+  neutral: 'bg-fg-subtle',
+};
+
 /** The same colours as `currentColor`, for SVG. */
 export const inkTone: Record<ChartTone, string> = {
   'chart-1': 'text-chart-1',
