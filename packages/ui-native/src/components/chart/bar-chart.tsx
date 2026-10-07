@@ -47,6 +47,8 @@ export interface BarChartProps extends ChartCommonProps {
   height?: number;
   /** Draws a dashed line at this value: a target, a budget, an average. */
   reference?: { value: number; label: string };
+  /** Prints the value above each bar. Drop it when the bars get thin. */
+  showValues?: boolean;
   /** Paints a bar under the reference line in the warning tone. */
   warnBelowReference?: boolean;
   /** Periods from this index on have not happened yet: a quiet placeholder in their slot. */
@@ -82,6 +84,7 @@ export function BarChart({
   tone = 'chart-1',
   height = 160,
   reference,
+  showValues = false,
   warnBelowReference = false,
   futureFrom,
   highlightIndex,
@@ -169,6 +172,16 @@ export function BarChart({
                     style={{ bottom: pct(percent), marginBottom: 8 }}
                   >
                     <ChartReadout>{format(point.value)}</ChartReadout>
+                  </View>
+                ) : showValues && !future ? (
+                  <View
+                    {...decor}
+                    className="absolute -right-6 -left-6 items-center"
+                    style={{ bottom: pct(percent), marginBottom: 4 }}
+                  >
+                    <CssText className="text-[11px] leading-none font-semibold text-fg-muted tabular-nums">
+                      {format(point.value)}
+                    </CssText>
                   </View>
                 ) : null}
               </Pressable>
