@@ -210,24 +210,23 @@ export function TimeOffTimesheet({
           </View>
         </Card>
       )}
-      <List>
+      <Card>
         {sheet.days
           .filter((d) => d.plannedMinutes > 0 || d.segments.length > 0)
-          .map((d) => {
+          .map((d, i, all) => {
             const missing = sheet.open.some((o) => o.date === d.date);
             const overtime = d.overtimeMinutes ?? 0;
+            const live = d.date === today && d.segments.some((s) => s.kind === 'live');
             return (
-              <ListItem
+              <View
                 key={d.date}
-                description={
-                  d.workedMinutes === null
-                    ? missing
-                      ? 'A clock-out is missing'
-                      : '—'
-                    : duration(d.workedMinutes)
-                }
-                trailing={
-                  missing ? (
+                className={`gap-1.5 py-2.5${i < all.length - 1 ? ' border-b border-border' : ''}`}
+              >
+                <View className="min-h-8 flex-row items-center gap-2">
+                  <Text weight="semibold" className="flex-1">
+                    {shortDate(d.date)}
+                  </Text>
+                  {missing ? (
                     <Button
                       size="sm"
                       startIcon={<Icon icon={Sparkles} />}
@@ -237,30 +236,24 @@ export function TimeOffTimesheet({
                     >
                       Fix
                     </Button>
-                  ) : d.date === today && d.segments.some((s) => s.kind === 'live') ? (
+                  ) : live ? (
                     <Badge size="sm" tone="success" dot>
                       Now
                     </Badge>
                   ) : overtime > 0 ? (
                     <Badge size="sm" tone="info">{`+${duration(overtime)}`}</Badge>
-                  ) : undefined
-                }
-              >
-                {shortDate(d.date)}
-              </ListItem>
+                  ) : null}
+                  <Text tone="muted" className="tabular-nums">
+                    {d.workedMinutes === null ? '—' : duration(d.workedMinutes)}
+                  </Text>
+                </View>
+                {d.segments.length === 0
+                  ? null
+                  : bar(shortDate(d.date), d.segments, d.date === today ? now : undefined)}
+              </View>
             );
           })}
-      </List>
-      {sheet.days
-        .filter((d) => d.segments.length > 0)
-        .map((d) => (
-          <View key={d.date} className="gap-1">
-            <Text variant="footnote" tone="muted">
-              {shortDate(d.date)}
-            </Text>
-            {bar(shortDate(d.date), d.segments, d.date === today ? now : undefined)}
-          </View>
-        ))}
+      </Card>
       {sheet.restBreaches.map((r) => (
         <Alert key={r.date} tone="warning" title={`Short rest before ${shortDate(r.date)}`}>
           {`Only ${duration(r.restMinutes)} between the end of one day and the start of the next.`}
