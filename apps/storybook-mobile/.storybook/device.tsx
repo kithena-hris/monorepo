@@ -28,6 +28,13 @@ export const DEVICES = {
  */
 declare const __REACH_PLATFORM__: Platform | undefined;
 
+/**
+ * Under Vitest the gates see each story bare, at the runner's 390 × 844, as
+ * they always have: a phone drawn around it would only add a scroll container
+ * between axe and the story's colours.
+ */
+export const underTest = typeof __REACH_PLATFORM__ !== 'undefined';
+
 /** The platform a story is drawn for: its sidebar section, or the test run's. */
 export function platformOf(title: string): Platform {
   const section = title.split('/')[0];
@@ -103,7 +110,10 @@ export function SystemChrome({
           <Battery ios={ios} />
         </View>
       </View>
-      <div className="reach-device__content">{children}</div>
+      {/* Focusable, so a keyboard can scroll a story taller than the screen. */}
+      <div className="reach-device__content" tabIndex={0}>
+        {children}
+      </div>
       <View
         aria-hidden
         className={`reach-device__chrome reach-device__home pointer-events-none items-center justify-end ${

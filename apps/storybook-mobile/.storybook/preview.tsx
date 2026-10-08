@@ -6,7 +6,7 @@ import { View } from 'react-native-css/components';
 import { GLOBALS_UPDATED, SET_GLOBALS } from 'storybook/internal/core-events';
 import { addons } from 'storybook/preview-api';
 
-import { DEVICES, Device, SystemChrome, platformOf } from './device';
+import { DEVICES, Device, SystemChrome, platformOf, underTest } from './device';
 import { darkDocsTheme, lightDocsTheme } from './manager-theme';
 
 import '@reach/ui-native/global.css';
@@ -85,6 +85,7 @@ const withPhone: Decorator = (Story, context) => {
       {body}
     </ReachProvider>
   );
+  if (underTest) return provider(<View className="flex-1 bg-canvas">{story}</View>);
   if (context.viewMode === 'docs') {
     return provider(
       <View className="bg-canvas" style={{ width: DEVICES[platform].width, maxWidth: '100%' }}>
