@@ -33,6 +33,10 @@ import { Export, ExportRecord } from './people/transfer/export';
 import { Insights } from './people/insights/insights';
 import { ReportHistory, ScheduledReports } from './people/insights/reports';
 import { Activity } from './people/settings/activity';
+import { FieldChange } from './people/settings/field-change';
+import { FieldRegistry } from './people/settings/fields';
+import { Integrations, WebhookLog } from './people/settings/integrations';
+import { Organisation } from './people/settings/organisation';
 import { Roles } from './people/settings/roles';
 import { Settings } from './people/settings/settings';
 import { ImportExport } from './people/transfer/hub';
@@ -88,6 +92,11 @@ function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Eleme
           <Stack_.Screen name="Settings" component={Settings} />
           <Stack_.Screen name="Roles" component={Roles} />
           <Stack_.Screen name="Activity" component={Activity} />
+          <Stack_.Screen name="Integrations" component={Integrations} />
+          <Stack_.Screen name="WebhookLog" component={WebhookLog} />
+          <Stack_.Screen name="Organisation" component={Organisation} />
+          <Stack_.Screen name="FieldRegistry" component={FieldRegistry} />
+          <Stack_.Screen name="FieldChange" component={FieldChange} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
