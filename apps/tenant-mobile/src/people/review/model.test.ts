@@ -91,6 +91,8 @@ describe('newestFirst', () => {
       id,
       kind: 'changes',
       name: id,
+      personId: null,
+      avatarUrl: null,
       summary: '',
       by: null,
       at,

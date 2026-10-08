@@ -19,6 +19,7 @@ export interface ApprovalItem {
   readonly id: string;
   readonly personId: string;
   readonly name: string;
+  readonly avatarUrl?: string | null;
   readonly key: string;
   readonly label: string;
   readonly kind: string;
@@ -80,6 +81,7 @@ export interface ApprovalsState {
 export interface IdItem {
   readonly personId: string;
   readonly name: string;
+  readonly avatarUrl?: string | null;
   readonly attributeKey: string;
   readonly label: string;
   readonly last4: string | null;
@@ -111,6 +113,7 @@ export interface DuplicatePair {
   readonly reasons: readonly string[];
   readonly match: 'strong' | 'likely' | 'possible' | null;
   readonly flaggedBy: string | null;
+  readonly avatarUrls?: readonly (string | null)[];
 }
 
 export interface MergedPair {
@@ -255,6 +258,9 @@ export interface Row {
   readonly id: string;
   readonly kind: Exclude<ReviewKind, 'missing'>;
   readonly name: string;
+  /** Whose face the row shows, where People sent one. */
+  readonly personId: string | null;
+  readonly avatarUrl: string | null;
   readonly summary: string;
   readonly by: string | null;
   readonly at: string | null;
@@ -326,6 +332,8 @@ export const changeRow = (item: ApprovalItem): Row => ({
   id: `change-${item.id}`,
   kind: 'changes',
   name: item.name,
+  personId: item.personId,
+  avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
   by: `Asked by ${item.requestedBy === 'You' ? 'you' : item.requestedBy}`,
   at: item.requestedAt,
@@ -337,6 +345,8 @@ export const idRow = (item: IdItem): Row => ({
   id: `id-${item.personId}~${item.attributeKey}`,
   kind: 'ids',
   name: item.name,
+  personId: item.personId,
+  avatarUrl: item.avatarUrl ?? null,
   summary: `${item.label} · ${item.findings[0]?.message ?? ''}`,
   by:
     item.enteredBy === null
@@ -355,6 +365,8 @@ export const pairRow = (pair: DuplicatePair): Row => ({
   id: `dup-${pairId(pair)}`,
   kind: 'duplicates',
   name: pair.names[0] ?? '',
+  personId: pair.personIds[0] ?? null,
+  avatarUrl: pair.avatarUrls?.[0] ?? null,
   summary: `Possible duplicate of ${pair.names[1] ?? ''} · ${pair.reasons.join(', ')}`,
   by: pair.flaggedBy === null || pair.flaggedBy === '' ? null : `Flagged by ${pair.flaggedBy}`,
   at: null,
@@ -366,6 +378,8 @@ export const accessRow = (r: AccessRequest): Row => ({
   id: `access-${r.id}`,
   kind: 'access',
   name: r.mine ? 'You' : (r.requestedBy ?? 'Somebody'),
+  personId: null,
+  avatarUrl: null,
   summary: `${r.fields.join(', ')} · ${r.reason}`,
   by: null,
   at: r.requestedAt,
@@ -377,6 +391,8 @@ export const shareRow = (share: Share): Row => ({
   id: `export-${share.id}`,
   kind: 'exports',
   name: share.requestedBy.name ?? 'A colleague',
+  personId: null,
+  avatarUrl: null,
   summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${
     share.people === null ? share.reason : peopleCount(share.people)
   }`,

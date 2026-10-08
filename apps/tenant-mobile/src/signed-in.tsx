@@ -1,14 +1,4 @@
-import {
-  Banner,
-  Button,
-  Card,
-  CardDescription,
-  CardTitle,
-  Stack,
-  TabBar,
-  Text,
-  ToastProvider,
-} from '@reach/ui-native';
+import { Banner, Button, TabBar, ToastProvider } from '@reach/ui-native';
 import {
   DarkTheme,
   DefaultTheme,
@@ -16,19 +6,22 @@ import {
   NavigationIndependentTree,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Eye, House, User, Users } from 'lucide-react-native';
-import { useCallback, useMemo, useState } from 'react';
+import { Eye, House, Inbox as InboxIcon, User, Users } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Company, Person } from './account';
 import { greetingFor } from './address';
-import { Page, TAB_ROOM, TabBarHiding } from './frame';
-import { SignedContext, useSigned, type Signed } from './people/api';
+import { TAB_ROOM, TabBarHiding } from './frame';
+import { ask, SignedContext, type Signed } from './people/api';
 import { Directory } from './people/directory';
 import { EditSection } from './people/edit-section';
 import { History } from './people/history';
 import { OrgChart } from './people/org-chart';
+import { PeopleHome as Home } from './people/home';
+import { Inbox } from './people/inbox';
+import { Onboarding } from './people/onboarding';
 import { PeopleHome } from './people/people-home';
 import { Profile } from './people/profile';
 import { ReviewChange } from './people/review/change';
@@ -46,7 +39,7 @@ const fullName = (person: Person): string =>
     ? greetingFor(null, person.workEmail)
     : `${person.name.preferred ?? person.name.given} ${person.name.family}`;
 
-type Tab = 'home' | 'people' | 'me';
+type Tab = 'home' | 'people' | 'inbox' | 'me';
 
 /**
  * A tab's own stack: what was pushed in it stays when another tab is chosen
@@ -60,6 +53,9 @@ function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Eleme
     <NavigationIndependentTree>
       <NavigationContainer theme={dark ? DarkTheme : DefaultTheme}>
         <Stack_.Navigator initialRouteName={initial} screenOptions={{ headerShown: false }}>
+          <Stack_.Screen name="Home" component={Home} />
+          <Stack_.Screen name="Inbox" component={Inbox} />
+          <Stack_.Screen name="Onboarding" component={Onboarding} />
           <Stack_.Screen name="People" component={PeopleHome} />
           <Stack_.Screen name="Directory" component={Directory} />
           <Stack_.Screen name="OrgChart" component={OrgChart} />
@@ -75,35 +71,6 @@ function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Eleme
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
-  );
-}
-
-/** Home: the greeting, and what is to come on the phone. */
-function Dashboard(): React.JSX.Element {
-  const { company, person } = useSigned();
-  return (
-    <Page>
-      <Stack gap={1} className="pt-6">
-        <Text
-          variant="footnote"
-          tone="accent"
-          weight="semibold"
-          className="uppercase tracking-widest"
-        >
-          {company.displayName ?? company.slug}
-        </Text>
-        <Text accessibilityRole="header" variant="large">
-          {`Hi, ${greetingFor(person.name, person.workEmail)}`}
-        </Text>
-      </Stack>
-      <Card>
-        <CardTitle>You are signed in</CardTitle>
-        <CardDescription>
-          Your time off, your team and your requests will appear here as they come to Kithena on the
-          phone. People is in the tab beside this one.
-        </CardDescription>
-      </Card>
-    </Page>
   );
 }
 
@@ -132,6 +99,38 @@ export function SignedIn({
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('home');
   const [ending, setEnding] = useState(false);
+  // The Inbox tab's count: what waits in Review for this person, as the bell counts it.
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    let live = true;
+    const count = (): void => {
+      void ask<Readonly<Record<string, number | null>>>(
+        {
+          company,
+          sessionId,
+          person,
+          signOut: onSignOut,
+          signedOut: onSignedOut,
+          viewAs: onViewAs,
+        },
+        'Waiting',
+      ).then((answer) => {
+        if (!live || !answer.ok) return;
+        setWaiting(
+          ['changes', 'identifiers', 'duplicates', 'accessRequests', 'exports'].reduce(
+            (sum, key) => sum + (answer.data[key] ?? 0),
+            0,
+          ),
+        );
+      });
+    };
+    count();
+    const timer = setInterval(count, 60_000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
   // How many screens up now want the tab bar gone.
   const [hiding, setHiding] = useState(0);
   const hide = useCallback((hidden: boolean) => {
@@ -184,10 +183,13 @@ export function SignedIn({
               </View>
             )}
             <View className="flex-1" style={shown('home')}>
-              <Dashboard />
+              <TabStack initial="Home" />
             </View>
             <View className="flex-1" style={shown('people')}>
               <TabStack initial="People" />
+            </View>
+            <View className="flex-1" style={shown('inbox')}>
+              <TabStack initial="Inbox" />
             </View>
             <View className="flex-1" style={shown('me')}>
               <TabStack initial="Profile" />
@@ -201,11 +203,17 @@ export function SignedIn({
                 items={[
                   { key: 'home', label: 'Home', icon: House },
                   { key: 'people', label: 'People', icon: Users },
+                  {
+                    key: 'inbox',
+                    label: 'Inbox',
+                    icon: InboxIcon,
+                    ...(waiting > 0 ? { badge: waiting } : {}),
+                  },
                   { key: 'me', label: 'Me', icon: User },
                 ]}
                 value={tab}
                 onValueChange={(key) => {
-                  setTab(key === 'people' || key === 'me' ? key : 'home');
+                  setTab(key === 'people' || key === 'inbox' || key === 'me' ? key : 'home');
                 }}
               />
             </View>

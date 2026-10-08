@@ -96,8 +96,13 @@ export function Gauge({
       <View {...decor} className="absolute right-0 bottom-0 left-0 items-center">
         {typeof figure === 'string' || typeof figure === 'number' ? (
           <CssText
-            className="leading-none font-bold text-fg tabular-nums"
-            style={{ fontSize: Math.round(size * 0.16), letterSpacing: -0.03 * size * 0.16 }}
+            className="font-bold text-fg tabular-nums"
+            // In points: a unitless `leading-none` becomes 1pt where the size is inline.
+            style={{
+              fontSize: Math.round(size * 0.16),
+              lineHeight: Math.round(size * 0.16),
+              letterSpacing: -0.03 * size * 0.16,
+            }}
           >
             {figure}
           </CssText>

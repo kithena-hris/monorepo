@@ -1,6 +1,5 @@
 import {
   Alert,
-  Avatar,
   Badge,
   Button,
   Card,
@@ -30,6 +29,7 @@ import { View } from 'react-native';
 import { Failed, Loading, Page } from '../../frame';
 import { useAct } from '../act';
 import { useSigned } from '../api';
+import { PersonAvatar } from '../media';
 import { longDate } from '../display';
 import type { PeopleScreen } from '../routes';
 import { Merges } from './duplicate';
@@ -76,7 +76,9 @@ const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body:
 function QueueRow({ row, now, onPress }: { row: Row; now: number; onPress: () => void }) {
   return (
     <ListItem
-      leading={<Avatar name={row.name} size={40} decorative />}
+      leading={
+        <PersonAvatar personId={row.personId} name={row.name} avatarUrl={row.avatarUrl} size={40} />
+      }
       description={row.summary}
       {...(row.flag === null && row.by === null
         ? {}

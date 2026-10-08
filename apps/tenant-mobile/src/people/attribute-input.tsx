@@ -1,4 +1,5 @@
 import {
+  Button,
   Combobox,
   CurrencyField,
   DatePicker,
@@ -12,14 +13,80 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Stack,
   Switch,
   TagsInput,
+  Text,
   Textarea,
   type InputType,
 } from '@reach/ui-native';
 import { useEffect, useState } from 'react';
 
 import { ask, useSigned, type RecordField, type Value } from './api';
+import { uploadFile } from './media';
+
+/** Types whose value is a file People keeps: uploaded when chosen, its id saved like any value. */
+export const FILE_TYPES = new Set(['document_ref', 'image']);
+
+/** A document or an image for a field: chosen, uploaded at once, its id the field's new value. */
+function FilePicker({
+  field,
+  value,
+  personId,
+  onChange,
+  disabled,
+}: {
+  field: RecordField;
+  value: Value | undefined;
+  personId: string | null;
+  onChange: (value: Value) => void;
+  disabled: boolean;
+}): React.JSX.Element {
+  const signed = useSigned();
+  const [busy, setBusy] = useState(false);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const held = typeof value === 'string' && value !== '';
+  return (
+    <Stack gap={2}>
+      <Text tone={held ? 'default' : 'subtle'}>
+        {chosen ?? (held ? 'A file is kept' : 'No file yet')}
+      </Text>
+      <Button
+        size="sm"
+        disabled={disabled}
+        loading={busy}
+        loadingLabel="Uploading"
+        onPress={() => {
+          setBusy(true);
+          setProblem(null);
+          void uploadFile(
+            signed,
+            personId,
+            field.key,
+            field.dataType === 'image' ? 'image' : 'document',
+          ).then((up) => {
+            setBusy(false);
+            if (up === null) return;
+            if (!up.ok) {
+              setProblem(up.message);
+              return;
+            }
+            setChosen(up.value.name);
+            onChange(up.value.id);
+          });
+        }}
+      >
+        {held || chosen !== null ? 'Replace file' : 'Choose a file'}
+      </Button>
+      {problem === null ? null : (
+        <Text variant="footnote" tone="danger">
+          {problem}
+        </Text>
+      )}
+    </Stack>
+  );
+}
 
 /** Types typed on one line, and the keyboard each wants (the web's `INPUT_TYPE`). */
 const LINE: Partial<Record<string, InputType>> = {
@@ -118,12 +185,25 @@ function Control({
   value,
   onChange,
   disabled,
+  personId,
 }: {
   field: RecordField;
   value: Value | undefined;
   onChange: (value: Value) => void;
   disabled: boolean;
+  personId: string | null;
 }): React.JSX.Element {
+  if (FILE_TYPES.has(field.dataType)) {
+    return (
+      <FilePicker
+        field={field}
+        value={value}
+        personId={personId}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    );
+  }
   switch (field.dataType) {
     case 'date':
       return (
@@ -275,12 +355,15 @@ export function AttributeInput({
   onChange,
   warning,
   problem,
+  personId = null,
 }: {
   field: RecordField;
   value: Value | undefined;
   onChange: (value: Value) => void;
   warning?: string | undefined;
   problem?: string | undefined;
+  /** Whose record, for a file's upload: null is the viewer's own. */
+  personId?: string | null;
 }): React.JSX.Element {
   const kept = field.keptIn === null ? null : `Kept in ${field.keptIn}: change it there.`;
   const owned = field.readOnly
@@ -302,6 +385,7 @@ export function AttributeInput({
         value={value}
         onChange={onChange}
         disabled={field.readOnly || field.keptIn !== null}
+        personId={personId}
       />
       {warning === undefined ? null : <FieldDescription tone="warning">{warning}</FieldDescription>}
       {hint === null ? null : <FieldDescription>{hint}</FieldDescription>}
