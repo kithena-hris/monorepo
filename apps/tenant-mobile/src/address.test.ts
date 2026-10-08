@@ -1,24 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import { companyOrigin, greetingFor } from './address';
+import { asLabel, companyOrigin, greetingFor } from './address';
+
+describe('asLabel', () => {
+  it('keeps only what a company label can hold, in lower case', () => {
+    expect(asLabel('Dunder Mifflin!')).toBe('dundermifflin');
+    expect(asLabel('acme-co.app')).toBe('acme-coapp');
+  });
+});
 
 describe('companyOrigin', () => {
-  it('takes a company name alone as one under app.kithena.com', () => {
+  it('puts the label in front of the fixed suffix', () => {
     expect(companyOrigin('dunder-mifflin')).toBe('https://dunder-mifflin.app.kithena.com');
   });
 
-  it('takes the address as a browser shows it, scheme, path and capitals included', () => {
-    expect(companyOrigin(' Acme.App.Kithena.com ')).toBe('https://acme.app.kithena.com');
-    expect(companyOrigin('https://acme.app.kithena.com/login')).toBe(
-      'https://acme.app.kithena.com',
-    );
-  });
-
-  it('refuses plain HTTP and anything that is not a hostname', () => {
-    expect(companyOrigin('http://acme.app.kithena.com')).toBeNull();
+  it('refuses an empty label and a hyphen at either end', () => {
     expect(companyOrigin('')).toBeNull();
-    expect(companyOrigin('acme corp')).toBeNull();
-    expect(companyOrigin('acme..app.kithena.com')).toBeNull();
+    expect(companyOrigin('-acme')).toBeNull();
+    expect(companyOrigin('acme-')).toBeNull();
   });
 });
 

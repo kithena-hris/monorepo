@@ -29,6 +29,12 @@ export interface Person {
 /** The device's keychain: the session id is a credential. */
 const ORIGIN = 'kithena.origin';
 const SESSION = 'kithena.session';
+/** The address last signed in with, offered again rather than retyped. */
+const EMAIL = 'kithena.email';
+
+export async function lastEmail(): Promise<string> {
+  return (await SecureStore.getItemAsync(EMAIL)) ?? '';
+}
 
 export async function restore(): Promise<{ origin: string | null; sessionId: string | null }> {
   const [origin, sessionId] = await Promise.all([
@@ -40,7 +46,11 @@ export async function restore(): Promise<{ origin: string | null; sessionId: str
 
 /** Forgets the company too, so the address is asked for again. */
 export async function forgetCompany(): Promise<void> {
-  await Promise.all([SecureStore.deleteItemAsync(ORIGIN), SecureStore.deleteItemAsync(SESSION)]);
+  await Promise.all([
+    SecureStore.deleteItemAsync(ORIGIN),
+    SecureStore.deleteItemAsync(SESSION),
+    SecureStore.deleteItemAsync(EMAIL),
+  ]);
 }
 
 /** The company at an address, null when there is none, `unreachable` when nothing answered. */
@@ -69,7 +79,12 @@ export type SignInOutcome =
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'refused' };
 
-export async function signIn(origin: string): Promise<SignInOutcome> {
+/**
+ * Signing in as `workEmail` at `origin`. The address goes in the fragment of
+ * the sign-in page's URL, which the page reads and no server or log ever sees;
+ * the page then starts the passkey prompt as the sheet opens.
+ */
+export async function signIn(origin: string, workEmail: string): Promise<SignInOutcome> {
   // PKCE (S256): the verifier never leaves this function except to the server
   // that sealed the code, over TLS, after the sheet has closed.
   // Two random UUIDs without their dashes: 64 characters, 244 random bits,
@@ -85,7 +100,7 @@ export async function signIn(origin: string): Promise<SignInOutcome> {
   const redirect = Linking.createURL('signed-in');
 
   const sheet = await WebBrowser.openAuthSessionAsync(
-    `${origin}/login?app=${encodeURIComponent(redirect)}&challenge=${challenge}`,
+    `${origin}/login?app=${encodeURIComponent(redirect)}&challenge=${challenge}#email=${encodeURIComponent(workEmail)}`,
     redirect,
     // Nothing of the sheet's is kept: the session is the app's, not Safari's.
     { preferEphemeralSession: true },
@@ -103,7 +118,10 @@ export async function signIn(origin: string): Promise<SignInOutcome> {
   if (response?.ok !== true) return { kind: 'refused' };
 
   const { sessionId, person } = (await response.json()) as { sessionId: string; person: Person };
-  await SecureStore.setItemAsync(SESSION, sessionId);
+  await Promise.all([
+    SecureStore.setItemAsync(SESSION, sessionId),
+    SecureStore.setItemAsync(EMAIL, workEmail),
+  ]);
   return { kind: 'signed-in', sessionId, person };
 }
 

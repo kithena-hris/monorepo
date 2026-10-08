@@ -3,7 +3,7 @@
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Alert, Button, Field, FieldDescription, FieldError, FieldLabel, Input } from '@reach/ui';
 import { useRouter } from 'next/navigation';
-import { useCallback, useState, type JSX } from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 
 import type { AppSignIn } from '../lib/app-sign-in';
 
@@ -50,65 +50,89 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
   // No event parameter, and no `FormEvent`: this React version deprecates that
   // type, and the handler does not need the event — the caller cancels the
   // navigation and this does the work.
-  const signIn = useCallback(async () => {
-    if (!LOOKS_LIKE_EMAIL.test(email.trim())) {
-      setEmailProblem('Enter the work address you were invited with.');
-      return;
-    }
-    setEmailProblem(null);
-    setState({ kind: 'working' });
-
-    try {
-      const begun = await fetch('/api/session/challenge', { method: 'POST' });
-      if (!begun.ok) {
-        setState({ kind: 'refused' });
+  //
+  // `address` and `auto` are for the phone app's sheet, which starts the
+  // prompt itself with the address the app already asked for (below).
+  const signIn = useCallback(
+    async (address: string = email, auto = false) => {
+      if (!LOOKS_LIKE_EMAIL.test(address.trim())) {
+        setEmailProblem('Enter the work address you were invited with.');
         return;
       }
-      const { options } = (await begun.json()) as { options: unknown };
+      setEmailProblem(null);
+      setState({ kind: 'working' });
 
-      // The browser prompt. Everything before this is arrangement; this is the
-      // only moment a human is asked for anything.
-      const assertion = await startAuthentication({ optionsJSON: options as never });
+      try {
+        const begun = await fetch('/api/session/challenge', { method: 'POST' });
+        if (!begun.ok) {
+          setState({ kind: 'refused' });
+          return;
+        }
+        const { options } = (await begun.json()) as { options: unknown };
 
-      const finished = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        // No tenant in the body. The server takes it from the hostname, which
-        // is the only copy of it a client cannot choose. The address is the
-        // one thing the hostname cannot supply.
-        // `app` when the phone app opened this page: the session goes back to
-        // it as a code, and this browser keeps nothing.
-        body: JSON.stringify({ response: assertion, workEmail: email.trim(), app }),
-      });
+        // The browser prompt. Everything before this is arrangement; this is the
+        // only moment a human is asked for anything.
+        const assertion = await startAuthentication({ optionsJSON: options as never });
 
-      if (!finished.ok) {
-        setState({ kind: 'refused' });
-        return;
+        const finished = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          // No tenant in the body. The server takes it from the hostname, which
+          // is the only copy of it a client cannot choose. The address is the
+          // one thing the hostname cannot supply.
+          // `app` when the phone app opened this page: the session goes back to
+          // it as a code, and this browser keeps nothing.
+          body: JSON.stringify({ response: assertion, workEmail: address.trim(), app }),
+        });
+
+        if (!finished.ok) {
+          setState({ kind: 'refused' });
+          return;
+        }
+
+        if (app !== null) {
+          // The app's own address. The sheet the app opened closes on it, so
+          // this page is never seen again; `working` stays until it does.
+          const { redirect } = (await finished.json()) as { redirect: string };
+          window.location.assign(redirect);
+          return;
+        }
+
+        /*
+         * `refresh` before `replace`, and both are needed. The cookie was set by
+         * a route handler, so the router's cached render of `/` predates it and
+         * would paint the signed-out page for a moment. `refresh` discards that;
+         * `replace` keeps this page out of history, so Back from the dashboard
+         * leaves rather than returning here.
+         */
+        router.refresh();
+        router.replace('/');
+      } catch {
+        // A cancelled prompt throws, and so does a refusal. They are the same
+        // outcome here: nothing happened, try again. A prompt the page started
+        // on its own goes quietly back to the button: the browser may simply
+        // have wanted a tap first.
+        setState(auto ? { kind: 'idle' } : { kind: 'refused' });
       }
+    },
+    [app, email, router],
+  );
 
-      if (app !== null) {
-        // The app's own address. The sheet the app opened closes on it, so
-        // this page is never seen again; `working` stays until it does.
-        const { redirect } = (await finished.json()) as { redirect: string };
-        window.location.assign(redirect);
-        return;
-      }
-
-      /*
-       * `refresh` before `replace`, and both are needed. The cookie was set by
-       * a route handler, so the router's cached render of `/` predates it and
-       * would paint the signed-out page for a moment. `refresh` discards that;
-       * `replace` keeps this page out of history, so Back from the dashboard
-       * leaves rather than returning here.
-       */
-      router.refresh();
-      router.replace('/');
-    } catch {
-      // A cancelled prompt throws, and so does a refusal. They are the same
-      // outcome here: nothing happened, try again.
-      setState({ kind: 'refused' });
-    }
-  }, [app, email, router]);
+  /*
+   * The phone app asked for the work address on its own screen and passes it
+   * in the fragment, which never reaches a server or a log. With it, the
+   * prompt starts as the sheet opens, so the sheet is the passkey and little
+   * else. Once: `signIn` changes with every keystroke.
+   */
+  const started = useRef(false);
+  useEffect(() => {
+    if (app === null || started.current) return;
+    started.current = true;
+    const given = new URLSearchParams(window.location.hash.slice(1)).get('email');
+    if (given === null || !LOOKS_LIKE_EMAIL.test(given)) return;
+    setEmail(given);
+    void signIn(given, true);
+  }, [app, signIn]);
 
   const busy = state.kind === 'working';
 
