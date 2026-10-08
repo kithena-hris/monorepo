@@ -18,6 +18,7 @@ import { greetingFor } from './address';
 import { TAB_ROOM, TabBarHiding } from './frame';
 import { ask, SignedContext, type Signed } from './people/api';
 import { AskKithena } from './people/ask';
+import { BulkEdit } from './people/bulk';
 import { Directory } from './people/directory';
 import { EditSection } from './people/edit-section';
 import { History } from './people/history';
@@ -111,6 +112,7 @@ function TabStack({
           <Stack_.Screen name="FieldRegistry" component={FieldRegistry} />
           <Stack_.Screen name="FieldChange" component={FieldChange} />
           <Stack_.Screen name="PeopleSetup" component={PeopleSetup} />
+          <Stack_.Screen name="BulkEdit" component={BulkEdit} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>

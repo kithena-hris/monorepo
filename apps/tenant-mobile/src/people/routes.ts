@@ -46,6 +46,8 @@ export type PeopleRoutes = {
   Export: { sentence?: string } | undefined;
   /** One export: what is in it, who has it, the download. */
   ExportRecord: { id: string };
+  /** The people chosen in the Directory: the same values from a date, or hired (the web's bulk edit). */
+  BulkEdit: { personIds: readonly string[] };
   /** What changed and the charts, a tab at a time (G1–G3). */
   Insights: { tab?: string } | undefined;
   /** HR's scheduled reports (G4). */
