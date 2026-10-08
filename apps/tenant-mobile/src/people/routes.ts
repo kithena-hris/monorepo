@@ -47,6 +47,23 @@ export type PeopleRoutes = {
   /** One export: what is in it, who has it, the download. */
   ExportRecord: { id: string };
   /** The people chosen in the Directory: the same values from a date, or hired (the web's bulk edit). */
+  /** The Time off tab: today's clock, balances, a suggestion, what is coming up (MT1). */
+  TimeOff: undefined;
+  /** Where a balance's days went (MT20). */
+  TimeOffBalance: { leaveTypeKey: string; name: string };
+  /** The holidays where the person works, this year and next (MT21). */
+  TimeOffHolidays: undefined;
+  /** Asking for time off: the type, the dates, the review (MT5–MT9). */
+  TimeOffRequest:
+    { leaveTypeKey?: string; from?: string; to?: string; sentence?: string } | undefined;
+  /** The person's own requests: coming up, past, cancelled. */
+  TimeOffRequests: undefined;
+  /** One request: where it is, what happens next, and changing or cancelling it (MT10). */
+  TimeOffRequestDetail: { requestId: string };
+  /** A sentence, read into choices, and the best dates for it (MT8). */
+  TimeOffDescribe: { sentence?: string } | undefined;
+  /** Parental leave: the person's plan, a step at a time (MT11, MT12). */
+  TimeOffParental: undefined;
   BulkEdit: { personIds: readonly string[] };
   /** What changed and the charts, a tab at a time (G1–G3). */
   Insights: { tab?: string } | undefined;
