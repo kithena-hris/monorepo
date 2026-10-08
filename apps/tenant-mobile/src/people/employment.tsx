@@ -269,7 +269,7 @@ export function MoveDialog({
   const { act, busy } = useAct();
   const [day, setDay] = useState<string | null>(
     kind === 'rehire' && lastPeriod?.lastWorkingDay != null
-      ? ([today, dayAfter(lastPeriod.lastWorkingDay)].toSorted().at(-1) ?? today)
+      ? ([today, dayAfter(lastPeriod.lastWorkingDay)].sort().at(-1) ?? today)
       : today,
   );
   const [reason, setReason] = useState('');
@@ -589,7 +589,7 @@ export function EmploymentPeriods({
         Employment periods
       </Text>
       <List>
-        {periods.toReversed().map((p) => (
+        {[...periods].reverse().map((p) => (
           <ListItem
             key={p.period}
             description={[

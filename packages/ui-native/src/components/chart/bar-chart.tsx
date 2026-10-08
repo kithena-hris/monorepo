@@ -275,7 +275,7 @@ export function HorizontalBarChart({
   menuItems,
   className,
 }: HorizontalBarChartProps): React.JSX.Element {
-  const ordered = sorted ? data.toSorted((a, b) => b.value - a.value) : [...data];
+  const ordered = sorted ? [...data].sort((a, b) => b.value - a.value) : [...data];
   const shown = limit === undefined ? ordered : ordered.slice(0, limit);
   const rest = ordered.length - shown.length;
   const max = Math.max(...shown.map((d) => d.value)) * 1.1 || 1;

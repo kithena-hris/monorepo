@@ -250,7 +250,7 @@ function sortRows<T>(
     }))
     .filter((k): k is { by: (row: T) => string | number; sign: 1 | -1 } => k.by !== undefined);
   if (keys.length === 0) return rows;
-  return rows.toSorted((a, b) => {
+  return [...rows].sort((a, b) => {
     for (const { by, sign } of keys) {
       const x = by(a);
       const y = by(b);

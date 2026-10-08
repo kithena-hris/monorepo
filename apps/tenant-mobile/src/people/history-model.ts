@@ -31,7 +31,7 @@ export function previousOf(
         (c.effectiveFrom < change.effectiveFrom ||
           (c.effectiveFrom === change.effectiveFrom && c.recordedAt < change.recordedAt)),
     )
-    .toSorted(
+    .sort(
       (a, b) =>
         a.effectiveFrom.localeCompare(b.effectiveFrom) || a.recordedAt.localeCompare(b.recordedAt),
     )

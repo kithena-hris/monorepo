@@ -121,6 +121,23 @@ export default tseslint.config(
     },
   },
   {
+    // Code that runs on Hermes, React Native's engine, on a phone. Hermes has
+    // no ES2023 copying array methods: `toSorted` threw "undefined is not a
+    // function" in Review on an iPhone, and Reach's charts, table and
+    // scheduler used them too. Storybook runs in a browser, which has them,
+    // so nothing short of a device showed it. Copy, then sort or reverse.
+    files: ['packages/ui-native/src/**', 'apps/tenant-mobile/**', 'apps/mobile/**'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        ...['toSorted', 'toReversed', 'toSpliced'].map((property) => ({
+          property,
+          message: `Hermes has no Array.prototype.${property}: copy, then sort, reverse or splice.`,
+        })),
+      ],
+    },
+  },
+  {
     // Stories are documentation. Their render functions are not a module
     // boundary anyone imports across, and the fixture data they carry is
     // deliberately literal.

@@ -166,7 +166,7 @@ function ticksOf(
 function stack(items: readonly TimelineEntry[]): Map<string, number> {
   const ends: number[] = [];
   const out = new Map<string, number>();
-  for (const item of [...items].toSorted((a, b) => dayNumber(a.start) - dayNumber(b.start))) {
+  for (const item of [...items].sort((a, b) => dayNumber(a.start) - dayNumber(b.start))) {
     const s = dayNumber(item.start);
     const e = dayNumber(item.end ?? item.start);
     let line = ends.findIndex((end) => end < s);

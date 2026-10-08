@@ -15,6 +15,18 @@ export type PeopleRoutes = {
   EditSection: { personId?: string; sectionKey: string; back: string };
   /** A record's changes, newest first, and the record as of a date. */
   History: { personId?: string; back: string };
+  /** Every decision and missing detail, in one queue (design E1). */
+  Review: { kind?: string } | undefined;
+  /** One change to decide, answer or withdraw (E2, E6). */
+  ReviewChange: { id: string };
+  /** One identifier the checks doubt (E3). */
+  ReviewId: { personId: string; attributeKey: string };
+  /** Two records that may be one person (E4). */
+  ReviewDuplicate: { a: string; b: string };
+  /** A request for full values (E7). */
+  ReviewAccess: { id: string };
+  /** A request to send an export to somebody who cannot see all of it. */
+  ReviewShare: { id: string };
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;

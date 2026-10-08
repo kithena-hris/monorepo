@@ -225,7 +225,7 @@ export function StackedAreaChart({
                 ...upper.map(
                   (v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`,
                 ),
-                ...lower.map((v, i) => `L${x(i).toFixed(1)},${y(v).toFixed(1)}`).toReversed(),
+                ...lower.map((v, i) => `L${x(i).toFixed(1)},${y(v).toFixed(1)}`).reverse(),
                 'Z',
               ].join(' ');
               return (

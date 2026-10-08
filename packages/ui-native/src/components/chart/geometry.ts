@@ -39,7 +39,7 @@ export function squarify(values: readonly number[], box: Rect): Rect[] {
   const order = values
     .map((value, index) => ({ index, area: Math.max(value, 0) * scale }))
     .filter((entry) => entry.area > 0)
-    .toSorted((a, b) => b.area - a.area);
+    .sort((a, b) => b.area - a.area);
 
   let space: Rect = { ...box };
   let row: typeof order = [];

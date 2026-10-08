@@ -127,7 +127,7 @@ export function formatMinutes(minutes: Minutes): string {
 export function layoutLanes(
   events: readonly SchedulerEvent[],
 ): Map<string, { lane: number; lanes: number }> {
-  const sorted = events.toSorted((a, b) => a.start - b.start || b.end - a.end);
+  const sorted = [...events].sort((a, b) => a.start - b.start || b.end - a.end);
   const out = new Map<string, { lane: number; lanes: number }>();
   let group: SchedulerEvent[] = [];
   let groupEnd = -1;
@@ -394,7 +394,7 @@ function Agenda({
       {columns.map((c) => {
         const day = events
           .filter((e) => e.column === c.id)
-          .toSorted(
+          .sort(
             (a, b) => Number(b.allDay ?? false) - Number(a.allDay ?? false) || a.start - b.start,
           );
         if (day.length === 0) return null;
