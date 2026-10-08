@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { appSignIn, bindCode } from '../../../lib/app-sign-in';
 import { ceremonyOrigin } from '../../../lib/ceremony-origin';
-import { SESSION_COOKIE } from '../../../lib/session';
+import { revokeSession, SESSION_COOKIE } from '../../../lib/session';
 
 /**
  * Turning a completed passkey assertion into a session on this origin.
@@ -91,7 +91,7 @@ export async function POST(request: Request): Promise<Response> {
 
   /*
    * The phone app's sign-in (`lib/app-sign-in.ts`): the session goes to the
-   * app as identity's one-time code, bound to the app's challenge, and no
+   * app as identity's one-time code, sealed to the app's challenge, and no
    * cookie is set — the sheet this page runs in is not where the app lives.
    */
   const asked: unknown = Reflect.get(body, 'app');
@@ -115,7 +115,11 @@ export async function POST(request: Request): Promise<Response> {
       },
     ).catch(() => null);
     const code: unknown = issued?.ok === true ? Reflect.get(await issued.json(), 'code') : null;
-    if (typeof code !== 'string') return NextResponse.json({ ok: false }, { status: 401 });
+    if (typeof code !== 'string') {
+      // Nobody will ever hold this session: give the device slot back.
+      await revokeSession(session.sessionId, tenantId);
+      return NextResponse.json({ ok: false }, { status: 401 });
+    }
 
     const to = new URL(app.redirect);
     to.searchParams.set(
