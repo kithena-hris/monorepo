@@ -258,6 +258,33 @@ export async function timeOff<T>(
   return ask<T>('timeoff', name, variables);
 }
 
+/**
+ * The phone app's way in (`/api/mobile/people`): the same operations, the same
+ * router and the same five-minute token, for a session its bearer names rather
+ * than a cookie. The caller has already found the session is somebody
+ * (`personFor`); a token identity will not mint is a sign-in again here too.
+ *
+ * Only an operation this file already lists can be asked for: the router's
+ * safelist is these bodies, so a name outside them has nothing to send.
+ */
+export async function peopleFor(
+  sessionId: string,
+  tenantId: string,
+  area: keyof typeof AREAS,
+  name: string,
+  variables: Record<string, unknown>,
+): Promise<PeopleAnswer<unknown>> {
+  const body = Object.hasOwn(AREAS[area].operations, name)
+    ? AREAS[area].operations[name]
+    : undefined;
+  if (body === undefined) {
+    return { ok: false, code: 'UNKNOWN_OPERATION', message: `No operation ${name}` };
+  }
+  const token = await mint(keyOf(sessionId, tenantId), sessionId, tenantId);
+  if (token === null) return signedOut;
+  return call(area, name, variables, token, body.trimStart().startsWith('mutation'));
+}
+
 function ask<T>(
   area: keyof typeof AREAS,
   name: string,

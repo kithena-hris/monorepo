@@ -5,6 +5,8 @@
  * arithmetic is done on UTC dates, which never shift.
  */
 
+import { dateOrder } from '../../lib/intl-parts.ts';
+
 export type IsoDate = string;
 
 export type DateRange = { start: IsoDate | null; end: IsoDate | null };
@@ -108,10 +110,7 @@ export function parseDate(text: string, locale?: string): IsoDate | null {
 
   const numeric = /^(\d{1,4})[./\-\s](\d{1,2})[./\-\s](\d{1,4})$/.exec(input);
   if (numeric) {
-    const order = new Intl.DateTimeFormat(locale, { timeZone: 'UTC' })
-      .formatToParts(new Date(Date.UTC(2026, 10, 22)))
-      .map((p) => p.type)
-      .filter((t) => t === 'day' || t === 'month' || t === 'year');
+    const order = dateOrder(locale);
     const parts = [numeric[1], numeric[2], numeric[3]].map(String);
     const get = (type: string): string => parts[order.indexOf(type as 'day')] ?? '';
     const yearText = get('year');

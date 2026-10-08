@@ -3,8 +3,10 @@
  * device. `null` is empty, which is a different fact from zero.
  */
 
+import { numberParts } from '../../lib/intl-parts.ts';
+
 function separators(locale: string | undefined): { group: string; decimal: string } {
-  const parts = new Intl.NumberFormat(locale).formatToParts(12345.6);
+  const parts = numberParts(new Intl.NumberFormat(locale), 12345.6);
   return {
     group: parts.find((p) => p.type === 'group')?.value ?? ',',
     decimal: parts.find((p) => p.type === 'decimal')?.value ?? '.',
