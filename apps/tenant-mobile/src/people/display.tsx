@@ -1,4 +1,4 @@
-import { Money, Text } from '@reach/ui-native';
+import { cn, Money, Text } from '@reach/ui-native';
 
 import { isEmpty, type RecordField, type Value } from './api';
 
@@ -15,34 +15,50 @@ export const longDate = (iso: string): string => date.format(Date.parse(`${iso}T
 export function DisplayValue({
   field,
   value,
+  className,
 }: {
   field: RecordField;
   value: Value | undefined;
+  /** Placement and emphasis from where it is drawn: struck through, in a history. */
+  className?: string | undefined;
 }): React.JSX.Element {
   if (value === undefined || isEmpty(value)) {
-    return <Text tone="subtle">Not provided yet</Text>;
+    return (
+      <Text tone="subtle" className={className}>
+        Not provided yet
+      </Text>
+    );
   }
-  if (typeof value === 'boolean') return <Text weight="medium">{value ? 'Yes' : 'No'}</Text>;
+  if (typeof value === 'boolean')
+    return (
+      <Text weight="medium" className={className}>
+        {value ? 'Yes' : 'No'}
+      </Text>
+    );
   if (typeof value === 'string') {
     const option = field.options.find((o) => o.value === value);
     const shown =
       option?.label ??
       (field.dataType === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? longDate(value) : value);
-    return <Text weight="medium">{shown}</Text>;
+    return (
+      <Text weight="medium" className={className}>
+        {shown}
+      </Text>
+    );
   }
   if (value !== null && 'amountMinor' in value) {
-    return <Money minorUnits={value.amountMinor} currency={value.currency} />;
+    return <Money minorUnits={value.amountMinor} currency={value.currency} className={className} />;
   }
   if (value !== null && 'last4' in value) {
     // Masked as People sent it: the plaintext is not here to show.
     return (
-      <Text weight="medium" className="font-mono tracking-widest">
+      <Text weight="medium" className={cn('font-mono tracking-widest', className)}>
         {value.last4 === null ? '••••' : `•••• ${value.last4}`}
       </Text>
     );
   }
   return (
-    <Text weight="medium">
+    <Text weight="medium" className={className}>
       {(value as readonly string[])
         .map((v) => field.options.find((o) => o.value === v)?.label ?? v)
         .join(', ')}

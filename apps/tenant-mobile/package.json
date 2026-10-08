@@ -8,7 +8,8 @@
     "export": "expo export --platform ios --platform android --output-dir dist",
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage": "node scripts/coverage.mjs"
   },
   "dependencies": {
     "@10play/tentap-editor": "1.0.1",

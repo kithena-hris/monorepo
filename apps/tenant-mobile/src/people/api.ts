@@ -17,6 +17,8 @@ export interface Signed {
   readonly signedOut: () => void;
   /** Signing out on purpose: ends the session in identity, then here. */
   readonly signOut: () => Promise<void>;
+  /** Viewing the app as somebody, saying why: null once it has started, else People's refusal. */
+  readonly viewAs: (personId: string, reason: string) => Promise<string | null>;
 }
 
 export const SignedContext = createContext<Signed | null>(null);
@@ -162,4 +164,36 @@ export function isEmpty(value: Value | undefined): boolean {
   if (typeof value === 'string') return value.trim() === '';
   if (Array.isArray(value)) return value.length === 0;
   return false;
+}
+
+/** What a save's checks warned about (PEO-125): per field, never the value. */
+export interface Finding {
+  readonly key: string;
+  readonly label: string;
+  readonly level: string;
+  readonly code: string;
+  readonly message: string;
+}
+
+/**
+ * A form's changed values as People's `FormValueInput`s: one slot each, null
+ * clears. The web's `formInputs` (`apps/web/.../people/actions.ts`): a sealed
+ * value's last four is what was shown, not something to write back.
+ */
+export function formInputs(changed: Readonly<Record<string, Value>>): Record<string, unknown>[] {
+  return Object.entries(changed).flatMap(([key, value]): Record<string, unknown>[] => {
+    if (value === null) return [{ key, clear: true }];
+    if (typeof value === 'string') return [{ key, text: value }];
+    if (typeof value === 'boolean') return [{ key, flag: value }];
+    if (Array.isArray(value)) return [{ key, items: value.map(String) }];
+    if (typeof value === 'object' && 'amountMinor' in value) {
+      return [{ key, money: { amountMinor: value.amountMinor, currency: value.currency } }];
+    }
+    return [];
+  });
+}
+
+/** Two values the same, as a form compares them: lists and money by content. */
+export function sameValue(a: Value | undefined, b: Value | undefined): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
