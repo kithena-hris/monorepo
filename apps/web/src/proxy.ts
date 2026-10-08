@@ -24,11 +24,12 @@ const HOST_SUFFIX = process.env['TENANT_HOST_SUFFIX'] ?? '';
  * explains a sign-in which did not finish, and sign-out — which has to work
  * *because* it is how a stale cookie gets cleared. And a wall kiosk
  * (`/kiosk/<id>` and its service worker), which has no session at all: it
- * presents its own device token, which Time Off checks. Anything else
- * redirects.
+ * presents its own device token, which Time Off checks. And the phone app's
+ * `/api/mobile/*`, which carries a bearer rather than a cookie and checks it
+ * itself. Anything else redirects.
  */
 const PUBLIC_PATH =
-  /^\/(login|recover|signed-out|auth\/|api\/(session|recover)|kiosk\/|kiosk-sw\.js$)/;
+  /^\/(login|recover|signed-out|auth\/|api\/(session|recover|mobile\/)|kiosk\/|kiosk-sw\.js$)/;
 
 /**
  * Resolved tenants, briefly.

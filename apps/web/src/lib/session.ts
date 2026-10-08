@@ -56,6 +56,14 @@ export const currentPerson = cache(async (): Promise<SignedIn | null> => {
   const tenantId = (await headers()).get('x-tenant-id');
   if (tenantId === null || tenantId === '') return null;
 
+  return personFor(sessionId, tenantId);
+});
+
+/**
+ * Who a session belongs to, at a company, by its id: the cookie's on the web,
+ * the phone app's bearer on `/api/mobile/session`. Fails closed, the same way.
+ */
+export async function personFor(sessionId: string, tenantId: string): Promise<SignedIn | null> {
   try {
     const response = await timed(
       'identity.session',
@@ -116,7 +124,24 @@ export const currentPerson = cache(async (): Promise<SignedIn | null> => {
   } catch {
     return null;
   }
-});
+}
+
+/**
+ * Ending a session in identity, which ends it everywhere. Never throws: whoever
+ * asked to sign out is signed out on their device whatever identity says, and
+ * the row lapses on its own lifetime if this did not reach it.
+ */
+export async function revokeSession(sessionId: string, tenantId: string): Promise<void> {
+  await fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/revoke`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '',
+    },
+    body: JSON.stringify({ sessionId, tenantId }),
+    cache: 'no-store',
+  }).catch(() => null);
+}
 
 function viewingOf(value: unknown): SignedIn['viewing'] {
   if (value === null || typeof value !== 'object') return null;

@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Kithena",
+    "slug": "kithena",
+    "scheme": "kithena",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.kithena.app"
+    },
+    "android": {
+      "package": "com.kithena.app"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-secure-store"
+    ]
+  }
+}

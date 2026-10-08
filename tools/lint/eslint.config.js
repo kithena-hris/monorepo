@@ -89,6 +89,10 @@ export default tseslint.config(
             // cannot, because its `rootDir` is `src` and these sit beside it.
             'packages/db-kit/vitest.*.ts',
           ],
+          // Every match is a one-screen config file, so the default project
+          // stays cheap; the default cap of 8 was reached by the second Expo
+          // app's `postcss.config.mjs`, not by anything slow.
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 16,
         },
         tsconfigRootDir: repoRoot,
       },

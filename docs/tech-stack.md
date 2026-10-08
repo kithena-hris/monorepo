@@ -4,6 +4,16 @@ Why each piece of the stack is the piece it is. `CLAUDE.md` carries the
 decisions in a line each; this is the reasoning behind them, written as each
 decision is taken.
 
+## Kithena on a phone
+
+The tenant app is `apps/tenant-mobile`: Expo SDK 57, built from Reach Mobile,
+for the people at a company. `apps/mobile` stays Reach's gallery, because
+Reach never learns Kithena exists. The app talks to the same tenant host the
+web does, through `/api/mobile/*`, and signs in on the company's own web sign-in
+page in the system's authentication sheet rather than with a native passkey
+prompt, which is what lets it run in Expo Go. `docs/authentication.md` ("The
+phone app signs in on the same page") has the reasoning.
+
 ## Reach on a phone
 
 Reach Mobile is `@reach/ui-native` (`packages/ui-native`), documented in

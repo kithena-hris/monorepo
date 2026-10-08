@@ -4,6 +4,7 @@ import type { JSX } from 'react';
 
 import { CompanyPanel } from '../../components/company-panel';
 import { PasskeySignIn } from '../../components/passkey-sign-in';
+import { appSignIn } from '../../lib/app-sign-in';
 import { currentTenant } from '../../lib/branding';
 import { currentPerson } from '../../lib/session';
 
@@ -19,15 +20,27 @@ import { currentPerson } from '../../lib/session';
  * The theme is applied by the root layout, which puts the company's brand ramp
  * on `<html>` — the only element `brandRamp` works from.
  */
-export default async function Login(): Promise<JSX.Element> {
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<JSX.Element> {
   const tenant = await currentTenant();
   // `proxy.ts` 404s an unresolvable hostname before anything renders, so this
   // is only reachable when a tenant exists.
   if (tenant === null) redirect('/');
 
+  // Opened by the phone app (`lib/app-sign-in.ts`): the session it ends with
+  // goes to the app, not to this browser, so a session here is no reason to
+  // leave. Anything malformed is an ordinary visit.
+  const query = await searchParams;
+  const one = (key: string): string | undefined =>
+    typeof query[key] === 'string' ? query[key] : undefined;
+  const app = appSignIn(one('app'), one('challenge'));
+
   // Somebody already signed in has no business here, and leaving them on it
   // invites a second prompt that replaces a working session.
-  if ((await currentPerson()) !== null) redirect('/');
+  if (app === null && (await currentPerson()) !== null) redirect('/');
 
   return (
     <div className="@container">
@@ -71,7 +84,7 @@ export default async function Login(): Promise<JSX.Element> {
             />
           </div>
 
-          <PasskeySignIn />
+          <PasskeySignIn app={app} />
         </main>
       </div>
     </div>

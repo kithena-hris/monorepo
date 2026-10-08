@@ -1,8 +1,9 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+import { appSignIn, bindCode } from '../../../lib/app-sign-in';
 import { ceremonyOrigin } from '../../../lib/ceremony-origin';
-import { SESSION_COOKIE } from '../../../lib/session';
+import { revokeSession, SESSION_COOKIE } from '../../../lib/session';
 
 /**
  * Turning a completed passkey assertion into a session on this origin.
@@ -86,6 +87,49 @@ export async function POST(request: Request): Promise<Response> {
   const session = (await verified.json()) as { sessionId?: unknown; expiresAt?: unknown };
   if (typeof session.sessionId !== 'string' || session.sessionId === '') {
     return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
+  /*
+   * The phone app's sign-in (`lib/app-sign-in.ts`): the session goes to the
+   * app as identity's one-time code, sealed to the app's challenge, and no
+   * cookie is set — the sheet this page runs in is not where the app lives.
+   */
+  const asked: unknown = Reflect.get(body, 'app');
+  const ask = (key: string): string | undefined => {
+    const value: unknown =
+      asked !== null && typeof asked === 'object' ? Reflect.get(asked, key) : undefined;
+    return typeof value === 'string' ? value : undefined;
+  };
+  const app = appSignIn(ask('redirect'), ask('challenge'));
+  if (app !== null) {
+    const issued = await fetch(
+      `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/handoff/issue`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '',
+        },
+        body: JSON.stringify({ tenantId, sessionId: session.sessionId }),
+        cache: 'no-store',
+      },
+    ).catch(() => null);
+    const code: unknown = issued?.ok === true ? Reflect.get(await issued.json(), 'code') : null;
+    if (typeof code !== 'string') {
+      // Nobody will ever hold this session: give the device slot back.
+      await revokeSession(session.sessionId, tenantId);
+      return NextResponse.json({ ok: false }, { status: 401 });
+    }
+
+    const to = new URL(app.redirect);
+    to.searchParams.set(
+      'code',
+      bindCode(code, app.challenge, process.env['INTERNAL_API_TOKEN'] ?? ''),
+    );
+    return NextResponse.json(
+      { redirect: to.toString() },
+      { headers: { 'cache-control': 'no-store' } },
+    );
   }
 
   const landed = NextResponse.json({ ok: true });

@@ -583,6 +583,44 @@ Render the shell, fetch the challenge with a POST on button press. The page stay
 cacheable per tenant, the challenge stays fresh, and the first paint is fast on
 the low-end hardware this has to work on.
 
+### The phone app signs in on the same page
+
+`apps/tenant-mobile` (Expo, iOS and Android) asks for the company's address
+first, because on a phone there is no address bar to say which company. It
+then opens that company's own `/login` in the system's authentication sheet
+(ASWebAuthenticationSession on iOS, a Custom Tab on Android), and the passkey
+ceremony runs there, on the tenant origin, exactly as it does in a browser.
+
+**Why the web page and not a native passkey prompt.** A native prompt makes the
+app the client, and the platform then wants proof the app may use
+`app.kithena.com`: an `apple-app-site-association` naming a paid Apple team, an
+`assetlinks.json` naming a signing key, and identity accepting
+`android:apk-key-hash:` origins beside the web ones. None of that works in Expo
+Go, and all of it is a second set of origins to keep correct. The sheet changes
+nothing about the relying party: same origin, same RP ID, same checks.
+
+**What changes is the ending.** `/login?app=<redirect>&challenge=<c>` sets no
+cookie; the sheet's cookie jar is not the app's. `/api/session` asks identity
+for a handoff code instead and sends the sheet to the app's redirect with it.
+Only `kithena://` and Expo Go's `exp://` are accepted as redirects, never
+`http(s)`.
+
+**The code is sealed, PKCE style (RFC 7636, S256).** A custom scheme belongs
+to nobody, and on Android a second app can register it and catch the redirect.
+So the redirect carries identity's code encrypted with AES-256-GCM, the app's
+challenge as associated data: it opens only for the app holding the verifier,
+and it is never identity's raw code, which `/auth/callback` would otherwise
+redeem in a browser. `apps/web/src/lib/app-sign-in.ts` holds both halves.
+
+**After that the app holds the session id**, in the device keychain, and
+presents it as a bearer to `/api/mobile/session` on the company's host: `GET`
+says who it is, `DELETE` ends it in identity. The session is an ordinary row,
+one of the person's four device slots, and is revoked like any other.
+
+Recovery is the web's: "Set up a new passkey" opens `/recover` in an in-app
+browser, and the emailed link enrols on the auth origin. A passkey made there
+is in the phone's keychain and the app's sign-in offers it.
+
 ---
 
 ## Accounts are commissioned, never registered
