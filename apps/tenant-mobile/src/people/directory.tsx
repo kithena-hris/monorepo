@@ -1,21 +1,25 @@
 import {
   Avatar,
   Badge,
+  Button,
   ChipGroup,
   ChipGroupItem,
   EmptyState,
+  Icon,
   ListItem,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
   VirtualList,
 } from '@reach/ui-native';
-import { SearchX } from 'lucide-react-native';
+import { SearchX, UserPlus } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
+import { AddPersonDialog } from './add-person';
 import { ask, useSigned } from './api';
+import { useRoles } from './roles';
 import type { PeopleScreen } from './routes';
 
 /** One page of `peopleDirectory`, as much of it as the phone draws. */
@@ -88,6 +92,8 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
   const [failed, setFailed] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const [height, setHeight] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const { hr } = useRoles();
   // Answers to an older search or view are dropped, not drawn over a newer one.
   const asked = useRef(0);
 
@@ -143,7 +149,33 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
   const statuses = page?.fields?.some((f) => f.key === 'status') ?? true;
 
   return (
-    <Page title="Directory" back={{ label: 'People', onPress: navigation.goBack }} scroll={false}>
+    <Page
+      title="Directory"
+      back={{ label: 'People', onPress: navigation.goBack }}
+      scroll={false}
+      // Add person is the icon at the top right, for HR (design C1).
+      {...(hr
+        ? {
+            trailing: (
+              <Button
+                size="sm"
+                startIcon={<Icon icon={UserPlus} />}
+                accessibilityLabel="Add a person"
+                onPress={() => {
+                  setAdding(true);
+                }}
+              />
+            ),
+          }
+        : {})}
+    >
+      <AddPersonDialog
+        open={adding}
+        onOpenChange={setAdding}
+        onAdded={(personId, name) => {
+          navigation.navigate('Profile', { personId, name, back: 'Directory' });
+        }}
+      />
       <SegmentedControl
         value="list"
         fullWidth

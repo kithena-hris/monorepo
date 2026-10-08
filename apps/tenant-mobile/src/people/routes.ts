@@ -11,6 +11,10 @@ export type PeopleRoutes = {
   OrgChart: undefined;
   /** `personId` absent: the viewer's own record. `back` is what the bar's back says. */
   Profile: { personId?: string; name?: string; back?: string } | undefined;
+  /** One section of a record, editable: `personId` absent is the viewer's own. */
+  EditSection: { personId?: string; sectionKey: string; back: string };
+  /** A record's changes, newest first, and the record as of a date. */
+  History: { personId?: string; back: string };
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;

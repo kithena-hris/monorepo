@@ -7,6 +7,8 @@ import {
   companyAt,
   forgetCompany,
   forgetSession,
+  endViewing,
+  startViewing,
   lastEmail,
   openRecovery,
   restore,
@@ -58,7 +60,14 @@ async function resumed(): Promise<Place> {
 
   const person = await whoAmI(company.origin, saved.sessionId);
   if (person === 'unreachable') return { kind: 'unreachable', origin: company.origin };
-  if (person === 'signed-out') return signingIn(company);
+  if (person === 'signed-out') {
+    // A view that lapsed while the app was closed: the administrator's own session, if any.
+    await forgetSession();
+    const own = (await restore()).sessionId;
+    const back = own === null ? 'signed-out' : await whoAmI(company.origin, own);
+    if (own === null || typeof back === 'string') return signingIn(company);
+    return { kind: 'signed-in', company, sessionId: own, person: back };
+  }
   return { kind: 'signed-in', company, sessionId: saved.sessionId, person };
 }
 
@@ -128,9 +137,23 @@ export default function App(): React.JSX.Element {
             setPlace(await signingIn(place.company));
           }}
           onSignedOut={() => {
-            void forgetSession()
-              .then(() => signingIn(place.company))
-              .then(setPlace);
+            // A lapsed view puts the administrator's own session back; resume finds it.
+            void forgetSession().then(resume);
+          }}
+          onViewAs={async (personId, reason) => {
+            const started = await startViewing(
+              place.company.origin,
+              place.sessionId,
+              personId,
+              reason,
+            );
+            if (!started.ok) return started.message;
+            setPlace({ ...place, sessionId: started.sessionId, person: started.person });
+            return null;
+          }}
+          onEndViewing={async () => {
+            await endViewing(place.company.origin, place.sessionId);
+            await resume();
           }}
         />
       ) : (
