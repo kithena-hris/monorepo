@@ -8,7 +8,7 @@ import { ask, useSigned } from './api';
  * People's own words, its success in the words the caller gives. `busy` is
  * which one is running, so only its button spins.
  */
-export function useAct(): {
+export function useAct(area: 'people' | 'timeoff' = 'people'): {
   act: <T>(
     operation: string,
     variables: Record<string, unknown>,
@@ -26,7 +26,7 @@ export function useAct(): {
       done?: string | ((data: T) => string | null),
     ): Promise<T | null> => {
       setBusy(operation);
-      const answer = await ask<T>(signed, operation, variables);
+      const answer = await ask<T>(signed, operation, variables, area);
       setBusy(null);
       if (!answer.ok) {
         toast({ title: 'That did not work', description: answer.message, tone: 'danger' });
@@ -36,7 +36,7 @@ export function useAct(): {
       if (said !== undefined && said !== null) toast({ title: said, tone: 'success' });
       return answer.data;
     },
-    [signed, toast],
+    [signed, toast, area],
   );
   return { act, busy };
 }

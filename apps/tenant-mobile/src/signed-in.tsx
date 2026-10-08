@@ -8,7 +8,7 @@ import {
   type NavigationContainerRefWithCurrent,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Eye, House, Inbox as InboxIcon, User, Users } from 'lucide-react-native';
+import { CalendarDays, Eye, House, Inbox as InboxIcon, User, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,6 +44,12 @@ import { Integrations, WebhookLog } from './people/settings/integrations';
 import { Organisation } from './people/settings/organisation';
 import { Roles } from './people/settings/roles';
 import { Settings } from './people/settings/settings';
+import { TimeOffBalance } from './timeoff/balance';
+import { TimeOffHolidays } from './timeoff/holidays';
+import { TimeOffDescribe } from './timeoff/describe';
+import { TimeOffRequest } from './timeoff/request';
+import { TimeOffRequestDetail, TimeOffRequests } from './timeoff/requests';
+import { TimeOffHome } from './timeoff/today';
 import { ImportExport } from './people/transfer/hub';
 import { Import } from './people/transfer/import';
 import { ImportRun } from './people/transfer/run';
@@ -57,7 +63,7 @@ const fullName = (person: Person): string =>
     ? greetingFor(null, person.workEmail)
     : `${person.name.preferred ?? person.name.given} ${person.name.family}`;
 
-type Tab = 'home' | 'people' | 'inbox' | 'me';
+type Tab = 'home' | 'timeoff' | 'people' | 'inbox' | 'me';
 
 /**
  * A tab's own stack: what was pushed in it stays when another tab is chosen
@@ -113,6 +119,13 @@ function TabStack({
           <Stack_.Screen name="FieldChange" component={FieldChange} />
           <Stack_.Screen name="PeopleSetup" component={PeopleSetup} />
           <Stack_.Screen name="BulkEdit" component={BulkEdit} />
+          <Stack_.Screen name="TimeOff" component={TimeOffHome} />
+          <Stack_.Screen name="TimeOffBalance" component={TimeOffBalance} />
+          <Stack_.Screen name="TimeOffHolidays" component={TimeOffHolidays} />
+          <Stack_.Screen name="TimeOffRequest" component={TimeOffRequest} />
+          <Stack_.Screen name="TimeOffRequests" component={TimeOffRequests} />
+          <Stack_.Screen name="TimeOffRequestDetail" component={TimeOffRequestDetail} />
+          <Stack_.Screen name="TimeOffDescribe" component={TimeOffDescribe} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
@@ -178,6 +191,18 @@ export function SignedIn({
       clearInterval(timer);
     };
   }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
+  // The Time off tab, for a company that has Time Off: its viewer read answers.
+  const [timeOff, setTimeOff] = useState(false);
+  useEffect(() => {
+    void ask(
+      { company, sessionId, person, signOut: onSignOut, signedOut: onSignedOut, viewAs: onViewAs },
+      'TimeOffViewer',
+      {},
+      'timeoff',
+    ).then((answer) => {
+      setTimeOff(answer.ok);
+    });
+  }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
   // How many screens up now want the tab bar gone.
   const [hiding, setHiding] = useState(0);
   const hide = useCallback((hidden: boolean) => {
@@ -232,6 +257,11 @@ export function SignedIn({
             <View className="flex-1" style={shown('home')}>
               <TabStack initial="Home" />
             </View>
+            {timeOff ? (
+              <View className="flex-1" style={shown('timeoff')}>
+                <TabStack initial="TimeOff" />
+              </View>
+            ) : null}
             <View className="flex-1" style={shown('people')}>
               <TabStack initial="People" container={people} />
             </View>
@@ -249,6 +279,7 @@ export function SignedIn({
                 label="Kithena"
                 items={[
                   { key: 'home', label: 'Home', icon: House },
+                  ...(timeOff ? [{ key: 'timeoff', label: 'Time off', icon: CalendarDays }] : []),
                   { key: 'people', label: 'People', icon: Users },
                   {
                     key: 'inbox',
@@ -260,7 +291,11 @@ export function SignedIn({
                 ]}
                 value={tab}
                 onValueChange={(key) => {
-                  setTab(key === 'people' || key === 'inbox' || key === 'me' ? key : 'home');
+                  setTab(
+                    key === 'timeoff' || key === 'people' || key === 'inbox' || key === 'me'
+                      ? key
+                      : 'home',
+                  );
                 }}
               />
             </View>

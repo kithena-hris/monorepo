@@ -91,7 +91,8 @@ function said(entry: Entry): string {
   if (typeof v === 'string') return v;
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if ('last4' in v) return v.last4 === null ? 'hidden' : `•••• ${v.last4}`;
-  if ('amountMinor' in v) return v.amountMinor === '' ? 'empty' : formatMoney(v.amountMinor, v.currency);
+  if ('amountMinor' in v)
+    return v.amountMinor === '' ? 'empty' : formatMoney(v.amountMinor, v.currency);
   return v.join(', ');
 }
 

@@ -37,6 +37,8 @@ export async function ask<T>(
   signed: Signed,
   operation: string,
   variables: Record<string, unknown> = {},
+  /** Whose operation it is: People's, or Time Off's. */
+  area: 'people' | 'timeoff' = 'people',
 ): Promise<Answer<T>> {
   const response = await fetch(`${signed.company.origin}/api/mobile/people`, {
     method: 'POST',
@@ -44,7 +46,7 @@ export async function ask<T>(
       'content-type': 'application/json',
       authorization: `Bearer ${signed.sessionId}`,
     },
-    body: JSON.stringify({ operation, variables }),
+    body: JSON.stringify({ area, operation, variables }),
   }).catch(() => null);
   if (response === null) {
     return { ok: false, code: 'OFFLINE', message: 'Kithena could not be reached. Try again.' };
@@ -70,6 +72,7 @@ export type Load<T> =
 export function useRead<T>(
   operation: string,
   variables: Record<string, unknown> = {},
+  area: 'people' | 'timeoff' = 'people',
 ): { load: Load<T>; reload: () => void } {
   const signed = useSigned();
   const key = JSON.stringify(variables);
@@ -78,18 +81,20 @@ export function useRead<T>(
 
   useEffect(() => {
     let live = true;
-    void ask<T>(signed, operation, JSON.parse(key) as Record<string, unknown>).then((answer) => {
-      if (!live) return;
-      setLoad(
-        answer.ok
-          ? { status: 'ready', data: answer.data }
-          : { status: 'error', message: answer.message },
-      );
-    });
+    void ask<T>(signed, operation, JSON.parse(key) as Record<string, unknown>, area).then(
+      (answer) => {
+        if (!live) return;
+        setLoad(
+          answer.ok
+            ? { status: 'ready', data: answer.data }
+            : { status: 'error', message: answer.message },
+        );
+      },
+    );
     return () => {
       live = false;
     };
-  }, [signed, operation, key, round]);
+  }, [signed, operation, key, round, area]);
 
   const reload = useCallback(() => {
     setRound((r) => r + 1);
