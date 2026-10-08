@@ -77,7 +77,7 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
   const changes = data.changes.map((c) => ({ ...c, value: valueOf(c.value) }));
   const shown = changes
     .filter((c) => fields.has(c.key) && (only === ALL || c.key === only))
-    .toSorted((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
   const days = new Map<string, HistoryChange[]>();
   for (const c of shown)
     days.set(dayOf(c.recordedAt), [...(days.get(dayOf(c.recordedAt)) ?? []), c]);
