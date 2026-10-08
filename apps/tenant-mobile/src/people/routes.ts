@@ -56,6 +56,8 @@ export type PeopleRoutes = {
   Settings: undefined;
   /** The employee fields: sections, then a section's fields, and publishing (H2, H3). */
   FieldRegistry: { section?: string } | undefined;
+  /** The first administrator's setup: legal entity, country pack, version 1, their own record. */
+  PeopleSetup: undefined;
   /** A published field's type or format changed: every value reviewed before it is published. */
   FieldChange: { key: string; to: string };
   /** Legal entities, locations, numbering, pay bands and the company's defaults (H7). */
