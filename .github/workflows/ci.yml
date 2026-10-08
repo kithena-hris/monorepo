@@ -194,6 +194,14 @@ jobs:
         if: matrix.stream == 'lint'
         run: pnpm email:theme-drift
 
+      # Everything a person can do in People and Time Off on the web, they can
+      # do in the phone app: every operation the web reaches is reached by the
+      # app too, or `apps/tenant-mobile/desktop-only.json` says why not. A new
+      # web operation fails here until the app has it or the reason is written.
+      - name: the phone app reaches what the web does
+        if: matrix.stream == 'lint'
+        run: pnpm --filter @kithena/tenant-mobile coverage --strict
+
       # `atlas migrate apply` verifies the directory against `atlas.sum` before
       # it applies anything, so a migration added without re-hashing fails the
       # deploy — after this workflow has gone green, because nothing here used

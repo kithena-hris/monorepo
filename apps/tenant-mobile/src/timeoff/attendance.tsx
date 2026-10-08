@@ -42,6 +42,7 @@ import { useAct } from '../people/act';
 import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { askTimeOff, useTimeOff } from './api';
+import { inspectorRecord } from './insights';
 import { clockTime, duration, instantAt, minuteOfDay, todayHere } from './time';
 import { addDays, asDate, shortDate, spanLabel } from './words';
 
@@ -730,6 +731,8 @@ export function TimeOffExceptions({
     overtime: 'Overtime',
     holiday_worked: 'Worked a holiday',
   };
+  const signed = useSigned();
+  const [record, setRecord] = useState<string | null>(null);
   return (
     <Page title="Exceptions" back={{ label: 'Back', onPress: navigation.goBack }}>
       <View className="flex-row items-center gap-2">
@@ -752,6 +755,25 @@ export function TimeOffExceptions({
             setMonth(addDays(`${month}-28`, 7).slice(0, 7));
           }}
         />
+      </View>
+      <View className="flex-row gap-2">
+        {(['pdf', 'csv'] as const).map((format) => (
+          <Button
+            key={format}
+            className="flex-1"
+            size="sm"
+            loading={record === format}
+            onPress={() => {
+              setRecord(format);
+              const { from, to } = monthRange(month);
+              void inspectorRecord(signed, from, to, format).then(() => {
+                setRecord(null);
+              });
+            }}
+          >
+            {`Inspector record · ${format.toUpperCase()}`}
+          </Button>
+        ))}
       </View>
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />

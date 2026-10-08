@@ -89,7 +89,16 @@ export type PeopleRoutes = {
   /** HR's absence insights and nudges. */
   TimeOffInsights: undefined;
   /** HR's Time Off settings: leave types, policies, approvals, attendance, holidays, integrations. */
-  TimeOffSettings: undefined;
+  TimeOffSettings:
+    | {
+        section?:
+          'leave-types' | 'negative' | 'approvals' | 'attendance' | 'holidays' | 'integrations';
+      }
+    | undefined;
+  /** One leave type and its policies. */
+  TimeOffLeaveType: { leaveTypeKey: string; name: string };
+  /** A policy described in words and read back. */
+  TimeOffPolicyDescribe: { leaveTypeKey: string; policyId?: string };
   TimeOffParentalCase: { planId: string; name: string };
   BulkEdit: { personIds: readonly string[] };
   /** What changed and the charts, a tab at a time (G1–G3). */

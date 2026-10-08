@@ -56,7 +56,9 @@ import {
   TimeOffTimesheet,
 } from './timeoff/attendance';
 import { TimeOffCalendar } from './timeoff/calendar';
+import { TimeOffInsights } from './timeoff/insights';
 import { TimeOffParental, TimeOffParentalCase, TimeOffParentalCases } from './timeoff/parental';
+import { TimeOffLeaveType, TimeOffPolicyDescribe, TimeOffSettings } from './timeoff/settings';
 import { TimeOffDescribe } from './timeoff/describe';
 import { TimeOffRequest } from './timeoff/request';
 import { TimeOffRequestDetail, TimeOffRequests } from './timeoff/requests';
@@ -150,6 +152,10 @@ function TabStack({
           <Stack_.Screen name="TimeOffParental" component={TimeOffParental} />
           <Stack_.Screen name="TimeOffParentalCases" component={TimeOffParentalCases} />
           <Stack_.Screen name="TimeOffParentalCase" component={TimeOffParentalCase} />
+          <Stack_.Screen name="TimeOffInsights" component={TimeOffInsights} />
+          <Stack_.Screen name="TimeOffSettings" component={TimeOffSettings} />
+          <Stack_.Screen name="TimeOffLeaveType" component={TimeOffLeaveType} />
+          <Stack_.Screen name="TimeOffPolicyDescribe" component={TimeOffPolicyDescribe} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
