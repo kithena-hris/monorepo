@@ -1,5 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import type { Condition } from './filters';
+
 /**
  * The People tab's screens, pushed on its own stack so the tab bar stays and
  * Back (and the edge swipe) returns where you were. The Me tab's stack holds a
@@ -13,7 +15,8 @@ export type PeopleRoutes = {
   Inbox: undefined;
   /** A new starter's sections, one at a time (D7). */
   Onboarding: undefined;
-  Directory: { search?: string } | undefined;
+  /** `conditions`: opened on these, as a point in What changed links to its records. */
+  Directory: { search?: string; conditions?: readonly Condition[] } | undefined;
   OrgChart: undefined;
   /** `personId` absent: the viewer's own record. `back` is what the bar's back says. */
   Profile: { personId?: string; name?: string; back?: string } | undefined;
@@ -33,6 +36,34 @@ export type PeopleRoutes = {
   ReviewAccess: { id: string };
   /** A request to send an export to somebody who cannot see all of it. */
   ReviewShare: { id: string };
+  /** Two tiles and the history (design F1). */
+  ImportExport: undefined;
+  /** A file, its columns, new fields, the plan (F2–F4). */
+  Import: undefined;
+  /** An approved import, followed until it is done (F5). */
+  ImportRun: { id: string };
+  /** Who, which fields, as of when, and download, send or schedule (F6, F7). */
+  Export: { sentence?: string } | undefined;
+  /** One export: what is in it, who has it, the download. */
+  ExportRecord: { id: string };
+  /** What changed and the charts, a tab at a time (G1–G3). */
+  Insights: { tab?: string } | undefined;
+  /** HR's scheduled reports (G4). */
+  ScheduledReports: undefined;
+  /** One schedule's runs, newest first. */
+  ReportHistory: { id: string; name: string };
+  /** People's settings, for its administrators and HR (H1). */
+  Settings: undefined;
+  /** The employee fields: sections, then a section's fields, and publishing (H2, H3). */
+  FieldRegistry: undefined;
+  /** Legal entities, locations, numbering, pay bands and the company's defaults (H7). */
+  Organisation: undefined;
+  /** Who holds administrator, HR and finance access (H4). */
+  Roles: undefined;
+  /** Chat apps, webhooks and provisioning (H5). */
+  Integrations: undefined;
+  /** Who did what, and when (H6). */
+  Activity: undefined;
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;

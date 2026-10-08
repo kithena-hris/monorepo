@@ -83,7 +83,7 @@ export function PersonAvatar({
   );
 }
 
-type Target = {
+export type Target = {
   uploadId: string;
   url: string;
   method: string;
@@ -91,7 +91,7 @@ type Target = {
 };
 
 /** PUT a picked file to the address People signed, with exactly the headers it signed. */
-async function put(target: Target, body: Blob): Promise<boolean> {
+export async function put(target: Target, body: Blob): Promise<boolean> {
   const response = await fetch(target.url, {
     method: target.method,
     headers: Object.fromEntries(
@@ -102,7 +102,7 @@ async function put(target: Target, body: Blob): Promise<boolean> {
   return response?.ok === true;
 }
 
-const blobOf = async (uri: string): Promise<Blob> => (await fetch(uri)).blob();
+export const blobOf = async (uri: string): Promise<Blob> => (await fetch(uri)).blob();
 
 export type Uploaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
 
@@ -215,10 +215,15 @@ export async function uploadFile(
 export async function openFile(signed: Signed, id: string): Promise<string | null> {
   const read = await ask<{ name: string; mediaType: string; data: string }>(signed, 'File', { id });
   if (!read.ok) return read.message;
-  const file = new File(Paths.cache, read.data.name.replace(/[/\\]/g, '_'));
+  await shareBase64(read.data.data, read.data.name, read.data.mediaType);
+  return null;
+}
+
+/** A file People sent as base64, handed to the phone's viewer and share sheet. */
+export async function shareBase64(data: string, name: string, mediaType: string): Promise<void> {
+  const file = new File(Paths.cache, name.replace(/[/\\]/g, '_'));
   if (file.exists) file.delete();
   file.create();
-  file.write(read.data.data, { encoding: 'base64' });
-  await Sharing.shareAsync(file.uri, { mimeType: read.data.mediaType });
-  return null;
+  file.write(data, { encoding: 'base64' });
+  await Sharing.shareAsync(file.uri, { mimeType: mediaType });
 }

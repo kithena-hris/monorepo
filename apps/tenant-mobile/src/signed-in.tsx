@@ -29,6 +29,15 @@ import { ReviewAccess, ReviewShare } from './people/review/decide';
 import { ReviewDuplicate } from './people/review/duplicate';
 import { ReviewId } from './people/review/id-check';
 import { Review } from './people/review/review';
+import { Export, ExportRecord } from './people/transfer/export';
+import { Insights } from './people/insights/insights';
+import { ReportHistory, ScheduledReports } from './people/insights/reports';
+import { Activity } from './people/settings/activity';
+import { Roles } from './people/settings/roles';
+import { Settings } from './people/settings/settings';
+import { ImportExport } from './people/transfer/hub';
+import { Import } from './people/transfer/import';
+import { ImportRun } from './people/transfer/run';
 import type { PeopleRoutes } from './people/routes';
 
 const Stack_ = createNativeStackNavigator<PeopleRoutes>();
@@ -68,6 +77,17 @@ function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Eleme
           <Stack_.Screen name="ReviewDuplicate" component={ReviewDuplicate} />
           <Stack_.Screen name="ReviewAccess" component={ReviewAccess} />
           <Stack_.Screen name="ReviewShare" component={ReviewShare} />
+          <Stack_.Screen name="ImportExport" component={ImportExport} />
+          <Stack_.Screen name="Import" component={Import} />
+          <Stack_.Screen name="ImportRun" component={ImportRun} />
+          <Stack_.Screen name="Export" component={Export} />
+          <Stack_.Screen name="ExportRecord" component={ExportRecord} />
+          <Stack_.Screen name="Insights" component={Insights} />
+          <Stack_.Screen name="ScheduledReports" component={ScheduledReports} />
+          <Stack_.Screen name="ReportHistory" component={ReportHistory} />
+          <Stack_.Screen name="Settings" component={Settings} />
+          <Stack_.Screen name="Roles" component={Roles} />
+          <Stack_.Screen name="Activity" component={Activity} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>

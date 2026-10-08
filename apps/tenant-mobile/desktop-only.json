@@ -2,5 +2,7 @@
   "RemindWaiting": "People v2 Mobile E5: \"Remind-all is desktop only; each row has its own Remind or Fill in.\"",
   "ImportTemplate": "People v2 Mobile F1: \"No template, kind filter or search on a phone.\"",
   "WhatChangedAsk": "People v2 Mobile G1: \"The period control, follow-up and charts are desktop only.\"",
-  "AnalyticsExport": "People v2 Mobile G2: \"No CSV export on a phone.\""
+  "AnalyticsExport": "People v2 Mobile G2: \"No CSV export on a phone.\"",
+  "SharedSummary": "Opened from the link in the email it was sent with, which opens in the browser: the app has no universal links while it runs in Expo Go.",
+  "SharedSummaryPdf": "Opened from the link in the email it was sent with, which opens in the browser: the app has no universal links while it runs in Expo Go."
 }

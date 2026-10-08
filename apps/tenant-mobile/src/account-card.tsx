@@ -1,10 +1,11 @@
 import { Button, List, ListItem, Stack, Text } from '@reach/ui-native';
+import { Settings } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { useSigned } from './people/api';
 
 /** Under your own record, in the Me tab: where you are signed in, and the way out. */
-export function Account(): React.JSX.Element {
+export function Account({ onSettings }: { onSettings?: () => void }): React.JSX.Element {
   const { company, person, signOut } = useSigned();
   const [busy, setBusy] = useState(false);
   const until =
@@ -28,6 +29,18 @@ export function Account(): React.JSX.Element {
           <ListItem trailing={<Text tone="muted">{until}</Text>}>Signed in until</ListItem>
         )}
       </List>
+      {onSettings === undefined ? null : (
+        <List>
+          <ListItem
+            icon={Settings}
+            description="People, for its administrators and HR"
+            chevron
+            onPress={onSettings}
+          >
+            Settings
+          </ListItem>
+        </List>
+      )}
       <Button
         variant="danger-soft"
         fullWidth
