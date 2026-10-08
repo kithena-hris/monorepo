@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
 
 /**
  * Signing in to the phone app, through this company's own sign-in page.
@@ -52,9 +52,12 @@ export function appSignIn(
   }
 }
 
-/** A key of its own, derived, so the secret it comes from is never used as one directly. */
+/**
+ * A key of its own, derived with HKDF, so the secret it comes from is never
+ * used as a key directly and a key for anything else derives differently.
+ */
 function keyFrom(secret: string): Buffer {
-  return createHash('sha256').update(`kithena app sign-in\u0000${secret}`).digest();
+  return Buffer.from(hkdfSync('sha256', secret, '', 'kithena app sign-in', 32));
 }
 
 /** What goes in the redirect: identity's code, sealed to the app's challenge. */
