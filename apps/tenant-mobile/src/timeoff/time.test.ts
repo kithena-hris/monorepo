@@ -14,3 +14,10 @@ describe('the clock', () => {
     expect(stopwatch(13268)).toBe('3:41:08');
   });
 });
+
+describe('instantAt', () => {
+  it('is the instant a wall-clock time is in a zone', async () => {
+    const { instantAt } = await import('./time');
+    expect(instantAt('2026-09-30', '18:05', 'Europe/Madrid')).toBe('2026-09-30T16:05:00.000Z');
+  });
+});

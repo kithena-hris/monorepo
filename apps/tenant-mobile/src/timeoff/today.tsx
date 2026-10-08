@@ -23,7 +23,26 @@ import {
   Text,
   type RangeBarSegment,
 } from '@reach/ui-native';
-import { Coffee, MapPin, PartyPopper, Play, Square } from 'lucide-react-native';
+import {
+  Baby,
+  CalendarDays,
+  ChartColumn,
+  CheckCheck,
+  Clock3,
+  Coffee,
+  ListChecks,
+  MapPin,
+  PartyPopper,
+  Play,
+  Plus,
+  QrCode,
+  Settings,
+  Square,
+  Timer as TimerIcon,
+  TriangleAlert,
+  Users,
+  Wallet,
+} from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -110,6 +129,13 @@ interface Holiday {
   readonly date: string;
   readonly name: string;
   readonly layer: string;
+}
+
+interface Viewer {
+  readonly approves: boolean;
+  readonly hrAdmin: boolean;
+  readonly member: boolean;
+  readonly counts: { readonly attendanceExceptions: number; readonly requestsWaiting: number };
 }
 
 const STATE: Record<ClockState, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
@@ -369,16 +395,18 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
     overview: Overview;
     holidays: readonly Holiday[];
     now: number;
+    viewer: Viewer | null;
   } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
 
   const load = async (): Promise<void> => {
     const now = Date.now();
     const year = new Date(now).getUTCFullYear();
-    const [overview, thisYear, nextYear] = await Promise.all([
+    const [overview, thisYear, nextYear, viewer] = await Promise.all([
       askTimeOff<Overview>(signed, 'TimeOffOverview'),
       askTimeOff<{ holidays: Holiday[] }>(signed, 'TimeOffHolidays', { year }),
       askTimeOff<{ holidays: Holiday[] }>(signed, 'TimeOffHolidays', { year: year + 1 }),
+      askTimeOff<Viewer>(signed, 'TimeOffViewer'),
     ]);
     if (!overview.ok) {
       setFailed(overview.message);
@@ -392,6 +420,7 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
         ...(nextYear.ok ? nextYear.data.holidays : []),
       ],
       now,
+      viewer: viewer.ok ? viewer.data : null,
     });
   };
   useEffect(() => {
@@ -415,14 +444,52 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
       </Page>
     );
   }
-  const { overview, holidays, now } = data;
+  const { overview, holidays, now, viewer } = data;
+  const go = (row: {
+    label: string;
+    line: string;
+    icon: typeof Coffee;
+    count?: number;
+    open: () => void;
+  }) => (
+    <ListItem
+      key={row.label}
+      icon={row.icon}
+      description={row.line}
+      {...(row.count === undefined || row.count === 0
+        ? { chevron: true }
+        : {
+            trailing: (
+              <Badge size="sm" tone="danger" variant="solid">
+                {String(row.count)}
+              </Badge>
+            ),
+          })}
+      onPress={row.open}
+    >
+      {row.label}
+    </ListItem>
+  );
   const zone = overview.member?.timeZone ?? 'UTC';
   const today = localDate(now, zone);
   const tracked = overview.balances.find((b) => b.unit === 'day' && b.yearly !== null);
   const bridge = overview.bridges[0];
   const ahead = holidays.filter((h) => h.date >= today).slice(0, 2);
   return (
-    <Page large="Time off">
+    <Page
+      large="Time off"
+      trailing={
+        <Button
+          size="sm"
+          variant="ghost"
+          startIcon={<Icon icon={Plus} />}
+          accessibilityLabel="Request time off"
+          onPress={() => {
+            navigation.navigate('TimeOffRequest');
+          }}
+        />
+      }
+    >
       {overview.member === null ? (
         <Alert tone="info" title="Nothing here for you yet">
           Time Off does not have you as an employee yet, so there are no balances to show or time
@@ -561,6 +628,137 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
           })}
         </List>
       )}
+      <List>
+        {[
+          go({
+            label: 'Calendar',
+            line: 'Who is off this week',
+            icon: CalendarDays,
+            open: () => {
+              navigation.navigate('TimeOffCalendar');
+            },
+          }),
+          ...(overview.member === null
+            ? []
+            : [
+                go({
+                  label: 'Your requests',
+                  line: 'Coming up, past and cancelled',
+                  icon: ListChecks,
+                  open: () => {
+                    navigation.navigate('TimeOffRequests');
+                  },
+                }),
+                go({
+                  label: 'Timesheet',
+                  line: 'Your week, worked against planned',
+                  icon: Clock3,
+                  open: () => {
+                    navigation.navigate('TimeOffTimesheet');
+                  },
+                }),
+                go({
+                  label: 'Parental leave',
+                  line: 'Plan it, then send it to HR',
+                  icon: Baby,
+                  open: () => {
+                    navigation.navigate('TimeOffParental');
+                  },
+                }),
+                go({
+                  label: 'My kiosk code',
+                  line: 'Clock in at the door',
+                  icon: QrCode,
+                  open: () => {
+                    navigation.navigate('TimeOffKioskCode');
+                  },
+                }),
+              ]),
+          ...(viewer?.approves === true
+            ? [
+                go({
+                  label: 'Time off to approve',
+                  line: 'Clear to approve and look closer',
+                  icon: CheckCheck,
+                  count: viewer.counts.requestsWaiting,
+                  open: () => {
+                    navigation.navigate('TimeOffApprovals');
+                  },
+                }),
+                go({
+                  label: 'Team right now',
+                  line: 'Who is in, on a break or away',
+                  icon: Users,
+                  open: () => {
+                    navigation.navigate('TimeOffTeamNow');
+                  },
+                }),
+                go({
+                  label: 'Overtime and corrections',
+                  line: 'To decide, and your own',
+                  icon: TimerIcon,
+                  open: () => {
+                    navigation.navigate('TimeOffAttendanceRequests');
+                  },
+                }),
+              ]
+            : [
+                go({
+                  label: 'Your overtime',
+                  line: 'How each day was decided',
+                  icon: TimerIcon,
+                  open: () => {
+                    navigation.navigate('TimeOffAttendanceRequests');
+                  },
+                }),
+              ]),
+          ...(viewer?.hrAdmin === true
+            ? [
+                go({
+                  label: 'Exceptions',
+                  line: 'Missing clock-outs, short rests, long days',
+                  icon: TriangleAlert,
+                  count: viewer.counts.attendanceExceptions,
+                  open: () => {
+                    navigation.navigate('TimeOffExceptions');
+                  },
+                }),
+                go({
+                  label: 'Pay period',
+                  line: 'What goes to payroll, and closing the month',
+                  icon: Wallet,
+                  open: () => {
+                    navigation.navigate('TimeOffPayPeriod');
+                  },
+                }),
+                go({
+                  label: 'Parental leave plans',
+                  line: 'Plans sent to HR',
+                  icon: Baby,
+                  open: () => {
+                    navigation.navigate('TimeOffParentalCases');
+                  },
+                }),
+                go({
+                  label: 'Insights',
+                  line: 'Absence, balances and nudges',
+                  icon: ChartColumn,
+                  open: () => {
+                    navigation.navigate('TimeOffInsights');
+                  },
+                }),
+                go({
+                  label: 'Time off settings',
+                  line: 'Leave types, policies, approvals, holidays',
+                  icon: Settings,
+                  open: () => {
+                    navigation.navigate('TimeOffSettings');
+                  },
+                }),
+              ]
+            : []),
+        ]}
+      </List>
     </Page>
   );
 }
