@@ -2,27 +2,20 @@ import {
   Alert,
   Avatar,
   Button,
-  Card,
-  CardDescription,
-  CardTitle,
   Field,
   FieldDescription,
   FieldError,
   FieldLabel,
   Input,
-  List,
-  ListItem,
   Stack,
-  TabBar,
   Text,
 } from '@reach/ui-native';
-import { House, User } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Company, Person } from './account';
-import { asLabel, companyOrigin, greetingFor, TENANT_SUFFIX } from './address';
+import type { Company } from './account';
+import { asLabel, companyOrigin, TENANT_SUFFIX } from './address';
 
 /** A screen's frame: the canvas, inside the safe area, scrollable over the keyboard. */
 function Screen({
@@ -272,129 +265,6 @@ export function SignInScreen({
           Use a different company
         </Button>
       </Stack>
-    </Screen>
-  );
-}
-
-/** The tab bar's height and its gap above the home indicator: what content keeps clear of. */
-const TAB_ROOM = 64 + 12;
-
-/** Signed in: the dashboard and the person's own tab, under a tab bar. */
-export function SignedInScreen({
-  company,
-  person,
-  onSignOut,
-}: {
-  company: Company;
-  person: Person;
-  onSignOut: () => Promise<void>;
-}): React.JSX.Element {
-  const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<'home' | 'me'>('home');
-  return (
-    <View className="flex-1 bg-canvas">
-      {tab === 'home' ? (
-        <Dashboard company={company} person={person} />
-      ) : (
-        <Me company={company} person={person} onSignOut={onSignOut} />
-      )}
-      <View className="absolute inset-x-2.5" style={{ bottom: insets.bottom + 4 }}>
-        <TabBar
-          label="Kithena"
-          items={[
-            { key: 'home', label: 'Home', icon: House },
-            { key: 'me', label: 'Me', icon: User },
-          ]}
-          value={tab}
-          onValueChange={(key) => {
-            setTab(key === 'me' ? 'me' : 'home');
-          }}
-        />
-      </View>
-    </View>
-  );
-}
-
-function Dashboard({ company, person }: { company: Company; person: Person }): React.JSX.Element {
-  return (
-    <Screen centred={false} bottom={TAB_ROOM}>
-      <Stack gap={1}>
-        <Text
-          variant="footnote"
-          tone="accent"
-          weight="semibold"
-          className="uppercase tracking-widest"
-        >
-          {nameOf(company)}
-        </Text>
-        <Text accessibilityRole="header" variant="large">
-          {`Hi, ${greetingFor(person.name, person.workEmail)}`}
-        </Text>
-      </Stack>
-      <Card>
-        <CardTitle>You are signed in</CardTitle>
-        <CardDescription>
-          {`Your time off, your team and your requests will appear here as they come to Kithena on the phone.`}
-        </CardDescription>
-      </Card>
-    </Screen>
-  );
-}
-
-function Me({
-  company,
-  person,
-  onSignOut,
-}: {
-  company: Company;
-  person: Person;
-  onSignOut: () => Promise<void>;
-}): React.JSX.Element {
-  const [busy, setBusy] = useState(false);
-  const name =
-    person.name === null
-      ? greetingFor(null, person.workEmail)
-      : `${person.name.preferred ?? person.name.given} ${person.name.family}`;
-  const until =
-    person.expiresAt === null
-      ? null
-      : new Date(person.expiresAt).toLocaleDateString(undefined, {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        });
-
-  return (
-    <Screen centred={false} bottom={TAB_ROOM}>
-      <Stack gap={3} align="center" className="pt-4">
-        <Avatar name={name} size="3xl" decorative />
-        <Stack gap={1} align="center">
-          <Text accessibilityRole="header" variant="title2" weight="bold">
-            {name}
-          </Text>
-          {person.workEmail === null ? null : <Text tone="muted">{person.workEmail}</Text>}
-        </Stack>
-      </Stack>
-
-      <List>
-        <ListItem trailing={<Text tone="muted">{nameOf(company)}</Text>}>Company</ListItem>
-        {until === null ? null : (
-          <ListItem trailing={<Text tone="muted">{until}</Text>}>Signed in until</ListItem>
-        )}
-      </List>
-
-      <Button
-        variant="danger-soft"
-        fullWidth
-        loading={busy}
-        loadingLabel="Signing out"
-        onPress={() => {
-          setBusy(true);
-          void onSignOut();
-        }}
-      >
-        Sign out
-      </Button>
     </Screen>
   );
 }

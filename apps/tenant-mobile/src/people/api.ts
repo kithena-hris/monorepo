@@ -1,0 +1,165 @@
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+
+import type { Company, Person } from '../account';
+
+/**
+ * People, as the person signed in: one operation per request, by the name the
+ * web uses (`apps/web/src/lib/people-operations.ts`), through the company's
+ * own host (`/api/mobile/people`). The web server turns the session into the
+ * router's token; People decides what this person may see, as it does for the
+ * browser, so nothing here filters or hides.
+ */
+export interface Signed {
+  readonly company: Company;
+  readonly sessionId: string;
+  readonly person: Person;
+  /** The session ended under us: back to signing in. */
+  readonly signedOut: () => void;
+  /** Signing out on purpose: ends the session in identity, then here. */
+  readonly signOut: () => Promise<void>;
+}
+
+export const SignedContext = createContext<Signed | null>(null);
+
+export function useSigned(): Signed {
+  const signed = useContext(SignedContext);
+  if (signed === null) throw new Error('useSigned outside SignedContext');
+  return signed;
+}
+
+export type Answer<T> =
+  | { readonly ok: true; readonly data: T }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+export async function ask<T>(
+  signed: Signed,
+  operation: string,
+  variables: Record<string, unknown> = {},
+): Promise<Answer<T>> {
+  const response = await fetch(`${signed.company.origin}/api/mobile/people`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${signed.sessionId}`,
+    },
+    body: JSON.stringify({ operation, variables }),
+  }).catch(() => null);
+  if (response === null) {
+    return { ok: false, code: 'OFFLINE', message: 'Kithena could not be reached. Try again.' };
+  }
+  if (response.status === 401) {
+    signed.signedOut();
+    return { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again.' };
+  }
+  const answer = (await response.json().catch(() => null)) as Answer<T> | null;
+  return answer ?? { ok: false, code: 'UNAVAILABLE', message: 'People did not answer.' };
+}
+
+export type Load<T> =
+  | { readonly status: 'loading' }
+  | { readonly status: 'ready'; readonly data: T }
+  | { readonly status: 'error'; readonly message: string };
+
+/**
+ * One read, kept for the screen, asked again when its variables change or on
+ * `reload`. The variables are compared as JSON, so a new object each render
+ * does not ask twice.
+ */
+export function useRead<T>(
+  operation: string,
+  variables: Record<string, unknown> = {},
+): { load: Load<T>; reload: () => void } {
+  const signed = useSigned();
+  const key = JSON.stringify(variables);
+  const [load, setLoad] = useState<Load<T>>({ status: 'loading' });
+  const [round, setRound] = useState(0);
+
+  useEffect(() => {
+    let live = true;
+    void ask<T>(signed, operation, JSON.parse(key) as Record<string, unknown>).then((answer) => {
+      if (!live) return;
+      setLoad(
+        answer.ok
+          ? { status: 'ready', data: answer.data }
+          : { status: 'error', message: answer.message },
+      );
+    });
+    return () => {
+      live = false;
+    };
+  }, [signed, operation, key, round]);
+
+  const reload = useCallback(() => {
+    setRound((r) => r + 1);
+  }, []);
+  return { load, reload };
+}
+
+/* ---------------------------------------------------------------------------
+ * A record's shape, as People sends it (`RecordFieldParts`, `EntryParts`).
+ * ------------------------------------------------------------------------- */
+
+export interface RecordField {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string | null;
+  readonly dataType: string;
+  readonly options: readonly { readonly value: string; readonly label: string }[];
+  readonly required: boolean;
+  readonly missing: boolean | null;
+  readonly readOnly: boolean;
+  readonly currency: string | null;
+  readonly ownedBy: string | null;
+  readonly keptIn: string | null;
+  readonly sensitive: boolean | null;
+  readonly askable: boolean | null;
+}
+
+export interface Entry {
+  readonly __typename: string;
+  readonly key: string;
+  readonly text?: string;
+  readonly flag?: boolean;
+  readonly items?: readonly string[];
+  readonly amountMinor?: string;
+  readonly currency?: string;
+  readonly last4?: string | null;
+}
+
+/** A value as a screen reads it: the web's `formValue` (`people-views.ts`). */
+export type Value =
+  | string
+  | boolean
+  | readonly string[]
+  | { readonly amountMinor: string; readonly currency: string }
+  | { readonly last4: string | null }
+  | null;
+
+export function valueOf(entry: Entry): Value {
+  switch (entry.__typename) {
+    case 'TextEntry':
+      return entry.text ?? '';
+    case 'FlagEntry':
+      return entry.flag === true;
+    case 'ListEntry':
+      return [...(entry.items ?? [])];
+    case 'MoneyEntry':
+      return { amountMinor: entry.amountMinor ?? '', currency: entry.currency ?? '' };
+    case 'SealedEntry':
+      return { last4: entry.last4 ?? null };
+    default:
+      return null;
+  }
+}
+
+export function valuesOf(entries: readonly Entry[]): Readonly<Record<string, Value>> {
+  return Object.fromEntries(entries.map((e) => [e.key, valueOf(e)]));
+}
+
+/** Nothing held: an empty text or list, or no entry. A `false` flag is a value. */
+export function isEmpty(value: Value | undefined): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}

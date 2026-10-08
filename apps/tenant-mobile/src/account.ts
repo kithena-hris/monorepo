@@ -44,6 +44,11 @@ export async function restore(): Promise<{ origin: string | null; sessionId: str
   return { origin, sessionId };
 }
 
+/** Forgets a session identity no longer recognises: the company and the address stay. */
+export async function forgetSession(): Promise<void> {
+  await SecureStore.deleteItemAsync(SESSION);
+}
+
 /** Forgets the company too, so the address is asked for again. */
 export async function forgetCompany(): Promise<void> {
   await Promise.all([

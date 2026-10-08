@@ -11,6 +11,8 @@
  * `number`.
  */
 
+import { numberParts } from './intl-parts.ts';
+
 export type MoneyFormat = {
   /** Minor-unit exponent. Defaults to the currency's own (2 for EUR, 0 for JPY). */
   exponent?: number | undefined;
@@ -84,7 +86,7 @@ export function formatMoney(
     maximumFractionDigits: shown,
   });
   // A sample in the locale's shape: seven integer digits show its grouping.
-  const parts = format.formatToParts(negative ? -1234567 : 1234567);
+  const parts = numberParts(format, negative ? -1234567 : 1234567);
   const group = parts.find((p) => p.type === 'group')?.value ?? '';
   const point = parts.find((p) => p.type === 'decimal')?.value ?? '.';
   // The locale's grouping, read off the sample: the last group's size, then
@@ -93,7 +95,7 @@ export function formatMoney(
   const sizes = parts.filter((p) => p.type === 'integer').map((p) => p.value.length);
   const primary = sizes.at(-1) ?? 3;
   const secondary = sizes.length > 2 ? (sizes.at(-2) ?? primary) : primary;
-  const fewest = format.formatToParts(1234).some((p) => p.type === 'group') ? 1 : 2;
+  const fewest = numberParts(format, 1234).some((p) => p.type === 'group') ? 1 : 2;
 
   let grouped = whole;
   if (sizes.length > 1 && whole.length >= primary + fewest) {

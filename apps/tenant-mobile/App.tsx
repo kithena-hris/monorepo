@@ -6,6 +6,7 @@ import { useColorScheme, View } from 'react-native';
 import {
   companyAt,
   forgetCompany,
+  forgetSession,
   lastEmail,
   openRecovery,
   restore,
@@ -15,7 +16,8 @@ import {
   type Company,
   type Person,
 } from './src/account';
-import { CompanyScreen, SignedInScreen, SignInScreen, UnreachableScreen } from './src/screens';
+import { CompanyScreen, SignInScreen, UnreachableScreen } from './src/screens';
+import { SignedIn } from './src/signed-in';
 
 import './global.css';
 
@@ -117,12 +119,18 @@ export default function App(): React.JSX.Element {
           onChangeCompany={changeCompany}
         />
       ) : place.kind === 'signed-in' ? (
-        <SignedInScreen
+        <SignedIn
           company={place.company}
+          sessionId={place.sessionId}
           person={place.person}
           onSignOut={async () => {
             await signOut(place.company.origin, place.sessionId);
             setPlace(await signingIn(place.company));
+          }}
+          onSignedOut={() => {
+            void forgetSession()
+              .then(() => signingIn(place.company))
+              .then(setPlace);
           }}
         />
       ) : (
