@@ -1,4 +1,5 @@
 import {
+  Badge,
   EmptyState,
   Icon,
   Inline,
@@ -10,6 +11,7 @@ import {
 } from '@reach/ui-native';
 import {
   ArrowDownToLine,
+  CalendarDays,
   CircleCheck,
   CircleDashed,
   Copy,
@@ -136,6 +138,22 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
     }[];
   } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  // Time off waiting for this approver (design MT15): one row at the top of To do.
+  const [timeOff, setTimeOff] = useState(0);
+  useEffect(() => {
+    const count = (): void => {
+      void ask<{ approves: boolean; counts: { requestsWaiting: number } }>(
+        signed,
+        'TimeOffViewer',
+        {},
+        'timeoff',
+      ).then((a) => {
+        setTimeOff(a.ok && a.data.approves ? a.data.counts.requestsWaiting : 0);
+      });
+    };
+    count();
+    return navigation.addListener('focus', count);
+  }, [navigation, signed]);
 
   const load = async (): Promise<void> => {
     const [overview, waiting, flagged] = await Promise.all([
@@ -338,6 +356,24 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
         ) : null}
         <SegmentedControlItem value="updates">Updates</SegmentedControlItem>
       </SegmentedControl>
+      {view !== 'todo' || timeOff === 0 ? null : (
+        <List>
+          <ListItem
+            icon={CalendarDays}
+            description="Clear to approve, and the ones to look closer at"
+            trailing={
+              <Badge size="sm" tone="danger" variant="solid">
+                {String(timeOff)}
+              </Badge>
+            }
+            onPress={() => {
+              navigation.navigate('TimeOffApprovals');
+            }}
+          >
+            Time off to approve
+          </ListItem>
+        </List>
+      )}
       {rows.length === 0 ? (
         <EmptyState
           icon={CircleCheck}
