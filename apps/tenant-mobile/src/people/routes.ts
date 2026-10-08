@@ -61,7 +61,9 @@ export type PeopleRoutes = {
   /** Who holds administrator, HR and finance access (H4). */
   Roles: undefined;
   /** Chat apps, webhooks and provisioning (H5). */
-  Integrations: undefined;
+  Integrations: { tab?: 'slack' | 'webhooks' | 'provisioning' } | undefined;
+  /** An endpoint's deliveries, a failed one replayable. */
+  WebhookLog: { id: string; url: string };
   /** Who did what, and when (H6). */
   Activity: undefined;
 };

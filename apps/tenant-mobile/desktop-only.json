@@ -4,5 +4,6 @@
   "WhatChangedAsk": "People v2 Mobile G1: \"The period control, follow-up and charts are desktop only.\"",
   "AnalyticsExport": "People v2 Mobile G2: \"No CSV export on a phone.\"",
   "SharedSummary": "Opened from the link in the email it was sent with, which opens in the browser: the app has no universal links while it runs in Expo Go.",
-  "SharedSummaryPdf": "Opened from the link in the email it was sent with, which opens in the browser: the app has no universal links while it runs in Expo Go."
+  "SharedSummaryPdf": "Opened from the link in the email it was sent with, which opens in the browser: the app has no universal links while it runs in Expo Go.",
+  "CompleteChatApp": "The chat app's approval returns to the company's web address, whose route finishes the connection; the app opens that approval in the browser and reads the result when it comes back."
 }
