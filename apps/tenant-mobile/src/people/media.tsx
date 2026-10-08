@@ -83,7 +83,7 @@ export function PersonAvatar({
   );
 }
 
-type Target = {
+export type Target = {
   uploadId: string;
   url: string;
   method: string;
@@ -91,7 +91,7 @@ type Target = {
 };
 
 /** PUT a picked file to the address People signed, with exactly the headers it signed. */
-async function put(target: Target, body: Blob): Promise<boolean> {
+export async function put(target: Target, body: Blob): Promise<boolean> {
   const response = await fetch(target.url, {
     method: target.method,
     headers: Object.fromEntries(
@@ -102,7 +102,7 @@ async function put(target: Target, body: Blob): Promise<boolean> {
   return response?.ok === true;
 }
 
-const blobOf = async (uri: string): Promise<Blob> => (await fetch(uri)).blob();
+export const blobOf = async (uri: string): Promise<Blob> => (await fetch(uri)).blob();
 
 export type Uploaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
 

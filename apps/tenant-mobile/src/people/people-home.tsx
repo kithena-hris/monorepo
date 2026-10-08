@@ -1,5 +1,5 @@
 import { Badge, List, ListItem, SearchField, Text } from '@reach/ui-native';
-import { ListChecks, Network, Users } from 'lucide-react-native';
+import { ArrowLeftRight, ListChecks, Network, Users } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { Page } from '../frame';
@@ -69,6 +69,16 @@ export function PeopleHome({ navigation }: PeopleScreen<'People'>): React.JSX.El
           }}
         >
           Review
+        </ListItem>
+        <ListItem
+          icon={ArrowLeftRight}
+          description="Bring people in, take data out"
+          chevron
+          onPress={() => {
+            navigation.navigate('ImportExport');
+          }}
+        >
+          Import & export
         </ListItem>
         <ListItem
           icon={Network}

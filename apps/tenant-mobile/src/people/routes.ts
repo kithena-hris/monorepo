@@ -33,6 +33,16 @@ export type PeopleRoutes = {
   ReviewAccess: { id: string };
   /** A request to send an export to somebody who cannot see all of it. */
   ReviewShare: { id: string };
+  /** Two tiles and the history (design F1). */
+  ImportExport: undefined;
+  /** A file, its columns, new fields, the plan (F2–F4). */
+  Import: undefined;
+  /** An approved import, followed until it is done (F5). */
+  ImportRun: { id: string };
+  /** Who, which fields, as of when, and download, send or schedule (F6, F7). */
+  Export: { sentence?: string } | undefined;
+  /** One export: what is in it, who has it, the download. */
+  ExportRecord: { id: string };
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;

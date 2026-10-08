@@ -201,8 +201,9 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
       icon: ArrowDownToLine,
       summary: i.fileName ?? 'An imported file',
       at: i.finishedAt,
-      // Opens once Import & export is on the phone; until then the row informs.
-      open: () => undefined,
+      open: () => {
+        navigation.navigate('ImportRun', { id: i.id });
+      },
     })),
     ...(overview.approvals?.items ?? []).map((a) => ({
       id: `approval:${a.id}`,

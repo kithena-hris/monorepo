@@ -29,6 +29,10 @@ import { ReviewAccess, ReviewShare } from './people/review/decide';
 import { ReviewDuplicate } from './people/review/duplicate';
 import { ReviewId } from './people/review/id-check';
 import { Review } from './people/review/review';
+import { Export, ExportRecord } from './people/transfer/export';
+import { ImportExport } from './people/transfer/hub';
+import { Import } from './people/transfer/import';
+import { ImportRun } from './people/transfer/run';
 import type { PeopleRoutes } from './people/routes';
 
 const Stack_ = createNativeStackNavigator<PeopleRoutes>();
@@ -68,6 +72,11 @@ function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Eleme
           <Stack_.Screen name="ReviewDuplicate" component={ReviewDuplicate} />
           <Stack_.Screen name="ReviewAccess" component={ReviewAccess} />
           <Stack_.Screen name="ReviewShare" component={ReviewShare} />
+          <Stack_.Screen name="ImportExport" component={ImportExport} />
+          <Stack_.Screen name="Import" component={Import} />
+          <Stack_.Screen name="ImportRun" component={ImportRun} />
+          <Stack_.Screen name="Export" component={Export} />
+          <Stack_.Screen name="ExportRecord" component={ExportRecord} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
