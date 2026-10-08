@@ -543,8 +543,14 @@ const FIVE_THOUSAND = MANY.slice(0, 5_000);
 
 export const VirtualizedFlung: Story = {
   name: 'Virtualized, flung',
+  // A test fixture, not a design story: kept off the docs page, which would
+  // otherwise mount five thousand rows twice more beside the design's own.
+  tags: ['!autodocs'],
   // Five thousand rows, a pool of cards: flung far down, still a handful mounted.
   play: async ({ canvasElement }) => {
+    // Under Vitest only, like the kanban's drag: browsing, the list stays at
+    // its first row instead of scrolling itself.
+    if ((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE !== 'test') return;
     await flingDown(canvasElement);
     await waitFor(async () => {
       await expect(mounted.count).toBeGreaterThan(0);
@@ -567,10 +573,16 @@ export const VirtualizedFlung: Story = {
 
 export const VirtualizedGrouped: Story = {
   name: 'Virtualized, grouped',
+  // A test fixture, not a design story: kept off the docs page, which would
+  // otherwise mount five thousand rows twice more beside the design's own.
+  tags: ['!autodocs'],
   // Five thousand rows under their teams' headings, one FlashList: the
   // headings stick, a collapsed team takes its rows out of the list, and
   // the mounted cards stay a handful however far it scrolls.
   play: async ({ canvasElement }) => {
+    // Under Vitest only, like the kanban's drag: browsing, the list stays at
+    // its first row instead of scrolling itself.
+    if ((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE !== 'test') return;
     await flingDown(canvasElement);
     await waitFor(async () => {
       await expect(mounted.count).toBeGreaterThan(0);

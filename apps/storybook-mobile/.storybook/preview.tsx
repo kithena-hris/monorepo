@@ -6,7 +6,7 @@ import { View } from 'react-native-css/components';
 import { GLOBALS_UPDATED, SET_GLOBALS } from 'storybook/internal/core-events';
 import { addons } from 'storybook/preview-api';
 
-import { DeviceChrome, platformOf } from './device';
+import { DEVICES, Device, SystemChrome, platformOf } from './device';
 import { darkDocsTheme, lightDocsTheme } from './manager-theme';
 
 import '@reach/ui-native/global.css';
@@ -61,37 +61,41 @@ function ReachDocsContainer({
 }
 
 /**
- * Every story on one phone, 390 wide, under `ReachProvider`, which is what an
+ * Every story on its platform's phone, under `ReachProvider`, which is what an
  * app puts at its root: the `dark` class, the platform, the safe area, the
- * gesture root and the portal host overlays open into. On the canvas the phone
- * is at least 844 tall (a longer story makes it longer, so the home indicator
- * stays under the story) and wears its platform's status bar and home
- * indicator; on a docs
- * page each story takes only the height it needs, without them.
+ * gesture root and the portal host overlays open into. On the canvas the
+ * provider fills the phone's screen (`Device`), so a long story scrolls inside
+ * it and an overlay covers the screen, with the platform's status bar and home
+ * indicator around it. On a docs page each story takes only the height it
+ * needs, at the phone's width or the page's, whichever is narrower.
  */
 const withPhone: Decorator = (Story, context) => {
   const platform = platformOf(context.title);
   const story = (
     // The design's phone frame pads 20 × 16; `reach-mobile:compare` shoots this view.
-    <View testID="reach-story" className="px-m-margin py-5">
+    <View testID="reach-story" className="px-m-margin py-5" style={{ flexGrow: 1, flexShrink: 0 }}>
       <Story />
     </View>
   );
-  return (
+  const provider = (body: ReactNode): React.JSX.Element => (
     <ReachProvider
       theme={context.globals['theme'] === 'dark' ? 'dark' : 'light'}
       platform={platform}
     >
-      {context.viewMode === 'docs' ? (
-        <View className="bg-canvas" style={{ width: 390 }}>
-          {story}
-        </View>
-      ) : (
-        <View className="bg-canvas" style={{ width: 390, minHeight: 844 }}>
-          <DeviceChrome platform={platform}>{story}</DeviceChrome>
-        </View>
-      )}
+      {body}
     </ReachProvider>
+  );
+  if (context.viewMode === 'docs') {
+    return provider(
+      <View className="bg-canvas" style={{ width: DEVICES[platform].width, maxWidth: '100%' }}>
+        {story}
+      </View>,
+    );
+  }
+  return (
+    <Device platform={platform}>
+      {provider(<SystemChrome platform={platform}>{story}</SystemChrome>)}
+    </Device>
   );
 };
 
