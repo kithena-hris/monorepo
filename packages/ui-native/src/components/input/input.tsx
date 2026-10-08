@@ -92,9 +92,12 @@ export function FieldBox({
         tight ? 'pr-1' : 'pr-4',
         multiline
           ? 'min-h-28 items-start'
-          : size === 'sm'
-            ? 'h-11 items-center'
-            : 'h-m-field items-center',
+          : // A floor, not a height, with room above and below: under a larger
+            // system text size the label and the value outgrow 56pt, and a
+            // fixed height pressed the label against the top edge.
+            size === 'sm'
+            ? 'min-h-11 items-center py-1.5'
+            : 'min-h-m-field items-center py-2',
         focused ? 'bg-surface' : readOnly ? 'bg-transparent' : 'bg-surface-sunken',
         disabled && 'opacity-50',
         className,

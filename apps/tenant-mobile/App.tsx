@@ -6,6 +6,7 @@ import { useColorScheme, View } from 'react-native';
 import {
   companyAt,
   forgetCompany,
+  lastEmail,
   openRecovery,
   restore,
   signIn,
@@ -22,13 +23,14 @@ import './global.css';
  * Kithena on a phone, for the people at a company: the tenant app, signed in
  * with the passkey they already use on the web.
  *
- * Four places to be, in the order the web has them: which company (its
- * address), signing in there, signed in, and the company not answering.
+ * Four places to be: which company (its address), signing in there with the
+ * work address and the passkey, signed in (a dashboard and the person's own
+ * tab, with signing out), and the company not answering.
  */
 type Place =
   | { readonly kind: 'starting' }
   | { readonly kind: 'company' }
-  | { readonly kind: 'sign-in'; readonly company: Company }
+  | { readonly kind: 'sign-in'; readonly company: Company; readonly email: string }
   | {
       readonly kind: 'signed-in';
       readonly company: Company;
@@ -36,6 +38,11 @@ type Place =
       readonly person: Person;
     }
   | { readonly kind: 'unreachable'; readonly origin: string };
+
+/** Signing in at a company, with the address last used there offered again. */
+async function signingIn(company: Company): Promise<Place> {
+  return { kind: 'sign-in', company, email: await lastEmail() };
+}
 
 /** Where a remembered company and session put somebody when the app opens. */
 async function resumed(): Promise<Place> {
@@ -45,11 +52,11 @@ async function resumed(): Promise<Place> {
   const company = await companyAt(saved.origin);
   if (company === 'unreachable') return { kind: 'unreachable', origin: saved.origin };
   if (company === null) return { kind: 'company' };
-  if (saved.sessionId === null) return { kind: 'sign-in', company };
+  if (saved.sessionId === null) return signingIn(company);
 
   const person = await whoAmI(company.origin, saved.sessionId);
   if (person === 'unreachable') return { kind: 'unreachable', origin: company.origin };
-  if (person === 'signed-out') return { kind: 'sign-in', company };
+  if (person === 'signed-out') return signingIn(company);
   return { kind: 'signed-in', company, sessionId: saved.sessionId, person };
 }
 
@@ -84,15 +91,16 @@ export default function App(): React.JSX.Element {
             const company = await companyAt(origin);
             if (company === null) return 'none';
             if (company === 'unreachable') return 'unreachable';
-            setPlace({ kind: 'sign-in', company });
+            setPlace(await signingIn(company));
             return 'found';
           }}
         />
       ) : place.kind === 'sign-in' ? (
         <SignInScreen
           company={place.company}
-          onSignIn={async () => {
-            const outcome = await signIn(place.company.origin);
+          initialEmail={place.email}
+          onSignIn={async (workEmail) => {
+            const outcome = await signIn(place.company.origin, workEmail);
             if (outcome.kind === 'signed-in') {
               setPlace({
                 kind: 'signed-in',
@@ -114,7 +122,7 @@ export default function App(): React.JSX.Element {
           person={place.person}
           onSignOut={async () => {
             await signOut(place.company.origin, place.sessionId);
-            setPlace({ kind: 'sign-in', company: place.company });
+            setPlace(await signingIn(place.company));
           }}
         />
       ) : (

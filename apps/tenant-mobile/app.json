@@ -10,11 +10,16 @@
       "bundleIdentifier": "com.kithena.app"
     },
     "android": {
-      "package": "com.kithena.app"
+      "package": "com.kithena.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4d53f0"
+      }
     },
     "plugins": [
       "expo-web-browser",
       "expo-secure-store"
-    ]
+    ],
+    "icon": "./assets/icon.png"
   }
 }

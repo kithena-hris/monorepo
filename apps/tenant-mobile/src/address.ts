@@ -3,24 +3,22 @@
  * web. The phone asks for it first because nothing else says which company —
  * the same reason the web's sign-in page lives on that hostname.
  *
- * Parsed by hand rather than with `URL`: React Native's `URL` implements
- * construction and little else, and its getters throw.
+ * Only the company's label is typed; the suffix is fixed beside the field, so
+ * there is nothing else to get wrong.
  */
-const TENANT_SUFFIX = 'app.kithena.com';
+export const TENANT_SUFFIX = '.app.kithena.com';
 
-/** Labels of letters, digits and inner hyphens, at least two of them, and a port. */
-const HOST = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?::\d{1,5})?$/;
+/** A DNS label: letters, digits and inner hyphens, as a company's slug is. */
+const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
-/** `https://<host>` for what somebody typed, or null when it is not an address. */
-export function companyOrigin(typed: string): string | null {
-  let host = typed
-    .trim()
-    .toLowerCase()
-    .replace(/^https:\/\//, '')
-    .replace(/\/.*$/, '');
-  // A company's name alone is the label in front of the suffix.
-  if (host !== '' && !host.includes('.') && !host.includes(':')) host = `${host}.${TENANT_SUFFIX}`;
-  return HOST.test(host) ? `https://${host}` : null;
+/** What may be typed: lower case, and nothing a label cannot hold. */
+export function asLabel(typed: string): string {
+  return typed.toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
+/** `https://<label>.app.kithena.com`, or null when the label is not one. */
+export function companyOrigin(label: string): string | null {
+  return LABEL.test(label) ? `https://${label}${TENANT_SUFFIX}` : null;
 }
 
 /**
