@@ -107,8 +107,13 @@ export function DonutChart({
           {typeof center === 'string' || typeof center === 'number' ? (
             <>
               <CssText
-                className="leading-none font-bold text-fg tabular-nums"
-                style={{ fontSize: Math.round(size * 0.17), letterSpacing: -0.03 * size * 0.17 }}
+                className="font-bold text-fg tabular-nums"
+                // In points: a unitless `leading-none` becomes 1pt where the size is inline.
+                style={{
+                  fontSize: Math.round(size * 0.17),
+                  lineHeight: Math.round(size * 0.17),
+                  letterSpacing: -0.03 * size * 0.17,
+                }}
               >
                 {center}
               </CssText>

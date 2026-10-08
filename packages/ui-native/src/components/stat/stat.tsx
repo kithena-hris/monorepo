@@ -84,9 +84,15 @@ export function Stat({
         {icon}
       </View>
       <View className="min-w-0 flex-row flex-wrap items-end justify-between gap-x-3 gap-y-2">
+        {/*
+          The line height beside the size, in points: a unitless `leading-[1.05]`
+          class only becomes a ratio where the font size is a class too. With
+          the size inline, react-native-css read it as 1.05pt on a device and
+          the figure was clipped to a sliver; a browser never showed it.
+        */}
         <CssText
-          className="shrink-0 leading-[1.05] font-bold tracking-[-0.03em] text-fg tabular-nums"
-          style={{ fontSize: size }}
+          className="shrink-0 font-bold tracking-[-0.03em] text-fg tabular-nums"
+          style={{ fontSize: size, lineHeight: Math.round(size * 1.05) }}
         >
           {from === undefined ? null : (
             <CssText

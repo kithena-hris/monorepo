@@ -1,5 +1,4 @@
 import {
-  Avatar,
   EmptyState,
   List,
   ListItem,
@@ -15,6 +14,7 @@ import { useMemo, useState } from 'react';
 
 import { Failed, Loading, Page } from '../frame';
 import { useRead } from './api';
+import { PersonAvatar } from './media';
 import { orgTree, type OrgNode, type OrgPerson } from './org';
 import type { PeopleScreen } from './routes';
 
@@ -28,7 +28,14 @@ function nodeOf({ person, reports }: OrgNode): TreeViewNode {
   return {
     id: person.id,
     label: person.name,
-    icon: <Avatar name={person.name} size={28} decorative />,
+    icon: (
+      <PersonAvatar
+        personId={person.id}
+        name={person.name}
+        avatarUrl={person.avatarUrl}
+        size={28}
+      />
+    ),
     ...(reports.length === 0
       ? {}
       : {
@@ -94,7 +101,9 @@ export function OrgChart({ navigation }: PeopleScreen<'OrgChart'>): React.JSX.El
             {matches.map((p) => (
               <ListItem
                 key={p.id}
-                leading={<Avatar name={p.name} size={40} decorative />}
+                leading={
+                  <PersonAvatar personId={p.id} name={p.name} avatarUrl={p.avatarUrl} size={40} />
+                }
                 {...(p.title === null ? {} : { description: p.title })}
                 chevron
                 onPress={() => {

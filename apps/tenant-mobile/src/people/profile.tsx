@@ -24,6 +24,9 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import {
   CalendarCheck,
+  Camera,
+  Image as ImageIcon,
+  Paperclip,
   CalendarX,
   Clock,
   Ellipsis,
@@ -47,6 +50,8 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Account } from '../account-card';
+import { FILE_TYPES } from './attribute-input';
+import { changePhoto, openFile, PersonAvatar, removePhoto } from './media';
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from './act';
 import {
@@ -100,10 +105,13 @@ interface ProfileData {
   readonly person: {
     readonly name: string;
     readonly summary: string | null;
+    readonly avatarUrl: string | null;
+    readonly canChangePhoto: boolean | null;
     readonly missing: number | null;
     readonly canViewAs: boolean | null;
   };
   readonly calendar: { readonly today: string; readonly timeZone: string } | null;
+  readonly files: readonly { readonly id: string; readonly name: string }[] | null;
   readonly placement: Placement | null;
   readonly sections: readonly {
     readonly key: string;
@@ -297,6 +305,8 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
   const section = sections.find((s) => s.key === chosen) ?? sections[0];
   // Nobody emails or calls themselves: the Me tab's record offers neither.
   const own = personId === null;
+  // Profile names nobody's id for the viewer's own record; their photo's address does.
+  const meId = /photos\/([0-9a-f-]{36})/i.exec(data.person.avatarUrl ?? '')?.[1] ?? null;
   const email = own ? null : contactOf(data, values, 'email');
   const phone = own ? null : contactOf(data, values, 'phone');
   // The chain runs from the top of the organisation down: the manager is its last.
@@ -467,7 +477,58 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         />
       ) : null}
       <Stack gap={2} align="center" className="pt-2">
-        <Avatar name={data.person.name} size="3xl" decorative />
+        <PersonAvatar
+          personId={personId ?? meId}
+          name={data.person.name}
+          avatarUrl={data.person.avatarUrl}
+          size="3xl"
+          {...(status === 'active' ? { status: 'success' as const } : {})}
+        />
+        {data.person.canChangePhoto === true ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button size="xs" variant="ghost" startIcon={<Icon icon={Camera} />}>
+                {data.person.avatarUrl === null ? 'Add a photo' : 'Change photo'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent label="Photo">
+              <DropdownMenuItem
+                icon={ImageIcon}
+                onSelect={() => {
+                  void changePhoto(signed, personId).then((up) => {
+                    if (up === null) return;
+                    if (up.ok) {
+                      toast({ title: 'Photo saved', tone: 'success' });
+                      reload();
+                    } else
+                      toast({
+                        title: 'That did not work',
+                        description: up.message,
+                        tone: 'danger',
+                      });
+                  });
+                }}
+              >
+                Choose a photo
+              </DropdownMenuItem>
+              {data.person.avatarUrl === null ? null : (
+                <DropdownMenuItem
+                  icon={Trash2}
+                  destructive
+                  onSelect={() => {
+                    void removePhoto(signed, personId).then((refused) => {
+                      if (refused === null) reload();
+                      else
+                        toast({ title: 'That did not work', description: refused, tone: 'danger' });
+                    });
+                  }}
+                >
+                  Remove photo
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
         {back === undefined ? null : (
           <Text accessibilityRole="header" variant="title2" weight="bold" className="text-center">
             {data.person.name}
@@ -575,7 +636,30 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                 ),
                 value: (
                   <Stack gap={2} className="w-full">
-                    <DisplayValue field={field} value={values[field.key]} />
+                    {FILE_TYPES.has(field.dataType) &&
+                    typeof values[field.key] === 'string' &&
+                    values[field.key] !== '' ? (
+                      <Button
+                        size="sm"
+                        startIcon={<Icon icon={Paperclip} />}
+                        onPress={() => {
+                          const id = values[field.key] as string;
+                          void openFile(signed, id).then((refused) => {
+                            if (refused !== null)
+                              toast({
+                                title: 'That did not work',
+                                description: refused,
+                                tone: 'danger',
+                              });
+                          });
+                        }}
+                      >
+                        {data.files?.find((f) => f.id === values[field.key])?.name ??
+                          'Open the file'}
+                      </Button>
+                    ) : (
+                      <DisplayValue field={field} value={values[field.key]} />
+                    )}
                     {waiting === undefined ? null : (
                       <PendingNote field={field} pending={waiting} onDone={reload} />
                     )}

@@ -6,7 +6,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
  * `Profile` too: yours.
  */
 export type PeopleRoutes = {
+  /** The Home tab: the person's own To do, or HR's figures and Needs HR (design B1, B2). */
+  Home: undefined;
   People: undefined;
+  /** The Inbox tab: what waits for this person, flagged changes, and being viewed as (B3). */
+  Inbox: undefined;
+  /** A new starter's sections, one at a time (D7). */
+  Onboarding: undefined;
   Directory: { search?: string } | undefined;
   OrgChart: undefined;
   /** `personId` absent: the viewer's own record. `back` is what the bar's back says. */

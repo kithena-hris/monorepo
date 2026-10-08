@@ -4,6 +4,7 @@ export interface OrgPerson {
   readonly name: string;
   readonly title: string | null;
   readonly managerId: string | null;
+  readonly avatarUrl?: string | null;
 }
 
 export interface OrgNode {

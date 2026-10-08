@@ -157,6 +157,7 @@ export function EditSection({ navigation, route }: PeopleScreen<'EditSection'>):
           {section.fields.map((field) => (
             <AttributeInput
               key={field.key}
+              personId={personId ?? null}
               field={field}
               value={valueOf(field.key)}
               onChange={(value) => {

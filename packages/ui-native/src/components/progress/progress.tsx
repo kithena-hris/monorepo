@@ -292,8 +292,9 @@ export function CircularProgress({
       {indeterminate || !showValue ? null : (
         <CssText
           aria-hidden
-          className="font-bold leading-none text-fg tabular-nums"
-          style={{ fontSize: Math.round(size * 0.25) }}
+          className="font-bold text-fg tabular-nums"
+          // In points: a unitless `leading-none` becomes 1pt where the size is inline.
+          style={{ fontSize: Math.round(size * 0.25), lineHeight: Math.round(size * 0.25) }}
         >
           {`${String(Math.round(percent(value, max)))}%`}
         </CssText>

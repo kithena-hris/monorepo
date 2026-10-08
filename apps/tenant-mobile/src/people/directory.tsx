@@ -1,5 +1,4 @@
 import {
-  Avatar,
   Badge,
   Button,
   ChipGroup,
@@ -19,6 +18,7 @@ import { View } from 'react-native';
 import { Failed, Loading, Page } from '../frame';
 import { AddPersonDialog } from './add-person';
 import { ask, useSigned } from './api';
+import { PersonAvatar } from './media';
 import { useRoles } from './roles';
 import type { PeopleScreen } from './routes';
 
@@ -37,6 +37,7 @@ interface DirectoryPage {
 interface DirectoryPerson {
   readonly id: string;
   readonly name: string;
+  readonly avatarUrl: string | null;
   readonly values: readonly { readonly key: string; readonly value: string }[];
   readonly people: readonly { readonly key: string }[] | null;
 }
@@ -260,7 +261,14 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
               return (
                 <ListItem
                   listitem={false}
-                  leading={<Avatar name={person.name} size={44} decorative />}
+                  leading={
+                    <PersonAvatar
+                      personId={person.id}
+                      name={person.name}
+                      avatarUrl={person.avatarUrl}
+                      size={44}
+                    />
+                  }
                   {...(line === '' ? {} : { description: line })}
                   {...(status === undefined || status === 'Active'
                     ? { chevron: true }
