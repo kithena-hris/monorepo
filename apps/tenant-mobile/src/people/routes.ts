@@ -46,6 +46,8 @@ export type PeopleRoutes = {
   Export: { sentence?: string } | undefined;
   /** One export: what is in it, who has it, the download. */
   ExportRecord: { id: string };
+  /** The people chosen in the Directory: the same values from a date, or hired (the web's bulk edit). */
+  BulkEdit: { personIds: readonly string[] };
   /** What changed and the charts, a tab at a time (G1–G3). */
   Insights: { tab?: string } | undefined;
   /** HR's scheduled reports (G4). */
@@ -56,6 +58,8 @@ export type PeopleRoutes = {
   Settings: undefined;
   /** The employee fields: sections, then a section's fields, and publishing (H2, H3). */
   FieldRegistry: { section?: string } | undefined;
+  /** The first administrator's setup: legal entity, country pack, version 1, their own record. */
+  PeopleSetup: undefined;
   /** A published field's type or format changed: every value reviewed before it is published. */
   FieldChange: { key: string; to: string };
   /** Legal entities, locations, numbering, pay bands and the company's defaults (H7). */

@@ -2,6 +2,7 @@ import {
   Alert,
   Badge,
   Button,
+  Checkbox,
   ChipGroup,
   ChipGroupItem,
   EmptyState,
@@ -13,7 +14,7 @@ import {
   Text,
   VirtualList,
 } from '@reach/ui-native';
-import { SearchX, SlidersHorizontal, UserPlus } from 'lucide-react-native';
+import { ListChecks, SearchX, SlidersHorizontal, UserPlus } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
@@ -47,6 +48,7 @@ interface DirectoryPage {
   readonly segments: readonly { readonly id: string; readonly name: string }[] | null;
   /** The fields "Remind all" asks for, after a question about empty ones; null otherwise. */
   readonly remind: readonly string[] | null;
+  readonly can: { readonly bulkEdit: boolean } | null;
   readonly people: readonly DirectoryPerson[];
   readonly next: string | null;
 }
@@ -158,6 +160,8 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
   const [unread, setUnread] = useState<string | null>(null);
   const [filtering, setFiltering] = useState(false);
   const [saving, setSaving] = useState(false);
+  // People chosen for a bulk edit; null when not choosing.
+  const [picked, setPicked] = useState<readonly string[] | null>(null);
   const { act, busy } = useAct();
   const typing = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [page, setPage] = useState<DirectoryPage | null>(null);
@@ -321,20 +325,50 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
       back={{ label: 'People', onPress: navigation.goBack }}
       scroll={false}
       // After a question about empty fields, Remind all is in thumb reach (design C2).
-      {...(canRemind
+      {...(picked !== null
         ? {
             foot: (
               <>
-                <Text tone="muted" className="flex-1 self-center">
-                  {peopleCount(page?.total ?? 0)}
-                </Text>
-                <Button className="flex-1" loading={busy === 'RemindDirectory'} onPress={remindAll}>
-                  Remind all
+                <Button
+                  className="flex-1"
+                  onPress={() => {
+                    setPicked(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant="primary"
+                  disabled={picked.length === 0}
+                  onPress={() => {
+                    navigation.navigate('BulkEdit', { personIds: [...picked] });
+                    setPicked(null);
+                  }}
+                >
+                  {`Edit ${String(picked.length)}`}
                 </Button>
               </>
             ),
           }
-        : {})}
+        : canRemind
+          ? {
+              foot: (
+                <>
+                  <Text tone="muted" className="flex-1 self-center">
+                    {peopleCount(page?.total ?? 0)}
+                  </Text>
+                  <Button
+                    className="flex-1"
+                    loading={busy === 'RemindDirectory'}
+                    onPress={remindAll}
+                  >
+                    Remind all
+                  </Button>
+                </>
+              ),
+            }
+          : {})}
       // Add person is the icon at the top right, for HR (design C1).
       {...(hr
         ? {
@@ -453,6 +487,17 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
             ))}
           </ChipGroup>
         </View>
+        {page?.can?.bulkEdit === true ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            startIcon={<Icon icon={ListChecks} />}
+            accessibilityLabel="Choose people to edit together"
+            onPress={() => {
+              setPicked((p) => (p === null ? [] : null));
+            }}
+          />
+        ) : null}
         {fields.length === 0 ? null : (
           <Button
             size="sm"
@@ -551,12 +596,28 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
                 <ListItem
                   listitem={false}
                   leading={
-                    <PersonAvatar
-                      personId={person.id}
-                      name={person.name}
-                      avatarUrl={person.avatarUrl}
-                      size={44}
-                    />
+                    picked !== null ? (
+                      <Checkbox
+                        checked={picked.includes(person.id)}
+                        accessibilityLabel={`Choose ${person.name}`}
+                        onCheckedChange={(on) => {
+                          setPicked((p) =>
+                            p === null
+                              ? p
+                              : on
+                                ? [...p, person.id]
+                                : p.filter((id) => id !== person.id),
+                          );
+                        }}
+                      />
+                    ) : (
+                      <PersonAvatar
+                        personId={person.id}
+                        name={person.name}
+                        avatarUrl={person.avatarUrl}
+                        size={44}
+                      />
+                    )
                   }
                   {...(line === '' ? {} : { description: line })}
                   {...(status === undefined || status === 'Active'
@@ -569,6 +630,16 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
                         ),
                       })}
                   onPress={() => {
+                    if (picked !== null) {
+                      setPicked((p) =>
+                        p === null
+                          ? p
+                          : p.includes(person.id)
+                            ? p.filter((id) => id !== person.id)
+                            : [...p, person.id],
+                      );
+                      return;
+                    }
                     navigation.navigate('Profile', {
                       personId: person.id,
                       name: person.name,

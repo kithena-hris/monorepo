@@ -2,8 +2,10 @@ import { Banner, Button, TabBar, ToastProvider } from '@reach/ui-native';
 import {
   DarkTheme,
   DefaultTheme,
+  createNavigationContainerRef,
   NavigationContainer,
   NavigationIndependentTree,
+  type NavigationContainerRefWithCurrent,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Eye, House, Inbox as InboxIcon, User, Users } from 'lucide-react-native';
@@ -15,6 +17,8 @@ import type { Company, Person } from './account';
 import { greetingFor } from './address';
 import { TAB_ROOM, TabBarHiding } from './frame';
 import { ask, SignedContext, type Signed } from './people/api';
+import { AskKithena } from './people/ask';
+import { BulkEdit } from './people/bulk';
 import { Directory } from './people/directory';
 import { EditSection } from './people/edit-section';
 import { History } from './people/history';
@@ -35,6 +39,7 @@ import { ReportHistory, ScheduledReports } from './people/insights/reports';
 import { Activity } from './people/settings/activity';
 import { FieldChange } from './people/settings/field-change';
 import { FieldRegistry } from './people/settings/fields';
+import { PeopleSetup } from './people/settings/setup';
 import { Integrations, WebhookLog } from './people/settings/integrations';
 import { Organisation } from './people/settings/organisation';
 import { Roles } from './people/settings/roles';
@@ -60,11 +65,20 @@ type Tab = 'home' | 'people' | 'inbox' | 'me';
  * not a navigator, decides which one shows; the bars are Reach's, so the
  * navigator draws no header of its own.
  */
-function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Element {
+function TabStack({
+  initial,
+  container,
+}: {
+  initial: keyof PeopleRoutes;
+  container?: NavigationContainerRefWithCurrent<PeopleRoutes>;
+}): React.JSX.Element {
   const dark = useColorScheme() === 'dark';
   return (
     <NavigationIndependentTree>
-      <NavigationContainer theme={dark ? DarkTheme : DefaultTheme}>
+      <NavigationContainer
+        theme={dark ? DarkTheme : DefaultTheme}
+        {...(container === undefined ? {} : { ref: container })}
+      >
         <Stack_.Navigator initialRouteName={initial} screenOptions={{ headerShown: false }}>
           <Stack_.Screen name="Home" component={Home} />
           <Stack_.Screen name="Inbox" component={Inbox} />
@@ -97,6 +111,8 @@ function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Eleme
           <Stack_.Screen name="Organisation" component={Organisation} />
           <Stack_.Screen name="FieldRegistry" component={FieldRegistry} />
           <Stack_.Screen name="FieldChange" component={FieldChange} />
+          <Stack_.Screen name="PeopleSetup" component={PeopleSetup} />
+          <Stack_.Screen name="BulkEdit" component={BulkEdit} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
@@ -128,6 +144,8 @@ export function SignedIn({
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('home');
   const [ending, setEnding] = useState(false);
+  // The People tab's stack, so an answer's person opens there.
+  const [people] = useState(() => createNavigationContainerRef<PeopleRoutes>());
   // The Inbox tab's count: what waits in Review for this person, as the bell counts it.
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
@@ -215,7 +233,7 @@ export function SignedIn({
               <TabStack initial="Home" />
             </View>
             <View className="flex-1" style={shown('people')}>
-              <TabStack initial="People" />
+              <TabStack initial="People" container={people} />
             </View>
             <View className="flex-1" style={shown('inbox')}>
               <TabStack initial="Inbox" />
@@ -246,6 +264,16 @@ export function SignedIn({
                 }}
               />
             </View>
+            {hiding > 0 ? null : (
+              <AskKithena
+                bottomInset={TAB_ROOM}
+                onOpenPerson={(personId, name) => {
+                  setTab('people');
+                  if (people.isReady())
+                    people.navigate('Profile', { personId, name, back: 'People' });
+                }}
+              />
+            )}
           </View>
         </ToastProvider>
       </TabBarHiding>

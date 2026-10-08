@@ -1,4 +1,13 @@
-import { Badge, Chip, EmptyState, List, ListItem, SearchField } from '@reach/ui-native';
+import {
+  Alert,
+  Badge,
+  Button,
+  Chip,
+  EmptyState,
+  List,
+  ListItem,
+  SearchField,
+} from '@reach/ui-native';
 import {
   Building2,
   Plug,
@@ -18,6 +27,7 @@ import type { PeopleScreen } from '../routes';
 /** What each of People's settings holds now, read before anybody opens one. */
 interface Overview {
   readonly fields: {
+    readonly published: { readonly version: number } | null;
     readonly unpublishedChanges: number;
     readonly fields: readonly unknown[];
   } | null;
@@ -164,6 +174,19 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
 
   return (
     <Page title="Settings" back={back}>
+      {data.fields !== null && data.fields.published === null ? (
+        <Alert tone="info" title="Set up the employee record">
+          <Button
+            size="sm"
+            variant="primary"
+            onPress={() => {
+              navigation.navigate('PeopleSetup');
+            }}
+          >
+            Start
+          </Button>
+        </Alert>
+      ) : null}
       <SearchField
         value={find}
         onValueChange={setFind}
