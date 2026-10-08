@@ -78,6 +78,7 @@ import {
   type Placement,
 } from './employment';
 import { STATUS_TONE } from './directory';
+import { useRoles } from './roles';
 import type { PeopleScreen } from './routes';
 
 interface Pending {
@@ -256,6 +257,7 @@ function contactOf(data: ProfileData, values: Readonly<Record<string, Value>>, t
  * control in the editor.
  */
 export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.JSX.Element {
+  const roles = useRoles();
   const personId = route.params?.personId ?? null;
   const { load, reload } = useRead<ProfileData>('Profile', { personId });
   const [chosen, setChosen] = useState<string | null>(null);
@@ -698,7 +700,17 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
       <EmploymentPeriods periods={data.employment?.periods ?? []} />
 
       {/* Your own record, in the Me tab: where you are signed in, and the way out. */}
-      {own && back === undefined ? <Account /> : null}
+      {own && back === undefined ? (
+        <Account
+          {...(roles.hr || roles.admin
+            ? {
+                onSettings: () => {
+                  navigation.navigate('Settings');
+                },
+              }
+            : {})}
+        />
+      ) : null}
     </>,
     <Inline gap={2} wrap={false}>
       {menu}
