@@ -1,7 +1,7 @@
 import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import { SESSION_COOKIE } from '../../../lib/session';
+import { revokeSession, SESSION_COOKIE } from '../../../lib/session';
 import { RETURN_COOKIE } from '../../../lib/session-cookie';
 import { readReturn } from '../../../lib/view-as';
 
@@ -35,19 +35,9 @@ export async function POST(): Promise<Response> {
    */
   for (const id of [sessionId, own]) {
     if (id === undefined || id === '' || tenantId === null || tenantId === '') continue;
-    await fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/revoke`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '',
-      },
-      body: JSON.stringify({ sessionId: id, tenantId }),
-      cache: 'no-store',
-      // Swallowed on purpose. A person who clicked "sign out" gets signed out
-      // of this browser even if identity is unreachable; the row then lapses on
-      // its own absolute lifetime. Failing the request would leave them looking
-      // at an error while still signed in.
-    }).catch(() => null);
+    // Swallowed on purpose (`revokeSession`). A person who clicked "sign out"
+    // gets signed out of this browser even if identity is unreachable.
+    await revokeSession(id, tenantId);
   }
 
   /*

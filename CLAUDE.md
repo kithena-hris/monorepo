@@ -133,6 +133,13 @@ than quietly working around it.
   the repo's React 19.3. NativeWind is a release candidate, pinned
   exactly, and its four workarounds are re-tested on every bump.
 
+- **Kithena on a phone is `apps/tenant-mobile`** (Expo, Reach Mobile), the
+  tenant app only. It signs in on the company's own `/login`, opened in the
+  system's authentication sheet; the session comes back as a sealed one-time
+  code only the app's PKCE verifier opens (`apps/web/src/lib/app-sign-in.ts`),
+  and is then a bearer to `/api/mobile/*` on the company's host. No native
+  passkey prompt, so no app association and no second set of origins.
+
 Full reasoning lives in `docs/tech-stack.md`.
 
 ## Rules that are enforced, not suggested

@@ -5,6 +5,8 @@ import { Alert, Button, Field, FieldDescription, FieldError, FieldLabel, Input }
 import { useRouter } from 'next/navigation';
 import { useCallback, useState, type JSX } from 'react';
 
+import type { AppSignIn } from '../lib/app-sign-in';
+
 /**
  * Signing in with the passkey on this device, on the company's own origin.
  *
@@ -39,7 +41,7 @@ type State =
 /** Shape only, and only to save a wasted prompt. Existence is identity's answer. */
 const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
-export function PasskeySignIn(): JSX.Element {
+export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.Element {
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [email, setEmail] = useState('');
   const [emailProblem, setEmailProblem] = useState<string | null>(null);
@@ -74,11 +76,21 @@ export function PasskeySignIn(): JSX.Element {
         // No tenant in the body. The server takes it from the hostname, which
         // is the only copy of it a client cannot choose. The address is the
         // one thing the hostname cannot supply.
-        body: JSON.stringify({ response: assertion, workEmail: email.trim() }),
+        // `app` when the phone app opened this page: the session goes back to
+        // it as a code, and this browser keeps nothing.
+        body: JSON.stringify({ response: assertion, workEmail: email.trim(), app }),
       });
 
       if (!finished.ok) {
         setState({ kind: 'refused' });
+        return;
+      }
+
+      if (app !== null) {
+        // The app's own address. The sheet the app opened closes on it, so
+        // this page is never seen again; `working` stays until it does.
+        const { redirect } = (await finished.json()) as { redirect: string };
+        window.location.assign(redirect);
         return;
       }
 
@@ -96,7 +108,7 @@ export function PasskeySignIn(): JSX.Element {
       // outcome here: nothing happened, try again.
       setState({ kind: 'refused' });
     }
-  }, [email, router]);
+  }, [app, email, router]);
 
   const busy = state.kind === 'working';
 
