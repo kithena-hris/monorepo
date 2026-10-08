@@ -8,13 +8,13 @@ in git, and nowhere else.
 
 **Specs**
 
-| What                    | Where                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| The design              | Claude Design project `6fed6ac8…`, files `Reach Mobile*.dc.html`; source `_build/spec-*.js` + `core.js` |
-| The design, on disk     | `.claude/design/reach-mobile/` (`ref/<category>-<theme>.html`, `ref/index.json`)                         |
-| The web library         | `packages/ui`, `apps/storybook` — names, titles and docs this mirrors                                   |
-| Repo rules              | [`CLAUDE.md`](../CLAUDE.md)                                                                             |
-| Why this stack          | [`docs/tech-stack.md`](./tech-stack.md), "Reach on a phone" (RMB-002)                                   |
+| What                | Where                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| The design          | Claude Design project `6fed6ac8…`, files `Reach Mobile*.dc.html`; source `_build/spec-*.js` + `core.js` |
+| The design, on disk | `.claude/design/reach-mobile/` (`ref/<category>-<theme>.html`, `ref/index.json`)                        |
+| The web library     | `packages/ui`, `apps/storybook` — names, titles and docs this mirrors                                   |
+| Repo rules          | [`CLAUDE.md`](../CLAUDE.md)                                                                             |
+| Why this stack      | [`docs/tech-stack.md`](./tech-stack.md), "Reach on a phone" (RMB-002)                                   |
 
 The design is 111 components and 589 stories at phone size (390pt), every one in
 light and dark: Foundations 14 / 74, Forms 23 / 135, Components 40 / 225,
@@ -30,8 +30,10 @@ Data 13 / 80, Charts 21 / 75. `ref/index.json` lists every story by title.
 - **`apps/storybook-mobile`** (`@reach/storybook-mobile`): its documentation.
   Storybook 10.6 with `@storybook/react-native-web-vite`, so the same Storybook
   the web library uses, rendering the native components through
-  react-native-web. **Mobile view only**: a fixed 390 × 844 viewport, light and
-  dark. **Every story twice, under `iOS/` and `Android/`**: one component and
+  react-native-web. **Mobile view only**, light and dark: each story on its
+  platform's phone at its real size, an iPhone 18 Pro Max (440 × 956) or a
+  Pixel 11 Pro (412 × 915), drawn in CSS around the real components (390 × 844
+  until 2026-10-08, which the test runner and `reach-mobile:compare` still use). **Every story twice, under `iOS/` and `Android/`**: one component and
   one story file, listed in each platform's section, in that platform's status
   bar and home indicator, with the platform declared on `ReachProvider` so a
   component that genuinely differs (it reads `usePlatform()`, never
@@ -45,22 +47,22 @@ Data 13 / 80, Charts 21 / 75. `ref/index.json` lists every story by title.
 
 ### The stack
 
-| Concern                 | Web Reach                 | Reach Mobile                                                   |
-| ----------------------- | ------------------------- | -------------------------------------------------------------- |
-| Styling, tokens         | Tailwind v4, `@theme`     | NativeWind 5 (Tailwind v4), the same token source (RMB-004)    |
-| Behaviour primitives    | Radix                     | `@rn-primitives/*` (Radix's API on native)                     |
-| Variants                | CVA, `cn`                 | CVA, `cn`                                                      |
-| Icons                   | `lucide-react`            | `lucide-react-native`                                          |
-| Motion                  | CSS, `motion.ts`          | Reanimated 4 + Worklets, the same durations and easings        |
-| Gestures                | pointer events            | `react-native-gesture-handler`                                 |
-| Long lists              | `@tanstack/react-virtual` | `@shopify/flash-list` 2                                        |
-| Drag and drop           | `@dnd-kit`                | `react-native-sortables` (Reanimated + Gesture Handler)        |
-| Rich text               | Tiptap                    | TenTap (`@10play/tentap-editor`, Tiptap underneath)            |
-| Sheets                  | Radix Dialog              | `@gorhom/bottom-sheet`                                         |
-| Charts                  | hand-drawn SVG            | hand-drawn SVG on `react-native-svg`                           |
-| Images                  | `<img>`                   | `expo-image`                                                   |
-| Haptics                 | —                         | `expo-haptics`                                                 |
-| Docs and a11y gate      | Storybook 10.6 + axe      | Storybook 10.6 (react-native-web-vite) + axe                   |
+| Concern              | Web Reach                 | Reach Mobile                                                |
+| -------------------- | ------------------------- | ----------------------------------------------------------- |
+| Styling, tokens      | Tailwind v4, `@theme`     | NativeWind 5 (Tailwind v4), the same token source (RMB-004) |
+| Behaviour primitives | Radix                     | `@rn-primitives/*` (Radix's API on native)                  |
+| Variants             | CVA, `cn`                 | CVA, `cn`                                                   |
+| Icons                | `lucide-react`            | `lucide-react-native`                                       |
+| Motion               | CSS, `motion.ts`          | Reanimated 4 + Worklets, the same durations and easings     |
+| Gestures             | pointer events            | `react-native-gesture-handler`                              |
+| Long lists           | `@tanstack/react-virtual` | `@shopify/flash-list` 2                                     |
+| Drag and drop        | `@dnd-kit`                | `react-native-sortables` (Reanimated + Gesture Handler)     |
+| Rich text            | Tiptap                    | TenTap (`@10play/tentap-editor`, Tiptap underneath)         |
+| Sheets               | Radix Dialog              | `@gorhom/bottom-sheet`                                      |
+| Charts               | hand-drawn SVG            | hand-drawn SVG on `react-native-svg`                        |
+| Images               | `<img>`                   | `expo-image`                                                |
+| Haptics              | —                         | `expo-haptics`                                              |
+| Docs and a11y gate   | Storybook 10.6 + axe      | Storybook 10.6 (react-native-web-vite) + axe                |
 
 Versions are the newest each platform supports when it lands: the native app
 runs Expo SDK 57's set (React Native 0.86.3, React 19.2.3), Storybook the repo's
@@ -115,15 +117,15 @@ run once before it.
 
 ### Lanes
 
-| Lane | What                                    | Tickets           | Runs                |
-| ---- | --------------------------------------- | ----------------- | ------------------- |
-| F    | Foundation: package, tokens, Storybook  | RMB-001 – RMB-009 | first, alone        |
-| A    | Forms                                   | RMB-010 – RMB-021 | after F, with B, C  |
-| B    | Actions, display, feedback              | RMB-022 – RMB-031 | after F, with A, C  |
-| C    | Overlays and navigation                 | RMB-032 – RMB-041 | after F, with A, B  |
-| D    | Data                                    | RMB-042 – RMB-048 | after B and C       |
-| E    | Charts                                  | RMB-049 – RMB-055 | after B             |
-| P    | Layouts and patterns, the native proof  | RMB-056 – RMB-060 | last                |
+| Lane | What                                   | Tickets           | Runs               |
+| ---- | -------------------------------------- | ----------------- | ------------------ |
+| F    | Foundation: package, tokens, Storybook | RMB-001 – RMB-009 | first, alone       |
+| A    | Forms                                  | RMB-010 – RMB-021 | after F, with B, C |
+| B    | Actions, display, feedback             | RMB-022 – RMB-031 | after F, with A, C |
+| C    | Overlays and navigation                | RMB-032 – RMB-041 | after F, with A, B |
+| D    | Data                                   | RMB-042 – RMB-048 | after B and C      |
+| E    | Charts                                 | RMB-049 – RMB-055 | after B            |
+| P    | Layouts and patterns, the native proof | RMB-056 – RMB-060 | last               |
 
 No more than three lanes run at once.
 

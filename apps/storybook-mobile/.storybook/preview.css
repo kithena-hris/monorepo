@@ -8,3 +8,251 @@ html,
 .sbdocs-preview {
   background-color: var(--reach-color-canvas);
 }
+
+/*
+ * The phones (`device.tsx`): an iPhone 18 Pro Max for iOS, a Pixel 11 Pro for
+ * Android, drawn here and nowhere else. Hardware, not interface: the body,
+ * bezel, buttons and camera are the device's own colours, the same in either
+ * theme, and none of it is a Reach token. The screen inside is the real
+ * thing, at the phone's size in points (`--reach-screen-w` / `-h`).
+ */
+.reach-stage {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 32px 24px;
+  box-sizing: border-box;
+}
+
+.reach-device {
+  --reach-bezel: 12px;
+  --reach-rim: 4px;
+  --reach-radius: 72px;
+  --reach-screen-radius: 58px;
+  position: relative;
+  box-sizing: content-box;
+  width: var(--reach-screen-w);
+  height: var(--reach-screen-h);
+  padding: var(--reach-bezel);
+  border: var(--reach-rim) solid var(--reach-device-metal);
+  border-radius: var(--reach-radius);
+  background: #050506;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    0 0 0 1px rgb(0 0 0 / 0.25),
+    0 2px 0 1px var(--reach-device-metal-shade),
+    0 40px 80px -24px rgb(0 0 0 / 0.35),
+    0 18px 36px -18px rgb(0 0 0 / 0.3);
+}
+
+.reach-device__screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--reach-screen-radius);
+  /* A new stacking context, so an overlay's z-index stays on the screen. */
+  isolation: isolate;
+  background-color: var(--reach-color-canvas);
+}
+
+/* The story scrolls inside the screen, under a fixed status bar. */
+.reach-device__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.reach-device__content::-webkit-scrollbar {
+  display: none;
+}
+.reach-device__home {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+.reach-device--ios .reach-device__content {
+  padding-bottom: 34px;
+}
+.reach-device--android .reach-device__content {
+  padding-bottom: 24px;
+}
+
+/* The buttons on the rims, one element and its two pseudo-elements per side. */
+.reach-device__buttons,
+.reach-device__buttons::before,
+.reach-device__buttons::after {
+  position: absolute;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--reach-device-metal);
+  box-shadow: inset 0 0 0 1px var(--reach-device-metal-shade);
+  content: '';
+}
+
+/* On a dark canvas the black glass needs a lit edge to read as an object. */
+.dark .reach-device {
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.1),
+    0 0 0 1px rgb(255 255 255 / 0.14),
+    0 2px 0 1px var(--reach-device-metal-shade),
+    0 40px 90px -20px rgb(120 130 160 / 0.22);
+}
+
+/* iPhone 18 Pro Max: aluminium unibody, Dynamic Island, Action button and Camera Control. */
+.reach-device--ios {
+  --reach-device-metal: #c4c6cb;
+  --reach-device-metal-shade: #8d9096;
+}
+.reach-device--ios .reach-device__screen::before {
+  position: absolute;
+  top: 11px;
+  left: 50%;
+  z-index: 50;
+  width: 120px;
+  height: 35px;
+  border-radius: 20px;
+  background: #000;
+  transform: translateX(-50%);
+  pointer-events: none;
+  content: '';
+}
+/* Left rim: the Action button, then volume up and down. */
+.reach-device--ios .reach-device__buttons {
+  top: 196px;
+  left: calc(-1 * var(--reach-rim) - 4px);
+  height: 34px;
+}
+.reach-device--ios .reach-device__buttons::before {
+  top: 66px;
+  left: 0;
+  height: 64px;
+}
+.reach-device--ios .reach-device__buttons::after {
+  top: 144px;
+  left: 0;
+  height: 64px;
+}
+/* Right rim: the side button and, lower, Camera Control. */
+.reach-device--ios::before,
+.reach-device--ios::after {
+  position: absolute;
+  right: calc(-1 * var(--reach-rim) - 4px);
+  width: 4px;
+  border-radius: 2px;
+  background: var(--reach-device-metal);
+  box-shadow: inset 0 0 0 1px var(--reach-device-metal-shade);
+  content: '';
+}
+.reach-device--ios::before {
+  top: 300px;
+  height: 104px;
+}
+.reach-device--ios::after {
+  top: 620px;
+  height: 64px;
+  opacity: 0.85;
+}
+
+/* Pixel 11 Pro: flat aluminium frame, a centred punch-hole camera, power above volume on the right. */
+.reach-device--android {
+  --reach-bezel: 10px;
+  --reach-rim: 3px;
+  --reach-radius: 52px;
+  --reach-screen-radius: 42px;
+  --reach-device-metal: #3a3d42;
+  --reach-device-metal-shade: #1e2023;
+}
+.reach-device--android .reach-device__screen::before {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 50;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #24282e 0 30%, #000 45%);
+  transform: translateX(-50%);
+  pointer-events: none;
+  content: '';
+}
+.reach-device--android .reach-device__buttons {
+  top: 180px;
+  right: calc(-1 * var(--reach-rim) - 4px);
+  height: 60px;
+}
+.reach-device--android .reach-device__buttons::before {
+  top: 92px;
+  right: 0;
+  height: 112px;
+}
+.reach-device--android .reach-device__buttons::after {
+  display: none;
+}
+
+/*
+ * Narrower than a phone with room around it: a phone browsing the Storybook,
+ * the test runner and `reach-mobile:compare` (both 390 wide). The device goes,
+ * the story fills the window and scrolls with the page, and the system chrome
+ * goes with it, since the phone in the hand already has its own.
+ */
+@media (max-width: 559px) {
+  .reach-stage {
+    display: block;
+    /* Block layout honours justify-items now; a centred device would shrink to fit. */
+    place-items: normal;
+    min-height: 0;
+    padding: 0;
+  }
+  .reach-device,
+  .reach-device--ios,
+  .reach-device--android {
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .reach-device::before,
+  .reach-device::after,
+  .reach-device__buttons,
+  .reach-device__screen::before,
+  .reach-device__chrome {
+    display: none !important;
+  }
+  .reach-device__screen {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    border-radius: 0;
+  }
+  .reach-device__content {
+    overflow: visible;
+    padding-bottom: 0 !important;
+  }
+}
+
+/* A docs page on a phone: the page scrolls, never sideways. */
+@media (max-width: 559px) {
+  .sbdocs-wrapper {
+    padding: 16px 12px;
+  }
+  .sbdocs-content {
+    max-width: 100%;
+  }
+  /* The props table is wider than a phone: it scrolls sideways on its own. */
+  .sbdocs-content .docblock-argstable {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}

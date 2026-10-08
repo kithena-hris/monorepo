@@ -13,10 +13,27 @@ export const PLATFORMS = [
 ] as const satisfies readonly { section: string; platform: Platform }[];
 
 /**
+ * The phone each platform's stories are drawn on, at its own size in points:
+ * an iPhone 18 Pro Max for iOS and a Pixel 11 Pro for Android. A story lays
+ * out at the screen's width, as it would on that phone.
+ */
+export const DEVICES = {
+  ios: { name: 'iPhone 18 Pro Max', width: 440, height: 956 },
+  android: { name: 'Pixel 11 Pro', width: 412, height: 915 },
+} as const satisfies Record<Platform, { name: string; width: number; height: number }>;
+
+/**
  * Set by a Vitest project (`vitest.config.ts`), which runs each story file
  * once per platform: those stories keep their own titles, with no section.
  */
 declare const __REACH_PLATFORM__: Platform | undefined;
+
+/**
+ * Under Vitest the gates see each story bare, at the runner's 390 × 844, as
+ * they always have: a phone drawn around it would only add a scroll container
+ * between axe and the story's colours.
+ */
+export const underTest = typeof __REACH_PLATFORM__ !== 'undefined';
 
 /** The platform a story is drawn for: its sidebar section, or the test run's. */
 export function platformOf(title: string): Platform {
@@ -27,13 +44,49 @@ export function platformOf(title: string): Platform {
 }
 
 /**
- * The phone's own chrome around a story: the status bar above, and the home
- * indicator (iOS) or gesture handle (Android) below. Drawn, not functional,
- * and hidden from assistive technology; the story itself is what
- * `reach-mobile:compare` shoots (`reach-story`), so the chrome never reaches
- * the side-by-side.
+ * The phone around a story: the body, bezel and buttons, drawn by
+ * `preview.css`, and the screen inside, which holds the real components.
+ * `screen` is what renders on that screen (the provider and the story); the
+ * story scrolls inside the screen, as an app does, and an overlay covers the
+ * screen rather than the page.
+ *
+ * Below the phone's own width (a phone browsing the Storybook, the test
+ * runner, `reach-mobile:compare`), the CSS takes the device away and the
+ * story fills the window, so nothing is drawn twice and nothing overflows.
  */
-export function DeviceChrome({
+export function Device({
+  platform,
+  children,
+}: {
+  platform: Platform;
+  children: ReactNode;
+}): React.JSX.Element {
+  const device = DEVICES[platform];
+  return (
+    <div className="reach-stage">
+      <div
+        className={`reach-device reach-device--${platform}`}
+        style={
+          {
+            '--reach-screen-w': `${String(device.width)}px`,
+            '--reach-screen-h': `${String(device.height)}px`,
+          } as React.CSSProperties
+        }
+      >
+        <span aria-hidden className="reach-device__buttons" />
+        <div className="reach-device__screen">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What the operating system draws on the screen: the status bar above, and
+ * the home indicator (iOS) or gesture handle (Android) over the bottom edge.
+ * Drawn, not functional, and hidden from assistive technology. The story
+ * itself is `reach-story`, which is what `reach-mobile:compare` shoots.
+ */
+export function SystemChrome({
   platform,
   children,
 }: {
@@ -42,14 +95,12 @@ export function DeviceChrome({
 }): React.JSX.Element {
   const ios = platform === 'ios';
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-canvas">
       <View
         aria-hidden
-        className={
-          ios
-            ? 'h-[54px] flex-row items-center justify-between px-8 pt-3'
-            : 'h-[36px] flex-row items-center justify-between px-5'
-        }
+        className={`reach-device__chrome flex-row items-center justify-between ${
+          ios ? 'h-[59px] px-9 pt-3.5' : 'h-[40px] px-6'
+        }`}
       >
         <Text variant={ios ? 'headline' : 'subhead'} tabular>
           9:41
@@ -59,16 +110,19 @@ export function DeviceChrome({
           <Battery ios={ios} />
         </View>
       </View>
-      <View className="flex-1">{children}</View>
+      {/* Focusable, so a keyboard can scroll a story taller than the screen. */}
+      <div className="reach-device__content" tabIndex={0}>
+        {children}
+      </div>
       <View
         aria-hidden
-        className={
-          ios ? 'h-[34px] items-center justify-center' : 'h-[24px] items-center justify-center'
-        }
+        className={`reach-device__chrome reach-device__home pointer-events-none items-center justify-end ${
+          ios ? 'h-[34px] pb-2' : 'h-[24px] pb-2'
+        }`}
       >
         <View
           className={
-            ios ? 'h-[5px] w-[134px] rounded-full bg-fg' : 'h-1 w-[108px] rounded-full bg-fg-muted'
+            ios ? 'h-[5px] w-[140px] rounded-full bg-fg' : 'h-1 w-[108px] rounded-full bg-fg-muted'
           }
         />
       </View>

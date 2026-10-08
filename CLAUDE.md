@@ -128,8 +128,9 @@ than quietly working around it.
   library (`@rn-primitives`, Reanimated, Gesture Handler, FlashList), never a
   second design system: Tamagui would be a second token source, gluestack and
   Paper someone else's look. The native app runs Expo SDK 57's React 19.2.3;
-  its Storybook (`apps/storybook-mobile`, react-native-web, one 390 × 844
-  phone) runs the repo's React 19.3. NativeWind is a release candidate, pinned
+  its Storybook (`apps/storybook-mobile`, react-native-web, iOS stories on an
+  iPhone 18 Pro Max and Android's on a Pixel 11 Pro, both drawn in CSS) runs
+  the repo's React 19.3. NativeWind is a release candidate, pinned
   exactly, and its four workarounds are re-tested on every bump.
 
 Full reasoning lives in `docs/tech-stack.md`.
@@ -164,7 +165,7 @@ table, an avatar, a page header. Do not hand-roll one, and do not reach for a
 raw `<button>`, a bare `<img>` used as an avatar or mark, or a `<label>` with
 spans stacked to imitate a field.
 
-Two things this rule is *not*. It is not a ban on HTML: `div`, `span`, `p`,
+Two things this rule is _not_. It is not a ban on HTML: `div`, `span`, `p`,
 `ul`, `li`, `section`, `main`, `form`, `h1`–`h6`, `a` and a full-bleed
 background `<img>` are structure and text, and Reach has no opinion about them.
 And it is not a licence to add a component — check whether one exists under a
@@ -246,11 +247,11 @@ just graph                # build or refresh the code knowledge graph (free, no 
 **The People module is specified and not yet built.** Do not design it again;
 pick the next unticked ticket and follow its spec references.
 
-| What | Work from this | Read-only copy |
-| --- | --- | --- |
-| Tickets, in order, with checkboxes | `docs/people-build-plan.md` | https://claude.ai/code/artifact/647ccf50-72b0-43ab-bd0a-7cbdd3ce9fd0 |
-| Requirements | `docs/people-prd.md` | https://claude.ai/code/artifact/aec9b244-64f7-4f53-ab16-7ae6e572da6a |
-| Screens, 13, annotated with the Reach component each region uses | — | https://claude.ai/code/artifact/4d719b45-46cb-45da-9a0a-6b845f03332f |
+| What                                                             | Work from this              | Read-only copy                                                       |
+| ---------------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------- |
+| Tickets, in order, with checkboxes                               | `docs/people-build-plan.md` | https://claude.ai/code/artifact/647ccf50-72b0-43ab-bd0a-7cbdd3ce9fd0 |
+| Requirements                                                     | `docs/people-prd.md`        | https://claude.ai/code/artifact/aec9b244-64f7-4f53-ab16-7ae6e572da6a |
+| Screens, 13, annotated with the Reach component each region uses | —                           | https://claude.ai/code/artifact/4d719b45-46cb-45da-9a0a-6b845f03332f |
 
 Tickets are `PEO-001` to `PEO-078`. Everything before `PEO-060` is Phase 1 and
 is needed for the module to boot alone.
