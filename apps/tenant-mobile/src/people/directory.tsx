@@ -148,7 +148,11 @@ export function Directory({ navigation, route }: PeopleScreen<'Directory'>): Rea
   const signed = useSigned();
   const [typed, setTyped] = useState(route.params?.search ?? '');
   const [search, setSearch] = useState(typed);
-  const [query, setQuery] = useState<Query>(EVERYONE);
+  const [query, setQuery] = useState<Query>(() =>
+    route.params?.conditions === undefined
+      ? EVERYONE
+      : { ...EVERYONE, conditions: route.params.conditions },
+  );
   const [question, setQuestion] = useState<Asked | null>(null);
   const [reading, setReading] = useState(false);
   const [unread, setUnread] = useState<string | null>(null);

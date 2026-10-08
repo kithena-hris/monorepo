@@ -30,6 +30,8 @@ import { ReviewDuplicate } from './people/review/duplicate';
 import { ReviewId } from './people/review/id-check';
 import { Review } from './people/review/review';
 import { Export, ExportRecord } from './people/transfer/export';
+import { Insights } from './people/insights/insights';
+import { ReportHistory, ScheduledReports } from './people/insights/reports';
 import { ImportExport } from './people/transfer/hub';
 import { Import } from './people/transfer/import';
 import { ImportRun } from './people/transfer/run';
@@ -77,6 +79,9 @@ function TabStack({ initial }: { initial: keyof PeopleRoutes }): React.JSX.Eleme
           <Stack_.Screen name="ImportRun" component={ImportRun} />
           <Stack_.Screen name="Export" component={Export} />
           <Stack_.Screen name="ExportRecord" component={ExportRecord} />
+          <Stack_.Screen name="Insights" component={Insights} />
+          <Stack_.Screen name="ScheduledReports" component={ScheduledReports} />
+          <Stack_.Screen name="ReportHistory" component={ReportHistory} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>

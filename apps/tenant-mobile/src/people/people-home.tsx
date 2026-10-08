@@ -1,5 +1,5 @@
 import { Badge, List, ListItem, SearchField, Text } from '@reach/ui-native';
-import { ArrowLeftRight, ListChecks, Network, Users } from 'lucide-react-native';
+import { ArrowLeftRight, ChartColumn, ListChecks, Users } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { Page } from '../frame';
@@ -40,7 +40,7 @@ export function PeopleHome({ navigation }: PeopleScreen<'People'>): React.JSX.El
       <List>
         <ListItem
           icon={Users}
-          description="Everyone, as a list"
+          description="Everyone, as a list or an org chart"
           chevron
           onPress={() => {
             navigation.navigate('Directory');
@@ -81,14 +81,14 @@ export function PeopleHome({ navigation }: PeopleScreen<'People'>): React.JSX.El
           Import & export
         </ListItem>
         <ListItem
-          icon={Network}
-          description="Who reports to whom"
+          icon={ChartColumn}
+          description="Summary, charts and scheduled reports"
           chevron
           onPress={() => {
-            navigation.navigate('OrgChart');
+            navigation.navigate('Insights');
           }}
         >
-          Org chart
+          Insights
         </ListItem>
       </List>
       <Text variant="subhead" tone="subtle">

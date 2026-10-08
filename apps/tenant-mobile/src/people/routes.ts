@@ -1,5 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import type { Condition } from './filters';
+
 /**
  * The People tab's screens, pushed on its own stack so the tab bar stays and
  * Back (and the edge swipe) returns where you were. The Me tab's stack holds a
@@ -13,7 +15,8 @@ export type PeopleRoutes = {
   Inbox: undefined;
   /** A new starter's sections, one at a time (D7). */
   Onboarding: undefined;
-  Directory: { search?: string } | undefined;
+  /** `conditions`: opened on these, as a point in What changed links to its records. */
+  Directory: { search?: string; conditions?: readonly Condition[] } | undefined;
   OrgChart: undefined;
   /** `personId` absent: the viewer's own record. `back` is what the bar's back says. */
   Profile: { personId?: string; name?: string; back?: string } | undefined;
@@ -43,6 +46,12 @@ export type PeopleRoutes = {
   Export: { sentence?: string } | undefined;
   /** One export: what is in it, who has it, the download. */
   ExportRecord: { id: string };
+  /** What changed and the charts, a tab at a time (G1–G3). */
+  Insights: { tab?: string } | undefined;
+  /** HR's scheduled reports (G4). */
+  ScheduledReports: undefined;
+  /** One schedule's runs, newest first. */
+  ReportHistory: { id: string; name: string };
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;
