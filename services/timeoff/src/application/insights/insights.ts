@@ -303,6 +303,9 @@ async function factsOf(
   });
   const schedule = (await tx.attendance.schedule(m.personId)) ?? DEFAULT_SCHEDULE;
   const now = deps.clock.instant();
+  // Only a day with a shift can be open or carry overtime; the rest count for
+  // neither, so they are never built.
+  const shiftDays = new Set(clock.shifts.map((s) => s.date));
   const byMonth = new Map<string, Omit<Monthly, 'month'>>();
   for (const month of months) {
     const from = `${month}-01` as CalendarDate;
@@ -321,14 +324,17 @@ async function factsOf(
             .map((r) => days(r.request.span.workingDays)),
         ),
       );
-    // ponytail: a day at a time over six months per member; a summary table
-    // kept by the nightly job is the upgrade when a tenant outgrows it.
+    // ponytail: a day at a time over the days worked in six months; a
+    // summary table kept by the nightly job is the upgrade when a tenant
+    // outgrows it.
     const worked =
       last < from
         ? []
-        : datesIn(from, last).map((date) =>
-            dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
-          );
+        : datesIn(from, last)
+            .filter((date) => shiftDays.has(date))
+            .map((date) =>
+              dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
+            );
     byMonth.set(month, {
       vacation: taken((c) => c === 'annual_leave'),
       personal: taken((c) => c !== 'annual_leave' && c !== 'sick_leave'),
