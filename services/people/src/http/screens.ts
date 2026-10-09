@@ -87,6 +87,7 @@ import {
   signDocument,
   startDocumentUpload,
 } from '../application/inbox/documents.js';
+import { takeTeamTask } from '../application/inbox/team.js';
 import { rolesView } from '../application/screens/roles.js';
 import { overviewView } from '../application/screens/overview.js';
 import {
@@ -499,6 +500,10 @@ export const SignatureBody = z.strictObject({
 });
 export const CountersignBody = z.strictObject({ name: z.string().max(200) });
 export const DocumentNoteBody = z.strictObject({ note: z.string().max(2000) });
+export const ClaimBody = z.strictObject({
+  itemId: z.string().max(200),
+  note: z.string().max(2000).nullable().default(null),
+});
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
   size: z.int().min(1),
@@ -970,6 +975,14 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: new RegExp(`^/v1/pending-changes/${UUID}/nudge$`),
       handle: write(Empty, (asking, _input, id) => nudgeChange(deps, asking, id)),
+    },
+    // Take a team task, or take it over (INB-029).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/inbox\/claims$/,
+      handle: write(ClaimBody, (asking, input) =>
+        takeTeamTask(deps, asking, input.itemId, input.note),
+      ),
     },
     // Documents to keep, acknowledge or sign (INB-028).
     {

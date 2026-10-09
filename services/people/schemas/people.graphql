@@ -1477,6 +1477,10 @@ type Mutation {
   A People administrator views the app as this person, read-only, for thirty minutes; never another administrator, never from support or from inside another view. The reason is kept in the activity log.
   """
   startViewingAs(personId: ID!, reason: String!): ViewAsStart
+  """
+  H1, Z3: take a team task, or take it over with a note; it stops counting for the others.
+  """
+  takeInboxTask(idempotencyKey: String!, itemId: String!, note: String): WriteOutcome
   """End the employment once its last working day has come; HR only."""
   terminatePerson(
     eligibleForRehire: Boolean

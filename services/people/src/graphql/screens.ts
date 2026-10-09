@@ -3858,6 +3858,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         return done();
       },
     }),
+    takeInboxTask: t.field({
+      type: Outcome,
+      description:
+        'H1, Z3: take a team task, or take it over with a note; it stops counting for the others.',
+      args: {
+        itemId: t.arg.string({ required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', '/v1/inbox/claims', {
+          body: { itemId: args.itemId, note: args.note ?? null },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
     withdrawPendingChange: t.field({
       type: Outcome,
       description: 'The requester takes a held change back while it waits (PEO-077).',

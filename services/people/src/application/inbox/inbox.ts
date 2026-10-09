@@ -6,6 +6,7 @@ import type {
   PeopleChangeDetail,
   PeopleChecklistDetail,
   PeopleDocumentDetail,
+  PeopleIntegrationDetail,
   PeopleCorrectDetail,
   PeopleDetailsDetail,
   PeopleReviewDetail,
@@ -19,6 +20,7 @@ import { formValues, nameOf, toForm, type ScreenDeps, type Tx } from '../screens
 import type { RecordField } from '../screens/model.js';
 import type { WaitingView } from '../screens/waiting.js';
 import type { SentDocument } from './documents.js';
+import { FAILURES_FOR_A_TASK } from './team.js';
 import { CHANGE_NUDGE_AFTER_MS, type AskMessage, type AskState, type DetailAsk } from './asks.js';
 
 /**
@@ -979,6 +981,53 @@ export async function peopleInbox(
             count: total,
             link: '/people/review/waiting',
             openIn: 'Review',
+            detail,
+          }),
+        );
+      }
+    }
+
+    // H1, Z3: an integration failing is a task for every People administrator; one takes it.
+    const team = deps.teamTasks;
+    if (team !== undefined && asking.viewer.roles.has('people_admin')) {
+      const failing = await team.failing(tx, asking.tenantId, FAILURES_FOR_A_TASK);
+      const ids = failing.map((f) => `people:integration:${f.endpointId}`);
+      const claims = await team.claims(tx, asking.tenantId, ids);
+      const takers = await actors(
+        deps,
+        tx,
+        asking,
+        [...claims.values()].map((c) => ({ kind: 'user' as const, userId: c.by })),
+      );
+      for (const f of failing) {
+        const id = `people:integration:${f.endpointId}`;
+        const claim = claims.get(id);
+        const host = f.url.replace(/^https:\/\//u, '').split('/')[0] ?? f.url;
+        const detail: Plain<PeopleIntegrationDetail> = { ...f, note: claim?.note ?? null };
+        items.push(
+          item({
+            id,
+            lane: 'task',
+            kind: 'people.integration',
+            area: 'Integrations',
+            icon: 'plug-zap',
+            tone: 'danger',
+            title: f.disabled
+              ? `Webhooks to ${host} are switched off`
+              : `Webhooks to ${host} keep failing`,
+            summary: `${String(f.waiting)} waiting to send`,
+            at: f.since,
+            team: {
+              role: 'All admins',
+              takenBy:
+                claim === undefined
+                  ? null
+                  : { name: takers({ kind: 'user', userId: claim.by }), personId: null },
+              takenAt: claim?.at ?? null,
+              mine: claim?.by === me,
+            },
+            link: `/settings/people/integrations/webhooks/${f.endpointId}`,
+            openIn: 'Integrations',
             detail,
           }),
         );

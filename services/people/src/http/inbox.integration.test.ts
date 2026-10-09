@@ -33,6 +33,7 @@ const migrations = new URL('../../../../migrations/', import.meta.url);
 const stops: (() => Promise<void>)[] = [];
 const clients: ReturnType<typeof postgres>[] = [];
 let server: Server;
+let admin: ReturnType<typeof drizzle>;
 let base = '';
 
 const as = (account: string, roles: string[] = []) => ({
@@ -61,7 +62,7 @@ beforeAll(async () => {
   await uploads.client.send(new CreateBucketCommand({ Bucket: 'uploads' }));
   const adminClient = postgres(pg.url, { max: 1 });
   clients.push(adminClient);
-  const admin = drizzle(adminClient);
+  admin = drizzle(adminClient);
   const files = (await readdir(migrations))
     .filter((f) => f === '20260821120000_tenant_registry.sql' || /^\d{14}_people_/.test(f))
     .toSorted();
@@ -381,5 +382,41 @@ describe('People in the Inbox', () => {
     });
     const documents = await call('GET', '/v1/views/documents', tim);
     expect((documents.body as unknown as { id: string }[]).map((d) => d.id)).toEqual([kept, id]);
+  });
+
+  it('makes a failing integration a task for every admin, until one takes it', async () => {
+    const endpoint = '00000000-0000-4000-8000-0000000000e1';
+    await admin.execute(sql`
+      INSERT INTO people.webhook_endpoint (id, tenant_id, url, events, secret_ciphertext, secret_key_id)
+      VALUES (${endpoint}::uuid, ${ACME}::uuid, 'https://hooks.acme.test/people', '{}', '\\x00', 'k1')`);
+    await admin.execute(sql`
+      INSERT INTO people.webhook_delivery
+        (tenant_id, endpoint_id, event_id, event_name, aggregate_id, envelope, status, attempts,
+         first_attempted_at, last_response)
+      VALUES (${ACME}::uuid, ${endpoint}::uuid, gen_random_uuid(), 'people.person.hired', 'x', '{}',
+              'pending', 3, now() - interval '40 minutes', 401)`);
+    const ada = as('00000000-0000-4000-8000-0000000000b4', ['people_admin']);
+    const graceAdmin = as(GRACE_ACCOUNT, ['hr', 'people_admin']);
+    const id = `people:integration:${endpoint}`;
+    expect((await inbox(graceAdmin)).find((i) => i.id === id)).toMatchObject({
+      lane: 'task',
+      title: 'Webhooks to hooks.acme.test keep failing',
+      team: { role: 'All admins', takenBy: null, mine: false },
+      detail: { attempts: 3, lastResponse: 401, waiting: 1 },
+    });
+    expect((await inbox(tim)).some((i) => i.id === id)).toBe(false);
+    expect((await call('POST', '/v1/inbox/claims', tim, { itemId: id })).status).toBe(403);
+
+    expect((await call('POST', '/v1/inbox/claims', ada, { itemId: id })).status).toBe(200);
+    expect((await inbox(ada)).find((i) => i.id === id)).toMatchObject({ team: { mine: true } });
+    expect((await inbox(graceAdmin)).find((i) => i.id === id)).toMatchObject({
+      team: { takenBy: { name: 'A colleague' }, mine: false },
+    });
+    // Taken over, with a note: it is Grace's now.
+    await call('POST', '/v1/inbox/claims', graceAdmin, { itemId: id, note: 'Rotating the token.' });
+    expect((await inbox(graceAdmin)).find((i) => i.id === id)).toMatchObject({
+      team: { takenBy: { name: 'You' }, mine: true },
+      detail: { note: 'Rotating the token.' },
+    });
   });
 });

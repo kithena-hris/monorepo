@@ -267,6 +267,21 @@ export const PeopleDocumentDetail = z.object({
 });
 export type PeopleDocumentDetail = z.infer<typeof PeopleDocumentDetail>;
 
+/** H1, Z3, M:G1: an integration failing, for every People administrator. */
+export const PeopleIntegrationDetail = z.object({
+  endpointId: plain(64),
+  url: plain(400),
+  since: Instant,
+  attempts: z.int(),
+  lastResponse: z.int().nullable(),
+  disabled: z.boolean(),
+  problem: words(400).nullable(),
+  waiting: z.int(),
+  /** Whoever took it over wrote this. */
+  note: words().nullable(),
+});
+export type PeopleIntegrationDetail = z.infer<typeof PeopleIntegrationDetail>;
+
 /* --------------------------------------------------------------- shared -- */
 
 /** A status chip a detail can carry beside its parts. */
