@@ -76,6 +76,17 @@ import {
   sendBackAsk,
   undoAsk,
 } from '../application/inbox/asks.js';
+import {
+  acknowledgeDocument,
+  cancelDocument,
+  countersignDocument,
+  declineDocument,
+  documentFile,
+  documentsOf,
+  sendDocument,
+  signDocument,
+  startDocumentUpload,
+} from '../application/inbox/documents.js';
 import { rolesView } from '../application/screens/roles.js';
 import { overviewView } from '../application/screens/overview.js';
 import {
@@ -468,6 +479,26 @@ export const AskRemindBody = z.strictObject({
   personIds: z.array(z.uuid()).max(500).nullable().default(null),
 });
 const Empty = z.strictObject({});
+export const DocumentUploadBody = z.strictObject({
+  personId: z.uuid(),
+  name: z.string().min(1).max(255),
+  size: z.int().min(1),
+});
+export const DocumentSendBody = z.strictObject({
+  personId: z.uuid(),
+  uploadId: z.uuid(),
+  mode: z.enum(['keep', 'acknowledge', 'sign']),
+  message: z.string().max(2000).nullable().default(null),
+  dueOn: z.iso.date().nullable().default(null),
+  countersigner: z.uuid().nullable().default(null),
+});
+export const SignatureBody = z.strictObject({
+  name: z.string().max(200),
+  how: z.enum(['typed', 'drawn']),
+  mark: z.string().max(20_000).default(''),
+});
+export const CountersignBody = z.strictObject({ name: z.string().max(200) });
+export const DocumentNoteBody = z.strictObject({ note: z.string().max(2000) });
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
   size: z.int().min(1),
@@ -939,6 +970,65 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: new RegExp(`^/v1/pending-changes/${UUID}/nudge$`),
       handle: write(Empty, (asking, _input, id) => nudgeChange(deps, asking, id)),
+    },
+    // Documents to keep, acknowledge or sign (INB-028).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/documents\/uploads$/,
+      handle: write(DocumentUploadBody, (asking, input) =>
+        startDocumentUpload(deps, asking, input),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/documents$/,
+      handle: write(DocumentSendBody, (asking, input) => sendDocument(deps, asking, input)),
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/documents$/,
+      handle: async (asking, _r, _p, query) => {
+        const person = query.get('person');
+        if (person !== null && !new RegExp(`^${UUID}$`).test(person)) {
+          return refused(failure('BAD_REQUEST', 'person is a person id'));
+        }
+        return answer(await documentsOf(deps, asking, person));
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/documents/${UUID}/file$`),
+      handle: async (asking, _r, params) =>
+        answer(await documentFile(deps, asking, params['id'] ?? '')),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/acknowledgement$`),
+      handle: write(Empty, (asking, _input, id) => acknowledgeDocument(deps, asking, id)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/signature$`),
+      handle: write(SignatureBody, (asking, input, id) => signDocument(deps, asking, id, input)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/countersignature$`),
+      handle: write(CountersignBody, (asking, input, id) =>
+        countersignDocument(deps, asking, id, input),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/send-back$`),
+      handle: write(DocumentNoteBody, (asking, input, id) =>
+        declineDocument(deps, asking, id, input.note),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/cancellation$`),
+      handle: write(Empty, (asking, _input, id) => cancelDocument(deps, asking, id)),
     },
     // Ask somebody for empty details of theirs: recorded, and they are emailed.
     {

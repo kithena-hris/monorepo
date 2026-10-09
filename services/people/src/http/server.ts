@@ -114,6 +114,7 @@ import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
 import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
 import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
 import { drizzleDetailAsks } from '../infrastructure/drizzle-detail-asks.js';
+import { drizzleDocuments } from '../infrastructure/drizzle-documents.js';
 import { waitingView } from '../application/screens/waiting.js';
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
@@ -767,6 +768,11 @@ function screenDeps(
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),
     asks: { store: drizzleDetailAsks(), newId: uuidv7 },
+    documents: {
+      store: drizzleDocuments(),
+      uploads: { store: uploads, intents: drizzleUploadIntents() },
+      newId: uuidv7,
+    },
     ...chatFrom(process.env),
     schedules: scheduleAdmin(),
     schema,

@@ -20,6 +20,7 @@ import type { ChatDeps } from '../settings/chat-port.js';
 import type { ViewAsDeps, ViewedAs } from '../person/view-as.js';
 import type { ImportNotice } from '../import/run-store.js';
 import type { AskDeps } from '../inbox/asks.js';
+import type { DocumentDeps } from '../inbox/documents.js';
 import type {
   ReminderCompany,
   ReminderMailer,
@@ -48,6 +49,8 @@ export interface ScreenDeps {
   readonly service: PeopleService;
   /** Asking for details as Inbox tasks (`inbox/asks.ts`). Absent, it is not offered. */
   readonly asks?: AskDeps;
+  /** Documents sent to keep, acknowledge or sign (`inbox/documents.ts`). Absent, not offered. */
+  readonly documents?: DocumentDeps;
   /** Viewing as an employee (`person/view-as.ts`). Absent, it is never offered. */
   readonly viewAs?: ViewAsDeps;
   /** The views of an account that are over, newest first: its notices. Absent, none. */

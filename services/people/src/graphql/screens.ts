@@ -2199,6 +2199,28 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: Onboarding,
       resolve: view<OnboardingView>(() => '/v1/views/onboarding'),
     }),
+    peopleDocuments: t.string({
+      description:
+        'A person’s documents (JSON), for themselves or HR: what was sent, what they do with it, and how it ended. No id is the viewer’s own.',
+      args: { personId: t.arg.id() },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(
+            ctx,
+            'GET',
+            `/v1/views/documents${args.personId == null ? '' : `?person=${encodeURIComponent(args.personId)}`}`,
+          ),
+        ),
+    }),
+    peopleDocumentFile: t.string({
+      description:
+        'A document’s file (JSON: name, mediaType, data in base64), for whoever may read it.',
+      args: { id: t.arg.id({ required: true }) },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'GET', `/v1/documents/${encodeURIComponent(args.id)}/file`),
+        ),
+    }),
     peopleInbox: t.string({
       description:
         'People’s Inbox items for the viewer (JSON: `InboxAnswer` in packages/contracts/src/inbox): details asked of them, values to correct, their own changes, what they asked of others, HR’s queues as one row, checklists and team news.',
@@ -3758,6 +3780,81 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           body: {},
           key: args.idempotencyKey,
         });
+        return done();
+      },
+    }),
+    startDocumentUpload: t.string({
+      description:
+        'H3: where to put a document for somebody (JSON: uploadId, url, headers). HR only.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        name: t.arg.string({ required: true }),
+        size: t.arg.int({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', '/v1/documents/uploads', {
+            body: { personId: args.personId, name: args.name, size: args.size },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    sendDocument: t.string({
+      description:
+        'H3: send the uploaded document, to keep (an update), to acknowledge or to sign (a task), with whoever countersigns. JSON: id.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        uploadId: t.arg.id({ required: true }),
+        mode: t.arg.string({ required: true }),
+        message: t.arg.string(),
+        dueOn: t.arg.string(),
+        countersigner: t.arg.id(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', '/v1/documents', {
+            body: {
+              personId: args.personId,
+              uploadId: args.uploadId,
+              mode: args.mode,
+              message: args.message ?? null,
+              dueOn: args.dueOn ?? null,
+              countersigner: args.countersigner ?? null,
+            },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    actOnDocument: t.field({
+      type: Outcome,
+      description:
+        'C3, C4: `acknowledge`, `sign` (name, how: typed or drawn, mark), `countersign` (name), `send-back` (note) or `cancel` a document.',
+      args: {
+        id: t.arg.id({ required: true }),
+        action: t.arg.string({ required: true }),
+        name: t.arg.string(),
+        how: t.arg.string(),
+        mark: t.arg.string(),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        const at = `/v1/documents/${encodeURIComponent(args.id)}`;
+        const call: Record<string, readonly [string, Record<string, unknown>]> = {
+          acknowledge: [`${at}/acknowledgement`, {}],
+          sign: [
+            `${at}/signature`,
+            { name: args.name ?? '', how: args.how ?? 'typed', mark: args.mark ?? '' },
+          ],
+          countersign: [`${at}/countersignature`, { name: args.name ?? '' }],
+          'send-back': [`${at}/send-back`, { note: args.note ?? '' }],
+          cancel: [`${at}/cancellation`, {}],
+        };
+        const chosen = call[args.action];
+        if (chosen === undefined) throw new Error(`Unknown action ${args.action}`);
+        await viaRest(ctx, 'POST', chosen[0], { body: chosen[1], key: args.idempotencyKey });
         return done();
       },
     }),

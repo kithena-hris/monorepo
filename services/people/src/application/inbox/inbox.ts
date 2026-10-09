@@ -5,6 +5,7 @@ import type {
   PeopleAskedDetail,
   PeopleChangeDetail,
   PeopleChecklistDetail,
+  PeopleDocumentDetail,
   PeopleCorrectDetail,
   PeopleDetailsDetail,
   PeopleReviewDetail,
@@ -17,6 +18,7 @@ import { actors, ownDecidedView, ownRecord } from '../screens/people.js';
 import { formValues, nameOf, toForm, type ScreenDeps, type Tx } from '../screens/record.js';
 import type { RecordField } from '../screens/model.js';
 import type { WaitingView } from '../screens/waiting.js';
+import type { SentDocument } from './documents.js';
 import { CHANGE_NUDGE_AFTER_MS, type AskMessage, type AskState, type DetailAsk } from './asks.js';
 
 /**
@@ -517,6 +519,195 @@ export async function peopleInbox(
           outcome: { label: 'Accepted', tone: 'success' },
         }),
       );
+    }
+
+    /* ------------------------------------------------------ documents -- */
+    const docs = deps.documents;
+    const mineDocs =
+      docs === undefined || self === null
+        ? []
+        : await docs.store.forPerson(tx, asking.tenantId, self);
+    const outDocs =
+      docs === undefined ? [] : await docs.store.involving(tx, asking.tenantId, me, since);
+    const docPeople = new Map<string, string>();
+    for (const d of outDocs) {
+      if (docPeople.has(d.personId)) continue;
+      const read = await deps.service.access.read(tx, { ...asking, personId: d.personId });
+      docPeople.set(d.personId, (read.ok ? nameOf(read.value.attributes) : null) ?? 'A colleague');
+    }
+    const docWho = await actors(
+      deps,
+      tx,
+      asking,
+      [...mineDocs, ...outDocs].flatMap((d) => [
+        { kind: 'user' as const, userId: d.sentBy },
+        ...(d.countersigner === null ? [] : [{ kind: 'user' as const, userId: d.countersigner }]),
+      ]),
+    );
+    const docUser = (id: string) => docWho({ kind: 'user', userId: id });
+    const docDetail = (
+      d: SentDocument,
+      personName: string,
+      action: Plain<PeopleDocumentDetail>['action'],
+    ): Plain<PeopleDocumentDetail> => ({
+      documentId: d.id,
+      name: d.name,
+      mediaType: d.mediaType,
+      size: d.size,
+      mode: d.mode,
+      state: d.state,
+      personName,
+      sentBy: docUser(d.sentBy),
+      countersigner: d.countersigner === null ? null : docUser(d.countersigner),
+      signature: d.signature,
+      countersigned:
+        d.countersignedName === null || d.countersignedAt === null
+          ? null
+          : { name: d.countersignedName, at: d.countersignedAt },
+      note: d.note,
+      action,
+    });
+    const DOC_OUTCOME = {
+      kept: { label: 'Kept', tone: 'neutral' },
+      acknowledged: { label: 'Acknowledged', tone: 'success' },
+      signed: { label: 'Signed', tone: 'success' },
+      countersigned: { label: 'Signed', tone: 'success' },
+      declined: { label: 'Sent back', tone: 'neutral' },
+      cancelled: { label: 'Cancelled', tone: 'neutral' },
+    } as const;
+    const myName = own === null ? 'You' : (nameOf(own.view.attributes) ?? 'You');
+    for (const d of mineDocs) {
+      const from = docUser(d.sentBy);
+      const base = {
+        id: `people:document:${d.id}`,
+        kind: 'people.document',
+        area: 'Documents',
+        icon: d.mode === 'sign' ? 'pen-line' : 'file-text',
+        from: { name: from, personId: null },
+        link: '/people/me',
+        message: d.message,
+      } as const;
+      if (d.mode === 'keep') {
+        items.push(
+          item({
+            ...base,
+            lane: recent(d.sentAt) ? 'update' : 'done',
+            title: `${first(from)} shared ${d.name}`,
+            summary: 'Also kept in your profile under Documents',
+            at: d.sentAt,
+            outcome: recent(d.sentAt) ? null : DOC_OUTCOME.kept,
+            detail: docDetail(d, myName, null),
+          }),
+        );
+      } else if (d.state === 'open') {
+        items.push(
+          item({
+            ...base,
+            lane: 'task',
+            title: `${d.mode === 'sign' ? 'Sign' : 'Read and acknowledge'} ${d.name}`,
+            summary: `${first(from)} sent it`,
+            at: d.sentAt,
+            due: d.dueOn,
+            detail: docDetail(d, myName, d.mode),
+          }),
+        );
+      } else if (d.state !== 'cancelled') {
+        items.push(
+          item({
+            ...base,
+            lane: 'done',
+            title: `${d.mode === 'sign' ? 'Sign' : 'Read and acknowledge'} ${d.name}`,
+            summary:
+              d.state === 'declined'
+                ? 'You sent it back'
+                : d.state === 'acknowledged'
+                  ? 'You acknowledged it'
+                  : 'You signed it',
+            at: d.closedAt ?? d.sentAt,
+            outcome: DOC_OUTCOME[d.state],
+            detail: docDetail(d, myName, null),
+          }),
+        );
+      }
+    }
+    for (const d of outDocs) {
+      const personName = docPeople.get(d.personId) ?? 'A colleague';
+      const link = `/people/${d.personId}`;
+      if (d.countersigner === me && d.state === 'signed') {
+        items.push(
+          item({
+            id: `people:countersign:${d.id}`,
+            lane: 'task',
+            kind: 'people.document',
+            area: 'Documents',
+            icon: 'pen-line',
+            title: `Countersign ${d.name}`,
+            summary: `${personName} signed it`,
+            from: { name: personName, personId: d.personId },
+            at: d.signature?.at ?? d.sentAt,
+            link,
+            detail: docDetail(d, personName, 'countersign'),
+          }),
+        );
+      } else if (d.countersigner === me && d.state === 'countersigned') {
+        items.push(
+          item({
+            id: `people:countersign:${d.id}`,
+            lane: 'done',
+            kind: 'people.document',
+            area: 'Documents',
+            icon: 'pen-line',
+            title: `Countersign ${d.name}`,
+            summary: `For ${personName}`,
+            at: d.countersignedAt ?? d.sentAt,
+            outcome: DOC_OUTCOME.countersigned,
+            link,
+            detail: docDetail(d, personName, null),
+          }),
+        );
+      }
+      if (d.sentBy !== me || d.mode === 'keep') continue;
+      const verb = d.mode === 'sign' ? 'sign' : 'acknowledge';
+      const open = d.state === 'open';
+      items.push(
+        item({
+          id: `people:sent:${d.id}`,
+          lane: open ? 'request' : 'done',
+          kind: 'people.document',
+          area: 'Documents',
+          icon: 'send',
+          title: `${personName} to ${verb} ${d.name}`,
+          summary: open ? `You sent it` : null,
+          at: open ? d.sentAt : (d.closedAt ?? d.sentAt),
+          due: open ? d.dueOn : null,
+          status: open ? { label: `With ${first(personName)}`, tone: 'warning' } : null,
+          outcome: d.state === 'open' ? null : DOC_OUTCOME[d.state],
+          link,
+          detail: docDetail(d, personName, null),
+        }),
+      );
+      if (!open && d.state !== 'cancelled' && recent(d.closedAt)) {
+        items.push(
+          item({
+            id: `people:returned:${d.id}`,
+            lane: 'update',
+            kind: 'people.document',
+            area: 'Documents',
+            icon: d.state === 'declined' ? 'undo-2' : 'file-check',
+            tone: d.state === 'declined' ? null : 'success',
+            title:
+              d.state === 'declined'
+                ? `${personName} sent ${d.name} back`
+                : `${personName} ${d.state === 'acknowledged' ? 'acknowledged' : 'signed'} ${d.name}`,
+            summary: d.note,
+            from: { name: personName, personId: d.personId },
+            at: d.closedAt ?? d.sentAt,
+            message: d.note,
+            link,
+            detail: docDetail(d, personName, null),
+          }),
+        );
+      }
     }
 
     /* ------------------------------------------- what they asked for -- */

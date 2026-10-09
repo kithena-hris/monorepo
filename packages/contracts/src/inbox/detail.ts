@@ -238,6 +238,35 @@ export const PeopleChecklistDetail = z.object({
 });
 export type PeopleChecklistDetail = z.infer<typeof PeopleChecklistDetail>;
 
+/** C3, C4, D2, F1, M:B3, M:C3: a document to keep, acknowledge, sign or countersign. */
+export const PeopleDocumentDetail = z.object({
+  documentId: plain(64),
+  name: plain(255),
+  mediaType: plain(40),
+  size: z.int(),
+  mode: z.enum(['keep', 'acknowledge', 'sign']).register(policy, asPublic()),
+  state: z
+    .enum(['open', 'kept', 'acknowledged', 'signed', 'countersigned', 'declined', 'cancelled'])
+    .register(policy, asPublic()),
+  personName: name(),
+  sentBy: name(),
+  countersigner: name().nullable(),
+  signature: z
+    .object({
+      name: name(),
+      how: z.enum(['typed', 'drawn']).register(policy, asPublic()),
+      mark: words(20_000),
+      at: Instant,
+      place: plain().nullable(),
+    })
+    .nullable(),
+  countersigned: z.object({ name: name(), at: Instant }).nullable(),
+  note: words().nullable(),
+  /** What the caller does with it now: sign, acknowledge, countersign, or nothing. */
+  action: z.enum(['sign', 'acknowledge', 'countersign']).nullable().register(policy, asPublic()),
+});
+export type PeopleDocumentDetail = z.infer<typeof PeopleDocumentDetail>;
+
 /* --------------------------------------------------------------- shared -- */
 
 /** A status chip a detail can carry beside its parts. */

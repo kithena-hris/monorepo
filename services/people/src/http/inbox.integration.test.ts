@@ -6,10 +6,12 @@ import type { AddressInfo } from 'node:net';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { startPostgres } from '@kithena/testing';
+import { CreateBucketCommand } from '@aws-sdk/client-s3';
+import { startObjectStore, startPostgres } from '@kithena/testing';
 
 import { define, versionOf } from '../application/person/in-memory.js';
 import { drizzleSchemaRepository } from '../infrastructure/drizzle-schema-repository.js';
+import { s3Uploads } from '../infrastructure/s3-uploads.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { wirePeople } from './server.js';
 
@@ -47,8 +49,16 @@ const grace = as(GRACE_ACCOUNT, ['hr']);
 const tim = as(TIM_ACCOUNT);
 
 beforeAll(async () => {
-  const pg = await startPostgres();
-  stops.push(pg.stop);
+  const [store, pg] = await Promise.all([startObjectStore(), startPostgres()]);
+  stops.push(store.stop, pg.stop);
+  const uploads = s3Uploads({
+    endpoint: store.endpoint,
+    region: 'us-east-1',
+    bucket: 'uploads',
+    accessKeyId: store.accessKeyId,
+    secretAccessKey: store.secretAccessKey,
+  });
+  await uploads.client.send(new CreateBucketCommand({ Bucket: 'uploads' }));
   const adminClient = postgres(pg.url, { max: 1 });
   clients.push(adminClient);
   const admin = drizzle(adminClient);
@@ -98,6 +108,12 @@ beforeAll(async () => {
   process.env['PEOPLE_DATABASE_URL'] = service.toString();
   process.env['PEOPLE_API_TOKEN'] = 'router-secret';
   process.env['PEOPLE_SECRET_KEYS'] = `k1:${randomBytes(32).toString('base64')}`;
+  process.env['PEOPLE_UPLOAD_BUCKET'] = 'uploads';
+  process.env['PEOPLE_UPLOAD_S3_ENDPOINT'] = store.endpoint;
+  process.env['PEOPLE_UPLOAD_S3_REGION'] = 'us-east-1';
+  process.env['PEOPLE_UPLOAD_S3_ACCESS_KEY_ID'] = store.accessKeyId;
+  process.env['PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY'] = store.secretAccessKey;
+  process.env['PEOPLE_UPLOAD_SSE'] = 'none';
 
   server = createServer((_request, response) => {
     response.statusCode = 404;
@@ -255,8 +271,7 @@ describe('People in the Inbox', () => {
   it('tracks a batch: remind, change the due date, cancel for everyone', async () => {
     const { batchId } = await ask();
     expect(
-      (await call('POST', `/v1/ask-batches/${batchId}/due`, grace, { dueOn: '2030-11-01' }))
-        .status,
+      (await call('POST', `/v1/ask-batches/${batchId}/due`, grace, { dueOn: '2030-11-01' })).status,
     ).toBe(200);
     expect((await call('POST', `/v1/ask-batches/${batchId}/reminders`, grace, {})).status).toBe(
       200,
@@ -268,12 +283,103 @@ describe('People in the Inbox', () => {
     expect((await call('POST', `/v1/ask-batches/${batchId}/cancellation`, tim, {})).status).toBe(
       404,
     );
-    expect(
-      (await call('POST', `/v1/ask-batches/${batchId}/cancellation`, grace, {})).status,
-    ).toBe(200);
+    expect((await call('POST', `/v1/ask-batches/${batchId}/cancellation`, grace, {})).status).toBe(
+      200,
+    );
     expect((await inbox(grace)).find((i) => i.id === `people:asked:${batchId}`)).toMatchObject({
       lane: 'done',
       outcome: { label: 'Cancelled' },
     });
+  });
+
+  it('sends a document to sign: a task for the person, then the countersigner, receipts after', async () => {
+    const pdf = new TextEncoder().encode('%PDF-1.7\n1 0 obj <<>> endobj\ntrailer <<>>\n%%EOF\n');
+    const send = async (mode: string) => {
+      const started = await call('POST', '/v1/documents/uploads', grace, {
+        personId: TIM,
+        name: 'Remote-work addendum.pdf',
+        size: pdf.byteLength,
+      });
+      expect(started.status).toBe(200);
+      const target = started.body as {
+        uploadId: string;
+        url: string;
+        headers: Record<string, string>;
+      };
+      const { 'content-length': _length, ...signed } = target.headers;
+      const put = await fetch(target.url, { method: 'PUT', headers: signed, body: pdf });
+      expect(put.status).toBe(200);
+      const sent = await call('POST', '/v1/documents', grace, {
+        personId: TIM,
+        uploadId: target.uploadId,
+        mode,
+        message: 'Please sign by Friday.',
+        dueOn: '2030-10-10',
+        countersigner: mode === 'sign' ? GRACE_ACCOUNT : null,
+      });
+      expect(sent.status).toBe(200);
+      return sent.body['id'] as string;
+    };
+
+    const id = await send('sign');
+    expect((await inbox(tim)).find((i) => i.id === `people:document:${id}`)).toMatchObject({
+      lane: 'task',
+      title: 'Sign Remote-work addendum.pdf',
+      due: '2030-10-10',
+      detail: { mode: 'sign', state: 'open', action: 'sign', countersigner: 'Grace Hopper' },
+    });
+    expect((await inbox(grace)).find((i) => i.id === `people:sent:${id}`)).toMatchObject({
+      lane: 'request',
+      status: { label: 'With Tim' },
+    });
+    const file = await call('GET', `/v1/documents/${id}/file`, tim);
+    expect(file.body).toMatchObject({
+      name: 'Remote-work addendum.pdf',
+      mediaType: 'application/pdf',
+    });
+
+    // Somebody else's document is not theirs to sign.
+    expect(
+      (await call('POST', `/v1/documents/${id}/signature`, grace, { name: 'Grace', how: 'typed' }))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await call('POST', `/v1/documents/${id}/signature`, tim, {
+          name: 'Tim Berners-Lee',
+          how: 'typed',
+        })
+      ).status,
+    ).toBe(200);
+    expect((await inbox(tim)).find((i) => i.id === `people:document:${id}`)).toMatchObject({
+      lane: 'done',
+      outcome: { label: 'Signed' },
+      detail: { signature: { name: 'Tim Berners-Lee', how: 'typed' } },
+    });
+    const hr = await inbox(grace);
+    expect(hr.find((i) => i.id === `people:countersign:${id}`)).toMatchObject({
+      lane: 'task',
+      detail: { action: 'countersign' },
+    });
+    expect(hr.find((i) => i.id === `people:returned:${id}`)).toMatchObject({
+      lane: 'update',
+      title: 'Tim Berners-Lee signed Remote-work addendum.pdf',
+    });
+    expect(
+      (await call('POST', `/v1/documents/${id}/countersignature`, grace, { name: 'Grace Hopper' }))
+        .status,
+    ).toBe(200);
+    expect((await inbox(grace)).find((i) => i.id === `people:countersign:${id}`)).toMatchObject({
+      lane: 'done',
+    });
+
+    // "Just keep it" is news, and kept in their Documents.
+    const kept = await send('keep');
+    expect((await inbox(tim)).find((i) => i.id === `people:document:${kept}`)).toMatchObject({
+      lane: 'update',
+      title: 'Grace shared Remote-work addendum.pdf',
+    });
+    const documents = await call('GET', '/v1/views/documents', tim);
+    expect((documents.body as unknown as { id: string }[]).map((d) => d.id)).toEqual([kept, id]);
   });
 });

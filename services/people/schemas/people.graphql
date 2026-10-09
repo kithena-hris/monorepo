@@ -1107,6 +1107,10 @@ input MoneyInput {
 }
 
 type Mutation {
+  """
+  C3, C4: `acknowledge`, `sign` (name, how: typed or drawn, mark), `countersign` (name), `send-back` (note) or `cancel` a document.
+  """
+  actOnDocument(action: String!, how: String, id: ID!, idempotencyKey: String!, mark: String, name: String, note: String): WriteOutcome
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
   """The requester answers a question about their change, once."""
   answerApprovalQuestion(answer: String!, id: ID!, idempotencyKey: String!): WriteOutcome
@@ -1407,6 +1411,10 @@ type Mutation {
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
   """C8: the person asked sends it back, always with a reason."""
   sendBackAsk(id: ID!, idempotencyKey: String!, note: String, reason: String!): WriteOutcome
+  """
+  H3: send the uploaded document, to keep (an update), to acknowledge or to sign (a task), with whoever countersigns. JSON: id.
+  """
+  sendDocument(countersigner: ID, dueOn: String, idempotencyKey: String!, message: String, mode: String!, personId: ID!, uploadId: ID!): String
   """A People administrator switches one of the approval checks on or off."""
   setApprovalCheck(code: String!, idempotencyKey: String!, on: Boolean!): WriteOutcome
   """Send one of People’s notices to chat apps, or stop."""
@@ -1439,6 +1447,10 @@ type Mutation {
     """JSON: choice and recipient"""
     input: String!
   ): String
+  """
+  H3: where to put a document for somebody (JSON: uploadId, url, headers). HR only.
+  """
+  startDocumentUpload(idempotencyKey: String!, name: String!, personId: ID!, size: Int!): String
   """
   Where to upload a file for an image or document field (no personId: the viewer’s own): a presigned PUT.
   """
@@ -2592,6 +2604,14 @@ type Query {
     remembered: String
     sentence: String!
   ): String
+  """
+  A document’s file (JSON: name, mediaType, data in base64), for whoever may read it.
+  """
+  peopleDocumentFile(id: ID!): String
+  """
+  A person’s documents (JSON), for themselves or HR: what was sent, what they do with it, and how it ended. No id is the viewer’s own.
+  """
+  peopleDocuments(personId: ID): String
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
