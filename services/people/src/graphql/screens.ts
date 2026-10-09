@@ -2199,6 +2199,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: Onboarding,
       resolve: view<OnboardingView>(() => '/v1/views/onboarding'),
     }),
+    peopleInbox: t.string({
+      description:
+        'People’s Inbox items for the viewer (JSON: `InboxAnswer` in packages/contracts/src/inbox): details asked of them, values to correct, their own changes, what they asked of others, HR’s queues as one row, checklists and team news.',
+      resolve: async (_root, _args, ctx) =>
+        JSON.stringify(await viaRest(ctx, 'GET', '/v1/views/inbox')),
+    }),
     peopleProfile: t.field({
       type: Profile,
       description: 'One person as the viewer may see them; no id is "my profile".',
@@ -3610,6 +3616,146 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       resolve: async (_root, args, ctx) => {
         await viaRest(ctx, 'PUT', `/v1/approval-checks/${encodeURIComponent(args.code)}`, {
           body: { on: args.on },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    askForDetails: t.string({
+      description:
+        'Ask one person or many for details, as one task each in their Inbox (H2). JSON: batchId, asked, skipped.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        keys: t.arg.stringList({ required: true }),
+        message: t.arg.string(),
+        dueOn: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', '/v1/asks', {
+            body: {
+              personIds: args.personIds,
+              keys: args.keys,
+              message: args.message ?? null,
+              dueOn: args.dueOn ?? null,
+            },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    completeAsk: t.string({
+      description:
+        'Fill in what was asked, from the Inbox (C1). `values` is JSON by field key. JSON: held, the labels sent to HR first.',
+      args: {
+        id: t.arg.id({ required: true }),
+        values: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/completion`, {
+            body: { values: JSON.parse(args.values) as unknown },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    undoAsk: t.field({
+      type: Outcome,
+      description:
+        'C5: put back what was there (`values`, JSON) and open the task again, within a minute.',
+      args: {
+        id: t.arg.id({ required: true }),
+        values: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/undo`, {
+          body: { values: JSON.parse(args.values) as unknown },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    replyToAsk: t.field({
+      type: Outcome,
+      description: 'C7: a question or an answer on the task’s thread.',
+      args: {
+        id: t.arg.id({ required: true }),
+        body: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/replies`, {
+          body: { body: args.body },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    cancelAsk: t.field({
+      type: Outcome,
+      description: 'Z2: whoever asked cancels it; the fields lock and it stops counting.',
+      args: {
+        id: t.arg.id({ required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/cancellation`, {
+          body: { note: args.note ?? null },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    sendBackAsk: t.field({
+      type: Outcome,
+      description: 'C8: the person asked sends it back, always with a reason.',
+      args: {
+        id: t.arg.id({ required: true }),
+        reason: t.arg.string({ required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/send-back`, {
+          body: { reason: args.reason, note: args.note ?? null },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    changeAskBatch: t.field({
+      type: Outcome,
+      description:
+        'H4: for what the caller asked of many: `cancel` it for everyone, change its `due` date, or `remind` those left (all, or `personIds`).',
+      args: {
+        batchId: t.arg.id({ required: true }),
+        action: t.arg.string({ required: true }),
+        dueOn: t.arg.string(),
+        personIds: t.arg.idList(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        const batch = `/v1/ask-batches/${encodeURIComponent(args.batchId)}`;
+        const [path, body] =
+          args.action === 'cancel'
+            ? [`${batch}/cancellation`, {}]
+            : args.action === 'due'
+              ? [`${batch}/due`, { dueOn: args.dueOn ?? null }]
+              : [`${batch}/reminders`, { personIds: args.personIds ?? null }];
+        await viaRest(ctx, 'POST', path, { body, key: args.idempotencyKey });
+        return done();
+      },
+    }),
+    nudgePendingChange: t.field({
+      type: Outcome,
+      description: 'E1: the requester nudges HR about a change waiting, once, after 48 hours.',
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/nudge`, {
+          body: {},
           key: args.idempotencyKey,
         });
         return done();

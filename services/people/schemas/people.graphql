@@ -1122,6 +1122,10 @@ type Mutation {
   """Whoever may decide a change asks the requester first (“Ask Nora”)."""
   askAboutPendingChange(id: ID!, idempotencyKey: String!, question: String!): WriteOutcome
   """
+  Ask one person or many for details, as one task each in their Inbox (H2). JSON: batchId, asked, skipped.
+  """
+  askForDetails(dueOn: String, idempotencyKey: String!, keys: [String!]!, message: String, personIds: [ID!]!): String
+  """
   A page of a bulk edit: one ordinary write per person, each atomic, each answered.
   """
   bulkEditPeople(
@@ -1136,6 +1140,12 @@ type Mutation {
   A page of a bulk hire: provisional people hired from a start date, each atomic, each answered.
   """
   bulkHirePeople(hires: [BulkHireInput!]!, idempotencyKey: String!): BulkEditResult
+  """Z2: whoever asked cancels it; the fields lock and it stops counting."""
+  cancelAsk(id: ID!, idempotencyKey: String!, note: String): WriteOutcome
+  """
+  H4: for what the caller asked of many: `cancel` it for everyone, change its `due` date, or `remind` those left (all, or `personIds`).
+  """
+  changeAskBatch(action: String!, batchId: ID!, dueOn: String, idempotencyKey: String!, personIds: [ID!]): WriteOutcome
   """
   From a date, in the new zone. The same date again corrects the earlier change.
   """
@@ -1152,6 +1162,10 @@ type Mutation {
     mapping: [ImportColumnInput!]!
     uploadId: ID!
   ): ImportStage
+  """
+  Fill in what was asked, from the Inbox (C1). `values` is JSON by field key. JSON: held, the labels sent to HR first.
+  """
+  completeAsk(id: ID!, idempotencyKey: String!, values: String!): String
   """Finish connecting a chat app with what it sent back."""
   completeChatApp(app: String!, code: String!, idempotencyKey: String!, state: String!): PeopleChat
   """
@@ -1280,6 +1294,10 @@ type Mutation {
   Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.
   """
   mergePerson(absorbedPersonId: ID!, idempotencyKey: String!, personId: ID!, take: [String!]): Person
+  """
+  E1: the requester nudges HR about a change waiting, once, after 48 hours.
+  """
+  nudgePendingChange(id: ID!, idempotencyKey: String!): WriteOutcome
   pauseReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """
   Ask everybody these conditions find for the details the conditions find empty, as the profile asks one person (JSON: asked, emailed, skipped, more).
@@ -1331,6 +1349,8 @@ type Mutation {
   reorderDraftFields(idempotencyKey: String!, order: [String!]!, sectionKey: String!): WriteOutcome
   reorderDraftSections(idempotencyKey: String!, order: [String!]!): WriteOutcome
   replayWebhookDelivery(deliveryId: ID!, idempotencyKey: String!): WebhookReplay
+  """C7: a question or an answer on the task’s thread."""
+  replyToAsk(body: String!, id: ID!, idempotencyKey: String!): WriteOutcome
   """
   Ask somebody to fill in empty details of theirs: recorded, and they are emailed at most once a day.
   """
@@ -1385,6 +1405,8 @@ type Mutation {
   """
   savePeopleSegment(conditions: [DirectoryConditionInput!], filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, match: String, name: String!, shared: Boolean!): PeopleSegment
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
+  """C8: the person asked sends it back, always with a reason."""
+  sendBackAsk(id: ID!, idempotencyKey: String!, note: String, reason: String!): WriteOutcome
   """A People administrator switches one of the approval checks on or off."""
   setApprovalCheck(code: String!, idempotencyKey: String!, on: Boolean!): WriteOutcome
   """Send one of People’s notices to chat apps, or stop."""
@@ -1454,6 +1476,10 @@ type Mutation {
     personId: ID!
     reason: LeavingReason!
   ): Person
+  """
+  C5: put back what was there (`values`, JSON) and open the task again, within a minute.
+  """
+  undoAsk(id: ID!, idempotencyKey: String!, values: String!): WriteOutcome
   """
   Undo the merge that absorbed this record: provisional again with its sign-in back, the values copied onto the survivor corrected back unless changed since; HR only.
   """
@@ -2646,6 +2672,10 @@ type Query {
   A header-only CSV of the fields the viewer may import, by label; HR only (`GET /v1/imports/template`).
   """
   peopleImportTemplate: String
+  """
+  People’s Inbox items for the viewer (JSON: `InboxAnswer` in packages/contracts/src/inbox): details asked of them, values to correct, their own changes, what they asked of others, HR’s queues as one row, checklists and team news.
+  """
+  peopleInbox: String
   peopleIntegrations: PeopleIntegrations
   """
   Names and faces for account and person ids another service holds (the activity log), as the viewer may read them.
