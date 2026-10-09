@@ -292,6 +292,10 @@ describe('the ledger', () => {
       { ...grant, occurredAt: '2026-10-01T09:00:00.000Z' },
       { ...correction, occurredAt: '2026-10-01T09:00:00.000Z' },
     ]);
+    expect(
+      await run((tx) => tx.ledger.forMembers([people.omar, people.hana], vacationType().key)),
+    ).toEqual(back);
+    expect(await run((tx) => tx.ledger.forMembers([]))).toEqual([]);
   });
 });
 
@@ -602,6 +606,13 @@ describe('attendance', () => {
       );
       expect(await tx.attendance.schedule(people.adam)).toEqual(schedule);
       expect(await tx.attendance.schedule(people.omar)).toBeNull();
+      // Many at once, as Insights reads them: Omar has neither.
+      const many = await tx.attendance.punchesOf([people.adam, people.omar]);
+      expect(many.get(people.adam)?.map((p) => p.id)).toEqual(punches.map((p) => p.id));
+      expect(many.get(people.omar)).toEqual([]);
+      expect([...(await tx.attendance.schedulesOf([people.adam, people.omar]))]).toEqual([
+        [people.adam, schedule],
+      ]);
       expect(await tx.attendance.rules()).toEqual(rules);
       expect(await tx.attendance.periods()).toEqual([
         { ...period, closedAt: '2026-10-01T09:00:00.000Z' },

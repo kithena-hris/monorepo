@@ -9,7 +9,7 @@ import type { Writer } from '../assist/ports.js';
 import { written } from '../assist/written.js';
 import type { Caller, Deps, Member, Tx } from '../ports.js';
 import { forbidden, refuse, transact } from '../shared.js';
-import { annualFacts, DEFAULT_COHORT_MINIMUM, scopeOf } from './insights.js';
+import { annualFactsOf, DEFAULT_COHORT_MINIMUM, scopeOf } from './insights.js';
 
 /**
  * Nudging people to rest (T28, PRD §14.2): from the insight "N people haven't
@@ -170,11 +170,11 @@ async function recipients(
   if (scope === null) return null;
   const today = deps.clock.date('UTC');
   const since = addMonths(`${today.slice(0, 7)}-01` as CalendarDate, -4);
-  const all = [];
-  for (const m of scope.members) {
-    const own = await annualFacts(tx, m, deps.clock.date(m.timeZone));
-    all.push({ m, own });
-  }
+  const facts = await annualFactsOf(tx, scope.members, (m) => deps.clock.date(m.timeZone));
+  const all = scope.members.flatMap((m) => {
+    const own = facts.get(m.personId);
+    return own === undefined ? [] : [{ m, own }];
+  });
   const [tired] = whatChanged({
     facts: all.map(({ m, own }) => ({
       personId: m.personId,

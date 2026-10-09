@@ -145,6 +145,11 @@ export interface PolicyStore {
 /** Append-only (TOF-030 revokes UPDATE and DELETE). */
 export interface LedgerStore {
   forMember(personId: PersonId, leaveTypeKey?: LeaveTypeKey): Promise<readonly LedgerEntry[]>;
+  /** `forMember` for many at once: one query where a screen over the company asked hundreds. */
+  forMembers(
+    personIds: readonly PersonId[],
+    leaveTypeKey?: LeaveTypeKey,
+  ): Promise<readonly LedgerEntry[]>;
   append(entries: readonly LedgerEntry[]): Promise<void>;
 }
 
@@ -238,9 +243,13 @@ export interface OvertimeDecision {
 /** Punches are append-only (TOF-033); periods lock when closed. */
 export interface AttendanceStore {
   punches(personId: PersonId): Promise<readonly Punch[]>;
+  /** `punches` for many members in one query. */
+  punchesOf(personIds: readonly PersonId[]): Promise<ReadonlyMap<PersonId, readonly Punch[]>>;
   appendPunch(personId: PersonId, punch: Punch): Promise<void>;
   /** The member's own schedule, or `null` for the tenant default. */
   schedule(personId: PersonId): Promise<Schedule | null>;
+  /** `schedule` for many members in one query; a member with none is absent. */
+  schedulesOf(personIds: readonly PersonId[]): Promise<ReadonlyMap<PersonId, Schedule>>;
   setSchedule(personId: PersonId, schedule: Schedule): Promise<void>;
   rules(): Promise<AttendanceRules>;
   setRules(rules: AttendanceRules): Promise<void>;

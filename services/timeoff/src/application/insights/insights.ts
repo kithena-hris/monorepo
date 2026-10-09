@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { ok, type Result } from '@kithena/domain-kit';
 import type { CalendarDate, DayAmount, PersonId, TeamKey, TenantId } from '@kithena/contracts';
 
-import { AttendanceClock } from '../../domain/attendance/clock.js';
+import { AttendanceClock, type Punch } from '../../domain/attendance/clock.js';
 import { dayOf, type AttendanceRules } from '../../domain/attendance/day.js';
+import type { Schedule } from '../../domain/attendance/schedule.js';
 import { balanceOn } from '../../domain/balance/ledger.js';
 import { datesIn } from '../../domain/calendar/working-days.js';
 import { addDays, addMonths, amount, days, Decimal, sum } from '../../domain/days.js';
@@ -18,7 +19,7 @@ import type { Writer } from '../assist/ports.js';
 import { written, type Line } from '../assist/written.js';
 import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
-import { forbidden, isHrAdmin, leaveYear, policyFor, relatedIds, transact } from '../shared.js';
+import { forbidden, isHrAdmin, leaveYear, policyFrom, relatedIds, transact } from '../shared.js';
 
 /**
  * Insights (PRD §14.2, T27): time off and attendance across the caller's
@@ -236,54 +237,79 @@ interface MemberYear extends Facts {
   readonly byMonth: ReadonlyMap<string, Omit<Monthly, 'month'>>;
 }
 
+export interface AnnualFacts {
+  readonly left: DayAmount;
+  readonly losesAtYearEnd: DayAmount;
+  readonly yearEnd: CalendarDate;
+  readonly lastDayOff: CalendarDate | null;
+  readonly requests: readonly RequestRecord[];
+}
+
 /**
- * A member's annual leave this leave year: what is left, what the year end
- * would take above the carry-over, when it ends, their last day off up to
+ * Each member's annual leave this leave year: what is left, what the year
+ * end would take above the carry-over, when it ends, their last day off up to
  * today, and the approved requests that say so.
+ *
+ * Read for all of them at once: the leave types, each annual type's policies
+ * and ledger, and the requests, a handful of queries however many members,
+ * where asking member by member was seven each.
  */
-export async function annualFacts(
+export async function annualFactsOf(
   tx: Tx,
-  m: Member,
-  today: CalendarDate,
-): Promise<{
-  left: DayAmount;
-  losesAtYearEnd: DayAmount;
-  yearEnd: CalendarDate;
-  lastDayOff: CalendarDate | null;
-  requests: readonly RequestRecord[];
-}> {
+  members: readonly Member[],
+  todayOf: (m: Member) => CalendarDate,
+): Promise<ReadonlyMap<PersonId, AnnualFacts>> {
+  if (members.length === 0) return new Map();
+  const ids = members.map((m) => m.personId);
   const annual = (await tx.leaveTypes.list()).filter(
     (t) => t.definition.category === 'annual_leave' && t.definition.tracked && !t.deleted,
   );
-  let left = new Decimal(0);
-  let loses = new Decimal(0);
-  let yearEnd = leaveYear(null, today).end;
-  for (const t of annual) {
-    const policy = await policyFor(tx, m, t.definition.key, today);
-    const { start, end } = leaveYear(policy?.definition ?? null, today);
-    yearEnd = end;
-    const entries = (await tx.ledger.forMember(m.personId, t.definition.key)).filter(
-      (e) => e.effectiveOn >= start && e.effectiveOn <= end,
-    );
-    const mine = days(balanceOn(entries, end).left);
-    left = left.plus(mine);
-    const cap = policy?.definition.carryOver?.maxDays;
-    loses = loses.plus(Decimal.max(0, cap === undefined ? mine : mine.minus(cap)));
-  }
+  const [policies, ledgers, requests] = await Promise.all([
+    Promise.all(annual.map((t) => tx.policies.forLeaveType(t.definition.key))),
+    Promise.all(annual.map((t) => tx.ledger.forMembers(ids, t.definition.key))),
+    tx.requests.list({ personIds: ids, statuses: ['approved', 'taken'] }),
+  ]);
+  const byPerson = <T extends { personId: string }>(rows: readonly T[]) => {
+    const out = new Map<string, T[]>();
+    for (const r of rows) out.set(r.personId, [...(out.get(r.personId) ?? []), r]);
+    return out;
+  };
+  const entriesOf = ledgers.map(byPerson);
+  const requestsOf = byPerson(requests.map((r) => ({ personId: r.request.personId, r })));
 
-  const requests = await tx.requests.list({
-    personIds: [m.personId],
-    statuses: ['approved', 'taken'],
-  });
-  const lastDayOff =
-    requests
-      .filter(
-        (r) => r.request.leaveType.category === 'annual_leave' && r.request.span.from <= today,
-      )
-      .map((r) => (r.request.span.to < today ? r.request.span.to : today))
-      .toSorted()
-      .at(-1) ?? null;
-  return { left: amount(left), losesAtYearEnd: amount(loses), yearEnd, lastDayOff, requests };
+  return new Map(
+    members.map((m): [PersonId, AnnualFacts] => {
+      const today = todayOf(m);
+      let left = new Decimal(0);
+      let loses = new Decimal(0);
+      let yearEnd = leaveYear(null, today).end;
+      annual.forEach((_, i) => {
+        const policy = policyFrom(policies[i] ?? [], m, today);
+        const { start, end } = leaveYear(policy?.definition ?? null, today);
+        yearEnd = end;
+        const entries = (entriesOf[i]?.get(m.personId) ?? []).filter(
+          (e) => e.effectiveOn >= start && e.effectiveOn <= end,
+        );
+        const mine = days(balanceOn(entries, end).left);
+        left = left.plus(mine);
+        const cap = policy?.definition.carryOver?.maxDays;
+        loses = loses.plus(Decimal.max(0, cap === undefined ? mine : mine.minus(cap)));
+      });
+      const own = (requestsOf.get(m.personId) ?? []).map((x) => x.r);
+      const lastDayOff =
+        own
+          .filter(
+            (r) => r.request.leaveType.category === 'annual_leave' && r.request.span.from <= today,
+          )
+          .map((r) => (r.request.span.to < today ? r.request.span.to : today))
+          .toSorted()
+          .at(-1) ?? null;
+      return [
+        m.personId,
+        { left: amount(left), losesAtYearEnd: amount(loses), yearEnd, lastDayOff, requests: own },
+      ];
+    }),
+  );
 }
 
 /**
@@ -303,23 +329,34 @@ export async function annualFacts(
 const endedMonths = new Map<string, { missedClockOuts: number; overtimeMinutes: number }>();
 const KEEP_MONTHS = 20_000;
 
-async function factsOf(
-  tx: Tx,
+/** A member's six months, from what was read for the whole company at once. */
+function factsOf(
   deps: Pick<Deps, 'clock'>,
   tenantId: Caller['tenantId'],
   m: Member,
   months: readonly string[],
-  rules: AttendanceRules,
-): Promise<MemberYear> {
+  read: {
+    readonly rules: AttendanceRules;
+    readonly annual: AnnualFacts | undefined;
+    readonly punches: readonly Punch[];
+    readonly schedule: Schedule | undefined;
+  },
+): MemberYear {
+  const { rules } = read;
   const today = deps.clock.date(m.timeZone);
-  const { left, losesAtYearEnd, lastDayOff, requests } = await annualFacts(tx, m, today);
+  const { left, losesAtYearEnd, lastDayOff, requests } = read.annual ?? {
+    left: amount('0'),
+    losesAtYearEnd: amount('0'),
+    lastDayOff: null,
+    requests: [],
+  };
   const clock = AttendanceClock.of({
     tenantId,
     personId: m.personId,
     timeZone: m.timeZone,
-    punches: await tx.attendance.punches(m.personId),
+    punches: read.punches,
   });
-  const schedule = (await tx.attendance.schedule(m.personId)) ?? DEFAULT_SCHEDULE;
+  const schedule = read.schedule ?? DEFAULT_SCHEDULE;
   const now = deps.clock.instant();
   // Only a day with a shift can be open or carry overtime; the rest count for
   // neither, so they are never built.
@@ -429,10 +466,22 @@ export const insights =
         );
         const cohortMinimum =
           (await tx.settings.get('cohort_minimum'))?.value ?? DEFAULT_COHORT_MINIMUM;
-        // Every member's year at once; the rules are the company's, read once.
-        const rules = await tx.attendance.rules();
-        const years: MemberYear[] = await Promise.all(
-          scope.members.map((m) => factsOf(tx, deps, caller.tenantId, m, months, rules)),
+        // What every member's year is built from, read for all of them at
+        // once: a handful of queries, not several per member.
+        const ids = scope.members.map((m) => m.personId);
+        const [rules, annual, punches, schedules] = await Promise.all([
+          tx.attendance.rules(),
+          annualFactsOf(tx, scope.members, (m) => deps.clock.date(m.timeZone)),
+          tx.attendance.punchesOf(ids),
+          tx.attendance.schedulesOf(ids),
+        ]);
+        const years: MemberYear[] = scope.members.map((m) =>
+          factsOf(deps, caller.tenantId, m, months, {
+            rules,
+            annual: annual.get(m.personId),
+            punches: punches.get(m.personId) ?? [],
+            schedule: schedules.get(m.personId),
+          }),
         );
 
         const monthly: Monthly[] = months.map((month) => {
