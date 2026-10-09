@@ -18,6 +18,7 @@ import {
   type Company,
   type Person,
 } from './src/account';
+import { restoreLook } from './src/appearance';
 import { CompanyScreen, SignInScreen, UnreachableScreen } from './src/screens';
 import { SignedIn } from './src/signed-in';
 
@@ -81,6 +82,7 @@ export default function App(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    void restoreLook();
     void resume();
   }, [resume]);
 
@@ -154,6 +156,10 @@ export default function App(): React.JSX.Element {
           onEndViewing={async () => {
             await endViewing(place.company.origin, place.sessionId);
             await resume();
+          }}
+          onChangeCompany={async () => {
+            await signOut(place.company.origin, place.sessionId);
+            changeCompany();
           }}
         />
       ) : (

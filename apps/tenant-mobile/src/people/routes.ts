@@ -107,7 +107,7 @@ export type PeopleRoutes = {
   ScheduledReports: undefined;
   /** One schedule's runs, newest first. */
   ReportHistory: { id: string; name: string };
-  /** People's settings, for its administrators and HR (H1). */
+  /** Every setting this person may open, grouped by module, and their own (H1). */
   Settings: undefined;
   /** The employee fields: sections, then a section's fields, and publishing (H2, H3). */
   FieldRegistry: { section?: string } | undefined;
@@ -123,8 +123,8 @@ export type PeopleRoutes = {
   Integrations: { tab?: 'slack' | 'webhooks' | 'provisioning' } | undefined;
   /** An endpoint's deliveries, a failed one replayable. */
   WebhookLog: { id: string; url: string };
-  /** Who did what, and when (H6). */
-  Activity: undefined;
+  /** Who did what, and when (H6); `areas` opens it narrowed, as People's settings link it. */
+  Activity: { areas?: readonly string[] } | undefined;
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;
