@@ -64,6 +64,42 @@ export type PeopleRoutes = {
   TimeOffDescribe: { sentence?: string } | undefined;
   /** Parental leave: the person's plan, a step at a time (MT11, MT12). */
   TimeOffParental: undefined;
+  /** Who's off: the team's week, a month or the year (MT13, MT14). */
+  TimeOffCalendar: undefined;
+  /** Requests waiting for this approver, coming up and decided (MT15). */
+  TimeOffApprovals: undefined;
+  /** One request to decide, on the go (MT16). */
+  TimeOffDecision: { requestId: string; name: string };
+  /** Who approves while this approver is away. */
+  TimeOffDelegation: undefined;
+  /** The person's week, worked against planned, and fixing a missed clock-out (MT17, MT18). */
+  TimeOffTimesheet: undefined;
+  /** A manager's team right now (MT19). */
+  TimeOffTeamNow: undefined;
+  /** Overtime to decide, late corrections, and your own overtime. */
+  TimeOffAttendanceRequests: undefined;
+  /** HR's attendance exceptions, a month at a time. */
+  TimeOffExceptions: undefined;
+  /** HR's pay period: what goes to payroll, reminders, closing it. */
+  TimeOffPayPeriod: undefined;
+  /** The member's kiosk QR and PIN. */
+  TimeOffKioskCode: undefined;
+  /** HR's parental leave plans, and one to approve. */
+  TimeOffParentalCases: undefined;
+  /** HR's absence insights and nudges. */
+  TimeOffInsights: undefined;
+  /** HR's Time Off settings: leave types, policies, approvals, attendance, holidays, integrations. */
+  TimeOffSettings:
+    | {
+        section?:
+          'leave-types' | 'negative' | 'approvals' | 'attendance' | 'holidays' | 'integrations';
+      }
+    | undefined;
+  /** One leave type and its policies. */
+  TimeOffLeaveType: { leaveTypeKey: string; name: string };
+  /** A policy described in words and read back. */
+  TimeOffPolicyDescribe: { leaveTypeKey: string; policyId?: string };
+  TimeOffParentalCase: { planId: string; name: string };
   BulkEdit: { personIds: readonly string[] };
   /** What changed and the charts, a tab at a time (G1–G3). */
   Insights: { tab?: string } | undefined;

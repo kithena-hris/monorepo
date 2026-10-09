@@ -46,6 +46,19 @@ import { Roles } from './people/settings/roles';
 import { Settings } from './people/settings/settings';
 import { TimeOffBalance } from './timeoff/balance';
 import { TimeOffHolidays } from './timeoff/holidays';
+import { TimeOffApprovals, TimeOffDecision, TimeOffDelegation } from './timeoff/approvals';
+import {
+  TimeOffAttendanceRequests,
+  TimeOffExceptions,
+  TimeOffKioskCode,
+  TimeOffPayPeriod,
+  TimeOffTeamNow,
+  TimeOffTimesheet,
+} from './timeoff/attendance';
+import { TimeOffCalendar } from './timeoff/calendar';
+import { TimeOffInsights } from './timeoff/insights';
+import { TimeOffParental, TimeOffParentalCase, TimeOffParentalCases } from './timeoff/parental';
+import { TimeOffLeaveType, TimeOffPolicyDescribe, TimeOffSettings } from './timeoff/settings';
 import { TimeOffDescribe } from './timeoff/describe';
 import { TimeOffRequest } from './timeoff/request';
 import { TimeOffRequestDetail, TimeOffRequests } from './timeoff/requests';
@@ -126,6 +139,23 @@ function TabStack({
           <Stack_.Screen name="TimeOffRequests" component={TimeOffRequests} />
           <Stack_.Screen name="TimeOffRequestDetail" component={TimeOffRequestDetail} />
           <Stack_.Screen name="TimeOffDescribe" component={TimeOffDescribe} />
+          <Stack_.Screen name="TimeOffCalendar" component={TimeOffCalendar} />
+          <Stack_.Screen name="TimeOffApprovals" component={TimeOffApprovals} />
+          <Stack_.Screen name="TimeOffDecision" component={TimeOffDecision} />
+          <Stack_.Screen name="TimeOffDelegation" component={TimeOffDelegation} />
+          <Stack_.Screen name="TimeOffTimesheet" component={TimeOffTimesheet} />
+          <Stack_.Screen name="TimeOffTeamNow" component={TimeOffTeamNow} />
+          <Stack_.Screen name="TimeOffAttendanceRequests" component={TimeOffAttendanceRequests} />
+          <Stack_.Screen name="TimeOffExceptions" component={TimeOffExceptions} />
+          <Stack_.Screen name="TimeOffPayPeriod" component={TimeOffPayPeriod} />
+          <Stack_.Screen name="TimeOffKioskCode" component={TimeOffKioskCode} />
+          <Stack_.Screen name="TimeOffParental" component={TimeOffParental} />
+          <Stack_.Screen name="TimeOffParentalCases" component={TimeOffParentalCases} />
+          <Stack_.Screen name="TimeOffParentalCase" component={TimeOffParentalCase} />
+          <Stack_.Screen name="TimeOffInsights" component={TimeOffInsights} />
+          <Stack_.Screen name="TimeOffSettings" component={TimeOffSettings} />
+          <Stack_.Screen name="TimeOffLeaveType" component={TimeOffLeaveType} />
+          <Stack_.Screen name="TimeOffPolicyDescribe" component={TimeOffPolicyDescribe} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>

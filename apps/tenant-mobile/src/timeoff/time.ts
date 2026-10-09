@@ -51,3 +51,17 @@ export const partOfDay = (at: string | number, zone: string): string => {
 /** Today on this phone's own calendar, not UTC's: after midnight here is the next day. */
 export const todayHere = (): string =>
   localDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+/**
+ * The instant a wall-clock time on a date is in `zone`: "18:05" on 2026-09-30
+ * in Madrid is 16:05Z. The zone's offset is read at a first guess and the
+ * guess corrected by it, right everywhere but the hour a clock skips in spring.
+ */
+export function instantAt(date: string, time: string, zone: string): string {
+  const wanted = Date.parse(`${date}T${time}:00Z`);
+  const seen = wall(wanted, zone);
+  const back = Date.parse(
+    `${seen.date}T${String(Math.floor(seen.minute / 60)).padStart(2, '0')}:${String(seen.minute % 60).padStart(2, '0')}:00Z`,
+  );
+  return new Date(wanted - (back - wanted)).toISOString();
+}

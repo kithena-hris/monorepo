@@ -10,6 +10,7 @@ import {
 } from '@reach/ui-native';
 import {
   Building2,
+  CalendarDays,
   Plug,
   ScrollText,
   Settings as SettingsIcon,
@@ -36,6 +37,7 @@ interface Overview {
     readonly locations: readonly { readonly archived: boolean }[];
   } | null;
   readonly roles: { readonly holders: readonly { readonly roles: readonly string[] }[] } | null;
+  readonly timeOff: boolean;
   readonly integrations: {
     readonly endpoints: readonly { readonly enabled: boolean; readonly retrying: boolean }[];
     readonly scim: {
@@ -63,11 +65,12 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
 
   const load = async (): Promise<void> => {
     setFailed(null);
-    const [fields, organisation, roles, integrations] = await Promise.all([
+    const [fields, organisation, roles, integrations, timeOff] = await Promise.all([
       ask<Overview['fields']>(signed, 'Registry'),
       ask<Overview['organisation']>(signed, 'Organisation'),
       ask<Overview['roles']>(signed, 'RoleSettings', {}),
       ask<Overview['integrations']>(signed, 'Integrations'),
+      ask<{ hrAdmin: boolean }>(signed, 'TimeOffViewer', {}, 'timeoff'),
     ]);
     const offline = [fields, organisation, roles, integrations].find(
       (a) => !a.ok && a.code === 'OFFLINE',
@@ -81,6 +84,7 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
       organisation: organisation.ok ? organisation.data : null,
       roles: roles.ok ? roles.data : null,
       integrations: integrations.ok ? integrations.data : null,
+      timeOff: timeOff.ok && timeOff.data.hrAdmin,
     });
   };
   useEffect(() => {
@@ -156,6 +160,16 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
       icon: Plug,
       go: () => {
         navigation.navigate('Integrations');
+      },
+    });
+  }
+  if (data.timeOff) {
+    rows.push({
+      title: 'Time off',
+      line: 'Leave types, policies, approvals, attendance, holidays',
+      icon: CalendarDays,
+      go: () => {
+        navigation.navigate('TimeOffSettings');
       },
     });
   }
