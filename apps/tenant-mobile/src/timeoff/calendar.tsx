@@ -18,23 +18,18 @@ import {
   ListItem,
   SegmentedControl,
   SegmentedControlItem,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
   Text,
   TimelineChart,
   type CalendarMarker,
   type TimelineRow,
 } from '@reach/ui-native';
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
-import { useSigned } from '../people/api';
+import { readAhead, useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { calendarFeed, useTimeOff } from './api';
 import { todayHere } from './time';
@@ -88,6 +83,20 @@ const TONE: Record<
   'chart-6': 'chart-6',
 };
 
+/** The calendar's first screen, every scope of it: asked ahead so a scope opens at once. */
+export const calendarReads = (
+  today: string,
+): readonly (readonly [string, Record<string, unknown>])[] => {
+  const week = mondayOf(today);
+  return [
+    ...(['team', 'company', 'me'] as const).map(
+      (scope) => ['TimeOffCalendarTimeline', { scope, from: week, to: addDays(week, 4) }] as const,
+    ),
+    ['TimeOffCalendarYear', { scope: 'team', year: Number(today.slice(0, 4)) }],
+    ['TimeOffRequestPanel', {}],
+  ];
+};
+
 /**
  * Who's off (design MT13, MT14): a week fits on the screen, people as rows
  * and five days as columns with a count of who's in under each; tapping a day
@@ -116,6 +125,28 @@ export function TimeOffCalendar({
           ),
         };
   const timeline = useTimeOff<CalendarAnswer>('TimeOffCalendarTimeline', { scope, ...range });
+  // The weeks either side and the other scopes, so the arrows and the switch never wait.
+  const signed = useSigned();
+  useEffect(() => {
+    if (view !== 'week') return;
+    readAhead(
+      signed,
+      [
+        ...(['team', 'company', 'me'] as const).map(
+          (s) =>
+            ['TimeOffCalendarTimeline', { scope: s, from: week, to: addDays(week, 4) }] as const,
+        ),
+        ...[-7, 7].map(
+          (by) =>
+            [
+              'TimeOffCalendarTimeline',
+              { scope, from: addDays(week, by), to: addDays(week, by + 4) },
+            ] as const,
+        ),
+      ],
+      'timeoff',
+    );
+  }, [signed, scope, view, week]);
   const yearly = useTimeOff<{ days: { date: string; off: number }[] }>('TimeOffCalendarYear', {
     scope,
     year,
@@ -281,9 +312,10 @@ export function TimeOffCalendar({
         )
       ) : null}
       {day === null ? null : (
-        <DaySheet
+        <DayDialog
           date={day}
           scope={scope}
+          seed={timeline.load.status === 'ready' ? timeline.load.data : null}
           typeOf={typeOf}
           onClose={() => {
             setDay(null);
@@ -308,48 +340,59 @@ export function TimeOffCalendar({
 }
 
 /** One day (MT14): who is in, and who is off and why, as much as the viewer may see. */
-function DaySheet({
+function DayDialog({
   date,
   scope,
+  seed,
   typeOf,
   onClose,
 }: {
   date: string;
   scope: Scope;
+  /** The week or month on screen, which already holds the day: shown until the day's own answer. */
+  seed: CalendarAnswer | null;
   typeOf: (key: string | null) => LeaveType | undefined;
   onClose: () => void;
 }): React.JSX.Element {
   const { load } = useTimeOff<CalendarAnswer>('TimeOffCalendarDay', { date, scope });
-  const coverage =
-    load.status === 'ready' ? load.data.coverage.find((c) => c.date === date) : undefined;
+  const data =
+    load.status === 'ready'
+      ? load.data
+      : seed === null
+        ? null
+        : {
+            ...seed,
+            entries: seed.entries.filter((e) => e.span.from <= date && date <= e.span.to),
+          };
+  const coverage = data?.coverage.find((c) => c.date === date);
   return (
-    <Sheet
+    <Dialog
       open
       onOpenChange={(o) => {
         if (!o) onClose();
       }}
     >
-      <SheetContent>
-        <SheetHeader>
+      <DialogContent>
+        <DialogHeader>
           <View className="flex-row items-center gap-2">
-            <SheetTitle className="flex-1">{longDate(date)}</SheetTitle>
+            <DialogTitle className="flex-1 text-left">{longDate(date)}</DialogTitle>
             {coverage === undefined ? null : (
               <Badge size="sm" tone={coverage.below ? 'danger' : 'neutral'}>
                 {`${String(coverage.in)} of ${String(coverage.of)} in`}
               </Badge>
             )}
           </View>
-        </SheetHeader>
-        <SheetBody>
-          {load.status !== 'ready' ? (
+        </DialogHeader>
+        <DialogBody>
+          {data === null ? (
             <Loading label="Loading the day" />
-          ) : load.data.entries.length === 0 ? (
+          ) : data.entries.length === 0 ? (
             <Text tone="muted">Nobody is off.</Text>
           ) : (
             <List>
-              {load.data.entries.map((e) => {
+              {data.entries.map((e) => {
                 const who =
-                  load.data.people.find((p) => p.personId === e.personId)?.displayName ?? 'Someone';
+                  data.people.find((p) => p.personId === e.personId)?.displayName ?? 'Someone';
                 const status = statusOf(e.status);
                 return (
                   <ListItem
@@ -371,9 +414,12 @@ function DaySheet({
           <Text variant="footnote" tone="muted">
             Teammates only see “Off” for sick days. Types and reasons stay with managers and HR.
           </Text>
-        </SheetBody>
-      </SheetContent>
-    </Sheet>
+        </DialogBody>
+        <DialogFooter>
+          <Button onPress={onClose}>Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -26,9 +26,8 @@ import { View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
-import { useSigned } from '../people/api';
+import { keptAnswer, read, useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
-import { askTimeOff } from './api';
 import { todayHere } from './time';
 import { leaveIcon } from './icons';
 import { addDays, amount, days, longSpan, shortDate, spanLabel } from './words';
@@ -140,7 +139,11 @@ export function TimeOffRequest({
     route.params?.from !== undefined ? 'review' : type === null ? 'type' : 'dates',
   );
   const [month, setMonth] = useState((route.params?.from ?? todayHere()).slice(0, 7));
-  const [types, setTypes] = useState<readonly LeaveType[] | null>(null);
+  const [types, setTypes] = useState<readonly LeaveType[] | null>(
+    () =>
+      keptAnswer<{ leaveTypes: LeaveType[] }>(signed, 'TimeOffRequestPanel', {}, 'timeoff')?.data
+        .leaveTypes ?? null,
+  );
   const [preview, setPreview] = useState<Preview | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
@@ -155,7 +158,7 @@ export function TimeOffRequest({
     let live = true;
     setPreview(null);
     setProblem(null);
-    void askTimeOff<{ leaveTypes: LeaveType[]; preview: Preview | null }>(
+    void read<{ leaveTypes: LeaveType[]; preview: Preview | null }>(
       signed,
       'TimeOffRequestPanel',
       dated
@@ -163,6 +166,7 @@ export function TimeOffRequest({
         : type === null
           ? {}
           : { leaveTypeKey: type },
+      'timeoff',
     ).then((answer) => {
       if (!live) return;
       if (!answer.ok) {
@@ -182,11 +186,14 @@ export function TimeOffRequest({
   useEffect(() => {
     let live = true;
     void Promise.all([
-      askTimeOff<Team>(signed, 'TimeOffCalendarMonth', { month, scope: 'team' }),
-      askTimeOff<{ holidays: { date: string; name: string }[] }>(signed, 'TimeOffHolidays', {
-        year: Number(month.slice(0, 4)),
-      }),
-      askTimeOff<{ member: { personId: string } | null }>(signed, 'TimeOffOverview'),
+      read<Team>(signed, 'TimeOffCalendarMonth', { month, scope: 'team' }, 'timeoff'),
+      read<{ holidays: { date: string; name: string }[] }>(
+        signed,
+        'TimeOffHolidays',
+        { year: Number(month.slice(0, 4)) },
+        'timeoff',
+      ),
+      read<{ member: { personId: string } | null }>(signed, 'TimeOffOverview', {}, 'timeoff'),
     ]).then(([t, h, o]) => {
       if (!live) return;
       setTeam(t.ok ? { ...t.data, holidays: h.ok ? h.data.holidays : [] } : null);
