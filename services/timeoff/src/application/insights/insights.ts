@@ -17,7 +17,7 @@ import type { Writer } from '../assist/ports.js';
 import { written, type Line } from '../assist/written.js';
 import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
-import { forbidden, isHrAdmin, leaveYear, policyFor, relates, transact } from '../shared.js';
+import { forbidden, isHrAdmin, leaveYear, policyFor, relatedIds, transact } from '../shared.js';
 
 /**
  * Insights (PRD §14.2, T27): time off and attendance across the caller's
@@ -225,8 +225,8 @@ export async function scopeOf(
 ): Promise<{ scope: 'company' | 'team'; members: Member[] } | null> {
   const active = (await tx.members.list()).filter((m) => m.status !== 'left');
   if (await isHrAdmin(deps, caller)) return { scope: 'company', members: active };
-  const yes = await Promise.all(active.map((m) => relates(deps, caller, 'approver', m.personId)));
-  const mine = active.filter((_, i) => yes[i]);
+  const approver = await relatedIds(deps, caller, 'approver');
+  const mine = active.filter((m) => approver.has(m.personId));
   return mine.length === 0 ? null : { scope: 'team', members: mine };
 }
 

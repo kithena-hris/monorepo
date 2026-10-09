@@ -57,6 +57,7 @@ import {
   notFound,
   post,
   refuse,
+  relatedIds,
   relates,
   self,
   transact,
@@ -276,9 +277,10 @@ export const teamRightNow =
   (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
   (caller: Caller): Promise<Result<RightNow>> =>
     transact(deps, caller.tenantId, async (tx) => {
-      const here = (await tx.members.list()).filter((m) => m.status !== 'left');
-      const yes = await Promise.all(here.map((m) => relates(deps, caller, 'approver', m.personId)));
-      const mine = here.filter((_, i) => yes[i]);
+      const approver = await relatedIds(deps, caller, 'approver');
+      const mine = (await tx.members.list()).filter(
+        (m) => m.status !== 'left' && approver.has(m.personId),
+      );
       const rules = await tx.attendance.rules();
       const now = deps.clock.instant();
       const people: RightNow['people'][number][] = [];

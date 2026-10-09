@@ -14,7 +14,15 @@ import { addDays } from '../../domain/days.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
 import type { Caller, Deps, Member, Tx } from '../ports.js';
 import { absencesIn, LIVE } from '../request/assess.js';
-import { calendarOf, isHrAdmin, notFound, refuse, relates, transact } from '../shared.js';
+import {
+  calendarOf,
+  isHrAdmin,
+  notFound,
+  refuse,
+  relatedIds,
+  relates,
+  transact,
+} from '../shared.js';
 
 /**
  * The team calendar (PRD §10.1, TOF-040): month, timeline and year are the
@@ -135,13 +143,27 @@ export async function calendarIn(
   if (!found.ok) return found;
   const hr = await isHrAdmin(deps, caller);
   const seen = new Map<PersonId, { member: Member; sight: Sight }>();
-  // Every member's sight at once: each is a round trip to OpenFGA.
-  const here = found.value.filter((m) => m.status !== 'left');
-  const sights = await Promise.all(here.map((member) => sightOf(deps, caller, member, hr)));
-  here.forEach((member, i) => {
-    const sight = sights[i] ?? null;
-    if (sight !== null) seen.set(member.personId, { member, sight });
-  });
+  // Whom the caller approves, covers for and works beside: three questions
+  // to OpenFGA, not three per member. `sightOf`'s rule, over the sets.
+  const none: ReadonlySet<string> = new Set();
+  const [approver, delegate, teammate] = hr
+    ? [none, none, none]
+    : await Promise.all([
+        relatedIds(deps, caller, 'approver'),
+        relatedIds(deps, caller, 'delegate'),
+        relatedIds(deps, caller, 'teammate'),
+      ]);
+  for (const member of found.value) {
+    if (member.status === 'left') continue;
+    const id = member.personId;
+    const sight: Sight | null =
+      hr || caller.personId === id || approver.has(id) || delegate.has(id)
+        ? 'type'
+        : teammate.has(id)
+          ? 'teammate'
+          : null;
+    if (sight !== null) seen.set(id, { member, sight });
+  }
 
   const visibility = new Map(
     (await tx.leaveTypes.list()).map((t) => [t.definition.key, t.definition.visibility]),

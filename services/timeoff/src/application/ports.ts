@@ -629,7 +629,7 @@ export interface UnitOfWork {
  */
 export type Relation = 'approver' | 'delegate' | 'hr_admin' | 'teammate';
 
-/** OpenFGA's `Check`, as one question. */
+/** OpenFGA's `Check`, as one question, and `ListObjects` for a member's many. */
 export interface Authorizer {
   check(
     tenantId: TenantId,
@@ -639,6 +639,16 @@ export interface Authorizer {
       readonly object: `member:${string}` | `tenant:${string}`;
     },
   ): Promise<boolean>;
+  /**
+   * The person ids of every member `user` holds `relation` on, in one
+   * question: a screen over the company asked a check per member, hundreds
+   * of round trips, and at once they swamped OpenFGA.
+   */
+  members(
+    tenantId: TenantId,
+    user: `person:${string}`,
+    relation: Exclude<Relation, 'hr_admin'>,
+  ): Promise<readonly string[]>;
 }
 
 /* ------------------------------------------------------- timers, notices -- */
