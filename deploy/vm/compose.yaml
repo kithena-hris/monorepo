@@ -196,7 +196,7 @@ services:
     env_file: timeoff.env
     environment:
       NODE_ENV: production
-      NODE_OPTIONS: --max-old-space-size=192
+      NODE_OPTIONS: --max-old-space-size=320
       KAFKA_BROKERS: redpanda:9092
       TEMPORAL_ADDRESS: temporal:7233
       OPENFGA_URL: http://openfga:8080
@@ -226,7 +226,13 @@ services:
       valkey: { condition: service_healthy }
     deploy:
       resources:
-        limits: { memory: 320m, cpus: '0.5' }
+        # Measured in production on 9 October 2026: idle at 249 MB within
+        # twenty minutes of a start and OOM-killed at 314 MB twice in an
+        # hour under a page's burst of reads, taking every Time Off and
+        # People read with it while it restarted. The Temporal worker's
+        # bundle and native core live outside the heap; half a CPU let one
+        # heavy read hold every other one past the shell's ten seconds.
+        limits: { memory: 512m, cpus: '1.0' }
 
   # The outbox relay: Debezium Server, one per database, each tailing one
   # outbox and publishing its rows to Redpanda (`debezium.env` has the
