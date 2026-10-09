@@ -132,7 +132,7 @@ export function TimeOffAddLeaveType({
   ) => ({
     // What the reader understood beyond the steps (tenure bands, going below
     // zero, the leave year) stays, unless a step changed it.
-    ...(base ?? {}),
+    ...base,
     leaveTypeKey: key,
     allowance:
       base !== null && Number(base.allowance[0]?.days ?? NaN) === v.allowance
