@@ -15,7 +15,6 @@ import {
   DialogTitle,
   EmptyState,
   Field,
-  FieldDescription,
   FieldLabel,
   Icon,
   Input,
@@ -46,8 +45,9 @@ import {
   Tags,
   Trash2,
 } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
@@ -134,6 +134,9 @@ export function TimeOffSettings({
           onOpen={(key, name) => {
             navigation.navigate('TimeOffLeaveType', { leaveTypeKey: key, name });
           }}
+          onAdd={() => {
+            navigation.navigate('TimeOffAddLeaveType');
+          }}
         />
       ) : section === 'negative' ? (
         <Negative />
@@ -167,7 +170,7 @@ interface LeaveTypeRow {
   readonly policyIds: readonly string[];
 }
 
-const CATEGORIES = [
+export const CATEGORIES = [
   ['annual_leave', 'Vacation', 'sun'],
   ['sick_leave', 'Sick leave', 'thermometer'],
   ['parental_leave', 'Parental leave', 'baby'],
@@ -175,7 +178,7 @@ const CATEGORIES = [
   ['other', 'Something else', 'flag'],
 ] as const;
 
-const keyOf = (name: string): string =>
+export const keyOf = (name: string): string =>
   name
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -185,15 +188,18 @@ const keyOf = (name: string): string =>
 
 function LeaveTypes({
   onOpen,
+  onAdd,
 }: {
   onOpen: (key: string, name: string) => void;
+  onAdd: () => void;
 }): React.JSX.Element {
   const { load, reload } = useTimeOff<{
     leaveTypes: LeaveTypeRow[];
     parentalCompany: { leaveTypeKey: string; extraWeeks: number; afterServiceYears: number } | null;
   }>('TimeOffLeaveTypeSettings');
   const { act, busy } = useAct('timeoff');
-  const [adding, setAdding] = useState(false);
+  // Back from adding one: the list again.
+  useFocusEffect(reload);
   const [weeks, setWeeks] = useState<number | null>(null);
   const [years, setYears] = useState<number | null>(null);
   if (load.status !== 'ready') {
@@ -206,13 +212,7 @@ function LeaveTypes({
   const company = load.data.parentalCompany;
   return (
     <>
-      <Button
-        variant="primary"
-        startIcon={<Icon icon={Plus} />}
-        onPress={() => {
-          setAdding(true);
-        }}
-      >
+      <Button variant="primary" startIcon={<Icon icon={Plus} />} onPress={onAdd}>
         Add a leave type
       </Button>
       <List>
@@ -297,154 +297,7 @@ function LeaveTypes({
           </Button>
         </Stack>
       </Card>
-      {adding ? (
-        <AddLeaveType
-          onClose={() => {
-            setAdding(false);
-          }}
-          onAdded={() => {
-            setAdding(false);
-            reload();
-          }}
-        />
-      ) : null}
     </>
-  );
-}
-
-function AddLeaveType({
-  onClose,
-  onAdded,
-}: {
-  onClose: () => void;
-  onAdded: () => void;
-}): React.JSX.Element {
-  const { act, busy } = useAct('timeoff');
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<string>('other');
-  const [tracked, setTracked] = useState(true);
-  const [hours, setHours] = useState(false);
-  const [paid, setPaid] = useState('paid');
-  const [hidden, setHidden] = useState(false);
-  return (
-    <Dialog
-      open
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add a leave type</DialogTitle>
-        </DialogHeader>
-        <DialogBody>
-          <ScrollView style={{ flexGrow: 0, maxHeight: 440 }} contentContainerClassName="gap-3">
-            <Field required>
-              <FieldLabel>Name</FieldLabel>
-              <Input value={name} onChange={setName} size="sm" maxLength={60} />
-              <FieldDescription>
-                {name.trim() === '' ? 'Moving day, Jury duty' : `Key: ${keyOf(name)}`}
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel>Kind</FieldLabel>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger size="sm" accessibilityLabel="Kind">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(([v, l]) => (
-                    <SelectItem key={v} value={v}>
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <ListItem
-              listitem={false}
-              description="Taken from an allowance."
-              trailing={
-                <Switch
-                  checked={tracked}
-                  accessibilityLabel="From a balance"
-                  onCheckedChange={setTracked}
-                />
-              }
-            >
-              From a balance
-            </ListItem>
-            <ListItem
-              listitem={false}
-              description="Counted in hours, not days."
-              trailing={
-                <Switch checked={hours} accessibilityLabel="In hours" onCheckedChange={setHours} />
-              }
-            >
-              In hours
-            </ListItem>
-            <SegmentedControl
-              fullWidth
-              size="sm"
-              value={paid}
-              accessibilityLabel="Pay"
-              onValueChange={setPaid}
-            >
-              <SegmentedControlItem value="paid">Paid</SegmentedControlItem>
-              <SegmentedControlItem value="unpaid">Unpaid</SegmentedControlItem>
-            </SegmentedControl>
-            <ListItem
-              listitem={false}
-              description="Teammates see only “Off”. Sick leave always is."
-              trailing={
-                <Switch
-                  checked={hidden || category === 'sick_leave'}
-                  disabled={category === 'sick_leave'}
-                  accessibilityLabel="Private"
-                  onCheckedChange={setHidden}
-                />
-              }
-            >
-              Private
-            </ListItem>
-          </ScrollView>
-        </DialogBody>
-        <DialogFooter>
-          <Button className="flex-1" onPress={onClose}>
-            Cancel
-          </Button>
-          <Button
-            className="flex-1"
-            variant="primary"
-            disabled={keyOf(name) === ''}
-            loading={busy === 'DefineTimeOffLeaveType'}
-            onPress={() => {
-              void act(
-                'DefineTimeOffLeaveType',
-                {
-                  input: {
-                    key: keyOf(name),
-                    name: { default: name.trim() },
-                    category,
-                    colorToken: category === 'sick_leave' ? 'chart-3' : 'chart-4',
-                    icon: CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag',
-                    unit: hours ? 'hour' : 'day',
-                    tracked,
-                    paid,
-                    visibility: hidden || category === 'sick_leave' ? 'off_only' : 'type',
-                  },
-                },
-                'Leave type added',
-              ).then((done) => {
-                if (done !== null) onAdded();
-              });
-            }}
-          >
-            Add
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

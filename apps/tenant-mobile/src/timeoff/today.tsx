@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Carousel,
+  SearchField,
   Dialog,
   DialogBody,
   DialogContent,
@@ -53,9 +54,10 @@ import { useAct } from '../people/act';
 import { keptAnswer, read, useSigned, type Signed } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
+import { SuggestionCard, type Described, type Option } from './describe';
 import { leaveIcon } from './icons';
 import { clockTime, duration, localDate, minuteOfDay, partOfDay, stopwatch } from './time';
-import { amount, bridgeDays, longDate, relativeDay, shortDate, spanLabel, statusOf } from './words';
+import { amount, longDate, relativeDay, shortDate, spanLabel, statusOf } from './words';
 
 type ClockState = 'out' | 'in' | 'on_break';
 type WorkModel = 'office' | 'remote' | 'client';
@@ -427,6 +429,7 @@ export const homeReads = (
   ['TimeOffHolidays', { year }],
   ['TimeOffHolidays', { year: year + 1 }],
   ['TimeOffViewer', {}],
+  ['TimeOffDescribe', {}],
 ];
 
 /** The tab as last read, if it was. */
@@ -443,6 +446,99 @@ function keptHome(signed: Signed): Home | null {
     now: overview.at,
     viewer: keptAnswer<Viewer>(signed, 'TimeOffViewer', {}, 'timeoff')?.data ?? null,
   };
+}
+
+/**
+ * Kithena's suggestions, there as the tab opens rather than behind a button:
+ * the dates Time Off ranks best for this person, worded by the assistant,
+ * each one tap from a request or handed to the planner with it. Typing what
+ * you want goes straight to the planner. Until the ranking answers, the
+ * overview's best bridge stands in.
+ */
+function Suggestions({
+  navigation,
+  fallback,
+}: {
+  navigation: PeopleScreen<'TimeOff'>['navigation'];
+  fallback: { bridge: Bridge; leaveTypeKey: string } | null;
+}): React.JSX.Element | null {
+  const { load } = useTimeOff<Described>('TimeOffDescribe', {});
+  const [typed, setTyped] = useState('');
+  const ranked = load.status === 'ready' ? load.data : null;
+  const leaveTypeKey = ranked?.understood.leaveTypeKey ?? fallback?.leaveTypeKey ?? null;
+  const options: readonly Option[] =
+    ranked?.options ??
+    (fallback === null
+      ? []
+      : [
+          {
+            from: fallback.bridge.from,
+            to: fallback.bridge.to,
+            used: fallback.bridge.used,
+            away: fallback.bridge.away,
+            holidays: fallback.bridge.holidays,
+            short: [],
+            fewest: null,
+            fits: true,
+            leftAfter: null,
+            line: fallback.bridge.text,
+          },
+        ]);
+  const choose = (o: Option): void => {
+    navigation.navigate('TimeOffRequest', {
+      ...(leaveTypeKey === null ? {} : { leaveTypeKey }),
+      from: o.from,
+      to: o.to,
+    });
+  };
+  const plan = (sentence?: string): void => {
+    navigation.navigate('TimeOffDescribe', sentence === undefined ? undefined : { sentence });
+  };
+  return (
+    <Stack gap={2}>
+      <View className="flex-row items-center gap-2 px-1">
+        <AssistantMark size={18} />
+        <Text variant="footnote" weight="semibold" tone="muted" className="flex-1">
+          Kithena suggests
+        </Text>
+        <Button
+          size="sm"
+          variant="link"
+          onPress={() => {
+            plan();
+          }}
+        >
+          More
+        </Button>
+      </View>
+      <SearchField
+        value={typed}
+        onValueChange={setTyped}
+        onSearch={(value) => {
+          if (value.trim() !== '') plan(value.trim());
+        }}
+        placeholder="A long weekend in December…"
+        label="Describe the time off you want"
+      />
+      {options.length === 0 ? null : (
+        <Carousel accessibilityLabel="Suggested dates" controls="none" slideWidth={0.88}>
+          {options.slice(0, 5).map((o, i) => (
+            <SuggestionCard
+              key={`${o.from}${o.to}`}
+              option={o}
+              best={ranked !== null && i === 0}
+              onChoose={() => {
+                choose(o);
+              }}
+              onMore={() => {
+                plan(`${String(o.away.days)} days off around ${spanLabel(o.from, o.to)}`);
+              }}
+            />
+          ))}
+        </Carousel>
+      )}
+    </Stack>
+  );
 }
 
 /**
@@ -605,31 +701,15 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
           })}
         </Carousel>
       )}
-      {bridge === undefined || tracked === undefined ? null : (
-        <Card>
-          <Stack gap={2}>
-            <View className="flex-row items-center gap-2">
-              <AssistantMark size={20} />
-              <Text variant="headline" className="flex-1">
-                {`${String(bridge.used)} ${bridge.used === 1 ? 'day gets' : 'days get'} you ${String(bridge.away.days)} off`}
-              </Text>
-              {bridge.text.ai ? <Badge size="sm">AI</Badge> : null}
-            </View>
-            <Text variant="subhead">{bridge.text.text}</Text>
-            <Button
-              size="sm"
-              onPress={() => {
-                navigation.navigate('TimeOffRequest', {
-                  leaveTypeKey: tracked.leaveTypeKey,
-                  from: bridge.from,
-                  to: bridge.to,
-                });
-              }}
-            >
-              {`Request ${bridgeDays(bridge)}`}
-            </Button>
-          </Stack>
-        </Card>
+      {overview.member === null ? null : (
+        <Suggestions
+          navigation={navigation}
+          fallback={
+            bridge === undefined || tracked === undefined
+              ? null
+              : { bridge, leaveTypeKey: tracked.leaveTypeKey }
+          }
+        />
       )}
       <View className="flex-row items-center px-1">
         <Text variant="footnote" weight="semibold" tone="muted" className="flex-1">

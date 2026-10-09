@@ -101,6 +101,8 @@ export type PeopleRoutes = {
   TimeOffAdjust: { personId?: string } | undefined;
   /** HR's queue of balance adjustments; a manager's own. */
   TimeOffAdjustments: undefined;
+  /** Adding a leave type, a step at a time, ending on an example and Publish. */
+  TimeOffAddLeaveType: undefined;
   /** A policy described in words and read back. */
   TimeOffPolicyDescribe: { leaveTypeKey: string; policyId?: string };
   TimeOffParentalCase: { planId: string; name: string };

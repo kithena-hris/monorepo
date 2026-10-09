@@ -60,6 +60,7 @@ import { TimeOffInsights } from './timeoff/insights';
 import { TimeOffParental, TimeOffParentalCase, TimeOffParentalCases } from './timeoff/parental';
 import { TimeOffLeaveType, TimeOffPolicyDescribe, TimeOffSettings } from './timeoff/settings';
 import { TimeOffAdjust, TimeOffAdjustments } from './timeoff/adjustments';
+import { TimeOffAddLeaveType } from './timeoff/add-leave-type';
 import { TimeOffDescribe } from './timeoff/describe';
 import { TimeOffRequest } from './timeoff/request';
 import { TimeOffRequestDetail, TimeOffRequests } from './timeoff/requests';
@@ -137,6 +138,7 @@ const TabStack = memo(function TabStack({
           <Stack_.Screen name="TimeOffDescribe" component={TimeOffDescribe} />
           <Stack_.Screen name="TimeOffAdjust" component={TimeOffAdjust} />
           <Stack_.Screen name="TimeOffAdjustments" component={TimeOffAdjustments} />
+          <Stack_.Screen name="TimeOffAddLeaveType" component={TimeOffAddLeaveType} />
           <Stack_.Screen name="TimeOffCalendar" component={TimeOffCalendar} />
           <Stack_.Screen name="TimeOffApprovals" component={TimeOffApprovals} />
           <Stack_.Screen name="TimeOffDecision" component={TimeOffDecision} />

@@ -1,9 +1,11 @@
 import {
   Alert,
+  AssistantMark,
   Avatar,
   Badge,
   Button,
   Calendar,
+  Chip,
   Field,
   FieldLabel,
   Icon,
@@ -11,6 +13,7 @@ import {
   ListItem,
   RadioCard,
   RadioGroup,
+  SearchField,
   SegmentedControl,
   SegmentedControlItem,
   Stack,
@@ -20,7 +23,7 @@ import {
   type CalendarMarker,
   type DateRange,
 } from '@reach/ui-native';
-import { ArrowRight, Baby, Send, Sparkles } from 'lucide-react-native';
+import { ArrowRight, Baby, Send } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
@@ -28,6 +31,8 @@ import { Failed, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
 import { keptAnswer, read, useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
+import { useTimeOff } from './api';
+import type { Described } from './describe';
 import { todayHere } from './time';
 import { leaveIcon } from './icons';
 import { addDays, amount, days, longSpan, shortDate, spanLabel } from './words';
@@ -116,6 +121,46 @@ const leftOf = (t: LeaveType): string =>
       : `${days(t.left)} left`;
 
 /**
+ * The month's best dates for this type, as they come: one tap puts them on
+ * the calendar. Time Off ranks them by what they cost and what the team can
+ * spare; the assistant only words them.
+ */
+function DateSuggestions({
+  leaveTypeKey,
+  month,
+  onPick,
+}: {
+  leaveTypeKey: string;
+  month: string;
+  onPick: (from: string, to: string) => void;
+}): React.JSX.Element | null {
+  const { load } = useTimeOff<Described>('TimeOffDescribe', { leaveTypeKey, month });
+  if (load.status !== 'ready' || load.data.options.length === 0) return null;
+  return (
+    <Stack gap={2}>
+      <View className="flex-row items-center gap-2">
+        <AssistantMark size={16} />
+        <Text variant="footnote" weight="semibold" tone="muted">
+          Kithena suggests
+        </Text>
+      </View>
+      <View className="flex-row flex-wrap gap-2">
+        {load.data.options.slice(0, 4).map((o) => (
+          <Chip
+            key={`${o.from}${o.to}`}
+            onPress={() => {
+              onPick(o.from, o.to);
+            }}
+          >
+            {`${spanLabel(o.from, o.to)} · ${String(o.used)} → ${String(o.away.days)} off`}
+          </Chip>
+        ))}
+      </View>
+    </Stack>
+  );
+}
+
+/**
  * Asking for time off (design MT5–MT7, MT9): the type with the balance
  * beside each, the dates on a calendar with teammates' days off and the
  * team's short days on it before anything is chosen, then the review — how
@@ -149,6 +194,7 @@ export function TimeOffRequest({
   const [team, setTeam] = useState<Team | null>(null);
   const [me, setMe] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [described, setDescribed] = useState('');
   const [failed, setFailed] = useState<string | null>(null);
   const today = todayHere();
   const dated = type !== null && range.start !== null && range.end !== null;
@@ -241,15 +287,18 @@ export function TimeOffRequest({
   if (step === 'type') {
     return (
       <Page title="Request time off" back={back}>
-        <Button
-          variant="ghost"
-          startIcon={<Icon icon={Sparkles} />}
-          onPress={() => {
-            navigation.navigate('TimeOffDescribe');
+        <SearchField
+          value={described}
+          onValueChange={setDescribed}
+          onSearch={(sentence) => {
+            navigation.navigate(
+              'TimeOffDescribe',
+              sentence.trim() === '' ? undefined : { sentence: sentence.trim() },
+            );
           }}
-        >
-          Describe it instead
-        </Button>
+          placeholder="Or describe it: a week off in March"
+          label="Describe the time off"
+        />
         <RadioGroup
           accessibilityLabel="Type"
           value={type ?? undefined}
@@ -339,6 +388,15 @@ export function TimeOffRequest({
           </>
         }
       >
+        {type === null ? null : (
+          <DateSuggestions
+            leaveTypeKey={type}
+            month={month}
+            onPick={(from, to) => {
+              setRange({ start: from, end: to });
+            }}
+          />
+        )}
         <Calendar
           mode="range"
           label="Dates off"
