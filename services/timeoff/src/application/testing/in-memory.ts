@@ -500,43 +500,48 @@ export function inMemoryTimeOff(at = '2026-10-01T07:00:00.000Z'): InMemoryTimeOf
   };
 
   const hrAccounts = new Set<string>();
+  const check: Sync<Authorizer>['check'] = (tenantId, { user, relation, object }) => {
+    const s = state(tenantId);
+    if (relation === 'hr_admin') {
+      return user.startsWith('account:') && hrAccounts.has(user.slice('account:'.length));
+    }
+    const person = user.startsWith('person:') ? user.slice('person:'.length) : null;
+    const member = s.members.get(object.slice('member:'.length));
+    if (person === null || member === undefined) return false;
+    switch (relation) {
+      case 'approver':
+        return member.managerPersonId === person;
+      case 'teammate':
+        return (
+          member.teamKey !== null &&
+          member.personId !== person &&
+          s.members.get(person)?.teamKey === member.teamKey
+        );
+      case 'delegate': {
+        const approverId = member.managerPersonId;
+        if (approverId === null) return false;
+        const approver = s.members.get(approverId);
+        const on: CalendarDate = clock.date(approver?.timeZone ?? member.timeZone);
+        const away = [...s.requests.values()]
+          .filter((r) => r.request.personId === approverId && r.request.status === 'approved')
+          .flatMap((r) => r.request.spans);
+        const route = routeTo({
+          approverId,
+          on,
+          delegation: s.delegations.get(approverId) ?? null,
+          approverAway: away,
+          salaryRelated: false,
+        });
+        return route.kind === 'delegate' && route.personId === person;
+      }
+    }
+  };
   const authz: Authorizer = promised<Authorizer>({
-    check(tenantId, { user, relation, object }) {
-      const s = state(tenantId);
-      if (relation === 'hr_admin') {
-        return user.startsWith('account:') && hrAccounts.has(user.slice('account:'.length));
-      }
-      const person = user.startsWith('person:') ? user.slice('person:'.length) : null;
-      const member = s.members.get(object.slice('member:'.length));
-      if (person === null || member === undefined) return false;
-      switch (relation) {
-        case 'approver':
-          return member.managerPersonId === person;
-        case 'teammate':
-          return (
-            member.teamKey !== null &&
-            member.personId !== person &&
-            s.members.get(person)?.teamKey === member.teamKey
-          );
-        case 'delegate': {
-          const approverId = member.managerPersonId;
-          if (approverId === null) return false;
-          const approver = s.members.get(approverId);
-          const on: CalendarDate = clock.date(approver?.timeZone ?? member.timeZone);
-          const away = [...s.requests.values()]
-            .filter((r) => r.request.personId === approverId && r.request.status === 'approved')
-            .flatMap((r) => r.request.spans);
-          const route = routeTo({
-            approverId,
-            on,
-            delegation: s.delegations.get(approverId) ?? null,
-            approverAway: away,
-            salaryRelated: false,
-          });
-          return route.kind === 'delegate' && route.personId === person;
-        }
-      }
-    },
+    check,
+    members: (tenantId, user, relation) =>
+      [...state(tenantId).members.keys()].filter((id) =>
+        check(tenantId, { user, relation, object: `member:${id}` }),
+      ),
   });
 
   const notices: InMemoryTimeOff['notices'] = [];

@@ -134,6 +134,17 @@ describe('REST', () => {
     expect((await call({ as: 'ada', url: '/v1/timeoff/settings/leave-types' })).status).toBe(200);
   });
 
+  it("reaches every GET route by its own path, never a sibling's parameter", async () => {
+    // \`/balances/adjustments\` once answered as the balance of a leave type
+    // called "adjustments": every literal path must reach its own route.
+    const { call } = boot();
+    for (const route of ROUTES.filter((r) => r.method === 'GET' && !r.path.includes('{'))) {
+      const answer = await call({ as: 'ada', url: route.path });
+      expect([route.path, answer.status]).not.toEqual([route.path, 404]);
+    }
+    expect((await call({ as: 'ada', url: '/v1/timeoff/balance-adjustments' })).status).toBe(200);
+  });
+
   it('serves a signed calendar feed without a caller, and stops when it is revoked', async () => {
     const { call } = boot();
     const issued = await call({

@@ -82,6 +82,21 @@ describe('the Time Off model', () => {
     expect(await ask(GLOBEX, `person:${MARCO}`, 'approver', `member:${ADAM}`)).toBe(false);
   });
 
+  it('lists every member a person approves, works beside, or covers for, in one question', async () => {
+    const sorted = (ids: readonly string[]) => ids.toSorted();
+    expect(sorted(await fga.authorizer.members(ACME, `person:${MARCO}`, 'approver'))).toEqual(
+      sorted([ADAM, OMAR]),
+    );
+    expect(await fga.authorizer.members(GLOBEX, `person:${MARCO}`, 'approver')).toEqual([]);
+    expect(sorted(await fga.authorizer.members(ACME, `person:${OMAR}`, 'teammate'))).toEqual(
+      sorted([MARCO, ADAM]),
+    );
+    today = CalendarDate.parse('2026-10-20');
+    expect(sorted(await fga.authorizer.members(ACME, `person:${ADA}`, 'delegate'))).toEqual(
+      sorted([ADAM, OMAR]),
+    );
+  });
+
   it('makes a delegate decide for the approver during the cover only', async () => {
     today = CalendarDate.parse('2026-10-20');
     expect(await ask(ACME, `person:${ADA}`, 'delegate', `member:${ADAM}`)).toBe(true);

@@ -213,6 +213,17 @@ export function openFga(
         });
         return allowed === true;
       },
+      async members(tenantId, user, relation) {
+        const fga = await client();
+        const { objects } = await fga.listObjects({
+          user: scoped(tenantId, user),
+          relation,
+          type: 'member',
+          context: { today: options.today() },
+        });
+        const prefix = `member:${tenantId}_`;
+        return objects.filter((o) => o.startsWith(prefix)).map((o) => o.slice(prefix.length));
+      },
     },
 
     async syncMember(tenantId, member) {
@@ -302,6 +313,7 @@ export function timeoffFgaFrom(
  */
 export const nobodyRelates: Authorizer = {
   check: () => Promise.resolve(false),
+  members: () => Promise.resolve([]),
 };
 
 /** What the member consumers ask of the graph beside the projection. */

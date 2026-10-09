@@ -779,7 +779,7 @@ describe('parental plans', () => {
       uow,
       clock: fixedClock('2026-10-01T07:00:00.000Z'),
       newId: ids,
-      authz: { check: () => Promise.resolve(false) },
+      authz: { check: () => Promise.resolve(false), members: () => Promise.resolve([]) },
       notifier: { notify: () => Promise.resolve() },
     };
     await run((tx) =>

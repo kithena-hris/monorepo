@@ -1252,7 +1252,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'timeOffBalanceAdjustments',
     method: 'GET',
-    path: `${V1}/balances/adjustments`,
+    path: `${V1}/balance-adjustments`,
     summary:
       'Balances changed by hand: HR’s queue and the last 30 days; a manager sees the ones they asked for',
     answer: z
@@ -1264,7 +1264,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'adjustTimeOffBalance',
     method: 'POST',
-    path: `${V1}/balances/adjustments`,
+    path: `${V1}/balance-adjustments`,
     summary:
       'Add to or take from a balance, saying why: HR’s counts at once, a manager’s waits for HR',
     body: AdjustmentBody,
@@ -1276,7 +1276,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'decideTimeOffBalanceAdjustment',
     method: 'POST',
-    path: `${V1}/balances/adjustments/{adjustmentId}/decision`,
+    path: `${V1}/balance-adjustments/{adjustmentId}/decision`,
     summary: 'Approve or decline a balance adjustment a manager asked for; HR, never their own',
     params: z.object({ adjustmentId: z.uuid() }),
     body: AdjustmentDecisionBody,

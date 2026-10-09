@@ -15,7 +15,7 @@ import { addDays, amount, days } from '../../domain/days.js';
 import type { LeaveRequest, LeaveRequestId } from '../../domain/request/leave-request.js';
 import type { Caller, Deps, Tx } from '../ports.js';
 import { teamAlternatives, teamBelow } from '../request/assess.js';
-import { balanceFor, forbidden, isHrAdmin, notFound, transact } from '../shared.js';
+import { balanceFor, forbidden, isHrAdmin, notFound, relatedIds, transact } from '../shared.js';
 import { approves, memberView, requestItem, typesOf } from './employee.js';
 import type {
   ApprovalsView,
@@ -74,9 +74,16 @@ async function decidesFor(
   caller: Caller,
 ): Promise<readonly PersonId[] | undefined> {
   if (await isHrAdmin(deps, caller)) return undefined;
-  const others = (await tx.members.list()).filter((m) => m.personId !== caller.personId);
-  const yes = await Promise.all(others.map((m) => approves(deps, caller, m.personId)));
-  return others.filter((_, i) => yes[i]).map((m) => m.personId);
+  const [approver, delegate] = await Promise.all([
+    relatedIds(deps, caller, 'approver'),
+    relatedIds(deps, caller, 'delegate'),
+  ]);
+  return (await tx.members.list())
+    .filter(
+      (m) =>
+        m.personId !== caller.personId && (approver.has(m.personId) || delegate.has(m.personId)),
+    )
+    .map((m) => m.personId);
 }
 
 const DECIDED: readonly LeaveRequest['status'][] = ['approved', 'declined', 'taken', 'cancelled'];
@@ -569,20 +576,23 @@ const EXCEPTIONS_DAYS = 31;
  * counts on Requests and Attendance — requests waiting on them, and their
  * own missed clock-outs plus, for an approver, what needs them on the team.
  *
- * ponytail: "approves anyone" asks once per member, all at once; a
- * `ListObjects` on the approver relation is the upgrade when a tenant is large.
+ * Whom they approve is two `ListObjects` questions, not a check per member.
  */
 export const viewer =
   (deps: ReadDeps) =>
   async (caller: Caller): Promise<Result<ViewerView>> => {
     const facts = await transact(deps, caller.tenantId, async (tx) => {
       const hrAdmin = await isHrAdmin(deps, caller);
-      const others = (await tx.members.list()).filter(
-        (m) => m.status !== 'left' && m.personId !== caller.personId,
+      const [approver, delegate] = await Promise.all([
+        relatedIds(deps, caller, 'approver'),
+        relatedIds(deps, caller, 'delegate'),
+      ]);
+      const approvesAnyone = (await tx.members.list()).some(
+        (m) =>
+          m.status !== 'left' &&
+          m.personId !== caller.personId &&
+          (approver.has(m.personId) || delegate.has(m.personId)),
       );
-      const approvesAnyone = (
-        await Promise.all(others.map((m) => approves(deps, caller, m.personId)))
-      ).includes(true);
       const me = caller.personId === null ? null : await tx.members.get(caller.personId);
       let missed = 0;
       if (me !== null) {

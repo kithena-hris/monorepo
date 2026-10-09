@@ -104,6 +104,21 @@ export async function relates(
   });
 }
 
+/**
+ * The members the caller holds `relation` on, as one question to OpenFGA
+ * (`ListObjects`) rather than a check per member: a screen over the company
+ * asked hundreds, and asked at once they swamped it. None for a caller who
+ * is not a member.
+ */
+export async function relatedIds(
+  deps: Pick<Deps, 'authz'>,
+  caller: Caller,
+  relation: Exclude<Relation, 'hr_admin'>,
+): Promise<ReadonlySet<string>> {
+  if (caller.personId === null) return new Set();
+  return new Set(await deps.authz.members(caller.tenantId, `person:${caller.personId}`, relation));
+}
+
 export const isHrAdmin = (deps: Pick<Deps, 'authz'>, caller: Caller): Promise<boolean> =>
   deps.authz.check(caller.tenantId, {
     user: `account:${caller.accountId}`,
