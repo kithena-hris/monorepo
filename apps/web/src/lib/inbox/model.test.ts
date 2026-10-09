@@ -3,6 +3,7 @@ import type { InboxItem } from '@kithena/contracts';
 
 import {
   countsOf,
+  changed,
   EMPTY_STATE,
   filtered,
   groupsOf,
@@ -185,5 +186,21 @@ describe('the Inbox, merged', () => {
     expect(kept.read).toEqual(['here']);
     expect(Object.keys(kept.snoozed)).toEqual(['here']);
     expect(stateOf({ read: 'not a list' })).toEqual(EMPTY_STATE);
+  });
+});
+
+describe('an id that names a prototype property', () => {
+  it('is kept as the item’s own entry and changes nothing else', () => {
+    const ticked = changed(EMPTY_STATE, { kind: 'tick', id: '__proto__', step: 'a', on: true });
+    expect(Object.hasOwn(ticked.ticks, '__proto__')).toBe(true);
+    expect(Object.getPrototypeOf(ticked.ticks)).toBe(Object.prototype);
+    const snoozed = changed(EMPTY_STATE, {
+      kind: 'snooze',
+      id: '__proto__',
+      until: '2026-10-12T09:00:00.000Z',
+      due: null,
+    });
+    expect(Object.hasOwn(snoozed.snoozed, '__proto__')).toBe(true);
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
   });
 });

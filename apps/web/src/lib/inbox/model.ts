@@ -307,10 +307,14 @@ export function changed(s: InboxState, c: StateChange): InboxState {
       const { [c.id]: _was, ...rest } = s.snoozed;
       return {
         ...s,
-        snoozed:
-          c.until === null
-            ? rest
-            : { ...rest, [c.id]: snoozeUntil({ due: c.due as never }, c.until) },
+        // Built from entries rather than a computed key, so an id like
+        // `__proto__` is only ever an own property.
+        snoozed: Object.fromEntries([
+          ...Object.entries(rest),
+          ...(c.until === null
+            ? []
+            : [[c.id, snoozeUntil({ due: c.due as never }, c.until)] as const]),
+        ]),
       };
     }
     case 'done':
@@ -320,13 +324,13 @@ export function changed(s: InboxState, c: StateChange): InboxState {
     case 'unmute':
       return { ...s, muted: s.muted.filter((m) => m.what !== c.what) };
     case 'tick': {
-      const was = s.ticks[c.id] ?? [];
+      const was = Object.hasOwn(s.ticks, c.id) ? (s.ticks[c.id] ?? []) : [];
       return {
         ...s,
-        ticks: {
-          ...s.ticks,
-          [c.id]: c.on ? [...new Set([...was, c.step])] : was.filter((x) => x !== c.step),
-        },
+        ticks: Object.fromEntries([
+          ...Object.entries(s.ticks),
+          [c.id, c.on ? [...new Set([...was, c.step])] : was.filter((x) => x !== c.step)],
+        ]),
       };
     }
   }
