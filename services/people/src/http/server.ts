@@ -116,6 +116,7 @@ import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests
 import { drizzleDetailAsks } from '../infrastructure/drizzle-detail-asks.js';
 import { drizzleDocuments } from '../infrastructure/drizzle-documents.js';
 import { drizzleTeamTasks } from '../infrastructure/drizzle-team-tasks.js';
+import { inboxNotifierFrom } from '../infrastructure/inbox-notifier.js';
 import { waitingView } from '../application/screens/waiting.js';
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
@@ -574,6 +575,20 @@ function detailRequests(
   };
 }
 
+/** Email for what reaches somebody's Inbox (INB-050), where messaging is configured. */
+function inboxNotices(
+  calendars: ReturnType<typeof drizzleOrgStore>,
+  service: ReturnType<typeof peopleService>,
+) {
+  const inboxNotifier = inboxNotifierFrom(
+    process.env,
+    service,
+    calendars,
+    tenantAppBase(process.env),
+  );
+  return inboxNotifier === undefined ? {} : { inboxNotifier };
+}
+
 /**
  * "Remind N people": the hourly sweep's own function, run for one tenant on
  * HR's press, where the reminder can be sent at all. Its claim is what keeps
@@ -770,6 +785,7 @@ function screenDeps(
     requests: detailRequests(calendars, service),
     asks: { store: drizzleDetailAsks(), newId: uuidv7 },
     teamTasks: drizzleTeamTasks(),
+    ...inboxNotices(calendars, service),
     inboxRules: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).inboxRules,
     documents: {
       store: drizzleDocuments(),

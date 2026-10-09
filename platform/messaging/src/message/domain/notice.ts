@@ -77,7 +77,56 @@ export type Notice =
    * a day that suits them — and nobody else's. Time Off guarantees that; this
    * only bounds the length, keeps the heading to one line, and escapes both.
    */
-  | { readonly kind: 'rest_nudge'; readonly heading: string; readonly lede: string };
+  | { readonly kind: 'rest_nudge'; readonly heading: string; readonly lede: string }
+  /*
+   * The Inbox (INB-050): a task waiting for somebody, right away, and an
+   * update, which waits for the daily digest unless they chose otherwise.
+   * Each says only what sort of thing it is, from a fixed list, never who
+   * sent it, whom it is about or what it says: the Inbox shows that, signed in.
+   */
+  | { readonly kind: 'inbox_task'; readonly topic: InboxTaskTopic }
+  | { readonly kind: 'inbox_update'; readonly topic: InboxUpdateTopic }
+  | { readonly kind: 'inbox_digest'; readonly count: number };
+
+export const INBOX_TASK_TOPICS = [
+  'details',
+  'correction',
+  'document_sign',
+  'document_acknowledge',
+  'document_countersign',
+  'time_off_approval',
+  'team_task',
+] as const;
+export type InboxTaskTopic = (typeof INBOX_TASK_TOPICS)[number];
+
+export const INBOX_UPDATE_TOPICS = [
+  'decided',
+  'answered',
+  'document_shared',
+  'document_returned',
+  'team_news',
+  'calendar',
+] as const;
+export type InboxUpdateTopic = (typeof INBOX_UPDATE_TOPICS)[number];
+
+const TASK_WORDS: Readonly<Record<InboxTaskTopic, readonly [subject: string, lede: string]>> = {
+  details: ['you were asked for some details', 'Somebody asked you to add a few details to your record.'],
+  correction: ['a detail needs correcting', 'A detail you gave needs correcting before it can be accepted.'],
+  document_sign: ['a document to sign', 'A document is waiting for your signature.'],
+  document_acknowledge: ['a document to read', 'A document is waiting for you to read and acknowledge it.'],
+  document_countersign: ['a document to countersign', 'A document you sent was signed and waits for your countersignature.'],
+  time_off_approval: ['a time-off request to decide', 'Somebody asked for time off, and it waits for your decision.'],
+  team_task: ['a task for your team', 'Something needs one of you; whoever takes it tells the others.'],
+};
+
+const UPDATE_WORDS: Readonly<Record<InboxUpdateTopic, readonly [subject: string, lede: string]>> = {
+  decided: ['something you asked for was decided', 'A request of yours was decided.'],
+  answered: ['somebody answered your request', 'Somebody you asked has answered.'],
+  document_shared: ['a document was shared with you', 'A document was shared with you, and kept with your record.'],
+  document_returned: ['a document you sent came back', 'A document you sent was signed, acknowledged or sent back.'],
+  team_news: ['news about your team', 'Somebody joins or leaves your team.'],
+  calendar: ['a calendar was updated', 'A calendar or a balance of yours changed.'],
+};
 
 /** A nudge's heading fits a subject line; its sentence or two fit a phone's screen. */
 export const NUDGE_HEADING_MAX = 120;
@@ -218,6 +267,37 @@ const COPY: {
     footer: `Sent by Kithena on behalf of ${company} because you are a People administrator.`,
   }),
   // Bounded and escaped in `renderNotice`, before either call reaches here.
+  inbox_task: ({ topic }, company) => {
+    const words = TASK_WORDS[topic];
+    return {
+      subject: `${company}: ${words[0]}`,
+      heading: 'Something needs you',
+      lede: `${words[1]} It is in your Inbox at ${company}, with everything you need to do it.`,
+      action: 'Open your Inbox',
+      footer: `Sent by Kithena on behalf of ${company}. Choose which tasks reach you by email in Settings, Notifications.`,
+    };
+  },
+  inbox_update: ({ topic }, company) => {
+    const words = UPDATE_WORDS[topic];
+    return {
+      subject: `${company}: ${words[0]}`,
+      heading: 'An update for you',
+      lede: `${words[1]} Nothing is owed; it is in your Inbox at ${company}.`,
+      action: 'Open your Inbox',
+      footer: `Sent by Kithena on behalf of ${company}. Updates can come in a daily digest instead, in Settings, Notifications.`,
+    };
+  },
+  inbox_digest: ({ count }, company) => {
+    if (!Number.isInteger(count) || count < 1 || count > MAX_COUNT) return null;
+    const n = count === 1 ? 'one update' : `${String(count)} updates`;
+    return {
+      subject: `${company}: ${n} in your Inbox`,
+      heading: `${n.charAt(0).toUpperCase()}${n.slice(1)} since yesterday`,
+      lede: `Your daily digest: ${n} you have not opened yet, in your Inbox at ${company}. Nothing in an update is owed.`,
+      action: 'Open your Inbox',
+      footer: `Sent by Kithena on behalf of ${company}, once a day. Change when, or turn it off, in Settings, Notifications.`,
+    };
+  },
   rest_nudge: ({ heading, lede }, company) => ({
     subject: `${company}: ${heading}`,
     heading,

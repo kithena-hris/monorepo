@@ -28,6 +28,7 @@ import { Inbox } from './inbox/inbox';
 import { InboxItem } from './inbox/item';
 import { NotificationSettings } from './inbox/notifications';
 import { readInbox } from './inbox/api';
+import { useInboxNotifications } from './inbox/notify';
 import { Onboarding } from './people/onboarding';
 import { PeopleHome } from './people/people-home';
 import { Profile } from './people/profile';
@@ -197,6 +198,8 @@ export function SignedIn({
   const [ending, setEnding] = useState(false);
   // The People tab's stack, so an answer's person opens there.
   const [people] = useState(() => createNavigationContainerRef<PeopleRoutes>());
+  // The Inbox tab's stack, so a notification opens its item there (M:A2).
+  const [inboxStack] = useState(() => createNavigationContainerRef<PeopleRoutes>());
   // The Inbox tab's count: tasks only, as the web's bell counts them (M:A1).
   // Read ahead at sign-in, so the tab opens on it, and again every minute.
   const [waiting, setWaiting] = useState(0);
@@ -275,6 +278,17 @@ export function SignedIn({
       clearTimeout(timer);
     };
   }, [signed]);
+  // The Inbox's notifications on the phone (INB-051): a press opens the item.
+  useInboxNotifications(
+    signed,
+    useCallback(
+      (id: string) => {
+        setTab('inbox');
+        if (inboxStack.isReady()) inboxStack.navigate('InboxItem', { id });
+      },
+      [inboxStack],
+    ),
+  );
   // One element for good: a new one each render would redraw every screen of
   // every tab that shows it, on each tab switch.
   const account = useMemo(() => <AccountMenu />, []);
@@ -336,7 +350,7 @@ export function SignedIn({
                   <TabStack initial="People" container={people} />
                 </View>
                 <View className="flex-1" style={shown('inbox')}>
-                  <TabStack initial="Inbox" />
+                  <TabStack initial="Inbox" container={inboxStack} />
                 </View>
                 <View className="flex-1" style={shown('me')}>
                   <TabStack initial="Profile" />

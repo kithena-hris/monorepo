@@ -9,6 +9,7 @@ import type { ImportUploadView } from '../screens/operations.js';
 import type { FileView } from '../screens/files.js';
 import type { ScreenDeps, Tx } from '../screens/record.js';
 import { defaultDue } from './asks.js';
+import { tell } from './notify.js';
 
 /**
  * A document sent to somebody (H3, C3, C4, D2, F1). Whoever sends it decides
@@ -231,13 +232,41 @@ export async function sendDocument(
     note: null,
     closedAt: keep ? now : null,
   };
-  return run(deps.service, asking.tenantId, async (tx) => {
+  const sent = await run(deps.service, asking.tenantId, async (tx) => {
     await d.store.insert(tx, asking.tenantId, document, {
       bytes: file.value.bytes,
       checksum: createHash('sha256').update(file.value.bytes).digest('hex'),
     });
     return ok({ id: document.id });
   });
+  if (sent.ok) {
+    tell(
+      deps.inboxNotifier,
+      asking.tenantId,
+      { personId: input.personId },
+      keep
+        ? { kind: 'inbox_update', topic: 'document_shared' }
+        : {
+            kind: 'inbox_task',
+            topic: input.mode === 'sign' ? 'document_sign' : 'document_acknowledge',
+          },
+      `/inbox/${keep ? 'updates' : 'todo'}?item=${encodeURIComponent(`people:document:${document.id}`)}`,
+      `document/${document.id}/sent`,
+    );
+  }
+  return sent;
+}
+
+/** Whoever sent it hears it came back (D-, F1): signed, acknowledged or sent back. */
+function returned(deps: ScreenDeps, tenantId: string, document: SentDocument): void {
+  tell(
+    deps.inboxNotifier,
+    tenantId,
+    { accountId: document.sentBy },
+    { kind: 'inbox_update', topic: 'document_returned' },
+    `/inbox/updates?item=${encodeURIComponent(`people:returned:${document.id}`)}`,
+    `document/${document.id}/returned`,
+  );
 }
 
 /** The document and how the viewer stands to it, or not found. */
@@ -324,6 +353,7 @@ export async function acknowledgeDocument(
       note: null,
       closedAt: deps.clock.instant(),
     });
+    if (moved) returned(deps, asking.tenantId, document);
     return moved ? ok({ state: 'acknowledged' as const }) : err(failure('CLOSED', 'It is closed'));
   });
 }
@@ -367,6 +397,19 @@ export async function signDocument(
       closedAt: at,
       signature: { ...signed.value, at, place: await placeOf(deps, tx, asking.tenantId) },
     });
+    if (moved) {
+      returned(deps, asking.tenantId, document);
+      if (document.countersigner !== null) {
+        tell(
+          deps.inboxNotifier,
+          asking.tenantId,
+          { accountId: document.countersigner },
+          { kind: 'inbox_task', topic: 'document_countersign' },
+          `/inbox/todo?item=${encodeURIComponent(`people:countersign:${document.id}`)}`,
+          `document/${document.id}/countersign`,
+        );
+      }
+    }
     return moved ? ok({ state: 'signed' as const }) : err(failure('CLOSED', 'It is closed'));
   });
 }
@@ -416,6 +459,7 @@ export async function declineDocument(
       note: why,
       closedAt: deps.clock.instant(),
     });
+    if (moved) returned(deps, asking.tenantId, found.value.document);
     return moved ? ok({ state: 'declined' as const }) : err(failure('CLOSED', 'It is closed'));
   });
 }

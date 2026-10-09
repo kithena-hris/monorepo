@@ -6,6 +6,7 @@ import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { emailAll, recordOne, type Recorded } from '../screens/requests.js';
 import { saveSection, type ScreenDeps, type Tx } from '../screens/record.js';
+import { tell } from './notify.js';
 
 /**
  * Asking somebody for details, as one ask (Inbox C1, C7, C8, H2, H4, Z2):
@@ -255,6 +256,7 @@ export async function sendBackAsk(
       at: deps.clock.instant(),
     });
     if (closed !== true) return err(failure('CLOSED', 'This request is closed'));
+    answered(deps, asking.tenantId, found.value.ask);
     return ok({ state: 'sent_back' as const });
   });
 }
@@ -405,7 +407,20 @@ export async function completeAsk(
     ),
   );
   if (!closed.ok) return closed;
+  answered(deps, asking.tenantId, ask);
   return ok({ held: saved.value.held ?? [] });
+}
+
+/** Whoever asked hears it was answered: filled in or sent back (C8's update). */
+function answered(deps: Deps, tenantId: string, ask: DetailAsk): void {
+  tell(
+    deps.inboxNotifier,
+    tenantId,
+    { accountId: ask.requestedBy },
+    { kind: 'inbox_update', topic: 'answered' },
+    `/inbox/updates?item=${encodeURIComponent(`people:answered:${ask.id}`)}`,
+    `ask/${ask.id}/answered`,
+  );
 }
 
 /**

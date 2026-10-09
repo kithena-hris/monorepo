@@ -96,6 +96,9 @@ export interface InboxAnswer {
   readonly muted: readonly Mute[];
 }
 
+export { dayIn } from './time';
+import { dayIn } from './time';
+
 export const MODULE_NAMES: Readonly<Record<string, string>> = {
   people: 'People',
   timeoff: 'Time off',
@@ -138,19 +141,6 @@ export const firstName = (name: string | null | undefined): string =>
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const shortDay = (day: string): string =>
   `${String(Number(day.slice(8, 10)))} ${MONTHS[Number(day.slice(5, 7)) - 1] ?? ''}`;
-
-export function dayIn(instant: string, zone: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: zone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date(instant));
-  } catch {
-    return instant.slice(0, 10);
-  }
-}
 
 /** "3 Oct, 09:40", where they work. */
 export function when(instant: string, zone: string): string {
