@@ -23,7 +23,7 @@ import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
 import { amount, spanLabel } from './words';
 
-interface Option {
+export interface Option {
   readonly from: string;
   readonly to: string;
   readonly used: number;
@@ -36,7 +36,7 @@ interface Option {
   readonly line: { readonly text: string; readonly ai: boolean };
 }
 
-interface Described {
+export interface Described {
   readonly sentence: string | null;
   readonly understood: {
     readonly leaveTypeKey: string | null;
@@ -66,6 +66,60 @@ const monthLabel = (m: string): string =>
   new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(`${m}-01T00:00:00Z`),
   );
+
+/** One set of dates Time Off found: what they cost, what they get, and how the team fares. */
+export function SuggestionCard({
+  option: o,
+  best,
+  onChoose,
+  onMore,
+}: {
+  option: Option;
+  best: boolean;
+  onChoose: () => void;
+  /** Handing the suggestion to the planner, for more than one tap can say. */
+  onMore?: () => void;
+}): React.JSX.Element {
+  return (
+    <Card>
+      <Stack gap={2}>
+        <View className="flex-row items-center gap-2">
+          <Text variant="headline" className="flex-1">
+            {`${spanLabel(o.from, o.to)} · ${String(o.used)} ${o.used === 1 ? 'day' : 'days'} → ${String(o.away.days)} off`}
+          </Text>
+          {best ? (
+            <Badge size="sm" tone="accent">
+              Best
+            </Badge>
+          ) : null}
+          {o.line.ai ? <Badge size="sm">AI</Badge> : null}
+        </View>
+        <Text variant="subhead">{o.line.text}</Text>
+        <Text variant="footnote" tone="muted">
+          {[
+            o.leftAfter === null ? null : `${amount(o.leftAfter)} left after`,
+            o.fewest === null
+              ? null
+              : `at least ${String(o.fewest.in)} of ${String(o.fewest.of)} in`,
+            o.fits ? null : 'past your balance',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+        <View className="flex-row gap-2">
+          <Button size="sm" variant={best ? 'primary' : 'secondary'} onPress={onChoose}>
+            Choose these dates
+          </Button>
+          {onMore === undefined ? null : (
+            <Button size="sm" variant="ghost" onPress={onMore}>
+              Plan with Kithena
+            </Button>
+          )}
+        </View>
+      </Stack>
+    </Card>
+  );
+}
 
 /**
  * Describe it instead (design MT8): a sentence, what it was understood as as
@@ -197,47 +251,20 @@ export function TimeOffDescribe({
             <Text tone="muted">Nothing fits that. Change a choice above.</Text>
           ) : (
             load.data.options.map((o, i) => (
-              <Card key={`${o.from}${o.to}`}>
-                <Stack gap={2}>
-                  <View className="flex-row items-center gap-2">
-                    <Text variant="headline" className="flex-1">
-                      {`${spanLabel(o.from, o.to)} · ${String(o.used)} ${o.used === 1 ? 'day' : 'days'} → ${String(o.away.days)} off`}
-                    </Text>
-                    {i === 0 ? (
-                      <Badge size="sm" tone="accent">
-                        Best
-                      </Badge>
-                    ) : null}
-                  </View>
-                  <Text variant="subhead">{o.line.text}</Text>
-                  <Text variant="footnote" tone="muted">
-                    {[
-                      o.leftAfter === null ? null : `${amount(o.leftAfter)} left after`,
-                      o.fewest === null
-                        ? null
-                        : `at least ${String(o.fewest.in)} of ${String(o.fewest.of)} in`,
-                      o.fits ? null : 'past your balance',
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant={i === 0 ? 'primary' : 'secondary'}
-                    onPress={() => {
-                      navigation.navigate('TimeOffRequest', {
-                        ...(load.data.understood.leaveTypeKey === null
-                          ? {}
-                          : { leaveTypeKey: load.data.understood.leaveTypeKey }),
-                        from: o.from,
-                        to: o.to,
-                      });
-                    }}
-                  >
-                    Choose these dates
-                  </Button>
-                </Stack>
-              </Card>
+              <SuggestionCard
+                key={`${o.from}${o.to}`}
+                option={o}
+                best={i === 0}
+                onChoose={() => {
+                  navigation.navigate('TimeOffRequest', {
+                    ...(load.data.understood.leaveTypeKey === null
+                      ? {}
+                      : { leaveTypeKey: load.data.understood.leaveTypeKey }),
+                    from: o.from,
+                    to: o.to,
+                  });
+                }}
+              />
             ))
           )}
         </>
