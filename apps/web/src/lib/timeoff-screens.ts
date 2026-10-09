@@ -50,6 +50,8 @@ export async function loadScreen(
       return approvals(path, query);
     case 'Delegation':
       return read('TimeOffDelegation');
+    case 'Adjustments':
+      return adjustments();
     case 'TeamCalendar':
       return teamCalendar(path, query);
     // The employee's screens (TOF-062 to TOF-067).
@@ -109,6 +111,49 @@ export async function loadScreen(
     default:
       return { status: 'none' };
   }
+}
+
+/**
+ * Balance adjustments: the list, and for its form whom this person may
+ * adjust — the company for HR, the people they approve for otherwise — and
+ * the leave types counted from a balance. Time Off still decides on save.
+ */
+async function adjustments(): Promise<ScreenLoad> {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - (day === 0 ? 6 : day - 1));
+  const friday = new Date(monday);
+  friday.setUTCDate(monday.getUTCDate() + 4);
+  type Person = { personId: string; displayName: string };
+  const [base, company, team, panel] = await Promise.all([
+    read('TimeOffBalanceAdjustments'),
+    timeOff<{ people: Person[] }>('TimeOffCalendarTimeline', {
+      scope: 'company',
+      from: monday.toISOString().slice(0, 10),
+      to: friday.toISOString().slice(0, 10),
+    }),
+    timeOff<{ people: Person[] }>('TimeOffTeamRightNow'),
+    timeOff<{ leaveTypes: { key: string; name: string; tracked: boolean; unit: string }[] }>(
+      'TimeOffRequestPanel',
+    ),
+  ]);
+  if (base.status !== 'ready') return base;
+  const hr = (base.data as { hr: boolean }).hr;
+  const source = hr ? company : team;
+  const people = source.ok ? source.data.people : [];
+  return {
+    status: 'ready',
+    data: {
+      ...(base.data as object),
+      people: people.map((p) => ({ personId: p.personId, displayName: p.displayName })),
+      leaveTypes: panel.ok
+        ? panel.data.leaveTypes
+            .filter((t) => t.tracked)
+            .map((t) => ({ key: t.key, name: t.name, unit: t.unit }))
+        : [],
+    },
+  };
 }
 
 /**

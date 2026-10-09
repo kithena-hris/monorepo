@@ -17,6 +17,7 @@ import { PayPeriod as PayPeriodScreen } from './attendance/pay-period';
 import { TeamNow as TeamNowScreen } from './attendance/team-now';
 import { Timesheet as TimesheetScreen } from './attendance/timesheet';
 import { Approvals as ApprovalsScreen } from './approvals/approvals';
+import { Adjustments as AdjustmentsScreen } from './approvals/adjustments';
 import { Delegation as DelegationScreen } from './approvals/delegation';
 import { TeamCalendar as TeamCalendarScreen } from './calendar/calendar';
 import { Balance as BalanceScreen } from './balance/balance';
@@ -52,6 +53,7 @@ export const MyRequestsCancelled = framed(RequestsScreen);
 export const RequestDetail = framed(RequestsScreen);
 export const Approvals = framed(ApprovalsScreen);
 export const Delegation = framed(DelegationScreen);
+export const Adjustments = framed(AdjustmentsScreen);
 export const TeamCalendar = framed(TeamCalendarScreen);
 export const Attendance = framed(placeholder('Attendance'));
 // TOF-059, TOF-074 to TOF-077: the clock in the shell's top bar (a slot, not a

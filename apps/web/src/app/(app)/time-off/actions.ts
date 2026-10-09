@@ -157,6 +157,34 @@ export async function decideOvertime(input: {
 }
 
 /**
+ * A balance changed by hand, always with a reason: HR's counts at once, a
+ * manager's waits for HR. Time Off decides who may.
+ */
+export async function adjustBalance(input: {
+  readonly personId: string;
+  readonly leaveTypeKey: string;
+  readonly amount: string;
+  readonly effectiveOn: string | null;
+  readonly reason: string;
+}): Promise<Outcome> {
+  const a = await timeOff('AdjustTimeOffBalance', { input });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
+/** HR approving or declining a manager's balance adjustment; never their own. */
+export async function decideBalanceAdjustment(
+  adjustmentId: string,
+  approve: boolean,
+  note: string | null,
+): Promise<Outcome> {
+  const a = await timeOff('DecideTimeOffBalanceAdjustment', {
+    adjustmentId,
+    input: { approve, note },
+  });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
+/**
  * T28: send each person without a break their own message. The company's
  * name and its own origin come from this request, never the browser: Time
  * Off puts the origin in the link, and messaging checks it is the company's.

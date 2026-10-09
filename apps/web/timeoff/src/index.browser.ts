@@ -22,6 +22,7 @@ export const MyRequestsCancelled = split(() => import('./requests/requests'), 'M
 export const RequestDetail = split(() => import('./requests/requests'), 'MyRequests');
 export const Approvals = split(() => import('./approvals/approvals'), 'Approvals');
 export const Delegation = split(() => import('./approvals/delegation'), 'Delegation');
+export const Adjustments = split(() => import('./approvals/adjustments'), 'Adjustments');
 export const TeamCalendar = split(() => import('./calendar/calendar'), 'TeamCalendar');
 export const Attendance = framed(placeholder('Attendance'));
 export const Timesheet = split(() => import('./attendance/timesheet'), 'Timesheet');

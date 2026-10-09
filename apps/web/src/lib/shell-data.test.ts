@@ -171,6 +171,7 @@ describe('Time Off for its approvers (TOF-058a)', () => {
         'Coming up',
         'Decided',
         'Delegation',
+        'Balance adjustments',
         'Upcoming',
         'Past',
         'Cancelled',
