@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { recordingWriter } from '../testing/assist.js';
-import { accept, written } from './written.js';
+import type { Writer } from './ports.js';
+import { accept, WRITE_BUDGET_MS, written } from './written.js';
 
 const facts = { day: 'Wed 21 Oct', in: 4, of: 7, left: '11.500' };
 const lines = {
@@ -32,6 +33,32 @@ describe('written', () => {
       lines,
     );
     expect(out.reason.ai).toBe(false);
+  });
+});
+
+describe('a slow model', () => {
+  it('is not waited for past the budget: the templates go out and the answer comes later', async () => {
+    vi.useFakeTimers();
+    try {
+      let answered = false;
+      const slow: Writer = {
+        write: () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              answered = true;
+              resolve({ reason: 'Wed 21 Oct drops to 4 of 7, late.' });
+            }, WRITE_BUDGET_MS * 3);
+          }),
+      };
+      const out = written(slow, 'tenant', { instruction: 'Say it', facts }, lines);
+      await vi.advanceTimersByTimeAsync(WRITE_BUDGET_MS);
+      expect(await out).toEqual({ reason: { text: 'Wed 21 Oct drops to 4 of 7.', ai: false } });
+      expect(answered).toBe(false);
+      await vi.advanceTimersByTimeAsync(WRITE_BUDGET_MS * 2);
+      expect(answered).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

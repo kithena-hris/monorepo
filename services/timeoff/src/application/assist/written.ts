@@ -26,6 +26,25 @@ export interface Line {
 
 export const templated = (text: string): Written => ({ text, ai: false });
 
+/**
+ * How long a screen waits for the model before showing the templates. The
+ * call is not abandoned: the writer remembers an answer once it comes, so the
+ * next read of the same figures has the model's words at once.
+ */
+export const WRITE_BUDGET_MS = 1_500;
+
+function within<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(null);
+    }, ms);
+  });
+  return Promise.race([work, late]).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
 const MAX = 320;
 const PLACEHOLDER = /\{([a-z][a-z0-9]{0,11})\}/gu;
 const NUMBER = /\d+(?:[.,:]\d+)*/gu;
@@ -62,7 +81,7 @@ export async function written<K extends string>(
     Written
   >;
   if (writer === undefined || keys.length === 0) return plain;
-  const answer = await writer.write(tenantId, {
+  const asked = writer.write(tenantId, {
     instruction:
       `${ask.instruction} Write in plain, warm British English, one short sentence per line, ` +
       'using only the facts given. Copy figures and dates exactly as the facts spell them. ' +
@@ -75,6 +94,11 @@ export async function written<K extends string>(
     facts: ask.facts,
     lines: Object.fromEntries(keys.map((k) => [k, lines[k].about])),
   });
+  // A late answer is still remembered by the writer for the next read.
+  const answer = await within(
+    asked.catch(() => null),
+    WRITE_BUDGET_MS,
+  );
   if (answer === null) return plain;
   return Object.fromEntries(
     keys.map((k) => {

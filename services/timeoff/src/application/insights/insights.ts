@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ok, type Result } from '@kithena/domain-kit';
 import type { CalendarDate, DayAmount, PersonId, TeamKey, TenantId } from '@kithena/contracts';
 
@@ -285,6 +286,23 @@ export async function annualFacts(
   return { left: amount(left), losesAtYearEnd: amount(loses), yearEnd, lastDayOff, requests };
 }
 
+/**
+ * A month's attendance counts for one member, kept once the month has ended.
+ *
+ * A sliding window: of the six months Insights shows, only the one still
+ * running moves; an ended month is built again only when what it is built
+ * from changes. For a day already over, \`dayOf\` depends on that day's
+ * shifts, the schedule, the attendance rules and the zone, and on "now" only
+ * as "the day is over", which an ended month always is. So the key is a hash
+ * of exactly those for the month: a correction, a late punch, a new schedule
+ * or new rules is a new key, and nothing stale is ever read.
+ *
+ * ponytail: per process, the oldest out past 20,000 member-months; a table
+ * kept by the nightly job if there is ever more than one Time Off process.
+ */
+const endedMonths = new Map<string, { missedClockOuts: number; overtimeMinutes: number }>();
+const KEEP_MONTHS = 20_000;
+
 async function factsOf(
   tx: Tx,
   deps: Pick<Deps, 'clock'>,
@@ -303,6 +321,9 @@ async function factsOf(
   });
   const schedule = (await tx.attendance.schedule(m.personId)) ?? DEFAULT_SCHEDULE;
   const now = deps.clock.instant();
+  // Only a day with a shift can be open or carry overtime; the rest count for
+  // neither, so they are never built.
+  const shiftDays = new Set(clock.shifts.map((s) => s.date));
   const byMonth = new Map<string, Omit<Monthly, 'month'>>();
   for (const month of months) {
     const from = `${month}-01` as CalendarDate;
@@ -321,23 +342,55 @@ async function factsOf(
             .map((r) => days(r.request.span.workingDays)),
         ),
       );
-    // ponytail: a day at a time over six months per member; a summary table
-    // kept by the nightly job is the upgrade when a tenant outgrows it.
-    const worked =
-      last < from
-        ? []
-        : datesIn(from, last).map((date) =>
-            dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
-          );
+    const count = (): { missedClockOuts: number; overtimeMinutes: number } => {
+      const worked =
+        last < from
+          ? []
+          : datesIn(from, last)
+              .filter((date) => shiftDays.has(date))
+              .map((date) =>
+                dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
+              );
+      return {
+        missedClockOuts: worked.filter((w) => w.status === 'open').length,
+        overtimeMinutes: worked.reduce(
+          (n, w) => n + (w.status === 'complete' ? w.overtimeMinutes : 0),
+          0,
+        ),
+      };
+    };
+    let attendance: { missedClockOuts: number; overtimeMinutes: number };
+    if (to >= today) {
+      attendance = count();
+    } else {
+      const key = createHash('sha256')
+        .update(
+          JSON.stringify([
+            tenantId,
+            m.personId,
+            month,
+            m.timeZone,
+            schedule,
+            rules,
+            clock.shifts.filter((s) => s.date >= from && s.date <= to),
+          ]),
+        )
+        .digest('hex');
+      const held = endedMonths.get(key);
+      if (held === undefined) {
+        attendance = count();
+        if (endedMonths.size >= KEEP_MONTHS)
+          endedMonths.delete(endedMonths.keys().next().value ?? '');
+        endedMonths.set(key, attendance);
+      } else {
+        attendance = held;
+      }
+    }
     byMonth.set(month, {
       vacation: taken((c) => c === 'annual_leave'),
       personal: taken((c) => c !== 'annual_leave' && c !== 'sick_leave'),
       sick: taken((c) => c === 'sick_leave'),
-      missedClockOuts: worked.filter((w) => w.status === 'open').length,
-      overtimeMinutes: worked.reduce(
-        (n, w) => n + (w.status === 'complete' ? w.overtimeMinutes : 0),
-        0,
-      ),
+      ...attendance,
     });
   }
   return {
