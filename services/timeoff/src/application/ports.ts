@@ -176,6 +176,8 @@ export interface RequestRecord {
   readonly proposedBy: string | null;
   /** What they wrote with the dates (TOF-099b); `null` for nothing. */
   readonly proposalMessage: string | null;
+  /** When the person who asked nudged whoever has it (Inbox E1): once, after 48 hours. */
+  readonly nudgedAt?: Instant | null;
 }
 
 export interface RequestStore {
@@ -204,6 +206,26 @@ export interface RequestStore {
     readonly limit: number;
   }): Promise<{ readonly records: readonly RequestRecord[]; readonly next: string | null }>;
   save(record: RequestRecord): Promise<void>;
+  /** One step decided (`request_decision`): who, in which role, and what they wrote. Append-only. */
+  recordDecision(decision: RequestDecision): Promise<void>;
+  /** The decisions on these requests, oldest first. */
+  decisions(requestIds: readonly LeaveRequestId[]): Promise<readonly RequestDecision[]>;
+}
+
+/**
+ * Who decided a step of a request, and how (`request_decision`): a
+ * manager-then-HR chain is two. What the Inbox says of a decided request —
+ * "Marco approved your time off", "Marco's note" — is read from here.
+ */
+export interface RequestDecision {
+  readonly id: string;
+  readonly requestId: LeaveRequestId;
+  readonly outcome: 'approved' | 'declined' | 'change_approved' | 'change_declined';
+  readonly role: ApproverRole;
+  /** The account that decided. */
+  readonly decidedBy: string;
+  readonly reason: string | null;
+  readonly decidedAt: Instant;
 }
 
 /* -------------------------------------------------------------- settings -- */

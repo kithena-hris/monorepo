@@ -18,6 +18,8 @@ export interface HolidayLayer {
   readonly level: 'national' | 'regional' | 'city';
   readonly weekendRule: 'move_to_monday' | 'none';
   readonly holidays: readonly { readonly date: CalendarDate; readonly name: string }[];
+  /** When HR last saved it, as read back; the Inbox's "The 2027 holiday calendar is out". */
+  readonly savedAt?: string;
 }
 
 export interface ResolvedHoliday {

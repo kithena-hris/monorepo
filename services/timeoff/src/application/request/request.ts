@@ -6,6 +6,7 @@ import type {
   LedgerEntry,
   LeaveTypeKey,
   PersonId,
+  Instant,
 } from '@kithena/contracts';
 
 import { workingDays } from '../../domain/calendar/working-days.js';
@@ -359,4 +360,46 @@ export const cancelRequest =
     if (!done.ok) return done;
     if (done.value.wasWaiting) await deps.timers.closed(caller.tenantId, requestId);
     return ok({ status: done.value.status });
+  };
+
+/** How long a request waits before the person who asked may nudge (Inbox E1, E3). */
+export const NUDGE_AFTER_MS = 48 * 3_600_000;
+
+/**
+ * Nudge whoever has the caller's request (Inbox E1, E3): once, and only
+ * after 48 hours of waiting. They are reminded, and their task says so.
+ */
+export const nudgeRequest =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'notifier'>) =>
+  async (caller: Caller, requestId: LeaveRequestId): Promise<Result<{ nudgedAt: Instant }>> => {
+    const done = await transact(deps, caller.tenantId, async (tx) => {
+      const found = await own(tx, deps, caller, requestId);
+      if (!found.ok) return found;
+      const { record, member } = found.value;
+      const { request, routing } = record;
+      if (request.status !== 'pending' && request.status !== 'change_pending') {
+        return refuse('NOT_WAITING', 'Only a request still waiting can be nudged');
+      }
+      if ((record.nudgedAt ?? null) !== null) {
+        return refuse('ALREADY_NUDGED', 'You nudged this request already');
+      }
+      const now = deps.clock.instant();
+      if (Date.parse(now) - Date.parse(record.requestedAt) < NUDGE_AFTER_MS) {
+        return refuse('TOO_SOON', 'You can nudge after 48 hours');
+      }
+      await tx.requests.save({ ...record, nudgedAt: now });
+      const role = routing.chain[routing.step] ?? 'manager';
+      const to =
+        routing.escalatedTo ??
+        (role === 'manager' && member.managerPersonId !== null ? member.managerPersonId : 'hr');
+      return ok({ nudgedAt: now, to });
+    });
+    if (!done.ok) return done;
+    await deps.notifier.notify(
+      caller.tenantId,
+      done.value.to,
+      { kind: 'approval_waiting', requestId, reminder: true },
+      `nudge/${requestId}`,
+    );
+    return ok({ nudgedAt: done.value.nudgedAt });
   };

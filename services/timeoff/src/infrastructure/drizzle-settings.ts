@@ -178,6 +178,7 @@ export function drizzleHolidays(tx: PostgresJsDatabase, tenantId: TenantId): Hol
         holidays: days
           .filter((h) => h.calendarKey === c.key)
           .map((h) => ({ date: h.day as CalendarDate, name: h.name })),
+        savedAt: instantOf(c.updatedAt),
       }));
     },
     async saveLayer(layer) {
