@@ -291,3 +291,85 @@ export const MODULE_NAMES: Readonly<Record<string, string>> = {
 };
 export const moduleName = (module: string): string =>
   MODULE_NAMES[module] ?? module.charAt(0).toUpperCase() + module.slice(1);
+
+/** One change to the person's state, as the web's actions and the phone's route both make it. */
+export type StateChange =
+  | { readonly kind: 'read'; readonly ids: readonly string[]; readonly read: boolean }
+  | { readonly kind: 'readAll'; readonly at: string }
+  | {
+      readonly kind: 'snooze';
+      readonly id: string;
+      readonly until: string | null;
+      readonly due: string | null;
+    }
+  | { readonly kind: 'done'; readonly ids: readonly string[]; readonly at: string }
+  | { readonly kind: 'mute'; readonly mute: Mute }
+  | { readonly kind: 'unmute'; readonly what: string }
+  | { readonly kind: 'tick'; readonly id: string; readonly step: string; readonly on: boolean };
+
+export function changed(s: InboxState, c: StateChange): InboxState {
+  switch (c.kind) {
+    case 'read':
+      return {
+        ...s,
+        read: c.read
+          ? [...new Set([...s.read, ...c.ids])]
+          : s.read.filter((id) => !c.ids.includes(id)),
+        unread: c.read
+          ? s.unread.filter((id) => !c.ids.includes(id))
+          : [...new Set([...s.unread, ...c.ids])],
+      };
+    case 'readAll':
+      return { ...s, readBefore: c.at, read: [], unread: [] };
+    case 'snooze': {
+      const { [c.id]: _was, ...rest } = s.snoozed;
+      return {
+        ...s,
+        snoozed:
+          c.until === null
+            ? rest
+            : { ...rest, [c.id]: snoozeUntil({ due: c.due as never }, c.until) },
+      };
+    }
+    case 'done':
+      return { ...s, done: { ...s.done, ...Object.fromEntries(c.ids.map((id) => [id, c.at])) } };
+    case 'mute':
+      return { ...s, muted: [...s.muted.filter((m) => m.what !== c.mute.what), c.mute] };
+    case 'unmute':
+      return { ...s, muted: s.muted.filter((m) => m.what !== c.what) };
+    case 'tick': {
+      const was = s.ticks[c.id] ?? [];
+      return {
+        ...s,
+        ticks: {
+          ...s.ticks,
+          [c.id]: c.on ? [...new Set([...was, c.step])] : was.filter((x) => x !== c.step),
+        },
+      };
+    }
+  }
+}
+
+/** A change as the phone sends it, checked: anything else is refused. */
+export const StateChangeInput = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('read'),
+    ids: z.array(z.string().max(200)).max(200),
+    read: z.boolean(),
+  }),
+  z.object({ kind: z.literal('readAll') }),
+  z.object({
+    kind: z.literal('snooze'),
+    id: z.string().max(200),
+    until: z.iso.datetime().nullable(),
+  }),
+  z.object({ kind: z.literal('done'), ids: z.array(z.string().max(200)).max(200) }),
+  z.object({ kind: z.literal('mute'), mute: Mute }),
+  z.object({ kind: z.literal('unmute'), what: z.string().max(80) }),
+  z.object({
+    kind: z.literal('tick'),
+    id: z.string().max(200),
+    step: z.string().max(120),
+    on: z.boolean(),
+  }),
+]);

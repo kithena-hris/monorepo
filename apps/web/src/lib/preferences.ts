@@ -18,11 +18,14 @@ import { timed } from './timing';
  * validates it first.
  */
 
+const urlFor = (tenantId: string, accountId: string, name: string): string =>
+  `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/tenants/${tenantId}/accounts/${accountId}/preferences/${name}`;
+
 async function preferenceUrl(name: string): Promise<string | null> {
   const person = await currentPerson();
   const tenantId = (await headers()).get('x-tenant-id');
   if (person === null || tenantId === null || tenantId === '') return null;
-  return `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/tenants/${tenantId}/accounts/${person.accountId}/preferences/${name}`;
+  return urlFor(tenantId, person.accountId, name);
 }
 
 const internal = (): Record<string, string> => ({
@@ -61,6 +64,46 @@ export async function writePreference(
   // The session writing, so identity can refuse an administrator viewing as
   // this person: viewing is read-only.
   const response = await fetch(url, {
+    method: 'PUT',
+    headers: internal(),
+    body: JSON.stringify({ value, sessionId }),
+    cache: 'no-store',
+  }).catch(() => null);
+  if (response?.ok === true) return 'saved';
+  return response?.status === 403 ? 'view_only' : 'failed';
+}
+
+/**
+ * The same, for an account a phone's session names (`/api/mobile/*`): the
+ * caller has already found the session is somebody (`personFor`) and passes
+ * whose it is; never anything the app sent.
+ */
+export async function readPreferenceFor(
+  tenantId: string,
+  accountId: string,
+  name: string,
+): Promise<unknown> {
+  try {
+    const response = await fetch(urlFor(tenantId, accountId, name), {
+      headers: internal(),
+      cache: 'no-store',
+    });
+    if (!response.ok) return null;
+    const body: unknown = await response.json();
+    return body !== null && typeof body === 'object' ? Reflect.get(body, 'value') : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writePreferenceFor(
+  tenantId: string,
+  accountId: string,
+  sessionId: string,
+  name: string,
+  value: Readonly<Record<string, unknown>>,
+): Promise<'saved' | 'view_only' | 'failed'> {
+  const response = await fetch(urlFor(tenantId, accountId, name), {
     method: 'PUT',
     headers: internal(),
     body: JSON.stringify({ value, sessionId }),

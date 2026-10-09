@@ -3,7 +3,7 @@
 import { refresh } from 'next/cache';
 
 import { people, timeOff } from '../../../lib/people';
-import { snoozeUntil, type InboxState, type Mute } from '../../../lib/inbox/model';
+import { changed, type InboxState, type Mute } from '../../../lib/inbox/model';
 import { changeState, inboxNow } from '../../../lib/inbox/server';
 
 /**
@@ -46,24 +46,12 @@ async function state(change: (s: InboxState) => InboxState, redraw = true): Prom
 
 /** Opening an update reads it (D1); marked unread again, it is not (D5). */
 export async function markRead(ids: readonly string[], read = true): Promise<Outcome> {
-  return state(
-    (s) => ({
-      ...s,
-      read: read ? [...new Set([...s.read, ...ids])] : s.read.filter((id) => !ids.includes(id)),
-      unread: read
-        ? s.unread.filter((id) => !ids.includes(id))
-        : [...new Set([...s.unread, ...ids])],
-    }),
-    !read,
-  );
+  return state((s) => changed(s, { kind: 'read', ids, read }), !read);
 }
 
 /** The tick at the top of Updates and the bell (B2): every update so far is read. */
 export async function markAllRead(): Promise<Outcome> {
-  return state(
-    (s) => ({ ...s, readBefore: new Date().toISOString(), read: [], unread: [] }),
-    false,
-  );
+  return state((s) => changed(s, { kind: 'readAll', at: new Date().toISOString() }), false);
 }
 
 /** Remind me later (C6): never past the due date; null wakes it now. */
@@ -71,49 +59,26 @@ export async function snooze(id: string, until: string | null): Promise<Outcome>
   const read = await inboxNow();
   const item = read.items.find((i) => i.id === id);
   if (item === undefined || item.lane !== 'task') return { ok: false, message: 'No such task' };
-  return state((s) => {
-    const { [id]: _was, ...rest } = s.snoozed;
-    return {
-      ...s,
-      snoozed: until === null ? rest : { ...rest, [id]: snoozeUntil(item, until) },
-    };
-  });
+  return state((s) => changed(s, { kind: 'snooze', id, until, due: item.due }));
 }
 
 /** Move to Done now (D5, Z2): updates, or a task cancelled by its sender. */
 export async function moveToDone(ids: readonly string[]): Promise<Outcome> {
-  const at = new Date().toISOString();
-  return state((s) => ({
-    ...s,
-    done: { ...s.done, ...Object.fromEntries(ids.map((id) => [id, at])) },
-  }));
+  return state((s) => changed(s, { kind: 'done', ids, at: new Date().toISOString() }));
 }
 
 /** Mute updates like this (D6), or unmute (P1). Tasks are never muted. */
 export async function mute(
   m: Mute | { readonly what: string; readonly off: true },
 ): Promise<Outcome> {
-  return state((s) => ({
-    ...s,
-    muted:
-      'off' in m
-        ? s.muted.filter((x) => x.what !== m.what)
-        : [...s.muted.filter((x) => x.what !== m.what), m],
-  }));
+  return state((s) =>
+    changed(s, 'off' in m ? { kind: 'unmute', what: m.what } : { kind: 'mute', mute: m }),
+  );
 }
 
 /** A checklist's own step (G5), ticked or not. */
 export async function tick(id: string, step: string, on: boolean): Promise<Outcome> {
-  return state((s) => {
-    const was = s.ticks[id] ?? [];
-    return {
-      ...s,
-      ticks: {
-        ...s.ticks,
-        [id]: on ? [...new Set([...was, step])] : was.filter((x) => x !== step),
-      },
-    };
-  });
+  return state((s) => changed(s, { kind: 'tick', id, step, on }));
 }
 
 /* --------------------------------------------------------- People -- */
