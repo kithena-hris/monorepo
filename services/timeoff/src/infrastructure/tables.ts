@@ -423,6 +423,28 @@ export const setting = timeoff.table(
   (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
 );
 
+/** A balance changed by hand, and who asked and decided (`balance_adjustment`). */
+export const balanceAdjustment = timeoff.table(
+  'balance_adjustment',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    personId: uuid('person_id').notNull(),
+    leaveTypeKey: text('leave_type_key').notNull(),
+    amount: amount('amount').notNull(),
+    effectiveOn: calendarDate('effective_on').notNull(),
+    reason: text('reason').notNull(),
+    proposedBy: text('proposed_by').notNull(),
+    proposedAt: instant('proposed_at').notNull(),
+    status: text('status').notNull(),
+    decidedBy: text('decided_by'),
+    decidedAt: instant('decided_at'),
+    note: text('note'),
+    entryId: uuid('entry_id'),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
 export const overtimeDecision = timeoff.table(
   'overtime_decision',
   {

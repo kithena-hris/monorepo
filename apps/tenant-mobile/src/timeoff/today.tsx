@@ -36,6 +36,7 @@ import {
   Play,
   Plus,
   QrCode,
+  Scale,
   Settings,
   Square,
   Timer as TimerIcon,
@@ -44,12 +45,14 @@ import {
   Wallet,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Pressable, View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
 import { keptAnswer, read, useSigned, type Signed } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
+import { useTimeOff } from './api';
 import { leaveIcon } from './icons';
 import { clockTime, duration, localDate, minuteOfDay, partOfDay, stopwatch } from './time';
 import { amount, bridgeDays, longDate, relativeDay, shortDate, spanLabel, statusOf } from './words';
@@ -451,6 +454,13 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
   const signed = useSigned();
   const [data, setData] = useState<Home | null>(() => keptHome(signed));
   const [failed, setFailed] = useState<string | null>(null);
+  // HR's count beside Balance adjustments: what waits for them to decide.
+  const adjustments = useTimeOff<{ items: { canDecide: boolean }[] }>('TimeOffBalanceAdjustments');
+  useFocusEffect(adjustments.reload);
+  const adjustmentsWaiting =
+    adjustments.load.status === 'ready'
+      ? adjustments.load.data.items.filter((a) => a.canDecide).length
+      : 0;
 
   const load = async (): Promise<void> => {
     const now = Date.now();
@@ -748,6 +758,18 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                     navigation.navigate('TimeOffTeamNow');
                   },
                 }),
+                ...(viewer.hrAdmin
+                  ? []
+                  : [
+                      go({
+                        label: 'Balance adjustments',
+                        line: 'Add or take away days, saying why; HR approves',
+                        icon: Scale,
+                        open: () => {
+                          navigation.navigate('TimeOffAdjustments');
+                        },
+                      }),
+                    ]),
                 go({
                   label: 'Overtime and corrections',
                   line: 'To decide, and your own',
@@ -776,6 +798,15 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   count: viewer.counts.attendanceExceptions,
                   open: () => {
                     navigation.navigate('TimeOffExceptions');
+                  },
+                }),
+                go({
+                  label: 'Balance adjustments',
+                  line: 'Waiting for you, and the last 30 days',
+                  icon: Scale,
+                  count: adjustmentsWaiting,
+                  open: () => {
+                    navigation.navigate('TimeOffAdjustments');
                   },
                 }),
                 go({
