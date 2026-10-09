@@ -740,9 +740,12 @@ MB**, `--max-old-space-size=96`) and the two outbox relays, `relay-people` and
 `relay-identity` (~175 MB each running, **224 MB** each; a 64 MB heap, the
 image's OpenTelemetry agent off). With them the limits are **3.3 GB**; the swap
 is what makes that fit, and `m7i-flex.large` is the step up if it stops fitting.
-`timeoff` (**320 MB**, `--max-old-space-size=192`; not yet measured) brings
-them to **3.6 GB**: measure it under the light load above after its first
-deploy, and lower the limit to what it needs. `assistant` (**160 MB**,
+`timeoff` (**512 MB**, `--max-old-space-size=320`, one CPU) brings them to
+**3.8 GB**. It started at 320 MB and half a CPU; in production on 9 October
+2026 it idled at 249 MB and was OOM-killed at 314 MB twice in an hour under
+a page's burst of reads (the Temporal worker's bundle and native core sit
+outside the heap), and every restart took People's reads that ask it for
+balances down too. `assistant` (**160 MB**,
 `--max-old-space-size=96`; not yet measured, assistant PRD §15.2) brings them
 to **3.75 GB**, to be measured the same way after its first deploy. If the sum
 stops fitting, folding the assistant into Slack's process comes before
