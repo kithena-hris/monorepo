@@ -192,16 +192,29 @@ export function SignedIn({
     };
   }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
   // The Time off tab, for a company that has Time Off: its viewer read answers.
+  // Asked again every 30 seconds until it does, since the first ask can land
+  // while the server is still waking, and then the tab would never come.
   const [timeOff, setTimeOff] = useState(false);
   useEffect(() => {
-    void ask(
-      { company, sessionId, person, signOut: onSignOut, signedOut: onSignedOut, viewAs: onViewAs },
-      'TimeOffViewer',
-      {},
-      'timeoff',
-    ).then((answer) => {
-      setTimeOff(answer.ok);
-    });
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = (): void => {
+      void ask(
+        { company, sessionId, person, signOut: onSignOut, signedOut: onSignedOut, viewAs: onViewAs },
+        'TimeOffViewer',
+        {},
+        'timeoff',
+      ).then((answer) => {
+        if (!live) return;
+        setTimeOff(answer.ok);
+        if (!answer.ok) timer = setTimeout(check, 30_000);
+      });
+    };
+    check();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
   }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
   // How many screens up now want the tab bar gone.
   const [hiding, setHiding] = useState(0);
