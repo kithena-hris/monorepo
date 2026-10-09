@@ -1006,7 +1006,12 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     );
     // HR is never handed the link: under Decided, its state alone.
     await decides.goto(`${stack.shell}/people/review/decided?kind=access`);
-    await decides.getByText('Ready to download').waitFor({ timeout: 30_000 });
+    // The visible one: a streamed part can briefly sit on the page twice, once hidden.
+    await decides
+      .getByText('Ready to download')
+      .filter({ visible: true })
+      .first()
+      .waitFor({ timeout: 30_000 });
     expect(await decides.getByRole('link', { name: 'Download, once' }).count()).toBe(0);
     await hr.close();
 
@@ -1093,7 +1098,7 @@ describe('Employee fields: a field from a template, explained, then published', 
     await page.getByRole('heading', { name: 'Employee fields' }).waitFor({ timeout: 30_000 });
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: 'Add field' }).click();
+    await page.getByRole('button', { name: 'Add field' }).filter({ visible: true }).first().click();
     const sheet = page.getByRole('dialog', { name: 'New field' });
     await sheet.getByRole('button', { name: 'T-shirt size' }).click();
     // Every part is on the page, with the list of parts beside it.
@@ -1755,7 +1760,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(await kept()).toBe(true);
     // One header: where you are stays on screen once the sections close, in
     // the screen's own header above its title.
-    const screenHeader = page.locator('[data-remote="people"]');
+    const screenHeader = page.locator('[data-remote="people"]').filter({ visible: true }).first();
     expect(
       await screenHeader
         .getByRole('navigation', { name: 'Breadcrumb' })
@@ -2686,7 +2691,10 @@ describe('A People page while the VM behind it is asleep', () => {
     }
 
     // The screen People's remote draws, whatever this tenant holds by now.
-    await page.locator('[data-remote="people"]').waitFor({ state: 'attached', timeout: 30_000 });
+    await page
+      .locator('[data-remote="people"]')
+      .first()
+      .waitFor({ state: 'attached', timeout: 30_000 });
     expect(await page.getByText(/Waking up People/).count()).toBe(0);
     expect(await page.getByText(/is unavailable/).count()).toBe(0);
     expect(await page.getByRole('status').filter({ hasText: 'People is ready' }).count()).toBe(1);
@@ -2708,7 +2716,10 @@ describe('Moving between People’s sections, tabs and views', () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await page.goto(`${stack.shell}/people/directory/list`);
-    await page.locator('[data-remote="people"]').waitFor({ state: 'attached', timeout: 30_000 });
+    await page
+      .locator('[data-remote="people"]')
+      .first()
+      .waitFor({ state: 'attached', timeout: 30_000 });
     await page.waitForLoadState('networkidle');
     await page.evaluate(() => {
       const w = window as unknown as { skeletons: string[] };
@@ -2722,9 +2733,7 @@ describe('Moving between People’s sections, tabs and views', () => {
     // A place's name, whatever its count says beside it when something waits there.
     const named = (name: string) => new RegExp(`^${name}`);
     const sidebar = (name: string) =>
-      page
-        .getByRole('navigation', { name: 'Areas' })
-        .getByRole('link', { name: named(name) });
+      page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name: named(name) });
     const tab = (section: string, name: string) =>
       page
         .getByRole('navigation', { name: `${section} tabs` })

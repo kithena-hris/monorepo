@@ -307,9 +307,18 @@ const perfOf = (page: Page): Promise<Perf> =>
   page.evaluate(() => (window as unknown as { perf: Perf }).perf);
 
 /** Loads `path` from nothing and records what its first load cost. */
+/**
+ * The one on screen: while React streams a page, a later part arrives in a
+ * hidden \`<div id="S:…">\` and is swapped into place a moment after, so a
+ * screen's elements can briefly be on the page twice, once hidden. A locator
+ * that does not ask for the visible one then breaks strict mode or waits on
+ * the hidden copy.
+ */
+const onScreen = (locator: Locator): Locator => locator.filter({ visible: true }).first();
+
 async function firstLoad(page: Page, name: string, path: string, ready: Locator): Promise<void> {
   await page.goto(`${stack.shell}${path}`);
-  await ready.first().waitFor({ timeout: 60_000 });
+  await onScreen(ready).waitFor({ timeout: 60_000 });
   await page.waitForLoadState('networkidle');
   // A moment for a late shift or a last paint to be reported.
   await page.waitForTimeout(500);
@@ -377,8 +386,8 @@ async function clickToPaint(
   target: Locator,
   shown: { readonly path?: RegExp; readonly selector?: string; readonly text?: RegExp },
 ): Promise<number> {
-  await target.first().scrollIntoViewIfNeeded();
-  await target.first().hover();
+  await onScreen(target).scrollIntoViewIfNeeded();
+  await onScreen(target).hover();
   await page.waitForTimeout(400);
   await page.evaluate(() => {
     (window as unknown as { perf: Perf }).perf.down = 0;
@@ -423,7 +432,7 @@ async function clickToPaint(
     { path: shown.path?.source, selector: shown.selector, text: shown.text?.source },
   );
   const ms = await profiled(page, name, async () => {
-    await target.first().click();
+    await onScreen(target).click();
     return painted;
   });
   record(name, 'click to paint ms', ms, BUDGET.clickToPaint);
@@ -603,7 +612,7 @@ describe(`Every page at ${String(N)} people`, () => {
       ['organisation', '/settings/people/organisation'],
     ] as const) {
       await page.goto(`${stack.shell}${path}`);
-      await page.locator('[data-remote="people"]').waitFor({ timeout: 60_000 });
+      await onScreen(page.locator('[data-remote="people"]')).waitFor({ timeout: 60_000 });
       await page.waitForLoadState('networkidle');
       const perf = await perfOf(page);
       record(`settings ${name}`, 'first load: LCP ms', perf.lcp, BUDGET.lcp);
