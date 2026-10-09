@@ -298,7 +298,10 @@ describe('Moving between Time Off’s sections and tabs', () => {
       if (r.headers()['rsc'] === '1') fetched.push(new URL(r.url()).pathname);
     });
     await page.goto(`${stack.shell}/people/directory/list`);
-    await page.locator('[data-remote="people"]').waitFor({ state: 'attached', timeout: 30_000 });
+    await page
+      .locator('[data-remote="people"]')
+      .first()
+      .waitFor({ state: 'attached', timeout: 30_000 });
     await page.waitForLoadState('networkidle');
     await watchSkeletons(page);
 

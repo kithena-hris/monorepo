@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type {
   AttendanceWorkModel,
@@ -12,6 +12,7 @@ import type {
 } from '@kithena/contracts';
 
 import { DEFAULT_RULES, type AttendanceRules } from '../domain/attendance/day.js';
+import type { Punch } from '../domain/attendance/clock.js';
 import type { Schedule } from '../domain/attendance/schedule.js';
 import type {
   AttendanceStore,
@@ -45,32 +46,55 @@ import {
 const keyOf = (s: Schedule): string =>
   `s_${createHash('sha256').update(JSON.stringify(s)).digest('hex').slice(0, 32)}`;
 
+const punchOf = (r: typeof punch.$inferSelect): Punch => ({
+  id: r.id,
+  at: instantOf(r.at),
+  recordedAt: instantOf(r.recordedAt),
+  kind: r.kind as PunchKind,
+  source: r.source as PunchSource,
+  workModel: r.workModel as AttendanceWorkModel,
+  deviceId: r.deviceId,
+  insideOfficeArea: r.insideOfficeArea,
+  supersedes: r.supersedes,
+  reason: r.reason,
+  ...(r.clockSkewSeconds === null ? {} : { clockSkewSeconds: r.clockSkewSeconds }),
+});
+
 export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): AttendanceStore {
+  const punchesOf = async (personIds: readonly PersonId[]): Promise<Map<PersonId, Punch[]>> => {
+    const out = new Map<PersonId, Punch[]>(personIds.map((id) => [id, []]));
+    if (personIds.length === 0) return out;
+    const rows = await tx
+      .select()
+      .from(punch)
+      .where(inArray(punch.personId, [...personIds]))
+      .orderBy(asc(punch.recordedAt), asc(punch.id));
+    for (const r of rows) out.get(r.personId as PersonId)?.push(punchOf(r));
+    return out;
+  };
   return {
     async punches(personId) {
-      const rows = await tx
-        .select()
-        .from(punch)
-        .where(eq(punch.personId, personId))
-        .orderBy(asc(punch.recordedAt), asc(punch.id));
-      return rows.map((r) => ({
-        id: r.id,
-        at: instantOf(r.at),
-        recordedAt: instantOf(r.recordedAt),
-        kind: r.kind as PunchKind,
-        source: r.source as PunchSource,
-        workModel: r.workModel as AttendanceWorkModel,
-        deviceId: r.deviceId,
-        insideOfficeArea: r.insideOfficeArea,
-        supersedes: r.supersedes,
-        reason: r.reason,
-        ...(r.clockSkewSeconds === null ? {} : { clockSkewSeconds: r.clockSkewSeconds }),
-      }));
+      return (await punchesOf([personId])).get(personId) ?? [];
     },
+    punchesOf,
     async appendPunch(personId, p) {
       await tx.insert(punch).values({ tenantId, personId, ...p });
     },
 
+    /** Each member's latest assignment, in one query. */
+    async schedulesOf(personIds) {
+      if (personIds.length === 0) return new Map();
+      const rows = await tx
+        .selectDistinctOn([memberSchedule.personId], {
+          personId: memberSchedule.personId,
+          definition: schedule.definition,
+        })
+        .from(memberSchedule)
+        .innerJoin(schedule, eq(schedule.key, memberSchedule.scheduleKey))
+        .where(inArray(memberSchedule.personId, [...personIds]))
+        .orderBy(memberSchedule.personId, desc(memberSchedule.effectiveFrom));
+      return new Map(rows.map((r) => [r.personId as PersonId, r.definition as Schedule]));
+    },
     /** The member's latest assignment. */
     async schedule(personId) {
       const [r] = await tx

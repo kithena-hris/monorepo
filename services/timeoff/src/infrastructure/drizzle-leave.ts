@@ -7,6 +7,7 @@ import {
   LedgerEntry,
   PolicyDefinition,
   type DayAmount,
+  type LeaveTypeKey,
   type PersonId,
   type RequestStatus,
   type TenantId,
@@ -227,35 +228,41 @@ export function drizzlePolicies(tx: PostgresJsDatabase, tenantId: TenantId): Pol
 /* -------------------------------------------------------------- ledger -- */
 
 export function drizzleLedger(tx: PostgresJsDatabase, tenantId: TenantId): LedgerStore {
+  const forMembers = async (
+    personIds: readonly PersonId[],
+    key?: LeaveTypeKey,
+  ): Promise<LedgerEntry[]> => {
+    if (personIds.length === 0) return [];
+    const rows = await tx
+      .select()
+      .from(ledgerEntry)
+      .where(
+        and(
+          inArray(ledgerEntry.personId, [...personIds]),
+          key === undefined ? undefined : eq(ledgerEntry.leaveTypeKey, key),
+        ),
+      )
+      .orderBy(asc(ledgerEntry.occurredAt), asc(ledgerEntry.id));
+    return rows.map((r) =>
+      LedgerEntry.parse({
+        entryId: r.id,
+        personId: r.personId,
+        leaveTypeKey: r.leaveTypeKey,
+        kind: r.kind,
+        amount: r.amount,
+        unit: r.unit,
+        effectiveOn: r.effectiveOn,
+        occurredAt: instantOf(r.occurredAt),
+        policyVersion: r.policyVersion,
+        supersedes: r.supersedes,
+        requestId: r.requestId,
+        reason: r.reason,
+      }),
+    );
+  };
   return {
-    async forMember(personId, key) {
-      const rows = await tx
-        .select()
-        .from(ledgerEntry)
-        .where(
-          and(
-            eq(ledgerEntry.personId, personId),
-            key === undefined ? undefined : eq(ledgerEntry.leaveTypeKey, key),
-          ),
-        )
-        .orderBy(asc(ledgerEntry.occurredAt), asc(ledgerEntry.id));
-      return rows.map((r) =>
-        LedgerEntry.parse({
-          entryId: r.id,
-          personId: r.personId,
-          leaveTypeKey: r.leaveTypeKey,
-          kind: r.kind,
-          amount: r.amount,
-          unit: r.unit,
-          effectiveOn: r.effectiveOn,
-          occurredAt: instantOf(r.occurredAt),
-          policyVersion: r.policyVersion,
-          supersedes: r.supersedes,
-          requestId: r.requestId,
-          reason: r.reason,
-        }),
-      );
-    },
+    forMember: (personId, key) => forMembers([personId], key),
+    forMembers,
     async append(entries) {
       if (entries.length === 0) return;
       await tx.insert(ledgerEntry).values(

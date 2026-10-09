@@ -191,7 +191,16 @@ export async function policyFor(
   leaveTypeKey: LeaveTypeKey,
   on: CalendarDate,
 ): Promise<{ policy: Policy; version: number; definition: PolicyDefinition } | null> {
-  for (const policy of await tx.policies.forLeaveType(leaveTypeKey)) {
+  return policyFrom(await tx.policies.forLeaveType(leaveTypeKey), member, on);
+}
+
+/** `policyFor` over a leave type's policies already read: the first in effect that applies. */
+export function policyFrom(
+  policies: readonly Policy[],
+  member: Member,
+  on: CalendarDate,
+): { policy: Policy; version: number; definition: PolicyDefinition } | null {
+  for (const policy of policies) {
     const v = policy.inEffectOn(on);
     if (v !== null && applies(v.definition.appliesTo, member)) {
       return { policy, version: v.version, definition: v.definition };

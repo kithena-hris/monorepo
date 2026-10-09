@@ -213,6 +213,10 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.ledger.filter(
           (e) => e.personId === personId && (key === undefined || e.leaveTypeKey === key),
         ),
+      forMembers: (personIds, key) =>
+        s.ledger.filter(
+          (e) => personIds.includes(e.personId) && (key === undefined || e.leaveTypeKey === key),
+        ),
       append: (entries) => {
         s.ledger.push(...entries);
       },
@@ -299,10 +303,18 @@ function stores(tenantId: TenantId, s: State): Tx {
     }),
     attendance: promised<AttendanceStore>({
       punches: (personId) => s.punches.get(personId) ?? [],
+      punchesOf: (personIds) => new Map(personIds.map((id) => [id, s.punches.get(id) ?? []])),
       appendPunch: (personId, punch) => {
         s.punches.set(personId, [...(s.punches.get(personId) ?? []), punch]);
       },
       schedule: (personId) => s.schedules.get(personId) ?? null,
+      schedulesOf: (personIds) =>
+        new Map(
+          personIds.flatMap((id) => {
+            const held = s.schedules.get(id);
+            return held === undefined ? [] : [[id, held] as const];
+          }),
+        ),
       setSchedule: (personId, schedule) => {
         s.schedules.set(personId, schedule);
       },
