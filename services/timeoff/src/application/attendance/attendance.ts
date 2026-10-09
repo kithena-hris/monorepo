@@ -276,18 +276,25 @@ export const teamRightNow =
   (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
   (caller: Caller): Promise<Result<RightNow>> =>
     transact(deps, caller.tenantId, async (tx) => {
-      const mine: Member[] = [];
-      for (const m of await tx.members.list()) {
-        if (m.status !== 'left' && (await relates(deps, caller, 'approver', m.personId)))
-          mine.push(m);
-      }
+      const here = (await tx.members.list()).filter((m) => m.status !== 'left');
+      const yes = await Promise.all(here.map((m) => relates(deps, caller, 'approver', m.personId)));
+      const mine = here.filter((_, i) => yes[i]);
       const rules = await tx.attendance.rules();
       const now = deps.clock.instant();
       const people: RightNow['people'][number][] = [];
       const needsYou: RightNow['needsYou'][number][] = [];
-      for (const m of mine) {
-        const clock = await clockOf(tx, m, caller.tenantId);
-        const schedule = await scheduleOf(tx, m);
+      // Each report's punches, schedule and decided overtime, read at once.
+      const read = await Promise.all(
+        mine.map(async (m) => ({
+          clock: await clockOf(tx, m, caller.tenantId),
+          schedule: await scheduleOf(tx, m),
+          decided: new Set((await tx.attendance.overtime(m.personId)).map((o) => o.date)),
+        })),
+      );
+      for (const [i, m] of mine.entries()) {
+        const r = read[i];
+        if (r === undefined) continue;
+        const { clock, schedule, decided } = r;
         const today = deps.clock.date(m.timeZone);
         const day = (date: CalendarDate) =>
           dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules });
@@ -308,7 +315,6 @@ export const teamRightNow =
             needsYou.push({ kind: 'correction', personId: m.personId, punch: p });
           }
         }
-        const decided = new Set((await tx.attendance.overtime(m.personId)).map((o) => o.date));
         for (const date of datesIn(since, addDays(today, -1))) {
           const d = day(date);
           if (d.status === 'complete' && d.overtimeMinutes > 0 && !decided.has(date)) {

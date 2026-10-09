@@ -135,11 +135,13 @@ export async function calendarIn(
   if (!found.ok) return found;
   const hr = await isHrAdmin(deps, caller);
   const seen = new Map<PersonId, { member: Member; sight: Sight }>();
-  for (const member of found.value) {
-    if (member.status === 'left') continue;
-    const sight = await sightOf(deps, caller, member, hr);
+  // Every member's sight at once: each is a round trip to OpenFGA.
+  const here = found.value.filter((m) => m.status !== 'left');
+  const sights = await Promise.all(here.map((member) => sightOf(deps, caller, member, hr)));
+  here.forEach((member, i) => {
+    const sight = sights[i] ?? null;
     if (sight !== null) seen.set(member.personId, { member, sight });
-  }
+  });
 
   const visibility = new Map(
     (await tx.leaveTypes.list()).map((t) => [t.definition.key, t.definition.visibility]),

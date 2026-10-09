@@ -74,12 +74,9 @@ async function decidesFor(
   caller: Caller,
 ): Promise<readonly PersonId[] | undefined> {
   if (await isHrAdmin(deps, caller)) return undefined;
-  const out: PersonId[] = [];
-  for (const m of await tx.members.list()) {
-    if (m.personId === caller.personId) continue;
-    if (await approves(deps, caller, m.personId)) out.push(m.personId);
-  }
-  return out;
+  const others = (await tx.members.list()).filter((m) => m.personId !== caller.personId);
+  const yes = await Promise.all(others.map((m) => approves(deps, caller, m.personId)));
+  return others.filter((_, i) => yes[i]).map((m) => m.personId);
 }
 
 const DECIDED: readonly LeaveRequest['status'][] = ['approved', 'declined', 'taken', 'cancelled'];
@@ -572,22 +569,20 @@ const EXCEPTIONS_DAYS = 31;
  * counts on Requests and Attendance — requests waiting on them, and their
  * own missed clock-outs plus, for an approver, what needs them on the team.
  *
- * ponytail: "approves anyone" asks once per member; a `ListObjects` on the
- * approver relation is the upgrade when a tenant is large.
+ * ponytail: "approves anyone" asks once per member, all at once; a
+ * `ListObjects` on the approver relation is the upgrade when a tenant is large.
  */
 export const viewer =
   (deps: ReadDeps) =>
   async (caller: Caller): Promise<Result<ViewerView>> => {
     const facts = await transact(deps, caller.tenantId, async (tx) => {
       const hrAdmin = await isHrAdmin(deps, caller);
-      let approvesAnyone = false;
-      for (const m of await tx.members.list()) {
-        if (m.status === 'left' || m.personId === caller.personId) continue;
-        if (await approves(deps, caller, m.personId)) {
-          approvesAnyone = true;
-          break;
-        }
-      }
+      const others = (await tx.members.list()).filter(
+        (m) => m.status !== 'left' && m.personId !== caller.personId,
+      );
+      const approvesAnyone = (
+        await Promise.all(others.map((m) => approves(deps, caller, m.personId)))
+      ).includes(true);
       const me = caller.personId === null ? null : await tx.members.get(caller.personId);
       let missed = 0;
       if (me !== null) {
