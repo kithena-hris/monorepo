@@ -97,6 +97,10 @@ export type PeopleRoutes = {
     | undefined;
   /** One leave type and its policies. */
   TimeOffLeaveType: { leaveTypeKey: string; name: string };
+  /** Adding to or taking from someone's balance, saying why. */
+  TimeOffAdjust: { personId?: string } | undefined;
+  /** HR's queue of balance adjustments; a manager's own. */
+  TimeOffAdjustments: undefined;
   /** Adding a leave type, a step at a time, ending on an example and Publish. */
   TimeOffAddLeaveType: undefined;
   /** A policy described in words and read back. */

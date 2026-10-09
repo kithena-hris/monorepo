@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DecideTimeOffBalanceAdjustment($key: String!, $adjustmentId: String!, $input: JSON!) {\n    decideTimeOffBalanceAdjustment(adjustmentId: $adjustmentId, idempotencyKey: $key, input: $input) {\n      adjustmentId status\n    }\n  }"}

@@ -59,6 +59,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** Balances changed by hand: HR’s queue and the last 30 days; a manager sees the ones they asked for */
+  TimeOffBalanceAdjustments: `query TimeOffBalanceAdjustments {
+    timeOffBalanceAdjustments {
+      hr items { adjustmentId amount canDecide decidedAt displayName effectiveOn leaveTypeKey leaveTypeName note personId proposedAt reason status unit }
+    }
+  }`,
+
   /** T14: one day — who is off, holidays and coverage */
   TimeOffCalendarDay: `query TimeOffCalendarDay($date: String!, $scope: String, $teamKey: String) {
     timeOffCalendarDay(date: $date, scope: $scope, teamKey: $teamKey) {
@@ -276,6 +283,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** Add to or take from a balance, saying why: HR’s counts at once, a manager’s waits for HR */
+  AdjustTimeOffBalance: `mutation AdjustTimeOffBalance($key: String!, $input: JSON!) {
+    adjustTimeOffBalance(idempotencyKey: $key, input: $input) {
+      adjustmentId status
+    }
+  }`,
+
   /** Take one of the suggested dates, which approves them, or keep your own */
   AnswerSuggestedTimeOffDates: `mutation AnswerSuggestedTimeOffDates($key: String!, $input: JSON!, $requestId: String!) {
     answerSuggestedTimeOffDates(idempotencyKey: $key, input: $input, requestId: $requestId) {
@@ -357,6 +371,13 @@ export const OPERATIONS = {
   CorrectTimeOffPunch: `mutation CorrectTimeOffPunch($key: String!, $input: JSON!) {
     correctTimeOffPunch(idempotencyKey: $key, input: $input) {
       needsManager punch { at id kind reason recordedAt source supersedes workModel }
+    }
+  }`,
+
+  /** Approve or decline a balance adjustment a manager asked for; HR, never their own */
+  DecideTimeOffBalanceAdjustment: `mutation DecideTimeOffBalanceAdjustment($key: String!, $adjustmentId: String!, $input: JSON!) {
+    decideTimeOffBalanceAdjustment(adjustmentId: $adjustmentId, idempotencyKey: $key, input: $input) {
+      adjustmentId status
     }
   }`,
 

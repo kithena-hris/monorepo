@@ -11,6 +11,14 @@ A JSON value, shaped as the matching REST schema in the OpenAPI document says.
 scalar JSON
 
 type Mutation {
+  """
+  Add to or take from a balance, saying why: HR’s counts at once, a manager’s waits for HR
+  """
+  adjustTimeOffBalance(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffBalanceAdjusted!
   """Take one of the suggested dates, which approves them, or keep your own"""
   answerSuggestedTimeOffDates(
     idempotencyKey: String!
@@ -99,6 +107,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): TimeOffPunchCorrected!
+  """
+  Approve or decline a balance adjustment a manager asked for; HR, never their own
+  """
+  decideTimeOffBalanceAdjustment(
+    adjustmentId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffBalanceAdjusted!
   """Approve a day’s overtime as comp time or pay, or decline it"""
   decideTimeOffOvertime(
     idempotencyKey: String!
@@ -359,6 +376,10 @@ type Query {
   timeOffAttendanceSettings: TimeOffSettingsAttendance!
   """MT20: where the days of one leave type went this leave year"""
   timeOffBalance(leaveTypeKey: String!, personId: String): TimeOffBalanceLedger!
+  """
+  Balances changed by hand: HR’s queue and the last 30 days; a manager sees the ones they asked for
+  """
+  timeOffBalanceAdjustments: TimeOffBalanceAdjustments!
   """T14: one day — who is off, holidays and coverage"""
   timeOffCalendarDay(date: String!, scope: String, teamKey: String): TimeOffCalendar!
   """T12: a month of the team’s, the company’s or the caller’s time off"""
@@ -553,6 +574,33 @@ type TimeOffBalance {
   unit: String!
   used: String!
   yearly: String
+}
+
+type TimeOffBalanceAdjusted {
+  adjustmentId: String!
+  status: String!
+}
+
+type TimeOffBalanceAdjustment {
+  adjustmentId: String!
+  amount: String!
+  canDecide: Boolean!
+  decidedAt: String
+  displayName: String!
+  effectiveOn: String!
+  leaveTypeKey: String!
+  leaveTypeName: String!
+  note: String
+  personId: String!
+  proposedAt: String!
+  reason: String!
+  status: String!
+  unit: String!
+}
+
+type TimeOffBalanceAdjustments {
+  hr: Boolean!
+  items: [TimeOffBalanceAdjustment!]!
 }
 
 type TimeOffBalanceLedger {

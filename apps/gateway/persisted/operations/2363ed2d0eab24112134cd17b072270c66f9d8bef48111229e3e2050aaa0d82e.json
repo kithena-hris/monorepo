@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffBalanceAdjustments {\n    timeOffBalanceAdjustments {\n      hr items { adjustmentId amount canDecide decidedAt displayName effectiveOn leaveTypeKey leaveTypeName note personId proposedAt reason status unit }\n    }\n  }"}

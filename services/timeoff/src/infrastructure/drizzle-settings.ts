@@ -1,14 +1,16 @@
-import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, notInArray, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import type { CalendarDate, LeaveTypeKey, PersonId, TenantId } from '@kithena/contracts';
+import type { CalendarDate, DayAmount, LeaveTypeKey, PersonId, TenantId } from '@kithena/contracts';
 
 import {
   DEFAULT_AUTO_APPROVAL,
   type ApprovalRule,
   type AutoApproval,
 } from '../domain/approval/approval-rule.js';
+import type { AdjustmentStatus } from '../domain/balance/adjustment.js';
 import type { HolidayLayer } from '../domain/calendar/holiday-calendar.js';
 import type {
+  AdjustmentStore,
   ApprovalStore,
   FeedStore,
   HolidayStore,
@@ -16,10 +18,12 @@ import type {
   IntegrationStore,
   SettingStore,
   Settings,
+  StoredAdjustment,
 } from '../application/ports.js';
 import { fromRange, instantOf, rangeOf } from './drizzle-leave.js';
 import {
   approvalRule,
+  balanceAdjustment,
   delegation,
   feedVersion,
   holiday,
@@ -222,6 +226,70 @@ export function drizzleHolidays(tx: PostgresJsDatabase, tenantId: TenantId): Hol
           position,
         })),
       );
+    },
+  };
+}
+
+const adjustmentOf = (r: typeof balanceAdjustment.$inferSelect): StoredAdjustment => ({
+  adjustmentId: r.id,
+  personId: r.personId as PersonId,
+  leaveTypeKey: r.leaveTypeKey as LeaveTypeKey,
+  amount: r.amount as DayAmount,
+  effectiveOn: r.effectiveOn as CalendarDate,
+  reason: r.reason,
+  proposedBy: r.proposedBy,
+  proposedAt: instantOf(r.proposedAt),
+  status: r.status as AdjustmentStatus,
+  decidedBy: r.decidedBy,
+  decidedAt: r.decidedAt === null ? null : instantOf(r.decidedAt),
+  note: r.note,
+  entryId: r.entryId,
+});
+
+/** Balances changed by hand, and the asking (`balance_adjustment`). */
+export function drizzleAdjustments(tx: PostgresJsDatabase, tenantId: TenantId): AdjustmentStore {
+  return {
+    async get(id) {
+      const [r] = await tx.select().from(balanceAdjustment).where(eq(balanceAdjustment.id, id));
+      return r === undefined ? null : adjustmentOf(r);
+    },
+    async save(a) {
+      const row = {
+        personId: a.personId,
+        leaveTypeKey: a.leaveTypeKey,
+        amount: a.amount,
+        effectiveOn: a.effectiveOn,
+        reason: a.reason,
+        proposedBy: a.proposedBy,
+        proposedAt: a.proposedAt,
+        status: a.status,
+        decidedBy: a.decidedBy,
+        decidedAt: a.decidedAt,
+        note: a.note,
+        entryId: a.entryId,
+      };
+      await tx
+        .insert(balanceAdjustment)
+        .values({ tenantId, id: a.adjustmentId, ...row })
+        .onConflictDoUpdate({
+          target: [balanceAdjustment.tenantId, balanceAdjustment.id],
+          set: row,
+        });
+    },
+    async list({ status, since }) {
+      const rows = await tx
+        .select()
+        .from(balanceAdjustment)
+        .where(
+          and(
+            status === undefined ? undefined : eq(balanceAdjustment.status, status),
+            since === undefined
+              ? undefined
+              : sql`coalesce(${balanceAdjustment.decidedAt}, ${balanceAdjustment.proposedAt}) >= ${since}`,
+          ),
+        )
+        .orderBy(desc(balanceAdjustment.proposedAt));
+      return rows.map(adjustmentOf);
     },
   };
 }

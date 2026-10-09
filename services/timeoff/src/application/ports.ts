@@ -16,6 +16,7 @@ import {
 import type { CalendarEvidence, Judge, Writer } from './assist/ports.js';
 import type { ApprovalRule, ApproverRole, AutoApproval } from '../domain/approval/approval-rule.js';
 import type { Delegation } from '../domain/approval/delegation.js';
+import type { Adjustment, AdjustmentStatus } from '../domain/balance/adjustment.js';
 import type { Punch } from '../domain/attendance/clock.js';
 import type { AttendanceRules } from '../domain/attendance/day.js';
 import type { PayPeriod, TimeLine } from '../domain/attendance/pay-period.js';
@@ -545,6 +546,24 @@ export interface SettingStore {
   set<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
 }
 
+/**
+ * Balances changed by hand, and the asking (PRD §7.1): HR's approved as made,
+ * a manager's waiting for HR. `entryId` is the ledger row it became.
+ */
+export interface StoredAdjustment extends Adjustment {
+  readonly entryId: string | null;
+}
+
+export interface AdjustmentStore {
+  get(adjustmentId: string): Promise<StoredAdjustment | null>;
+  save(adjustment: StoredAdjustment): Promise<void>;
+  /** Newest first: what waits, or what was decided since a day. */
+  list(filter: {
+    readonly status?: AdjustmentStatus;
+    readonly since?: string;
+  }): Promise<readonly StoredAdjustment[]>;
+}
+
 /** The revocation counter behind a calendar feed token (§10.1). */
 export interface FeedStore {
   version(personId: PersonId): Promise<number>;
@@ -587,6 +606,7 @@ export interface Tx {
   readonly holidays: HolidayStore;
   readonly attendance: AttendanceStore;
   readonly feeds: FeedStore;
+  readonly adjustments: AdjustmentStore;
   readonly parental: ParentalStore;
   readonly kiosks: KioskStore;
   readonly integrations: IntegrationStore;
@@ -652,6 +672,7 @@ export type Notice =
       readonly blockFrom: CalendarDate;
     }
   | { readonly kind: 'kiosk_clock_skew'; readonly deviceId: string; readonly seconds: number }
+  | { readonly kind: 'adjustment_waiting'; readonly adjustmentId: string }
   | {
       readonly kind: 'negative_on_leaving';
       readonly leaveTypeKey: LeaveTypeKey;

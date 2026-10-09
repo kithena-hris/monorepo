@@ -45,6 +45,12 @@ import {
   counterPropose,
   decideRequest,
 } from '../application/approval/decide.js';
+import {
+  adjustBalance,
+  balanceAdjustments,
+  decideBalanceAdjustment,
+  type AdjustmentView,
+} from '../application/admin/adjustments.js';
 import { setDelegation } from '../application/approval/escalation.js';
 import { setChatAnswers } from '../application/settings/chat.js';
 import { describeRequest } from '../application/assist/describe.js';
@@ -379,6 +385,59 @@ export const OvertimeBody = z.strictObject({
   approve: z.boolean(),
   choice: z.enum(['comp', 'paid']).nullable().default(null),
 });
+/** A balance changed by hand: always with a reason, signed, and from today unless said. */
+export const AdjustmentBody = z.strictObject({
+  personId: PersonId,
+  leaveTypeKey: LeaveTypeKey,
+  amount: DayAmount,
+  effectiveOn: CalendarDate.nullable().default(null),
+  reason: z.string().max(500),
+});
+export const AdjustmentDecisionBody = z.strictObject({
+  approve: z.boolean(),
+  note: z.string().max(500).nullable().default(null),
+});
+const AdjustmentAnswer = z
+  .object({
+    adjustmentId: z.uuid(),
+    personId: PersonId,
+    displayName: z.string(),
+    leaveTypeKey: LeaveTypeKey,
+    leaveTypeName: z.string(),
+    unit: z.enum(['day', 'hour']),
+    amount: DayAmount,
+    effectiveOn: CalendarDate,
+    reason: z.string(),
+    proposedAt: Instant,
+    status: z.enum(['pending', 'approved', 'declined']),
+    decidedAt: Instant.nullable(),
+    note: z.string().nullable(),
+    canDecide: z.boolean(),
+  })
+  .meta({ title: 'TimeOffBalanceAdjustment' });
+const adjustmentView = (v: AdjustmentView): z.output<typeof AdjustmentAnswer> => ({
+  adjustmentId: v.adjustmentId,
+  personId: v.personId,
+  displayName: v.displayName,
+  leaveTypeKey: v.leaveTypeKey,
+  leaveTypeName: v.leaveTypeName,
+  unit: v.unit,
+  amount: v.amount,
+  effectiveOn: v.effectiveOn,
+  reason: v.reason,
+  proposedAt: v.proposedAt as Instant,
+  status: v.status,
+  decidedAt: v.decidedAt as Instant | null,
+  note: v.note,
+  canDecide: v.canDecide,
+});
+const AdjustmentWritten = z
+  .object({
+    adjustmentId: z.uuid(),
+    status: z.enum(['pending', 'approved', 'declined']),
+  })
+  .meta({ title: 'TimeOffBalanceAdjusted' });
+
 /** What a member taps a kiosk with: a badge number, a PIN, or the QR their phone shows. */
 export const KioskCredentialBody = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -1189,6 +1248,42 @@ export const ROUTES: readonly Route[] = [
       .meta({ title: 'TimeOffOvertimeDecided' }),
     run: (deps, caller, { body }) => decideOvertime(deps)(caller, body),
     shape: (v) => ({ personId: v.personId, date: v.date, minutes: v.minutes, outcome: v.outcome }),
+  }),
+  route({
+    name: 'timeOffBalanceAdjustments',
+    method: 'GET',
+    path: `${V1}/balances/adjustments`,
+    summary:
+      'Balances changed by hand: HR’s queue and the last 30 days; a manager sees the ones they asked for',
+    answer: z
+      .object({ hr: z.boolean(), items: z.array(AdjustmentAnswer) })
+      .meta({ title: 'TimeOffBalanceAdjustments' }),
+    run: (deps, caller) => balanceAdjustments(deps)(caller),
+    shape: (v) => ({ hr: v.hr, items: v.items.map(adjustmentView) }),
+  }),
+  route({
+    name: 'adjustTimeOffBalance',
+    method: 'POST',
+    path: `${V1}/balances/adjustments`,
+    summary:
+      'Add to or take from a balance, saying why: HR’s counts at once, a manager’s waits for HR',
+    body: AdjustmentBody,
+    answer: AdjustmentWritten,
+    status: 201,
+    run: (deps, caller, { body }) => adjustBalance(deps)(caller, body),
+    shape: (v) => ({ adjustmentId: v.adjustmentId, status: v.status }),
+  }),
+  route({
+    name: 'decideTimeOffBalanceAdjustment',
+    method: 'POST',
+    path: `${V1}/balances/adjustments/{adjustmentId}/decision`,
+    summary: 'Approve or decline a balance adjustment a manager asked for; HR, never their own',
+    params: z.object({ adjustmentId: z.uuid() }),
+    body: AdjustmentDecisionBody,
+    answer: AdjustmentWritten,
+    run: (deps, caller, { params, body }) =>
+      decideBalanceAdjustment(deps)(caller, { adjustmentId: params.adjustmentId, ...body }),
+    shape: (v) => ({ adjustmentId: v.adjustmentId, status: v.status }),
   }),
   route({
     name: 'closeTimeOffPayPeriod',

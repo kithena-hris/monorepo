@@ -23,7 +23,9 @@ import type {
   Authorizer,
   CompanyParentalWeeks,
   Deps,
+  AdjustmentStore,
   FeedStore,
+  StoredAdjustment,
   HolidayStore,
   IdempotencyStore,
   Integration,
@@ -81,6 +83,7 @@ interface State {
   lines: TimeLine[];
   overtime: OvertimeDecision[];
   feeds: Map<string, number>;
+  adjustments: Map<string, StoredAdjustment>;
   plans: Map<string, StoredPlan>;
   parentalCompany: CompanyParentalWeeks | null;
   kiosks: Map<string, KioskDevice>;
@@ -116,6 +119,7 @@ const empty = (): State => ({
   lines: [],
   overtime: [],
   feeds: new Map(),
+  adjustments: new Map(),
   plans: new Map(),
   parentalCompany: null,
   kiosks: new Map(),
@@ -318,6 +322,20 @@ function stores(tenantId: TenantId, s: State): Tx {
       decideOvertime: (decision) => {
         s.overtime.push(decision);
       },
+    }),
+    adjustments: promised<AdjustmentStore>({
+      get: (id) => s.adjustments.get(id) ?? null,
+      save: (a) => {
+        s.adjustments.set(a.adjustmentId, a);
+      },
+      list: ({ status, since }) =>
+        [...s.adjustments.values()]
+          .filter(
+            (a) =>
+              (status === undefined || a.status === status) &&
+              (since === undefined || (a.decidedAt ?? a.proposedAt) >= since),
+          )
+          .sort((a, b) => b.proposedAt.localeCompare(a.proposedAt)),
     }),
     feeds: promised<FeedStore>({
       version: (personId) => s.feeds.get(personId) ?? 0,

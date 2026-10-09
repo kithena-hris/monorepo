@@ -44,6 +44,7 @@ import {
 } from '../application/testing/world.js';
 import { es } from '../country-packs/es.js';
 import { week } from '../domain/attendance/t20.fixture.js';
+import { decideAdjustment, proposeAdjustment } from '../domain/balance/adjustment.js';
 import { entry } from '../domain/balance/ledger.js';
 import type { EventContext } from '../domain/context.js';
 import { LeaveType } from '../domain/policy/leave-type.js';
@@ -217,6 +218,44 @@ describe('policies', () => {
       (await run((tx) => tx.policies.forLeaveType(vacationType().key))).map((p) => p.id),
     ).toEqual([id]);
     expect(await outboxNames(id)).toEqual([PolicyPublished.name]);
+  });
+});
+
+describe('balance adjustments', () => {
+  it('round-trips a pending one, its decision, and lists by status', async () => {
+    const asked = {
+      ...must(
+        proposeAdjustment(
+          {
+            personId: people.adam,
+            leaveTypeKey: vacationType().key,
+            amount: '-1.500',
+            effectiveOn: '2026-10-01' as never,
+            reason: 'Half a day twice, not booked',
+            proposedBy: MARCO_ACCOUNT,
+            byHr: false,
+          },
+          ctx,
+        ),
+      ),
+      entryId: null,
+    };
+    await run((tx) => tx.adjustments.save(asked));
+    expect(await run((tx) => tx.adjustments.get(asked.adjustmentId))).toEqual(asked);
+    expect(
+      (await run((tx) => tx.adjustments.list({ status: 'pending' }))).map((a) => a.adjustmentId),
+    ).toEqual([asked.adjustmentId]);
+
+    const decided = {
+      ...must(decideAdjustment(asked, { approve: true, by: 'acct-hr' }, ctx)),
+      entryId: ids(),
+    };
+    await run((tx) => tx.adjustments.save(decided));
+    expect(await run((tx) => tx.adjustments.get(asked.adjustmentId))).toEqual(decided);
+    expect(await run((tx) => tx.adjustments.list({ status: 'pending' }))).toEqual([]);
+    expect(
+      await asTimeoffIn(OTHER, (tx) => tx.execute(sql`SELECT id FROM timeoff.balance_adjustment`)),
+    ).toHaveLength(0);
   });
 });
 

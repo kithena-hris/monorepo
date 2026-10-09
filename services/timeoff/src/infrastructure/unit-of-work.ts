@@ -17,6 +17,7 @@ import { drizzleIdempotency } from './idempotency.js';
 import { drizzleLocations, drizzleMembers, drizzleScim } from './drizzle-members.js';
 import { drizzleParental } from './drizzle-parental.js';
 import {
+  drizzleAdjustments,
   drizzleApprovals,
   drizzleFeeds,
   drizzleHolidays,
@@ -55,6 +56,7 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
     holidays: drizzleHolidays(tx, tenantId),
     attendance: drizzleAttendance(tx, tenantId),
     feeds: drizzleFeeds(tx, tenantId),
+    adjustments: drizzleAdjustments(tx, tenantId),
     parental: drizzleParental(tx, tenantId),
     kiosks: drizzleKiosks(tx, tenantId),
     integrations: drizzleIntegrations(tx, tenantId),
