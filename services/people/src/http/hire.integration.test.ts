@@ -83,6 +83,7 @@ beforeAll(async () => {
     '20260923120000_people_webhooks.sql',
     '20260926231500_people_bulk_answer.sql',
     '20260924170000_people_calendar.sql',
+    '20261010130000_people_inbox_rules.sql',
     '20261005090000_people_org_unit.sql',
     '20261005120000_people_section_names.sql',
     '20260924170100_people_tenant_company.sql',

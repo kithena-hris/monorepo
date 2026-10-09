@@ -545,8 +545,11 @@ describe('settings', () => {
       );
     });
     await run(async (tx) => {
+      // As saved, and when: a layer read back carries the instant it was kept.
       expect((await tx.holidays.layers()).toSorted((a, b) => a.key.localeCompare(b.key))).toEqual(
-        layers.toSorted((a, b) => a.key.localeCompare(b.key)),
+        layers
+          .toSorted((a, b) => a.key.localeCompare(b.key))
+          .map((l) => ({ ...l, savedAt: expect.any(String) as unknown })),
       );
       expect(await tx.holidays.assigned(MADRID)).toEqual(layers.map((l) => l.key));
     });
