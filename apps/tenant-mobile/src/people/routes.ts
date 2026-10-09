@@ -97,6 +97,8 @@ export type PeopleRoutes = {
     | undefined;
   /** One leave type and its policies. */
   TimeOffLeaveType: { leaveTypeKey: string; name: string };
+  /** Adding a leave type, a step at a time, ending on an example and Publish. */
+  TimeOffAddLeaveType: undefined;
   /** A policy described in words and read back. */
   TimeOffPolicyDescribe: { leaveTypeKey: string; policyId?: string };
   TimeOffParentalCase: { planId: string; name: string };
