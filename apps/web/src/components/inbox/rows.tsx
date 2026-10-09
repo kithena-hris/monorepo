@@ -3,7 +3,8 @@
 import { Avatar, Badge, Checkbox, ListItem, type SwipeAction } from '@reach/ui';
 import type { JSX, ReactNode } from 'react';
 
-import { moduleName, type Shown } from '../../lib/inbox/model';
+import type { Shown } from '../../lib/inbox/model';
+import { moduleName } from '../../lib/inbox/plain';
 import { since } from '../since';
 import { dueOf, iconOf } from './format';
 

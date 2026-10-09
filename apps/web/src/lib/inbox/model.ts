@@ -139,9 +139,9 @@ export function countsOf(items: readonly Shown[]): Counts {
   };
 }
 
-import { dayIn } from './day';
+import { dayIn, moduleName } from './plain';
 
-export { dayIn };
+export { dayIn, moduleName };
 
 const addDays = (day: string, n: number): string =>
   new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
@@ -273,14 +273,6 @@ export function prune(state: InboxState, items: readonly InboxItem[]): InboxStat
     ticks: keep(state.ticks),
   };
 }
-
-/** What a module is called in the source filter and on a row's tag. */
-export const MODULE_NAMES: Readonly<Record<string, string>> = {
-  people: 'People',
-  timeoff: 'Time off',
-};
-export const moduleName = (module: string): string =>
-  MODULE_NAMES[module] ?? module.charAt(0).toUpperCase() + module.slice(1);
 
 /** One change to the person's state, as the web's actions and the phone's route both make it. */
 export type StateChange =

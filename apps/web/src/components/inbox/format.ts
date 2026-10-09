@@ -1,7 +1,7 @@
 import { icons, type IconName } from '@reach/ui';
 import type { ComponentType } from 'react';
 
-import { dayIn } from '../../lib/inbox/day';
+import { dayIn } from '../../lib/inbox/plain';
 
 /**
  * How the Inbox says dates and kinds: one place, so the list, the detail,

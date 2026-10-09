@@ -1,4 +1,4 @@
-import { dayIn } from './day';
+import { dayIn } from './plain';
 import type { Shown } from './model';
 
 /**
