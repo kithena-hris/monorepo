@@ -7,6 +7,7 @@ import {
   Check,
   CircleCheck,
   Download,
+  Eye,
   Clock,
   FileText,
   IdCard,
@@ -134,6 +135,7 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
   notifications: Bell,
   calendar: Calendar,
   download: Download,
+  visible: Eye,
 };
 export const iconOf = (name: string): LucideIcon => ICONS[name] ?? InboxGlyph;
 

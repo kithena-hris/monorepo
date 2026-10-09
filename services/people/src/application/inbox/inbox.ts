@@ -1091,6 +1091,29 @@ export async function peopleInbox(
       }
     }
 
+    // An administrator viewed Kithena as them: told once it was over, and kept (decided 2026-09-29).
+    const viewed =
+      deps.viewedAs === undefined ? [] : await deps.viewedAs(tx, asking.tenantId, me, now);
+    for (const v of viewed) {
+      const minutes = Math.max(1, Math.round((Date.parse(v.endedAt) - Date.parse(v.at)) / 60_000));
+      items.push(
+        item({
+          id: `people:viewed:${v.id}`,
+          lane: recent(v.endedAt) ? 'update' : 'done',
+          kind: 'people.viewed',
+          area: 'Privacy',
+          icon: 'visible',
+          title: `${v.by ?? 'A People administrator'} viewed Kithena as you`,
+          summary: `For ${String(minutes)} min, read-only: nothing was changed.${
+            v.specialCategory ? ' Your sensitive personal details were visible.' : ''
+          }`,
+          from: { name: v.by, personId: null },
+          at: v.endedAt,
+          link: '/people/me',
+        }),
+      );
+    }
+
     // Exports they asked for, ready to download while their links last (INB-024).
     const ledger = deps.transfers;
     if (

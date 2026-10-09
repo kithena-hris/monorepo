@@ -2652,15 +2652,15 @@ describe('A company the back office has just created, with nothing published', (
          WHERE tenant_id = ${made.tenantId} AND family_name = 'Cascade'`;
     expect(created).toEqual([{ count: String(ROWS) }]);
 
-    // Over: Import is back, the history says Imported, and the bell says so too.
+    // Over: Import is back, the history says Imported, and the Inbox has the news.
     await page.goto(`${made.shell}/people/import-export`);
     await page.getByRole('link', { name: 'Start import' }).first().waitFor({ timeout: 30_000 });
     await page
       .getByText(/^Imported · 400 created or updated$/)
       .first()
       .waitFor({ timeout: 30_000 });
-    await page.goto(`${made.shell}/inbox`);
-    await page.getByText('Import finished: 400 people').first().waitFor({ timeout: 30_000 });
+    await page.goto(`${made.shell}/inbox/updates`);
+    await page.getByText('Your import finished: 400 people').first().waitFor({ timeout: 30_000 });
     expect(await unavailable()).toBe(0);
     expect(problems).toEqual([]);
     await context.close();
