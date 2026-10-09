@@ -1,3 +1,4 @@
+import { dateFormat } from '@kithena/domain-kit';
 import type { CalendarDate, Instant } from '@kithena/contracts';
 
 import { ms, type Shift } from './clock.js';
@@ -93,7 +94,7 @@ export interface DailyRecord {
  */
 export function dailyRecord(shifts: readonly Shift[], timeZone: string): DailyRecord[] {
   const time = (i: Instant): string =>
-    new Intl.DateTimeFormat('en-GB', {
+    dateFormat('en-GB', {
       timeZone,
       hour: '2-digit',
       minute: '2-digit',

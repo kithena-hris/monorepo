@@ -1,4 +1,4 @@
-import { err, failure, localDate, ok, type Result } from '@kithena/domain-kit';
+import { dateFormat, err, failure, localDate, ok, type Result } from '@kithena/domain-kit';
 import type { CalendarDate, Instant } from '@kithena/contracts';
 
 import { ms, type Shift } from './clock.js';
@@ -285,7 +285,7 @@ const sum = (is: readonly { from: string; to: string }[]) => is.reduce((a, i) =>
 
 /** Minutes after local midnight on `date`, past 1440 for the next day. */
 function minuteOfDay(instant: string, date: CalendarDate, timeZone: string): number {
-  const [h = 0, m = 0] = new Intl.DateTimeFormat('en-GB', {
+  const [h = 0, m = 0] = dateFormat('en-GB', {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',

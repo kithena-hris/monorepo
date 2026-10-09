@@ -1,3 +1,5 @@
+import { dateFormat } from '@kithena/domain-kit';
+
 /**
  * Wall-clock time in a member's zone, for the jobs and timers that run at
  * "09:00" or "20:00" where the person is rather than in UTC.
@@ -5,7 +7,7 @@
 
 /** Minutes after local midnight. */
 export function localMinutes(at: Date, timeZone: string): number {
-  const [h = 0, m = 0] = new Intl.DateTimeFormat('en-GB', {
+  const [h = 0, m = 0] = dateFormat('en-GB', {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',

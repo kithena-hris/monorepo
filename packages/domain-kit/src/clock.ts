@@ -25,11 +25,32 @@ export interface Clock {
   date(timeZone: string): CalendarDate;
 }
 
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * One `Intl.DateTimeFormat` per locale and options, kept for the process.
+ * Building one costs some forty times using it, and a screen that walks a
+ * year of days for every member asks for one per day. The keys are bounded
+ * by the time zones in use.
+ */
+export function dateFormat(
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  const key = `${locale}\n${JSON.stringify(options)}`;
+  let held = formatters.get(key);
+  if (held === undefined) {
+    held = new Intl.DateTimeFormat(locale, options);
+    formatters.set(key, held);
+  }
+  return held;
+}
+
 // 'en-CA' with a short date style is ISO 8601 (YYYY-MM-DD), which is the one
 // locale that gives the calendar date the contracts want without formatting
 // parts back together by hand.
 const civil = (at: Date, timeZone: string): string =>
-  new Intl.DateTimeFormat('en-CA', { timeZone, dateStyle: 'short' }).format(at);
+  dateFormat('en-CA', { timeZone, dateStyle: 'short' }).format(at);
 
 /**
  * The calendar day an instant falls on in a time zone. Pure.
@@ -41,7 +62,9 @@ const civil = (at: Date, timeZone: string): string =>
  * bug by the time it gets here: zones are validated where they are written.
  */
 export function localDate(instant: string | Date, timeZone: string): CalendarDate {
-  return CalendarDate.parse(civil(typeof instant === 'string' ? new Date(instant) : instant, timeZone));
+  return CalendarDate.parse(
+    civil(typeof instant === 'string' ? new Date(instant) : instant, timeZone),
+  );
 }
 
 /**

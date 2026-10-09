@@ -150,10 +150,11 @@ export async function approves(
   caller: Caller,
   personId: PersonId,
 ): Promise<boolean> {
-  return (
-    (await relates(deps, caller, 'approver', personId)) ||
-    relates(deps, caller, 'delegate', personId)
-  );
+  const [approver, delegate] = await Promise.all([
+    relates(deps, caller, 'approver', personId),
+    relates(deps, caller, 'delegate', personId),
+  ]);
+  return approver || delegate;
 }
 
 /* --------------------------------------------------------------- screens -- */

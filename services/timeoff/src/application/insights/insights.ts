@@ -2,7 +2,7 @@ import { ok, type Result } from '@kithena/domain-kit';
 import type { CalendarDate, DayAmount, PersonId, TeamKey, TenantId } from '@kithena/contracts';
 
 import { AttendanceClock } from '../../domain/attendance/clock.js';
-import { dayOf } from '../../domain/attendance/day.js';
+import { dayOf, type AttendanceRules } from '../../domain/attendance/day.js';
 import { balanceOn } from '../../domain/balance/ledger.js';
 import { datesIn } from '../../domain/calendar/working-days.js';
 import { addDays, addMonths, amount, days, Decimal, sum } from '../../domain/days.js';
@@ -225,8 +225,8 @@ export async function scopeOf(
 ): Promise<{ scope: 'company' | 'team'; members: Member[] } | null> {
   const active = (await tx.members.list()).filter((m) => m.status !== 'left');
   if (await isHrAdmin(deps, caller)) return { scope: 'company', members: active };
-  const mine: Member[] = [];
-  for (const m of active) if (await relates(deps, caller, 'approver', m.personId)) mine.push(m);
+  const yes = await Promise.all(active.map((m) => relates(deps, caller, 'approver', m.personId)));
+  const mine = active.filter((_, i) => yes[i]);
   return mine.length === 0 ? null : { scope: 'team', members: mine };
 }
 
@@ -291,6 +291,7 @@ async function factsOf(
   tenantId: Caller['tenantId'],
   m: Member,
   months: readonly string[],
+  rules: AttendanceRules,
 ): Promise<MemberYear> {
   const today = deps.clock.date(m.timeZone);
   const { left, losesAtYearEnd, lastDayOff, requests } = await annualFacts(tx, m, today);
@@ -301,7 +302,6 @@ async function factsOf(
     punches: await tx.attendance.punches(m.personId),
   });
   const schedule = (await tx.attendance.schedule(m.personId)) ?? DEFAULT_SCHEDULE;
-  const rules = await tx.attendance.rules();
   const now = deps.clock.instant();
   const byMonth = new Map<string, Omit<Monthly, 'month'>>();
   for (const month of months) {
@@ -376,9 +376,11 @@ export const insights =
         );
         const cohortMinimum =
           (await tx.settings.get('cohort_minimum'))?.value ?? DEFAULT_COHORT_MINIMUM;
-        const years: MemberYear[] = [];
-        for (const m of scope.members)
-          years.push(await factsOf(tx, deps, caller.tenantId, m, months));
+        // Every member's year at once; the rules are the company's, read once.
+        const rules = await tx.attendance.rules();
+        const years: MemberYear[] = await Promise.all(
+          scope.members.map((m) => factsOf(tx, deps, caller.tenantId, m, months, rules)),
+        );
 
         const monthly: Monthly[] = months.map((month) => {
           const all = years.map((y) => y.byMonth.get(month));
