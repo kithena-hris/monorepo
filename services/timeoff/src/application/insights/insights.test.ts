@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { recordingWriter, shown } from '../testing/assist.js';
 import { caller, hr, people, TENANT, world } from '../testing/world.js';
+import { punch } from '../../domain/attendance/t20.fixture.js';
 import { insights } from './insights.js';
 
 /**
@@ -112,5 +113,25 @@ describe('insights (TOF-097)', () => {
     ]);
     const plain = await insights(app.deps)(hr);
     expect(plain.ok && plain.value.points.every((p) => !p.ai)).toBe(true);
+  });
+
+  it('keeps an ended month, and builds it again when a late correction changes it', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    const s = app.state(TENANT);
+    // Adam forgot to clock out on 9 September: one missed clock-out that month.
+    s.punches.set(people.adam, [punch('2026-09-09', '09:00', 'in')]);
+    const september = async () => {
+      const read = await insights(app.deps)(hr);
+      if (!read.ok) throw new Error(read.error.message);
+      return read.value.months.find((m) => m.month === '2026-09')?.missedClockOuts;
+    };
+    expect(await september()).toBe(1);
+    expect(await september()).toBe(1);
+    // The clock-out, added a month late: the month is built again, not read back.
+    s.punches.set(people.adam, [
+      punch('2026-09-09', '09:00', 'in'),
+      punch('2026-09-09', '17:30', 'out'),
+    ]);
+    expect(await september()).toBe(0);
   });
 });
