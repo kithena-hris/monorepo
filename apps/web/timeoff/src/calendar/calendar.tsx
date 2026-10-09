@@ -363,6 +363,7 @@ function Ready({
           data={(data.days ?? []).map((d) => ({ date: d.date, value: d.off }))}
           describe={(value) => `${String(value)} ${value === 1 ? 'person' : 'people'} off`}
           summary={`How many people are off each day in ${String(data.year)}.`}
+          focus={new Date().toISOString().slice(0, 10)}
         />
       ) : view === null ? null : (
         <>

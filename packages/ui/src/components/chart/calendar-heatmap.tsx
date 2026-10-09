@@ -1,4 +1,4 @@
-import { useMemo, type JSX } from 'react';
+import { useEffect, useMemo, useRef, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { ChartDataTable, ChartMark, ChartScaleKey, toneMix, type ChartTone } from './chart';
@@ -27,6 +27,11 @@ export interface CalendarHeatmapProps {
   locale?: string;
   /** What the chart shows, in a sentence, read before the data table. */
   summary?: string;
+  /**
+   * A day, `YYYY-MM-DD`, brought into view when the range is wider than the
+   * screen — today, on a phone, rather than January.
+   */
+  focus?: string;
   className?: string;
 }
 
@@ -65,8 +70,10 @@ export function CalendarHeatmap({
   describe,
   locale = 'en-GB',
   summary,
+  focus,
   className,
 }: CalendarHeatmapProps): JSX.Element {
+  const scroller = useRef<HTMLDivElement>(null);
   const { weeks, first, last, values } = useMemo(() => {
     const firstDay = dayNumber(from);
     const lastDay = dayNumber(to);
@@ -82,6 +89,14 @@ export function CalendarHeatmap({
   }, [data, from, to]);
 
   const start = dayNumber(from);
+  // The week holding `focus`, centred where the weeks scroll; nothing to do
+  // when they all fit.
+  useEffect(() => {
+    const el = scroller.current;
+    if (focus === undefined || el === null || el.scrollWidth <= el.clientWidth) return;
+    const week = Math.floor((dayNumber(focus) - first) / 7);
+    el.scrollLeft = Math.max(0, (week / weeks) * el.scrollWidth - el.clientWidth / 2);
+  }, [focus, first, weeks]);
   const ceiling = max ?? Math.max(...values.values(), 1);
   const monthName = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
   const dateName = new Intl.DateTimeFormat(locale, {
@@ -115,7 +130,7 @@ export function CalendarHeatmap({
       {...(summary === undefined ? {} : { summary })}
       className={cn('w-full', className)}
     >
-      <div className="overflow-x-auto">
+      <div ref={scroller} className="overflow-x-auto">
         <div
           aria-hidden
           className="grid min-w-max items-center gap-[3px] text-[11px] font-medium text-fg-subtle"
