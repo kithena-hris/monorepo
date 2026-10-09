@@ -164,7 +164,8 @@ export async function sendDocument(
     readonly mode: DocumentMode;
     readonly message?: string | null;
     readonly dueOn?: string | null;
-    readonly countersigner?: string | null;
+    /** Whoever sends it countersigns it after them (a signed one only). */
+    readonly countersign?: boolean;
   },
 ): Promise<Result<{ readonly id: string }>> {
   const d = deps.documents;
@@ -197,7 +198,7 @@ export async function sendDocument(
     dueOn: keep ? null : (input.dueOn ?? null),
     sentBy: asking.viewer.accountId,
     sentAt: now,
-    countersigner: input.mode === 'sign' ? (input.countersigner ?? null) : null,
+    countersigner: input.mode === 'sign' && input.countersign === true ? asking.viewer.accountId : null,
     state: keep ? 'kept' : 'open',
     signature: null,
     countersignedBy: null,

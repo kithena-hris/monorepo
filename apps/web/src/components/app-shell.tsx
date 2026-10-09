@@ -211,6 +211,7 @@ const HOST_PAGES = new Set([
   '/settings',
   '/settings/activity',
   '/settings/shortcuts',
+  '/settings/notifications',
 ]);
 
 /** The areas this company has: home, and each module it bought. */

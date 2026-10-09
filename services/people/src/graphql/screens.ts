@@ -3802,14 +3802,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     sendDocument: t.string({
       description:
-        'H3: send the uploaded document, to keep (an update), to acknowledge or to sign (a task), with whoever countersigns. JSON: id.',
+        'H3: send the uploaded document, to keep (an update), to acknowledge or to sign (a task), countersigned by whoever sends it where asked. JSON: id.',
       args: {
         personId: t.arg.id({ required: true }),
         uploadId: t.arg.id({ required: true }),
         mode: t.arg.string({ required: true }),
         message: t.arg.string(),
         dueOn: t.arg.string(),
-        countersigner: t.arg.id(),
+        countersign: t.arg.boolean(),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: async (_root, args, ctx) =>
@@ -3821,7 +3821,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
               mode: args.mode,
               message: args.message ?? null,
               dueOn: args.dueOn ?? null,
-              countersigner: args.countersigner ?? null,
+              countersign: args.countersign ?? false,
             },
             key: args.idempotencyKey,
           }),

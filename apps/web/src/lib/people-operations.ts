@@ -1142,8 +1142,8 @@ export const OPERATIONS = {
     startDocumentUpload(personId: $personId, name: $name, size: $size, idempotencyKey: $key)
   }`,
 
-  SendDocument: `mutation SendDocument($personId: ID!, $uploadId: ID!, $mode: String!, $message: String, $dueOn: String, $countersigner: ID, $key: String!) {
-    sendDocument(personId: $personId, uploadId: $uploadId, mode: $mode, message: $message, dueOn: $dueOn, countersigner: $countersigner, idempotencyKey: $key)
+  SendDocument: `mutation SendDocument($personId: ID!, $uploadId: ID!, $mode: String!, $message: String, $dueOn: String, $countersign: Boolean, $key: String!) {
+    sendDocument(personId: $personId, uploadId: $uploadId, mode: $mode, message: $message, dueOn: $dueOn, countersign: $countersign, idempotencyKey: $key)
   }`,
 
   ActOnDocument: `mutation ActOnDocument($id: ID!, $action: String!, $name: String, $how: String, $mark: String, $note: String, $key: String!) {

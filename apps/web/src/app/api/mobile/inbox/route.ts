@@ -1,7 +1,15 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import { changed, prune, stateOf, StateChangeInput } from '../../../../lib/inbox/model';
+import {
+  changed,
+  groupsOf,
+  LANES,
+  prune,
+  snoozedOf,
+  stateOf,
+  StateChangeInput,
+} from '../../../../lib/inbox/model';
 import { readInbox, type Run } from '../../../../lib/inbox/sources';
 import { peopleFor } from '../../../../lib/people';
 import { readPreferenceFor, writePreferenceFor } from '../../../../lib/preferences';
@@ -40,10 +48,27 @@ async function inboxOf(found: NonNullable<Awaited<ReturnType<typeof who>>>) {
 export async function GET(request: Request): Promise<Response> {
   const found = await who(request);
   if (found === null) return unauthenticated();
-  const { read } = await inboxOf(found);
-  const { raw: _raw, ...answer } = read;
+  const { read, state } = await inboxOf(found);
+  const zone = found.person.timeZone ?? 'UTC';
+  // Grouped here, as the web groups them, so the phone draws and never decides.
+  const lanes = Object.fromEntries(
+    LANES.map((lane) => [lane, groupsOf(read.items, lane, read.now, zone)]),
+  );
   return NextResponse.json(
-    { ok: true, data: { ...answer, zone: found.person.timeZone ?? 'UTC' } },
+    {
+      ok: true,
+      data: {
+        lanes,
+        snoozed: snoozedOf(read.items),
+        counts: read.counts,
+        modules: read.modules,
+        unanswered: read.unanswered,
+        waking: read.waking,
+        now: read.now,
+        zone,
+        muted: state.muted,
+      },
+    },
     { headers: NO_STORE },
   );
 }

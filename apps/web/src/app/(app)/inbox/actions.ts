@@ -214,15 +214,24 @@ export async function startDocumentUpload(
   return { ok: true, ...t };
 }
 
+/** The document is uploaded: send it, with whoever sends it countersigning where asked. */
 export async function sendDocument(input: {
   readonly personId: string;
   readonly uploadId: string;
   readonly mode: 'keep' | 'acknowledge' | 'sign';
   readonly message: string | null;
   readonly dueOn: string | null;
-  readonly countersigner: string | null;
+  readonly countersign: boolean;
 }): Promise<Outcome> {
   return done(await people('SendDocument', { ...input }));
+}
+
+/** A person's Documents (D2, F1); none for their own record but their own. */
+export async function documentsOf(personId: string | null): Promise<readonly unknown[]> {
+  const a = await people<string>('PeopleDocuments', { personId });
+  if (!a.ok) return [];
+  const list = JSON.parse(a.data) as unknown;
+  return Array.isArray(list) ? (list as readonly unknown[]) : [];
 }
 
 /* ------------------------------------------------------- Time Off -- */

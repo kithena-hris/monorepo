@@ -46,6 +46,7 @@ import { useEffect, useRef, useState, type JSX } from 'react';
 
 import {
   actOnDocument,
+  cancelAsk,
   changeAskBatch,
   completeAsk,
   documentFile,
@@ -578,6 +579,7 @@ function Change({ item, zone, now, act }: BodyProps): JSX.Element {
 function Asked({ item, act }: BodyProps): JSX.Element {
   const parsed = PeopleAskedDetail.safeParse(item.detail);
   const [dialog, setDialog] = useState<'due' | 'cancel' | null>(null);
+  const [cancelling, setCancelling] = useState<{ askId: string; name: string } | null>(null);
   if (!parsed.success) return <Missing />;
   const d = parsed.data;
   const left = d.people.filter((p) => p.state === 'open');
@@ -691,6 +693,23 @@ function Asked({ item, act }: BodyProps): JSX.Element {
           }}
         />
       ) : null}
+      {cancelling === null ? null : (
+        <NoteDialog
+          title={`Cancel this for ${cancelling.name}?`}
+          description="The fields lock, it stops counting for them, and they see your note."
+          label="Note"
+          confirm="Cancel it"
+          optional
+          onClose={() => {
+            setCancelling(null);
+          }}
+          onConfirm={(note) => {
+            const askId = cancelling.askId;
+            setCancelling(null);
+            act.run(() => cancelAsk(askId, note === '' ? null : note), { title: 'Cancelled' });
+          }}
+        />
+      )}
       {dialog === 'cancel' ? (
         <ConfirmDialog
           title="Cancel this for everyone?"

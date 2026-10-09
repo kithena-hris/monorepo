@@ -316,7 +316,7 @@ describe('People in the Inbox', () => {
         mode,
         message: 'Please sign by Friday.',
         dueOn: '2030-10-10',
-        countersigner: mode === 'sign' ? GRACE_ACCOUNT : null,
+        countersign: mode === 'sign',
       });
       expect(sent.status).toBe(200);
       return sent.body['id'] as string;

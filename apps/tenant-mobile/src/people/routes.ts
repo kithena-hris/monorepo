@@ -11,8 +11,12 @@ export type PeopleRoutes = {
   /** The Home tab: the person's own To do, or HR's figures and Needs HR (design B1, B2). */
   Home: undefined;
   People: undefined;
-  /** The Inbox tab: what waits for this person, flagged changes, and being viewed as (B3). */
+  /** The Inbox tab: To do, Updates, Requests and Done (M:A1). */
   Inbox: undefined;
+  /** One Inbox item on its own page, its buttons pinned (M:B1–B7, M:C2–C4, M:D2, M:F2). */
+  InboxItem: { id: string };
+  /** Me › Settings › Notifications (M:I1). */
+  Notifications: undefined;
   /** A new starter's sections, one at a time (D7). */
   Onboarding: undefined;
   /** `conditions`: opened on these, as a point in What changed links to its records. */

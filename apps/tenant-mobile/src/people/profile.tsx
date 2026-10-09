@@ -32,6 +32,7 @@ import {
   Ellipsis,
   Eye,
   FileDown,
+  FileText,
   History as HistoryIcon,
   Lock,
   LogOut,
@@ -79,6 +80,8 @@ import {
 } from './employment';
 import { STATUS_TONE } from './directory';
 import type { PeopleScreen } from './routes';
+import { useRoles } from './roles';
+import { AskDialog, Documents, SendDocumentDialog } from '../inbox/profile-asks';
 
 interface Pending {
   readonly id: string;
@@ -264,8 +267,15 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
   const signed = useSigned();
   const { toast } = useToast();
   const [open, setOpen] = useState<
-    { kind: 'move'; move: MoveKind } | { kind: 'place' } | { kind: 'pdf' } | { kind: 'view' } | null
+    | { kind: 'move'; move: MoveKind }
+    | { kind: 'place' }
+    | { kind: 'pdf' }
+    | { kind: 'view' }
+    | { kind: 'ask' }
+    | { kind: 'send' }
+    | null
   >(null);
+  const roles = useRoles();
   const close = (): void => {
     setOpen(null);
   };
@@ -373,16 +383,22 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
           <DropdownMenuItem
             icon={Send}
             onSelect={() => {
-              void act(
-                'RequestDetails',
-                { personId, keys: askable.map((f) => f.key) },
-                `Asked ${firstName} for ${String(askable.length)} details`,
-              );
+              setOpen({ kind: 'ask' });
             }}
           >
-            {`Ask ${firstName} for ${String(askable.length)} ${askable.length === 1 ? 'detail' : 'details'}`}
+            {`Ask ${firstName} for details`}
           </DropdownMenuItem>
         )}
+        {roles.hr ? (
+          <DropdownMenuItem
+            icon={FileText}
+            onSelect={() => {
+              setOpen({ kind: 'send' });
+            }}
+          >
+            Send a document
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           icon={HistoryIcon}
           onSelect={() => {
@@ -438,6 +454,17 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
           onClose={close}
           onDone={reload}
         />
+      ) : null}
+      {open?.kind === 'ask' && personId !== null ? (
+        <AskDialog
+          personId={personId}
+          name={data.person.name}
+          fields={askable.map((f) => ({ key: f.key, label: f.label }))}
+          onClose={close}
+        />
+      ) : null}
+      {open?.kind === 'send' && personId !== null ? (
+        <SendDocumentDialog personId={personId} name={data.person.name} onClose={close} />
       ) : null}
       {open?.kind === 'pdf' ? (
         <ReasonDialog
@@ -696,6 +723,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
       )}
 
       <EmploymentPeriods periods={data.employment?.periods ?? []} />
+      <Documents personId={personId} />
 
       {/* Your own record, in the Me tab: where you are signed in, and the way out. */}
       {own && back === undefined ? (

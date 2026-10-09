@@ -260,7 +260,7 @@ describe('The Inbox', () => {
       mode: 'sign',
       message: 'Please sign this by Friday.',
       dueOn: null,
-      countersigner: ADMIN.account,
+      countersign: true,
     });
     expect(sent.status, JSON.stringify(sent.body)).toBe(200);
     const documentId = (sent.body as { id: string }).id;

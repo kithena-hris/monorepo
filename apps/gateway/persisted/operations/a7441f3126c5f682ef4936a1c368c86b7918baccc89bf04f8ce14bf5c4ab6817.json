@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SendDocument($personId: ID!, $uploadId: ID!, $mode: String!, $message: String, $dueOn: String, $countersign: Boolean, $key: String!) {\n    sendDocument(personId: $personId, uploadId: $uploadId, mode: $mode, message: $message, dueOn: $dueOn, countersign: $countersign, idempotencyKey: $key)\n  }"}

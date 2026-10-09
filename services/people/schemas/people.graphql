@@ -1412,9 +1412,9 @@ type Mutation {
   """C8: the person asked sends it back, always with a reason."""
   sendBackAsk(id: ID!, idempotencyKey: String!, note: String, reason: String!): WriteOutcome
   """
-  H3: send the uploaded document, to keep (an update), to acknowledge or to sign (a task), with whoever countersigns. JSON: id.
+  H3: send the uploaded document, to keep (an update), to acknowledge or to sign (a task), countersigned by whoever sends it where asked. JSON: id.
   """
-  sendDocument(countersigner: ID, dueOn: String, idempotencyKey: String!, message: String, mode: String!, personId: ID!, uploadId: ID!): String
+  sendDocument(countersign: Boolean, dueOn: String, idempotencyKey: String!, message: String, mode: String!, personId: ID!, uploadId: ID!): String
   """A People administrator switches one of the approval checks on or off."""
   setApprovalCheck(code: String!, idempotencyKey: String!, on: Boolean!): WriteOutcome
   """Send one of People’s notices to chat apps, or stop."""

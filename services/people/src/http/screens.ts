@@ -491,7 +491,7 @@ export const DocumentSendBody = z.strictObject({
   mode: z.enum(['keep', 'acknowledge', 'sign']),
   message: z.string().max(2000).nullable().default(null),
   dueOn: z.iso.date().nullable().default(null),
-  countersigner: z.uuid().nullable().default(null),
+  countersign: z.boolean().default(false),
 });
 export const SignatureBody = z.strictObject({
   name: z.string().max(200),

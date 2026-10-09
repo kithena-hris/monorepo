@@ -9,5 +9,7 @@
   "ExportSharesToDecide": "Not read by the web either: the Review queue reads ExportSharesWaiting, as the app does.",
   "AssignTimeOffSchedule": "Not called by the web either: no Time Off screen uses it yet, so neither does the app.",
   "ChangeTimeOffLeaveType": "Not called by the web either: no Time Off screen uses it yet, so neither does the app.",
-  "ImportTimeOffMembers": "Not called by the web either: no Time Off screen uses it yet, so neither does the app."
+  "ImportTimeOffMembers": "Not called by the web either: no Time Off screen uses it yet, so neither does the app.",
+  "PeopleInbox": "Read for the phone too, by /api/mobile/inbox: the web's own merge of every module's Inbox, which the app asks instead of each module.",
+  "TimeOffInbox": "Read for the phone too, by /api/mobile/inbox: the web's own merge of every module's Inbox, which the app asks instead of each module."
 }

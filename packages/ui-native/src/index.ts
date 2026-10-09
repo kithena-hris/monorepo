@@ -538,6 +538,7 @@ export {
 } from './components/password-field/password-field.tsx';
 export { PinInput, type PinInputProps } from './components/pin-input/pin-input.tsx';
 export { Rating, ratingSymbols, type RatingProps } from './components/rating/rating.tsx';
+export { SignaturePad, type SignaturePadProps } from './components/signature-pad/signature-pad.tsx';
 export {
   RadioCard,
   RadioDot,
