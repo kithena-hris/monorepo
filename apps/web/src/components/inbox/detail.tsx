@@ -26,7 +26,7 @@ import { useState, useTransition, type JSX, type ReactNode } from 'react';
 
 import { moduleName, type Shown } from '../../lib/inbox/model';
 import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
-import { Actions, type Act } from './pane';
+import type { Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
 import { MuteDialog, SnoozeDialog } from './dialogs';
 import { PeopleBody } from './detail-people';

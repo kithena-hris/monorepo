@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
-import { readFieldFile, type FileMediaType } from '../../domain/person/file.js';
+import { readFieldFile } from '../../domain/person/file.js';
 import { discard, finishUpload, startUpload, type UploadDeps } from '../import/upload.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
