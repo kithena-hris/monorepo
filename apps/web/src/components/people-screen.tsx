@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState, useTransition, type JSX, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import * as inbox from '../app/(app)/inbox/actions';
@@ -19,6 +19,7 @@ import {
 } from '../lib/url-state';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
+import type { homeToDo } from './inbox/format';
 import {
   exportAddressOf,
   scheduleAudienceOf,
@@ -64,8 +65,8 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
-  /** Home's To do, drawn by the shell from the Inbox (B1): given to People's Home in its place. */
-  readonly toDo?: ReactNode;
+  /** Home's To do, worded by the shell from the Inbox (B1): given to People's Home in its place. */
+  readonly toDo?: ReturnType<typeof homeToDo>;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
    * the actions, for the screen's own header (`headerFrame`): the remote's

@@ -2035,15 +2035,17 @@ describe('People overview: who you are here, what needs you, what is missing', (
     await page.getByRole('heading', { level: 2, name: adamName }).waitFor();
     await page.waitForLoadState('networkidle');
     await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
-    const gap = titled(page, 'To do')
-      .getByRole('link', { name: /Add your emergency contact/ })
-      .first();
+    // His To do is the Inbox's first rows: what his record still needs is one
+    // checklist there, opened in the Inbox.
+    const gap = titled(page, 'To do').getByRole('link', { name: /Finish your profile/ }).first();
     await gap.waitFor();
+    expect(await gap.getAttribute('href')).toBe(
+      `/inbox/todo?item=${encodeURIComponent(`people:onboarding:${EMPLOYEE.person}`)}`,
+    );
     await shot(page, 'overview-employee-desktop-light');
 
-    // The link opens his profile at that field, cursor in it, marked missing.
-    await gap.click();
-    await page.waitForURL(/\/people\/me\?field=emergency_contact$/);
+    // A field's own link opens his profile at that field, cursor in it, marked missing.
+    await page.goto(`${stack.shell}/people/me?field=emergency_contact`);
     const input = page.getByRole('textbox', { name: /Emergency contact/ });
     await input.waitFor({ timeout: 30_000 });
     await expect.poll(() => input.evaluate((el) => el === document.activeElement)).toBe(true);

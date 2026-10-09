@@ -43,10 +43,15 @@ export default async function Home(): Promise<JSX.Element> {
       ? displayName(person.workEmail)
       : `${person.name.given} ${person.name.family}`;
   const account = <AccountSheet person={{ name, email: person.workEmail }} />;
-  // Home's To do is the Inbox's first rows (B1), streamed in after the page.
-  const toDo = <HomeInbox inbox={inboxPeek().catch(() => EMPTY_PEEK)} />;
-  const people = person.entitlements.includes('module.people') ? await PeopleHome(toDo) : null;
-  if (people === null) return <HomeDashboard greeting={greeting} account={account} toDo={toDo} />;
+  // Home's To do is the Inbox's first rows (B1). People's Home draws them
+  // itself, so its server render has them; the shell's own Home streams them.
+  const inbox = inboxPeek().catch(() => EMPTY_PEEK);
+  const people = person.entitlements.includes('module.people') ? await PeopleHome(inbox) : null;
+  if (people === null) {
+    return (
+      <HomeDashboard greeting={greeting} account={account} toDo={<HomeInbox inbox={inbox} />} />
+    );
+  }
   return (
     <div className="relative">
       {/* A phone's title bar: the account beside Home's own title. */}

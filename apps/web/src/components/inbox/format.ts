@@ -1,7 +1,9 @@
 import { icons, type IconName } from '@reach/ui';
 import type { ComponentType } from 'react';
 
-import { dayIn } from '../../lib/inbox/plain';
+import type { Shown } from '../../lib/inbox/model';
+import type { InboxPeek } from '../../lib/inbox/peek';
+import { dayIn, moduleName } from '../../lib/inbox/plain';
 
 /**
  * How the Inbox says dates and kinds: one place, so the list, the detail,
@@ -90,4 +92,43 @@ export function weekdays(from: string, to: string): string {
   const name = (d: string) =>
     new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
   return from === to ? name(from) : `${name(from)} to ${name(to)}`;
+}
+
+/** A Home row as a module's own Home draws it: plain data, worded here. */
+export interface HomeTask {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly href: string;
+  readonly icon: string;
+  readonly tone?: 'warning' | 'danger';
+}
+
+/**
+ * Home's To do and what waits on others (B1), for a module that draws Home:
+ * plain data rather than the shell's card, so the module's server render can
+ * be handed it too.
+ */
+export function homeToDo(peek: InboxPeek): {
+  readonly href: string;
+  readonly tasks: readonly HomeTask[];
+  readonly waiting: readonly HomeTask[];
+} {
+  const row = (i: Shown, lane: string): HomeTask => {
+    const due = i.due === null ? null : dueOf(i.due, i.dueVerb, peek.now, peek.zone);
+    const where = i.area === null ? moduleName(i.module) : `${moduleName(i.module)} › ${i.area}`;
+    return {
+      id: i.id,
+      title: i.title,
+      description: [where, i.status?.label, due?.label].filter(Boolean).join(' · '),
+      href: `/inbox/${lane}?item=${encodeURIComponent(i.id)}`,
+      icon: i.icon,
+      ...(due === null || due.tone === 'neutral' || i.lane !== 'task' ? {} : { tone: due.tone }),
+    };
+  };
+  return {
+    href: '/inbox/todo',
+    tasks: peek.todo.map((i) => row(i, 'todo')),
+    waiting: peek.requests.map((i) => row(i, 'requests')),
+  };
 }
