@@ -22,11 +22,8 @@ import type { ImportNotice } from '../import/run-store.js';
 import type { AskDeps } from '../inbox/asks.js';
 import type { DocumentDeps } from '../inbox/documents.js';
 import type { TeamTaskStore } from '../inbox/team.js';
-import type {
-  ReminderCompany,
-  ReminderMailer,
-  SweepOutcome,
-} from '../completeness/reminders.js';
+import type { InboxRules } from '../org/org.js';
+import type { ReminderCompany, ReminderMailer, SweepOutcome } from '../completeness/reminders.js';
 import type {
   FormValue,
   FormValues,
@@ -54,6 +51,8 @@ export interface ScreenDeps {
   readonly documents?: DocumentDeps;
   /** Team tasks and who took them (`inbox/team.ts`). Absent, there are none. */
   readonly teamTasks?: TeamTaskStore;
+  /** The company's Inbox rules (P2). Absent, the defaults. */
+  readonly inboxRules?: (tx: Tx, tenantId: string) => Promise<InboxRules>;
   /** Viewing as an employee (`person/view-as.ts`). Absent, it is never offered. */
   readonly viewAs?: ViewAsDeps;
   /** The views of an account that are over, newest first: its notices. Absent, none. */

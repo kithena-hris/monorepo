@@ -316,7 +316,7 @@ export const OPERATIONS = {
   Organisation: `query Organisation {
     peopleOrganisation {
       canManage
-      settings { defaultTimeZone cohortMinimum photoAtSignup slug displayName }
+      settings { defaultTimeZone cohortMinimum photoAtSignup slug displayName inboxRules }
       legalEntities { id name country timeZone archived }
       locations { id legalEntityId name country timeZone zones { effectiveFrom timeZone } archived }
       orgUnits { id name parentId path archived }
@@ -745,8 +745,8 @@ export const OPERATIONS = {
     revokeRole(accountId: $accountId, role: $role, reason: $reason, idempotencyKey: $key) { accountId roles }
   }`,
 
-  UpdatePeopleSettings: `mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $photoAtSignup: String, $key: String!) {
-    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, photoAtSignup: $photoAtSignup, idempotencyKey: $key) {
+  UpdatePeopleSettings: `mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $photoAtSignup: String, $inboxRules: String, $key: String!) {
+    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, photoAtSignup: $photoAtSignup, inboxRules: $inboxRules, idempotencyKey: $key) {
       defaultTimeZone
     }
   }`,

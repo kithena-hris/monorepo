@@ -770,6 +770,7 @@ function screenDeps(
     requests: detailRequests(calendars, service),
     asks: { store: drizzleDetailAsks(), newId: uuidv7 },
     teamTasks: drizzleTeamTasks(),
+    inboxRules: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).inboxRules,
     documents: {
       store: drizzleDocuments(),
       uploads: { store: uploads, intents: drizzleUploadIntents() },
@@ -1089,6 +1090,7 @@ export function wirePeople(server: Server): void {
             defaultTimeZone: s.defaultTimeZone,
             cohortMinimum: s.cohortMinimum,
             photoAtSignup: s.photoAtSignup,
+            inboxRules: s.inboxRules,
           };
         },
       }),

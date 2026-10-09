@@ -120,6 +120,17 @@ export function drizzleDocuments(): DocumentStore {
       return [...rows].map(documentOf);
     },
 
+    async openDueBy(tx, tenantId, personIds, day) {
+      if (personIds.length === 0) return [];
+      const rows = await tx.execute<Row>(sql`
+        SELECT ${COLUMNS} FROM people.document
+         WHERE tenant_id = ${tenantId}::uuid AND state = 'open'
+           AND person_id = ANY(${`{${personIds.join(',')}}`}::uuid[])
+           AND due_on <= ${day}::date
+         ORDER BY due_on`);
+      return [...rows].map(documentOf);
+    },
+
     async move(tx, tenantId, id, from, to) {
       const s = to.signature;
       const c = to.countersigned;

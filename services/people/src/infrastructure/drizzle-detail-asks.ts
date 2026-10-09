@@ -100,6 +100,17 @@ export function drizzleDetailAsks(): DetailAskStore {
       return [...rows].map(askOf);
     },
 
+    async openDueBy(tx, tenantId, personIds, day) {
+      if (personIds.length === 0) return [];
+      const rows = await tx.execute<Row>(sql`
+        SELECT ${COLUMNS} FROM people.detail_ask
+         WHERE tenant_id = ${tenantId}::uuid AND state = 'open'
+           AND person_id = ANY(${`{${personIds.join(',')}}`}::uuid[])
+           AND due_on <= ${day}::date
+         ORDER BY due_on`);
+      return [...rows].map(askOf);
+    },
+
     async close(tx, tenantId, id, to) {
       const rows = await tx.execute<{ id: string }>(sql`
         UPDATE people.detail_ask

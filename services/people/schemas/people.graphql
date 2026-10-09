@@ -1515,6 +1515,8 @@ type Mutation {
     cohortMinimum: Int
     defaultTimeZone: String
     idempotencyKey: String!
+    """JSON: the Inbox rules to change, by key."""
+    inboxRules: String
     """off, optional or required."""
     photoAtSignup: String
   ): PeopleSettings
@@ -2250,6 +2252,10 @@ type PeopleSettings {
   cohortMinimum: Int
   defaultTimeZone: String
   displayName: String
+  """
+  The company’s Inbox rules (JSON): remind, overdueDays, askDueDays, signDueDays, acknowledgeDueDays, failuresForATask.
+  """
+  inboxRules: String
   """
   off, optional or required: whether the first screen after signing up asks for a photo.
   """

@@ -423,6 +423,15 @@ export const ExportBody = z.object({
 
 /* Legal entities, locations and settings (PEO-099). Zones are IANA names. */
 
+const InboxRulesBody = z.strictObject({
+  remind: z.enum(['off', 'day_before', 'day_before_then_every_2_days']),
+  overdueDays: z.int().min(0).max(60).describe('0 never: the manager is not told.'),
+  askDueDays: z.int().min(1).max(90),
+  signDueDays: z.int().min(1).max(90),
+  acknowledgeDueDays: z.int().min(1).max(90),
+  failuresForATask: z.int().min(1).max(20),
+});
+
 export const SettingsBody = z.object({
   defaultTimeZone: z.string(),
   cohortMinimum: z.int().describe('Raisable, never lowerable; at least 10.'),
@@ -434,12 +443,14 @@ export const SettingsBody = z.object({
     .nullable()
     .describe('Where the company signs in, <slug>.app…; the back office sets it, read-only here.'),
   displayName: z.string().nullable().describe('The company name; the back office sets it.'),
+  inboxRules: InboxRulesBody.describe('The company’s Inbox rules: reminders, escalation, due dates.'),
 });
 
 export const PatchSettingsBody = z.strictObject({
   defaultTimeZone: z.string().optional(),
   cohortMinimum: z.int().optional(),
   photoAtSignup: z.enum(['off', 'optional', 'required']).optional(),
+  inboxRules: InboxRulesBody.partial().optional(),
 });
 
 export const LegalEntityBody = z.object({

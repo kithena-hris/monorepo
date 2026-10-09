@@ -3,7 +3,7 @@ import { publish } from '@kithena/db-kit';
 import { CalendarDate } from '@kithena/contracts';
 
 import { effectiveZones, type TenantCalendar } from '../domain/org/calendar.js';
-import { DEFAULT_SETTINGS, type OrgStore, type TenantSettings, type ZoneRow } from '../application/org/org.js';
+import { DEFAULT_SETTINGS, inboxRulesOf, type OrgStore, type TenantSettings, type ZoneRow } from '../application/org/org.js';
 import type { EmployeeNumbers, NumberingView } from '../application/org/numbering.js';
 import {
   employeeNumbering,
@@ -96,6 +96,7 @@ export function drizzleOrgStore(): OrgStore {
             defaultTimeZone: row.defaultTimeZone,
             cohortMinimum: row.cohortMinimum,
             photoAtSignup: row.photoAtSignup as TenantSettings['photoAtSignup'],
+            inboxRules: inboxRulesOf(row.inboxRules),
             slug: row.slug,
             displayName: row.displayName,
           }
@@ -107,6 +108,7 @@ export function drizzleOrgStore(): OrgStore {
         defaultTimeZone: settings.defaultTimeZone,
         cohortMinimum: settings.cohortMinimum,
         photoAtSignup: settings.photoAtSignup,
+        inboxRules: settings.inboxRules,
       };
       await tx
         .insert(tenantSettings)

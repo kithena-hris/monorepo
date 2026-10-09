@@ -86,6 +86,12 @@ beforeAll(async () => {
         define({ key: 'family_name', visibility: [...everyone] }),
         define({ key: 'work_email', visibility: [...everyone] }),
         define({
+          key: 'manager_id',
+          dataType: 'person_ref',
+          typeConfig: { kind: 'person_ref' },
+          visibility: [...everyone],
+        }),
+        define({
           key: 'emergency_phone',
           label: { default: 'Emergency contact' },
           ownership: ['employee', 'hr'],
@@ -418,5 +424,43 @@ describe('People in the Inbox', () => {
       team: { takenBy: { name: 'You' }, mine: true },
       detail: { note: 'Rotating the token.' },
     });
+  });
+
+  it('follows the company’s Inbox rules: a default due date, and a manager told of what is overdue', async () => {
+    const sent = await call('POST', '/v1/asks', grace, {
+      personIds: [TIM],
+      keys: ['emergency_phone'],
+      message: null,
+      dueOn: null,
+    });
+    expect(sent.status).toBe(200);
+    const [row] = await admin.execute<{ due_on: string; id: string }>(sql`
+      SELECT due_on::text, id::text FROM people.detail_ask
+       WHERE batch_id = ${sent.body['batchId'] as string}::uuid`);
+    const inSeven = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    expect(row?.due_on).toBe(inSeven);
+
+    // Tim reports to Grace; his task is ten days overdue.
+    await admin.execute(
+      sql`UPDATE people.person SET manager_id = ${GRACE}::uuid WHERE id = ${TIM}::uuid`,
+    );
+    await admin.execute(sql`
+      UPDATE people.detail_ask SET due_on = current_date - 10 WHERE id = ${row?.id ?? ''}::uuid`);
+    expect(
+      (await inbox(grace)).find((i) => i.id === `people:overdue:${row?.id ?? ''}`),
+    ).toMatchObject({
+      lane: 'update',
+      title: "Tim Berners-Lee's task is 10 days overdue",
+    });
+    // Told only after two weeks, now: not yet.
+    const patched = await fetch(`${base}/v1/settings`, {
+      method: 'PATCH',
+      headers: { ...as(GRACE_ACCOUNT, ['hr', 'people_admin']), 'idempotency-key': randomUUID() },
+      body: JSON.stringify({ inboxRules: { overdueDays: 14 } }),
+    });
+    expect(patched.status).toBe(200);
+    expect((await inbox(grace)).some((i) => i.id === `people:overdue:${row?.id ?? ''}`)).toBe(
+      false,
+    );
   });
 });

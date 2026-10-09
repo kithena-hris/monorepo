@@ -8,6 +8,7 @@ import { run } from '../person/service.js';
 import type { ImportUploadView } from '../screens/operations.js';
 import type { FileView } from '../screens/files.js';
 import type { ScreenDeps, Tx } from '../screens/record.js';
+import { defaultDue } from './asks.js';
 
 /**
  * A document sent to somebody (H3, C3, C4, D2, F1). Whoever sends it decides
@@ -74,6 +75,13 @@ export interface DocumentStore {
     tenantId: string,
     accountId: string,
     since: string,
+  ): Promise<readonly SentDocument[]>;
+  /** Documents still with these people, due on or before a day: overdue ones (P2). */
+  openDueBy(
+    tx: Tx,
+    tenantId: string,
+    personIds: readonly string[],
+    day: string,
   ): Promise<readonly SentDocument[]>;
   /** Move it on from `from`; false when somebody moved it first. */
   move(
@@ -187,6 +195,21 @@ export async function sendDocument(
   if (!file.ok) return file;
   const now = deps.clock.instant();
   const keep = input.mode === 'keep';
+  const fallback = async (): Promise<string | null> => {
+    const due = await run(deps.service, asking.tenantId, async (tx) =>
+      ok(
+        await defaultDue(
+          deps,
+          tx,
+          asking.tenantId,
+          input.mode === 'sign' ? 'signDueDays' : 'acknowledgeDueDays',
+        ),
+      ),
+    );
+    return due.ok ? due.value : null;
+  };
+  // No due date given: the company's default for signing or acknowledging (P2).
+  const dueOn: string | null = keep ? null : (input.dueOn ?? (await fallback()));
   const document: SentDocument = {
     id: d.newId(),
     personId: input.personId,
@@ -195,10 +218,11 @@ export async function sendDocument(
     size: file.value.bytes.byteLength,
     mode: input.mode,
     message: words(input.message, 2000),
-    dueOn: keep ? null : (input.dueOn ?? null),
+    dueOn,
     sentBy: asking.viewer.accountId,
     sentAt: now,
-    countersigner: input.mode === 'sign' && input.countersign === true ? asking.viewer.accountId : null,
+    countersigner:
+      input.mode === 'sign' && input.countersign === true ? asking.viewer.accountId : null,
     state: keep ? 'kept' : 'open',
     signature: null,
     countersignedBy: null,

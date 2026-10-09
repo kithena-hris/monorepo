@@ -53,6 +53,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { CountryPacks, type CountryPackRow } from './country-packs';
+import { InboxRulesTab, type InboxRules } from './inbox-rules';
 
 /**
  * Legal entities, locations, employee numbering and the company's settings
@@ -151,6 +152,8 @@ export interface OrganisationState {
     readonly cohortMinimum: number;
     /** Whether the first screen after signing up asks for a photo. Absent: off. */
     readonly photoAtSignup?: PhotoAtSignup;
+    /** The company's Inbox rules (P2). Absent from an older People. */
+    readonly inboxRules?: InboxRules | null;
     readonly slug: string | null;
     readonly displayName: string | null;
   };
@@ -191,6 +194,7 @@ export const ORGANISATION_TABS = [
   'numbering',
   'country-packs',
   'reminders',
+  'inbox-rules',
   'pay-bands',
 ] as const;
 
@@ -208,6 +212,7 @@ export interface OrganisationProps {
     defaultTimeZone?: string;
     cohortMinimum?: number;
     photoAtSignup?: PhotoAtSignup;
+    inboxRules?: Partial<InboxRules>;
   }) => Promise<Outcome>;
   readonly onCreateEntity: (input: {
     name: string;
@@ -323,6 +328,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
   const tabs = ORGANISATION_TABS.filter(
     (t) =>
       (t !== 'country-packs' || state.packs != null) &&
+      (t !== 'inbox-rules' || state.settings.inboxRules != null) &&
       (t !== 'pay-bands' || state.payBands != null),
   ) as readonly string[];
   const tab = tabs.includes(chosen) ? chosen : 'entities';
@@ -333,7 +339,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
     <Stack gap={6}>
       <PageHeader
         title="Organisation"
-        description="Legal entities, locations, org units, numbering, country packs, reminders and pay bands."
+        description="Legal entities, locations, org units, numbering, country packs, reminders, Inbox rules and pay bands."
       />
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change these.</Alert>
@@ -348,6 +354,9 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
             <TabsTrigger value="country-packs">Country packs</TabsTrigger>
           )}
           <TabsTrigger value="reminders">Reminders and privacy</TabsTrigger>
+          {state.settings.inboxRules == null ? null : (
+            <TabsTrigger value="inbox-rules">Inbox rules</TabsTrigger>
+          )}
           {state.payBands == null ? null : <TabsTrigger value="pay-bands">Pay bands</TabsTrigger>}
         </TabsList>
         <TabsContent value="entities">
@@ -377,6 +386,15 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
             )}
           </div>
         </TabsContent>
+        {state.settings.inboxRules == null ? null : (
+          <TabsContent value="inbox-rules">
+            <InboxRulesTab
+              rules={state.settings.inboxRules}
+              canManage={state.canManage}
+              onSave={props.onUpdateSettings}
+            />
+          </TabsContent>
+        )}
         {state.payBands == null ? null : (
           <TabsContent value="pay-bands">
             <PayBands
@@ -698,7 +716,7 @@ function depthOf(units: readonly OrgUnitRow[], unit: OrgUnitRow): number {
 /** The unit and everything under it: none of them can be what it moves under. */
 function subtreeOf(units: readonly OrgUnitRow[], id: string): Set<string> {
   const under = new Set([id]);
-  for (let grew = true; grew; ) {
+  for (let grew = true; grew;) {
     grew = false;
     for (const u of units) {
       if (u.parentId !== null && under.has(u.parentId) && !under.has(u.id)) {

@@ -261,6 +261,8 @@ export const tenantSettings = people.table('tenant_settings', {
   cohortMinimum: integer('cohort_minimum').notNull(),
   /* 20260927180000: whether signing up asks for a photo. */
   photoAtSignup: text('photo_at_signup').notNull().default('off'),
+  /* 20261010130000: the company's Inbox rules, checked by `inboxRulesOf`. */
+  inboxRules: jsonb('inbox_rules').notNull().default({}),
   /* 20260924170100: the company, as the back office last described it. */
   slug: text('slug'),
   displayName: text('display_name'),

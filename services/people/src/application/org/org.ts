@@ -66,6 +66,7 @@ export interface TenantSettings {
    * as something they may skip, or before anything else.
    */
   readonly photoAtSignup: PhotoAtSignup;
+  readonly inboxRules: InboxRules;
   /**
    * `<slug>.app…`, where the company's people sign in, and its name, as the
    * back office last described them (`identity.tenant.*`). Read-only here:
@@ -77,10 +78,58 @@ export interface TenantSettings {
 
 export type PhotoAtSignup = 'off' | 'optional' | 'required';
 
+/**
+ * The company's Inbox rules (P2): reminders and escalation, the default due
+ * dates of what People asks of somebody, and when a failing integration is
+ * every administrator's task. An absent key is its default.
+ */
+export interface InboxRules {
+  /** Reminding people about a task before it is due. */
+  readonly remind: 'off' | 'day_before' | 'day_before_then_every_2_days';
+  /** Days overdue after which the person's manager gets an update; 0 never. */
+  readonly overdueDays: number;
+  readonly askDueDays: number;
+  readonly signDueDays: number;
+  readonly acknowledgeDueDays: number;
+  /** Failed deliveries in a row that make an integration every admin's task. */
+  readonly failuresForATask: number;
+}
+
+export const DEFAULT_INBOX_RULES: InboxRules = {
+  remind: 'day_before_then_every_2_days',
+  overdueDays: 7,
+  askDueDays: 7,
+  signDueDays: 7,
+  acknowledgeDueDays: 14,
+  failuresForATask: 3,
+};
+
+const REMIND = ['off', 'day_before', 'day_before_then_every_2_days'] as const;
+
+/** The rules as stored, each key checked; anything else is its default. */
+export function inboxRulesOf(value: unknown): InboxRules {
+  const v = (value ?? {}) as Record<string, unknown>;
+  const days = (key: keyof InboxRules, min: number, max: number): number => {
+    const n = v[key];
+    return typeof n === 'number' && Number.isInteger(n) && n >= min && n <= max
+      ? n
+      : (DEFAULT_INBOX_RULES[key] as number);
+  };
+  return {
+    remind: REMIND.find((r) => r === v['remind']) ?? DEFAULT_INBOX_RULES.remind,
+    overdueDays: days('overdueDays', 0, 60),
+    askDueDays: days('askDueDays', 1, 90),
+    signDueDays: days('signDueDays', 1, 90),
+    acknowledgeDueDays: days('acknowledgeDueDays', 1, 90),
+    failuresForATask: days('failuresForATask', 1, 20),
+  };
+}
+
 export const DEFAULT_SETTINGS: TenantSettings = {
   defaultTimeZone: 'Etc/UTC',
   cohortMinimum: COHORT_FLOOR,
   photoAtSignup: 'off',
+  inboxRules: DEFAULT_INBOX_RULES,
   slug: null,
   displayName: null,
 };
@@ -131,7 +180,10 @@ export interface OrgStore extends Calendars {
   saveSettings(
     tx: Tx,
     tenantId: string,
-    settings: Pick<TenantSettings, 'defaultTimeZone' | 'cohortMinimum' | 'photoAtSignup'>,
+    settings: Pick<
+      TenantSettings,
+      'defaultTimeZone' | 'cohortMinimum' | 'photoAtSignup' | 'inboxRules'
+    >,
   ): Promise<void>;
   /** Keep the company copy, unless the one held is newer. True when it was kept. */
   saveCompany(tx: Tx, tenantId: string, company: Company): Promise<boolean>;
@@ -190,6 +242,8 @@ export interface SettingsChange {
   readonly defaultTimeZone?: string;
   readonly cohortMinimum?: number;
   readonly photoAtSignup?: PhotoAtSignup;
+  /** Only the keys given change; each is checked as `inboxRulesOf` checks it. */
+  readonly inboxRules?: { readonly [K in keyof InboxRules]?: InboxRules[K] | undefined };
 }
 
 const NotAdmin = () =>
@@ -375,10 +429,11 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
       defaultTimeZone: zone.value,
       cohortMinimum: minimum.value,
       photoAtSignup: change.photoAtSignup ?? current.photoAtSignup,
+      inboxRules: inboxRulesOf({ ...current.inboxRules, ...change.inboxRules }),
     };
-    const fieldsChanged = (['defaultTimeZone', 'cohortMinimum', 'photoAtSignup'] as const).filter(
-      (k) => next[k] !== current[k],
-    );
+    const fieldsChanged = (
+      ['defaultTimeZone', 'cohortMinimum', 'photoAtSignup', 'inboxRules'] as const
+    ).filter((k) => JSON.stringify(next[k]) !== JSON.stringify(current[k]));
     if (fieldsChanged.length === 0) return ok(current);
     await store.saveSettings(tx, by.tenantId, next);
     await store.publish(tx, [

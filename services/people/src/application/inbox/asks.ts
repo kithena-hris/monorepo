@@ -1,4 +1,6 @@
-import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { err, failure, localDate, ok, type Result } from '@kithena/domain-kit';
+
+import { DEFAULT_INBOX_RULES } from '../org/org.js';
 
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
@@ -57,6 +59,13 @@ export interface DetailAskStore {
   /** The asks an account sent, newest first, since an instant. */
   sentBy(tx: Tx, tenantId: string, accountId: string, since: string): Promise<readonly DetailAsk[]>;
   inBatch(tx: Tx, tenantId: string, batchId: string): Promise<readonly DetailAsk[]>;
+  /** Asks still open for these people, due on or before a day: overdue ones (P2). */
+  openDueBy(
+    tx: Tx,
+    tenantId: string,
+    personIds: readonly string[],
+    day: string,
+  ): Promise<readonly DetailAsk[]>;
   /** Close an open ask; false when it was already closed. */
   close(
     tx: Tx,
@@ -93,6 +102,22 @@ export interface AskDeps {
 type Deps = ScreenDeps;
 
 const unavailable = () => err(failure('UNAVAILABLE', 'Asking for details is not available here'));
+
+/** Today plus the company's default for this kind of task, on its calendar (P2). */
+export async function defaultDue(
+  deps: ScreenDeps,
+  tx: Tx,
+  tenantId: string,
+  rule: 'askDueDays' | 'signDueDays' | 'acknowledgeDueDays',
+): Promise<string> {
+  const rules =
+    deps.inboxRules === undefined ? DEFAULT_INBOX_RULES : await deps.inboxRules(tx, tenantId);
+  const zone = (await deps.calendars.load(tx, tenantId)).defaultZone;
+  const today = localDate(deps.clock.instant(), zone);
+  return new Date(Date.parse(`${today}T00:00:00Z`) + rules[rule] * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
 const words = (s: string | null | undefined, max: number): string | null => {
   const t = (s ?? '').trim();
   return t === '' ? null : t.slice(0, max);
@@ -119,8 +144,9 @@ export async function askForDetails(
   const batchId = asks.newId();
   const now = deps.clock.now();
   const message = words(input.message, 2000);
-  const dueOn = input.dueOn ?? null;
   const done = await run(deps.service, asking.tenantId, async (tx) => {
+    // No due date given: the company's default for asking (P2).
+    const dueOn = input.dueOn ?? (await defaultDue(deps, tx, asking.tenantId, 'askDueDays'));
     const recorded: Recorded[] = [];
     const rows: DetailAsk[] = [];
     let skipped = 0;

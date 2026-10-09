@@ -871,7 +871,57 @@ export async function peopleInbox(
         where: { [REPORTS_TO]: self },
         limit: TEAM_PAGE,
       });
-      for (const p of reports.ok ? reports.value.items : []) {
+      const direct = reports.ok ? reports.value.items : [];
+      // P2: a report's task overdue past the company's threshold is news for their manager.
+      const rules =
+        deps.inboxRules === undefined ? null : await deps.inboxRules(tx, asking.tenantId);
+      const overdue = rules?.overdueDays ?? 7;
+      if (overdue > 0 && direct.length > 0) {
+        const by = addDays(today, -overdue);
+        const ids = direct.map((p) => p.id);
+        const lateAsks =
+          asks === undefined ? [] : await asks.store.openDueBy(tx, asking.tenantId, ids, by);
+        const lateDocs =
+          deps.documents === undefined
+            ? []
+            : await deps.documents.store.openDueBy(tx, asking.tenantId, ids, by);
+        const nameOfReport = new Map(direct.map((p) => [p.id, nameOf(p.attributes) ?? 'Someone']));
+        for (const late of [
+          ...lateAsks.map((a) => ({
+            id: a.id,
+            personId: a.personId,
+            due: a.dueOn ?? today,
+            what: 'details HR asked for',
+          })),
+          ...lateDocs.map((d) => ({
+            id: d.id,
+            personId: d.personId,
+            due: d.dueOn ?? today,
+            what: d.name,
+          })),
+        ]) {
+          const who = nameOfReport.get(late.personId) ?? 'Someone';
+          const daysLate = Math.round(
+            (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${late.due}T00:00:00Z`)) / DAY_MS,
+          );
+          items.push(
+            item({
+              id: `people:overdue:${late.id}`,
+              lane: 'update',
+              kind: 'people.overdue',
+              area: 'Your team',
+              icon: 'warning',
+              tone: 'warning',
+              title: `${who}'s task is ${String(daysLate)} days overdue`,
+              summary: late.what,
+              from: { name: who, personId: late.personId },
+              at: `${addDays(late.due, overdue)}T00:00:00.000Z`,
+              link: `/people/${late.personId}`,
+            }),
+          );
+        }
+      }
+      for (const p of direct) {
         const name = nameOf(p.attributes) ?? 'Someone';
         const hired = text(p.attributes['hire_date'])?.slice(0, 10) ?? null;
         const leaving = text(p.attributes['last_working_day'])?.slice(0, 10) ?? null;
@@ -990,7 +1040,13 @@ export async function peopleInbox(
     // H1, Z3: an integration failing is a task for every People administrator; one takes it.
     const team = deps.teamTasks;
     if (team !== undefined && asking.viewer.roles.has('people_admin')) {
-      const failing = await team.failing(tx, asking.tenantId, FAILURES_FOR_A_TASK);
+      const rules =
+        deps.inboxRules === undefined ? null : await deps.inboxRules(tx, asking.tenantId);
+      const failing = await team.failing(
+        tx,
+        asking.tenantId,
+        rules?.failuresForATask ?? FAILURES_FOR_A_TASK,
+      );
       const ids = failing.map((f) => `people:integration:${f.endpointId}`);
       const claims = await team.claims(tx, asking.tenantId, ids);
       const takers = await actors(
