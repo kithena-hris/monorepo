@@ -65,6 +65,9 @@ export interface BodyProps {
   /** Opens the task menu's ask: the thread's reply box takes focus (C7). */
   readonly asking: boolean;
   readonly setAsking: (on: boolean) => void;
+  /** C6's "I can't do this", from the menu or the body: the send-back dialog. */
+  readonly sendingBack: boolean;
+  readonly setSendingBack: (on: boolean) => void;
 }
 
 const LANE_TAG = { task: 'Task', update: 'Update', request: 'Request', done: 'Done' } as const;
@@ -199,6 +202,7 @@ export function InboxDetail({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const [sendingBack, setSendingBack] = useState(false);
   const [dialog, setDialog] = useState<'snooze' | 'mute' | null>(null);
   const act: Act = {
     pending,
@@ -292,6 +296,15 @@ export function InboxDetail({
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             ) : null}
+            {canAsk ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  setSendingBack(true);
+                }}
+              >
+                I can’t do this
+              </DropdownMenuItem>
+            ) : null}
             {item.snoozedUntil === null ? null : (
               <DropdownMenuItem
                 onSelect={() => {
@@ -347,6 +360,8 @@ export function InboxDetail({
         act={act}
         asking={asking}
         setAsking={setAsking}
+        sendingBack={sendingBack}
+        setSendingBack={setSendingBack}
       />
     ) : item.module === 'timeoff' ? (
       <TimeOffBody
@@ -356,6 +371,8 @@ export function InboxDetail({
         act={act}
         asking={asking}
         setAsking={setAsking}
+        sendingBack={sendingBack}
+        setSendingBack={setSendingBack}
       />
     ) : (
       <GenericBody item={item} />

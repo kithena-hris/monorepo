@@ -433,7 +433,25 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
           {`${read.unanswered.map(moduleName).join(' and ')} did not answer just now; its items will be back.`}
         </p>
       )}
-      <div className="flex-1 overflow-y-auto py-1">
+      <div
+        className="flex-1 overflow-y-auto py-1"
+        onKeyDown={(event) => {
+          // D5: X selects the row in focus, as in Review; updates and approvals only.
+          if (event.key !== 'x' || event.metaKey || event.ctrlKey || event.altKey) return;
+          if (lane !== 'updates' && lane !== 'todo') return;
+          const href = (event.target as HTMLElement).closest('a')?.getAttribute('href') ?? '';
+          const id = new URL(href, 'http://inbox').searchParams.get('item');
+          if (id === null) return;
+          event.preventDefault();
+          setSelecting(true);
+          setChecked((was) => {
+            const n = new Set(was);
+            if (n.has(id)) n.delete(id);
+            else n.add(id);
+            return n;
+          });
+        }}
+      >
         {groups.length === 0 && snoozed.length === 0 ? (
           <div className="p-6">{empty}</div>
         ) : (

@@ -19,6 +19,7 @@ import { actors, ownDecidedView, ownRecord } from '../screens/people.js';
 import { formValues, nameOf, toForm, type ScreenDeps, type Tx } from '../screens/record.js';
 import type { RecordField } from '../screens/model.js';
 import type { WaitingView } from '../screens/waiting.js';
+import type { TransferHistory } from '../screens/transfers.js';
 import type { SentDocument } from './documents.js';
 import { FAILURES_FOR_A_TASK } from './team.js';
 import { CHANGE_NUDGE_AFTER_MS, type AskMessage, type AskState, type DetailAsk } from './asks.js';
@@ -148,7 +149,7 @@ const WELCOME_STEPS = (name: string) => [
 ];
 
 export async function peopleInbox(
-  deps: ScreenDeps,
+  deps: ScreenDeps & { readonly transfers?: TransferHistory },
   asking: Asking,
   /** HR's queues, counted as the shell's badges count them; absent, no Review row. */
   waiting?: (tx: Tx) => Promise<Result<WaitingView>>,
@@ -1085,6 +1086,34 @@ export async function peopleInbox(
             link: `/settings/people/integrations/webhooks/${f.endpointId}`,
             openIn: 'Integrations',
             detail,
+          }),
+        );
+      }
+    }
+
+    // Exports they asked for, ready to download while their links last (INB-024).
+    const ledger = deps.transfers;
+    if (
+      ledger !== undefined &&
+      (asking.viewer.roles.has('hr') || asking.viewer.roles.has('people_admin'))
+    ) {
+      const rows = await ledger.page(tx, asking.tenantId, { before: null, limit: 20 });
+      for (const r of rows) {
+        if (r.kind !== 'export' || r.actor !== me || r.rowCount === null || r.expiresAt === null)
+          continue;
+        if (r.expiresAt <= now || !recent(r.at)) continue;
+        items.push(
+          item({
+            id: `people:export:${r.id}`,
+            lane: 'update',
+            kind: 'people.export',
+            area: 'Export',
+            icon: 'download',
+            tone: 'success',
+            title: 'Your export is ready',
+            summary: `${String(r.rowCount)} rows · ${r.reason ?? r.fileNames?.[0] ?? r.format ?? 'file'}`,
+            at: r.at,
+            link: '/people/import-export',
           }),
         );
       }

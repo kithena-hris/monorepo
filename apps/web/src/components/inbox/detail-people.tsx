@@ -263,14 +263,21 @@ function Thread({
 }
 
 /** C1, C7, C8, Z2: details somebody asked for, filled in here. */
-function Details({ item, zone, act, asking, setAsking }: BodyProps): JSX.Element {
+function Details({
+  item,
+  zone,
+  act,
+  asking,
+  setAsking,
+  sendingBack,
+  setSendingBack,
+}: BodyProps): JSX.Element {
   const parsed = PeopleDetailsDetail.safeParse(item.detail);
   const detail = parsed.success ? parsed.data : null;
   const initial: Values = Object.fromEntries(
     (detail?.fields ?? []).map((f) => [f.key, f.value ?? '']),
   );
   const [values, setValues] = useState<Values>(initial);
-  const [sendingBack, setSendingBack] = useState(false);
   if (detail === null) return <Missing />;
   const sender = firstName(item.from?.name) || 'them';
   const open = detail.state === 'open';
