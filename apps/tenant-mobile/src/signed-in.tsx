@@ -388,6 +388,11 @@ export function SignedIn({
                 {hiding > 0 ? null : (
                   <AskKithena
                     bottomInset={TAB_ROOM}
+                    onInbox={tab === 'inbox'}
+                    onOpenItem={(id) => {
+                      setTab('inbox');
+                      if (inboxStack.isReady()) inboxStack.navigate('InboxItem', { id });
+                    }}
                     onOpenPerson={(personId, name) => {
                       setTab('people');
                       if (people.isReady())

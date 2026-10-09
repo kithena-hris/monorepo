@@ -15,7 +15,12 @@ vi.mock('next/link', () => ({
   default: (props: ComponentPropsWithoutRef<'a'>) => <a data-next-link="" {...props} />,
 }));
 vi.mock('../app/(app)/people/actions', () => ({ searchPeople: vi.fn(() => Promise.resolve([])) }));
-vi.mock('../app/(app)/inbox/actions', () => ({ markAllRead: vi.fn(), markRead: vi.fn() }));
+vi.mock('../app/(app)/inbox/actions', () => ({
+  markAllRead: vi.fn(),
+  markRead: vi.fn(),
+  askInbox: vi.fn(),
+  nudgeItem: vi.fn(),
+}));
 vi.mock('../app/(app)/settings/shortcuts/actions', () => ({
   saveShortcuts: vi.fn(() => Promise.resolve({ ok: true })),
 }));

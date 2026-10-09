@@ -119,3 +119,27 @@ export async function saveNotifications(signed: Signed, value: unknown): Promise
   });
   return done.ok ? null : done.message;
 }
+
+/** An answer about the Inbox (M:Z2): the words, what to open, and a nudge where one is open. */
+export interface InboxReply {
+  readonly text: string;
+  readonly items: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly hint: string | null;
+  }[];
+  readonly nudge: { readonly itemId: string; readonly label: string } | null;
+}
+
+export async function askInbox(signed: Signed, question: string): Promise<Answer<InboxReply>> {
+  return call<InboxReply>(signed, '/api/mobile/inbox/ask', {
+    method: 'POST',
+    body: JSON.stringify({ question }),
+  });
+}
+
+/** Whether a question is about the Inbox (the web's `aboutInbox`). */
+export const aboutInbox = (question: string): boolean =>
+  /\b(inbox|to do|todo|task|tasks|due|this week|waiting|nudge|updates?|my requests)\b/iu.test(
+    question,
+  );

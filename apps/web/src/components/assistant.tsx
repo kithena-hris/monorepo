@@ -12,10 +12,13 @@ import {
   icons,
 } from '@reach/ui';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { Route } from 'next';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { askAssistant } from '../app/assistant/actions';
+import { askInbox, nudgeItem } from '../app/(app)/inbox/actions';
+import { aboutInbox, type InboxReply } from '../lib/inbox/ask';
 import type { AssistantReply } from '../lib/assistant';
 
 /**
@@ -39,10 +42,17 @@ interface Turn {
   readonly from: 'user' | 'assistant';
   readonly text: string;
   readonly people?: AssistantReply['people'];
+  /** An answer about the Inbox: what to open, and a nudge where one is open (Z4). */
+  readonly inbox?: InboxReply;
 }
 
 /** Ask about your people: the two questions a chip offers above the box, every time. */
 const SUGGESTIONS: readonly string[] = ['Who reports to me?', 'What’s waiting for me?'];
+/** On the Inbox, the questions about it (Z4). */
+const INBOX_SUGGESTIONS: readonly string[] = [
+  'What do I need to do this week?',
+  'What’s waiting on others?',
+];
 
 export function Assistant(): JSX.Element {
   // Open, or folded into the launcher; the conversation outlives either.
@@ -75,12 +85,32 @@ export function Assistant(): JSX.Element {
     if (open) panel.current?.querySelector('textarea')?.focus();
   }, [open]);
 
+  const pathname = usePathname();
+  const onInbox = pathname.startsWith('/inbox');
   const ask = (question: string): void => {
     const earlier = turns.filter((t) => t.from === 'user').map((t) => t.text);
     const mine = ++asked.current;
     setTurns((all) => [...all, { id: next.current++, from: 'user', text: question }]);
     setDraft('');
     setBusy(true);
+    // About the Inbox: answered from it, here (Z4); anything else goes to the assistant.
+    if (onInbox || aboutInbox(question)) {
+      void askInbox(question)
+        .catch(() => ({
+          text: 'Sorry, I couldn’t read your Inbox just now.',
+          items: [],
+          nudge: null,
+        }))
+        .then((reply) => {
+          if (mine !== asked.current) return;
+          setTurns((all) => [
+            ...all,
+            { id: next.current++, from: 'assistant', text: reply.text, inbox: reply },
+          ]);
+          setBusy(false);
+        });
+      return;
+    }
     void askAssistant(question, earlier)
       .catch(() => ({
         text: 'Sorry, I couldn’t reach Kithena just now. Could you try again in a moment?',
@@ -149,7 +179,7 @@ export function Assistant(): JSX.Element {
         composer={
           <>
             <ChipRow aria-label="Try asking" className="px-4 pt-2">
-              {SUGGESTIONS.map((text) => (
+              {(onInbox ? INBOX_SUGGESTIONS : SUGGESTIONS).map((text) => (
                 <Chip
                   key={text}
                   disabled={busy}
@@ -170,11 +200,13 @@ export function Assistant(): JSX.Element {
                 asked.current += 1;
                 setBusy(false);
               }}
-              placeholder="Ask about your people…"
+              placeholder={onInbox ? 'Ask about your inbox…' : 'Ask about your people…'}
               disclaimer={
                 <span className="inline-flex items-center gap-1.5 [&_svg]:size-3">
                   <icons.assistant aria-hidden />
-                  Read-only. Sees your question and field names, never values.
+                  {onInbox
+                    ? 'Opens tasks for you; never finishes one on its own.'
+                    : 'Read-only. Sees your question and field names, never values.'}
                 </span>
               }
             />
@@ -190,6 +222,14 @@ export function Assistant(): JSX.Element {
         {turns.map((t) => (
           <AssistantMessage key={t.id} from={t.from}>
             {t.from === 'user' ? t.text : <p>{t.text}</p>}
+            {t.inbox === undefined ? null : (
+              <InboxAnswer
+                reply={t.inbox}
+                onOpen={() => {
+                  setOpen(false);
+                }}
+              />
+            )}
             {t.people !== undefined && t.people.length > 0 ? (
               <Mentioned
                 people={t.people}
@@ -203,6 +243,45 @@ export function Assistant(): JSX.Element {
         {busy ? <AssistantMessage from="assistant" streaming /> : null}
       </AssistantPanel>
     </div>
+  );
+}
+
+/** What an Inbox answer offers: its items to open, and a nudge where one is open (Z4). */
+function InboxAnswer({
+  reply,
+  onOpen,
+}: {
+  readonly reply: InboxReply;
+  readonly onOpen: () => void;
+}): JSX.Element | null {
+  const [nudged, setNudged] = useState<string | null>(null);
+  if (reply.items.length === 0 && reply.nudge === null) return null;
+  const nudge = reply.nudge;
+  return (
+    <ChipRow aria-label="From your Inbox">
+      {reply.items.map((i) => (
+        <Button key={i.id} asChild size="xs" variant="secondary">
+          <Link
+            href={`/inbox/${i.lane}?item=${encodeURIComponent(i.id)}` as Route}
+            onClick={onOpen}
+          >
+            {i.hint === null ? i.title : `${i.title} · ${i.hint}`}
+          </Link>
+        </Button>
+      ))}
+      {nudge === null ? null : (
+        <Chip
+          disabled={nudged !== null}
+          onClick={() => {
+            void nudgeItem(nudge.itemId).then((done) => {
+              setNudged(done.ok ? 'Nudged' : done.message);
+            });
+          }}
+        >
+          {nudged ?? nudge.label}
+        </Chip>
+      )}
+    </ChipRow>
   );
 }
 

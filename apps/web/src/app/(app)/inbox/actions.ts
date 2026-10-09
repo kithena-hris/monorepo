@@ -5,6 +5,7 @@ import { refresh } from 'next/cache';
 import { people, timeOff } from '../../../lib/people';
 import { changed, type InboxState, type Mute } from '../../../lib/inbox/model';
 import { changeState, inboxNow } from '../../../lib/inbox/server';
+import { answerInbox, type InboxReply } from '../../../lib/inbox/ask';
 
 /**
  * What the Inbox's buttons do (INB-004). Two kinds of thing:
@@ -313,4 +314,21 @@ export async function handOver(
           input: { delegateId: input.delegateId, range: { from: input.from, to: input.to } },
         }),
   );
+}
+
+/* ------------------------------------------------ asking about it -- */
+
+/** Z4: a question about the Inbox, answered from it; nothing is finished for anybody. */
+export async function askInbox(question: string): Promise<InboxReply> {
+  const read = await inboxNow();
+  return answerInbox(question.slice(0, 500), read.items, read.now, read.zone);
+}
+
+/** The nudge an answer offers: the module's own, for the item it names. */
+export async function nudgeItem(itemId: string): Promise<Outcome> {
+  const [module, kind, id] = itemId.split(':');
+  if (id === undefined) return { ok: false, message: 'No such request' };
+  if (module === 'people' && kind === 'change') return nudgeChange(id);
+  if (module === 'timeoff' && kind === 'request') return nudgeTimeOff(id);
+  return { ok: false, message: 'That request cannot be nudged' };
 }
