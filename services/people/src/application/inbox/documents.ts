@@ -8,6 +8,16 @@ import { run } from '../person/service.js';
 import type { ImportUploadView } from '../screens/operations.js';
 import type { FileView } from '../screens/files.js';
 import type { ScreenDeps, Tx } from '../screens/record.js';
+import type { DocumentDeps, DocumentMode, DocumentState, SentDocument } from './ports.js';
+
+export type {
+  DocumentDeps,
+  DocumentMode,
+  DocumentState,
+  DocumentStore,
+  SentDocument,
+  Signature,
+} from './ports.js';
 import { defaultDue } from './asks.js';
 import { tell } from './notify.js';
 
@@ -24,84 +34,6 @@ import { tell } from './notify.js';
  * not stamped into it; stamping the PDF is the upgrade if a signed copy has to
  * travel on its own.
  */
-
-export type DocumentMode = 'keep' | 'acknowledge' | 'sign';
-export type DocumentState =
-  'open' | 'kept' | 'acknowledged' | 'signed' | 'countersigned' | 'declined' | 'cancelled';
-
-export interface Signature {
-  readonly name: string;
-  readonly how: 'typed' | 'drawn';
-  /** The typed name, or the drawn strokes as an SVG path. */
-  readonly mark: string;
-  readonly at: string;
-  readonly place: string | null;
-}
-
-export interface SentDocument {
-  readonly id: string;
-  readonly personId: string;
-  readonly name: string;
-  readonly mediaType: FileMediaType;
-  readonly size: number;
-  readonly mode: DocumentMode;
-  readonly message: string | null;
-  readonly dueOn: string | null;
-  readonly sentBy: string;
-  readonly sentAt: string;
-  readonly countersigner: string | null;
-  readonly state: DocumentState;
-  readonly signature: Signature | null;
-  readonly countersignedBy: string | null;
-  readonly countersignedName: string | null;
-  readonly countersignedAt: string | null;
-  readonly note: string | null;
-  readonly closedAt: string | null;
-}
-
-export interface DocumentStore {
-  insert(
-    tx: Tx,
-    tenantId: string,
-    document: SentDocument,
-    file: { readonly bytes: Uint8Array; readonly checksum: string },
-  ): Promise<void>;
-  find(tx: Tx, tenantId: string, id: string): Promise<SentDocument | null>;
-  bytes(tx: Tx, tenantId: string, id: string): Promise<Uint8Array | null>;
-  /** One person's documents, newest first. */
-  forPerson(tx: Tx, tenantId: string, personId: string): Promise<readonly SentDocument[]>;
-  /** What an account sent, or has to countersign, since an instant, newest first. */
-  involving(
-    tx: Tx,
-    tenantId: string,
-    accountId: string,
-    since: string,
-  ): Promise<readonly SentDocument[]>;
-  /** Documents still with these people, due on or before a day: overdue ones (P2). */
-  openDueBy(
-    tx: Tx,
-    tenantId: string,
-    personIds: readonly string[],
-    day: string,
-  ): Promise<readonly SentDocument[]>;
-  /** Move it on from `from`; false when somebody moved it first. */
-  move(
-    tx: Tx,
-    tenantId: string,
-    id: string,
-    from: DocumentState,
-    to: Pick<SentDocument, 'state' | 'note' | 'closedAt'> & {
-      readonly signature?: Signature;
-      readonly countersigned?: { readonly by: string; readonly name: string; readonly at: string };
-    },
-  ): Promise<boolean>;
-}
-
-export interface DocumentDeps {
-  readonly store: DocumentStore;
-  readonly uploads: Pick<UploadDeps, 'store' | 'intents'>;
-  readonly newId: () => string;
-}
 
 /** What a document may be: a PDF or a photo of one, up to 25 MB. */
 const RULES = {

@@ -2,7 +2,10 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import type { ScreenDeps, Tx } from '../screens/record.js';
+import type { ScreenDeps } from '../screens/record.js';
+import type { Claim } from './ports.js';
+
+export type { Claim, FailingIntegration, TeamTaskStore } from './ports.js';
 
 /**
  * Team tasks (H1, Z3): a task for a role rather than a person. People has one
@@ -14,33 +17,6 @@ import type { ScreenDeps, Tx } from '../screens/record.js';
 
 /** A delivery failing this many times in a row makes it everyone's task. */
 export const FAILURES_FOR_A_TASK = 3;
-
-export interface FailingIntegration {
-  readonly endpointId: string;
-  readonly url: string;
-  /** When it started failing: the oldest delivery still failing, or when it was disabled. */
-  readonly since: string;
-  readonly attempts: number;
-  readonly lastResponse: number | null;
-  readonly disabled: boolean;
-  /** Why it was disabled, in People's words. */
-  readonly problem: string | null;
-  /** Deliveries waiting on it. */
-  readonly waiting: number;
-}
-
-export interface Claim {
-  readonly by: string;
-  readonly at: string;
-  readonly note: string | null;
-}
-
-export interface TeamTaskStore {
-  failing(tx: Tx, tenantId: string, failures: number): Promise<readonly FailingIntegration[]>;
-  claims(tx: Tx, tenantId: string, itemIds: readonly string[]): Promise<ReadonlyMap<string, Claim>>;
-  /** Take it, or take it over: the newest one taking it holds it. */
-  claim(tx: Tx, tenantId: string, itemId: string, claim: Claim): Promise<void>;
-}
 
 /** Only People's own team tasks may be taken here. */
 const TEAM_ITEM = /^people:integration:[0-9a-f-]{36}$/u;

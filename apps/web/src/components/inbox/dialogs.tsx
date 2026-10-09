@@ -30,7 +30,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { moduleName, type Shown } from '../../lib/inbox/model';
 import { mute, sendBackAsk } from '../../app/(app)/inbox/actions';
-import type { Act } from './detail';
+import type { Act } from './pane';
 
 /**
  * The Inbox's dialogs: short and centred, never a new page (C4's rule). Each

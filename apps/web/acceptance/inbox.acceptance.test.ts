@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import { appendFileSync } from 'node:fs';
 import { chromium, type Browser, type BrowserContext } from 'playwright';
 
 import { ADMIN, EMPLOYEE, TENANT, startStack, type Stack } from './stack';
@@ -298,6 +299,38 @@ describe('The Inbox', () => {
     await hers
       .getByRole('link', { name: 'Countersign Remote-work addendum.pdf' })
       .waitFor({ timeout: 30_000 });
+    await priya.close();
+  });
+
+  it('reads fast: each module’s Inbox under 300 ms warm, and the page drawn on the server with its item', async () => {
+    const time = async (read: () => Promise<unknown>): Promise<number> => {
+      await read();
+      const runs: number[] = [];
+      for (let i = 0; i < 5; i += 1) {
+        const start = performance.now();
+        await read();
+        runs.push(performance.now() - start);
+      }
+      return runs.sort((a, b) => a - b)[2] ?? 0;
+    };
+    const people = await time(() => stack.asPeople(ADMIN.account, '/v1/views/inbox'));
+    const timeoff = await time(() => stack.asTimeOff(ADMIN.account, 'GET', '/v1/timeoff/inbox'));
+    const out = process.env['INBOX_SPEED_OUT'];
+    const say = (line: string): void => {
+      if (out !== undefined) appendFileSync(out, `${line}\n`);
+    };
+    say(`inbox reads, median warm: people ${people.toFixed(0)} ms, time off ${timeoff.toFixed(0)} ms`);
+    expect(people).toBeLessThan(300);
+    expect(timeoff).toBeLessThan(300);
+
+    // The first paint is the list and the open item, from the server: no skeleton, no second fetch.
+    const priya = await signedIn(ADMIN.session);
+    const page = await priya.newPage();
+    const start = performance.now();
+    const response = await page.goto(`${stack.shell}/inbox/updates`);
+    const html = (await response?.text()) ?? '';
+    say(`inbox page, server render: ${(performance.now() - start).toFixed(0)} ms`);
+    expect(html).toContain('Adam Ruiz added what you asked for');
     await priya.close();
   });
 });

@@ -19,10 +19,7 @@ import type { AssistantPort } from '../assistant/assistant-port.js';
 import type { ChatDeps } from '../settings/chat-port.js';
 import type { ViewAsDeps, ViewedAs } from '../person/view-as.js';
 import type { ImportNotice } from '../import/run-store.js';
-import type { AskDeps } from '../inbox/asks.js';
-import type { DocumentDeps } from '../inbox/documents.js';
-import type { TeamTaskStore } from '../inbox/team.js';
-import type { InboxNotifier } from '../inbox/notify.js';
+import type { AskDeps, DocumentDeps, InboxNotifier, TeamTaskStore } from '../inbox/ports.js';
 import type { InboxRules } from '../org/org.js';
 import type { ReminderCompany, ReminderMailer, SweepOutcome } from '../completeness/reminders.js';
 import type {

@@ -5,6 +5,16 @@ import { DEFAULT_INBOX_RULES } from '../org/org.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { emailAll, recordOne, type Recorded } from '../screens/requests.js';
+import type { AskMessage, AskState, DetailAsk, SendBackReason } from './ports.js';
+
+export type {
+  AskDeps,
+  AskMessage,
+  AskState,
+  DetailAsk,
+  DetailAskStore,
+  SendBackReason,
+} from './ports.js';
 import { saveSection, type ScreenDeps, type Tx } from '../screens/record.js';
 import { tell } from './notify.js';
 
@@ -18,87 +28,6 @@ import { tell } from './notify.js';
  * the profile says it was asked for and the email keeps its daily cap. Who
  * may ask whom for what is `recordOne`'s, unchanged.
  */
-
-export type AskState = 'open' | 'done' | 'sent_back' | 'cancelled';
-export type SendBackReason = 'no_information' | 'not_applicable' | 'other';
-
-export interface DetailAsk {
-  readonly id: string;
-  readonly personId: string;
-  readonly keys: readonly string[];
-  readonly message: string | null;
-  readonly dueOn: string | null;
-  readonly requestedBy: string;
-  readonly requestedAt: string;
-  readonly batchId: string;
-  readonly state: AskState;
-  readonly reason: SendBackReason | null;
-  readonly note: string | null;
-  readonly closedBy: string | null;
-  readonly closedAt: string | null;
-}
-
-export interface AskMessage {
-  readonly id: string;
-  readonly askId: string;
-  /** The account that wrote it. */
-  readonly author: string;
-  readonly body: string;
-  readonly at: string;
-}
-
-export interface DetailAskStore {
-  insert(tx: Tx, tenantId: string, asks: readonly DetailAsk[]): Promise<void>;
-  find(tx: Tx, tenantId: string, id: string): Promise<DetailAsk | null>;
-  /** One person's asks, newest first, since an instant. */
-  forPerson(
-    tx: Tx,
-    tenantId: string,
-    personId: string,
-    since: string,
-  ): Promise<readonly DetailAsk[]>;
-  /** The asks an account sent, newest first, since an instant. */
-  sentBy(tx: Tx, tenantId: string, accountId: string, since: string): Promise<readonly DetailAsk[]>;
-  inBatch(tx: Tx, tenantId: string, batchId: string): Promise<readonly DetailAsk[]>;
-  /** Asks still open for these people, due on or before a day: overdue ones (P2). */
-  openDueBy(
-    tx: Tx,
-    tenantId: string,
-    personIds: readonly string[],
-    day: string,
-  ): Promise<readonly DetailAsk[]>;
-  /** Close an open ask; false when it was already closed. */
-  close(
-    tx: Tx,
-    tenantId: string,
-    id: string,
-    to: {
-      readonly state: Exclude<AskState, 'open'>;
-      readonly reason: SendBackReason | null;
-      readonly note: string | null;
-      readonly by: string;
-      readonly at: string;
-    },
-  ): Promise<boolean>;
-  /** Open again what the person finished a moment ago (C5's Undo); false otherwise. */
-  reopen(tx: Tx, tenantId: string, id: string): Promise<boolean>;
-  setDue(tx: Tx, tenantId: string, batchId: string, dueOn: string | null): Promise<void>;
-  addMessage(tx: Tx, tenantId: string, message: AskMessage): Promise<void>;
-  messages(tx: Tx, tenantId: string, askIds: readonly string[]): Promise<readonly AskMessage[]>;
-  /** Record the one nudge on a change waiting for HR; false when it was nudged already. */
-  nudge(tx: Tx, tenantId: string, changeId: string, by: string, at: string): Promise<boolean>;
-  /** When each of these changes was nudged, where it was. */
-  nudges(
-    tx: Tx,
-    tenantId: string,
-    changeIds: readonly string[],
-  ): Promise<ReadonlyMap<string, string>>;
-}
-
-export interface AskDeps {
-  readonly store: DetailAskStore;
-  readonly newId: () => string;
-}
 
 type Deps = ScreenDeps;
 

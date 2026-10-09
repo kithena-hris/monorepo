@@ -59,7 +59,7 @@ import {
   withdrawChange,
 } from '../../app/(app)/inbox/actions';
 import { checkIdentifiers, saveOwnSection } from '../../app/(app)/people/actions';
-import { Actions, type BodyProps } from './detail';
+import { Actions, type BodyProps } from './pane';
 import { ConfirmDialog, DueDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';
 

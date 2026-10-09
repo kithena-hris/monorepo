@@ -26,7 +26,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { decideTimeOff, nudgeTimeOff, withdrawTimeOff } from '../../app/(app)/inbox/actions';
-import { Actions, type BodyProps } from './detail';
+import { Actions, type BodyProps } from './pane';
 import { ConfirmDialog } from './dialogs';
 import { days, firstName, shortDay, spanLong, weekdays, when } from './format';
 

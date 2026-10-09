@@ -25,7 +25,8 @@ import * as z from 'zod';
 import { useState, useTransition, type JSX, type ReactNode } from 'react';
 
 import { moduleName, type Shown } from '../../lib/inbox/model';
-import { markRead, moveToDone, snooze, type Outcome } from '../../app/(app)/inbox/actions';
+import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
+import { Actions, type Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
 import { MuteDialog, SnoozeDialog } from './dialogs';
 import { PeopleBody } from './detail-people';
@@ -38,37 +39,6 @@ import { TimeOffBody } from './detail-timeoff';
  * one primary action. Done here is done in the module too, because acting
  * runs the module's own write.
  */
-
-export interface Act {
-  /**
-   * Run one write; on success say so (with an Undo where there is one) and,
-   * for a task finished, move on to the next (C5).
-   */
-  readonly run: (
-    write: () => Promise<Outcome>,
-    success?: {
-      readonly title: string;
-      readonly description?: string;
-      readonly undo?: () => Promise<Outcome>;
-      readonly next?: boolean;
-    },
-  ) => void;
-  readonly pending: boolean;
-  readonly error: string | null;
-}
-
-export interface BodyProps {
-  readonly item: Shown;
-  readonly now: string;
-  readonly zone: string;
-  readonly act: Act;
-  /** Opens the task menu's ask: the thread's reply box takes focus (C7). */
-  readonly asking: boolean;
-  readonly setAsking: (on: boolean) => void;
-  /** C6's "I can't do this", from the menu or the body: the send-back dialog. */
-  readonly sendingBack: boolean;
-  readonly setSendingBack: (on: boolean) => void;
-}
 
 const LANE_TAG = { task: 'Task', update: 'Update', request: 'Request', done: 'Done' } as const;
 
@@ -446,22 +416,6 @@ function GenericBody({ item }: { readonly item: Shown }): JSX.Element {
           <a href={item.link}>{`Open in ${item.openIn}`}</a>
         </Button>
       </div>
-    </div>
-  );
-}
-
-/** The action row at the foot of a body: the primary first, a hint at the end. */
-export function Actions({
-  children,
-  hint,
-}: {
-  readonly children: ReactNode;
-  readonly hint?: ReactNode;
-}): JSX.Element {
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-      {children}
-      {hint === undefined ? null : <span className="ms-auto text-sm text-fg-subtle">{hint}</span>}
     </div>
   );
 }
