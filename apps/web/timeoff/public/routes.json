@@ -13,6 +13,7 @@
     { "path": "/time-off/approvals/coming-up", "component": "Approvals" },
     { "path": "/time-off/approvals/decided", "component": "Approvals" },
     { "path": "/time-off/approvals/delegation", "component": "Delegation" },
+    { "path": "/time-off/approvals/adjustments", "component": "Adjustments" },
     { "path": "/time-off/calendar/month", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
@@ -106,6 +107,12 @@
         {
           "path": "/time-off/approvals/delegation",
           "label": "Delegation",
+          "for": ["manager", "hr"]
+        },
+        {
+          "path": "/time-off/approvals/adjustments",
+          "label": "Balance adjustments",
+          "short": "Adjustments",
           "for": ["manager", "hr"]
         },
         {
