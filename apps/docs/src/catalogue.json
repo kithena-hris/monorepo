@@ -32,6 +32,7 @@
       "PinInput",
       "TagsInput",
       "Rating",
+      "SignaturePad",
       "Select",
       "Combobox",
       "Checkbox",
