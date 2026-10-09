@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 
 import { PeopleScreen } from './people-screen';
 import { Waking, WakingHeader } from './waking';
@@ -228,7 +228,7 @@ export async function PeopleArea({
  * signed in, as for any screen, and renders it on the server. `null` when
  * People offers no Home or cannot say which: the shell's own Home stands.
  */
-export async function PeopleHome(): Promise<JSX.Element | null> {
+export async function PeopleHome(toDo?: ReactNode): Promise<JSX.Element | null> {
   const area = AREAS.people;
   const nav = await remoteNav(area);
   const component = nav?.slots.home;
@@ -253,6 +253,7 @@ export async function PeopleHome(): Promise<JSX.Element | null> {
           params={{}}
           search={{}}
           today={today()}
+          {...(toDo === undefined ? {} : { toDo })}
         />
       )}
     </Waking>

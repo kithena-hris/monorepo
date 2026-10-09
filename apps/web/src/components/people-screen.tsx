@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
+import { useEffect, useRef, useState, useTransition, type JSX, type ReactNode } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
@@ -63,6 +63,8 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
+  /** Home's To do, drawn by the shell from the Inbox (B1): given to People's Home in its place. */
+  readonly toDo?: ReactNode;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
    * the actions, for the screen's own header (`headerFrame`): the remote's
@@ -1011,6 +1013,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       case 'PeopleHome':
         return {
           load: loadable,
+          ...(input.toDo === undefined ? {} : { toDo: input.toDo }),
           // What signing up still asks: their photo, and files kept to their fields.
           onPhoto: (file: File) => uploadPhoto(null, file),
           onSetupFile: async (

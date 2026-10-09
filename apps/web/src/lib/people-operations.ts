@@ -1088,6 +1088,67 @@ export const OPERATIONS = {
   DecideExportShare: `mutation DecideExportShare($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
     decideExportShare(id: $id, approve: $approve, note: $note, idempotencyKey: $key)
   }`,
+
+  /* The Inbox (INB-020 to INB-029): People's items, and acting on them where they are read. */
+  PeopleInbox: `query PeopleInbox {
+    peopleInbox
+  }`,
+
+  AskForDetails: `mutation AskForDetails($personIds: [ID!]!, $keys: [String!]!, $message: String, $dueOn: String, $key: String!) {
+    askForDetails(personIds: $personIds, keys: $keys, message: $message, dueOn: $dueOn, idempotencyKey: $key)
+  }`,
+
+  CompleteAsk: `mutation CompleteAsk($id: ID!, $values: String!, $key: String!) {
+    completeAsk(id: $id, values: $values, idempotencyKey: $key)
+  }`,
+
+  UndoAsk: `mutation UndoAsk($id: ID!, $values: String!, $key: String!) {
+    undoAsk(id: $id, values: $values, idempotencyKey: $key) { ok }
+  }`,
+
+  ReplyToAsk: `mutation ReplyToAsk($id: ID!, $body: String!, $key: String!) {
+    replyToAsk(id: $id, body: $body, idempotencyKey: $key) { ok }
+  }`,
+
+  SendBackAsk: `mutation SendBackAsk($id: ID!, $reason: String!, $note: String, $key: String!) {
+    sendBackAsk(id: $id, reason: $reason, note: $note, idempotencyKey: $key) { ok }
+  }`,
+
+  CancelAsk: `mutation CancelAsk($id: ID!, $note: String, $key: String!) {
+    cancelAsk(id: $id, note: $note, idempotencyKey: $key) { ok }
+  }`,
+
+  ChangeAskBatch: `mutation ChangeAskBatch($batchId: ID!, $action: String!, $dueOn: String, $personIds: [ID!], $key: String!) {
+    changeAskBatch(batchId: $batchId, action: $action, dueOn: $dueOn, personIds: $personIds, idempotencyKey: $key) { ok }
+  }`,
+
+  NudgePendingChange: `mutation NudgePendingChange($id: ID!, $key: String!) {
+    nudgePendingChange(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  TakeInboxTask: `mutation TakeInboxTask($itemId: String!, $note: String, $key: String!) {
+    takeInboxTask(itemId: $itemId, note: $note, idempotencyKey: $key) { ok }
+  }`,
+
+  PeopleDocuments: `query PeopleDocuments($personId: ID) {
+    peopleDocuments(personId: $personId)
+  }`,
+
+  PeopleDocumentFile: `query PeopleDocumentFile($id: ID!) {
+    peopleDocumentFile(id: $id)
+  }`,
+
+  StartDocumentUpload: `mutation StartDocumentUpload($personId: ID!, $name: String!, $size: Int!, $key: String!) {
+    startDocumentUpload(personId: $personId, name: $name, size: $size, idempotencyKey: $key)
+  }`,
+
+  SendDocument: `mutation SendDocument($personId: ID!, $uploadId: ID!, $mode: String!, $message: String, $dueOn: String, $countersigner: ID, $key: String!) {
+    sendDocument(personId: $personId, uploadId: $uploadId, mode: $mode, message: $message, dueOn: $dueOn, countersigner: $countersigner, idempotencyKey: $key)
+  }`,
+
+  ActOnDocument: `mutation ActOnDocument($id: ID!, $action: String!, $name: String, $how: String, $mark: String, $note: String, $key: String!) {
+    actOnDocument(id: $id, action: $action, name: $name, how: $how, mark: $mark, note: $note, idempotencyKey: $key) { ok }
+  }`,
 } as const;
 
 export type OperationName = keyof typeof OPERATIONS;

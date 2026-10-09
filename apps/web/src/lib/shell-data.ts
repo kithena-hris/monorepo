@@ -44,17 +44,6 @@ export interface ViewedAs {
   readonly specialCategory: boolean;
 }
 
-/** A flagged change as the Inbox lists it. */
-export interface FlaggedRow {
-  readonly id: string;
-  readonly name: string;
-  /** "Base salary €61k → €84k", or the field alone where no amount shows. */
-  readonly change: string;
-  /** Why, on the row: "A 38% raise, above the band". */
-  readonly why: string;
-  readonly href: string;
-}
-
 export interface ShellData {
   readonly roles: { readonly hr: boolean; readonly admin: boolean; readonly finance: boolean };
   readonly sections: readonly Place[];
@@ -72,8 +61,6 @@ export interface ShellData {
   readonly notices: readonly ShellNotice[];
   /** What else waits in Review for HR and finance, counted: the Inbox's rows for them. */
   readonly waiting?: Waiting | null;
-  /** The changes People's checks flagged for this person to decide: the Inbox's Flagged. Null for anybody who decides none. */
-  readonly flagged?: readonly FlaggedRow[] | null;
   /** Every time an administrator viewed the app as them, newest first: the Inbox keeps them. */
   readonly viewedAs: readonly ViewedAs[];
   /** When People answered, for "12m ago". */

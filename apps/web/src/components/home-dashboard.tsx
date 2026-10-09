@@ -10,9 +10,11 @@ export interface HomeDashboardProps {
   readonly greeting: string;
   /** The account control a phone shows beside the title. */
   readonly account?: ReactNode;
+  /** The Inbox's first rows (B1), from every module the company has. */
+  readonly toDo?: ReactNode;
 }
 
-export function HomeDashboard({ greeting, account }: HomeDashboardProps): JSX.Element {
+export function HomeDashboard({ greeting, account, toDo }: HomeDashboardProps): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -20,15 +22,17 @@ export function HomeDashboard({ greeting, account }: HomeDashboardProps): JSX.El
         title={`Hi ${greeting}`}
         actions={account ? <span className="flex @3xl/page:hidden">{account}</span> : undefined}
       />
-      <Card>
-        <CardContent className="pt-5">
-          <EmptyState
-            icon={<icons.inbox />}
-            title="Nothing needs you yet"
-            description="Requests, documents and approvals appear here as each module is switched on."
-          />
-        </CardContent>
-      </Card>
+      {toDo ?? (
+        <Card>
+          <CardContent className="pt-5">
+            <EmptyState
+              icon={<icons.inbox />}
+              title="Nothing needs you yet"
+              description="Requests, documents and approvals appear here as each module is switched on."
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

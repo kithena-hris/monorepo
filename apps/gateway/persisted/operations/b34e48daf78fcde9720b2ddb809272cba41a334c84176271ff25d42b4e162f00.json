@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CompleteAsk($id: ID!, $values: String!, $key: String!) {\n    completeAsk(id: $id, values: $values, idempotencyKey: $key)\n  }"}

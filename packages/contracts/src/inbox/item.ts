@@ -75,7 +75,10 @@ export const InboxItem = z.object({
   module: z.string().regex(/^[a-z][a-z0-9-]*$/u).register(policy, asPublic()),
   /** Where in the module it lives: "Identity", "Documents". */
   area: z.string().max(60).nullable().register(policy, asPublic()),
-  /** A Lucide icon name for the row's tile. */
+  /**
+   * The row's tile, as a meaning from the design system's icon set (`edit`,
+   * `document`, `leave`): a word, so a module never picks a glyph.
+   */
   icon: z.string().max(40).register(policy, asPublic()),
   tone: InboxTone.nullable(),
   title: z.string().max(240).register(policy, asInternal('identity')),

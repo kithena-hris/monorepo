@@ -3,6 +3,9 @@ import type { JSX } from 'react';
 
 import { AccountSheet } from '../../components/app-shell';
 import { HomeDashboard } from '../../components/home-dashboard';
+import { HomeInbox } from '../../components/inbox/home-card';
+import { EMPTY_PEEK } from '../../lib/inbox/peek';
+import { inboxPeek } from '../../lib/inbox/server';
 import { PeopleHome } from '../../components/people-area';
 import { accessToken } from '../../lib/people';
 import { currentPerson, displayName } from '../../lib/session';
@@ -40,8 +43,10 @@ export default async function Home(): Promise<JSX.Element> {
       ? displayName(person.workEmail)
       : `${person.name.given} ${person.name.family}`;
   const account = <AccountSheet person={{ name, email: person.workEmail }} />;
-  const people = person.entitlements.includes('module.people') ? await PeopleHome() : null;
-  if (people === null) return <HomeDashboard greeting={greeting} account={account} />;
+  // Home's To do is the Inbox's first rows (B1), streamed in after the page.
+  const toDo = <HomeInbox inbox={inboxPeek().catch(() => EMPTY_PEEK)} />;
+  const people = person.entitlements.includes('module.people') ? await PeopleHome(toDo) : null;
+  if (people === null) return <HomeDashboard greeting={greeting} account={account} toDo={toDo} />;
   return (
     <div className="relative">
       {/* A phone's title bar: the account beside Home's own title. */}

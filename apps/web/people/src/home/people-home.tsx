@@ -176,6 +176,11 @@ export interface PeopleHomeProps {
   readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
   /** A sign-up file: uploaded, then saved to the field, by the shell. */
   readonly onSetupFile?: (field: SetupField, file: File) => Promise<UploadOutcome>;
+  /**
+   * The host's To do, when it keeps one across every module (an Inbox):
+   * drawn where People's own To do would be, so a person has one list.
+   */
+  readonly toDo?: ReactNode;
 }
 
 /* ------------------------------------------------------------- words -- */
@@ -1127,7 +1132,7 @@ function Setup({
  * Home: "Hi", today where they work, and the page for who they are: HR's
  * (B2) or anybody's (B1). Signing up's last asks come first.
  */
-export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX.Element {
+export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps): JSX.Element {
   return (
     <Loaded load={load} what="your home">
       {(state) => {
@@ -1178,7 +1183,10 @@ export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX
               />
             )}
             {hrFigures !== null ? (
-              <HrHome hr={hrFigures} state={state} />
+              <>
+                {toDo}
+                <HrHome hr={hrFigures} state={state} />
+              </>
             ) : me === null ? null : (
               <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
                 <Stack gap={4}>
@@ -1197,7 +1205,7 @@ export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX
                       </span>
                     </span>
                   </a>
-                  <ToDo state={state} me={me} />
+                  {toDo ?? <ToDo state={state} me={me} />}
                 </Stack>
                 <Stack gap={4}>
                   <div className="touch:hidden">

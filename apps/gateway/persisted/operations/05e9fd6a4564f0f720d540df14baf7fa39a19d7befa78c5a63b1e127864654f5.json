@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AskForDetails($personIds: [ID!]!, $keys: [String!]!, $message: String, $dueOn: String, $key: String!) {\n    askForDetails(personIds: $personIds, keys: $keys, message: $message, dueOn: $dueOn, idempotencyKey: $key)\n  }"}

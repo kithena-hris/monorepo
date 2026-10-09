@@ -82,7 +82,7 @@ function item(
   return {
     module: 'people',
     area: null,
-    icon: 'user-round',
+    icon: 'person',
     tone: null,
     summary: null,
     from: null,
@@ -241,12 +241,12 @@ export async function peopleInbox(
           at: m.at,
         })),
         events: [
-          { icon: 'plus', text: `${first(from)} asked`, at: ask.requestedAt },
+          { icon: 'add', text: `${first(from)} asked`, at: ask.requestedAt },
           ...(ask.closedAt === null
             ? []
             : [
                 {
-                  icon: state === 'done' ? 'check' : state === 'sent_back' ? 'undo-2' : 'x',
+                  icon: state === 'done' ? 'confirm' : state === 'sent_back' ? 'undo' : 'close',
                   text:
                     state === 'done'
                       ? 'You added them'
@@ -265,7 +265,7 @@ export async function peopleInbox(
           lane: open ? 'task' : 'done',
           kind: 'people.details',
           area: 'Details',
-          icon: 'user-round-pen',
+          icon: 'edit',
           title:
             labels.length === 1
               ? `Add your ${lower(labels[0] ?? '')}`
@@ -304,7 +304,7 @@ export async function peopleInbox(
             lane: 'task',
             kind: 'people.correct',
             area: 'Identity',
-            icon: 'id-card',
+            icon: 'identifier',
             tone: 'warning',
             title: `Correct your ${review.label}`,
             summary: review.note ?? review.findings[0]?.message ?? 'HR sent it back',
@@ -322,7 +322,7 @@ export async function peopleInbox(
             lane: 'request',
             kind: 'people.identifier',
             area: 'Identity',
-            icon: 'id-card',
+            icon: 'identifier',
             title: `Check your ${review.label}`,
             summary: 'HR checks it against your document',
             at: now,
@@ -398,7 +398,7 @@ export async function peopleInbox(
           lane: 'request',
           kind: 'people.change',
           area: definition?.sectionKey === undefined ? null : 'Profile',
-          icon: 'pencil-line',
+          icon: 'edit',
           title: mine
             ? `Change your ${lower(fieldLabel)}`
             : `Change ${name}'s ${lower(fieldLabel)}`,
@@ -454,7 +454,7 @@ export async function peopleInbox(
       const base = {
         kind: 'people.change',
         area: 'Profile',
-        icon: 'pencil-line',
+        icon: 'edit',
         at: c.decidedAt,
         link: mine ? '/people/me' : `/people/${c.personId}`,
         detail,
@@ -495,7 +495,7 @@ export async function peopleInbox(
       const base = {
         kind: 'people.identifier',
         area: 'Identity',
-        icon: 'id-card',
+        icon: 'identifier',
         at: r.decidedAt,
         link: '/people/me',
       } as const;
@@ -584,7 +584,7 @@ export async function peopleInbox(
         id: `people:document:${d.id}`,
         kind: 'people.document',
         area: 'Documents',
-        icon: d.mode === 'sign' ? 'pen-line' : 'file-text',
+        icon: d.mode === 'sign' ? 'document' : 'file',
         from: { name: from, personId: null },
         link: '/people/me',
         message: d.message,
@@ -642,7 +642,7 @@ export async function peopleInbox(
             lane: 'task',
             kind: 'people.document',
             area: 'Documents',
-            icon: 'pen-line',
+            icon: 'document',
             title: `Countersign ${d.name}`,
             summary: `${personName} signed it`,
             from: { name: personName, personId: d.personId },
@@ -658,7 +658,7 @@ export async function peopleInbox(
             lane: 'done',
             kind: 'people.document',
             area: 'Documents',
-            icon: 'pen-line',
+            icon: 'document',
             title: `Countersign ${d.name}`,
             summary: `For ${personName}`,
             at: d.countersignedAt ?? d.sentAt,
@@ -695,7 +695,7 @@ export async function peopleInbox(
             lane: 'update',
             kind: 'people.document',
             area: 'Documents',
-            icon: d.state === 'declined' ? 'undo-2' : 'file-check',
+            icon: d.state === 'declined' ? 'undo' : 'success',
             tone: d.state === 'declined' ? null : 'success',
             title:
               d.state === 'declined'
@@ -741,7 +741,7 @@ export async function peopleInbox(
               lane: 'update',
               kind: 'people.answered',
               area: 'Details',
-              icon: state === 'done' ? 'user-round-check' : 'undo-2',
+              icon: state === 'done' ? 'success' : 'undo',
               tone: state === 'done' ? 'success' : null,
               title:
                 state === 'done'
@@ -766,7 +766,7 @@ export async function peopleInbox(
               lane: 'update',
               kind: 'people.question',
               area: 'Details',
-              icon: 'message-circle',
+              icon: 'message',
               title: `${user(last.author)} asked about your request`,
               summary: last.body,
               from: { name: user(last.author), personId: a.personId },
@@ -852,7 +852,7 @@ export async function peopleInbox(
             lane: 'task',
             kind: 'people.checklist',
             area: 'Onboarding',
-            icon: 'list-checks',
+            icon: 'list',
             title: starting ? 'Before your first day' : 'Finish your profile',
             summary: `${String(steps.filter((s) => s.done).length)} of ${String(steps.length)} done`,
             at: now,
@@ -886,7 +886,7 @@ export async function peopleInbox(
               lane: 'update',
               kind: 'people.team',
               area: 'Your team',
-              icon: 'user-round-plus',
+              icon: 'hire',
               title:
                 hired > today
                   ? `${name} joins your team on ${dayLabel(hired)}`
@@ -914,7 +914,7 @@ export async function peopleInbox(
                 lane: 'task',
                 kind: 'people.checklist',
                 area: 'Onboarding',
-                icon: 'list-checks',
+                icon: 'list',
                 title: `Get ready for ${first(name)}`,
                 summary: `Starts ${dayLabel(hired)}`,
                 at: `${today}T00:00:00.000Z`,
@@ -932,7 +932,7 @@ export async function peopleInbox(
               lane: 'update',
               kind: 'people.team',
               area: 'Your team',
-              icon: 'user-round-minus',
+              icon: 'offboard',
               title:
                 leaving >= today
                   ? `${name}'s last day is ${dayLabel(leaving)}`
@@ -974,7 +974,7 @@ export async function peopleInbox(
             lane: 'task',
             kind: 'people.review',
             area: 'Review',
-            icon: 'inbox',
+            icon: 'review',
             title: `${String(total)} waiting for you in Review`,
             summary: rows.map((r) => `${String(r.count)} ${lower(r.label)}`).join(' · '),
             at: now,
@@ -1010,7 +1010,7 @@ export async function peopleInbox(
             lane: 'task',
             kind: 'people.integration',
             area: 'Integrations',
-            icon: 'plug-zap',
+            icon: 'system',
             tone: 'danger',
             title: f.disabled
               ? `Webhooks to ${host} are switched off`
@@ -1048,7 +1048,7 @@ export async function peopleInbox(
           lane,
           kind: 'people.import',
           area: 'Import',
-          icon: failed ? 'triangle-alert' : 'file-up',
+          icon: failed ? 'warning' : 'upload',
           tone: failed ? 'danger' : 'success',
           title: failed
             ? `Your import ${n.fileName ?? ''} stopped`.replace('  ', ' ')
