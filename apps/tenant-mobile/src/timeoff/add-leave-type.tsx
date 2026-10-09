@@ -1,9 +1,17 @@
 import {
   Alert,
+  AssistantMark,
   Button,
   Card,
   CardTitle,
   DatePicker,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Field,
   FieldDescription,
   FieldLabel,
@@ -25,13 +33,15 @@ import {
   StepperProgress,
   Switch,
   Text,
+  Textarea,
 } from '@reach/ui-native';
-import { ArrowLeft, ArrowRight, Send } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Send, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Loading, Page } from '../frame';
 import { useAct } from '../people/act';
+import { read, useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
 import { leaveIcon } from './icons';
@@ -51,6 +61,27 @@ interface Preview {
 }
 
 const days = (n: number): string => n.toFixed(3);
+
+/** A policy as Time Off's reader understood it (T32): only what the steps use, and the rest kept. */
+interface ReadPolicy {
+  readonly allowance: readonly { fromYears: number; days: string }[];
+  readonly earning: string;
+  readonly proRata: boolean;
+  readonly probationMonths: number;
+  readonly carryOver: { maxDays: string; useBy: { day: number; month: number } } | null;
+  readonly [more: string]: unknown;
+}
+
+interface PolicyRead {
+  readonly definition: ReadPolicy | null;
+  readonly problems: readonly { path: string; message: string }[];
+  readonly question: {
+    key: string;
+    title: string;
+    body: { text: string; ai: boolean };
+    options: readonly { label: string; value: string }[];
+  } | null;
+}
 
 /**
  * Adding a leave type, a step at a time (T29–T31 in one flow): what it is,
@@ -78,6 +109,16 @@ export function TimeOffAddLeaveType({
   // Written once the preview is asked for: the type, then its draft policy.
   const [defined, setDefined] = useState<string | null>(null);
   const [policyId, setPolicyId] = useState<string | null>(null);
+  // Kithena filling the steps in from a description: what it read, and what it asks.
+  const signed = useSigned();
+  const [described, setDescribed] = useState('');
+  const [reading, setReading] = useState(false);
+  const [unread, setUnread] = useState<string | null>(null);
+  const [question, setQuestion] = useState<{
+    asked: Record<string, unknown>;
+    is: NonNullable<PolicyRead['question']>;
+  } | null>(null);
+  const [understood, setUnderstood] = useState<ReadPolicy | null>(null);
 
   const key = defined ?? keyOf(name);
   const sick = category === 'sick_leave';
@@ -85,17 +126,30 @@ export function TimeOffAddLeaveType({
     ? ['what', 'balance', 'rules', 'preview']
     : ['what', 'balance', 'preview'];
   const at = steps.indexOf(step);
-  const definition = {
+  const policyOf = (
+    base: ReadPolicy | null,
+    v: { allowance: number; earning: string; proRata: boolean; probation: number; carry: number },
+  ) => ({
+    // What the reader understood beyond the steps (tenure bands, going below
+    // zero, the leave year) stays, unless a step changed it.
+    ...(base ?? {}),
     leaveTypeKey: key,
-    allowance: [{ fromYears: 0, days: days(allowance) }],
-    earning,
-    proRata,
-    probationMonths: probation,
-    carryOver: carry === 0 ? null : { maxDays: days(carry), useBy: { month: 3, day: 31 } },
-  };
+    allowance:
+      base !== null && Number(base.allowance[0]?.days ?? NaN) === v.allowance
+        ? base.allowance
+        : [{ fromYears: 0, days: days(v.allowance) }],
+    earning: v.earning,
+    proRata: v.proRata,
+    probationMonths: v.probation,
+    carryOver:
+      v.carry === 0
+        ? null
+        : { maxDays: days(v.carry), useBy: base?.carryOver?.useBy ?? { month: 3, day: 31 } },
+  });
+  const definition = policyOf(understood, { allowance, earning, proRata, probation, carry });
 
   /** The type and its draft, written or brought up to date, before the example is shown. */
-  const prepare = async (): Promise<boolean> => {
+  const prepare = async (policy: ReturnType<typeof policyOf> = definition): Promise<boolean> => {
     if (defined === null) {
       const done = await act<{ key: string }>('DefineTimeOffLeaveType', {
         input: {
@@ -117,14 +171,59 @@ export function TimeOffAddLeaveType({
     const drafted =
       policyId === null
         ? await act<{ policyId: string }>('DraftTimeOffPolicy', {
-            input: { ...definition, leaveTypeKey: defined ?? key },
+            input: { ...policy, leaveTypeKey: defined ?? key },
           })
-        : await act('ReviseTimeOffPolicy', { policyId, input: definition }).then((d) =>
+        : await act('ReviseTimeOffPolicy', { policyId, input: policy }).then((d) =>
             d === null ? null : { policyId },
           );
     if (drafted === null) return false;
     setPolicyId(drafted.policyId);
     return true;
+  };
+
+  /**
+   * Read the description, answer what it asks one question at a time, then
+   * fill every step from it and go straight to the example. Time Off reads;
+   * the model only says what it understood (T32), and nothing is saved until
+   * the draft is written for the example.
+   */
+  const readIt = async (asked: Record<string, unknown>): Promise<void> => {
+    setReading(true);
+    setUnread(null);
+    const answer = await read<PolicyRead>(signed, 'TimeOffPolicyRead', asked, 'timeoff');
+    setReading(false);
+    if (!answer.ok) {
+      setUnread(answer.message);
+      return;
+    }
+    const r = answer.data;
+    if (r.question !== null) {
+      setQuestion({ asked, is: r.question });
+      return;
+    }
+    setQuestion(null);
+    if (r.definition === null) {
+      setUnread(
+        r.problems[0]?.message ?? 'Kithena could not read that. Say how many days a year, say.',
+      );
+      return;
+    }
+    const d = r.definition;
+    const filled = {
+      allowance: Number(d.allowance[0]?.days ?? '0'),
+      earning: d.earning === 'monthly' ? 'monthly' : 'upfront',
+      proRata: d.proRata,
+      probation: d.probationMonths,
+      carry: Number(d.carryOver?.maxDays ?? '0'),
+    } as const;
+    setUnderstood(d);
+    setTracked(true);
+    setAllowance(filled.allowance);
+    setEarning(filled.earning);
+    setProRata(filled.proRata);
+    setProbation(filled.probation);
+    setCarry(filled.carry);
+    if (await prepare(policyOf(d, filled))) setStep('preview');
   };
 
   const next = (): void => {
@@ -266,6 +365,36 @@ export function TimeOffAddLeaveType({
           >
             Private
           </ListItem>
+          {defined !== null ? null : (
+            <Card>
+              <Stack gap={2}>
+                <View className="flex-row items-center gap-2">
+                  <AssistantMark size={18} />
+                  <Text variant="headline" className="flex-1">
+                    Or describe it, and Kithena fills in the rest
+                  </Text>
+                </View>
+                <Textarea
+                  value={described}
+                  onChange={setDescribed}
+                  placeholder="12 days a year, earned monthly and pro rata. Up to 3 carried over to March. Not in the first 3 months."
+                  accessibilityLabel="The rules, as you would explain them"
+                />
+                {unread === null ? null : <Alert tone="warning">{unread}</Alert>}
+                <Button
+                  startIcon={<Icon icon={Sparkles} />}
+                  disabled={!ready || described.trim() === ''}
+                  loading={reading || busy !== null}
+                  loadingLabel="Kithena is reading it"
+                  onPress={() => {
+                    void readIt({ text: described.trim() });
+                  }}
+                >
+                  Fill it in and review
+                </Button>
+              </Stack>
+            </Card>
+          )}
         </Stack>
       ) : step === 'balance' ? (
         <Stack gap={3}>
@@ -392,6 +521,45 @@ export function TimeOffAddLeaveType({
           from={from}
           onFrom={setFrom}
         />
+      )}
+      {question === null ? null : (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setQuestion(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{question.is.title}</DialogTitle>
+              <DialogDescription>{question.is.body.text}</DialogDescription>
+            </DialogHeader>
+            <DialogBody>
+              {question.is.options.map((o) => (
+                <Button
+                  key={o.value}
+                  fullWidth
+                  loading={reading}
+                  onPress={() => {
+                    void readIt({ ...question.asked, [question.is.key]: o.value });
+                  }}
+                >
+                  {o.label}
+                </Button>
+              ))}
+            </DialogBody>
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onPress={() => {
+                  setQuestion(null);
+                }}
+              >
+                Fill it in myself
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </Page>
   );
