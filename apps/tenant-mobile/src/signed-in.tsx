@@ -14,8 +14,8 @@ import { useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Company, Person } from './account';
-import { greetingFor } from './address';
-import { TAB_ROOM, TabBarHiding } from './frame';
+import { AccountActionsContext, AccountMenu, fullName, type AccountActions } from './account-card';
+import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
 import { ask, SignedContext, type Signed } from './people/api';
 import { AskKithena } from './people/ask';
 import { BulkEdit } from './people/bulk';
@@ -69,12 +69,6 @@ import { ImportRun } from './people/transfer/run';
 import type { PeopleRoutes } from './people/routes';
 
 const Stack_ = createNativeStackNavigator<PeopleRoutes>();
-
-/** "Adam Novak": what they are called, else words from their address. */
-const fullName = (person: Person): string =>
-  person.name === null
-    ? greetingFor(null, person.workEmail)
-    : `${person.name.preferred ?? person.name.given} ${person.name.family}`;
 
 type Tab = 'home' | 'timeoff' | 'people' | 'inbox' | 'me';
 
@@ -175,6 +169,7 @@ export function SignedIn({
   onSignedOut,
   onViewAs,
   onEndViewing,
+  onChangeCompany,
 }: {
   company: Company;
   sessionId: string;
@@ -183,6 +178,8 @@ export function SignedIn({
   onSignedOut: () => void;
   onViewAs: (personId: string, reason: string) => Promise<string | null>;
   onEndViewing: () => Promise<void>;
+  /** Signs out and asks for another company's address. */
+  onChangeCompany: () => Promise<void>;
 }): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('home');
@@ -230,7 +227,14 @@ export function SignedIn({
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = (): void => {
       void ask(
-        { company, sessionId, person, signOut: onSignOut, signedOut: onSignedOut, viewAs: onViewAs },
+        {
+          company,
+          sessionId,
+          person,
+          signOut: onSignOut,
+          signedOut: onSignedOut,
+          viewAs: onViewAs,
+        },
         'TimeOffViewer',
         {},
         'timeoff',
@@ -262,99 +266,114 @@ export function SignedIn({
     }),
     [company, sessionId, person, onSignOut, onSignedOut, onViewAs],
   );
+  const actions = useMemo<AccountActions>(
+    () => ({
+      open: setTab,
+      timeOff,
+      changeCompany: onChangeCompany,
+      endViewing: person.viewing === null ? null : onEndViewing,
+    }),
+    [timeOff, onChangeCompany, person.viewing, onEndViewing],
+  );
   const shown = (which: Tab) => ({
     display: tab === which ? ('flex' as const) : ('none' as const),
   });
 
   return (
     <SignedContext value={signed}>
-      <TabBarHiding value={hide}>
-        <ToastProvider bottomInset={TAB_ROOM}>
-          <View className="flex-1 bg-canvas">
-            {person.viewing === null ? null : (
-              // While an administrator views the app as somebody: whose it is, and the way back.
-              <View style={{ paddingTop: insets.top }} className="bg-canvas">
-                <Banner
-                  tone="warning"
-                  icon={Eye}
-                  title={`Viewing as ${fullName(person)}`}
-                  actions={
-                    <Button
-                      size="xs"
-                      loading={ending}
-                      onPress={() => {
-                        setEnding(true);
-                        void onEndViewing().finally(() => {
-                          setEnding(false);
-                        });
-                      }}
+      <AccountActionsContext value={actions}>
+        <AccountSlot value={<AccountMenu />}>
+          <TabBarHiding value={hide}>
+            <ToastProvider bottomInset={TAB_ROOM}>
+              <View className="flex-1 bg-canvas">
+                {person.viewing === null ? null : (
+                  // While an administrator views the app as somebody: whose it is, and the way back.
+                  <View style={{ paddingTop: insets.top }} className="bg-canvas">
+                    <Banner
+                      tone="warning"
+                      icon={Eye}
+                      title={`Viewing as ${fullName(person)}`}
+                      actions={
+                        <Button
+                          size="xs"
+                          loading={ending}
+                          onPress={() => {
+                            setEnding(true);
+                            void onEndViewing().finally(() => {
+                              setEnding(false);
+                            });
+                          }}
+                        >
+                          End viewing
+                        </Button>
+                      }
                     >
-                      End viewing
-                    </Button>
-                  }
+                      Read-only. It ends by itself after thirty minutes.
+                    </Banner>
+                  </View>
+                )}
+                <View className="flex-1" style={shown('home')}>
+                  <TabStack initial="Home" />
+                </View>
+                {timeOff ? (
+                  <View className="flex-1" style={shown('timeoff')}>
+                    <TabStack initial="TimeOff" />
+                  </View>
+                ) : null}
+                <View className="flex-1" style={shown('people')}>
+                  <TabStack initial="People" container={people} />
+                </View>
+                <View className="flex-1" style={shown('inbox')}>
+                  <TabStack initial="Inbox" />
+                </View>
+                <View className="flex-1" style={shown('me')}>
+                  <TabStack initial="Profile" />
+                </View>
+                <View
+                  className="absolute inset-x-2.5"
+                  style={{ bottom: insets.bottom + 4, display: hiding > 0 ? 'none' : 'flex' }}
                 >
-                  Read-only. It ends by itself after thirty minutes.
-                </Banner>
+                  <TabBar
+                    label="Kithena"
+                    items={[
+                      { key: 'home', label: 'Home', icon: House },
+                      ...(timeOff
+                        ? [{ key: 'timeoff', label: 'Time off', icon: CalendarDays }]
+                        : []),
+                      { key: 'people', label: 'People', icon: Users },
+                      {
+                        key: 'inbox',
+                        label: 'Inbox',
+                        icon: InboxIcon,
+                        ...(waiting > 0 ? { badge: waiting } : {}),
+                      },
+                      { key: 'me', label: 'Me', icon: User },
+                    ]}
+                    value={tab}
+                    onValueChange={(key) => {
+                      setTab(
+                        key === 'timeoff' || key === 'people' || key === 'inbox' || key === 'me'
+                          ? key
+                          : 'home',
+                      );
+                    }}
+                  />
+                </View>
+                {hiding > 0 ? null : (
+                  <AskKithena
+                    bottomInset={TAB_ROOM}
+                    onOpenPerson={(personId, name) => {
+                      setTab('people');
+                      if (people.isReady())
+                        people.navigate('Profile', { personId, name, back: 'People' });
+                    }}
+                  />
+                )}
               </View>
-            )}
-            <View className="flex-1" style={shown('home')}>
-              <TabStack initial="Home" />
-            </View>
-            {timeOff ? (
-              <View className="flex-1" style={shown('timeoff')}>
-                <TabStack initial="TimeOff" />
-              </View>
-            ) : null}
-            <View className="flex-1" style={shown('people')}>
-              <TabStack initial="People" container={people} />
-            </View>
-            <View className="flex-1" style={shown('inbox')}>
-              <TabStack initial="Inbox" />
-            </View>
-            <View className="flex-1" style={shown('me')}>
-              <TabStack initial="Profile" />
-            </View>
-            <View
-              className="absolute inset-x-2.5"
-              style={{ bottom: insets.bottom + 4, display: hiding > 0 ? 'none' : 'flex' }}
-            >
-              <TabBar
-                label="Kithena"
-                items={[
-                  { key: 'home', label: 'Home', icon: House },
-                  ...(timeOff ? [{ key: 'timeoff', label: 'Time off', icon: CalendarDays }] : []),
-                  { key: 'people', label: 'People', icon: Users },
-                  {
-                    key: 'inbox',
-                    label: 'Inbox',
-                    icon: InboxIcon,
-                    ...(waiting > 0 ? { badge: waiting } : {}),
-                  },
-                  { key: 'me', label: 'Me', icon: User },
-                ]}
-                value={tab}
-                onValueChange={(key) => {
-                  setTab(
-                    key === 'timeoff' || key === 'people' || key === 'inbox' || key === 'me'
-                      ? key
-                      : 'home',
-                  );
-                }}
-              />
-            </View>
-            {hiding > 0 ? null : (
-              <AskKithena
-                bottomInset={TAB_ROOM}
-                onOpenPerson={(personId, name) => {
-                  setTab('people');
-                  if (people.isReady())
-                    people.navigate('Profile', { personId, name, back: 'People' });
-                }}
-              />
-            )}
-          </View>
-        </ToastProvider>
-      </TabBarHiding>
+            </ToastProvider>
+          </TabBarHiding>
+        </AccountSlot>
+      </AccountActionsContext>
     </SignedContext>
   );
 }

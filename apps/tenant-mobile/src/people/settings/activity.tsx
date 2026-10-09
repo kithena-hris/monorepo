@@ -132,9 +132,12 @@ function changesIn(text: string): { what: string; from: string; to: string }[] |
  * the values. The search, the dates full width, who did it as pills, and the
  * areas; an entry opens in full with ways to narrow the log to it.
  */
-export function Activity({ navigation }: PeopleScreen<'Activity'>): React.JSX.Element {
+export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React.JSX.Element {
   const signed = useSigned();
-  const [filters, setFilters] = useState<Filters>(NONE);
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...NONE,
+    areas: route.params?.areas ?? [],
+  }));
   const [typed, setTyped] = useState('');
   const [entries, setEntries] = useState<readonly Entry[] | null>(null);
   const [next, setNext] = useState<string | null>(null);

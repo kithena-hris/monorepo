@@ -14,6 +14,9 @@ export const TAB_ROOM = 64 + 12;
  */
 export const TabBarHiding = createContext<(hidden: boolean) => void>(() => undefined);
 
+/** Drawn beside every tab's large title: the account menu, once signed in. */
+export const AccountSlot = createContext<ReactNode>(null);
+
 function useHiddenTabBar(hidden: boolean): void {
   const hide = useContext(TabBarHiding);
   useEffect(() => {
@@ -55,11 +58,22 @@ export function Page({
   const insets = useSafeAreaInsets();
   useHiddenTabBar(foot !== undefined);
   const room = foot === undefined ? TAB_ROOM : 76;
+  // A tab's own screen (a large title) carries the account menu after its own action.
+  const account = useContext(AccountSlot);
+  const end =
+    large === undefined || account === null ? (
+      trailing
+    ) : (
+      <View className="flex-row items-center gap-2">
+        {trailing}
+        {account}
+      </View>
+    );
   const bar = (
     <AppBar
       {...(title === undefined ? {} : { title })}
       {...(back === undefined ? {} : { back })}
-      {...(trailing === undefined ? {} : { trailing })}
+      {...(end === undefined ? {} : { trailing: end })}
     />
   );
   return (
