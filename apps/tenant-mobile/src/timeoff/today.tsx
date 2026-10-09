@@ -5,6 +5,12 @@ import {
   Button,
   Card,
   Carousel,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Icon,
   List,
   ListItem,
@@ -12,12 +18,6 @@ import {
   RangeBar,
   SegmentedControl,
   SegmentedControlItem,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
   Stack,
   Stat,
   Text,
@@ -48,9 +48,8 @@ import { Pressable, View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
-import { useSigned } from '../people/api';
+import { keptAnswer, read, useSigned, type Signed } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
-import { askTimeOff } from './api';
 import { leaveIcon } from './icons';
 import { clockTime, duration, localDate, minuteOfDay, partOfDay, stopwatch } from './time';
 import { amount, bridgeDays, longDate, relativeDay, shortDate, spanLabel, statusOf } from './words';
@@ -136,6 +135,16 @@ interface Viewer {
   readonly hrAdmin: boolean;
   readonly member: boolean;
   readonly counts: { readonly attendanceExceptions: number; readonly requestsWaiting: number };
+}
+
+/** A punch as shown before Time Off has answered it. */
+interface Punched {
+  readonly state: ClockState;
+  readonly workModel: WorkModel;
+  /** Minutes worked when it was pressed. */
+  readonly worked: number;
+  /** When it was pressed, which the timer counts on from. */
+  readonly since: number;
 }
 
 const STATE: Record<ClockState, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
@@ -224,24 +233,43 @@ function ClockCard({
   zone: string;
   onPunched: () => void;
 }): React.JSX.Element {
-  const { act, busy } = useAct('timeoff');
-  const { state, today } = clock;
+  const { act } = useAct('timeoff');
+  const { today } = clock;
   const [where, setWhere] = useState<WorkModel>(clock.workModel ?? 'office');
-  const [closing, setClosing] = useState(false);
-  const worked = today.workedMinutes ?? 0;
+  const [closing, setClosing] = useState<number | null>(null);
+  // A punch shows at once, before Time Off has it; the next answer replaces it,
+  // and a refusal puts the clock back as it was.
+  const [mine, setMine] = useState<Punched | null>(null);
+  useEffect(() => {
+    setMine(null);
+  }, [clock]);
+  const state = mine?.state ?? clock.state;
+  const workModel = mine?.workModel ?? clock.workModel;
+  const worked = mine?.worked ?? today.workedMinutes ?? 0;
+  const since = mine?.since ?? now;
   const left = Math.max(0, today.plannedMinutes - worked);
   const first = today.segments.find((s) => s.kind !== 'planned' && s.kind !== 'missing');
-  const minute = minuteOfDay(now, zone);
-  const punch = (kind: PunchKind, model: WorkModel = clock.workModel ?? where): void => {
+  const minute = minuteOfDay(since, zone);
+  const workedBy = (at: number): number => worked + (state === 'in' ? (at - since) / 60_000 : 0);
+  const punch = (kind: PunchKind, model: WorkModel = workModel ?? where): void => {
+    const at = Date.now();
+    setMine({
+      state:
+        kind === 'in' || kind === 'break_end' ? 'in' : kind === 'break_start' ? 'on_break' : 'out',
+      workModel: model,
+      worked: workedBy(at),
+      since: at,
+    });
     void act('PunchTimeOffClock', { input: { kind, workModel: model, source: 'mobile' } }).then(
       (done) => {
-        if (done !== null) onPunched();
+        if (done === null) setMine(null);
+        else onPunched();
       },
     );
   };
   const sub =
     state === 'in'
-      ? `Since ${clockTime(first?.from ?? 0)} · ${duration(left)} to go`
+      ? `Since ${clockTime(first?.from ?? minute)} · ${duration(left)} to go`
       : state === 'on_break'
         ? `${duration(worked)} worked of ${duration(today.plannedMinutes)}`
         : worked > 0
@@ -256,15 +284,15 @@ function ClockCard({
           <Badge size="sm" tone={STATE[state].tone} dot>
             {STATE[state].label}
           </Badge>
-          {clock.workModel === null || state === 'out' ? null : (
+          {workModel === null || state === 'out' ? null : (
             <Badge size="sm" icon={MapPin}>
-              {WHERE[clock.workModel]}
+              {WHERE[workModel]}
             </Badge>
           )}
         </View>
         <View className="flex-row items-center gap-3">
           <View className="flex-1">
-            <Timer worked={worked} running={state === 'in'} since={now} />
+            <Timer worked={worked} running={state === 'in'} since={since} />
             <Text variant="footnote" tone="muted">
               {sub}
             </Text>
@@ -274,7 +302,6 @@ function ClockCard({
               <Button
                 startIcon={<Icon icon={Coffee} />}
                 accessibilityLabel="Start break"
-                loading={busy !== null}
                 onPress={() => {
                   punch('break_start');
                 }}
@@ -284,7 +311,7 @@ function ClockCard({
                 startIcon={<Icon icon={Square} />}
                 accessibilityLabel="Clock out"
                 onPress={() => {
-                  setClosing(true);
+                  setClosing(Date.now());
                 }}
               />
             </>
@@ -292,7 +319,6 @@ function ClockCard({
             <Button
               variant="primary"
               startIcon={<Icon icon={Play} />}
-              loading={busy !== null}
               onPress={() => {
                 punch('break_end');
               }}
@@ -321,7 +347,6 @@ function ClockCard({
               variant="primary"
               fullWidth
               startIcon={<Icon icon={Play} />}
-              loading={busy !== null}
               onPress={() => {
                 punch('in', where);
               }}
@@ -331,37 +356,36 @@ function ClockCard({
           </>
         ) : null}
       </Stack>
-      {closing ? (
-        <Sheet
+      {closing === null ? null : (
+        <Dialog
           open
           onOpenChange={(o) => {
-            if (!o) setClosing(false);
+            if (!o) setClosing(null);
           }}
         >
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>{`Clock out at ${clockTime(minute)}?`}</SheetTitle>
-            </SheetHeader>
-            <SheetBody>
-              {dayBar(today.segments, minute)}
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{`Clock out at ${clockTime(minuteOfDay(closing, zone))}?`}</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              {dayBar(today.segments, minuteOfDay(closing, zone))}
               <View className="flex-row gap-2">
-                <Stat className="flex-1" label="Worked" value={duration(worked)} />
+                <Stat className="flex-1" label="Worked" value={duration(workedBy(closing))} />
                 <Stat className="flex-1" label="Break" value={duration(today.breakMinutes)} />
                 <Stat
                   className="flex-1"
                   label="Overtime"
-                  value={duration(Math.max(0, worked - today.plannedMinutes))}
+                  value={duration(Math.max(0, workedBy(closing) - today.plannedMinutes))}
                 />
               </View>
-            </SheetBody>
-            <SheetFooter stack>
+            </DialogBody>
+            <DialogFooter stack>
               <Button
                 variant="primary"
                 fullWidth
                 startIcon={<Icon icon={Square} />}
-                loading={busy !== null}
                 onPress={() => {
-                  setClosing(false);
+                  setClosing(null);
                   punch('out');
                 }}
               >
@@ -371,17 +395,51 @@ function ClockCard({
                 variant="ghost"
                 fullWidth
                 onPress={() => {
-                  setClosing(false);
+                  setClosing(null);
                 }}
               >
                 Keep working
               </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
-      ) : null}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
+}
+
+interface Home {
+  readonly overview: Overview;
+  readonly holidays: readonly Holiday[];
+  /** When the overview was read: the clock counts on from it. */
+  readonly now: number;
+  readonly viewer: Viewer | null;
+}
+
+/** What the tab reads, asked ahead at sign-in so it opens on it. */
+export const homeReads = (
+  year: number,
+): readonly (readonly [string, Record<string, unknown>])[] => [
+  ['TimeOffOverview', {}],
+  ['TimeOffHolidays', { year }],
+  ['TimeOffHolidays', { year: year + 1 }],
+  ['TimeOffViewer', {}],
+];
+
+/** The tab as last read, if it was. */
+function keptHome(signed: Signed): Home | null {
+  const year = new Date().getUTCFullYear();
+  const overview = keptAnswer<Overview>(signed, 'TimeOffOverview', {}, 'timeoff');
+  if (overview === undefined) return null;
+  const holidays = (y: number) =>
+    keptAnswer<{ holidays: Holiday[] }>(signed, 'TimeOffHolidays', { year: y }, 'timeoff')?.data
+      .holidays ?? [];
+  return {
+    overview: overview.data,
+    holidays: [...holidays(year), ...holidays(year + 1)],
+    now: overview.at,
+    viewer: keptAnswer<Viewer>(signed, 'TimeOffViewer', {}, 'timeoff')?.data ?? null,
+  };
 }
 
 /**
@@ -391,22 +449,17 @@ function ClockCard({
  */
 export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.Element {
   const signed = useSigned();
-  const [data, setData] = useState<{
-    overview: Overview;
-    holidays: readonly Holiday[];
-    now: number;
-    viewer: Viewer | null;
-  } | null>(null);
+  const [data, setData] = useState<Home | null>(() => keptHome(signed));
   const [failed, setFailed] = useState<string | null>(null);
 
   const load = async (): Promise<void> => {
     const now = Date.now();
     const year = new Date(now).getUTCFullYear();
     const [overview, thisYear, nextYear, viewer] = await Promise.all([
-      askTimeOff<Overview>(signed, 'TimeOffOverview'),
-      askTimeOff<{ holidays: Holiday[] }>(signed, 'TimeOffHolidays', { year }),
-      askTimeOff<{ holidays: Holiday[] }>(signed, 'TimeOffHolidays', { year: year + 1 }),
-      askTimeOff<Viewer>(signed, 'TimeOffViewer'),
+      read<Overview>(signed, 'TimeOffOverview', {}, 'timeoff'),
+      read<{ holidays: Holiday[] }>(signed, 'TimeOffHolidays', { year }, 'timeoff'),
+      read<{ holidays: Holiday[] }>(signed, 'TimeOffHolidays', { year: year + 1 }, 'timeoff'),
+      read<Viewer>(signed, 'TimeOffViewer', {}, 'timeoff'),
     ]);
     if (!overview.ok) {
       setFailed(overview.message);
@@ -428,9 +481,11 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
     return navigation.addListener('focus', () => {
       void load();
     });
+    // `load` reads only `signed`.
   }, [navigation, signed]);
 
-  if (failed !== null) {
+  // What was already showing stays; only an empty screen says it failed.
+  if (failed !== null && data === null) {
     return (
       <Page large="Time off">
         <Failed message={failed} onRetry={() => void load()} />

@@ -9,14 +9,14 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { CalendarDays, Eye, House, Inbox as InboxIcon, User, Users } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Company, Person } from './account';
 import { AccountActionsContext, AccountMenu, fullName, type AccountActions } from './account-card';
 import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
-import { ask, SignedContext, type Signed } from './people/api';
+import { ask, read, readAhead, SignedContext, type Signed } from './people/api';
 import { AskKithena } from './people/ask';
 import { BulkEdit } from './people/bulk';
 import { Directory } from './people/directory';
@@ -55,14 +55,15 @@ import {
   TimeOffTeamNow,
   TimeOffTimesheet,
 } from './timeoff/attendance';
-import { TimeOffCalendar } from './timeoff/calendar';
+import { calendarReads, TimeOffCalendar } from './timeoff/calendar';
 import { TimeOffInsights } from './timeoff/insights';
 import { TimeOffParental, TimeOffParentalCase, TimeOffParentalCases } from './timeoff/parental';
 import { TimeOffLeaveType, TimeOffPolicyDescribe, TimeOffSettings } from './timeoff/settings';
 import { TimeOffDescribe } from './timeoff/describe';
 import { TimeOffRequest } from './timeoff/request';
 import { TimeOffRequestDetail, TimeOffRequests } from './timeoff/requests';
-import { TimeOffHome } from './timeoff/today';
+import { homeReads, TimeOffHome } from './timeoff/today';
+import { todayHere } from './timeoff/time';
 import { ImportExport } from './people/transfer/hub';
 import { Import } from './people/transfer/import';
 import { ImportRun } from './people/transfer/run';
@@ -78,7 +79,7 @@ type Tab = 'home' | 'timeoff' | 'people' | 'inbox' | 'me';
  * not a navigator, decides which one shows; the bars are Reach's, so the
  * navigator draws no header of its own.
  */
-function TabStack({
+const TabStack = memo(function TabStack({
   initial,
   container,
 }: {
@@ -154,7 +155,7 @@ function TabStack({
       </NavigationContainer>
     </NavigationIndependentTree>
   );
-}
+});
 
 /**
  * Signed in: Home, People and Me under one tab bar, each tab its own stack.
@@ -218,38 +219,6 @@ export function SignedIn({
       clearInterval(timer);
     };
   }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
-  // The Time off tab, for a company that has Time Off: its viewer read answers.
-  // Asked again every 30 seconds until it does, since the first ask can land
-  // while the server is still waking, and then the tab would never come.
-  const [timeOff, setTimeOff] = useState(false);
-  useEffect(() => {
-    let live = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const check = (): void => {
-      void ask(
-        {
-          company,
-          sessionId,
-          person,
-          signOut: onSignOut,
-          signedOut: onSignedOut,
-          viewAs: onViewAs,
-        },
-        'TimeOffViewer',
-        {},
-        'timeoff',
-      ).then((answer) => {
-        if (!live) return;
-        setTimeOff(answer.ok);
-        if (!answer.ok) timer = setTimeout(check, 30_000);
-      });
-    };
-    check();
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-  }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
   // How many screens up now want the tab bar gone.
   const [hiding, setHiding] = useState(0);
   const hide = useCallback((hidden: boolean) => {
@@ -266,6 +235,46 @@ export function SignedIn({
     }),
     [company, sessionId, person, onSignOut, onSignedOut, onViewAs],
   );
+  // The Time off tab, for a company that has Time Off: its viewer read answers.
+  // Asked again every 30 seconds until it does, since the first ask can land
+  // while the server is still waking, and then the tab would never come. Once
+  // it answers, what the tab and its first screens show is read ahead, so
+  // they open on it rather than on a spinner.
+  const [timeOff, setTimeOff] = useState(false);
+  useEffect(() => {
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = (): void => {
+      void read(signed, 'TimeOffViewer', {}, 'timeoff').then((answer) => {
+        if (!live) return;
+        setTimeOff(answer.ok);
+        if (!answer.ok) {
+          timer = setTimeout(check, 30_000);
+          return;
+        }
+        const today = todayHere();
+        readAhead(
+          signed,
+          [
+            ...homeReads(new Date().getUTCFullYear()),
+            ...calendarReads(today),
+            ['TimeOffMyRequests', { tab: 'upcoming' }],
+            ['TimeOffTeamRightNow', {}],
+            ['TimeOffCalendarMonth', { month: today.slice(0, 7), scope: 'team' }],
+          ],
+          'timeoff',
+        );
+      });
+    };
+    check();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [signed]);
+  // One element for good: a new one each render would redraw every screen of
+  // every tab that shows it, on each tab switch.
+  const account = useMemo(() => <AccountMenu />, []);
   const actions = useMemo<AccountActions>(
     () => ({
       open: setTab,
@@ -282,7 +291,7 @@ export function SignedIn({
   return (
     <SignedContext value={signed}>
       <AccountActionsContext value={actions}>
-        <AccountSlot value={<AccountMenu />}>
+        <AccountSlot value={account}>
           <TabBarHiding value={hide}>
             <ToastProvider bottomInset={TAB_ROOM}>
               <View className="flex-1 bg-canvas">

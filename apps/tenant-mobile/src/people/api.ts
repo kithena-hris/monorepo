@@ -61,13 +61,97 @@ export async function ask<T>(
 
 export type Load<T> =
   | { readonly status: 'loading' }
-  | { readonly status: 'ready'; readonly data: T }
+  /** `at`: when the answer was read, for anything that counts on from it. */
+  | { readonly status: 'ready'; readonly data: T; readonly at: number }
   | { readonly status: 'error'; readonly message: string };
 
 /**
+ * Reads already answered, by session and question: a screen opens on the
+ * last answer at once and asks again behind it, so going back, switching tab
+ * or opening a screen the app read ahead never waits on the network. Per
+ * session, so nobody else's answer is ever shown; in memory only.
+ *
+ * ponytail: the oldest go past 300 answers; a byte budget if answers grow.
+ */
+const kept = new Map<string, { readonly data: unknown; readonly at: number }>();
+const asking = new Map<string, Promise<Answer<unknown>>>();
+const KEEP = 300;
+
+const keyOf = (
+  signed: Signed,
+  area: string,
+  operation: string,
+  variables: Record<string, unknown> | string,
+): string =>
+  [
+    signed.company.origin,
+    signed.sessionId,
+    area,
+    operation,
+    typeof variables === 'string' ? variables : JSON.stringify(variables),
+  ].join('\n');
+
+function keep(key: string, data: unknown): void {
+  kept.delete(key);
+  kept.set(key, { data, at: Date.now() });
+  if (kept.size > KEEP) kept.delete(kept.keys().next().value ?? '');
+}
+
+/**
+ * A read, its answer kept: two screens, or a read-ahead and the screen it was
+ * for, asking the same question at once share one request.
+ */
+export function read<T>(
+  signed: Signed,
+  operation: string,
+  variables: Record<string, unknown> = {},
+  area: 'people' | 'timeoff' = 'people',
+): Promise<Answer<T>> {
+  const key = keyOf(signed, area, operation, variables);
+  const held = asking.get(key);
+  if (held !== undefined) return held as Promise<Answer<T>>;
+  const answer = ask<T>(signed, operation, variables, area).then((a) => {
+    if (a.ok) keep(key, a.data);
+    return a;
+  });
+  asking.set(key, answer);
+  void answer.finally(() => asking.delete(key));
+  return answer;
+}
+
+/**
+ * A write went through: a read already on its way was asked before it, so
+ * the next screen to ask asks afresh rather than waiting for that answer.
+ */
+export function wrote(): void {
+  asking.clear();
+}
+
+/** The last answer to a read, if there is one: of the type the caller asked it as. */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- the caller names what it reads, as `ask` does.
+export function keptAnswer<T>(
+  signed: Signed,
+  operation: string,
+  variables: Record<string, unknown> = {},
+  area: 'people' | 'timeoff' = 'people',
+): { readonly data: T; readonly at: number } | undefined {
+  return kept.get(keyOf(signed, area, operation, variables)) as { data: T; at: number } | undefined;
+}
+
+/** Reads a screen is about to need, asked now so it opens on them. */
+export function readAhead(
+  signed: Signed,
+  reads: readonly (readonly [string, Record<string, unknown>?])[],
+  area: 'people' | 'timeoff' = 'people',
+): void {
+  for (const [operation, variables] of reads) void read(signed, operation, variables, area);
+}
+
+/**
  * One read, kept for the screen, asked again when its variables change or on
- * `reload`. The variables are compared as JSON, so a new object each render
- * does not ask twice.
+ * `reload`. It opens on the last answer to the same question, if any, and
+ * keeps showing it when asking again fails. The variables are compared as
+ * JSON, so a new object each render does not ask twice.
  */
 export function useRead<T>(
   operation: string,
@@ -76,24 +160,30 @@ export function useRead<T>(
 ): { load: Load<T>; reload: () => void } {
   const signed = useSigned();
   const key = JSON.stringify(variables);
-  const [load, setLoad] = useState<Load<T>>({ status: 'loading' });
+  const held = (): Load<T> => {
+    const last = kept.get(keyOf(signed, area, operation, key));
+    return last === undefined
+      ? { status: 'loading' }
+      : { status: 'ready', data: last.data as T, at: last.at };
+  };
+  const [load, setLoad] = useState<Load<T>>(held);
   const [round, setRound] = useState(0);
 
   useEffect(() => {
     let live = true;
-    void ask<T>(signed, operation, JSON.parse(key) as Record<string, unknown>, area).then(
+    const last = held();
+    setLoad(last);
+    void read<T>(signed, operation, JSON.parse(key) as Record<string, unknown>, area).then(
       (answer) => {
         if (!live) return;
-        setLoad(
-          answer.ok
-            ? { status: 'ready', data: answer.data }
-            : { status: 'error', message: answer.message },
-        );
+        if (answer.ok) setLoad({ status: 'ready', data: answer.data, at: Date.now() });
+        else if (last.status !== 'ready') setLoad({ status: 'error', message: answer.message });
       },
     );
     return () => {
       live = false;
     };
+    // `held` reads the same inputs.
   }, [signed, operation, key, round, area]);
 
   const reload = useCallback(() => {

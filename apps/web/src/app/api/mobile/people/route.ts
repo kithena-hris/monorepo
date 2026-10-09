@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import { peopleFor } from '../../../../lib/people';
+import { peopleFor, writes } from '../../../../lib/people';
 import { personFor } from '../../../../lib/session';
 
 /**
@@ -33,18 +33,26 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ ok: false, code: 'BAD_REQUEST' }, { status: 400 });
   }
 
-  // Somebody, still, before anything is minted for them.
-  if ((await personFor(sessionId, tenantId)) === null) {
-    return NextResponse.json({ ok: false, code: 'UNAUTHENTICATED' }, { status: 401 });
+  // Somebody, still: a write is sent only once identity has said so. A read
+  // travels with that check rather than after it, a round trip off every
+  // screen, and its answer is dropped unread unless the check passes — as
+  // the web's reads are (`lib/people.ts`, `send`).
+  const someone = personFor(sessionId, tenantId);
+  const ask = () =>
+    peopleFor(sessionId, tenantId, area, operation, variables as Record<string, unknown>);
+  let answer: Awaited<ReturnType<typeof ask>>;
+  if (writes(area, operation)) {
+    if ((await someone) === null) {
+      return NextResponse.json({ ok: false, code: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    answer = await ask();
+  } else {
+    const [person, read] = await Promise.all([someone, ask()]);
+    if (person === null) {
+      return NextResponse.json({ ok: false, code: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    answer = read;
   }
-
-  const answer = await peopleFor(
-    sessionId,
-    tenantId,
-    area,
-    operation,
-    variables as Record<string, unknown>,
-  );
   const status = !answer.ok && answer.code === 'UNAUTHENTICATED' ? 401 : 200;
   return NextResponse.json(answer, { status, headers: NO_STORE });
 }

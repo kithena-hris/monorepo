@@ -285,6 +285,14 @@ export async function peopleFor(
   return call(area, name, variables, token, body.trimStart().startsWith('mutation'));
 }
 
+/** Whether an operation writes: a write waits for identity's word on the session first. */
+export function writes(area: keyof typeof AREAS, name: string): boolean {
+  return (
+    Object.hasOwn(AREAS[area].operations, name) &&
+    (AREAS[area].operations[name] ?? '').trimStart().startsWith('mutation')
+  );
+}
+
 function ask<T>(
   area: keyof typeof AREAS,
   name: string,

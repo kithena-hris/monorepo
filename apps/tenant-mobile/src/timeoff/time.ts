@@ -6,8 +6,9 @@ export const clockTime = (minutes: number): string =>
 
 /** 485 as "8h 05m"; 45 as "45m"; 480 as "8h". */
 export function duration(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
+  const whole = Math.round(minutes);
+  const h = Math.floor(whole / 60);
+  const m = whole % 60;
   return m === 0 ? `${String(h)}h` : h === 0 ? `${String(m)}m` : `${String(h)}h ${pad(m)}m`;
 }
 
