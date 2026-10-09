@@ -1,4 +1,5 @@
-import { dayIn, type Shown } from './model';
+import { dayIn } from './day';
+import type { Shown } from './model';
 
 /**
  * Asking about your Inbox (Z4, M:Z2): what is due this week, what waits on
