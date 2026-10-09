@@ -6,6 +6,7 @@ import {
   caller,
   d,
   hr,
+  member,
   people,
   PLATFORM,
   sickType,
@@ -50,6 +51,40 @@ describe('settings (TOF-041)', () => {
     expect(adams.map((e) => [e.kind, e.amount, e.policyVersion])).toEqual([['grant', '27.000', 2]]);
     expect(s.events.map((e) => e.eventName)).toEqual(['timeoff.policy.published']);
     expect(s.events[0]?.payload).toMatchObject({ version: 2, effectiveFrom: '2026-01-01' });
+  });
+
+  it('publishing from today gives a member with nothing yet this leave year the whole of it', async () => {
+    // Hired before Time Off had a policy: nothing was posted then, and the
+    // year's grant is dated before the day the policy takes effect.
+    const app = world('2026-10-09T07:00:00.000Z');
+    const s = app.state(TENANT);
+    s.members.set(people.hana, member(people.hana, 'Hana Kim', { hireDate: d('2026-08-16') }));
+    await revisePolicy(app.deps)(
+      hr,
+      VACATION_POLICY,
+      vacationPolicy({ allowance: [{ fromYears: 0, days: '12.000' }], earning: 'monthly' }),
+    );
+    expect(await publishPolicy(app.deps)(hr, VACATION_POLICY, d('2026-10-09'))).toMatchObject({
+      ok: true,
+    });
+
+    const posted = (id: string) =>
+      live(s.ledger.filter((e) => e.personId === id)).map((e) => [e.effectiveOn, e.amount]);
+    expect(posted(people.adam)).toHaveLength(10);
+    expect(posted(people.hana)).toEqual([
+      ['2026-08-16', '0.516'],
+      ['2026-09-01', '1.000'],
+      ['2026-10-01', '1.000'],
+    ]);
+  });
+
+  it('publishing again does not post a year twice, nor mix grants into accruals', async () => {
+    const app = world('2026-10-09T07:00:00.000Z', { withGrant: true });
+    const s = app.state(TENANT);
+    await revisePolicy(app.deps)(hr, VACATION_POLICY, vacationPolicy({ earning: 'monthly' }));
+    await publishPolicy(app.deps)(hr, VACATION_POLICY, d('2026-10-09'));
+    const adams = live(s.ledger.filter((e) => e.personId === people.adam));
+    expect(adams.map((e) => [e.kind, e.effectiveOn])).toEqual([['grant', '2026-01-01']]);
   });
 
   it('is HR only', async () => {
