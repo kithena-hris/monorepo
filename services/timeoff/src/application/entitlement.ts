@@ -91,13 +91,18 @@ export async function refold(
   const version = policy.inEffectOn(from);
   const key = version?.definition.leaveTypeKey;
   if (key === undefined) return ok([]);
-  const existing = live(await tx.ledger.forMember(member.personId, key)).filter(
+  const year = live(await tx.ledger.forMember(member.personId, key)).filter(
     (e) =>
       (e.kind === 'grant' || e.kind === 'accrual') &&
-      e.effectiveOn >= from &&
       e.effectiveOn >= due.start &&
       e.effectiveOn <= due.end,
   );
+  const existing = year.filter((e) => e.effectiveOn >= from);
+  // Nothing posted for this leave year at all — hired before there was a
+  // policy, or one published from mid-year — so the year's earlier grant or
+  // accruals are owed too, not only those from `from` on. A year that already
+  // has rows keeps its history.
+  const since = year.length === 0 ? due.start : from;
   const corrections = existing.flatMap((e) => {
     const now = due.entries.find((w) => sameSlot(w, e));
     const amount = now?.amount ?? '0.000';
@@ -121,7 +126,7 @@ export async function refold(
   const fresh = due.entries.filter(
     (w) =>
       (w.kind === 'grant' || w.kind === 'accrual') &&
-      w.effectiveOn >= from &&
+      w.effectiveOn >= since &&
       w.effectiveOn <= on &&
       !existing.some((e) => sameSlot(e, w)),
   );

@@ -28,7 +28,9 @@ import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
  * time; one tenant failing is logged and the rest still run. The functions
  * are idempotent, so a retried or doubled tick posts and tells nothing twice.
  *
- * - **accrual**, 00:15 UTC on the 1st: the month's accrual, a new year's grant.
+ * - **accrual**, 00:15 UTC daily: the month's accrual, a new year's grant, and
+ *   anything owed and never posted (a hire before the policy existed). Posted
+ *   once per slot, so the other days post nothing.
  * - **year-end**, daily: carry-over in, below-zero carried, expiry after use-by.
  * - **warnings**, 08:00 UTC on 1 October and 1 December: "use it or lose it".
  * - **mark-taken**, daily: approved requests whose last day has passed.
@@ -53,7 +55,7 @@ export function jobs(
   { readonly pattern: string; readonly run: (tenantId: TenantId) => Promise<Result<unknown>> }
 > {
   return {
-    accrual: { pattern: '15 0 1 * *', run: postAccruals(deps) },
+    accrual: { pattern: '15 0 * * *', run: postAccruals(deps) },
     'year-end': { pattern: '30 0 * * *', run: yearEnd(deps) },
     warnings: { pattern: '0 8 1 10,12 *', run: balanceWarnings(deps) },
     'mark-taken': { pattern: '45 0 * * *', run: markTakenDue(deps) },
