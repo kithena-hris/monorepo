@@ -1,6 +1,6 @@
 import { PortalHost } from '@rn-primitives/portal';
 import { act, type ReactNode } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { AppRegistry } from 'react-native';
 import { afterEach, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 
@@ -56,29 +56,43 @@ window.addEventListener(
   { capture: true },
 );
 
-let root: Root | null = null;
+/** The app the test started, to stop: what react-native-web's `runApplication` hands back. */
+let running: { readonly unmount: () => void } | null = null;
 
-/** `children` in the app, with the root portal host beside it, as `ReachProvider` has on a device. */
+/**
+ * `children` as the app, with the root portal host beside it as `ReachProvider`
+ * has on a device: started the React Native way, which react-native-web runs
+ * in this page, so nothing here imports the DOM's React.
+ */
 async function onDevice(children: ReactNode): Promise<void> {
-  const element = document.createElement('div');
-  document.body.append(element);
-  root = createRoot(element);
+  const tag = document.createElement('div');
+  document.body.append(tag);
+  const key = `device-${String(Date.now())}`;
+  AppRegistry.registerComponent(key, () => () => (
+    <ReachProvider theme="light">
+      {children}
+      <PortalHost />
+    </ReachProvider>
+  ));
   await act(async () => {
-    root?.render(
-      <ReachProvider theme="light">
-        {children}
-        <PortalHost />
-      </ReachProvider>,
-    );
+    // React Native's types say nothing comes back; on the web it is the app.
+    running = (
+      AppRegistry as unknown as {
+        runApplication: (key: string, params: { rootTag: HTMLElement }) => { unmount: () => void };
+      }
+    ).runApplication(key, { rootTag: tag });
     await Promise.resolve();
   });
 }
 
 afterEach(() => {
-  act(() => {
-    root?.unmount();
-  });
-  root = null;
+  const app = running;
+  if (app !== null) {
+    act(() => {
+      app.unmount();
+    });
+  }
+  running = null;
   document.body.replaceChildren();
 });
 
