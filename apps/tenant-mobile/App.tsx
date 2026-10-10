@@ -1,4 +1,5 @@
 import { ReachProvider, Spinner } from '@reach/ui-native';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { useColorScheme, View } from 'react-native';
@@ -19,6 +20,7 @@ import {
   type Person,
 } from './src/account';
 import { restoreLook } from './src/appearance';
+import { queryClient } from './src/query';
 import { CompanyScreen, SignInScreen, UnreachableScreen } from './src/screens';
 import { SignedIn } from './src/signed-in';
 
@@ -93,85 +95,89 @@ export default function App(): React.JSX.Element {
   };
 
   return (
-    <ReachProvider theme={scheme === 'dark' ? 'dark' : 'light'}>
-      {place.kind === 'starting' ? (
-        <View className="flex-1 items-center justify-center bg-canvas">
-          <Spinner label="Opening Kithena" />
-        </View>
-      ) : place.kind === 'company' ? (
-        <CompanyScreen
-          onFound={async (origin) => {
-            const company = await companyAt(origin);
-            if (company === null) return 'none';
-            if (company === 'unreachable') return 'unreachable';
-            setPlace(await signingIn(company));
-            return 'found';
-          }}
-        />
-      ) : place.kind === 'sign-in' ? (
-        <SignInScreen
-          company={place.company}
-          initialEmail={place.email}
-          onSignIn={async (workEmail) => {
-            const outcome = await signIn(place.company.origin, workEmail);
-            if (outcome.kind === 'signed-in') {
-              setPlace({
-                kind: 'signed-in',
-                company: place.company,
-                sessionId: outcome.sessionId,
-                person: outcome.person,
-              });
-            }
-            return outcome.kind;
-          }}
-          onRecover={() => {
-            void openRecovery(place.company.origin);
-          }}
-          onChangeCompany={changeCompany}
-        />
-      ) : place.kind === 'signed-in' ? (
-        <SignedIn
-          company={place.company}
-          sessionId={place.sessionId}
-          person={place.person}
-          onSignOut={async () => {
-            await signOut(place.company.origin, place.sessionId);
-            setPlace(await signingIn(place.company));
-          }}
-          onSignedOut={() => {
-            // A lapsed view puts the administrator's own session back; resume finds it.
-            void forgetSession().then(resume);
-          }}
-          onViewAs={async (personId, reason) => {
-            const started = await startViewing(
-              place.company.origin,
-              place.sessionId,
-              personId,
-              reason,
-            );
-            if (!started.ok) return started.message;
-            setPlace({ ...place, sessionId: started.sessionId, person: started.person });
-            return null;
-          }}
-          onEndViewing={async () => {
-            await endViewing(place.company.origin, place.sessionId);
-            await resume();
-          }}
-          onChangeCompany={async () => {
-            await signOut(place.company.origin, place.sessionId);
-            changeCompany();
-          }}
-        />
-      ) : (
-        <UnreachableScreen
-          origin={place.origin}
-          onRetry={() => {
-            void resume();
-          }}
-          onChangeCompany={changeCompany}
-        />
-      )}
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-    </ReachProvider>
+    <QueryClientProvider client={queryClient}>
+      <ReachProvider theme={scheme === 'dark' ? 'dark' : 'light'}>
+        {place.kind === 'starting' ? (
+          <View className="flex-1 items-center justify-center bg-canvas">
+            <Spinner label="Opening Kithena" />
+          </View>
+        ) : place.kind === 'company' ? (
+          <CompanyScreen
+            onFound={async (origin) => {
+              const company = await companyAt(origin);
+              if (company === null) return 'none';
+              if (company === 'unreachable') return 'unreachable';
+              setPlace(await signingIn(company));
+              return 'found';
+            }}
+          />
+        ) : place.kind === 'sign-in' ? (
+          <SignInScreen
+            company={place.company}
+            initialEmail={place.email}
+            onSignIn={async (workEmail) => {
+              const outcome = await signIn(place.company.origin, workEmail);
+              if (outcome.kind === 'signed-in') {
+                setPlace({
+                  kind: 'signed-in',
+                  company: place.company,
+                  sessionId: outcome.sessionId,
+                  person: outcome.person,
+                });
+              }
+              return outcome.kind;
+            }}
+            onRecover={() => {
+              void openRecovery(place.company.origin);
+            }}
+            onChangeCompany={changeCompany}
+          />
+        ) : place.kind === 'signed-in' ? (
+          <SignedIn
+            company={place.company}
+            sessionId={place.sessionId}
+            person={place.person}
+            onSignOut={async () => {
+              await signOut(place.company.origin, place.sessionId);
+              // Nothing read as them outlives the session.
+              queryClient.clear();
+              setPlace(await signingIn(place.company));
+            }}
+            onSignedOut={() => {
+              // A lapsed view puts the administrator's own session back; resume finds it.
+              void forgetSession().then(resume);
+            }}
+            onViewAs={async (personId, reason) => {
+              const started = await startViewing(
+                place.company.origin,
+                place.sessionId,
+                personId,
+                reason,
+              );
+              if (!started.ok) return started.message;
+              setPlace({ ...place, sessionId: started.sessionId, person: started.person });
+              return null;
+            }}
+            onEndViewing={async () => {
+              await endViewing(place.company.origin, place.sessionId);
+              await resume();
+            }}
+            onChangeCompany={async () => {
+              await signOut(place.company.origin, place.sessionId);
+              changeCompany();
+            }}
+          />
+        ) : (
+          <UnreachableScreen
+            origin={place.origin}
+            onRetry={() => {
+              void resume();
+            }}
+            onChangeCompany={changeCompany}
+          />
+        )}
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      </ReachProvider>
+    </QueryClientProvider>
   );
 }

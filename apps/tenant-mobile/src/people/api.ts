@@ -1,6 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { createContext, useCallback, useContext } from 'react';
 
 import type { Company, Person } from '../account';
+import { queryClient } from '../query';
 
 /**
  * People, as the person signed in: one operation per request, by the name the
@@ -56,6 +58,8 @@ export async function ask<T>(
     return { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again.' };
   }
   const answer = (await response.json().catch(() => null)) as Answer<T> | null;
+  // A write that went through: every answer kept may now be out of date.
+  if (answer?.ok === true && response.headers.get('x-kithena-wrote') === '1') wrote();
   return answer ?? { ok: false, code: 'UNAVAILABLE', message: 'People did not answer.' };
 }
 
@@ -66,65 +70,61 @@ export type Load<T> =
   | { readonly status: 'error'; readonly message: string };
 
 /**
- * Reads already answered, by session and question: a screen opens on the
- * last answer at once and asks again behind it, so going back, switching tab
- * or opening a screen the app read ahead never waits on the network. Per
- * session, so nobody else's answer is ever shown; in memory only.
- *
- * ponytail: the oldest go past 300 answers; a byte budget if answers grow.
+ * Reads already answered, by session and question, in `queryClient`: a
+ * screen opens on the last answer at once and asks again only once it is
+ * stale, so going back, switching tab or opening a screen the app read ahead
+ * waits on nothing. Per session, so nobody else's answer is ever shown; in
+ * memory only. Two screens asking the same question at once share a request.
  */
-const kept = new Map<string, { readonly data: unknown; readonly at: number }>();
-const asking = new Map<string, Promise<Answer<unknown>>>();
-const KEEP = 300;
-
 const keyOf = (
   signed: Signed,
   area: string,
   operation: string,
-  variables: Record<string, unknown> | string,
-): string =>
-  [
-    signed.company.origin,
-    signed.sessionId,
-    area,
-    operation,
-    typeof variables === 'string' ? variables : JSON.stringify(variables),
-  ].join('\n');
+  variables: Record<string, unknown>,
+): readonly unknown[] => [signed.company.origin, signed.sessionId, area, operation, variables];
 
-function keep(key: string, data: unknown): void {
-  kept.delete(key);
-  kept.set(key, { data, at: Date.now() });
-  if (kept.size > KEEP) kept.delete(kept.keys().next().value ?? '');
+/** A refusal, thrown so it is never kept as an answer. */
+class Refused extends Error {
+  readonly answer: Extract<Answer<never>, { ok: false }>;
+  constructor(answer: Extract<Answer<never>, { ok: false }>) {
+    super(answer.message);
+    this.answer = answer;
+  }
 }
 
-/**
- * A read, its answer kept: two screens, or a read-ahead and the screen it was
- * for, asking the same question at once share one request.
- */
+const options = <T>(
+  signed: Signed,
+  operation: string,
+  variables: Record<string, unknown>,
+  area: 'people' | 'timeoff',
+) => ({
+  queryKey: keyOf(signed, area, operation, variables),
+  queryFn: async (): Promise<T> => {
+    const answer = await ask<T>(signed, operation, variables, area);
+    if (!answer.ok) throw new Refused(answer);
+    return answer.data;
+  },
+});
+
+/** A read: the answer kept, if it is fresh; else asked, once however many ask. */
 export function read<T>(
   signed: Signed,
   operation: string,
   variables: Record<string, unknown> = {},
   area: 'people' | 'timeoff' = 'people',
 ): Promise<Answer<T>> {
-  const key = keyOf(signed, area, operation, variables);
-  const held = asking.get(key);
-  if (held !== undefined) return held as Promise<Answer<T>>;
-  const answer = ask<T>(signed, operation, variables, area).then((a) => {
-    if (a.ok) keep(key, a.data);
-    return a;
-  });
-  asking.set(key, answer);
-  void answer.finally(() => asking.delete(key));
-  return answer;
+  return queryClient.query(options<T>(signed, operation, variables, area)).then(
+    (data): Answer<T> => ({ ok: true, data }),
+    (error: unknown): Answer<T> =>
+      error instanceof Refused
+        ? error.answer
+        : { ok: false, code: 'UNAVAILABLE', message: 'People did not answer.' },
+  );
 }
 
-/**
- * A write went through: a read already on its way was asked before it, so
- * the next screen to ask asks afresh rather than waiting for that answer.
- */
-export function wrote(): void {
-  asking.clear();
+/** A write went through: every answer kept is stale, and what is on screen is asked again. */
+function wrote(): void {
+  void queryClient.invalidateQueries();
 }
 
 /** The last answer to a read, if there is one: of the type the caller asked it as. */
@@ -135,23 +135,26 @@ export function keptAnswer<T>(
   variables: Record<string, unknown> = {},
   area: 'people' | 'timeoff' = 'people',
 ): { readonly data: T; readonly at: number } | undefined {
-  return kept.get(keyOf(signed, area, operation, variables)) as { data: T; at: number } | undefined;
+  const state = queryClient.getQueryState<T>(keyOf(signed, area, operation, variables));
+  return state?.data === undefined ? undefined : { data: state.data, at: state.dataUpdatedAt };
 }
 
-/** Reads a screen is about to need, asked now so it opens on them. */
+/** Reads a screen is about to need, asked now (unless kept and fresh) so it opens on them. */
 export function readAhead(
   signed: Signed,
   reads: readonly (readonly [string, Record<string, unknown>?])[],
   area: 'people' | 'timeoff' = 'people',
 ): void {
-  for (const [operation, variables] of reads) void read(signed, operation, variables, area);
+  for (const [operation, variables = {}] of reads) {
+    queryClient.query(options(signed, operation, variables, area)).catch(() => undefined);
+  }
 }
 
 /**
- * One read, kept for the screen, asked again when its variables change or on
- * `reload`. It opens on the last answer to the same question, if any, and
- * keeps showing it when asking again fails. The variables are compared as
- * JSON, so a new object each render does not ask twice.
+ * One read, kept for the screen, asked again when its variables change, once
+ * stale, or on `reload`. It opens on the last answer to the same question, if
+ * any, and keeps showing it when asking again fails. Variables are compared
+ * by value, so a new object each render does not ask twice.
  */
 export function useRead<T>(
   operation: string,
@@ -159,36 +162,18 @@ export function useRead<T>(
   area: 'people' | 'timeoff' = 'people',
 ): { load: Load<T>; reload: () => void } {
   const signed = useSigned();
-  const key = JSON.stringify(variables);
-  const held = (): Load<T> => {
-    const last = kept.get(keyOf(signed, area, operation, key));
-    return last === undefined
-      ? { status: 'loading' }
-      : { status: 'ready', data: last.data as T, at: last.at };
-  };
-  const [load, setLoad] = useState<Load<T>>(held);
-  const [round, setRound] = useState(0);
-
-  useEffect(() => {
-    let live = true;
-    const last = held();
-    setLoad(last);
-    void read<T>(signed, operation, JSON.parse(key) as Record<string, unknown>, area).then(
-      (answer) => {
-        if (!live) return;
-        if (answer.ok) setLoad({ status: 'ready', data: answer.data, at: Date.now() });
-        else if (last.status !== 'ready') setLoad({ status: 'error', message: answer.message });
-      },
-    );
-    return () => {
-      live = false;
-    };
-    // `held` reads the same inputs.
-  }, [signed, operation, key, round, area]);
-
+  const query = useQuery(options<T>(signed, operation, variables, area));
+  const { refetch } = query;
+  // A read already on its way (after a write, say) is the one waited for.
   const reload = useCallback(() => {
-    setRound((r) => r + 1);
-  }, []);
+    void refetch({ cancelRefetch: false });
+  }, [refetch]);
+  const load: Load<T> =
+    query.data !== undefined
+      ? { status: 'ready', data: query.data, at: query.dataUpdatedAt }
+      : query.error !== null
+        ? { status: 'error', message: query.error.message }
+        : { status: 'loading' };
   return { load, reload };
 }
 
