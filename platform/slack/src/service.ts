@@ -1,3 +1,5 @@
+import { ASSISTANT_LIMITS } from '@kithena/contracts';
+
 import {
   approvalsMessage,
   fillView,
@@ -23,7 +25,8 @@ import type { Store } from './store.js';
  * the person reading it, when it is drawn; every button is People's own route,
  * called as whoever pressed it, except Time Off's, whose signed value is passed
  * to Time Off as it came. What it keeps is which workspace is which
- * company, and that workspace's token. Which notices are sent is each
+ * company, and that workspace's token; and in memory, for half an hour, the
+ * last few questions of a conversation, so a follow-up can be read. Which notices are sent is each
  * module's setting; a notice that arrives here was switched on there.
  */
 
@@ -57,7 +60,63 @@ export interface Assistant {
     tenantId: string,
     email: string,
     question: string,
+    /** Earlier questions in the same conversation, oldest first: never their answers. */
+    earlier: readonly string[],
   ): Promise<{ readonly text: string; readonly understood: string }>;
+}
+
+/*
+ * Follow-ups (assistant PRD §4, §17). People's `EARLIER`
+ * (`services/people/src/application/assistant/ask.ts`), copied because a
+ * platform service cannot import a module: the last five questions, never
+ * their answers. Change both together.
+ */
+export const EARLIER = 5;
+const EARLIER_MS = 30 * 60_000;
+
+/**
+ * The last questions asked in each conversation, in this process's memory
+ * and nowhere else (§12.4), so "and tomorrow?" can be read as a follow-up.
+ * A question is kept for 30 minutes; a conversation asked nothing for that
+ * long is forgotten, and beyond `max` the one asked in longest ago goes first.
+ * ponytail: one process; a restart forgets every conversation, which costs a
+ * follow-up its context and nothing else.
+ */
+export interface Conversations {
+  /** The questions asked here in the last 30 minutes, oldest first; this one is kept after them. */
+  remember(key: string, question: string): readonly string[];
+  /** Conversations held now. */
+  size(): number;
+}
+
+export function conversations(now: () => number, max = 1_000): Conversations {
+  // Insertion order is last-asked order: each question moves its conversation to the end.
+  const held = new Map<string, readonly { readonly text: string; readonly at: number }[]>();
+  return {
+    remember(key, question) {
+      const at = now();
+      for (const [k, asked] of held) {
+        if (at - (asked.at(-1)?.at ?? 0) < EARLIER_MS) break;
+        held.delete(k);
+      }
+      const recent = (held.get(key) ?? []).filter((q) => at - q.at < EARLIER_MS);
+      held.delete(key);
+      const text = question.slice(0, ASSISTANT_LIMITS.question);
+      held.set(key, [...recent, { text, at }].slice(-EARLIER));
+      const oldest = held.keys().next();
+      if (held.size > max && oldest.done !== true) held.delete(oldest.value);
+      return recent.map((q) => q.text);
+    },
+    size: () => held.size,
+  };
+}
+
+/** A direct message, or a thread, for one person; a slash command is no conversation. */
+function conversationOf(q: Question): string | null {
+  const to = q.reply;
+  if (to.via === 'channel') return `${q.team}:${q.user}:${to.channel}`;
+  if (to.via === 'thread') return `${q.team}:${q.user}:${to.channel}:${to.threadTs}`;
+  return null;
 }
 
 /** Time Off, over internal HTTP: a press on one of its buttons, answered with what the message becomes. */
@@ -158,6 +217,7 @@ export interface SlackService {
 }
 
 export function slackService(deps: Deps): SlackService {
+  const kept = conversations(deps.now);
   /** The company and token a workspace's message is for, or null when it is not connected. */
   const workspace = async (teamId: string) => {
     const tenantId = await deps.store.companyOf(teamId);
@@ -203,10 +263,13 @@ export function slackService(deps: Deps): SlackService {
       if (q.text === '') text = helpText(deps.command);
       else {
         const email = await emailOf(where.token, q.user);
+        const key = conversationOf(q);
         const answer =
           email === null
             ? null
-            : await deps.assistant.ask(where.tenantId, email, q.text).catch(() => null);
+            : await deps.assistant
+                .ask(where.tenantId, email, q.text, key === null ? [] : kept.remember(key, q.text))
+                .catch(() => null);
         text =
           email === null
             ? 'I could not read your email from Slack, so I cannot tell who you are in Kithena.'

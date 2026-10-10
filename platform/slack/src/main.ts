@@ -91,13 +91,19 @@ const assistantUrl = (env['ASSISTANT_URL'] ?? 'http://localhost:4104').replace(/
 const assistantToken = env['SLACK_ASSISTANT_TOKEN'] ?? '';
 const NOT_AVAILABLE = "The assistant isn't available right now.";
 const assistant: Assistant = {
-  ask: async (tenantId, email, question) => {
+  ask: async (tenantId, email, question, earlier) => {
     if (assistantToken === '') return { text: NOT_AVAILABLE, understood: '' };
     const response = await fetch(`${assistantUrl}/internal/ask`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-internal-token': assistantToken },
       // The token, not this body, tells the assistant which channel is asking.
-      body: JSON.stringify({ tenantId, email, question, channel: 'slack' }),
+      body: JSON.stringify({
+        tenantId,
+        email,
+        question,
+        channel: 'slack',
+        ...(earlier.length === 0 ? {} : { earlier }),
+      }),
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) {

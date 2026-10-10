@@ -59,6 +59,8 @@ export interface Modules {
 /** Everything a plan is asked from: configuration and the masked question, never a value. */
 export interface PlanRequest {
   readonly question: string;
+  /** Earlier questions of a follow-up, masked as the question is, oldest first. */
+  readonly earlier?: readonly string[];
   readonly today: Today;
   /** The offer the model is shown: masked references in place of private types. */
   readonly offer: Offer;

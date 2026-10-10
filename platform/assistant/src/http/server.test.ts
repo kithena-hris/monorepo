@@ -192,6 +192,27 @@ describe('POST /internal/ask', () => {
     }
   });
 
+  it('sends a follow-up’s earlier questions to the model masked, and logs no word of them', async () => {
+    const { handle, seen, lines } = service();
+    const { status } = await handle(
+      post({
+        ...QUESTION,
+        question: 'And in Sales?',
+        earlier: ['Who is off sick today?', 'Who in Engineering is off next week?'],
+      }),
+    );
+    expect(status).toBe(200);
+    const sent = seen.find((s) => s.url === 'http://model.test/v1/chat/completions')?.body ?? '';
+    const context = JSON.parse(
+      (JSON.parse(sent) as { messages: { content: string }[] }).messages[1]?.content ?? '{}',
+    ) as Record<string, unknown>;
+    expect(context['question']).toBe('And in Sales?');
+    expect(context['earlier']).toEqual(['Who is L1 today?', 'Who in Engineering is off next week?']);
+    expect(sent).not.toMatch(/sick/iu);
+    const everything = lines.join('\n');
+    for (const word of ['Sales', 'sick', 'Engineering', 'L1']) expect(everything).not.toContain(word);
+  });
+
   it('refuses a caller without a channel’s token, and says "not available" without a model', async () => {
     const { handle } = service();
     expect((await handle(post(QUESTION, null))).status).toBe(401);
