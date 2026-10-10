@@ -89,8 +89,12 @@ const names = (page: Page) =>
 describe('the directory filters', () => {
   it('narrows the list by a condition from the Filters dialog, and widens it from its chip', async () => {
     const { page, errors } = await admin();
+    // Each error with the step it came in, so a failure says where.
+    const seen = (step: string) => errors.splice(0).map((e) => `${step}: ${e}`);
+    const problems: string[] = [];
     await page.goto(`${stack.shell}/people/directory/list`);
     await expect.poll(() => names(page), { timeout: 30_000 }).toEqual(['Adam Ruiz', 'Priya Shah']);
+    problems.push(...seen('first load'));
 
     await page.getByRole('button', { name: 'Add filter' }).click();
     const dialog = page.getByRole('dialog', { name: 'Filter people' });
@@ -106,10 +110,14 @@ describe('the directory filters', () => {
       .toBe(JSON.stringify([{ key: 'manager_id', op: 'empty', values: [] }]));
     expect(new URL(page.url()).searchParams.get('filters')).toBeNull();
     await expect.poll(() => names(page), { timeout: 15_000 }).toEqual(['Priya Shah']);
+    await page.waitForLoadState('networkidle');
+    problems.push(...seen('applied'));
 
     await page.getByRole('button', { name: 'Remove Manager is empty' }).click();
     await expect.poll(() => names(page), { timeout: 15_000 }).toEqual(['Adam Ruiz', 'Priya Shah']);
-    expect(errors).toEqual([]);
+    await page.waitForLoadState('networkidle');
+    problems.push(...seen('removed'));
+    expect(problems).toEqual([]);
   });
 });
 
