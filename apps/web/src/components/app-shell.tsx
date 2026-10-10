@@ -32,7 +32,7 @@ import {
   type CommandItem,
 } from '@reach/ui';
 import type { Route } from 'next';
-import Link from 'next/link';
+import { Link } from '../lib/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   createContext,

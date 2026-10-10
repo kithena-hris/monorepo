@@ -11,7 +11,7 @@ import {
   ChipRow,
   icons,
 } from '@reach/ui';
-import Link from 'next/link';
+import { Link } from '../lib/link';
 import { usePathname } from 'next/navigation';
 import type { Route } from 'next';
 import { useEffect, useRef, useState, type JSX } from 'react';

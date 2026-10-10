@@ -13,7 +13,7 @@ import {
   type IconName,
 } from '@reach/ui';
 import type { Route } from 'next';
-import Link from 'next/link';
+import { Link } from '../lib/link';
 import { useRouter } from 'next/navigation';
 import { useState, type JSX } from 'react';
 

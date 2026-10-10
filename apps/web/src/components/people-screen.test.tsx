@@ -58,6 +58,7 @@ vi.mock('../app/(app)/people/actions', () => ({
   requestDetails: vi.fn(),
   saveSegment: vi.fn(),
   directoryPage: vi.fn(),
+  wordedWhatChanged: vi.fn(),
 }));
 // The shell around the page: its data is what the page is remembered under.
 const shell = vi.hoisted(() => ({
@@ -85,19 +86,22 @@ vi.mock('./remote-screen', () => ({
 }));
 
 const { PeopleScreen } = await import('./people-screen');
+const { QueryProvider } = await import('../lib/query');
 
 /** The screen at `url`, and the props it was handed. */
 function open(url: string, component: string, data: unknown = {}): Record<string, unknown> {
   window.history.replaceState(null, '', url);
   render(
-    <PeopleScreen
-      route={{ entry: 'x', component }}
-      load={{ status: 'ready', data }}
-      path={window.location.pathname}
-      params={{}}
-      search={Object.fromEntries(new URLSearchParams(window.location.search))}
-      today="2026-09-29"
-    />,
+    <QueryProvider drawn={0}>
+      <PeopleScreen
+        route={{ entry: 'x', component }}
+        load={{ status: 'ready', data }}
+        path={window.location.pathname}
+        params={{}}
+        search={Object.fromEntries(new URLSearchParams(window.location.search))}
+        today="2026-09-29"
+      />
+    </QueryProvider>,
   );
   return shown;
 }
@@ -224,6 +228,20 @@ describe('the directory, which People answers from the address', () => {
     expect(router.replace).toHaveBeenCalledWith('/people/directory/list?q=adam', {
       scroll: false,
     });
+  });
+
+  it('applies the Filters dialog’s conditions, the dialog closing with them rather than over them', () => {
+    const props = open('/people/directory/list?filters=open', 'Directory');
+    const manager = [{ key: 'manager_id', op: 'empty', values: [] }];
+    // Apply, then the dialog closes: as the screen does it.
+    call(props, 'onConditionsChange', manager, 'all');
+    call(props, 'onFiltersOpenChange', false);
+    expect(router.push).toHaveBeenCalledWith(
+      `/people/directory/list?conditions=${encodeURIComponent(JSON.stringify(manager))}`,
+      { scroll: false },
+    );
+    // Closing noted nothing under the navigation, which Next would then drop.
+    expect(here()).toBe('/people/directory/list?filters=open');
   });
 
   it('keeps the search and filters across views, but not the org chart’s own', () => {
