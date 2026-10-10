@@ -897,7 +897,7 @@ type TimeOffInboxItems {
   area: String
   at: String!
   count: Int
-  detail: JSON!
+  detail: JSON
   due: String
   dueVerb: String!
   from: TimeOffInboxItemsFrom
@@ -1734,7 +1734,7 @@ type TimeOffSettingsApprovals {
 }
 
 type TimeOffSettingsAttendance {
-  defaultSchedule: JSON!
+  defaultSchedule: JSON
   rules: TimeOffAttendanceRules!
 }
 
