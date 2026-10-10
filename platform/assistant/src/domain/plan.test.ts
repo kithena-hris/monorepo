@@ -56,12 +56,23 @@ describe('the catalogue offered to the model', () => {
       'people.managers',
       'people.approvals',
       'timeoff.away',
+      'timeoff.balances',
+      'timeoff.pending',
     ]);
     expect(BOTH.get('timeoff.away')?.fields.map((f) => f.key)).toEqual(['leave_type']);
+    expect(BOTH.get('timeoff.balances')?.fields.map((f) => f.key)).toEqual([
+      'leave_type',
+      'days_left',
+    ]);
   });
 
   it('yields nothing where People is absent', () => {
-    expect([...TIMEOFF_ONLY.keys()]).toEqual(['timeoff.away', 'timeoff.managers']);
+    expect([...TIMEOFF_ONLY.keys()]).toEqual([
+      'timeoff.away',
+      'timeoff.managers',
+      'timeoff.balances',
+      'timeoff.pending',
+    ]);
     expect(TIMEOFF_ONLY.get('timeoff.away')?.fields.map((f) => f.key)).toEqual([
       'leave_type',
       'team',
@@ -241,6 +252,39 @@ describe('a slip with the right meaning is put where it belongs', () => {
   it('a list of what waits for approval is read as the one answer it is', () => {
     const r = read(plan([{ id: 's1', capability: 'people.approvals', input: {} }]));
     expect(r.ok && r.value.kind === 'plan' && r.value.answer.kind).toBe('one');
+  });
+});
+
+describe('one answer over several queues (AST-032)', () => {
+  const queues = [
+    { id: 's1', capability: 'people.approvals', input: {} },
+    { id: 's2', capability: 'timeoff.pending', input: {} },
+  ];
+
+  it('names every step whose items it lists, the first as its step', () => {
+    const r = read(plan(queues, { kind: 'one', step: ['s1', 's2'] }));
+    expect(r.ok && r.value.kind === 'plan' && r.value.answer).toEqual({
+      kind: 'one',
+      step: 's1',
+      also: ['s2'],
+    });
+  });
+
+  it('reads one step in a list as that step, and the same step twice as once', () => {
+    const r = read(plan(queues.slice(0, 1), { kind: 'one', step: ['s1', 's1'] }));
+    expect(r.ok && r.value.kind === 'plan' && r.value.answer).toEqual({ kind: 'one', step: 's1' });
+  });
+
+  it('refuses several steps where one is not items, or does not exist', () => {
+    expect(
+      refusal(
+        plan([...queues, { id: 's3', capability: 'people.person', input: { name: 'Michael' } }], {
+          kind: 'one',
+          step: ['s1', 's3'],
+        }),
+      ),
+    ).toBe('ANSWER_KIND');
+    expect(refusal(plan(queues, { kind: 'one', step: ['s1', 's4'] }))).toBe('ANSWER_STEP');
   });
 });
 

@@ -109,6 +109,18 @@ describe('how much each call asks for', () => {
     expect(limitFor(stepOf(plan, 1), plan)).toEqual({ limit: 25 });
   });
 
+  it('asks 25 of every queue one answer lists', () => {
+    const plan = planOf(
+      [
+        { id: 's1', capability: 'people.approvals', input: {} },
+        { id: 's2', capability: 'timeoff.pending', input: {} },
+      ],
+      { kind: 'one', step: ['s1', 's2'] },
+    );
+    expect(limitFor(stepOf(plan, 0), plan)).toEqual({ limit: 25 });
+    expect(limitFor(stepOf(plan, 1), plan)).toEqual({ limit: 25 });
+  });
+
   it('sends no limit to a profile', () => {
     const plan = planOf([{ id: 's1', capability: 'people.person', input: { name: 'Michael' } }], {
       kind: 'one',
@@ -173,6 +185,26 @@ describe('running a plan', () => {
     );
     expect(run).toEqual({ ok: false, error: { code: 'UNREACHABLE', module: 'people' } });
     expect(m.inputs.has('s2')).toBe(false);
+  });
+
+  it('fails an answer over several queues when any of them fails', async () => {
+    const items = CapabilityOutput.parse({ kind: 'items', items: [], total: 0 });
+    const m = modules({
+      'people.approvals': () => ok(items),
+      'timeoff.pending': () => err({ code: 'UNREACHABLE' }),
+    });
+    const run = await execute(
+      planOf(
+        [
+          { id: 's1', capability: 'people.approvals', input: {} },
+          { id: 's2', capability: 'timeoff.pending', input: {} },
+        ],
+        { kind: 'one', step: ['s1', 's2'] },
+      ),
+      TODAY,
+      m.call,
+    );
+    expect(run).toEqual({ ok: false, error: { code: 'UNREACHABLE', module: 'timeoff' } });
   });
 
   it('carries a module’s refusal in its own words', async () => {

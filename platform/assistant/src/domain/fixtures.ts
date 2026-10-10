@@ -47,25 +47,32 @@ export const PEOPLE_CATALOGUE = RuntimeCatalogue.parse({
   ],
 });
 
+const LEAVE_TYPE = select('leave_type', 'Leave type', [
+  ['vacation', 'Vacation'],
+  ['personal', 'Personal'],
+  ['comp', 'Comp'],
+  ['sick', 'Baja médica'],
+  ['parental', 'Parental leave'],
+]);
+const TEAM = select('team', 'Team', [
+  ['engineering', 'Engineering'],
+  ['sales', 'Sales'],
+]);
+
 export const TIMEOFF_CATALOGUE = RuntimeCatalogue.parse({
   module: 'timeoff',
   serves: [
     { name: 'timeoff.away', version: 1 },
     { name: 'timeoff.managers', version: 1 },
+    { name: 'timeoff.balances', version: 1 },
+    { name: 'timeoff.pending', version: 1 },
   ],
   fields: {
-    'timeoff.away': [
-      select('leave_type', 'Leave type', [
-        ['vacation', 'Vacation'],
-        ['personal', 'Personal'],
-        ['comp', 'Comp'],
-        ['sick', 'Baja médica'],
-        ['parental', 'Parental leave'],
-      ]),
-      select('team', 'Team', [
-        ['engineering', 'Engineering'],
-        ['sales', 'Sales'],
-      ]),
+    'timeoff.away': [LEAVE_TYPE, TEAM],
+    'timeoff.balances': [
+      LEAVE_TYPE,
+      { key: 'days_left', label: 'Days left', kind: 'number', options: [] },
+      TEAM,
     ],
   },
   leaveTypes: [

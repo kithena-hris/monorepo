@@ -73,6 +73,25 @@ describe('the plan (AST-004)', () => {
     );
   });
 
+  it('lets one answer name several steps, and only one answer (AST-032)', () => {
+    const waiting = (answer: unknown) => ({
+      kind: 'plan',
+      steps: [
+        { id: 's1', capability: 'people.approvals', input: {} },
+        { id: 's2', capability: 'timeoff.pending', input: {} },
+      ],
+      answer,
+    });
+    expect(AssistantPlan.safeParse(waiting({ kind: 'one', step: ['s1', 's2'] })).success).toBe(
+      true,
+    );
+    expect(AssistantPlan.safeParse(waiting({ kind: 'one', step: [] })).success).toBe(false);
+    expect(AssistantPlan.safeParse(waiting({ kind: 'list', step: ['s1', 's2'] })).success).toBe(
+      false,
+    );
+    expect(AssistantPlan.safeParse(waiting({ kind: 'count', step: ['s1'] })).success).toBe(false);
+  });
+
   it('takes a capability by its name, not by anything else', () => {
     expect(
       AssistantPlan.safeParse({ ...managersOfSick, steps: [{ ...step('s1'), capability: 'find' }] })

@@ -74,6 +74,8 @@ describe('the planner’s prompt', () => {
       'people.managers',
       'people.approvals',
       'timeoff.away',
+      'timeoff.balances',
+      'timeoff.pending',
     ]);
     const away = JSON.stringify(capabilities.find((c) => c.capability === 'timeoff.away'));
     expect(away).toContain('"value":"L1","label":"a leave type named in the question"');
@@ -103,5 +105,14 @@ describe('the planner’s prompt', () => {
     expect(INSTRUCTION).toMatch(/employment status, not who is away/u);
     expect(INSTRUCTION).toMatch(/never write a number/u);
     expect(INSTRUCTION).toMatch(/"@me"/u);
+  });
+
+  it('tells the model how a number field compares, and that leave left is listed (AST-030)', () => {
+    expect(INSTRUCTION).toMatch(/number field, after means more than and before means less than/u);
+    expect(INSTRUCTION).toMatch(/How much leave somebody has left is "list"/u);
+  });
+
+  it('tells the model one answer may list what waits in several capabilities (AST-032)', () => {
+    expect(INSTRUCTION).toContain('{"kind":"one","step":["s1","s2"]}');
   });
 });

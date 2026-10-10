@@ -796,7 +796,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
 
 ## Phase 2 — more of Time Off, and follow-ups
 
-### [ ] AST-030 — `timeoff.balances`
+### [x] AST-030 — `timeoff.balances`
 
 - **Spec** PRD §17, Phase 2
 - **Files** `packages/contracts/src/assistant/timeoff.ts`,
@@ -809,14 +809,39 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   `people` with `detail` "12.5 days left".
 - **Done when** "how much vacation do I have left?" and "who in my team has
   more than 10 days left?" are eval cases and end-to-end tests.
+- **As built** Filters `leave_type`, `days_left` (a `number` field: `after`
+  is more than, `before` less than, `is` exactly, one value) and `team`
+  (yielding to `people.find`, as `timeoff.away`'s does), a `name` and
+  `within`; groups `team` and `location`. Whose balances: `seesBalances` in
+  `screens/employee.ts`, the rule `personBalances` already used for the People
+  Graph, lifted out so both run it. Each figure is `balanceFor`, the ledger's
+  fold for the leave year today is in, in the member's own zone, compared and
+  printed as `Decimal` ("12.5 days left", "6 hours left"). With no
+  `leave_type` filter the types are the annual leave ones (any tracked type
+  that is not private where a company has none). Everybody whose balance an
+  asker sees has `type` sight of them, so a private type's filter matches; its
+  name is written "Away" beside a person unless the company chose to name it,
+  as `timeoff.away` does. One type in play reads "12.5 days left"; several
+  name each ("3 days left · Away, 25 days left · Vacation"). The answer says
+  "You have 12.5 days left." to an asker about themselves, and its chat lock
+  now reads every part of a detail, not only the last.
 
-### [ ] AST-031 — `timeoff.pending`
+### [x] AST-031 — `timeoff.pending`
 
 - **Depends on** AST-022
 - **Approach** Requests waiting for the asker's decision, output `items`.
 - **Done when** tests show only the asker's queue, as T16 shows it.
+- **As built** `approvalQueue` itself, the queue behind T16's "waiting"
+  tab, the ones to look closer at first; a test compares every asker's items
+  with what the screen shows them. A label is the type, the dates and the
+  working days ("Vacation · Tue 6 Oct (1 day)", "a change to …" for a counter
+  proposal); a private type is "Away" unless the company chose to name it.
+  An item's `label` is now classified special-category (health), as a row's
+  `detail` is, because it can hold a leave type. The answer has Time Off's
+  own sentences ("1 time off request is waiting for your decision:") and
+  reads every label for a private type in a chat app, as it reads a detail.
 
-### [ ] AST-032 — An answer over several item steps
+### [x] AST-032 — An answer over several item steps
 
 - **Spec** PRD §17, Phase 2
 - **Files** `packages/contracts/src/assistant/plan.ts`,
@@ -826,6 +851,15 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   the answer lists each module's under its name. "What's waiting for me?"
   plans `people.approvals` and `timeoff.pending`.
 - **Done when** the eval set gains the case and it passes.
+- **As built** `PlanAnswer`'s `one` takes `step` as one id or a list of
+  them; `readPlan` reads a list as `{ kind: 'one', step, also }` (each id
+  once, a list of one as that step) and refuses it unless every step it names
+  is `items`. Each named queue is asked for 25, and the answer fails whole if
+  any of them fails, naming the module, rather than list some of them. The
+  answer is "3 things are waiting for you:" and each module's name with its
+  items, or "Time Off: nothing waiting.". The instruction says to plan a step
+  per queue and answer `"step":["s1","s2"]`; the eval reads the steps in
+  either order as the same plan.
 
 ### [ ] AST-033 — Follow-ups in a conversation
 

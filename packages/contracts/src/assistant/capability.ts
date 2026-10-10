@@ -214,13 +214,18 @@ export const ProfileResult = z.strictObject({
 });
 export type ProfileResult = z.infer<typeof ProfileResult>;
 
+/**
+ * What waits for the asker. A label can name a leave type ("Vacation · Mon 12
+ * Oct"), which for sick or parental leave is health data, so it is
+ * special-category whatever it says, as a row's `detail` is (§8.2).
+ */
 export const ItemsResult = z.strictObject({
   kind: z.literal('items').register(policy, asPublic()),
   items: z
     .array(
       z.strictObject({
         name: personName(),
-        label: z.string().max(200).register(policy, asInternal()),
+        label: z.string().max(200).register(policy, asSpecialCategory('health')),
       }),
     )
     .max(MAX_LISTED),

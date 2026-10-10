@@ -185,6 +185,15 @@ export const CASES: readonly EvalCase[] = [
     expect: one('timeoff.away', away({ from: '2026-10-12', to: '2026-10-16' }), 'list'),
   },
 
+  {
+    id: 'to-my-vacation-left',
+    group: 'timeoff',
+    question: 'How much vacation do I have left?',
+    company: 'both',
+    asker: 'employee',
+    expect: one('timeoff.balances', { name: '@me', ...types('vacation') }, 'list'),
+  },
+
   // Joins
   {
     id: 'j-managers-sick',
@@ -296,6 +305,48 @@ export const CASES: readonly EvalCase[] = [
         step('s2', 'timeoff.away', away('this_month', types('L1')), 's1'),
       ],
       { kind: 'count', step: 's2' },
+    ),
+  },
+
+  {
+    id: 'j-my-team-days-left',
+    group: 'joins',
+    question: 'Who in my team has more than 10 days left?',
+    company: 'both',
+    asker: 'manager',
+    expect: or(
+      plan(
+        [
+          step('s1', 'people.reports', { name: '@me' }),
+          step('s2', 'timeoff.balances', where('days_left', 'after', '10'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
+      plan(
+        [
+          step('s1', 'people.find', { name: '@me' }),
+          step('s2', 'timeoff.balances', where('days_left', 'after', '10'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
+    ),
+  },
+
+  {
+    id: 'j-waiting-for-me',
+    group: 'joins',
+    question: 'What’s waiting for me?',
+    company: 'both',
+    asker: 'manager',
+    expect: or(
+      plan([step('s1', 'people.approvals'), step('s2', 'timeoff.pending')], {
+        kind: 'one',
+        step: ['s1', 's2'],
+      }),
+      plan([step('s1', 'timeoff.pending'), step('s2', 'people.approvals')], {
+        kind: 'one',
+        step: ['s1', 's2'],
+      }),
     ),
   },
 
@@ -577,12 +628,15 @@ function normal(valid: ValidPlan): unknown {
     case 'plan':
       return {
         kind: 'plan',
-        // A people answer lists the same whether the model wrote "one" or "list".
+        // A people answer lists the same whether the model wrote "one" or "list",
+        // and one answer over several queues the same whichever it named first.
         answer:
           valid.answer.kind === 'one' &&
           valid.steps.find((s) => s.id === valid.answer.step)?.capability.output === 'people'
             ? { ...valid.answer, kind: 'list' }
-            : valid.answer,
+            : valid.answer.kind === 'one' && valid.answer.also !== undefined
+              ? { kind: 'one', step: [valid.answer.step, ...valid.answer.also].toSorted() }
+              : valid.answer,
         steps: valid.steps.map((s) => {
           const { filters, match, on, ...rest } = s.input;
           const input: Record<string, unknown> = { ...rest };

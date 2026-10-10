@@ -5,7 +5,9 @@ import {
   LeaveTypeKey,
   RuntimeCatalogue,
   TimeOffAway,
+  TimeOffBalances,
   TimeOffManagers,
+  TimeOffPending,
 } from '@kithena/contracts';
 
 import type { Caller } from '../application/ports.js';
@@ -57,7 +59,12 @@ describe('Time Off’s capabilities with People absent', () => {
     const answer = await ask('adam', '');
     expect(answer.status).toBe(200);
     const catalogue = RuntimeCatalogue.parse(answer.body);
-    expect(catalogue.serves.map((s) => s.name)).toEqual(['timeoff.away', 'timeoff.managers']);
+    expect(catalogue.serves.map((s) => s.name)).toEqual([
+      'timeoff.away',
+      'timeoff.managers',
+      'timeoff.balances',
+      'timeoff.pending',
+    ]);
     expect(catalogue.fields['timeoff.away']?.find((f) => f.key === 'team')?.options).toEqual([
       { value: 'platform', label: 'Platform' },
     ]);
@@ -100,5 +107,55 @@ describe('Time Off’s capabilities with People absent', () => {
       total: 1,
     });
     expect((await ask('adam', '/timeoff.managers', { limit: 25 })).status).toBe(400);
+  });
+
+  it('answers timeoff.balances: “how much vacation do I have left?” and who has more than 10', async () => {
+    const { ask } = boot();
+    const vacation = { key: 'leave_type', op: 'in', values: ['vacation'] };
+    const mine = await ask('adam', '/timeoff.balances', {
+      name: '@me',
+      filters: [vacation],
+      limit: 25,
+    });
+    expect(mine.status).toBe(200);
+    expect(TimeOffBalances.schemas.output.parse(mine.body)).toMatchObject({
+      rows: [{ name: 'Adam Novak', detail: '25 days left', self: true }],
+      total: 1,
+    });
+    const team = await ask('marco', '/timeoff.balances', {
+      personIds: [people.adam, people.omar],
+      filters: [{ key: 'days_left', op: 'after', values: ['10'] }],
+      limit: 25,
+    });
+    expect(TimeOffBalances.schemas.output.parse(team.body)).toMatchObject({
+      total: 2,
+      described: 'with more than 10 days of Vacation left',
+    });
+    // Adam may not see Omar's balance.
+    expect((await ask('adam', '/timeoff.balances', { name: 'omar', limit: 25 })).body).toEqual({
+      kind: 'not_found',
+      name: 'omar',
+    });
+  });
+
+  it('answers timeoff.pending with the asker’s own queue', async () => {
+    const { app, ask } = boot();
+    const sent = await sendRequest(app.deps)(caller(people.adam), {
+      leaveTypeKey: LeaveTypeKey.parse('vacation'),
+      span: DateSpan.parse({ from: '2026-10-08', to: '2026-10-08' }),
+    });
+    if (!sent.ok) throw new Error(sent.error.message);
+    const marco = await ask('marco', '/timeoff.pending', { limit: 25 });
+    expect(marco.status).toBe(200);
+    expect(TimeOffPending.schemas.output.parse(marco.body)).toEqual({
+      kind: 'items',
+      items: [{ name: 'Adam Novak', label: 'Vacation · Thu 8 Oct (1 day)' }],
+      total: 1,
+    });
+    expect((await ask('adam', '/timeoff.pending', { limit: 25 })).body).toEqual({
+      kind: 'items',
+      items: [],
+      total: 0,
+    });
   });
 });

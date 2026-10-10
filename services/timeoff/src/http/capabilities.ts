@@ -1,12 +1,20 @@
 import { err, failure, type Result } from '@kithena/domain-kit';
 import {
   TimeOffAway,
+  TimeOffBalances,
   TimeOffManagers,
+  TimeOffPending,
   type Capability,
   type CapabilityInput,
 } from '@kithena/contracts';
 
-import { away, capabilityCatalogue, managers } from '../application/assist/capabilities.js';
+import {
+  away,
+  balances,
+  capabilityCatalogue,
+  managers,
+  pending,
+} from '../application/assist/capabilities.js';
 import type { Caller, Deps } from '../application/ports.js';
 import type { CallerFrom } from './caller.js';
 import { refused, type RestRequest, type RestResponse } from './rest.js';
@@ -49,6 +57,8 @@ const served =
 const HANDLERS: Readonly<Record<string, Handler>> = {
   [TimeOffAway.name]: served(TimeOffAway, away),
   [TimeOffManagers.name]: served(TimeOffManagers, managers),
+  [TimeOffBalances.name]: served(TimeOffBalances, balances),
+  [TimeOffPending.name]: served(TimeOffPending, pending),
 };
 
 const notFound = (): RestResponse => refused(failure('NOT_FOUND', 'No such capability'));
