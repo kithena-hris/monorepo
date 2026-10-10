@@ -94,6 +94,18 @@ beforeAll(async () => {
        WHERE tenant_id = ${TENANT} AND person_id = ${EMPLOYEE.person}`,
     ([m]) => m?.manager === ADMIN.person,
   );
+  // And his vacation granted: Time Off works it out after he joins, and a
+  // request asked before then is refused for a zero balance.
+  await eventually(
+    'Adam’s vacation balance',
+    async () => {
+      const overview = await stack.asTimeOff(EMPLOYEE.account, 'GET', '/v1/timeoff/overview');
+      const balances = (overview.body as { balances?: { leaveTypeKey: string; left: string }[] })
+        .balances;
+      return Number(balances?.find((b) => b.leaveTypeKey === 'vacation')?.left ?? 0);
+    },
+    (left) => left >= 2,
+  );
 }, 900_000);
 
 afterAll(async () => {
@@ -319,7 +331,9 @@ describe('The Inbox', () => {
     const say = (line: string): void => {
       if (out !== undefined) appendFileSync(out, `${line}\n`);
     };
-    say(`inbox reads, median warm: people ${people.toFixed(0)} ms, time off ${timeoff.toFixed(0)} ms`);
+    say(
+      `inbox reads, median warm: people ${people.toFixed(0)} ms, time off ${timeoff.toFixed(0)} ms`,
+    );
     expect(people).toBeLessThan(300);
     expect(timeoff).toBeLessThan(300);
 
