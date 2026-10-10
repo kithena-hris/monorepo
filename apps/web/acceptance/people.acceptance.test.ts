@@ -301,7 +301,11 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     expect(audit?.envelope.payload).toMatchObject({ decision: 'approved', decidedAs: 'sole_hr' });
     expect(audit?.envelope.actor).toEqual({ kind: 'user', userId: ADMIN.account });
     await page.reload();
-    await page.getByText('Complete', { exact: true }).waitFor({ timeout: 20_000 });
+    // The one on screen: React's streamed copy can linger hidden after a load.
+    await page
+      .getByText('Complete', { exact: true })
+      .filter({ visible: true })
+      .waitFor({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Finish' }).click();
     await page.waitForURL(/\/people\/me$/);
     await page.getByRole('heading', { name: 'Priya Shah' }).waitFor({ timeout: 30_000 });
