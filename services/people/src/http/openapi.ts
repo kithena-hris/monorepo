@@ -73,6 +73,19 @@ import {
   FileStart,
   DetailAsk,
   AskBody,
+  AskForDetailsBody,
+  AskReplyBody,
+  AskValuesBody,
+  AskSendBackBody,
+  AskNoteBody,
+  AskDueBody,
+  AskRemindBody,
+  ClaimBody,
+  DocumentUploadBody,
+  DocumentSendBody,
+  SignatureBody,
+  CountersignBody,
+  DocumentNoteBody,
   AssistantShareBody,
   SignupAskBody,
   ChatConnect,
@@ -176,6 +189,19 @@ const components = {
   FileOf,
   DetailAsk,
   AskBody,
+  AskForDetails: AskForDetailsBody,
+  AskReply: AskReplyBody,
+  AskValues: AskValuesBody,
+  AskSendBack: AskSendBackBody,
+  AskNote: AskNoteBody,
+  AskDue: AskDueBody,
+  AskRemind: AskRemindBody,
+  InboxClaim: ClaimBody,
+  DocumentUploadStart: DocumentUploadBody,
+  DocumentSend: DocumentSendBody,
+  DocumentSignature: SignatureBody,
+  DocumentCountersignature: CountersignBody,
+  DocumentNote: DocumentNoteBody,
   FieldAssistant: AssistantShareBody,
   FieldSignup: SignupAskBody,
   ChatConnect,
@@ -767,6 +793,134 @@ function screenPaths(): Record<string, unknown> {
         '{ asked, emailed }',
         { path: 'id' },
       ),
+    },
+    // The Inbox's asks, team tasks and documents (INB-027 to INB-029).
+    '/v1/asks': {
+      post: screenWrite(
+        'Ask people for details: one task each in their Inbox',
+        'AskForDetails',
+        200,
+        'The batch asked',
+      ),
+    },
+    '/v1/asks/{id}/replies': {
+      post: screenWrite(
+        'Reply to an ask with a question or an answer',
+        'AskReply',
+        200,
+        'The ask after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/asks/{id}/completion': {
+      post: screenWrite(
+        'Fill in an ask: the details saved as the person',
+        'AskValues',
+        200,
+        'The ask after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/asks/{id}/undo': {
+      post: screenWrite(
+        'Undo a filled-in ask, putting back what was there',
+        'AskValues',
+        200,
+        'The ask after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/asks/{id}/send-back': {
+      post: screenWrite(
+        'Send an answered ask back to be done again',
+        'AskSendBack',
+        200,
+        'The ask after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/asks/{id}/cancellation': {
+      post: screenWrite('Cancel one person’s ask', 'AskNote', 200, 'The ask after', { path: 'id' }),
+    },
+    '/v1/ask-batches/{id}/cancellation': {
+      post: screenWrite('Cancel every open ask in a batch', null, 200, 'How many were cancelled', {
+        path: 'id',
+      }),
+    },
+    '/v1/ask-batches/{id}/due': {
+      post: screenWrite('Move a batch’s due date', 'AskDue', 200, 'The batch after', {
+        path: 'id',
+      }),
+    },
+    '/v1/ask-batches/{id}/reminders': {
+      post: screenWrite(
+        'Remind the people in a batch who have not answered',
+        'AskRemind',
+        200,
+        'Who was reminded',
+        { path: 'id' },
+      ),
+    },
+    '/v1/pending-changes/{id}/nudge': {
+      post: screenWrite(
+        'Nudge whoever decides a pending change, at most once a day',
+        null,
+        200,
+        'Nudged',
+        { path: 'id' },
+      ),
+    },
+    '/v1/inbox/claims': {
+      post: screenWrite('Take a team task, or take it over', 'InboxClaim', 200, 'Who has it now'),
+    },
+    '/v1/documents/uploads': {
+      post: screenWrite(
+        'Start a document’s upload: where to put the file',
+        'DocumentUploadStart',
+        200,
+        '{ uploadId, url, headers }',
+      ),
+    },
+    '/v1/documents': {
+      post: screenWrite(
+        'Send an uploaded document to keep, acknowledge or sign',
+        'DocumentSend',
+        200,
+        'The document sent',
+      ),
+    },
+    '/v1/documents/{id}/acknowledgement': {
+      post: screenWrite('Acknowledge a document as read', null, 200, 'The document after', {
+        path: 'id',
+      }),
+    },
+    '/v1/documents/{id}/signature': {
+      post: screenWrite('Sign a document', 'DocumentSignature', 200, 'The document after', {
+        path: 'id',
+      }),
+    },
+    '/v1/documents/{id}/countersignature': {
+      post: screenWrite(
+        'Countersign a document the person signed',
+        'DocumentCountersignature',
+        200,
+        'The document after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/documents/{id}/send-back': {
+      post: screenWrite(
+        'Send a document back to its sender with a note',
+        'DocumentNote',
+        200,
+        'The document after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/documents/{id}/cancellation': {
+      post: screenWrite('Withdraw a document not yet done', null, 200, 'The document after', {
+        path: 'id',
+      }),
     },
     '/v1/views/photos/remove': {
       post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),

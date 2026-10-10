@@ -5,11 +5,15 @@ import { presentsInternalToken } from '@kithena/auth-kit';
 import { readJsonBody } from '../../shared/http.js';
 import type { SendNotice } from '../application/send-notice.js';
 import {
+  INBOX_TASK_TOPICS,
+  INBOX_UPDATE_TOPICS,
   NUDGE_HEADING_MAX,
   NUDGE_LEDE_MAX,
   REPORT_CADENCES,
   REPORT_FORMATS,
 } from '../domain/notice.js';
+import type { InboxOutcome, InboxRequest } from '../application/inbox-delivery.js';
+import type { Result } from '@kithena/domain-kit';
 import { STATUS, refusalOf } from './messaging-routes.js';
 
 /**
@@ -27,7 +31,11 @@ const NoticeRequest = z.object({
   url: z.string().min(1),
   companyName: z.string().min(1).max(120),
   dedupeKey: z.string().min(1).max(200),
+  /** The Inbox's: whose notification settings to follow. */
+  accountId: z.uuid().optional(),
   notice: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('inbox_task'), topic: z.enum(INBOX_TASK_TOPICS) }),
+    z.object({ kind: z.literal('inbox_update'), topic: z.enum(INBOX_UPDATE_TOPICS) }),
     z.object({ kind: z.literal('profile_reminder'), missing: z.number().int().min(1).max(1000) }),
     z.object({ kind: z.literal('webhook_disabled'), host: z.string().min(1).max(253) }),
     z.object({ kind: z.literal('approval_requested') }),
@@ -52,11 +60,13 @@ const NoticeRequest = z.object({
 
 export interface NoticeRoutesDeps {
   readonly sendNotice: SendNotice;
+  /** The Inbox's notices, routed by the person's settings; absent, sent as any notice is. */
+  readonly deliverInbox?: (request: InboxRequest) => Promise<Result<InboxOutcome>>;
   /** One secret per module that asks: People's, Time Off's. Each empty one matches nothing. */
   readonly internalToken: string | readonly string[];
 }
 
-export function noticeRoutes({ sendNotice, internalToken }: NoticeRoutesDeps) {
+export function noticeRoutes({ sendNotice, deliverInbox, internalToken }: NoticeRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     if ((request.url ?? '').split('?')[0] !== NOTICE) return false;
 
@@ -87,7 +97,24 @@ export function noticeRoutes({ sendNotice, internalToken }: NoticeRoutesDeps) {
       });
     }
 
-    const sent = await sendNotice(parsed.data);
+    const { accountId, ...asked } = parsed.data;
+    const notice = asked.notice;
+    if (
+      (notice.kind === 'inbox_task' || notice.kind === 'inbox_update') &&
+      deliverInbox !== undefined
+    ) {
+      const routed = await deliverInbox({
+        ...asked,
+        notice,
+        ...(accountId === undefined ? {} : { accountId }),
+      });
+      if (!routed.ok) {
+        const reason = refusalOf(routed.error.path?.[0]);
+        return json(STATUS[reason], { code: routed.error.code, reason });
+      }
+      return json(202, routed.value);
+    }
+    const sent = await sendNotice(asked);
     if (!sent.ok) {
       const reason = refusalOf(sent.error.path?.[0]);
       return json(STATUS[reason], { code: sent.error.code, reason });

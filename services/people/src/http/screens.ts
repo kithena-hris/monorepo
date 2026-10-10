@@ -61,7 +61,33 @@ import {
   replayed,
   type KeptRow,
 } from '../application/screens/bulk-edit.js';
-import { personOfViewer } from '../application/screens/record.js';
+import { personOfViewer, type Tx } from '../application/screens/record.js';
+import type { WaitingView } from '../application/screens/waiting.js';
+import { peopleInbox } from '../application/inbox/inbox.js';
+import {
+  askForDetails,
+  cancelAsk,
+  cancelBatch,
+  changeBatchDue,
+  completeAsk,
+  nudgeChange,
+  remindBatch,
+  replyToAsk,
+  sendBackAsk,
+  undoAsk,
+} from '../application/inbox/asks.js';
+import {
+  acknowledgeDocument,
+  cancelDocument,
+  countersignDocument,
+  declineDocument,
+  documentFile,
+  documentsOf,
+  sendDocument,
+  signDocument,
+  startDocumentUpload,
+} from '../application/inbox/documents.js';
+import { takeTeamTask } from '../application/inbox/team.js';
 import { rolesView } from '../application/screens/roles.js';
 import { overviewView } from '../application/screens/overview.js';
 import {
@@ -245,6 +271,11 @@ export type ScreenRouteDeps = SchemaScreenDeps &
     };
     /** The settings log, for the fields an import adds. */
     readonly activity?: ActivityStore;
+    /** HR's queues counted, as the shell's badges count them: the Inbox's Review row. */
+    readonly waiting?: (
+      tx: Tx,
+      asking: Parameters<Route['handle']>[0],
+    ) => Promise<Result<WaitingView>>;
   };
 
 /** New fields from an import: its file, and one value for many, in this process. */
@@ -430,6 +461,49 @@ export const AskBody = z.strictObject({
   earlier: z.array(z.string().max(500)).max(10).default([]),
 });
 export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
+/** Asking one person or many for details, as Inbox tasks (H2). */
+export const AskForDetailsBody = z.strictObject({
+  personIds: z.array(z.uuid()).min(1).max(500),
+  keys: z.array(z.string().max(64)).min(1).max(50),
+  message: z.string().max(2000).nullable().default(null),
+  dueOn: z.iso.date().nullable().default(null),
+});
+export const AskReplyBody = z.strictObject({ body: z.string().trim().min(1).max(4000) });
+export const AskValuesBody = z.strictObject({ values: z.record(z.string().max(64), z.unknown()) });
+export const AskSendBackBody = z.strictObject({
+  reason: z.enum(['no_information', 'not_applicable', 'other']),
+  note: z.string().max(2000).nullable().default(null),
+});
+export const AskNoteBody = z.strictObject({ note: z.string().max(2000).nullable().default(null) });
+export const AskDueBody = z.strictObject({ dueOn: z.iso.date().nullable() });
+export const AskRemindBody = z.strictObject({
+  personIds: z.array(z.uuid()).max(500).nullable().default(null),
+});
+const Empty = z.strictObject({});
+export const DocumentUploadBody = z.strictObject({
+  personId: z.uuid(),
+  name: z.string().min(1).max(255),
+  size: z.int().min(1),
+});
+export const DocumentSendBody = z.strictObject({
+  personId: z.uuid(),
+  uploadId: z.uuid(),
+  mode: z.enum(['keep', 'acknowledge', 'sign']),
+  message: z.string().max(2000).nullable().default(null),
+  dueOn: z.iso.date().nullable().default(null),
+  countersign: z.boolean().default(false),
+});
+export const SignatureBody = z.strictObject({
+  name: z.string().max(200),
+  how: z.enum(['typed', 'drawn']),
+  mark: z.string().max(20_000).default(''),
+});
+export const CountersignBody = z.strictObject({ name: z.string().max(200) });
+export const DocumentNoteBody = z.strictObject({ note: z.string().max(2000) });
+export const ClaimBody = z.strictObject({
+  itemId: z.string().max(200),
+  note: z.string().max(2000).nullable().default(null),
+});
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
   size: z.int().min(1),
@@ -830,6 +904,144 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: write(FileOf, (asking, input, uploadId) =>
         completeFileUpload(fileDeps, asking, input, uploadId),
       ),
+    },
+    // The Inbox (INB-020 to INB-027): People's items for the viewer, and acting on them.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/inbox$/,
+      handle: async (asking) => {
+        const waiting = deps.waiting;
+        return answer(
+          await peopleInbox(
+            deps,
+            asking,
+            waiting === undefined ? undefined : (tx) => waiting(tx, asking),
+          ),
+        );
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/asks$/,
+      handle: write(AskForDetailsBody, (asking, input) => askForDetails(deps, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/asks/${UUID}/replies$`),
+      handle: write(AskReplyBody, (asking, input, id) => replyToAsk(deps, asking, id, input.body)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/asks/${UUID}/completion$`),
+      handle: write(AskValuesBody, (asking, input, id) =>
+        completeAsk(deps, asking, id, input.values),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/asks/${UUID}/undo$`),
+      handle: write(AskValuesBody, (asking, input, id) => undoAsk(deps, asking, id, input.values)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/asks/${UUID}/send-back$`),
+      handle: write(AskSendBackBody, (asking, input, id) => sendBackAsk(deps, asking, id, input)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/asks/${UUID}/cancellation$`),
+      handle: write(AskNoteBody, (asking, input, id) => cancelAsk(deps, asking, id, input.note)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/ask-batches/${UUID}/cancellation$`),
+      handle: write(Empty, (asking, _input, id) => cancelBatch(deps, asking, id)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/ask-batches/${UUID}/due$`),
+      handle: write(AskDueBody, (asking, input, id) =>
+        changeBatchDue(deps, asking, id, input.dueOn),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/ask-batches/${UUID}/reminders$`),
+      handle: write(AskRemindBody, (asking, input, id) =>
+        remindBatch(deps, asking, id, input.personIds),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/nudge$`),
+      handle: write(Empty, (asking, _input, id) => nudgeChange(deps, asking, id)),
+    },
+    // Take a team task, or take it over (INB-029).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/inbox\/claims$/,
+      handle: write(ClaimBody, (asking, input) =>
+        takeTeamTask(deps, asking, input.itemId, input.note),
+      ),
+    },
+    // Documents to keep, acknowledge or sign (INB-028).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/documents\/uploads$/,
+      handle: write(DocumentUploadBody, (asking, input) =>
+        startDocumentUpload(deps, asking, input),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/documents$/,
+      handle: write(DocumentSendBody, (asking, input) => sendDocument(deps, asking, input)),
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/documents$/,
+      handle: async (asking, _r, _p, query) => {
+        const person = query.get('person');
+        if (person !== null && !new RegExp(`^${UUID}$`).test(person)) {
+          return refused(failure('BAD_REQUEST', 'person is a person id'));
+        }
+        return answer(await documentsOf(deps, asking, person));
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/documents/${UUID}/file$`),
+      handle: async (asking, _r, params) =>
+        answer(await documentFile(deps, asking, params['id'] ?? '')),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/acknowledgement$`),
+      handle: write(Empty, (asking, _input, id) => acknowledgeDocument(deps, asking, id)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/signature$`),
+      handle: write(SignatureBody, (asking, input, id) => signDocument(deps, asking, id, input)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/countersignature$`),
+      handle: write(CountersignBody, (asking, input, id) =>
+        countersignDocument(deps, asking, id, input),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/send-back$`),
+      handle: write(DocumentNoteBody, (asking, input, id) =>
+        declineDocument(deps, asking, id, input.note),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/documents/${UUID}/cancellation$`),
+      handle: write(Empty, (asking, _input, id) => cancelDocument(deps, asking, id)),
     },
     // Ask somebody for empty details of theirs: recorded, and they are emailed.
     {

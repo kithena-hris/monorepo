@@ -26,3 +26,4 @@ export * from './account-directory.js';
 export * from './module-roles.js';
 export * from './signup-questions.js';
 export * from './assistant/index.js';
+export * from './inbox/index.js';

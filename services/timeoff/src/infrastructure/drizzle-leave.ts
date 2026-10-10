@@ -29,9 +29,17 @@ import type {
   PolicyStore,
   RequestRecord,
   RequestStore,
+  RequestDecision,
 } from '../application/ports.js';
 import { pageCursor } from '../application/shared.js';
-import { ledgerEntry, leaveType, policy, policyVersion, request } from './tables.js';
+import {
+  ledgerEntry,
+  leaveType,
+  policy,
+  policyVersion,
+  request,
+  requestDecision,
+} from './tables.js';
 
 /**
  * Leave types, policies, the ledger and requests (TOF-030, TOF-031), bound to
@@ -349,6 +357,7 @@ function toRecord(tenantId: TenantId, { row: r, ...type }: RequestRow): RequestR
     requestedAt: instantOf(r.requestedAt),
     proposedBy: r.proposedBy,
     proposalMessage: r.proposalMessage,
+    nudgedAt: r.nudgedAt === null ? null : instantOf(r.nudgedAt),
   };
 }
 
@@ -450,11 +459,43 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
         escalatedTo: record.routing.escalatedTo,
         proposedBy: record.proposedBy,
         proposalMessage: record.proposalMessage,
+        nudgedAt: record.nudgedAt ?? null,
       };
       await tx
         .insert(request)
         .values({ tenantId, id: s.id, ...values })
         .onConflictDoUpdate({ target: [request.tenantId, request.id], set: values });
+    },
+
+    async recordDecision(d) {
+      await tx.insert(requestDecision).values({
+        tenantId,
+        id: d.id,
+        requestId: d.requestId,
+        outcome: d.outcome,
+        role: d.role,
+        decidedBy: d.decidedBy,
+        reason: d.reason,
+        decidedAt: d.decidedAt,
+      });
+    },
+
+    async decisions(ids) {
+      if (ids.length === 0) return [];
+      const rows = await tx
+        .select()
+        .from(requestDecision)
+        .where(inArray(requestDecision.requestId, [...ids]))
+        .orderBy(asc(requestDecision.decidedAt));
+      return rows.map((r) => ({
+        id: r.id,
+        requestId: r.requestId as LeaveRequestId,
+        outcome: r.outcome as RequestDecision['outcome'],
+        role: r.role as RequestDecision['role'],
+        decidedBy: r.decidedBy,
+        reason: r.reason,
+        decidedAt: instantOf(r.decidedAt),
+      }));
     },
   };
 }

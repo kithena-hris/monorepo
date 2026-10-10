@@ -113,6 +113,11 @@ import { UPLOAD_LIFETIME_MS } from '../domain/import/upload.js';
 import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
 import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
 import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
+import { drizzleDetailAsks } from '../infrastructure/drizzle-detail-asks.js';
+import { drizzleDocuments } from '../infrastructure/drizzle-documents.js';
+import { drizzleTeamTasks } from '../infrastructure/drizzle-team-tasks.js';
+import { inboxNotifierFrom } from '../infrastructure/inbox-notifier.js';
+import { waitingView } from '../application/screens/waiting.js';
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
 import { drizzleTransfers } from '../infrastructure/drizzle-transfers.js';
@@ -570,6 +575,20 @@ function detailRequests(
   };
 }
 
+/** Email for what reaches somebody's Inbox (INB-050), where messaging is configured. */
+function inboxNotices(
+  calendars: ReturnType<typeof drizzleOrgStore>,
+  service: ReturnType<typeof peopleService>,
+) {
+  const inboxNotifier = inboxNotifierFrom(
+    process.env,
+    service,
+    calendars,
+    tenantAppBase(process.env),
+  );
+  return inboxNotifier === undefined ? {} : { inboxNotifier };
+}
+
 /**
  * "Remind N people": the hourly sweep's own function, run for one tenant on
  * HR's press, where the reminder can be sent at all. Its claim is what keeps
@@ -764,6 +783,15 @@ function screenDeps(
     selection: selectionFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),
+    asks: { store: drizzleDetailAsks(), newId: uuidv7 },
+    teamTasks: drizzleTeamTasks(),
+    ...inboxNotices(calendars, service),
+    inboxRules: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).inboxRules,
+    documents: {
+      store: drizzleDocuments(),
+      uploads: { store: uploads, intents: drizzleUploadIntents() },
+      newId: uuidv7,
+    },
     ...chatFrom(process.env),
     schedules: scheduleAdmin(),
     schema,
@@ -1032,7 +1060,25 @@ export function wirePeople(server: Server): void {
     personOf: screens.personOf,
     segments: drizzleSegments(),
     screens: [
-      ...screenRoutes({ ...screens, ...imports.deps }, idempotency),
+      ...screenRoutes(
+        {
+          ...screens,
+          ...imports.deps,
+          waiting: (tx, asking) =>
+            waitingView(
+              tx,
+              {
+                access: service.access,
+                fullValues: exports.fullValues.deps,
+                ...(service.pending === undefined ? {} : { pending: service.pending }),
+                shares,
+                personOf: screens.personOf,
+              },
+              asking,
+            ),
+        },
+        idempotency,
+      ),
       // An export sent to somebody else (design AI13, AI14, MA10).
       ...shareRoutes({ service, idempotency, share: shares }),
     ],
@@ -1060,6 +1106,7 @@ export function wirePeople(server: Server): void {
             defaultTimeZone: s.defaultTimeZone,
             cohortMinimum: s.cohortMinimum,
             photoAtSignup: s.photoAtSignup,
+            inboxRules: s.inboxRules,
           };
         },
       }),

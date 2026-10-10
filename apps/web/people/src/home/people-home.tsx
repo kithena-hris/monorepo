@@ -21,8 +21,9 @@ import {
   type ChartPoint,
   type UploadedImage,
   icons,
+  type IconName,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useState, type ComponentType, type JSX, type ReactNode } from 'react';
 
 import { whoOf } from '../export/words';
 import { Loaded, type Loadable } from '../load';
@@ -176,6 +177,31 @@ export interface PeopleHomeProps {
   readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
   /** A sign-up file: uploaded, then saved to the field, by the shell. */
   readonly onSetupFile?: (field: SetupField, file: File) => Promise<UploadOutcome>;
+  /**
+   * The host's To do, when it keeps one across every module (an Inbox):
+   * drawn where People's own To do would be, so a person has one list. Plain
+   * data, so the server's render can be handed it too.
+   */
+  readonly toDo?: HostToDo;
+}
+
+/** One row of the host's To do, already worded by the host. */
+export interface HostTask {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly href: string;
+  /** A Reach icon name; an unknown one draws as the Inbox's. */
+  readonly icon: string;
+  readonly tone?: 'warning' | 'danger' | 'info' | 'accent';
+}
+
+export interface HostToDo {
+  /** Where the whole list lives: "Open Inbox". */
+  readonly href: string;
+  readonly tasks: readonly HostTask[];
+  /** What of theirs waits on somebody else. */
+  readonly waiting: readonly HostTask[];
 }
 
 /* ------------------------------------------------------------- words -- */
@@ -388,6 +414,48 @@ function Todo({
     >
       {title}
     </ListItem>
+  );
+}
+
+const iconOf = (name: string): ComponentType<{ 'aria-hidden'?: boolean }> =>
+  Object.hasOwn(icons, name) ? icons[name as IconName] : icons.inbox;
+
+/** The host's To do and what waits on others, in People's own rows. */
+function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
+  const rows = (tasks: readonly HostTask[], label: string) => (
+    <List aria-label={label} className="-mx-2 bg-transparent shadow-none">
+      {tasks.map((t) => {
+        const Icon = iconOf(t.icon);
+        return (
+          <Todo
+            key={t.id}
+            icon={<Icon aria-hidden />}
+            {...(t.tone === undefined ? {} : { tone: t.tone })}
+            title={t.title}
+            description={t.description}
+            href={t.href}
+            word={null}
+          />
+        );
+      })}
+    </List>
+  );
+  return (
+    <>
+      <Section title="To do" action={<SeeAll href={toDo.href}>Open Inbox</SeeAll>}>
+        {toDo.tasks.length === 0 ? (
+          <Done
+            title="Nothing needs you"
+            detail="New tasks from every part of the app show up here."
+          />
+        ) : (
+          rows(toDo.tasks, 'To do')
+        )}
+      </Section>
+      {toDo.waiting.length === 0 ? null : (
+        <Section title="Waiting on others">{rows(toDo.waiting, 'Waiting on others')}</Section>
+      )}
+    </>
   );
 }
 
@@ -1127,7 +1195,7 @@ function Setup({
  * Home: "Hi", today where they work, and the page for who they are: HR's
  * (B2) or anybody's (B1). Signing up's last asks come first.
  */
-export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX.Element {
+export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps): JSX.Element {
   return (
     <Loaded load={load} what="your home">
       {(state) => {
@@ -1178,7 +1246,12 @@ export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX
               />
             )}
             {hrFigures !== null ? (
-              <HrHome hr={hrFigures} state={state} />
+              <>
+                {toDo === undefined || toDo.tasks.length === 0 ? null : (
+                  <HostList toDo={{ ...toDo, waiting: [] }} />
+                )}
+                <HrHome hr={hrFigures} state={state} />
+              </>
             ) : me === null ? null : (
               <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
                 <Stack gap={4}>
@@ -1197,7 +1270,7 @@ export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX
                       </span>
                     </span>
                   </a>
-                  <ToDo state={state} me={me} />
+                  {toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />}
                 </Stack>
                 <Stack gap={4}>
                   <div className="touch:hidden">

@@ -354,6 +354,20 @@ describe('requests', () => {
     expect(back?.routing).toEqual(record.routing);
     expect(back?.note).toBe('Family visit');
 
+    // Who decided a step, as the Inbox reads it back.
+    const decision = {
+      id: ids(),
+      requestId: id,
+      outcome: 'declined' as const,
+      role: 'manager' as const,
+      decidedBy: MARCO_ACCOUNT,
+      reason: 'Two people are already out that day.',
+      decidedAt: '2026-10-02T09:00:00.000Z' as never,
+    };
+    await run((tx) => tx.requests.recordDecision(decision));
+    expect(await run((tx) => tx.requests.decisions([id]))).toEqual([decision]);
+    expect(await run((tx) => tx.requests.decisions([]))).toEqual([]);
+
     // Marco swaps the 21st out; Adam accepts.
     const loaded = back?.request as LeaveRequest;
     must(
@@ -531,8 +545,11 @@ describe('settings', () => {
       );
     });
     await run(async (tx) => {
+      // As saved, and when: a layer read back carries the instant it was kept.
       expect((await tx.holidays.layers()).toSorted((a, b) => a.key.localeCompare(b.key))).toEqual(
-        layers.toSorted((a, b) => a.key.localeCompare(b.key)),
+        layers
+          .toSorted((a, b) => a.key.localeCompare(b.key))
+          .map((l) => ({ ...l, savedAt: expect.any(String) as unknown })),
       );
       expect(await tx.holidays.assigned(MADRID)).toEqual(layers.map((l) => l.key));
     });

@@ -62,6 +62,7 @@ beforeAll(async () => {
     '20260923110000_people_completeness.sql',
     '20260923160000_people_tenant.sql',
     '20260924170000_people_calendar.sql',
+    '20261010130000_people_inbox_rules.sql',
     '20261005090000_people_org_unit.sql',
     '20261005120000_people_section_names.sql',
     '20260924170100_people_tenant_company.sql',

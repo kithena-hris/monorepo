@@ -50,7 +50,6 @@ import {
 import { searchPeople } from '../app/(app)/people/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
-import { todoRows } from '../lib/inbox';
 import { useInAppLinks, useWarmPages } from '../lib/links';
 import { firstUnder, matchPath } from '../lib/remotes';
 import {
@@ -65,7 +64,8 @@ import {
 import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
-import { InboxBell } from './inbox';
+import { InboxBell, InboxCount, useInboxTodo } from './inbox/bell';
+import type { InboxPeek } from '../lib/inbox/peek';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
 import { RemoteSlot } from './remote-slot';
 import {
@@ -143,6 +143,11 @@ export interface AppShellProps {
   readonly shortcuts?: ShortcutPrefs;
   /** What the company's remotes draw in the chrome (`lib/slots.ts`): Time Off's clock. */
   readonly slots?: readonly ShellSlot[];
+  /**
+   * The Inbox's counts and first rows (`inboxPeek`), still on its way: the
+   * bell and the red number fill in when it lands, and nothing waits for it.
+   */
+  readonly inbox?: Promise<InboxPeek>;
   readonly children: ReactNode;
 }
 
@@ -164,6 +169,7 @@ const AREAS: readonly {
   readonly module?: string;
 }[] = [
   { label: 'Home', icon: <Home />, href: '/', built: true },
+  { label: 'Inbox', icon: <icons.inbox />, href: '/inbox', built: true },
   { label: 'Time off', icon: <Leave />, href: '/time-off', built: true, module: 'module.timeoff' },
   { label: 'People', icon: <People />, href: '/people', built: true, module: 'module.people' },
   {
@@ -197,10 +203,15 @@ export function useShellData(): ShellData {
 const HOST_PAGES = new Set([
   '/',
   '/inbox',
+  '/inbox/todo',
+  '/inbox/updates',
+  '/inbox/requests',
+  '/inbox/done',
   '/people/menu',
   '/settings',
   '/settings/activity',
   '/settings/shortcuts',
+  '/settings/notifications',
 ]);
 
 /** The areas this company has: home, and each module it bought. */
@@ -445,6 +456,7 @@ export function AppShell({
   sidebarCollapsed,
   shortcuts = DEFAULT_PREFS,
   slots = [],
+  inbox,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -530,7 +542,7 @@ export function AppShell({
               ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
               onCollapsedChange: rememberSidebar,
             }}
-            bottomBar={<MobileTabs areas={areas} inbox={todoRows(shell).length} />}
+            bottomBar={<MobileTabs areas={areas} inbox={inbox} />}
             bottomBarVariant="floating"
             // Where the sidebar is (a 40rem container), the tab bar is not.
             bottomBarClassName="@min-[40rem]/page:hidden"
@@ -581,6 +593,7 @@ export function AppShell({
                           icon={area.icon}
                           current={isCurrent(area.href, pathname)}
                           shortcut={hint(area.href)}
+                          {...(area.href === '/inbox' ? { badge: <InboxCount inbox={inbox} /> } : {})}
                           {...(area.href === '/people' && shell.sections.length > 0
                             ? {
                                 // Inline while you are in People (V2); from the
@@ -628,7 +641,7 @@ export function AppShell({
                                     ? (timeOff?.sections ?? [])
                                     : [],
                                 area.href,
-                              ) ?? area.href) as Route
+                              ) ?? (area.href === '/inbox' ? '/inbox/todo' : area.href)) as Route
                             }
                           >
                             {area.label}
@@ -692,6 +705,7 @@ export function AppShell({
               onTheme={setTheme}
               viewing={person.viewing == null ? null : person.name}
               slots={slots}
+              inbox={inbox}
             />
             {/*
           The page's own `loading.tsx` stands in for it while it is fetched: a
@@ -724,8 +738,10 @@ function TopCorner({
   onTheme,
   viewing,
   slots,
+  inbox,
 }: {
   readonly shell: ShellData;
+  readonly inbox: Promise<InboxPeek> | undefined;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly dark: boolean;
@@ -759,7 +775,7 @@ function TopCorner({
       {slots.map((s) => (
         <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
       ))}
-      <InboxBell shell={shell} />
+      <InboxBell inbox={inbox} />
     </div>
   );
 }
@@ -1370,9 +1386,10 @@ function MobileTabs({
   inbox,
 }: {
   readonly areas: typeof AREAS;
-  readonly inbox: number;
+  readonly inbox: Promise<InboxPeek> | undefined;
 }): JSX.Element {
   const pathname = usePathname();
+  const todo = useInboxTodo(inbox);
   const people = areas.some((a) => a.href === '/people');
   const timeOff = areas.some((a) => a.href === '/time-off' && a.built);
   const tabs: readonly {
@@ -1402,11 +1419,11 @@ function MobileTabs({
             current: isCurrent('/people', pathname) && !isCurrent('/people/me', pathname),
           },
           {
-            href: '/inbox',
+            href: '/inbox/todo',
             label: 'Inbox',
             icon: <icons.inbox />,
-            current: pathname === '/inbox',
-            count: inbox,
+            current: isCurrent('/inbox', pathname),
+            count: todo,
           },
           {
             href: '/people/me',

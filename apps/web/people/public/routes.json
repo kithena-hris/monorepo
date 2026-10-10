@@ -129,6 +129,10 @@
       "component": "Organisation"
     },
     {
+      "path": "/settings/people/organisation/inbox-rules",
+      "component": "Organisation"
+    },
+    {
       "path": "/settings/people/organisation/pay-bands",
       "component": "Organisation"
     },
@@ -280,6 +284,7 @@
         "/settings/people/organisation/numbering",
         "/settings/people/organisation/country-packs",
         "/settings/people/organisation/reminders",
+        "/settings/people/organisation/inbox-rules",
         "/settings/people/organisation/pay-bands"
       ],
       "description": "Legal entities, locations, org units, numbering, country packs, reminders and pay bands.",

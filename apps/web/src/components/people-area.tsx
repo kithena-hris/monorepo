@@ -1,8 +1,10 @@
 import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { homeToDo } from './inbox/format';
 import { PeopleScreen } from './people-screen';
 import { Waking, WakingHeader } from './waking';
+import type { InboxPeek } from '../lib/inbox/peek';
 import { accessToken } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -228,15 +230,18 @@ export async function PeopleArea({
  * signed in, as for any screen, and renders it on the server. `null` when
  * People offers no Home or cannot say which: the shell's own Home stands.
  */
-export async function PeopleHome(): Promise<JSX.Element | null> {
+export async function PeopleHome(inbox?: Promise<InboxPeek>): Promise<JSX.Element | null> {
   const area = AREAS.people;
   const nav = await remoteNav(area);
   const component = nav?.slots.home;
   if (component === undefined) return null;
-  const [load, ssr] = await Promise.all([
+  // Home's To do is the Inbox's (B1), read beside People's own data.
+  const [load, ssr, peek] = await Promise.all([
     loadScreen(component, { params: {}, search: {} }),
     prepareRemoteSsr(remoteBase(area), area),
+    inbox,
   ]);
+  const toDo = peek === undefined ? undefined : homeToDo(peek);
   // People is asleep or still waking: Home asks again by itself.
   const waking = load.status === 'error' && load.unreachable === true;
   return (
@@ -253,6 +258,7 @@ export async function PeopleHome(): Promise<JSX.Element | null> {
           params={{}}
           search={{}}
           today={today()}
+          {...(toDo === undefined ? {} : { toDo })}
         />
       )}
     </Waking>

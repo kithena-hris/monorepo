@@ -12,6 +12,7 @@ import {
   type Caller,
   type Deps,
   type Member,
+  type RequestDecision,
   type RequestRecord,
   type Tx,
 } from '../ports.js';
@@ -85,6 +86,26 @@ export interface Decided {
   readonly next: ApproverRole | null;
 }
 
+/** The step being decided, as `request_decision` keeps it: who, in which role, and their note. */
+async function recordStep(
+  tx: Tx,
+  deps: Pick<Deps, 'clock' | 'newId'>,
+  caller: Caller,
+  record: RequestRecord,
+  outcome: RequestDecision['outcome'],
+  reason: string | null,
+): Promise<void> {
+  await tx.requests.recordDecision({
+    id: deps.newId(),
+    requestId: record.request.id,
+    outcome,
+    role: record.routing.chain[record.routing.step] ?? 'manager',
+    decidedBy: caller.accountId,
+    reason: reason === null || reason.trim() === '' ? null : reason.trim(),
+    decidedAt: deps.clock.instant(),
+  });
+}
+
 /** One approval at the step waiting: the next step's turn, or the request approved. */
 async function approveIn(
   tx: Tx,
@@ -92,9 +113,18 @@ async function approveIn(
   caller: Caller,
   record: RequestRecord,
   member: Member,
+  note: string | null = null,
 ): Promise<Result<Decided>> {
   const { request, routing } = record;
   const next = routing.chain[routing.step + 1] ?? null;
+  await recordStep(
+    tx,
+    deps,
+    caller,
+    record,
+    request.status === 'change_pending' ? 'change_approved' : 'approved',
+    note,
+  );
   if (next !== null) {
     await tx.requests.save({
       ...record,
@@ -133,10 +163,20 @@ export const decideRequest =
       const found = await load(tx, deps, caller, input.requestId);
       if (!found.ok) return found;
       const { record, member } = found.value;
-      if (input.decision === 'approve') return approveIn(tx, deps, caller, record, member);
+      if (input.decision === 'approve') {
+        return approveIn(tx, deps, caller, record, member, input.reason ?? null);
+      }
 
       const ctx = contextFor(deps, userActor(caller), caller.correlationId, member.timeZone);
       const { request } = record;
+      await recordStep(
+        tx,
+        deps,
+        caller,
+        record,
+        request.status === 'change_pending' ? 'change_declined' : 'declined',
+        input.reason ?? null,
+      );
       const entries =
         request.status === 'change_pending'
           ? request.declineChange(ctx)

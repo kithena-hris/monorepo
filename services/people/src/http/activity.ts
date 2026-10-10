@@ -195,6 +195,7 @@ const RULES: readonly Rule[] = [
               : b['photoAtSignup'] === 'required'
                 ? 'Everyone signing up must add a photo.'
                 : null,
+          b['inboxRules'] !== undefined ? 'Changed the Inbox rules.' : null,
         ]
           .filter((x) => x !== null)
           .join(' ') || null,
@@ -206,6 +207,7 @@ const RULES: readonly Rule[] = [
                 defaultTimeZone: 'default time zone',
                 cohortMinimum: 'smallest group reported',
                 photoAtSignup: 'photo at sign-up',
+                inboxRules: 'Inbox rules',
               })[k] ?? k,
           )
           .join(', ') || null,
@@ -410,6 +412,14 @@ export interface ActivityReads {
     readonly defaultTimeZone: string;
     readonly cohortMinimum: number;
     readonly photoAtSignup: string;
+    readonly inboxRules?: {
+      readonly remind: string;
+      readonly overdueDays: number;
+      readonly askDueDays: number;
+      readonly signDueDays: number;
+      readonly acknowledgeDueDays: number;
+      readonly failuresForATask: number;
+    };
   } | null>;
 }
 
@@ -462,6 +472,21 @@ export function settingsFacts(s: NonNullable<Awaited<ReturnType<ActivityReads['s
     'Default time zone': s.defaultTimeZone,
     'Smallest group reported': String(s.cohortMinimum),
     'Photo at sign-up': s.photoAtSignup === 'off' ? 'Not asked' : s.photoAtSignup === 'optional' ? 'Optional' : 'Required',
+    ...(s.inboxRules === undefined
+      ? {}
+      : {
+          'Inbox reminders':
+            s.inboxRules.remind === 'off'
+              ? 'Off'
+              : s.inboxRules.remind === 'day_before'
+                ? 'The day before'
+                : 'The day before, then every 2 days',
+          'Manager told after': s.inboxRules.overdueDays === 0 ? 'Never' : `${String(s.inboxRules.overdueDays)} days overdue`,
+          'Details due in': `${String(s.inboxRules.askDueDays)} days`,
+          'Signing due in': `${String(s.inboxRules.signDueDays)} days`,
+          'Acknowledging due in': `${String(s.inboxRules.acknowledgeDueDays)} days`,
+          'Integration failures for a task': String(s.inboxRules.failuresForATask),
+        }),
   };
 }
 

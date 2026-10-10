@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation TakeInboxTask($itemId: String!, $note: String, $key: String!) {\n    takeInboxTask(itemId: $itemId, note: $note, idempotencyKey: $key) { ok }\n  }"}

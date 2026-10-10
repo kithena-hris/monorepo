@@ -18,6 +18,10 @@ import { resendWebhookVerifier } from './message/infrastructure/resend-webhooks.
 import { messagingRoutes } from './message/http/messaging-routes.js';
 import { webhookRoutes } from './message/http/webhook-routes.js';
 import { noticeRoutes } from './message/http/notice-routes.js';
+import { digestRoutes } from './message/http/digest-routes.js';
+import { deliverInbox, flushDigests } from './message/application/inbox-delivery.js';
+import { drizzleDigestStore } from './message/infrastructure/drizzle-digest-store.js';
+import { identityChoices } from './message/infrastructure/identity-choices.js';
 
 /**
  * Where the service is assembled.
@@ -118,6 +122,14 @@ export interface Config {
    * those is how somebody gets a customer's sending domain suppressed.
    */
   readonly webhookSecret?: string | undefined;
+  /**
+   * Where identity answers the internal API, and its token: the Inbox's email
+   * follows each person's notification settings there. Absent, the defaults.
+   */
+  readonly identityUrl?: string | undefined;
+  readonly identityToken?: string | undefined;
+  /** Vercel's cron secret, which starts the daily digest. Absent, only the internal token does. */
+  readonly cronSecret?: string | undefined;
 }
 
 export type RequestHandler = (
@@ -212,17 +224,16 @@ export function selectTransport(config: Config): EmailTransport {
  * created on one server connection is missing on the next, and a serverless
  * instance handling one request at a time needs one connection rather than ten.
  */
-export function selectDeliveryLog(config: Config): DeliveryLog {
-  if (config.databaseUrl === undefined || config.databaseUrl === '') {
-    logger.warn(
-      { reason: 'no MESSAGING_DATABASE_URL' },
-      'deliveries will not be recorded; outcomes are in the response and the log only',
-    );
-    return noDeliveryLog;
-  }
-
+/** The database, and a transaction scoped to one tenant in it; null without `MESSAGING_DATABASE_URL`. */
+function selectDatabase(config: Config): {
+  readonly db: PostgresJsDatabase;
+  readonly inTenantTransaction: <T>(
+    tenantId: string,
+    fn: (tx: PostgresJsDatabase) => Promise<T>,
+  ) => Promise<T>;
+} | null {
+  if (config.databaseUrl === undefined || config.databaseUrl === '') return null;
   const db = drizzle(postgres(config.databaseUrl, { max: 1, prepare: false }));
-
   const inTenantTransaction = <T>(
     tenantId: string,
     fn: (tx: PostgresJsDatabase) => Promise<T>,
@@ -234,6 +245,21 @@ export function selectDeliveryLog(config: Config): DeliveryLog {
       await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
       return fn(tx);
     });
+  return { db, inTenantTransaction };
+}
+
+export function selectDeliveryLog(
+  config: Config,
+  database: ReturnType<typeof selectDatabase> = selectDatabase(config),
+): DeliveryLog {
+  if (database === null) {
+    logger.warn(
+      { reason: 'no MESSAGING_DATABASE_URL' },
+      'deliveries will not be recorded; outcomes are in the response and the log only',
+    );
+    return noDeliveryLog;
+  }
+  const { db, inTenantTransaction } = database;
 
   return drizzleDeliveryLog(inTenantTransaction, async (provider, messageId) => {
     // Outside any tenant scope, because the question is which tenant it was.
@@ -270,7 +296,8 @@ export function selectTenantAppBase(
 
 export function compose(config: Config): RequestHandler {
   const transport = selectTransport(config);
-  const deliveries = selectDeliveryLog(config);
+  const database = selectDatabase(config);
+  const deliveries = selectDeliveryLog(config, database);
 
   const send = sendInvitation({
     transport,
@@ -320,21 +347,51 @@ export function compose(config: Config): RequestHandler {
   } else if (!config.noticeToken) {
     logger.warn({ reason: 'no MESSAGING_PEOPLE_TOKEN' }, 'notices refused');
   }
+  const notice = sendNotice({
+    transport,
+    deliveries,
+    // '' matches no link at all, so every notice is refused as untrusted.
+    tenantAppBase: base ?? '',
+    onRefusal: (reason, detail) => {
+      logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
+    },
+  });
+  // The Inbox's email: each person's settings where identity can be asked, and
+  // updates held for the daily digest where there is somewhere to hold them.
+  const digests =
+    database === null ? undefined : drizzleDigestStore(database.db, database.inTenantTransaction);
+  const choices =
+    config.identityUrl !== undefined && config.identityUrl !== '' && config.identityToken
+      ? identityChoices({ baseUrl: config.identityUrl, token: config.identityToken })
+      : undefined;
+  if (choices === undefined) {
+    logger.info({ reason: 'no INTERNAL_API_URL' }, 'Inbox email follows the default settings');
+  }
   const notices = noticeRoutes({
-    sendNotice: sendNotice({
-      transport,
-      deliveries,
-      // '' matches no link at all, so every notice is refused as untrusted.
-      tenantAppBase: base ?? '',
-      onRefusal: (reason, detail) => {
-        logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
-      },
+    sendNotice: notice,
+    deliverInbox: deliverInbox({
+      sendNotice: notice,
+      ...(choices === undefined ? {} : { choices }),
+      ...(digests === undefined ? {} : { digests }),
     }),
     internalToken: [config.noticeToken ?? '', config.timeOffNoticeToken ?? ''],
+  });
+  const digest = digestRoutes({
+    flush:
+      digests === undefined
+        ? undefined
+        : flushDigests({
+            sendNotice: notice,
+            digests,
+            today: () => new Date().toISOString().slice(0, 10),
+          }),
+    internalToken: config.internalToken,
+    cronSecret: config.cronSecret,
   });
 
   return async (request, response) =>
     (await invitations(request, response)) ||
     (await notices(request, response)) ||
+    (await digest(request, response)) ||
     (await webhooks(request, response));
 }

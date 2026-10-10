@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Company, Person } from './account';
 import { AccountActionsContext, AccountMenu, fullName, type AccountActions } from './account-card';
 import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
-import { ask, read, readAhead, SignedContext, type Signed } from './people/api';
+import { read, readAhead, SignedContext, type Signed } from './people/api';
 import { AskKithena } from './people/ask';
 import { BulkEdit } from './people/bulk';
 import { Directory } from './people/directory';
@@ -24,7 +24,11 @@ import { EditSection } from './people/edit-section';
 import { History } from './people/history';
 import { OrgChart } from './people/org-chart';
 import { PeopleHome as Home } from './people/home';
-import { Inbox } from './people/inbox';
+import { Inbox } from './inbox/inbox';
+import { InboxItem } from './inbox/item';
+import { NotificationSettings } from './inbox/notifications';
+import { readInbox } from './inbox/api';
+import { useInboxNotifications } from './inbox/notify';
 import { Onboarding } from './people/onboarding';
 import { PeopleHome } from './people/people-home';
 import { Profile } from './people/profile';
@@ -98,6 +102,8 @@ const TabStack = memo(function TabStack({
         <Stack_.Navigator initialRouteName={initial} screenOptions={{ headerShown: false }}>
           <Stack_.Screen name="Home" component={Home} />
           <Stack_.Screen name="Inbox" component={Inbox} />
+          <Stack_.Screen name="InboxItem" component={InboxItem} />
+          <Stack_.Screen name="Notifications" component={NotificationSettings} />
           <Stack_.Screen name="Onboarding" component={Onboarding} />
           <Stack_.Screen name="People" component={PeopleHome} />
           <Stack_.Screen name="Directory" component={Directory} />
@@ -192,29 +198,24 @@ export function SignedIn({
   const [ending, setEnding] = useState(false);
   // The People tab's stack, so an answer's person opens there.
   const [people] = useState(() => createNavigationContainerRef<PeopleRoutes>());
-  // The Inbox tab's count: what waits in Review for this person, as the bell counts it.
+  // The Inbox tab's stack, so a notification opens its item there (M:A2).
+  const [inboxStack] = useState(() => createNavigationContainerRef<PeopleRoutes>());
+  // The Inbox tab's count: tasks only, as the web's bell counts them (M:A1).
+  // Read ahead at sign-in, so the tab opens on it, and again every minute.
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
     let live = true;
+    const signedNow: Signed = {
+      company,
+      sessionId,
+      person,
+      signOut: onSignOut,
+      signedOut: onSignedOut,
+      viewAs: onViewAs,
+    };
     const count = (): void => {
-      void ask<Readonly<Record<string, number | null>>>(
-        {
-          company,
-          sessionId,
-          person,
-          signOut: onSignOut,
-          signedOut: onSignedOut,
-          viewAs: onViewAs,
-        },
-        'Waiting',
-      ).then((answer) => {
-        if (!live || !answer.ok) return;
-        setWaiting(
-          ['changes', 'identifiers', 'duplicates', 'accessRequests', 'exports'].reduce(
-            (sum, key) => sum + (answer.data[key] ?? 0),
-            0,
-          ),
-        );
+      void readInbox(signedNow).then((answer) => {
+        if (live && answer.ok) setWaiting(answer.data.counts.todo);
       });
     };
     count();
@@ -277,6 +278,17 @@ export function SignedIn({
       clearTimeout(timer);
     };
   }, [signed]);
+  // The Inbox's notifications on the phone (INB-051): a press opens the item.
+  useInboxNotifications(
+    signed,
+    useCallback(
+      (id: string) => {
+        setTab('inbox');
+        if (inboxStack.isReady()) inboxStack.navigate('InboxItem', { id });
+      },
+      [inboxStack],
+    ),
+  );
   // One element for good: a new one each render would redraw every screen of
   // every tab that shows it, on each tab switch.
   const account = useMemo(() => <AccountMenu />, []);
@@ -338,7 +350,7 @@ export function SignedIn({
                   <TabStack initial="People" container={people} />
                 </View>
                 <View className="flex-1" style={shown('inbox')}>
-                  <TabStack initial="Inbox" />
+                  <TabStack initial="Inbox" container={inboxStack} />
                 </View>
                 <View className="flex-1" style={shown('me')}>
                   <TabStack initial="Profile" />
@@ -376,6 +388,11 @@ export function SignedIn({
                 {hiding > 0 ? null : (
                   <AskKithena
                     bottomInset={TAB_ROOM}
+                    onInbox={tab === 'inbox'}
+                    onOpenItem={(id) => {
+                      setTab('inbox');
+                      if (inboxStack.isReady()) inboxStack.navigate('InboxItem', { id });
+                    }}
                     onOpenPerson={(personId, name) => {
                       setTab('people');
                       if (people.isReady())

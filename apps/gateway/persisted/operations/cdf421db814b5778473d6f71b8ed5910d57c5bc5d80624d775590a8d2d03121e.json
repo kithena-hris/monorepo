@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CancelAsk($id: ID!, $note: String, $key: String!) {\n    cancelAsk(id: $id, note: $note, idempotencyKey: $key) { ok }\n  }"}

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ChangeAskBatch($batchId: ID!, $action: String!, $dueOn: String, $personIds: [ID!], $key: String!) {\n    changeAskBatch(batchId: $batchId, action: $action, dueOn: $dueOn, personIds: $personIds, idempotencyKey: $key) { ok }\n  }"}

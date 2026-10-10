@@ -7,6 +7,7 @@ import {
   ClockState,
   DateSpan,
   DayAmount,
+  InboxAnswer,
   Instant,
   LeaveRequestInput,
   LeaveTypeDefinition,
@@ -52,6 +53,7 @@ import {
   type AdjustmentView,
 } from '../application/admin/adjustments.js';
 import { setDelegation } from '../application/approval/escalation.js';
+import { timeOffInbox } from '../application/screens/inbox.js';
 import { setChatAnswers } from '../application/settings/chat.js';
 import { describeRequest } from '../application/assist/describe.js';
 import { holidayDraft } from '../application/assist/holiday-draft.js';
@@ -103,6 +105,7 @@ import {
 import type { Caller, Deps, StoredKey, UnitOfWork } from '../application/ports.js';
 import {
   cancelRequest,
+  nudgeRequest,
   changeRequest,
   sendRequest,
   shortenRequest,
@@ -1248,6 +1251,27 @@ export const ROUTES: readonly Route[] = [
       .meta({ title: 'TimeOffOvertimeDecided' }),
     run: (deps, caller, { body }) => decideOvertime(deps)(caller, body),
     shape: (v) => ({ personId: v.personId, date: v.date, minutes: v.minutes, outcome: v.outcome }),
+  }),
+  route({
+    name: 'timeOffInbox',
+    method: 'GET',
+    path: `${V1}/inbox`,
+    summary:
+      'The Inbox’s Time Off items for the caller: approvals waiting on them, their own requests, decisions and days about to expire',
+    answer: InboxAnswer.meta({ title: 'TimeOffInbox' }),
+    run: (deps, caller) => timeOffInbox(deps)(caller),
+    // `detail` is the kind’s own shape, JSON on the wire (`InboxItem`).
+    shape: (v) => v as never,
+  }),
+  route({
+    name: 'nudgeTimeOffRequest',
+    method: 'POST',
+    path: `${V1}/requests/{requestId}/nudge`,
+    summary: 'Remind whoever has your request: once, after 48 hours of waiting',
+    params: RequestParams,
+    answer: z.object({ nudgedAt: Instant }).meta({ title: 'TimeOffNudged' }),
+    run: (deps, caller, { params }) => nudgeRequest(deps)(caller, params.requestId),
+    shape: same,
   }),
   route({
     name: 'timeOffBalanceAdjustments',

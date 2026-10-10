@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ActOnDocument($id: ID!, $action: String!, $name: String, $how: String, $mark: String, $note: String, $key: String!) {\n    actOnDocument(id: $id, action: $action, name: $name, how: $how, mark: $mark, note: $note, idempotencyKey: $key) { ok }\n  }"}

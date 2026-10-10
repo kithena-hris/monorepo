@@ -63,6 +63,38 @@ describe('Home, as an employee (B1)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('draws the host’s To do in its place when given one, as plain data', () => {
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        toDo={{
+          href: '/inbox/todo',
+          tasks: [
+            {
+              id: 'people:onboarding:1',
+              title: 'Finish your profile',
+              description: 'People › Onboarding',
+              href: '/inbox/todo?item=people%3Aonboarding%3A1',
+              icon: 'list',
+            },
+          ],
+          waiting: [],
+        }}
+      />,
+    );
+    const todo = part('To do');
+    expect(
+      within(todo).getAllByRole('link', { name: 'Open: Finish your profile' })[0],
+    ).toHaveAttribute('href', '/inbox/todo?item=people%3Aonboarding%3A1');
+    expect(within(todo).getByRole('link', { name: 'Open Inbox' })).toHaveAttribute(
+      'href',
+      '/inbox/todo',
+    );
+    // People's own list is not drawn beside it.
+    expect(within(todo).queryByText('71%')).toBeNull();
+    expect(maybe('Waiting on others')).toBeNull();
+  });
+
   it('keeps one To do list: their missing details and their changes with HR, one button each', () => {
     render(<PeopleHome load={ready(employee())} />);
     const todo = part('To do');

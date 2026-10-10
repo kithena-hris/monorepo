@@ -68,6 +68,14 @@ function routes(): RequestHandler {
     // invitation then stays recorded as accepted, which is worth a warning in
     // the log and is what `compose` emits.
     webhookSecret: process.env['RESEND_WEBHOOK_SECRET'],
+    // Time Off's notices: a pair's secret, as People's.
+    timeOffNoticeToken: process.env['MESSAGING_TIMEOFF_TOKEN'],
+    // The Inbox's email follows each person's settings, read from identity
+    // where `INTERNAL_API_URL` says it answers; the daily digest starts on
+    // Vercel's cron, which presents `CRON_SECRET`.
+    identityUrl: process.env['INTERNAL_API_URL'],
+    identityToken: process.env['INTERNAL_API_TOKEN'],
+    cronSecret: process.env['CRON_SECRET'],
   });
   return handler;
 }

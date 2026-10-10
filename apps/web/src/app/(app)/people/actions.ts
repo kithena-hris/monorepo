@@ -697,8 +697,16 @@ export async function updateSettings(patch: {
   defaultTimeZone?: string;
   cohortMinimum?: number;
   photoAtSignup?: 'off' | 'optional' | 'required';
+  /** The company's Inbox rules to change, by key (P2). */
+  inboxRules?: Readonly<Record<string, unknown>>;
 }): Promise<Outcome> {
-  return outcome(people('UpdatePeopleSettings', given(patch)));
+  const { inboxRules, ...rest } = patch;
+  return outcome(
+    people('UpdatePeopleSettings', {
+      ...given(rest),
+      ...(inboxRules === undefined ? {} : { inboxRules: JSON.stringify(inboxRules) }),
+    }),
+  );
 }
 
 export async function createEntity(input: {

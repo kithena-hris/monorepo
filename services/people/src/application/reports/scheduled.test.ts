@@ -196,7 +196,12 @@ describe('a scheduled export', () => {
 
   it('lists its history a page at a time, newest first, from the last period shown', async () => {
     const { deps, clock, sweep, make } = setup();
-    const schedule = await make();
+    // Fifty-five sends: one column to one person keeps each one cheap, since the
+    // page is what is under test and not the file.
+    const schedule = await make({
+      report: { kind: 'export', format: 'xlsx', fields: ['given_name'], reason: null },
+      recipients: [HR.accountId],
+    });
     // A year and more of Mondays, each sent.
     let monday = Date.parse('2026-09-28T07:30:00.000Z');
     for (let week = 0; week < RUNS_PAGE + 5; week += 1) {
@@ -216,7 +221,8 @@ describe('a scheduled export', () => {
     const periods = [...first.value.runs, ...second.value.runs].map((r) => r.period);
     expect(periods).toEqual(periods.toSorted().toReversed());
     expect(new Set(periods).size).toBe(RUNS_PAGE + 5);
-  });
+    // Fifty-five spreadsheets, however small, are real work on a shared runner.
+  }, 20_000);
 
   it('sends nobody a file over a filter they may not use, and nobody who has left', async () => {
     const { deps, clock, mail, sweep, make } = setup();

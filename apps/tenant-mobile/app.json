@@ -16,11 +16,7 @@
         "backgroundColor": "#4d53f0"
       }
     },
-    "plugins": [
-      "expo-web-browser",
-      "expo-secure-store",
-      "expo-sharing"
-    ],
+    "plugins": ["expo-web-browser", "expo-secure-store", "expo-sharing", "expo-notifications"],
     "icon": "./assets/icon.png"
   }
 }

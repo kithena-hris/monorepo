@@ -424,6 +424,11 @@ const PeopleSettingsRef = builder.objectRef<TenantSettings>('PeopleSettings').im
     }),
     slug: t.string({ nullable: true, resolve: (s) => s.slug }),
     displayName: t.string({ nullable: true, resolve: (s) => s.displayName }),
+    inboxRules: t.string({
+      description:
+        'The company’s Inbox rules (JSON): remind, overdueDays, askDueDays, signDueDays, acknowledgeDueDays, failuresForATask.',
+      resolve: (s) => JSON.stringify(s.inboxRules),
+    }),
   }),
 });
 
@@ -691,10 +696,17 @@ builder.mutationType({
         defaultTimeZone: t.arg.string(),
         cohortMinimum: t.arg.int(),
         photoAtSignup: t.arg.string({ description: 'off, optional or required.' }),
+        inboxRules: t.arg.string({ description: 'JSON: the Inbox rules to change, by key.' }),
         idempotencyKey: t.arg(idempotencyKey),
       },
-      resolve: (_root, { idempotencyKey: key, ...patch }, ctx) =>
-        viaRest<TenantSettings>(ctx, 'PATCH', '/v1/settings', { body: sent(patch), key }),
+      resolve: (_root, { idempotencyKey: key, inboxRules, ...patch }, ctx) =>
+        viaRest<TenantSettings>(ctx, 'PATCH', '/v1/settings', {
+          body: {
+            ...sent(patch),
+            ...(inboxRules == null ? {} : { inboxRules: JSON.parse(inboxRules) as unknown }),
+          },
+          key,
+        }),
     }),
     createLegalEntity: t.field({
       type: LegalEntityRef,

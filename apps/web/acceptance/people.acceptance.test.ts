@@ -428,13 +428,22 @@ const waiting = (page: Page): Promise<boolean> =>
 
 describe('A press on a People screen before its code has loaded', () => {
   /** A page whose remote code arrives 2 s late: the screen is the server's HTML until then. */
-  async function late(session: string): Promise<{ page: Page; close: () => Promise<void> }> {
+  async function late(
+    session: string,
+  ): Promise<{ page: Page; errors: string[]; close: () => Promise<void> }> {
     const context = await signedIn(session);
     await context.route(/\/remoteEntry\.js$/, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2_000));
       await route.continue();
     });
-    return { page: await context.newPage(), close: () => context.close() };
+    const page = await context.newPage();
+    // What the browser complained of: a hydration React gave up on says why here.
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text());
+    });
+    return { page, errors, close: () => context.close() };
   }
 
   it('saves a section once, with what was typed before it', async () => {
@@ -472,11 +481,11 @@ describe('A press on a People screen before its code has loaded', () => {
   // A section's Edit, pressed before the page is live, opens its editor once:
   // the press held here must not open it a second time.
   it('opens a record’s section editor once', async () => {
-    const { page, close } = await late(ADMIN.session);
+    const { page, errors, close } = await late(ADMIN.session);
     await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`, { waitUntil: 'commit' });
     const edit = page.getByRole('button', { name: /^Edit .+/ }).first();
     await edit.waitFor({ timeout: 30_000 });
-    expect(await waiting(page)).toBe(true);
+    expect(await waiting(page), errors.join('\n')).toBe(true);
     const entries = await page.evaluate(() => history.length);
     await edit.click();
     await page.getByText('Editing').waitFor({ timeout: 30_000 });
@@ -2035,15 +2044,19 @@ describe('People overview: who you are here, what needs you, what is missing', (
     await page.getByRole('heading', { level: 2, name: adamName }).waitFor();
     await page.waitForLoadState('networkidle');
     await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
+    // His To do is the Inbox's first rows: what his record still needs is one
+    // checklist there, opened in the Inbox.
     const gap = titled(page, 'To do')
-      .getByRole('link', { name: /Add your emergency contact/ })
+      .getByRole('link', { name: /Finish your profile/ })
       .first();
     await gap.waitFor();
+    expect(await gap.getAttribute('href')).toBe(
+      `/inbox/todo?item=${encodeURIComponent(`people:onboarding:${EMPLOYEE.person}`)}`,
+    );
     await shot(page, 'overview-employee-desktop-light');
 
-    // The link opens his profile at that field, cursor in it, marked missing.
-    await gap.click();
-    await page.waitForURL(/\/people\/me\?field=emergency_contact$/);
+    // A field's own link opens his profile at that field, cursor in it, marked missing.
+    await page.goto(`${stack.shell}/people/me?field=emergency_contact`);
     const input = page.getByRole('textbox', { name: /Emergency contact/ });
     await input.waitFor({ timeout: 30_000 });
     await expect.poll(() => input.evaluate((el) => el === document.activeElement)).toBe(true);
@@ -2652,15 +2665,15 @@ describe('A company the back office has just created, with nothing published', (
          WHERE tenant_id = ${made.tenantId} AND family_name = 'Cascade'`;
     expect(created).toEqual([{ count: String(ROWS) }]);
 
-    // Over: Import is back, the history says Imported, and the bell says so too.
+    // Over: Import is back, the history says Imported, and the Inbox has the news.
     await page.goto(`${made.shell}/people/import-export`);
     await page.getByRole('link', { name: 'Start import' }).first().waitFor({ timeout: 30_000 });
     await page
       .getByText(/^Imported · 400 created or updated$/)
       .first()
       .waitFor({ timeout: 30_000 });
-    await page.goto(`${made.shell}/inbox`);
-    await page.getByText('Import finished: 400 people').first().waitFor({ timeout: 30_000 });
+    await page.goto(`${made.shell}/inbox/updates`);
+    await page.getByText('Your import finished: 400 people').first().waitFor({ timeout: 30_000 });
     expect(await unavailable()).toBe(0);
     expect(problems).toEqual([]);
     await context.close();

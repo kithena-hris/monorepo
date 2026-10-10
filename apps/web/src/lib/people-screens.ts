@@ -685,10 +685,17 @@ async function organisation(): Promise<ScreenLoad> {
     chatData !== null &&
     chatData.apps.some((a) => a.connection !== null) &&
     chatData.notices.some((n) => n.key === 'profile_reminder' && n.on);
+  // The Inbox rules travel as JSON (`PeopleSettings.inboxRules`).
+  const settings = (org.data as { settings?: Record<string, unknown> }).settings ?? {};
+  const rules = settings['inboxRules'];
   return {
     status: 'ready',
     data: {
       ...(org.data as object),
+      settings: {
+        ...settings,
+        inboxRules: typeof rules === 'string' ? (JSON.parse(rules) as unknown) : null,
+      },
       packs: setup.status === 'ready' ? (setup.data as { packs: unknown[] }).packs : null,
       reminders: {
         cadence: 'The day a detail goes missing, then once a week',

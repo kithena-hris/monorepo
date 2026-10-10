@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffInbox {\n    timeOffInbox {\n      items { area at count detail due dueVerb from { name personId } icon id kind lane link message module openIn outcome { label tone } replies status { label tone } summary team { mine role takenAt takenBy { name personId } } title tone }\n    }\n  }"}

@@ -2,6 +2,8 @@ import type { JSX, ReactNode } from 'react';
 
 import { AppShell } from '../../components/app-shell';
 import { signedIn } from '../../lib/signed-in';
+import { EMPTY_PEEK } from '../../lib/inbox/peek';
+import { inboxPeek } from '../../lib/inbox/server';
 import { slotsOf } from '../../lib/slots';
 
 /**
@@ -26,6 +28,9 @@ export default async function SignedInLayout({
 }): Promise<JSX.Element> {
   const { person, entitlements, company, logoUrl, shell, sidebarCollapsed, shortcuts } =
     await signedIn();
+  // The Inbox's counts and first rows, started now and not waited for: the
+  // bell and the red number stream in after the page (INB-036).
+  const inbox = inboxPeek().catch(() => EMPTY_PEEK);
   // What the company's remotes draw in the chrome: Time Off's clock (TOF-059).
   const slots = await slotsOf(shell);
   return (
@@ -38,6 +43,7 @@ export default async function SignedInLayout({
       sidebarCollapsed={sidebarCollapsed}
       shortcuts={shortcuts}
       slots={slots}
+      inbox={inbox}
     >
       {children}
     </AppShell>

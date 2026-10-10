@@ -170,6 +170,8 @@ type Mutation {
   A bearer token for an identity provider to provision members over SCIM 2.0 at /v1/timeoff/scim/v2, shown once; HR
   """
   issueTimeOffScimConnection(idempotencyKey: String!): TimeOffScimConnection!
+  """Remind whoever has your request: once, after 48 hours of waiting"""
+  nudgeTimeOffRequest(idempotencyKey: String!, requestId: String!): TimeOffNudged!
   """
   Publish the draft from a date: balances re-fold and timeoff.policy.published goes out; HR
   """
@@ -406,6 +408,10 @@ type Query {
   timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
   """MT21: the holidays the caller’s work location observes"""
   timeOffHolidays(year: Int!): TimeOffHolidays!
+  """
+  The Inbox’s Time Off items for the caller: approvals waiting on them, their own requests, decisions and days about to expire
+  """
+  timeOffInbox: TimeOffInbox!
   """
   T27: the month in points, six months of trends, the teams large enough to describe and the people behind each point; HR or a manager
   """
@@ -883,6 +889,52 @@ type TimeOffImportReport {
   updated: Int!
 }
 
+type TimeOffInbox {
+  items: [TimeOffInboxItems!]!
+}
+
+type TimeOffInboxItems {
+  area: String
+  at: String!
+  count: Int
+  detail: JSON
+  due: String
+  dueVerb: String!
+  from: TimeOffInboxItemsFrom
+  icon: String!
+  id: String!
+  kind: String!
+  lane: String!
+  link: String!
+  message: String
+  module: String!
+  openIn: String!
+  outcome: TimeOffInboxItemsStatus
+  replies: Int!
+  status: TimeOffInboxItemsStatus
+  summary: String
+  team: TimeOffInboxItemsTeam
+  title: String!
+  tone: String
+}
+
+type TimeOffInboxItemsFrom {
+  name: String
+  personId: String
+}
+
+type TimeOffInboxItemsStatus {
+  label: String!
+  tone: String!
+}
+
+type TimeOffInboxItemsTeam {
+  mine: Boolean!
+  role: String!
+  takenAt: String
+  takenBy: TimeOffInboxItemsFrom
+}
+
 type TimeOffInsightMonth {
   missedClockOuts: Int!
   month: String!
@@ -1149,6 +1201,10 @@ type TimeOffNudgeRecipient {
   displayName: String!
   personId: String!
   reachable: Boolean!
+}
+
+type TimeOffNudged {
+  nudgedAt: String!
 }
 
 type TimeOffNudgesSent {
@@ -1678,7 +1734,7 @@ type TimeOffSettingsApprovals {
 }
 
 type TimeOffSettingsAttendance {
-  defaultSchedule: JSON!
+  defaultSchedule: JSON
   rules: TimeOffAttendanceRules!
 }
 

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation StartDocumentUpload($personId: ID!, $name: String!, $size: Int!, $key: String!) {\n    startDocumentUpload(personId: $personId, name: $name, size: $size, idempotencyKey: $key)\n  }"}

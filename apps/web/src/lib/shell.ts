@@ -1,9 +1,7 @@
 import 'server-only';
 
 import { cache } from 'react';
-import { flaggedRows, type FlaggedSource } from './inbox';
 import { people, timeOff } from './people';
-import { VIEWS } from './people-views';
 import { remoteNav } from './remote-manifest';
 import { AREAS, placesFor, type Area } from './remotes';
 import {
@@ -121,7 +119,6 @@ function shellReads() {
     people<Overview>('Overview'),
     people<ShellData['roles']>('Home'),
     waitingFor(),
-    people<never>('Approvals', {}),
   ] as const;
 }
 
@@ -155,15 +152,12 @@ async function peopleShell(entitlements: readonly string[]): Promise<ShellData> 
   if (!entitlements.includes('module.people')) return EMPTY_SHELL;
   // All at once: the roles on their own (People answers them whether or not
   // anything is published yet, which the overview does not), the overview,
-  // what waits for a decision, which needs nobody's roles to be asked, and
-  // the changes flagged for whoever decides — asked beside the roles rather
-  // than after them, and kept only when the roles say HR.
-  const [route, overview, answered, waiting, flagged] = await Promise.all([
+  // and what waits for a decision, which needs nobody's roles to be asked.
+  const [route, overview, answered, waiting] = await Promise.all([
     // The manifest, whichever path is asked for: People's own front page is Home's now.
     remoteNav(AREAS.people).catch(() => null),
     ...shellReads(),
   ]);
-  const approvals = answered.ok && answered.data.hr ? flagged : null;
   const data = overview.ok ? overview.data : null;
   const roles = answered.ok ? answered.data : (data?.roles ?? EMPTY_SHELL.roles);
   if (route === null) return { ...EMPTY_SHELL, roles };
@@ -180,12 +174,6 @@ async function peopleShell(entitlements: readonly string[]): Promise<ShellData> 
     tabCounts: counts?.tabs ?? {},
     notices: data === null ? [] : noticesOf(data),
     waiting,
-    flagged:
-      approvals === null || !approvals.ok
-        ? null
-        : flaggedRows(
-            (VIEWS.Approvals(approvals.data) as unknown as { items: FlaggedSource[] }).items,
-          ),
     viewedAs: data?.viewedAs ?? [],
     now: data?.now ?? null,
   };

@@ -92,6 +92,10 @@ const routes = compose({
   // auth-dev` runs.
   databaseUrl: process.env['MESSAGING_DATABASE_URL'],
   webhookSecret: process.env['RESEND_WEBHOOK_SECRET'],
+  // The Inbox's email follows each person's settings, read from identity.
+  identityUrl: process.env['INTERNAL_API_URL'],
+  identityToken: process.env['INTERNAL_API_TOKEN'],
+  cronSecret: process.env['CRON_SECRET'],
 });
 
 const server = createServer((request, response) => {

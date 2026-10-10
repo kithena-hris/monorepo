@@ -235,6 +235,8 @@ export type {
 } from './components/sortable/sortable';
 
 export { Stepper } from './components/stepper/stepper';
+export { SignaturePad } from './components/signature-pad/signature-pad';
+export type { SignaturePadProps } from './components/signature-pad/signature-pad';
 export type { StepStatus, StepperProps, StepperStep } from './components/stepper/stepper';
 
 export { CopyButton, CopyField, useClipboard } from './components/clipboard/clipboard';

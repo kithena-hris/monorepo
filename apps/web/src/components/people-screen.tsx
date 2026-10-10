@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
+import * as inbox from '../app/(app)/inbox/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { useShellData } from './app-shell';
 import { DIRECTORY_VIEWS, viewHref } from '../lib/shortcuts';
@@ -18,6 +19,7 @@ import {
 } from '../lib/url-state';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
+import type { homeToDo } from './inbox/format';
 import {
   exportAddressOf,
   scheduleAudienceOf,
@@ -63,6 +65,8 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
+  /** Home's To do, worded by the shell from the Inbox (B1): given to People's Home in its place. */
+  readonly toDo?: ReturnType<typeof homeToDo>;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
    * the actions, for the screen's own header (`headerFrame`): the remote's
@@ -300,6 +304,43 @@ function useImportRun(
   return { run, waking: run !== null && going && waking };
 }
 
+/** A file a module sent as base64, saved by the browser under its own name. */
+function saveBase64(file: {
+  readonly name: string;
+  readonly mediaType: string;
+  readonly data: string;
+}): void {
+  const bytes = Uint8Array.from(atob(file.data), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: file.mediaType }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 60_000);
+}
+
+/** H3: upload the document straight to storage, as a photo goes, then send it. */
+async function sendDocumentFile(
+  personId: string,
+  file: File,
+  input: {
+    mode: 'keep' | 'acknowledge' | 'sign';
+    message: string | null;
+    dueOn: string | null;
+    countersign: boolean;
+  },
+): Promise<Outcome> {
+  const target = await inbox.startDocumentUpload(personId, file.name, file.size);
+  if (!target.ok) return target;
+  const { 'content-length': _length, ...headers } = target.headers;
+  const put = await fetch(target.url, { method: 'PUT', headers, body: file }).catch(() => null);
+  if (put?.ok !== true) return { ok: false, message: 'The upload did not finish; try again' };
+  const sent = await inbox.sendDocument({ personId, uploadId: target.uploadId, ...input });
+  return sent.ok ? { ok: true } : sent;
+}
+
 /**
  * A small export is ready now: open its file. A queued one is announced when
  * it is ready, as the screen says.
@@ -510,6 +551,15 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             note({ edit: section, field: null }, section === null ? 'replace' : 'push');
           },
           ...dialog,
+          // Their Documents, and one opened (D2, F1).
+          onDocuments: () => inbox.documentsOf(id ?? null),
+          onOpenDocument: async (documentId: string) => {
+            const file = await inbox.documentFile(documentId);
+            if (file === null)
+              return { ok: false as const, message: 'That document could not be opened' };
+            saveBase64(file);
+            return { ok: true as const };
+          },
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: (file: File) => uploadPhoto(id ?? null, file),
           // A file for an image or document field; the form's Save keeps it.
@@ -550,8 +600,31 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                   if (started.ok) window.location.assign('/');
                   return started;
                 },
-                // Ask them for empty details; People says which fields may be asked for.
+                // Ask them for empty details, as a task in their Inbox (H2); People
+                // says which fields may be asked for.
                 onRequest: (keys: readonly string[]) => actions.requestDetails(id, keys),
+                onAsk: async (input: {
+                  keys: readonly string[];
+                  message: string | null;
+                  dueOn: string | null;
+                }) => {
+                  const done = await inbox.askForDetails({ personIds: [id], ...input });
+                  return done.ok ? { ok: true as const } : done;
+                },
+                // A document to keep, acknowledge or sign (H3): HR's.
+                ...(shell.roles.hr
+                  ? {
+                      onSendDocument: (
+                        file: File,
+                        input: {
+                          mode: 'keep' | 'acknowledge' | 'sign';
+                          message: string | null;
+                          dueOn: string | null;
+                          countersign: boolean;
+                        },
+                      ) => sendDocumentFile(id, file, input),
+                    }
+                  : {}),
               }),
           searchPeople: actions.searchPeople,
           historyHref: id === undefined ? '/people/me/history' : `/people/${id}/history`,
@@ -1011,6 +1084,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       case 'PeopleHome':
         return {
           load: loadable,
+          ...(input.toDo === undefined ? {} : { toDo: input.toDo }),
           // What signing up still asks: their photo, and files kept to their fields.
           onPhoto: (file: File) => uploadPhoto(null, file),
           onSetupFile: async (

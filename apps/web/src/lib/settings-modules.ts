@@ -82,6 +82,14 @@ export function settingsModules(
     description: 'How the app works for you. Only you see and change these.',
     settings: [
       {
+        path: '/settings/notifications',
+        label: 'Notifications',
+        description: 'Where your tasks and updates reach you: phone, email, quiet hours.',
+        icon: 'notifications',
+        now: null,
+        attention: null,
+      },
+      {
         path: '/settings/shortcuts',
         label: 'Keyboard shortcuts',
         description: 'The keys that take you somewhere, and whether single keys work at all.',

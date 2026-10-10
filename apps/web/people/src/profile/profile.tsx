@@ -48,6 +48,14 @@ import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld } from '../held';
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
+import {
+  AskDialog,
+  Documents,
+  SendDocumentDialog,
+  type AskInput,
+  type ProfileDocument,
+  type SendInput,
+} from './inbox-asks';
 import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue, localTime, longDate, zoneCity } from '../record/display';
 import { FieldFiles, isFileField, type FileInfo, type UploadOutcome } from '../record/files';
@@ -192,6 +200,16 @@ export interface ProfileProps {
    * one's own profile; offered beside a field only where People says it may be.
    */
   readonly onRequest?: (keys: readonly string[]) => Promise<Outcome>;
+  /**
+   * Ask them for these details as a task in their Inbox (H2), with a message
+   * and a due date. Where given, "Ask" opens its dialog rather than emailing.
+   */
+  readonly onAsk?: (input: AskInput) => Promise<Outcome>;
+  /** Send them a document to keep, acknowledge or sign (H3). HR's. */
+  readonly onSendDocument?: (file: File, input: SendInput) => Promise<Outcome>;
+  /** Their Documents (D2, F1), read when the record is shown; and one opened. */
+  readonly onDocuments?: () => Promise<readonly ProfileDocument[]>;
+  readonly onOpenDocument?: (id: string) => Promise<Outcome>;
   /** Keep a file for an image or document field; saving the field points the record at it. */
   readonly onUploadFile?: (key: string, file: File) => Promise<UploadOutcome>;
   /**
@@ -257,6 +275,10 @@ function Record({
   onPhoto,
   focusField,
   onRequest,
+  onAsk,
+  onSendDocument,
+  onDocuments,
+  onOpenDocument,
   onChangeDated,
   editing: heldEditing,
   onEditingChange,
@@ -313,7 +335,7 @@ function Record({
   const requests = new Map((state.requests ?? []).map((r) => [r.key, r]));
   // What may be asked of them now: empty, and theirs to fill in.
   const askable =
-    onRequest === undefined
+    onRequest === undefined && onAsk === undefined
       ? []
       : sections
           .flatMap((s) => s.fields)
@@ -323,7 +345,11 @@ function Record({
   const frame = usePageHeaderFrame();
   const firstWritable = sections.find((s) => s.fields.some((f) => !f.readOnly));
   // Their own record (D3): nobody moves their own employment or asks themselves.
-  const own = onMove === undefined && onRequest === undefined && person.missing !== null;
+  const own =
+    onMove === undefined &&
+    onRequest === undefined &&
+    onAsk === undefined &&
+    person.missing !== null;
   const required = sections.flatMap((s) => s.fields).filter((f) => f.required).length;
   const percent =
     required === 0
@@ -358,23 +384,30 @@ function Record({
           .flatMap((s) => s.fields)
           .find((f) => `change:${f.key}` === opened && !f.readOnly && !isFileField(f)) ?? null);
   const askAll =
-    askable.length === 0 || onRequest === undefined
+    askable.length === 0 || (onRequest === undefined && onAsk === undefined)
       ? null
-      : {
-          label:
-            askable.length === 1
-              ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
-              : `Ask ${firstName} for ${String(askable.length)} empty details`,
-          run: () => {
-            void onRequest(askable.map((f) => f.key)).then((outcome) => {
-              setNotice(
-                outcome.ok
-                  ? `${firstName} has been asked, by email.`
-                  : `Not sent: ${outcome.message}`,
-              );
-            });
-          },
-        };
+      : onAsk !== undefined
+        ? {
+            label: `Ask ${firstName} for details`,
+            run: () => {
+              setOpened('ask');
+            },
+          }
+        : {
+            label:
+              askable.length === 1
+                ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
+                : `Ask ${firstName} for ${String(askable.length)} empty details`,
+            run: () => {
+              void onRequest?.(askable.map((f) => f.key)).then((outcome) => {
+                setNotice(
+                  outcome.ok
+                    ? `${firstName} has been asked, by email.`
+                    : `Not sent: ${outcome.message}`,
+                );
+              });
+            },
+          };
 
   // The record's parts, as the record card lists them and a phone's pills.
   const parts = sections.map((section) => {
@@ -492,6 +525,13 @@ function Record({
                             setOpened('pdf');
                           }
                     }
+                    {...(onSendDocument === undefined
+                      ? {}
+                      : {
+                          onSendDocument: () => {
+                            setOpened('send-document');
+                          },
+                        })}
                     viewAsLabel={viewAs === undefined ? null : `View as ${firstName}`}
                     onViewAs={() => {
                       setOpened('view-as');
@@ -578,6 +618,29 @@ function Record({
           onClose={close}
         />
       )}
+      {opened === 'ask' && onAsk !== undefined ? (
+        <AskDialog
+          name={person.name}
+          fields={askable.map((f) => ({ key: f.key, label: f.label }))}
+          onAsk={async (input) => {
+            const done = await onAsk(input);
+            if (done.ok) setNotice(`${firstName} has a task in their Inbox.`);
+            return done;
+          }}
+          onClose={close}
+        />
+      ) : null}
+      {opened === 'send-document' && onSendDocument !== undefined ? (
+        <SendDocumentDialog
+          name={person.name}
+          onSend={async (file, input) => {
+            const done = await onSendDocument(file, input);
+            if (done.ok) setNotice(`Sent to ${firstName}.`);
+            return done;
+          }}
+          onClose={close}
+        />
+      ) : null}
       {/* Where they work (PEO-123): changed from Actions, dated, in a dialog. */}
       {state.placement && onPlace && opened === 'placement' ? (
         <PlacementDialog placement={state.placement} onPlace={onPlace} onClose={close} />
@@ -831,6 +894,9 @@ function Record({
             })
           )}
           <EmploymentPeriods periods={state.employment?.periods ?? []} />
+          {onDocuments === undefined || onOpenDocument === undefined ? null : (
+            <Documents load={onDocuments} onOpen={onOpenDocument} />
+          )}
           {state.reportingLine === undefined ? null : (
             <div className="hidden touch:block">
               <ReportingLine
@@ -1167,7 +1233,10 @@ function RecordActions({
   onPlacement,
   viewAsLabel,
   onViewAs,
+  onSendDocument,
 }: {
+  /** H3: send them a document, where HR may. */
+  readonly onSendDocument?: () => void;
   /** "View as Alan", where it is offered; null elsewhere. */
   readonly viewAsLabel: string | null;
   readonly onViewAs: () => void;
@@ -1206,6 +1275,12 @@ function RecordActions({
       <DropdownMenuItem key="ask" onSelect={askFor.run}>
         <icons.send aria-hidden />
         {askFor.label}
+      </DropdownMenuItem>
+    ),
+    onSendDocument === undefined ? null : (
+      <DropdownMenuItem key="send-document" onSelect={onSendDocument}>
+        <icons.file aria-hidden />
+        Send a document
       </DropdownMenuItem>
     ),
     historyHref === undefined ? null : (

@@ -13,6 +13,7 @@ import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { ask, useSigned } from './api';
+import { aboutInbox, askInbox, type InboxReply } from '../inbox/api';
 
 interface Turn {
   readonly question: string;
@@ -22,6 +23,8 @@ interface Turn {
     readonly name: string;
     readonly title: string | null;
   }[];
+  /** An answer about the Inbox: items to open, a nudge where one is open (M:Z2). */
+  readonly inbox?: InboxReply;
 }
 
 const NOTHING =
@@ -36,9 +39,14 @@ const NOTHING =
 export function AskKithena({
   bottomInset,
   onOpenPerson,
+  onInbox = false,
+  onOpenItem,
 }: {
   bottomInset: number;
   onOpenPerson: (personId: string, name: string) => void;
+  /** On the Inbox tab: its questions, answered from it (M:Z2). */
+  onInbox?: boolean;
+  onOpenItem?: (id: string) => void;
 }): React.JSX.Element {
   const signed = useSigned();
   const [open, setOpen] = useState(false);
@@ -53,6 +61,20 @@ export function AskKithena({
     const earlier = turns.map((t) => t.question);
     setDraft('');
     setTurns((held) => [...held, { question, text: null, people: [] }]);
+    if (onInbox || aboutInbox(question)) {
+      void askInbox(signed, question).then((answer) => {
+        setTurns((held) =>
+          held.map((t, i) =>
+            i === held.length - 1
+              ? answer.ok
+                ? { question, text: answer.data.text, people: [], inbox: answer.data }
+                : { question, text: answer.message, people: [] }
+              : t,
+          ),
+        );
+      });
+      return;
+    }
     void ask<{ text: string; answered: boolean; people: Turn['people'] }>(signed, 'Ask', {
       question,
       earlier,
@@ -92,7 +114,7 @@ export function AskKithena({
             onValueChange={setDraft}
             onSubmit={send}
             streaming={waiting}
-            placeholder="Ask about your people…"
+            placeholder={onInbox ? 'Ask about your inbox…' : 'Ask about your people…'}
           />
         }
       >
@@ -105,11 +127,14 @@ export function AskKithena({
         >
           {turns.length === 0 ? (
             <AssistantSuggestions>
-              {[
-                'Who starts this month?',
-                'Who reports to me?',
-                'How many people work in each team?',
-              ].map((s) => (
+              {(onInbox
+                ? ['What do I need to do this week?', 'What’s waiting on others?']
+                : [
+                    'Who starts this month?',
+                    'Who reports to me?',
+                    'How many people work in each team?',
+                  ]
+              ).map((s) => (
                 <AssistantSuggestion
                   key={s}
                   icon={Sparkles}
@@ -127,6 +152,36 @@ export function AskKithena({
                 <AssistantMessage from="user">{t.question}</AssistantMessage>
                 <AssistantMessage from="assistant" streaming={t.text === null}>
                   <AssistantText>{t.text ?? ''}</AssistantText>
+                  {t.inbox === undefined ||
+                  (t.inbox.items.length === 0 && t.inbox.nudge === null) ? null : (
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {t.inbox.items.map((it) => (
+                        <Chip
+                          key={it.id}
+                          onPress={() => {
+                            setOpen(false);
+                            onOpenItem?.(it.id);
+                          }}
+                        >
+                          {it.hint === null ? it.title : `${it.title} · ${it.hint}`}
+                        </Chip>
+                      ))}
+                      {t.inbox.nudge === null ? null : (
+                        <Chip
+                          onPress={() => {
+                            const id = t.inbox?.nudge?.itemId ?? '';
+                            const [module, kind, key] = id.split(':');
+                            if (key === undefined) return;
+                            void (module === 'people' && kind === 'change'
+                              ? ask(signed, 'NudgePendingChange', { id: key })
+                              : ask(signed, 'NudgeTimeOffRequest', { requestId: key }, 'timeoff'));
+                          }}
+                        >
+                          {t.inbox.nudge.label}
+                        </Chip>
+                      )}
+                    </View>
+                  )}
                   {t.people.length === 0 ? null : (
                     <View className="flex-row flex-wrap gap-1.5">
                       {t.people.map((p) => (

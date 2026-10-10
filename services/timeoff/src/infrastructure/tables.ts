@@ -177,6 +177,7 @@ export const request = timeoff.table(
     escalatedTo: text('escalated_to'),
     proposedBy: text('proposed_by'),
     proposalMessage: text('proposal_message'),
+    nudgedAt: instant('nudged_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

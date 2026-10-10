@@ -95,6 +95,13 @@ export const OPERATIONS = {
   }`,
 
   /** T19: who covers for the caller, whom they may choose, and whom they cover for */
+  /** The Inbox (INB-010 to INB-013): approvals, the caller's requests and decisions, as items */
+  TimeOffInbox: `query TimeOffInbox {
+    timeOffInbox {
+      items { area at count detail due dueVerb from { name personId } icon id kind lane link message module openIn outcome { label tone } replies status { label tone } summary team { mine role takenAt takenBy { name personId } } title tone }
+    }
+  }`,
+
   TimeOffDelegation: `query TimeOffDelegation {
     timeOffDelegation {
       approverId candidates { displayName personId } coveringFor { approverId approverName automatic range { from to } } delegation { automatic delegateId delegateName range { from to } salaryRelated } escalatesTo { displayName personId }
@@ -333,6 +340,13 @@ export const OPERATIONS = {
   }`,
 
   /** Cancel an approved request, or withdraw one nobody has decided */
+  /** E3, M:D2: nudge the approver once, after 48 hours */
+  NudgeTimeOffRequest: `mutation NudgeTimeOffRequest($key: String!, $requestId: String!) {
+    nudgeTimeOffRequest(idempotencyKey: $key, requestId: $requestId) {
+      nudgedAt
+    }
+  }`,
+
   CancelTimeOffRequest: `mutation CancelTimeOffRequest($key: String!, $requestId: String!) {
     cancelTimeOffRequest(idempotencyKey: $key, requestId: $requestId) {
       status

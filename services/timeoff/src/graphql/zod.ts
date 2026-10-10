@@ -28,7 +28,7 @@ interface Unwrapped {
   readonly nullable: boolean;
 }
 
-/** Under the wrappers that change nothing about the type, noting whether any allowed null. */
+/** Under the wrappers that change nothing about the type, noting whether null is allowed. */
 export function unwrap(schema: z.ZodType): Unwrapped {
   let s = schema;
   let nullable = false;
@@ -43,7 +43,8 @@ export function unwrap(schema: z.ZodType): Unwrapped {
     if (def.innerType !== undefined) s = def.innerType;
     else if (def.type === 'pipe' && def.out !== undefined) s = def.out;
     else if (def.type === 'lazy' && def.getter !== undefined) s = def.getter();
-    else return { schema: s, nullable };
+    // `unknown` and `any` take null as readily as anything else.
+    else return { schema: s, nullable: nullable || def.type === 'unknown' || def.type === 'any' };
   }
 }
 

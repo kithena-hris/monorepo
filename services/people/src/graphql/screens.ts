@@ -2199,6 +2199,34 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: Onboarding,
       resolve: view<OnboardingView>(() => '/v1/views/onboarding'),
     }),
+    peopleDocuments: t.string({
+      description:
+        'A person’s documents (JSON), for themselves or HR: what was sent, what they do with it, and how it ended. No id is the viewer’s own.',
+      args: { personId: t.arg.id() },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(
+            ctx,
+            'GET',
+            `/v1/views/documents${args.personId == null ? '' : `?person=${encodeURIComponent(args.personId)}`}`,
+          ),
+        ),
+    }),
+    peopleDocumentFile: t.string({
+      description:
+        'A document’s file (JSON: name, mediaType, data in base64), for whoever may read it.',
+      args: { id: t.arg.id({ required: true }) },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'GET', `/v1/documents/${encodeURIComponent(args.id)}/file`),
+        ),
+    }),
+    peopleInbox: t.string({
+      description:
+        'People’s Inbox items for the viewer (JSON: `InboxAnswer` in packages/contracts/src/inbox): details asked of them, values to correct, their own changes, what they asked of others, HR’s queues as one row, checklists and team news.',
+      resolve: async (_root, _args, ctx) =>
+        JSON.stringify(await viaRest(ctx, 'GET', '/v1/views/inbox')),
+    }),
     peopleProfile: t.field({
       type: Profile,
       description: 'One person as the viewer may see them; no id is "my profile".',
@@ -3610,6 +3638,238 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       resolve: async (_root, args, ctx) => {
         await viaRest(ctx, 'PUT', `/v1/approval-checks/${encodeURIComponent(args.code)}`, {
           body: { on: args.on },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    askForDetails: t.string({
+      description:
+        'Ask one person or many for details, as one task each in their Inbox (H2). JSON: batchId, asked, skipped.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        keys: t.arg.stringList({ required: true }),
+        message: t.arg.string(),
+        dueOn: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', '/v1/asks', {
+            body: {
+              personIds: args.personIds,
+              keys: args.keys,
+              message: args.message ?? null,
+              dueOn: args.dueOn ?? null,
+            },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    completeAsk: t.string({
+      description:
+        'Fill in what was asked, from the Inbox (C1). `values` is JSON by field key. JSON: held, the labels sent to HR first.',
+      args: {
+        id: t.arg.id({ required: true }),
+        values: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/completion`, {
+            body: { values: JSON.parse(args.values) as unknown },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    undoAsk: t.field({
+      type: Outcome,
+      description:
+        'C5: put back what was there (`values`, JSON) and open the task again, within a minute.',
+      args: {
+        id: t.arg.id({ required: true }),
+        values: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/undo`, {
+          body: { values: JSON.parse(args.values) as unknown },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    replyToAsk: t.field({
+      type: Outcome,
+      description: 'C7: a question or an answer on the task’s thread.',
+      args: {
+        id: t.arg.id({ required: true }),
+        body: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/replies`, {
+          body: { body: args.body },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    cancelAsk: t.field({
+      type: Outcome,
+      description: 'Z2: whoever asked cancels it; the fields lock and it stops counting.',
+      args: {
+        id: t.arg.id({ required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/cancellation`, {
+          body: { note: args.note ?? null },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    sendBackAsk: t.field({
+      type: Outcome,
+      description: 'C8: the person asked sends it back, always with a reason.',
+      args: {
+        id: t.arg.id({ required: true }),
+        reason: t.arg.string({ required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/asks/${encodeURIComponent(args.id)}/send-back`, {
+          body: { reason: args.reason, note: args.note ?? null },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    changeAskBatch: t.field({
+      type: Outcome,
+      description:
+        'H4: for what the caller asked of many: `cancel` it for everyone, change its `due` date, or `remind` those left (all, or `personIds`).',
+      args: {
+        batchId: t.arg.id({ required: true }),
+        action: t.arg.string({ required: true }),
+        dueOn: t.arg.string(),
+        personIds: t.arg.idList(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        const batch = `/v1/ask-batches/${encodeURIComponent(args.batchId)}`;
+        const [path, body] =
+          args.action === 'cancel'
+            ? [`${batch}/cancellation`, {}]
+            : args.action === 'due'
+              ? [`${batch}/due`, { dueOn: args.dueOn ?? null }]
+              : [`${batch}/reminders`, { personIds: args.personIds ?? null }];
+        await viaRest(ctx, 'POST', path, { body, key: args.idempotencyKey });
+        return done();
+      },
+    }),
+    nudgePendingChange: t.field({
+      type: Outcome,
+      description: 'E1: the requester nudges HR about a change waiting, once, after 48 hours.',
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/nudge`, {
+          body: {},
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    startDocumentUpload: t.string({
+      description:
+        'H3: where to put a document for somebody (JSON: uploadId, url, headers). HR only.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        name: t.arg.string({ required: true }),
+        size: t.arg.int({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', '/v1/documents/uploads', {
+            body: { personId: args.personId, name: args.name, size: args.size },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    sendDocument: t.string({
+      description:
+        'H3: send the uploaded document, to keep (an update), to acknowledge or to sign (a task), countersigned by whoever sends it where asked. JSON: id.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        uploadId: t.arg.id({ required: true }),
+        mode: t.arg.string({ required: true }),
+        message: t.arg.string(),
+        dueOn: t.arg.string(),
+        countersign: t.arg.boolean(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(ctx, 'POST', '/v1/documents', {
+            body: {
+              personId: args.personId,
+              uploadId: args.uploadId,
+              mode: args.mode,
+              message: args.message ?? null,
+              dueOn: args.dueOn ?? null,
+              countersign: args.countersign ?? false,
+            },
+            key: args.idempotencyKey,
+          }),
+        ),
+    }),
+    actOnDocument: t.field({
+      type: Outcome,
+      description:
+        'C3, C4: `acknowledge`, `sign` (name, how: typed or drawn, mark), `countersign` (name), `send-back` (note) or `cancel` a document.',
+      args: {
+        id: t.arg.id({ required: true }),
+        action: t.arg.string({ required: true }),
+        name: t.arg.string(),
+        how: t.arg.string(),
+        mark: t.arg.string(),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        const at = `/v1/documents/${encodeURIComponent(args.id)}`;
+        const call: Record<string, readonly [string, Record<string, unknown>]> = {
+          acknowledge: [`${at}/acknowledgement`, {}],
+          sign: [
+            `${at}/signature`,
+            { name: args.name ?? '', how: args.how ?? 'typed', mark: args.mark ?? '' },
+          ],
+          countersign: [`${at}/countersignature`, { name: args.name ?? '' }],
+          'send-back': [`${at}/send-back`, { note: args.note ?? '' }],
+          cancel: [`${at}/cancellation`, {}],
+        };
+        const chosen = call[args.action];
+        if (chosen === undefined) throw new Error(`Unknown action ${args.action}`);
+        await viaRest(ctx, 'POST', chosen[0], { body: chosen[1], key: args.idempotencyKey });
+        return done();
+      },
+    }),
+    takeInboxTask: t.field({
+      type: Outcome,
+      description:
+        'H1, Z3: take a team task, or take it over with a note; it stops counting for the others.',
+      args: {
+        itemId: t.arg.string({ required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', '/v1/inbox/claims', {
+          body: { itemId: args.itemId, note: args.note ?? null },
           key: args.idempotencyKey,
         });
         return done();

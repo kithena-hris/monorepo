@@ -19,11 +19,9 @@ import type { AssistantPort } from '../assistant/assistant-port.js';
 import type { ChatDeps } from '../settings/chat-port.js';
 import type { ViewAsDeps, ViewedAs } from '../person/view-as.js';
 import type { ImportNotice } from '../import/run-store.js';
-import type {
-  ReminderCompany,
-  ReminderMailer,
-  SweepOutcome,
-} from '../completeness/reminders.js';
+import type { AskDeps, DocumentDeps, InboxNotifier, TeamTaskStore } from '../inbox/ports.js';
+import type { InboxRules } from '../org/org.js';
+import type { ReminderCompany, ReminderMailer, SweepOutcome } from '../completeness/reminders.js';
 import type {
   FormValue,
   FormValues,
@@ -45,6 +43,16 @@ import type {
 
 export interface ScreenDeps {
   readonly service: PeopleService;
+  /** Asking for details as Inbox tasks (`inbox/asks.ts`). Absent, it is not offered. */
+  readonly asks?: AskDeps;
+  /** Documents sent to keep, acknowledge or sign (`inbox/documents.ts`). Absent, not offered. */
+  readonly documents?: DocumentDeps;
+  /** Team tasks and who took them (`inbox/team.ts`). Absent, there are none. */
+  readonly teamTasks?: TeamTaskStore;
+  /** Email for what reaches somebody's Inbox (INB-050). Absent, none is sent. */
+  readonly inboxNotifier?: InboxNotifier;
+  /** The company's Inbox rules (P2). Absent, the defaults. */
+  readonly inboxRules?: (tx: Tx, tenantId: string) => Promise<InboxRules>;
   /** Viewing as an employee (`person/view-as.ts`). Absent, it is never offered. */
   readonly viewAs?: ViewAsDeps;
   /** The views of an account that are over, newest first: its notices. Absent, none. */
