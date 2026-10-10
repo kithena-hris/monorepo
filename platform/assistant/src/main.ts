@@ -1,7 +1,9 @@
 import { createServer, type IncomingMessage } from 'node:http';
+import { createYoga } from 'graphql-yoga';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import { compose } from './composition.js';
+import { yogaOptions } from './graphql/schema.js';
 
 /**
  * The assistant: one question in words, answered across every module a
@@ -21,6 +23,9 @@ const PORT = Number(process.env['PORT'] ?? 4104);
 
 const route = compose(process.env);
 
+// The web's questions, through the router (AST-035): the subgraph at `/graphql`.
+const yoga = createYoga(yogaOptions);
+
 /** A question is a few hundred bytes; anything past this is not one. */
 const MAX_BODY = 16 * 1024;
 
@@ -36,6 +41,10 @@ async function bodyOf(request: IncomingMessage): Promise<string> {
 }
 
 const server = createServer((request, response) => {
+  if (new URL(request.url ?? '/', 'http://assistant.internal').pathname === '/graphql') {
+    void yoga(request, response);
+    return;
+  }
   bodyOf(request)
     .then((body) =>
       route({ method: request.method, url: request.url, headers: request.headers, body }),

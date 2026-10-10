@@ -1262,12 +1262,21 @@ importers:
       '@kithena/domain-kit':
         specifier: workspace:*
         version: link:../../packages/domain-kit
+      '@kithena/graphql-kit':
+        specifier: workspace:*
+        version: link:../../packages/graphql-kit
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.1
+      graphql:
+        specifier: ^16.11.0
+        version: 16.14.2
+      graphql-yoga:
+        specifier: ^5.24.1
+        version: 5.24.1(graphql@16.14.2)
       zod:
         specifier: ^4.6.5
         version: 4.6.5

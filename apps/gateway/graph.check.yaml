@@ -23,3 +23,7 @@ subgraphs:
     routing_url: http://localhost:4103/graphql
     schema:
       file: ../../platform/audit/schemas/audit.graphql
+  - name: assistant
+    routing_url: http://localhost:4104/graphql
+    schema:
+      file: ../../platform/assistant/schemas/assistant.graphql

@@ -3,7 +3,8 @@ import { systemClock, type Clock } from '@kithena/domain-kit';
 import type { Logger } from '@kithena/telemetry';
 
 import { asker } from './application/ask.js';
-import { route, type Reply, type Request } from './http/server.js';
+import { configureGraphQL } from './graphql/schema.js';
+import { observe, route, type Reply, type Request } from './http/server.js';
 import { identityFrom } from './infrastructure/identity.js';
 import { modulesFrom } from './infrastructure/modules.js';
 import { plannerFrom } from './infrastructure/planner.js';
@@ -13,7 +14,9 @@ import { plannerFrom } from './infrastructure/planner.js';
  *
  * Nothing is required to start. A channel is let in by its own token
  * (`SLACK_ASSISTANT_TOKEN`, `TEAMS_ASSISTANT_TOKEN`); with none, every caller
- * is refused. With no model (`ASSISTANT_API_KEY`) every question is "The
+ * is refused. The web's questions come through the router to the subgraph,
+ * let in by the router–assistant pair's `ASSISTANT_API_TOKEN`; without it the
+ * subgraph refuses every question and nothing else changes. With no model (`ASSISTANT_API_KEY`) every question is "The
  * assistant isn't available right now." — the same as People today without
  * a key — so deploying it before its settings exist is safe. Identity is
  * `IDENTITY_URL` and `ASSISTANT_IDENTITY_TOKEN`; each module is `<MODULE>_URL`
@@ -58,12 +61,13 @@ export function compose(
       ? { originOf: (slug: string) => base.replace('{slug}', slug).replace(/\/$/u, '') }
       : {}),
   });
+  const observed = observe(ask, wiring.logger);
+  configureGraphQL({ ask: observed, internalToken: settings['ASSISTANT_API_TOKEN'] ?? '' });
   return route({
     callers: CHANNELS.flatMap(([name, channel]) => {
       const token = settings[name];
       return token ? [{ token, channel }] : [];
     }),
-    ask,
-    ...(wiring.logger === undefined ? {} : { logger: wiring.logger }),
+    ask: observed,
   });
 }

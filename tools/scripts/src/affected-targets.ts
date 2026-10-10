@@ -59,8 +59,8 @@ export const TARGETS = {
   // which asks it every question.
   assistant: { packages: ['@kithena/assistant'], paths: [/^deploy\/vm\//u] },
   // The router image bakes in the supergraph, composed from People's, Time
-  // Off's and the activity log's schemas, and `apps/gateway` holds its config
-  // and the persisted operations.
+  // Off's, the activity log's and the assistant's schemas, and `apps/gateway`
+  // holds its config and the persisted operations.
   router: {
     packages: ['@kithena/gateway'],
     paths: [
@@ -68,6 +68,7 @@ export const TARGETS = {
       /^services\/people\/schemas\//u,
       /^services\/timeoff\/schemas\//u,
       /^platform\/audit\/schemas\//u,
+      /^platform\/assistant\/schemas\//u,
     ],
   },
   // Not a package: Atlas reads the directory and its config.
