@@ -53,7 +53,8 @@ afterAll(async () => {
   await (stack as Stack | undefined)?.stop();
 }, 60_000);
 
-async function admin(): Promise<{ page: Page; errors: string[] }> {
+/** Priya's browser; `slow`, its CPU six times slower, as a CI runner's or a cheap laptop's. */
+async function admin(slow = false): Promise<{ page: Page; errors: string[] }> {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await context.addCookies([
     {
@@ -67,6 +68,10 @@ async function admin(): Promise<{ page: Page; errors: string[] }> {
     },
   ]);
   const page = await context.newPage();
+  if (slow) {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+  }
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -88,12 +93,19 @@ const names = (page: Page) =>
 
 describe('the directory filters', () => {
   it('narrows the list by a condition from the Filters dialog, and widens it from its chip', async () => {
-    const { page, errors } = await admin();
+    // Slow, because a screen's code arriving after the shell has moved on is
+    // what once made its hydration miss the server's HTML (React #418).
+    const { page, errors } = await admin(true);
     // Each error with the step it came in, so a failure says where.
     const seen = (step: string) => errors.splice(0).map((e) => `${step}: ${e}`);
     const problems: string[] = [];
     await page.goto(`${stack.shell}/people/directory/list`);
     await expect.poll(() => names(page), { timeout: 30_000 }).toEqual(['Adam Ruiz', 'Priya Shah']);
+    // Hydrated: the screen is the remote's own, not the server's HTML waiting for its code.
+    await page.waitForFunction(
+      () => document.querySelector('[data-remote][data-hydrating]') === null,
+    );
+    await page.waitForLoadState('networkidle');
     problems.push(...seen('first load'));
 
     await page.getByRole('button', { name: 'Add filter' }).click();
