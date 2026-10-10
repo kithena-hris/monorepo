@@ -281,10 +281,11 @@ function conditioned(tenantId: string, refine: Refine | undefined): SQL | undefi
     const [first = '', second = ''] = c.values;
     // A range over numbers compares numbers ("9" < "10"); a value that is not
     // one reads as NULL rather than failing the statement. Dates stay text.
+    const given = c.values.filter((v) => v !== '');
     const numeric =
       ['before', 'after', 'between'].includes(c.op) &&
-      c.values.length > 0 &&
-      c.values.every((v) => /^-?\d+(\.\d+)?$/.test(v));
+      given.length > 0 &&
+      given.every((v) => /^-?\d+(\.\d+)?$/.test(v));
     const text = fieldSql(c.key);
     const field = numeric
       ? sql`(CASE WHEN ${text} ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (${text})::numeric END)`
@@ -315,6 +316,9 @@ function conditioned(tenantId: string, refine: Refine | undefined): SQL | undefi
       case 'after':
         return sql`${field} >= ${bound(first)}`;
       case 'between':
+        // An empty end is open: "on or after 1 Jan" is ['2025-01-01', ''].
+        if (second === '') return sql`${field} >= ${bound(first)}`;
+        if (first === '') return sql`${field} <= ${bound(second)}`;
         return sql`${field} BETWEEN ${bound(first)} AND ${bound(second)}`;
       case 'empty':
         return sql`(${field} IS NULL OR ${field} = '')`;
@@ -426,7 +430,11 @@ export function drizzleGapTotals() {
 
 /** People missing any of these keys, over everybody: Missing details' HR rows (`gapPeople`). */
 export function drizzleGapPeople() {
-  return async (tx: PostgresJsDatabase, tenantId: string, keys: readonly string[]): Promise<number> => {
+  return async (
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    keys: readonly string[],
+  ): Promise<number> => {
     if (keys.length === 0) return 0;
     const wanted = sql`ARRAY[${sql.join(
       keys.map((k) => sql`${k}`),
