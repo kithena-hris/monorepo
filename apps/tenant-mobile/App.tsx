@@ -1,8 +1,8 @@
 import { ReachProvider, Spinner } from '@reach/ui-native';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { useColorScheme, View } from 'react-native';
+import { AppState, useColorScheme, View } from 'react-native';
 
 import {
   companyAt,
@@ -87,6 +87,16 @@ export default function App(): React.JSX.Element {
     void restoreLook();
     void resume();
   }, [resume]);
+
+  // Back in the foreground is a focus: reads that went stale meanwhile are asked again.
+  useEffect(() => {
+    const watching = AppState.addEventListener('change', (state) => {
+      focusManager.setFocused(state === 'active');
+    });
+    return () => {
+      watching.remove();
+    };
+  }, []);
 
   const changeCompany = (): void => {
     void forgetCompany().then(() => {

@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-vi.mock('react-native', () => ({ AppState: { addEventListener: vi.fn() } }));
-
 const { ask, read } = await import('./api');
 const { queryClient } = await import('../query');
 

@@ -1,5 +1,4 @@
-import { focusManager, QueryClient } from '@tanstack/react-query';
-import { AppState } from 'react-native';
+import { QueryClient } from '@tanstack/react-query';
 
 /**
  * Every read the app has answered, kept in memory for the session: a screen
@@ -9,8 +8,10 @@ import { AppState } from 'react-native';
  * shown after a change predates it.
  *
  * No retries: a failed read says so, as it did before, and keeps the last
- * answer on screen. Coming back to the app is a focus, so what went stale
- * while it was in the background is asked again then.
+ * answer on screen. Coming back to the app is a focus (`App.tsx`), so what
+ * went stale while it was in the background is asked again then. Nothing
+ * here imports React Native, so the pure models that read through `api.ts`
+ * stay testable on their own.
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,8 +21,4 @@ export const queryClient = new QueryClient({
       retry: false,
     },
   },
-});
-
-AppState.addEventListener('change', (state) => {
-  focusManager.setFocused(state === 'active');
 });
