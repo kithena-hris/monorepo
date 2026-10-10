@@ -530,7 +530,8 @@ describe('Field-level absence, end to end', () => {
     expect(html).toContain('Priya');
     expect(html).not.toContain('es_nif');
     expect(html).not.toContain('NIF / NIE');
-    expect(html).not.toContain('678Z');
+    // Her NIF's tail, whole or masked; not a timestamp's milliseconds (".678Z").
+    expect(html).not.toMatch(/(?<!\.)678Z/);
 
     // "Pria Shah": the preferred name a test before set.
     await expect
@@ -760,7 +761,12 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
 
     const theirDayIs = async (zone: string): Promise<void> => {
       await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`);
-      const shown = await page.getByTestId('their-day').innerText({ timeout: 30_000 });
+      // The one on screen: the server's streamed copy can linger hidden
+      // (`<div hidden id="S:…">`) when the browser drew the screen first.
+      const shown = await page
+        .getByTestId('their-day')
+        .filter({ visible: true })
+        .innerText({ timeout: 30_000 });
       expect(dayIn(zone)).toContain(shown);
     };
     // Adam's day before he works there: the tenant's.

@@ -419,8 +419,14 @@ function Host({
     const stage = stageOf(name, stageKey, area, container, latest.current, hydrate);
     clearTimeout(stage.timer);
     if (stage.element !== container && stage.element.parentNode !== container) {
-      container.append(stage.element);
+      // Drawn from nothing in an element the server filled: its HTML goes
+      // first, or the screen shows twice until the stage's first paint.
+      container.replaceChildren(stage.element);
     }
+    // And it is no longer waiting: still marked, it would hold every press
+    // on the screen for a hydration that is not coming. A press it held was
+    // on HTML that is gone, so it is let go rather than replayed.
+    if (!hydrate) releaseEarlyPresses(container, false);
     stage.owner = container;
     return () => {
       if (stage.owner !== container) return;

@@ -68,7 +68,7 @@ Notifications.setNotificationHandler({
 /** Read the Inbox and say what is new, as the person chose. */
 async function check(signed: Signed): Promise<void> {
   const [answer, chosen] = await Promise.all([
-    readInbox(signed),
+    readInbox(signed, 30_000),
     readNotifications<Settings>(signed),
   ]);
   if (!answer.ok) return;

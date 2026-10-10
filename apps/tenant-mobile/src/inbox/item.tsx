@@ -65,7 +65,7 @@ import {
 import { useState, type ReactNode } from 'react';
 
 import { Failed, Loading, Page } from '../frame';
-import { ask, formInputs, useSigned, wrote, type Signed } from '../people/api';
+import { ask, formInputs, useSigned, type Signed } from '../people/api';
 import { shareBase64 } from '../people/media';
 import type { PeopleRoutes, PeopleScreen } from '../people/routes';
 import { changeInbox, readInbox, useInbox } from './api';
@@ -176,7 +176,6 @@ function useWrite(navigation: Nav) {
     setBusy(operation);
     const answer = await ask<unknown>(signed, operation, variables, area);
     setBusy(null);
-    wrote();
     void readInbox(signed);
     if (!answer.ok) {
       toast({ title: 'That did not work', description: answer.message, tone: 'danger' });

@@ -1,11 +1,12 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useTransition, type JSX } from 'react';
+import { useMemo, useTransition, type JSX } from 'react';
 
 import * as settings from '../app/(app)/settings/time-off/actions';
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
+import { useCachedRead } from '../lib/query';
 import { AREAS } from '../lib/remotes';
 import type { areaFrame } from '../lib/shell-data';
 import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
@@ -31,6 +32,9 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
   const router = useRouter();
   const pathname = usePathname();
   const live = useSearchParams();
+  // A page of approvals asked for again within half a minute is the one kept (`lib/query.tsx`).
+  const cached = useCachedRead();
+  const approvalsPage = useMemo(() => cached('approvalsPage', actions.approvalsPage), [cached]);
   const [, startTransition] = useTransition();
   const refresh = (): void => {
     startTransition(() => {
@@ -96,7 +100,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onNavigate: go,
           // Coming up and Decided load as they scroll; the address opens the first page.
           onLoadMore: (after: string) =>
-            actions.approvalsPage(
+            approvalsPage(
               pathname.startsWith('/time-off/approvals/coming-up') ? 'coming_up' : 'decided',
               after,
             ),

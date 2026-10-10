@@ -216,18 +216,18 @@ export function releaseEarlyPresses(container: Element, answered = true): void {
   if (press.busy === null) pressed.removeAttribute('aria-busy');
   else pressed.setAttribute('aria-busy', press.busy);
   if (!answered) return;
-  let target: Element | null = pressed;
-  if (!container.contains(pressed)) {
-    // Hydration rebuilt the tree: the same place in the new one, and the
-    // focus back on it if the press had put it there.
-    target = container;
-    for (const i of press.path) target = target?.children.item(i) ?? null;
-    if (press.focused && target instanceof HTMLElement) target.focus({ preventScroll: true });
-  }
-  if (target === null) return;
-  // After React has rendered what was handed over, so the press sees it.
-  const at = target;
+  // After React has rendered what was handed over, so the press sees it. The
+  // target is found then too: the render straight after hydration (the app's
+  // shortcut keys arriving, say) may have drawn the pressed control again.
   setTimeout(() => {
-    replay(at, press);
+    let target: Element | null = pressed;
+    if (!container.contains(pressed)) {
+      // The tree was rebuilt: the same place in the new one, and the focus
+      // back on it if the press had put it there.
+      target = container;
+      for (const i of press.path) target = target?.children.item(i) ?? null;
+      if (press.focused && target instanceof HTMLElement) target.focus({ preventScroll: true });
+    }
+    if (target !== null) replay(target, press);
   }, 0);
 }

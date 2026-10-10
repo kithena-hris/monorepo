@@ -663,6 +663,30 @@ describe('the directory at 50,000 people', () => {
     expect(counted.value.all).toBe(Math.floor(50_000 / 7));
   });
 
+  it('reads a range with one end open as on-or-after, or on-or-before', async () => {
+    // A date range with one end picked comes as ['2025-01-01', ''] or ['', '2025-01-01'].
+    const countOf = (values: string[]) =>
+      inTenantResult(inTenant, PERF, (tx) =>
+        people.count(tx, {
+          ...asking(hr, PERF),
+          refine: { conditions: [{ key: 'cost_centre', op: 'between', values }] },
+        }),
+      );
+    const truth = async (where: ReturnType<typeof sql>) => {
+      const rows = await admin.execute<{ n: number }>(
+        sql`SELECT count(*)::int AS n FROM people.person WHERE tenant_id = ${PERF}::uuid AND ${where}`,
+      );
+      return [...rows][0]?.n ?? -1;
+    };
+    const after = await countOf(['CC-90', '']);
+    const before = await countOf(['', 'CC-20']);
+    if (!after.ok || !before.ok) throw new Error('not counted');
+    expect(after.value.all).toBe(await truth(sql`custom ->> 'cost_centre' >= 'CC-90'`));
+    expect(before.value.all).toBe(await truth(sql`custom ->> 'cost_centre' <= 'CC-20'`));
+    expect(after.value.all).toBeGreaterThan(0);
+    expect(before.value.all).toBeGreaterThan(0);
+  });
+
   it('searches every person, with its count, a page at a time, within the budget', async () => {
     // `Family204` is 50 people spread over the whole id range: a search over
     // a first page of people, as the directory once did, finds almost none.

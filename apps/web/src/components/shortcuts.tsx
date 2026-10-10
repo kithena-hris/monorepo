@@ -11,7 +11,7 @@ import {
   armSequence,
   chordOf,
 } from '@reach/ui';
-import Link from 'next/link';
+import { Link } from '../lib/link';
 import { createContext, use, useSyncExternalStore, type JSX, type ReactNode } from 'react';
 
 import { GROUPS, isCharacterKey, type Shortcut, type ShortcutPrefs } from '../lib/shortcuts';

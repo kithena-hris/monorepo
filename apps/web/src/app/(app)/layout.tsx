@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from 'react';
 
 import { AppShell } from '../../components/app-shell';
+import { QueryProvider } from '../../lib/query';
 import { signedIn } from '../../lib/signed-in';
 import { EMPTY_PEEK } from '../../lib/inbox/peek';
 import { inboxPeek } from '../../lib/inbox/server';
@@ -34,18 +35,21 @@ export default async function SignedInLayout({
   // What the company's remotes draw in the chrome: Time Off's clock (TOF-059).
   const slots = await slotsOf(shell);
   return (
-    <AppShell
-      person={person}
-      companyName={company}
-      logoUrl={logoUrl}
-      entitlements={entitlements}
-      shell={shell}
-      sidebarCollapsed={sidebarCollapsed}
-      shortcuts={shortcuts}
-      slots={slots}
-      inbox={inbox}
-    >
-      {children}
-    </AppShell>
+    // When this was drawn: a new value after a write drops the browser's kept reads.
+    <QueryProvider drawn={Date.now()}>
+      <AppShell
+        person={person}
+        companyName={company}
+        logoUrl={logoUrl}
+        entitlements={entitlements}
+        shell={shell}
+        sidebarCollapsed={sidebarCollapsed}
+        shortcuts={shortcuts}
+        slots={slots}
+        inbox={inbox}
+      >
+        {children}
+      </AppShell>
+    </QueryProvider>
   );
 }

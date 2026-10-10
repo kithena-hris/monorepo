@@ -41,7 +41,8 @@ export async function POST(request: Request): Promise<Response> {
   const ask = () =>
     peopleFor(sessionId, tenantId, area, operation, variables as Record<string, unknown>);
   let answer: Awaited<ReturnType<typeof ask>>;
-  if (writes(area, operation)) {
+  const write = writes(area, operation);
+  if (write) {
     if ((await someone) === null) {
       return NextResponse.json({ ok: false, code: 'UNAUTHENTICATED' }, { status: 401 });
     }
@@ -54,5 +55,9 @@ export async function POST(request: Request): Promise<Response> {
     answer = read;
   }
   const status = !answer.ok && answer.code === 'UNAUTHENTICATED' ? 401 : 200;
-  return NextResponse.json(answer, { status, headers: NO_STORE });
+  // A write says so, and the app drops every answer it kept as stale.
+  return NextResponse.json(answer, {
+    status,
+    headers: write ? { ...NO_STORE, 'x-kithena-wrote': '1' } : NO_STORE,
+  });
 }

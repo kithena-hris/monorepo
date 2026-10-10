@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import * as inbox from '../app/(app)/inbox/actions';
@@ -17,6 +17,7 @@ import {
   withQuery,
   type HistoryMode,
 } from '../lib/url-state';
+import { useCachedRead } from '../lib/query';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 import type { homeToDo } from './inbox/format';
@@ -361,13 +362,30 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const { load } = input;
   const shell = useShellData();
   const router = useRouter();
+  // The reads a screen asks for itself, kept for the tab (`lib/query.tsx`).
+  const cached = useCachedRead();
+  const reads = useMemo(
+    () => ({
+      searchPeople: cached('searchPeople', actions.searchPeople),
+      directoryPage: cached('directoryPage', actions.directoryPage),
+      screenPage: cached('screenPage', actions.screenPage),
+      decidedPage: cached('decidedPage', actions.decidedPage),
+      completenessPage: cached('completenessPage', actions.completenessPage),
+      wordedWhatChanged: cached('wordedWhatChanged', actions.wordedWhatChanged),
+      documentsOf: cached('documentsOf', inbox.documentsOf),
+    }),
+    [cached],
+  );
   const [, startTransition] = useTransition();
   const refresh = (): void => {
     startTransition(() => {
       router.refresh();
     });
   };
+  // Set while a navigation is on its way; see `note` below.
+  const navigating = useRef(false);
   const go = (to: string): void => {
+    navigating.current = to !== window.location.pathname + window.location.search;
     router.push(to);
   };
   // A tab or a view is the last segment of its route (`/people/insights/turnover`,
@@ -388,19 +406,23 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const live = useSearchParams();
   const pathname = usePathname();
   const at = (key: string): string | null => live.get(key);
-  // A navigation on its way: noting where the reader is (`noteInAddress`) would
-  // rewrite the old address under it, and Next would drop the navigation.
-  const navigating = useRef(false);
+  // A navigation on its way: noting anything in the address (`noteInAddress`)
+  // would rewrite the old address under it, and Next would drop the
+  // navigation. A dialog that closes as it applies (the directory's Filters)
+  // is exactly that, so every note waits for the new address instead.
   useEffect(() => {
     navigating.current = false;
-  }, [live]);
+  }, [live, pathname]);
   const navigate = (patch: Readonly<Record<string, string | null>>, mode: HistoryMode = 'push') => {
     const to = withQuery(window.location.pathname, window.location.search, patch) as Route;
+    if (to === window.location.pathname + window.location.search) return;
     navigating.current = true;
     if (mode === 'push') router.push(to, { scroll: false });
     else router.replace(to, { scroll: false });
   };
-  const note = noteInAddress;
+  const note = (patch: Readonly<Record<string, string | null>>, mode: HistoryMode): void => {
+    if (!navigating.current) noteInAddress(patch, mode);
+  };
   /** Search text, as a key: empty is the default and left out. */
   const typed = (text: string): string | null => (text.trim() === '' ? null : text);
   // Switching a directory view keeps the search and the filters, not the page,
@@ -552,7 +574,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           },
           ...dialog,
           // Their Documents, and one opened (D2, F1).
-          onDocuments: () => inbox.documentsOf(id ?? null),
+          onDocuments: () => reads.documentsOf(id ?? null),
           onOpenDocument: async (documentId: string) => {
             const file = await inbox.documentFile(documentId);
             if (file === null)
@@ -626,7 +648,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                     }
                   : {}),
               }),
-          searchPeople: actions.searchPeople,
+          searchPeople: reads.searchPeople,
           historyHref: id === undefined ? '/people/me/history' : `/people/${id}/history`,
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
@@ -667,7 +689,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         const query = (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
           // A new query starts at the top, on its own first person: the row the
           // reader was on, and whose quick look was open, belong to the old one.
-          navigate({ after: null, row: null, look: null, ...patch }, mode);
+          // The dialog it was chosen in closes with it.
+          navigate({ after: null, row: null, look: null, filters: null, ...patch }, mode);
         };
         // The address as it is now: a switch between list and cards changes
         // it without asking the server again (`switchView`).
@@ -737,7 +760,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...(next === null
             ? {}
             : {
-                onLoadMore: (after: string) => actions.directoryPage(search, after),
+                onLoadMore: (after: string) => reads.directoryPage(search, after),
                 next,
               }),
           // A view saved from a search keeps its conditions too (smart search's "Save as view").
@@ -909,7 +932,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           // Where the reader is: noted in the address, so Back returns to the same row.
           place: Number.parseInt(at('row') ?? '', 10) || null,
           onPlaceChange: (row: number | null) => {
-            if (navigating.current) return;
             note({ row: row === null ? null : String(row) }, 'replace');
           },
           ...(can.import === true
@@ -951,7 +973,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onCommit: actions.commitBulkEdit,
           onPreviewHire: actions.previewBulkHire,
           onCommitHire: actions.commitBulkHire,
-          searchPeople: actions.searchPeople,
+          searchPeople: reads.searchPeople,
           onBack: () => {
             go('/people/directory/list');
           },
@@ -1067,7 +1089,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         return {
           load: loadable,
           // Older runs as the history scrolls.
-          onLoadMore: (before: string) => actions.screenPage('ReportRuns', params, search, before),
+          onLoadMore: (before: string) => reads.screenPage('ReportRuns', params, search, before),
         };
       case 'RoleSettings':
         return {
@@ -1079,7 +1101,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onSearchChange: (text: string) => {
             navigate({ q: typed(text) }, 'replace');
           },
-          onLoadMore: (after: string) => actions.screenPage('RoleSettings', params, search, after),
+          onLoadMore: (after: string) => reads.screenPage('RoleSettings', params, search, after),
         };
       case 'PeopleHome':
         return {
@@ -1134,7 +1156,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load: loadable,
           tab,
           // HR's Decided loads as it scrolls; the address opens the newest.
-          onMoreDecided: actions.decidedPage,
+          onMoreDecided: reads.decidedPage,
           onMoreMerges: actions.mergesPage,
           // Each decision queue past its first page, newest first, as the list scrolls.
           onMoreQueue: actions.queuePage,
@@ -1202,13 +1224,13 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             return saved;
           },
           onCheckMissing: actions.checkGrid,
-          searchPeople: actions.searchPeople,
+          searchPeople: reads.searchPeople,
           // Everybody due, through the weekly sweep; one person, through asking them.
           onRemindAll: actions.remindWaiting,
           onRemind: (personId: string, keys: readonly string[]) =>
             actions.requestDetails(personId, keys),
           // Missing details scroll on through everybody, by keyset (PEO-122).
-          onLoadMoreMissing: actions.completenessPage,
+          onLoadMoreMissing: reads.completenessPage,
         };
       }
       case 'WebhookLog':
@@ -1219,7 +1241,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             go('/settings/people/integrations/webhooks');
           },
           // Older deliveries as the log scrolls; the address opens the newest.
-          onLoadMore: (after: string) => actions.screenPage('WebhookLog', params, search, after),
+          onLoadMore: (after: string) => reads.screenPage('WebhookLog', params, search, after),
         };
       case 'Organisation':
         return {
@@ -1495,7 +1517,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             note({ ask: question }, 'push');
           },
           onAsk: (question: string) => actions.askWhatChanged(asked(), question),
-          onWorded: () => actions.wordedWhatChanged(asked()),
+          onWorded: () => reads.wordedWhatChanged(asked()),
           exporting:
             share === 'pdf' || share === 'email'
               ? {

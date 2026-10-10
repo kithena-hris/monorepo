@@ -43,7 +43,9 @@ export const LIST_KEYS: Readonly<Record<string, readonly string[]>> = {
   'list.preview': ['space'],
 };
 
-let current: ShortcutKeys = { keys: LIST_KEYS, characterKeys: true };
+/** What a server draws with: the app sets its keys once it runs in the browser. */
+const DEFAULT_KEYS: ShortcutKeys = { keys: LIST_KEYS, characterKeys: true };
+let current = DEFAULT_KEYS;
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void): (() => void) => {
   listeners.add(listener);
@@ -66,7 +68,11 @@ export function shortcutKeys(): ShortcutKeys {
 }
 
 export function useShortcutKeys(): ShortcutKeys {
-  return useSyncExternalStore(subscribe, shortcutKeys, shortcutKeys);
+  // Hydrating, what the server drew with, never the app's keys: a root that
+  // hydrates after the app has set them (a remote screen whose code came
+  // late) would otherwise draw hints the HTML does not have, and React would
+  // throw the HTML away. The app's keys follow straight after.
+  return useSyncExternalStore(subscribe, shortcutKeys, () => DEFAULT_KEYS);
 }
 
 /**
@@ -77,9 +83,7 @@ export function isCharacterChord(chord: string): boolean {
   const keys = keysOfChord(chord);
   const key = keys.at(-1) ?? '';
   const held = keys.slice(0, -1);
-  return (
-    held.every((k) => k === 'shift') && (key.length === 1 || key === 'space')
-  );
+  return held.every((k) => k === 'shift') && (key.length === 1 || key === 'space');
 }
 
 /** The keys of shortcut `id`, or none: none when they are character keys and those are off. */
@@ -127,7 +131,8 @@ export interface ScreenCommand {
   readonly run: () => void;
 }
 
-let commands: readonly ScreenCommand[] = [];
+const NO_COMMANDS: readonly ScreenCommand[] = [];
+let commands = NO_COMMANDS;
 const commandListeners = new Set<() => void>();
 const subscribeCommands = (listener: () => void): (() => void) => {
   commandListeners.add(listener);
@@ -141,7 +146,8 @@ export function screenCommands(): readonly ScreenCommand[] {
 }
 
 export function useScreenCommands(): readonly ScreenCommand[] {
-  return useSyncExternalStore(subscribeCommands, screenCommands, screenCommands);
+  // A server has none: screens register theirs in effects.
+  return useSyncExternalStore(subscribeCommands, screenCommands, () => NO_COMMANDS);
 }
 
 /** Runs the command registered under `id`; false when no screen offers one. */

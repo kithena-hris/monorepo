@@ -214,7 +214,7 @@ export function SignedIn({
       viewAs: onViewAs,
     };
     const count = (): void => {
-      void readInbox(signedNow).then((answer) => {
+      void readInbox(signedNow, 30_000).then((answer) => {
         if (live && answer.ok) setWaiting(answer.data.counts.todo);
       });
     };
