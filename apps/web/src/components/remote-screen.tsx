@@ -272,13 +272,6 @@ function store(initial: Current) {
   const listeners = new Set<() => void>();
   return {
     get: (): Current => current,
-    /**
-     * What the server drew the screen with. Hydrating, the root reads this and
-     * not `get`: the shell may have moved on (a note in the address, a count)
-     * before the remote's code arrived, and hydrating newer props than the
-     * HTML was drawn from is a mismatch that throws the HTML away.
-     */
-    first: (): Current => initial,
     set: (next: Current): void => {
       if (next.route === current.route && next.props === current.props) return;
       current = next;
@@ -305,7 +298,7 @@ function Staged({
   readonly container: Element;
   readonly quiet: boolean;
 }): JSX.Element {
-  const showing = useSyncExternalStore(current.subscribe, current.get, current.first);
+  const showing = useSyncExternalStore(current.subscribe, current.get, current.get);
   return (
     <RemoteBoundary
       area={area}

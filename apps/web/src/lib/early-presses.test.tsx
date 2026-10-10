@@ -142,6 +142,20 @@ describe('a press before the remote hydrates', () => {
     expect(document.activeElement).toBe(rebuilt);
   });
 
+  it('replays on the control drawn again straight after hydration, not the one it replaced', async () => {
+    const html = '<div><button type="button">Save</button></div>';
+    const container = serverScreen(html);
+    one(container, 'button').click();
+    releaseEarlyPresses(container);
+    // The render right after hydration (the app's keys, say) draws the button again.
+    container.innerHTML = html;
+    const redrawn = one(container, 'button');
+    const clicked = vi.fn();
+    redrawn.addEventListener('click', clicked);
+    await settle();
+    expect(clicked).toHaveBeenCalledTimes(1);
+  });
+
   it('holds a form submitted from its only field, and submits it once', async () => {
     const container = serverScreen('<form><input name="q" /></form>');
     const form = one(container, 'form');
