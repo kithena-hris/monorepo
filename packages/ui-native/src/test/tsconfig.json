@@ -1,0 +1,10 @@
+{
+  // The device tests (`*.device-test.tsx`) run in Chromium under the mobile
+  // Storybook's Vitest, so they see the DOM; the library itself must not.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": ["./*.device-test.tsx"],
+  "exclude": []
+}

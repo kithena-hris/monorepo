@@ -11,8 +11,8 @@
     "./global.css": "./src/global.css"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "typecheck:authoritative": "tsc6 --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p src/test",
+    "typecheck:authoritative": "tsc6 --noEmit && tsc6 --noEmit -p src/test",
     "test": "vitest run"
   },
   "dependencies": {

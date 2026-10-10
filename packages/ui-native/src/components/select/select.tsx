@@ -245,7 +245,9 @@ export function SelectContent({
         </DialogHeader>
         <ScrollView className="max-h-[420px]" contentContainerClassName="gap-0">
           <View accessibilityRole="radiogroup" accessibilityLabel={heading}>
-            {children}
+            {/* On a device the dialog draws in the app's root portal host, outside
+                the Select: its items need the Select's state handed in again. */}
+            <SelectContext value={select}>{children}</SelectContext>
           </View>
         </ScrollView>
       </DialogContent>

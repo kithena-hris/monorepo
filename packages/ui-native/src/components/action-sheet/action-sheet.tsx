@@ -138,7 +138,8 @@ export function ActionSheetContent(props: ActionSheetContentProps): React.JSX.El
         className="w-[220px]"
         {...(portalHost ? { portalHost } : {})}
       >
-        {children}
+        {/* Drawn in a portal on a device, outside the provider above: said again. */}
+        <AsMenu.Provider value>{children}</AsMenu.Provider>
       </DropdownMenuContent>
     );
   }
