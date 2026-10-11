@@ -62,6 +62,7 @@ import {
   Send,
   X,
 } from 'lucide-react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState, type ReactNode } from 'react';
 
 import { Failed, Loading, Page } from '../frame';
@@ -90,9 +91,9 @@ import {
  * again after, and a task finished goes back to the list with an Undo.
  */
 
-type Nav = PeopleScreen<'InboxItem'>['navigation'];
+export type Nav = Pick<NativeStackNavigationProp<PeopleRoutes>, 'navigate' | 'goBack'>;
 
-interface Field_ {
+export interface Field_ {
   readonly key: string;
   readonly label: string;
   readonly description: string | null;
@@ -110,8 +111,8 @@ interface Step {
 }
 
 type Detail = Record<string, unknown>;
-const d = (item: Item): Detail => (item.detail ?? {}) as Detail;
-const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+export const d = (item: Item): Detail => (item.detail ?? {}) as Detail;
+export const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const num = (v: unknown, fallback = 0): string => String(typeof v === 'number' ? v : fallback);
 const shown = (v: unknown): string =>
   v === null || v === undefined || v === ''
@@ -141,7 +142,7 @@ const stepsOf = (steps: readonly Step[]) =>
   }));
 
 /** Where "Open in …" goes on the phone: the screen that holds it, or the web. */
-function openIn(signed: Signed, navigation: Nav, item: Item): void {
+export function openIn(signed: Signed, navigation: Nav, item: Item): void {
   const link = item.link;
   const person = /^\/people\/([0-9a-f-]{36})$/u.exec(link);
   const decision = /^\/time-off\/approvals\/waiting\/([0-9a-f-]{36})$/u.exec(link);
@@ -522,7 +523,7 @@ function plain({ item, signed, navigation }: BodyArgs): Body {
 }
 
 /** One field as the phone draws it; anything richer opens the profile. */
-function FieldInput({
+export function FieldInput({
   field,
   value,
   onChange,

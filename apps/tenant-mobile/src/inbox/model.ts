@@ -98,8 +98,8 @@ export interface InboxAnswer {
   readonly muted: readonly Mute[];
 }
 
-export { dayIn } from './time';
-import { dayIn } from './time';
+export { dayIn, dueOf, shortDay } from './time';
+import { dayIn, shortDay } from './time';
 
 export const MODULE_NAMES: Readonly<Record<string, string>> = {
   people: 'People',
@@ -142,10 +142,6 @@ export const iconOf = (name: string): LucideIcon => ICONS[name] ?? InboxGlyph;
 export const firstName = (name: string | null | undefined): string =>
   (name ?? '').split(' ')[0] ?? '';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const shortDay = (day: string): string =>
-  `${String(Number(day.slice(8, 10)))} ${MONTHS[Number(day.slice(5, 7)) - 1] ?? ''}`;
-
 /** "3 Oct, 09:40", where they work. */
 export function when(instant: string, zone: string): string {
   let time = instant.slice(11, 16);
@@ -167,24 +163,6 @@ export function ago(at: string, now: string): string {
   if (minutes < 60) return `${String(minutes)}m`;
   if (minutes < 24 * 60) return `${String(Math.floor(minutes / 60))}h`;
   return `${String(Math.floor(minutes / (24 * 60)))}d`;
-}
-
-/** A task's due date as its row says it, and how loudly (C9). */
-export function dueOf(
-  item: Pick<Item, 'due' | 'dueVerb'>,
-  now: string,
-  zone: string,
-): { readonly label: string; readonly tone: 'danger' | 'warning' | 'neutral' } | null {
-  if (item.due === null) return null;
-  const today = dayIn(now, zone);
-  const days = Math.round(
-    (Date.parse(`${item.due}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000,
-  );
-  const decide = item.dueVerb === 'decide';
-  if (days < 0) return { label: `Overdue ${String(-days)}d`, tone: 'danger' };
-  if (days === 0) return { label: decide ? 'Decide today' : 'Due today', tone: 'warning' };
-  if (days === 1) return { label: decide ? 'Decide by tomorrow' : 'Due tomorrow', tone: 'warning' };
-  return { label: `${decide ? 'Decide by' : 'Due'} ${shortDay(item.due)}`, tone: 'neutral' };
 }
 
 /** "1 day", "2.5 days". */

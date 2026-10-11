@@ -1,4 +1,12 @@
-import { AppBar, Button, EmptyState, LargeTitle, Spinner, type AppBarBack } from '@reach/ui-native';
+import {
+  AppBar,
+  Button,
+  EmptyState,
+  LargeTitle,
+  Spinner,
+  Text,
+  type AppBarBack,
+} from '@reach/ui-native';
 import { CircleAlert } from 'lucide-react-native';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
@@ -135,5 +143,29 @@ export function Failed({
       description={message}
       action={<Button onPress={onRetry}>Try again</Button>}
     />
+  );
+}
+
+/** A section's heading on a tab, with its one link at the end: "Needs you · Inbox 4". */
+export function Heading({
+  title,
+  action,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}): React.JSX.Element {
+  return (
+    <View className="flex-row items-center justify-between gap-3 px-1 pt-3">
+      <Text variant="title3" weight="bold" accessibilityRole="header">
+        {title}
+      </Text>
+      {action === undefined ? null : (
+        <Button size="xs" variant="link" {...(onAction === undefined ? {} : { onPress: onAction })}>
+          {action}
+        </Button>
+      )}
+    </View>
   );
 }
