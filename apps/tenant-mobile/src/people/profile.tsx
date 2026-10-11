@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  Chip,
   CircularProgress,
   Dialog,
   DialogBody,
@@ -44,6 +45,7 @@ import {
   Network,
   Settings,
   Smartphone,
+  Sparkles,
   TriangleAlert,
   Type,
   User as UserIcon,
@@ -53,6 +55,7 @@ import {
   Clock,
   Ellipsis,
   Eye,
+  EyeOff,
   FileDown,
   FileText,
   History as HistoryIcon,
@@ -71,7 +74,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Linking, Pressable, ScrollView, View } from 'react-native';
 
 import { Account, AccountActionsContext } from '../account-card';
 import { FILE_TYPES } from './attribute-input';
@@ -366,6 +369,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
     | { kind: 'edit'; sectionKey: string }
     | { kind: 'history' }
     | { kind: 'docs' }
+    | { kind: 'summary' }
     | null
   >(null);
   const roles = useRoles();
@@ -375,6 +379,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
     setOpen(null);
   };
   const [viewing, setViewing] = useState(false);
+  const [revealed, setRevealed] = useState<Readonly<Record<string, string>>>({});
 
   // Back from anywhere a change could have been made: read it again.
   const seen = useRef(false);
@@ -892,6 +897,39 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         </View>
       )}
 
+      {own ? null : (
+        // Two questions about this person, answered in place (v3 P11).
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="gap-2"
+        >
+          <Chip
+            icon={Sparkles}
+            onPress={() => {
+              setOpen({ kind: 'summary' });
+            }}
+          >
+            {`Summarise ${firstName}`}
+          </Chip>
+          <Chip
+            icon={Sparkles}
+            onPress={() => {
+              setOpen({ kind: 'history' });
+            }}
+          >
+            What changed this year
+          </Chip>
+        </ScrollView>
+      )}
+      {open?.kind === 'summary' ? (
+        <SummaryDialog
+          question={`Summarise ${data.person.name}`}
+          name={data.person.name}
+          onClose={close}
+        />
+      ) : null}
+
       {!own ? null : corrections.length + yours.length === 0 ? null : (
         <Card padded={false} className="overflow-hidden">
           <View className="flex-row items-center gap-3 px-4 pb-1 pt-4">
@@ -1006,12 +1044,49 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                   </Button>
                 ) : empty ? (
                   'Not added yet'
+                ) : revealed[field.key] !== undefined ? (
+                  <Text weight="semibold" className="font-mono text-[17px]">
+                    {revealed[field.key]}
+                  </Text>
                 ) : (
                   <DisplayValue field={field} value={value} className="text-[17px] font-semibold" />
                 ),
                 ...(waiting === undefined
                   ? {}
                   : { below: <PendingNote field={field} pending={waiting} onDone={reload} /> }),
+                // A masked identifier shows for a moment, and the look is logged (P12).
+                ...(field.dataType === 'national_id' && !empty && personId !== null
+                  ? {
+                      trailing: (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          accessibilityLabel={
+                            revealed[field.key] === undefined
+                              ? `Show ${field.label}`
+                              : `Hide ${field.label}`
+                          }
+                          startIcon={
+                            <Icon icon={revealed[field.key] === undefined ? Eye : EyeOff} />
+                          }
+                          loading={busy === 'RevealIdentifier'}
+                          onPress={() => {
+                            if (revealed[field.key] !== undefined) {
+                              setRevealed(({ [field.key]: _gone, ...rest }) => rest);
+                              return;
+                            }
+                            void act<{ value: string }>('RevealIdentifier', {
+                              personId,
+                              attributeKey: field.key,
+                            }).then((r) => {
+                              if (r !== null)
+                                setRevealed((was) => ({ ...was, [field.key]: r.value }));
+                            });
+                          }}
+                        />
+                      ),
+                    }
+                  : {}),
                 // HR or a manager may ask the person to fill in what they own (P12).
                 ...(field.askable === true && !own && empty
                   ? {
@@ -1075,5 +1150,45 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
       ) : null}
     </>,
     menu,
+  );
+}
+
+/** "Summarise Adam": People's assistant answers as the viewer, in a modal (v3 P11). */
+function SummaryDialog({
+  question,
+  name,
+  onClose,
+}: {
+  question: string;
+  name: string;
+  onClose: () => void;
+}): React.JSX.Element {
+  const { load } = useRead<{ text: string; answered: boolean }>('Ask', { question, earlier: [] });
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{name}</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          {load.status === 'loading' ? (
+            <Loading label="Asking" />
+          ) : load.status === 'error' ? (
+            <Text tone="muted">{load.message}</Text>
+          ) : (
+            <Text>
+              {load.data.answered
+                ? load.data.text
+                : 'There is nothing to summarise that you may see yet.'}
+            </Text>
+          )}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   );
 }
