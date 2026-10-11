@@ -287,7 +287,7 @@ async function seedCompany(company: (typeof COMPANIES)[number]): Promise<void> {
 }
 
 /**
- * Time Off's half of Acme: Ada named its administrator too, as the back
+ * Time Off's and Documents' half of Acme: Ada named their administrator too, as the back
  * office names one per module, and the Platform team's accounts. Both
  * idempotent on their own, so a database seeded before Time Off existed gets
  * them without a reset: the naming is published only when its row is new, and
@@ -299,34 +299,38 @@ async function seedTimeOffTeam(company: (typeof COMPANIES)[number]): Promise<voi
   >`SELECT id FROM platform.tenant WHERE slug = ${company.slug}`;
   if (!tenant) throw new Error(`the ${company.slug} tenant did not get created`);
 
-  await drizzle(sql).transaction(async (tx) => {
-    const named = await tx.execute(dsql`
+  // Documents' too (DOC-026): Ada is HR for both.
+  for (const entitlement of ['module.timeoff', 'module.documents'] as const) {
+    // eslint-disable-next-line no-await-in-loop -- two modules, in order
+    await drizzle(sql).transaction(async (tx) => {
+      const named = await tx.execute(dsql`
       INSERT INTO platform.tenant_administrator (tenant_id, entitlement, account_id)
-      VALUES (${tenant.id}::uuid, 'module.timeoff', ${company.account}::uuid)
+      VALUES (${tenant.id}::uuid, ${entitlement}, ${company.account}::uuid)
       ON CONFLICT DO NOTHING
       RETURNING account_id
     `);
-    if (named.length === 0) return;
-    await publish(tx, outboxTable('platform'), [
-      {
-        eventId: uuidv7(),
-        eventName: TenantAdministratorNamed.name,
-        eventVersion: 1,
-        tenantId: tenant.id as PendingEvent['tenantId'],
-        occurredAt: systemClock.instant(),
-        effectiveFrom: null,
-        aggregate: { type: 'Tenant', id: tenant.id, version: 1 },
-        actor: { kind: 'system', process: 'seed' },
-        correlationId: randomUUID(),
-        causationId: null,
-        payload: TenantAdministratorNamed.payload.parse({
-          entitlement: 'module.timeoff',
-          accountId: company.account,
-          namedBy: null,
-        }),
-      },
-    ]);
-  });
+      if (named.length === 0) return;
+      await publish(tx, outboxTable('platform'), [
+        {
+          eventId: uuidv7(),
+          eventName: TenantAdministratorNamed.name,
+          eventVersion: 1,
+          tenantId: tenant.id as PendingEvent['tenantId'],
+          occurredAt: systemClock.instant(),
+          effectiveFrom: null,
+          aggregate: { type: 'Tenant', id: tenant.id, version: 1 },
+          actor: { kind: 'system', process: 'seed' },
+          correlationId: randomUUID(),
+          causationId: null,
+          payload: TenantAdministratorNamed.payload.parse({
+            entitlement,
+            accountId: company.account,
+            namedBy: null,
+          }),
+        },
+      ]);
+    });
+  }
 
   const origin = process.env['AUTH_ORIGIN'] ?? 'http://localhost:3100';
   const lines: string[] = [];

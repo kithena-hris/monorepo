@@ -13,7 +13,8 @@
     "test:contract": "vitest run --config vitest.contract.ts",
     "test:standalone": "vitest run --config vitest.standalone.ts",
     "seed": "tsx --env-file-if-exists=../../.env src/seed/seed-local.ts",
-    "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
+    "codegen": "tsx ../../tools/codegen/src/subgraph.ts",
+    "bucket": "tsx --env-file-if-exists=../../.env src/configure-bucket.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",

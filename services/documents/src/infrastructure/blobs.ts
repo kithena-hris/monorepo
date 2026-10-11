@@ -97,8 +97,9 @@ export function memoryBlobs(): Blobs {
 }
 
 /**
- * `DOCUMENTS_BUCKET` and `DOCUMENTS_ENCRYPTION_KEY` together, or, outside
- * production, neither: bytes in memory, said so.
+ * `DOCUMENTS_BUCKET` and `DOCUMENTS_ENCRYPTION_KEY` together. Outside
+ * production a bucket alone stores unsealed and neither keeps bytes in
+ * memory, each said so.
  */
 export function blobsFrom(env: NodeJS.ProcessEnv): Blobs {
   const bucket = env['DOCUMENTS_BUCKET'];
@@ -106,6 +107,10 @@ export function blobsFrom(env: NodeJS.ProcessEnv): Blobs {
   if (bucket && key) return sealed(s3Blobs(env, bucket), Buffer.from(key, 'base64'));
   if (env['NODE_ENV'] === 'production') {
     throw new Error('DOCUMENTS_BUCKET and DOCUMENTS_ENCRYPTION_KEY are required in production');
+  }
+  if (bucket) {
+    logger.warn({ module: 'documents' }, 'DOCUMENTS_ENCRYPTION_KEY unset; files are stored unsealed');
+    return s3Blobs(env, bucket);
   }
   logger.warn({ module: 'documents' }, 'DOCUMENTS_BUCKET unset; files are kept in memory');
   return memoryBlobs();
