@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import axe from 'axe-core';
 import { expect, it, vi } from 'vitest';
 
@@ -105,7 +105,9 @@ it('clocks in on the overview with a slide, as MT3, from where you say you are',
   await clean();
   fireEvent.click(screen.getByRole('radio', { name: 'Remote' }));
   fireEvent.keyDown(slide, { key: 'Enter' });
-  expect(onPunch).toHaveBeenCalledWith('in', 'remote', 'mobile');
+  await waitFor(() => {
+    expect(onPunch).toHaveBeenCalledWith('in', 'remote', 'mobile', null);
+  });
 });
 
 it('shows the day before clocking out, as MT4, and keeps working on request', async () => {
@@ -123,7 +125,9 @@ it('shows the day before clocking out, as MT4, and keeps working on request', as
       name: 'Clock out',
     }),
   );
-  expect(onPunch).toHaveBeenCalledWith('out', 'office', 'mobile');
+  await waitFor(() => {
+    expect(onPunch).toHaveBeenCalledWith('out', 'office', 'mobile', null);
+  });
 });
 
 it('opens the top bar’s clock as a sheet under a finger, every target reachable', async () => {
