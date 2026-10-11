@@ -208,6 +208,45 @@ function startersTitle(starters: readonly Starter[]): string {
   return `${String(starters.length)} starting soon`;
 }
 
+/** The org chart in place of the list (P6), read only once somebody turns to it. */
+function OrgTree({
+  myId,
+  onOpen,
+}: {
+  myId: string | null;
+  onOpen: (id: string, name: string | undefined) => void;
+}): React.JSX.Element {
+  const org = useRead<{ people: readonly OrgPerson[]; truncated: boolean }>('OrgChart');
+  const tree = useMemo(
+    () => (org.load.status === 'ready' ? orgTree(org.load.data.people).map(nodeOf) : []),
+    [org.load],
+  );
+  if (org.load.status === 'loading') return <Loading label="Loading the org chart" />;
+  if (org.load.status === 'error')
+    return <Failed message={org.load.message} onRetry={org.reload} />;
+  const people = org.load.data.people;
+  return (
+    <>
+      <Card padded={false} className="overflow-hidden py-1">
+        <TreeView
+          items={tree}
+          label="Org chart"
+          defaultExpanded={tree.map((n) => n.id)}
+          {...(myId === null ? {} : { defaultSelected: myId })}
+          onSelectedChange={(id) => {
+            onOpen(id, people.find((p) => p.id === id)?.name);
+          }}
+        />
+      </Card>
+      {org.load.data.truncated ? (
+        <Text variant="footnote" tone="muted">
+          Only part of the company is shown here. Search for anybody not in it.
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
 /** The tree, as Reach's `TreeView` draws it: a face, a name, a title, how many report. */
 function nodeOf({ person, reports }: OrgNode): TreeViewNode {
   return {
@@ -272,7 +311,6 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
   const counts = useRead<Readonly<Record<string, number | null>>>('Waiting').load;
   const me = useRead<{ me: { id: string } | null }>('Overview').load;
   const myId = me.status === 'ready' ? (me.data.me?.id ?? null) : null;
-  const org = useRead<{ people: readonly OrgPerson[]; truncated: boolean }>('OrgChart');
   // Answers to an older search or view are dropped, not drawn over a newer one.
   const asked = useRef(0);
 
@@ -480,10 +518,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
     );
   };
   const waiting = counts.status === 'ready' ? counts.data : {};
-  const tree = useMemo(
-    () => (org.load.status === 'ready' ? orgTree(org.load.data.people).map(nodeOf) : []),
-    [org.load],
-  );
+
   const openPerson = (id: string, name?: string): void => {
     navigation.navigate('Profile', {
       personId: id,
@@ -1008,35 +1043,12 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
       <Page large="People" {...(trailing === undefined ? {} : { trailing })}>
         {dialogs}
         {header}
-        {org.load.status === 'loading' ? (
-          <Loading label="Loading the org chart" />
-        ) : org.load.status === 'error' ? (
-          <Failed message={org.load.message} onRetry={org.reload} />
-        ) : (
-          <>
-            <Card padded={false} className="overflow-hidden py-1">
-              <TreeView
-                items={tree}
-                label="Org chart"
-                defaultExpanded={tree.map((n) => n.id)}
-                {...(myId === null ? {} : { defaultSelected: myId })}
-                onSelectedChange={(id) => {
-                  openPerson(
-                    id,
-                    org.load.status === 'ready'
-                      ? org.load.data.people.find((p) => p.id === id)?.name
-                      : undefined,
-                  );
-                }}
-              />
-            </Card>
-            {org.load.data.truncated ? (
-              <Text variant="footnote" tone="muted">
-                Only part of the company is shown here. Search for anybody not in it.
-              </Text>
-            ) : null}
-          </>
-        )}
+        <OrgTree
+          myId={myId}
+          onOpen={(id, name) => {
+            openPerson(id, name);
+          }}
+        />
       </Page>
     );
   }

@@ -232,7 +232,7 @@ export function VirtualList<T>({
         {...(headed
           ? {
               ListHeaderComponent: <View className="pb-3">{header}</View>,
-              ListEmptyComponent: emptyCard,
+              ListEmptyComponent: empty == null ? null : emptyCard,
             }
           : {})}
         onScroll={() => {
