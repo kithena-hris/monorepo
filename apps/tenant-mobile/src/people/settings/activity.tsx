@@ -1,6 +1,5 @@
 import {
   Avatar,
-  Badge,
   Button,
   Chip,
   ChipGroup,
@@ -23,7 +22,7 @@ import { Filter, History, Lock } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import { Loading, Page } from '../../frame';
+import { Heading, Loading, Page } from '../../frame';
 import { ask, useSigned } from '../api';
 import type { PeopleScreen } from '../routes';
 
@@ -132,6 +131,29 @@ function changesIn(text: string): { what: string; from: string; to: string }[] |
  * the values. The search, the dates full width, who did it as pills, and the
  * areas; an entry opens in full with ways to narrow the log to it.
  */
+const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short' });
+const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+
+/** "This week", then a month at a time, newest first. */
+function groupsOf<T extends { occurredAt: string }>(items: readonly T[]): [string, T[]][] {
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const out = new Map<string, T[]>();
+  for (const e of items) {
+    const at = Date.parse(e.occurredAt);
+    const key = at >= weekAgo ? 'This week' : MONTH.format(new Date(at));
+    out.set(key, [...(out.get(key) ?? []), e]);
+  }
+  return [...out];
+}
+
+/** "Today", "Mon", "27 Sep". */
+function shortWhen(iso: string): string {
+  const at = new Date(iso);
+  if (at.toDateString() === new Date().toDateString()) return 'Today';
+  return Date.now() - at.getTime() < 7 * 86_400_000 ? WEEKDAY.format(at) : DAY.format(at);
+}
+
 export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React.JSX.Element {
   const signed = useSigned();
   const [filters, setFilters] = useState<Filters>(() => ({
@@ -139,6 +161,7 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
     areas: route.params?.areas ?? [],
   }));
   const [typed, setTyped] = useState('');
+  const [moreFilters, setMoreFilters] = useState(false);
   const [entries, setEntries] = useState<readonly Entry[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [named, setNamed] = useState<Named>({});
@@ -226,12 +249,40 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
 
   return (
     <Page title="Activity log" back={{ label: 'Settings', onPress: navigation.goBack }}>
+      <View>
+        <ChipGroup
+          type="multiple"
+          scroll
+          accessibilityLabel="Areas"
+          value={[...filters.areas]}
+          onValueChange={(v: string[]) => {
+            set({ areas: v });
+          }}
+        >
+          {AREAS.map((a) => (
+            <ChipGroupItem key={a.value} value={a.value}>
+              {a.label}
+            </ChipGroupItem>
+          ))}
+        </ChipGroup>
+      </View>
       <SearchField
         value={typed}
         onValueChange={setTyped}
         placeholder="Search actions, names and reasons"
         label="Search the activity"
       />
+      <Button
+        size="sm"
+        variant="link"
+        onPress={() => {
+          setMoreFilters((m) => !m);
+        }}
+      >
+        {moreFilters ? 'Fewer filters' : 'Who and when'}
+      </Button>
+      {moreFilters ? (
+        <>
       <DatePicker
         mode="range"
         size="sm"
@@ -266,23 +317,8 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
           ))}
         </ChipGroup>
       </View>
-      <View>
-        <ChipGroup
-          type="multiple"
-          scroll
-          accessibilityLabel="Areas"
-          value={[...filters.areas]}
-          onValueChange={(v: string[]) => {
-            set({ areas: v });
-          }}
-        >
-          {AREAS.map((a) => (
-            <ChipGroupItem key={a.value} value={a.value}>
-              {a.label}
-            </ChipGroupItem>
-          ))}
-        </ChipGroup>
-      </View>
+        </>
+      ) : null}
       {actorName === null && subjectName === null ? null : (
         <View className="flex-row flex-wrap gap-2">
           {actorName === null ? null : (
@@ -337,28 +373,30 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
         )
       ) : (
         <>
-          <List>
-            {entries.map((e) => {
-              const target = whom(e, named);
-              return (
-                <ListItem
-                  key={e.id}
-                  leading={<Avatar name={who(e, named)} size={36} />}
-                  description={`${who(e, named)} · ${when(e.occurredAt)}`}
-                  trailing={
-                    <Badge size="sm">
-                      {AREAS.find((a) => a.value === e.area)?.label ?? e.area}
-                    </Badge>
-                  }
-                  onPress={() => {
-                    setOpen(e);
-                  }}
-                >
-                  {target === null ? e.action : `${e.action}: ${target}`}
-                </ListItem>
-              );
-            })}
-          </List>
+          {/* By week and month (v3 S10): who changed what, with when at the end of the line. */}
+          {groupsOf(entries).map(([heading, items]) => (
+            <View key={heading} className="gap-2">
+              <Heading title={heading} />
+              <List>
+                {items.map((e) => {
+                  const target = whom(e, named);
+                  return (
+                    <ListItem
+                      key={e.id}
+                      leading={<Avatar name={who(e, named)} size={36} />}
+                      description={`${who(e, named)} · ${AREAS.find((x) => x.value === e.area)?.label ?? e.area}`}
+                      meta={shortWhen(e.occurredAt)}
+                      onPress={() => {
+                        setOpen(e);
+                      }}
+                    >
+                      {target === null ? e.action : `${e.action} · ${target}`}
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </View>
+          ))}
           {next === null ? null : (
             <Button
               loading={more}

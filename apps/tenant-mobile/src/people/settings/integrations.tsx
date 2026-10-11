@@ -189,6 +189,7 @@ export function Integrations({
   route,
 }: PeopleScreen<'Integrations'>): React.JSX.Element {
   const signed = useSigned();
+  const { act, busy } = useAct();
   const tab = route.params?.tab;
   const [state, setState] = useState<State | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -277,49 +278,80 @@ export function Integrations({
   const label = new Map(state.fields.map((f) => [f.key, f.label]));
   const sent = [...new Set(live.flatMap((e) => e.allowlist))];
   const never = state.fields.filter((f) => f.refused !== null);
+  // One page instead of four (v3 S9): the connection, what goes to chat, then identity and webhooks.
+  const notices = state.chat?.notices ?? [];
+  const toggle = (n: (typeof notices)[number]): React.JSX.Element => (
+    <ListItem
+      key={n.key}
+      listitem={false}
+      description={n.description}
+      wrap
+      trailing={
+        <Switch
+          checked={n.on}
+          disabled={busy === 'SetChatNotice'}
+          accessibilityLabel={n.label}
+          onCheckedChange={(on) => {
+            void act('SetChatNotice', { notice: n.key, on }).then((done) => {
+              if (done !== null) reload();
+            });
+          }}
+        />
+      }
+    >
+      {n.label}
+    </ListItem>
+  );
   return (
     <Page title={title} back={back}>
-      <List>
-        {slack === undefined ? null : (
+      {slack === undefined ? null : (
+        <Card padded={false} className="overflow-hidden">
           <ListItem
+            listitem={false}
             icon={MessageSquare}
             description={
-              slack.connection === null
-                ? 'Not connected'
-                : `Connected to ${slack.connection.workspace}`
+              slack.connection === null ? 'Not connected' : `Connected to ${slack.connection.workspace}`
             }
-            chevron
-            onPress={() => {
-              navigation.push('Integrations', { tab: 'slack' });
-            }}
+            trailing={
+              <Button
+                size="sm"
+                onPress={() => {
+                  navigation.push('Integrations', { tab: 'slack' });
+                }}
+              >
+                {slack.connection === null ? 'Connect' : 'Manage'}
+              </Button>
+            }
           >
             {slack.name}
           </ListItem>
-        )}
-        <ListItem
-          icon={Webhook}
-          {...(retrying > 0 ? { iconTone: 4 as const } : {})}
-          description={
-            live.length === 0
-              ? 'None yet'
-              : retrying > 0
-                ? `${String(retrying)} retrying`
-                : `${String(live.length)} active`
-          }
-          chevron
-          onPress={() => {
-            navigation.push('Integrations', { tab: 'webhooks' });
-          }}
-        >
-          Webhooks
-        </ListItem>
+        </Card>
+      )}
+      {notices.length === 0 ? null : (
+        <Card padded={false} className="overflow-hidden">
+          <View className="px-4 pb-1 pt-4">
+            <Text variant="headline">What Kithena sends in chat</Text>
+          </View>
+          <Text variant="footnote" weight="semibold" tone="subtle" className="px-4 pt-2">
+            Things to do · arrive with buttons
+          </Text>
+          {notices.filter((n) => n.action !== null).map(toggle)}
+          <Text variant="footnote" weight="semibold" tone="subtle" className="px-4 pt-3">
+            Updates · nothing to do
+          </Text>
+          {notices.filter((n) => n.action === null).map(toggle)}
+        </Card>
+      )}
+      <Card padded={false} className="overflow-hidden">
+        <View className="px-4 pb-1 pt-4">
+          <Text variant="headline">Identity and data</Text>
+        </View>
         {state.scim === null ? null : (
           <ListItem
+            listitem={false}
             icon={KeyRound}
             description={
-              scimLive.length === 0
-                ? 'Not connected'
-                : `From ${scimLive[0]?.system ?? 'one system'}`
+              scimLive.length === 0 ? 'Not connected' : `From ${scimLive[0]?.system ?? 'one system'}`
             }
             chevron
             onPress={() => {
@@ -329,7 +361,41 @@ export function Integrations({
             Provisioning
           </ListItem>
         )}
-      </List>
+        <ListItem
+          listitem={false}
+          icon={Webhook}
+          {...(retrying > 0 ? { iconTone: 4 as const } : {})}
+          description={
+            live.length === 0
+              ? 'None set up'
+              : retrying > 0
+                ? `${String(retrying)} retrying`
+                : `${String(live.length)} active`
+          }
+          {...(retrying > 0
+            ? {
+                trailing: (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onPress={() => {
+                      navigation.push('Integrations', { tab: 'webhooks' });
+                    }}
+                  >
+                    Fix
+                  </Button>
+                ),
+              }
+            : {
+                chevron: true,
+                onPress: () => {
+                  navigation.push('Integrations', { tab: 'webhooks' });
+                },
+              })}
+        >
+          Webhooks
+        </ListItem>
+      </Card>
       <Card>
         <Stack gap={2}>
           <CardTitle>{`Sent to third-party tools (${String(sent.length)})`}</CardTitle>

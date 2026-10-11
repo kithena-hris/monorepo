@@ -1,7 +1,10 @@
 import {
   Alert,
   Avatar,
+  AvatarGroup,
+  Badge,
   Button,
+  Card,
   Dialog,
   DialogBody,
   DialogContent,
@@ -9,15 +12,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyState,
+  Icon,
   List,
   ListItem,
   SearchField,
   Switch,
   Text,
 } from '@reach/ui-native';
-import { ShieldCheck } from 'lucide-react-native';
+import { Banknote, Network, ShieldCheck, Sparkles, Users } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 
 import { Failed, Loading, Page } from '../../frame';
 import { useAct } from '../act';
@@ -43,15 +47,35 @@ interface RolesState {
   readonly holders: readonly RolesPerson[];
 }
 
-const ROLES: readonly { role: Role; label: string; means: string }[] = [
+const ROLES: readonly {
+  role: Role;
+  label: string;
+  means: string;
+  short: string;
+  icon: typeof ShieldCheck;
+}[] = [
   {
     role: 'people_admin',
-    label: 'People administrator',
+    label: 'Administrator',
     means:
       'Changes the fields, the settings and who holds a role, and does anything HR and Finance can.',
+    short: 'Every setting and every record',
+    icon: ShieldCheck,
   },
-  { role: 'hr', label: 'HR', means: 'Sees and corrects everybody’s record.' },
-  { role: 'finance', label: 'Finance', means: 'Sees pay, and asks for full values, for payroll.' },
+  {
+    role: 'hr',
+    label: 'HR',
+    means: 'Sees and corrects everybody’s record.',
+    short: 'Every record, approvals and imports',
+    icon: Users,
+  },
+  {
+    role: 'finance',
+    label: 'Finance',
+    means: 'Sees pay, and asks for full values, for payroll.',
+    short: 'Pay and bank details, for payroll',
+    icon: Banknote,
+  },
 ];
 const labelOf = (role: Role): string => ROLES.find((r) => r.role === role)?.label ?? role;
 const nameOf = (p: RolesPerson): string => p.name ?? p.workEmail ?? 'Somebody without a record yet';
@@ -70,6 +94,7 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
   const [typed, setTyped] = useState('');
   const [open, setOpen] = useState<RolesPerson | null>(null);
   const [more, setMore] = useState(false);
+  const [roleOpen, setRoleOpen] = useState<Role | null>(null);
   const round = useRef(0);
 
   const load = async (search: string): Promise<void> => {
@@ -110,76 +135,157 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
     );
   }
   const admins = state.holders.filter((p) => p.roles.includes('people_admin')).length;
+  const holdersOf = (role: Role): readonly RolesPerson[] =>
+    state.holders.filter((p) => p.roles.includes(role));
   return (
     <Page title="Roles" back={back}>
-      <Text tone="muted">
-        Who has administrator, HR and finance access. Managers and employees get theirs from the org
-        chart, not from here. A People administrator also has everything HR and Finance have.
-      </Text>
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change who holds a role.</Alert>
       )}
-      {state.holders.some((p) => p.roles.includes('finance')) ? null : (
-        <Alert tone="warning" title="Nobody is granted Finance">
-          People administrators have Finance’s access until someone is added.
-        </Alert>
-      )}
-      <SearchField
-        value={typed}
-        onValueChange={setTyped}
-        placeholder="Find a person"
-        label="Find a person"
-      />
-      {rows.length === 0 ? (
-        <EmptyState
-          icon={ShieldCheck}
-          title={typed === '' ? 'Nobody signs in yet' : 'Nobody matches'}
-          description={
-            typed === '' ? 'People appear here once they have an account.' : 'Try another name.'
-          }
-        />
-      ) : (
-        <List>
-          {rows.map((p) => {
-            const me = p.accountId === state.viewerAccountId;
-            return (
-              <ListItem
-                key={p.accountId}
-                leading={<Avatar name={nameOf(p)} size={40} />}
-                description={p.roles.length === 0 ? 'No role' : p.roles.map(labelOf).join(' · ')}
-                {...(state.canManage ? { chevron: true } : {})}
-                {...(state.canManage
-                  ? {
-                      onPress: () => {
-                        setOpen(p);
-                      },
-                    }
-                  : {})}
-              >
-                {`${nameOf(p)}${me ? ' (you)' : ''}`}
-              </ListItem>
-            );
-          })}
-        </List>
-      )}
-      {state.next === null ? null : (
-        <Button
-          loading={more}
-          onPress={() => {
-            setMore(true);
-            void ask<RolesState>(signed, 'RoleSettings', {
-              search: typed.trim() === '' ? null : typed.trim(),
-              after: state.next,
-            }).then((page) => {
-              setMore(false);
-              if (!page.ok) return;
-              setRows((held) => [...held, ...page.data.people]);
-              setState({ ...state, next: page.data.next });
-            });
+      {/* Four cards (v3 S8): what each role can do, who has it, and one button. */}
+      {ROLES.map(({ role, label, short, icon }) => {
+        const holders = holdersOf(role);
+        return (
+          <Card key={role} className="gap-3">
+            <ListItem
+              listitem={false}
+              icon={icon}
+              description={short}
+              wrap
+              className="bg-transparent px-0"
+            >
+              {label}
+            </ListItem>
+            <View className="flex-row items-center gap-3">
+              {holders.length === 0 ? (
+                <Text tone="muted" className="flex-1">
+                  Nobody yet
+                </Text>
+              ) : holders.length === 1 ? (
+                <View className="flex-1 flex-row items-center gap-2">
+                  <Avatar name={nameOf(holders[0] as RolesPerson)} size={28} />
+                  <Text weight="medium" numberOfLines={1} className="flex-1">
+                    {nameOf(holders[0] as RolesPerson)}
+                  </Text>
+                </View>
+              ) : (
+                <View className="flex-1 flex-row items-center gap-2">
+                  <AvatarGroup size={28} max={3}>
+                    {holders.map((h) => (
+                      <Avatar key={h.accountId} name={nameOf(h)} />
+                    ))}
+                  </AvatarGroup>
+                  <Text weight="medium">{`${String(holders.length)} people`}</Text>
+                </View>
+              )}
+              {state.canManage ? (
+                <Button
+                  size="sm"
+                  variant={holders.length === 0 ? 'tinted' : 'secondary'}
+                  onPress={() => {
+                    setRoleOpen(role);
+                  }}
+                >
+                  {holders.length === 0 ? 'Add someone' : 'Change'}
+                </Button>
+              ) : null}
+            </View>
+          </Card>
+        );
+      })}
+      <Card className="gap-3">
+        <ListItem
+          listitem={false}
+          icon={Network}
+          description="Their reports’ work details and requests"
+          wrap
+          className="bg-transparent px-0"
+        >
+          Managers
+        </ListItem>
+        <View className="flex-row items-center gap-3">
+          <Text tone="muted" className="flex-1">
+            From reporting lines
+          </Text>
+          <Badge size="sm">Automatic</Badge>
+        </View>
+      </Card>
+      {holdersOf('finance').length === 0 ? (
+        <View className="flex-row items-start gap-1.5 px-1">
+          <Icon icon={Sparkles} size={13} tone="accent" />
+          <Text variant="footnote" tone="accent" className="flex-1">
+            Finance is empty, so payroll exports need HR. Add someone to share the load.
+          </Text>
+        </View>
+      ) : null}
+      {roleOpen === null ? null : (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setRoleOpen(null);
           }}
         >
-          Show more
-        </Button>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{labelOf(roleOpen)}</DialogTitle>
+              <DialogDescription>Tap a person to change their roles.</DialogDescription>
+            </DialogHeader>
+            <DialogBody>
+              <SearchField
+                value={typed}
+                onValueChange={setTyped}
+                placeholder="Find a person to add"
+                label="Find a person"
+              />
+              <ScrollView style={{ flexGrow: 0, maxHeight: 360 }}>
+                {(typed.trim() === '' ? holdersOf(roleOpen) : rows).map((p) => (
+                  <ListItem
+                    key={p.accountId}
+                    listitem={false}
+                    leading={<Avatar name={nameOf(p)} size={36} />}
+                    description={p.roles.length === 0 ? 'No role' : p.roles.map(labelOf).join(' · ')}
+                    chevron
+                    onPress={() => {
+                      setRoleOpen(null);
+                      setOpen(p);
+                    }}
+                  >
+                    {`${nameOf(p)}${p.accountId === state.viewerAccountId ? ' (you)' : ''}`}
+                  </ListItem>
+                ))}
+              </ScrollView>
+              {state.next === null || typed.trim() === '' ? null : (
+                <Button
+                  loading={more}
+                  onPress={() => {
+                    setMore(true);
+                    void ask<RolesState>(signed, 'RoleSettings', {
+                      search: typed.trim(),
+                      after: state.next,
+                    }).then((page) => {
+                      setMore(false);
+                      if (!page.ok) return;
+                      setRows((held) => [...held, ...page.data.people]);
+                      setState({ ...state, next: page.data.next });
+                    });
+                  }}
+                >
+                  Show more
+                </Button>
+              )}
+            </DialogBody>
+            <DialogFooter>
+              <Button
+                className="flex-1"
+                onPress={() => {
+                  setRoleOpen(null);
+                }}
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
       {open === null ? null : (
         <PersonRoles
