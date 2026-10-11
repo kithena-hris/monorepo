@@ -3,6 +3,7 @@ import {
   AutoGrid,
   BarChart,
   Button,
+  Card,
   ChartCard,
   ChipGroup,
   ChipGroupItem,
@@ -30,13 +31,15 @@ import {
   type RangeBand,
   type TimelineRow,
 } from '@reach/ui-native';
-import { ChartColumn, Clock } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { ChartColumn, Clock, Mail } from 'lucide-react-native';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Failed, Loading, Page } from '../../frame';
-import { useRead } from '../api';
+import { ask, useRead, useSigned } from '../api';
+import { parsed } from '../review/load';
 import type { PeopleScreen } from '../routes';
+import { cadenceText, type ScheduleRow } from './reports';
 import { WhatChanged } from './what-changed';
 
 interface PayGroup {
@@ -117,6 +120,7 @@ interface Analytics {
 }
 
 const TABS = [
+  ['summary', 'Summary'],
   ['what-changed', 'What changed'],
   ['headcount', 'Headcount'],
   ['turnover', 'Turnover'],
@@ -710,10 +714,10 @@ function Charts({ a, tab }: { a: Analytics; tab: string }): React.JSX.Element {
  * clock, and at the foot, for HR.
  */
 export function Insights({ navigation, route }: PeopleScreen<'Insights'>): React.JSX.Element {
-  const [tab, setTab] = useState<string>(route.params?.tab ?? 'what-changed');
+  const [tab, setTab] = useState<string>(route.params?.tab ?? 'summary');
   const [segment, setSegment] = useState<string | null>(null);
   const { load, reload } = useRead<Analytics>('Analytics', { segment });
-  const schedules = useRead<{ canManage: boolean; schedules: readonly { paused: boolean }[] }>(
+  const schedules = useRead<{ canManage: boolean; schedules: readonly ScheduleRow[] }>(
     'ReportSchedules',
   ).load;
   const reports = schedules.status === 'ready' && schedules.data.canManage ? schedules.data : null;
@@ -768,14 +772,23 @@ export function Insights({ navigation, route }: PeopleScreen<'Insights'>): React
           </SelectContent>
         </Select>
       ) : null}
-      {tab === 'what-changed' ? (
+      {tab === 'summary' ? (
+        load.status === 'error' ? (
+          <Failed message={load.message} onRetry={reload} />
+        ) : load.status === 'loading' ? (
+          <Loading label="Loading the figures" />
+        ) : (
+          <Summary a={load.data} segment={segment} />
+        )
+      ) : tab === 'what-changed' ? (
         <WhatChanged
           segment={segment}
           go={(to) => {
             if (to.screen === 'Insights') setTab(to.tab);
             else if (to.screen === 'Directory')
-              navigation.navigate('Directory', { conditions: to.conditions });
-            else navigation.navigate(to.screen);
+              navigation.navigate('People', { conditions: to.conditions });
+            else if (to.screen === 'OrgChart') navigation.navigate('People', { view: 'org' });
+            else navigation.navigate('Review');
           }}
         />
       ) : load.status === 'error' ? (
@@ -806,19 +819,129 @@ export function Insights({ navigation, route }: PeopleScreen<'Insights'>): React
         </Stack>
       )}
       {reports === null ? null : (
-        <List>
-          <ListItem
-            icon={Clock}
-            description={`${String(reports.schedules.filter((s) => !s.paused).length)} active`}
-            chevron
-            onPress={() => {
-              navigation.navigate('ScheduledReports');
-            }}
-          >
-            Scheduled reports
-          </ListItem>
-        </List>
+        // Sent automatically (P10): each schedule as a line, at the foot of the same page.
+        <Card padded={false} className="overflow-hidden">
+          <View className="flex-row items-center justify-between px-4 pb-1 pt-4">
+            <Text variant="headline">Sent automatically</Text>
+            <Button
+              size="xs"
+              variant="link"
+              onPress={() => {
+                navigation.navigate('ScheduledReports');
+              }}
+            >
+              Manage
+            </Button>
+          </View>
+          {reports.schedules.length === 0 ? (
+            <Text tone="muted" className="px-4 pb-4">
+              Nothing is sent on a schedule yet.
+            </Text>
+          ) : (
+            reports.schedules.map((r) => (
+              <ListItem
+                key={r.id}
+                listitem={false}
+                icon={Mail}
+                description={`${r.recipients
+                  .map((x) => x.name ?? 'someone')
+                  .slice(0, 2)
+                  .join(', ')} · ${cadenceText(r).toLowerCase()}${r.paused ? ' · paused' : ''}`}
+                chevron
+                onPress={() => {
+                  navigation.navigate('ReportHistory', { id: r.id, name: r.name });
+                }}
+              >
+                {r.name}
+              </ListItem>
+            ))
+          )}
+        </Card>
       )}
     </Page>
+  );
+}
+
+/**
+ * The summary (design v3 P10): a sentence first, from What changed, then
+ * four numbers and one chart. Everything else is a chip away.
+ */
+function Summary({ a, segment }: { a: Analytics; segment: string | null }): React.JSX.Element {
+  const signed = useSigned();
+  const [said, setSaid] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void ask<string>(signed, 'WhatChanged', { segment }).then((answer) => {
+      const got = answer.ok
+        ? (parsed(answer.data) as { points?: readonly { text: string }[] } | null)
+        : null;
+      if (live)
+        setSaid(
+          (got?.points ?? [])
+            .slice(0, 3)
+            .map((p) => p.text)
+            .join(' ') || null,
+        );
+    });
+    return () => {
+      live = false;
+    };
+  }, [signed, segment]);
+  const trend = a.headcount.trend.slice(-6);
+  const change = a.headcount.change;
+  return (
+    <Stack gap={3}>
+      {said === null ? null : (
+        <Alert tone="accent" variant="summary">
+          {said}
+        </Alert>
+      )}
+      <AutoGrid minItemWidth={150} gap={2}>
+        <Stat
+          label="Headcount"
+          value={a.headcount.value.toLocaleString()}
+          size={26}
+          {...(change === null || change === 0
+            ? {}
+            : { description: `${change > 0 ? '+' : ''}${String(change)} since last month` })}
+        />
+        {a.attrition === null ? null : (
+          <Stat
+            label="Turnover"
+            value={a.attrition.percent.toFixed(0)}
+            unit="%"
+            size={26}
+            description="last 12 months"
+          />
+        )}
+        {a.complete === null ? null : (
+          <Stat
+            label="Complete"
+            value={String(a.complete.percent)}
+            unit="%"
+            size={26}
+            description={`${String(a.complete.incomplete)} records missing details`}
+          />
+        )}
+        {a.startingSoon === null ? null : (
+          <Stat
+            label="Starting soon"
+            value={String(a.startingSoon)}
+            size={26}
+            description="hired, not started"
+          />
+        )}
+      </AutoGrid>
+      {trend.length === 0 ? null : (
+        <ChartCard title="Headcount">
+          <BarChart
+            label="Headcount by month"
+            data={trend}
+            showValues
+            highlightIndex={trend.length - 1}
+          />
+        </ChartCard>
+      )}
+    </Stack>
   );
 }

@@ -7,6 +7,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  Icon,
   Input,
   Select,
   SelectContent,
@@ -18,11 +19,16 @@ import {
   TagsInput,
   Text,
   Textarea,
+  useToast,
   type InputType,
 } from '@reach/ui-native';
+import { ScanLine, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 
 import { ask, useSigned, type RecordField, type Value } from './api';
+import { ibanCheck, nifSuggestion } from './checks';
+import { scanIdCard } from './readers';
 import { uploadFile } from './media';
 
 /** Types whose value is a file People keeps: uploaded when chosen, its id saved like any value. */
@@ -345,6 +351,51 @@ function Control({
 }
 
 /**
+ * "Scan your card" (v3 P15): the number read from a photo on the company's
+ * own host, offered when typing it is the slow way. The photo isn't kept.
+ */
+export function ScanIdButton({ onValue }: { onValue: (value: string) => void }): React.JSX.Element {
+  const signed = useSigned();
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  return (
+    <View className="gap-1.5">
+      <Button
+        fullWidth
+        startIcon={<Icon icon={ScanLine} />}
+        loading={busy}
+        loadingLabel="Reading the card"
+        onPress={() => {
+          setBusy(true);
+          void scanIdCard(signed).then((read) => {
+            setBusy(false);
+            if (read === null) return;
+            if (!read.ok) {
+              toast({ title: 'That did not work', description: read.message, tone: 'danger' });
+              return;
+            }
+            if (read.data.value === null) {
+              toast({
+                title: 'No number found',
+                description: 'Hold the card flat, in good light, and try again.',
+                tone: 'warning',
+              });
+              return;
+            }
+            onValue(read.data.value);
+          });
+        }}
+      >
+        Scan your card
+      </Button>
+      <Text variant="footnote" tone="subtle" className="text-center">
+        Only the number is read from the photo. The photo isn’t kept.
+      </Text>
+    </View>
+  );
+}
+
+/**
  * One field as a form field: its label, its control, and what is said under
  * it — required, who owns it when this viewer cannot change it, a doubt the
  * checks raised, a problem. As the web's `AttributeInput`.
@@ -372,6 +423,10 @@ export function AttributeInput({
       : `Changed by ${field.ownedBy}.`
     : null;
   const hint = kept ?? owned ?? field.description;
+  // Worked out as it is typed (design v3 P15, P20): the right NIF letter, a bank's name.
+  const typed = typeof value === 'string' ? value : '';
+  const nif = field.dataType === 'national_id' ? nifSuggestion(typed) : null;
+  const iban = field.dataType === 'bank_account' ? ibanCheck(typed) : null;
   return (
     <Field
       invalid={problem !== undefined}
@@ -388,6 +443,31 @@ export function AttributeInput({
         personId={personId}
       />
       {warning === undefined ? null : <FieldDescription tone="warning">{warning}</FieldDescription>}
+      {nif === null ? null : (
+        <>
+          <FieldDescription tone="warning">{`For ${nif.slice(0, -1)} the letter should be ${nif.at(-1) ?? ''}.`}</FieldDescription>
+          <Button
+            variant="tinted"
+            fullWidth
+            startIcon={<Icon icon={Sparkles} tone="accent" />}
+            onPress={() => {
+              onChange(nif);
+            }}
+          >
+            {`Use ${nif}`}
+          </Button>
+        </>
+      )}
+      {field.dataType === 'national_id' && !field.readOnly && field.keptIn === null ? (
+        <ScanIdButton onValue={onChange} />
+      ) : null}
+      {iban === null ? null : (
+        <FieldDescription tone={iban.valid ? 'muted' : 'warning'}>
+          {iban.valid
+            ? `${iban.bank === null ? '' : `${iban.bank} · `}the number checks out`
+            : 'The check digits don’t match: look at the number again.'}
+        </FieldDescription>
+      )}
       {hint === null ? null : <FieldDescription>{hint}</FieldDescription>}
       {problem === undefined ? null : <FieldError>{problem}</FieldError>}
     </Field>

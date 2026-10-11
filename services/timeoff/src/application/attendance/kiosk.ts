@@ -11,6 +11,7 @@ import {
 } from '@kithena/contracts';
 
 import { AttendanceClock, ms } from '../../domain/attendance/clock.js';
+import { clockInRefused } from '../../domain/attendance/day.js';
 import { CLOCK_SKEW_SECONDS, clockSkew, kindAt, unseen } from '../../domain/attendance/kiosk.js';
 import type { Caller, Deps, KioskCredentialKind, KioskDevice, Member, Tx } from '../ports.js';
 import { forbidden, isHrAdmin, notFound, refuse, self, transact } from '../shared.js';
@@ -329,7 +330,16 @@ export const kioskPunches =
         batch.punches.map((p) => [p.sequence, { sequence: p.sequence, outcome: 'duplicate' }]),
       );
       let punched = 0;
+      const rules = await tx.attendance.rules();
       for (const item of fresh) {
+        if (clockInRefused(rules, 'kiosk', item.credential.kind)) {
+          results.set(item.sequence, {
+            sequence: item.sequence,
+            outcome: 'refused',
+            code: 'CLOCK_IN_OFF',
+          });
+          continue;
+        }
         const member = await holderOf(tx, deps.feedSecret, item.credential, item.at);
         if (member === null) {
           results.set(item.sequence, {

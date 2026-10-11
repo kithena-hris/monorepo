@@ -1,4 +1,5 @@
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -21,17 +22,20 @@ import {
   ArrowLeftRight,
   CircleCheck,
   Inbox as InboxGlyph,
-  Settings2,
+  SlidersHorizontal,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { Failed, Loading, Page } from '../frame';
+import { Failed, Heading, Loading, Page } from '../frame';
 import { read, useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { changeInbox, useInbox } from './api';
+import { tasksOf, todoBrief, updatesBrief, updatesOf } from './brief';
 import { HandOver } from './hand-over';
-import { ago, dueOf, iconOf, moduleName, type Group, type Item, type LaneName } from './model';
+import { d, str } from './item';
+import { TaskCard, useInboxWrite } from './task-card';
+import { ago, iconOf, moduleName, type Group, type Item, type LaneName } from './model';
 
 /**
  * The Inbox tab (M:A1, M:C1, M:D1, M:E1, M:Z1): To do, Updates, Requests and
@@ -47,61 +51,6 @@ const LABEL: Readonly<Record<LaneName, string>> = {
   done: 'Done',
 };
 
-/** The badges under a row: where it lives, when it is due, where it stands. */
-export function RowBadges({
-  item,
-  now,
-  zone,
-}: {
-  item: Item;
-  now: string;
-  zone: string;
-}): React.JSX.Element {
-  const due = item.lane === 'task' || item.lane === 'request' ? dueOf(item, now, zone) : null;
-  return (
-    <View className="mt-1 flex-row flex-wrap gap-1.5">
-      {item.unread ? (
-        <Badge size="sm" tone="accent" variant="solid">
-          New
-        </Badge>
-      ) : null}
-      <Badge size="sm" variant="outline">
-        {item.area === null ? moduleName(item.module) : `${moduleName(item.module)} › ${item.area}`}
-      </Badge>
-      {due === null ? null : (
-        <Badge size="sm" tone={due.tone}>
-          {due.label}
-        </Badge>
-      )}
-      {item.status === null ? null : (
-        <Badge size="sm" tone={item.status.tone} dot>
-          {item.status.label}
-        </Badge>
-      )}
-      {item.team === null ? null : (
-        <Badge size="sm" tone={item.team.takenBy === null ? 'warning' : 'info'} dot>
-          {item.team.takenBy === null
-            ? `For ${item.team.role.toLowerCase()}`
-            : item.team.mine
-              ? 'You are on it'
-              : `${item.team.takenBy.name ?? 'Somebody'} is on it`}
-        </Badge>
-      )}
-      {item.outcome === null ? null : (
-        <Badge size="sm" tone={item.outcome.tone}>
-          {item.outcome.label}
-        </Badge>
-      )}
-      {item.replies > 0 ? (
-        <Badge
-          size="sm"
-          tone="accent"
-        >{`${String(item.replies)} repl${item.replies === 1 ? 'y' : 'ies'}`}</Badge>
-      ) : null}
-    </View>
-  );
-}
-
 export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element {
   const signed = useSigned();
   const { toast } = useToast();
@@ -111,6 +60,7 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
   const [showSnoozed, setShowSnoozed] = useState(false);
   const [handing, setHanding] = useState(false);
   const [approves, setApproves] = useState(false);
+  const { write, busy } = useInboxWrite();
   useEffect(() => {
     let live = true;
     void read<{ approves: boolean }>(signed, 'TimeOffViewer', {}, 'timeoff').then((a) => {
@@ -133,24 +83,26 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
     navigation.navigate('InboxItem', { id: item.id });
   };
 
+  // A manager hands over in words (I5); everybody else has the settings glyph (I1).
   const trailing = (
-    <View className="flex-row gap-1">
+    <View className="flex-row items-center gap-1">
       {approves ? (
         <Button
           variant="ghost"
           size="sm"
-          accessibilityLabel="Hand over"
           startIcon={<Icon icon={ArrowLeftRight} />}
           onPress={() => {
             setHanding(true);
           }}
-        />
+        >
+          Hand over
+        </Button>
       ) : null}
       <Button
         variant="ghost"
         size="sm"
         accessibilityLabel="Notification settings"
-        startIcon={<Icon icon={Settings2} />}
+        startIcon={<Icon icon={SlidersHorizontal} />}
         onPress={() => {
           navigation.navigate('Notifications');
         }}
@@ -171,193 +123,270 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
   }
   const { now, zone, counts } = inbox;
   const words = q.trim().toLowerCase();
+  const matches = (i: Item): boolean =>
+    words === '' ||
+    [i.title, i.summary, i.from?.name].some((t) => (t ?? '').toLowerCase().includes(words));
   const groups: readonly Group[] = inbox.lanes[lane]
-    .map((g) => ({
-      label: g.label,
-      items: g.items.filter(
-        (i) =>
-          words === '' ||
-          [i.title, i.summary, i.from?.name].some((t) => (t ?? '').toLowerCase().includes(words)),
-      ),
-    }))
+    .map((g) => ({ label: g.label, items: g.items.filter(matches) }))
     .filter((g) => g.items.length > 0);
+  const tasks = tasksOf(inbox);
+  const updates = updatesOf(inbox);
 
-  const row = (item: Item): React.JSX.Element => {
-    const face =
-      item.lane === 'update' && item.from?.name != null && item.from.name !== 'You'
-        ? { leading: <Avatar name={item.from.name} size={40} /> }
-        : { icon: iconOf(item.icon) };
-    const listed = (
+  /** An update (I1, I4): unread dot, who it is from, swipe or long-press to tidy. */
+  const updateRow = (item: Item): React.JSX.Element => (
+    <ContextMenu key={item.id}>
+      <ContextMenuTrigger>
+        <ListItem
+          unread={item.unread}
+          {...(item.from?.name != null && item.from.name !== 'You'
+            ? { leading: <Avatar name={item.from.name} size={40} /> }
+            : { icon: iconOf(item.icon) })}
+          {...(item.summary === null ? {} : { description: item.summary })}
+          meta={ago(item.at, now)}
+          onPress={() => {
+            open(item);
+          }}
+          swipeActions={[
+            {
+              label: item.unread ? 'Read' : 'Unread',
+              tone: 'accent' as const,
+              onSelect: () => {
+                change({ kind: 'read', ids: [item.id], read: item.unread });
+              },
+            },
+            {
+              label: 'Done',
+              onSelect: () => {
+                change({ kind: 'done', ids: [item.id] }, 'Moved to Done');
+              },
+            },
+          ]}
+        >
+          {item.title}
+        </ListItem>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          onSelect={() => {
+            change({ kind: 'read', ids: [item.id], read: item.unread });
+          }}
+        >
+          {item.unread ? 'Mark as read' : 'Mark as unread'}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            change(
+              { kind: 'mute', mute: { what: item.kind, inbox: false, email: true, phone: true } },
+              'Muted',
+            );
+          }}
+        >
+          Mute updates like this
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            change({ kind: 'done', ids: [item.id] }, 'Moved to Done');
+          }}
+        >
+          Move to Done
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+
+  /** One of my requests (I7): who has it and since when, and a nudge once it has waited. */
+  const requestRow = (item: Item): React.JSX.Element => {
+    const detail = d(item);
+    const nudge = (detail['nudge'] ?? null) as { from: string; used: boolean } | null;
+    const can = nudge !== null && !nudge.used && now >= nudge.from;
+    const changeId = str(detail['changeId']);
+    const requestId = str(detail['requestId']);
+    return (
       <ListItem
         key={item.id}
-        {...face}
-        description={item.summary ?? undefined}
-        supporting={<RowBadges item={item} now={now} zone={zone} />}
-        meta={item.count === null ? ago(item.at, now) : String(item.count)}
-        disabled={item.dim}
+        icon={iconOf(item.icon)}
+        description={item.status?.label ?? item.summary ?? undefined}
+        {...(item.status === null || item.summary === null
+          ? {}
+          : {
+              supporting: (
+                <Text variant="footnote" tone="subtle">
+                  {item.summary}
+                </Text>
+              ),
+            })}
         onPress={() => {
           open(item);
         }}
-        {...(item.lane === 'update'
+        {...(can
           ? {
-              swipeActions: [
-                {
-                  label: item.unread ? 'Read' : 'Unread',
-                  tone: 'accent' as const,
-                  onSelect: () => {
-                    change({ kind: 'read', ids: [item.id], read: item.unread });
-                  },
-                },
-                {
-                  label: 'Done',
-                  onSelect: () => {
-                    change({ kind: 'done', ids: [item.id] }, 'Moved to Done');
-                  },
-                },
-              ],
+              trailing: (
+                <Button
+                  size="sm"
+                  loading={busy !== null}
+                  onPress={() => {
+                    void (changeId !== null
+                      ? write('people', 'NudgePendingChange', { id: changeId }, 'Nudged')
+                      : write('timeoff', 'NudgeTimeOffRequest', { requestId }, 'Nudged'));
+                  }}
+                >
+                  Nudge
+                </Button>
+              ),
             }
-          : {})}
+          : { chevron: true })}
       >
         {item.title}
       </ListItem>
     );
-    if (item.lane !== 'update') return listed;
-    return (
-      <ContextMenu key={item.id}>
-        <ContextMenuTrigger>{listed}</ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem
-            onSelect={() => {
-              change({ kind: 'read', ids: [item.id], read: item.unread });
-            }}
-          >
-            {item.unread ? 'Mark read' : 'Mark unread'}
-          </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() => {
-              change(
-                { kind: 'mute', mute: { what: item.kind, inbox: false, email: true, phone: true } },
-                'Muted',
-              );
-            }}
-          >
-            Mute updates like this
-          </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() => {
-              change({ kind: 'done', ids: [item.id] }, 'Moved to Done');
-            }}
-          >
-            Move to Done
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    );
   };
+
+  /** Something finished (I8): what it was, how it ended. */
+  const doneRow = (item: Item): React.JSX.Element => (
+    <ListItem
+      key={item.id}
+      icon={iconOf(item.icon)}
+      {...(item.summary === null ? {} : { description: item.summary })}
+      {...(item.outcome === null
+        ? { chevron: true }
+        : {
+            trailing: (
+              <Badge size="sm" tone={item.outcome.tone}>
+                {item.outcome.label}
+              </Badge>
+            ),
+          })}
+      onPress={() => {
+        open(item);
+      }}
+    >
+      {item.title}
+    </ListItem>
+  );
+
+  const brief =
+    lane === 'todo' ? todoBrief(inbox) : lane === 'updates' ? updatesBrief(inbox) : null;
 
   return (
     <Page large="Inbox" trailing={trailing}>
       <SegmentedControl
         value={lane}
         onValueChange={(v) => {
-          if (v === 'todo' || v === 'updates' || v === 'requests' || v === 'done') setLane(v);
+          if (v === 'todo' || v === 'updates' || v === 'requests' || v === 'done') {
+            setLane(v);
+            setQ('');
+          }
         }}
         size="sm"
         fullWidth
         accessibilityLabel="Show"
       >
-        <SegmentedControlItem value="todo">{`To do ${String(counts.todo)}`}</SegmentedControlItem>
+        <SegmentedControlItem value="todo">
+          {counts.todo === 0 ? 'To do' : `To do ${String(counts.todo)}`}
+        </SegmentedControlItem>
         <SegmentedControlItem value="updates">{`Updates ${String(counts.updates)}`}</SegmentedControlItem>
-        <SegmentedControlItem value="requests">Requests</SegmentedControlItem>
+        <SegmentedControlItem value="requests">{`Requests ${String(counts.requests)}`}</SegmentedControlItem>
         <SegmentedControlItem value="done">Done</SegmentedControlItem>
       </SegmentedControl>
-      {lane === 'done' || lane === 'updates' ? (
-        <SearchField value={q} onValueChange={setQ} label={`Search ${LABEL[lane].toLowerCase()}`} />
-      ) : null}
-      {lane === 'updates' && counts.updates > 0 ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          startIcon={<Icon icon={CircleCheck} />}
-          onPress={() => {
-            change({ kind: 'readAll' }, 'All read');
-          }}
-        >
-          Mark all read
-        </Button>
+      {brief === null ? null : (
+        <Alert tone="accent" variant="summary">
+          {brief}
+        </Alert>
+      )}
+      {lane === 'done' ? (
+        <SearchField value={q} onValueChange={setQ} label="Search done" placeholder="Search done" />
       ) : null}
       {inbox.unanswered.length === 0 ? null : (
         <Text variant="footnote" tone="muted">
           {`${inbox.unanswered.map(moduleName).join(' and ')} did not answer just now; its items will be back.`}
         </Text>
       )}
-      {groups.length === 0 && (lane !== 'todo' || inbox.snoozed.length === 0) ? (
-        lane === 'todo' && words === '' ? (
-          <EmptyState
-            icon={CircleCheck}
-            tone="accent"
-            title="Nothing needs you"
-            description={
-              counts.updates > 0
-                ? `New tasks appear here and on the tab. You have ${String(counts.updates)} unread update${counts.updates === 1 ? '' : 's'}.`
-                : 'New tasks appear here and on the tab.'
-            }
-            {...(counts.updates > 0
-              ? {
-                  action: (
-                    <Button
-                      onPress={() => {
-                        setLane('updates');
-                      }}
-                    >
-                      See updates
-                    </Button>
-                  ),
-                }
-              : {})}
-          />
-        ) : (
-          <EmptyState
-            icon={InboxGlyph}
-            title={words === '' ? `Nothing in ${LABEL[lane]}` : 'Nothing matches'}
-            description={
-              lane === 'requests'
-                ? 'Decided requests move to Done, and you get an update.'
-                : lane === 'done'
-                  ? 'Finished tasks, decided requests and older updates stay here.'
-                  : 'News from every module lands here.'
-            }
-          />
-        )
+
+      {lane === 'todo' ? (
+        <>
+          {tasks.length === 0 && inbox.snoozed.length === 0 ? (
+            <EmptyState
+              icon={CircleCheck}
+              tone="accent"
+              title="You’re all caught up"
+              description="New tasks land here and on your phone."
+            />
+          ) : (
+            <>
+              {updates.length === 0 ? null : <Heading title="To do" />}
+              {tasks.map((item) => (
+                <TaskCard key={item.id} item={item} now={now} zone={zone} navigation={navigation} />
+              ))}
+            </>
+          )}
+          {inbox.snoozed.length > 0 ? (
+            <View className="gap-2">
+              <Button
+                startIcon={<Icon icon={AlarmClock} />}
+                onPress={() => {
+                  setShowSnoozed((s) => !s);
+                }}
+              >
+                {`${String(inbox.snoozed.length)} snoozed`}
+              </Button>
+              {showSnoozed
+                ? inbox.snoozed.map((item) => (
+                    <TaskCard
+                      key={item.id}
+                      item={item}
+                      now={now}
+                      zone={zone}
+                      navigation={navigation}
+                    />
+                  ))
+                : null}
+            </View>
+          ) : null}
+          {updates.length === 0 ? null : (
+            <>
+              <Heading
+                title="Updates"
+                {...(updates.some((u) => u.unread)
+                  ? {
+                      action: 'Mark all read',
+                      onAction: () => {
+                        change({ kind: 'readAll' }, 'All read');
+                      },
+                    }
+                  : {})}
+              />
+              <List>{updates.slice(0, 5).map(updateRow)}</List>
+            </>
+          )}
+        </>
+      ) : groups.length === 0 ? (
+        <EmptyState
+          icon={InboxGlyph}
+          title={words === '' ? `Nothing in ${LABEL[lane]}` : 'Nothing matches'}
+          description={
+            lane === 'requests'
+              ? 'When a request is decided it moves to Done and you get an update.'
+              : lane === 'done'
+                ? 'Finished tasks, decided requests and older updates stay here.'
+                : 'News from every module lands here.'
+          }
+        />
       ) : (
         groups.map((g) => (
           <View key={g.label ?? 'all'} className="gap-2">
-            {g.label === null ? null : (
-              <Text variant="footnote" weight="semibold" tone="muted">
-                {g.label.toUpperCase()}
-              </Text>
-            )}
-            <List>{g.items.map(row)}</List>
+            {g.label === null ? null : <Heading title={g.label} />}
+            <List>
+              {g.items.map(
+                lane === 'updates' ? updateRow : lane === 'requests' ? requestRow : doneRow,
+              )}
+            </List>
           </View>
         ))
       )}
       {lane === 'requests' && groups.length > 0 ? (
-        <Text variant="footnote" tone="muted">
-          Decided requests move to Done, and you get an update.
+        <Text variant="footnote" tone="muted" className="px-1">
+          When a request is decided it moves to Done and you get an update.
         </Text>
-      ) : null}
-      {lane === 'todo' && inbox.snoozed.length > 0 ? (
-        <View className="gap-2">
-          <Button
-            startIcon={<Icon icon={AlarmClock} />}
-            onPress={() => {
-              setShowSnoozed((s) => !s);
-            }}
-          >
-            {`${String(inbox.snoozed.length)} snoozed`}
-          </Button>
-          {showSnoozed ? <List>{inbox.snoozed.map(row)}</List> : null}
-        </View>
       ) : null}
       {handing ? (
         <HandOver

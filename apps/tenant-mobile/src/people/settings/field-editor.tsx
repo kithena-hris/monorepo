@@ -278,6 +278,40 @@ function PredicateEditor({
  * changes it (one row per audience, None / See / Change), when it is asked,
  * and how sensitive it is, judged from its description and never a value.
  */
+/** A draft as People's `DraftFieldInput`: the field editor's and the sentence editor's save. */
+export function draftInput(
+  draft: Draft,
+  piiKind: string,
+  classificationSource: 'suggested' | 'human',
+  encrypted: boolean,
+): Record<string, unknown> {
+  return {
+    key: draft.key,
+    sectionKey: draft.sectionKey,
+    label: draft.label.trim(),
+    description: draft.description.trim() === '' ? null : draft.description.trim(),
+    dataType: draft.dataType,
+    options: draft.options,
+    requiredness: draft.requiredness,
+    requiredWhen: draft.requiredness === 'conditional' ? draft.requiredWhen : null,
+    ownership: draft.ownership,
+    collectAt: draft.collectAt,
+    visibility: draft.visibility,
+    visibilityRules: draft.visibilityRules,
+    classification: draft.classification,
+    piiKind,
+    classificationSource,
+    requiresApproval: draft.requiresApproval,
+    encrypted,
+    ...(WITH_DECIMALS.has(draft.dataType) && draft.decimals !== null
+      ? { decimals: draft.decimals }
+      : {}),
+    ...(draft.dataType === 'money'
+      ? { currency: draft.currency === '' ? null : draft.currency }
+      : {}),
+  };
+}
+
 export function FieldEditor({
   registry,
   section,
@@ -381,31 +415,12 @@ export function FieldEditor({
     void act(
       'SaveDraftField',
       {
-        input: {
-          key: draft.key,
-          sectionKey: draft.sectionKey,
-          label: draft.label.trim(),
-          description: draft.description.trim() === '' ? null : draft.description.trim(),
-          dataType: draft.dataType,
-          options: draft.options,
-          requiredness: draft.requiredness,
-          requiredWhen: draft.requiredness === 'conditional' ? draft.requiredWhen : null,
-          ownership: draft.ownership,
-          collectAt: draft.collectAt,
-          visibility: draft.visibility,
-          visibilityRules: draft.visibilityRules,
-          classification: draft.classification,
+        input: draftInput(
+          draft,
           piiKind,
-          classificationSource: suggested === draft.classification ? 'suggested' : 'human',
-          requiresApproval: draft.requiresApproval,
-          encrypted: sealed,
-          ...(WITH_DECIMALS.has(draft.dataType) && draft.decimals !== null
-            ? { decimals: draft.decimals }
-            : {}),
-          ...(draft.dataType === 'money'
-            ? { currency: draft.currency === '' ? null : draft.currency }
-            : {}),
-        },
+          suggested === draft.classification ? 'suggested' : 'human',
+          sealed,
+        ),
         editing: field?.key ?? null,
       },
       editing ? 'Saved to the draft' : 'Added to the draft',

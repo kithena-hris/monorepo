@@ -15,6 +15,8 @@ import {
   Icon,
   List,
   ListItem,
+  RadioCard,
+  RadioGroup,
   SegmentedControl,
   SegmentedControlItem,
   Stack,
@@ -43,7 +45,16 @@ import type { PeopleScreen } from '../people/routes';
 import { todayHere } from './time';
 import { useTimeOff } from './api';
 import { leaveIcon } from './icons';
-import { amount, days, longSpan, nextWorkingDay, shortDate, spanLabel, statusOf } from './words';
+import {
+  addDays,
+  amount,
+  days,
+  longSpan,
+  nextWorkingDay,
+  shortDate,
+  spanLabel,
+  statusOf,
+} from './words';
 
 interface Item {
   readonly requestId: string;
@@ -506,6 +517,159 @@ function ChangeDialog({
               : kind === 'move'
                 ? 'Send the change'
                 : 'Shorten'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Change or cancel, in one centred modal (design v3 T4): each choice says
+ * what happens to the balance before it is chosen. Moving opens the
+ * calendar in the same modal.
+ */
+export function ChangeOrCancel({
+  requestId,
+  left,
+  onClose,
+  onDone,
+}: {
+  requestId: string;
+  /** What the balance holds now, to say what each choice leaves. */
+  left: string | null;
+  onClose: () => void;
+  onDone: () => void;
+}): React.JSX.Element {
+  const { load } = useTimeOff<Detail>('TimeOffRequest', { requestId });
+  const { act, busy } = useAct('timeoff');
+  const [choice, setChoice] = useState<'move' | 'shorten' | 'cancel'>('cancel');
+  const [range, setRange] = useState<DateRange>({ start: null, end: null });
+  if (load.status !== 'ready') {
+    return (
+      <Dialog
+        open
+        onOpenChange={(o) => {
+          if (!o) onClose();
+        }}
+      >
+        <DialogContent>
+          <DialogBody>
+            {load.status === 'error' ? (
+              <Text tone="muted">{load.message}</Text>
+            ) : (
+              <Loading label="Loading the request" />
+            )}
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  const { request } = load.data;
+  const approved = request.status === 'approved';
+  const span = spanLabel(request.span.from, request.span.to);
+  const one = request.span.from === request.span.to;
+  const lastKept = one ? null : addDays(request.span.to, -1);
+  const after = (back: number): string | null =>
+    left === null ? null : `${amount(String(Number(left) + back))} days left after`;
+  const approver = load.data.chain[0] ?? 'your approver';
+  const run = (operation: string, variables: Record<string, unknown>, done: string): void => {
+    void act(operation, variables, done).then((r) => {
+      if (r !== null) onDone();
+    });
+  };
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{`${span} · ${request.leaveTypeName}`}</DialogTitle>
+          <DialogDescription>{statusOf(request.status).label}</DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <RadioGroup
+            accessibilityLabel="What to do"
+            value={choice}
+            onValueChange={(v) => {
+              setChoice(v === 'move' ? 'move' : v === 'shorten' ? 'shorten' : 'cancel');
+            }}
+          >
+            {load.data.canChange ? (
+              <RadioCard
+                value="move"
+                description={`${approver} is asked again.${approved ? ' These dates stay booked until then.' : ''}`}
+              >
+                Move the dates
+              </RadioCard>
+            ) : null}
+            {load.data.canChange && lastKept !== null ? (
+              <RadioCard
+                value="shorten"
+                description={`Keep until ${shortDate(lastKept)} and give back ${shortDate(request.span.to)}.`}
+                {...(after(1) === null ? {} : { impact: after(1) ?? '' })}
+              >
+                Shorten it
+              </RadioCard>
+            ) : null}
+            {load.data.canCancel ? (
+              <RadioCard
+                value="cancel"
+                description={`${one ? 'The day goes' : 'The days go'} back to your balance straight away.`}
+                {...(after(Number(request.workingDays)) === null
+                  ? {}
+                  : { impact: after(Number(request.workingDays)) ?? '' })}
+              >
+                {approved ? 'Cancel it' : 'Withdraw it'}
+              </RadioCard>
+            ) : null}
+          </RadioGroup>
+          {choice === 'move' ? (
+            <Calendar mode="range" label="New dates" selected={range} onSelect={setRange} />
+          ) : null}
+        </DialogBody>
+        <DialogFooter>
+          <Button className="flex-1" onPress={onClose}>
+            Keep it
+          </Button>
+          <Button
+            className="flex-1"
+            variant={choice === 'cancel' ? 'danger' : 'primary'}
+            loading={busy !== null}
+            disabled={choice === 'move' && (range.start === null || range.end === null)}
+            onPress={() => {
+              if (choice === 'cancel')
+                run('CancelTimeOffRequest', { requestId }, approved ? 'Cancelled' : 'Withdrawn');
+              else if (choice === 'shorten' && lastKept !== null)
+                run('ShortenTimeOffRequest', { requestId, input: { to: lastKept } }, 'Shortened');
+              else if (range.start !== null && range.end !== null)
+                run(
+                  'ChangeTimeOffRequest',
+                  {
+                    requestId,
+                    input: {
+                      span: {
+                        from: range.start,
+                        to: range.end,
+                        startsHalfDay: false,
+                        endsHalfDay: false,
+                      },
+                    },
+                  },
+                  'Change sent',
+                );
+            }}
+          >
+            {choice === 'cancel'
+              ? approved
+                ? 'Cancel time off'
+                : 'Withdraw'
+              : choice === 'shorten'
+                ? 'Shorten'
+                : 'Send the change'}
           </Button>
         </DialogFooter>
       </DialogContent>

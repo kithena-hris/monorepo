@@ -2,18 +2,27 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
   Chip,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
-  List,
   ListItem,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
-  Stack,
   Text,
 } from '@reach/ui-native';
 import {
+  Bell,
   Building2,
+  Languages,
+  Moon,
   CalendarDays,
   CheckCheck,
   Clock3,
@@ -35,6 +44,8 @@ import { savedLook, setLook, type Look } from '../../appearance';
 import { Failed, Loading, Page } from '../../frame';
 import { ask, useSigned } from '../api';
 import type { Roles } from '../roles';
+import { AskedChange } from './field-sentence';
+import type { Registry } from './fields-model';
 import type { PeopleRoutes, PeopleScreen } from '../routes';
 
 /** What each of People's settings holds now, read before anybody opens one. */
@@ -104,6 +115,8 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
   const [failed, setFailed] = useState<string | null>(null);
   const [find, setFind] = useState('');
   const [look, chooseLook] = useState<Look>('system');
+  const [asked, setAsked] = useState<string | null>(null);
+  const [choosingLook, setChoosingLook] = useState(false);
   useEffect(() => {
     void savedLook().then(chooseLook);
   }, []);
@@ -244,7 +257,7 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     if (roles.hr || roles.admin) {
       people.push({
         title: 'Activity log',
-        line: 'Changes to People’s settings: who, and when. Never the values themselves',
+        line: 'Every change, who made it and when',
         icon: ScrollText,
         go: () => {
           navigation.navigate('Activity', { areas: PEOPLE_AREAS });
@@ -270,34 +283,14 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
       timeOff.push(
         section(
           'Leave types',
-          'The kinds of time off people can request, and how each one is paid and approved',
+          'Each kind of leave: how much, and who approves',
           Tags,
           'leave-types',
         ),
-        section(
-          'Holidays',
-          'The public holidays each location keeps, year by year',
-          CalendarDays,
-          'holidays',
-        ),
-        section(
-          'Negative balance',
-          'What happens when someone books more than they have earned',
-          Scale,
-          'negative',
-        ),
-        section(
-          'Attendance',
-          'Schedules, breaks, overtime and how clocking in works',
-          Clock3,
-          'attendance',
-        ),
-        section(
-          'Approvals',
-          'Who approves what, cover minimums and when a request escalates',
-          CheckCheck,
-          'approvals',
-        ),
+        section('Holidays', 'Per location, kept up to date', CalendarDays, 'holidays'),
+        section('Approvals', 'Who approves · team minimums · escalation', CheckCheck, 'approvals'),
+        section('Attendance', 'Ways to clock in · the working day', Clock3, 'attendance'),
+        section('Balance rules', 'Going below zero · when someone leaves', Scale, 'negative'),
       );
     }
     if (roles.admin) {
@@ -323,20 +316,39 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
 
   const needle = find.trim().toLowerCase();
   const matches = (r: Row): boolean =>
-    needle === '' || `${r.title} ${r.line}`.toLowerCase().includes(needle);
-  const groups: Group[] = (
+    needle === '' || asked !== null || `${r.title} ${r.line}`.toLowerCase().includes(needle);
+  const you: Row[] = [
+    {
+      title: 'Notifications',
+      line: 'Tasks always · updates as you choose · quiet hours',
+      icon: Bell,
+      go: () => {
+        navigation.navigate('Notifications');
+      },
+    },
+    {
+      title: 'Appearance',
+      line: LOOKS.find(([value]) => value === look)?.[1] ?? 'Automatic',
+      icon: Moon,
+      go: () => {
+        setChoosingLook(true);
+      },
+    },
+  ];
+  const groups: (Group & { sub: string })[] = (
     [
-      { title: 'People', rows: people },
-      { title: 'Time off', rows: timeOff },
-      { title: 'Activity', rows: activity },
+      { title: 'People', sub: 'What records hold, who sees them, where they go', rows: people },
+      { title: 'Time off', sub: 'How people request, earn and use days off', rows: timeOff },
+      { title: 'Activity', sub: 'Who changed what, and when', rows: activity },
+      { title: 'You', sub: 'Only on your account', rows: you },
     ] as const
   )
-    .map((g) => ({ title: g.title, rows: g.rows.filter(matches) }))
+    .map((g) => ({ title: g.title, sub: g.sub, rows: g.rows.filter(matches) }))
     .filter((g) => g.rows.length > 0);
-  const youShown = needle === '' || 'appearance dark light mode'.includes(needle);
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (
-    <Page title="Settings" back={back}>
+    <Page large="Settings" back={back}>
       {roles.admin && data.fields !== null && data.fields.published === null ? (
         <Alert tone="info" title="Set up the employee record">
           <Button
@@ -351,11 +363,32 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
         </Alert>
       ) : null}
       <SearchField
+        ask={roles.admin && data.fields !== null}
         value={find}
-        onValueChange={setFind}
-        placeholder="Find a setting"
+        onValueChange={(text) => {
+          setFind(text);
+          setAsked(null);
+        }}
+        onSearch={(text) => {
+          if (roles.admin && text.trim().split(/\s+/u).length > 2) setAsked(text.trim());
+        }}
+        placeholder={roles.admin ? 'Find a setting, or ask to change one' : 'Find a setting'}
         label="Find a setting"
       />
+      {asked === null || data.fields === null ? null : (
+        <AskedChange
+          registry={data.fields as Registry}
+          sentence={asked}
+          onDismiss={() => {
+            setAsked(null);
+          }}
+          onDone={() => {
+            setAsked(null);
+            setFind('');
+            void load();
+          }}
+        />
+      )}
       {roles.admin && (drafts > 0 || finance === 0) ? (
         <View className="flex-row flex-wrap gap-1.5">
           {drafts > 0 ? (
@@ -380,7 +413,7 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
           ) : null}
         </View>
       ) : null}
-      {groups.length === 0 && !youShown ? (
+      {groups.length === 0 ? (
         <EmptyState
           icon={SettingsIcon}
           title="No setting matches"
@@ -388,70 +421,87 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
         />
       ) : null}
       {groups.map((g) => (
-        <Stack key={g.title} gap={2}>
-          <Text
-            variant="caption"
-            weight="semibold"
-            tone="subtle"
-            accessibilityRole="header"
-            className="px-4 text-[12px] leading-none"
-          >
-            {g.title}
-          </Text>
-          <List>
-            {g.rows.map((r) => (
-              <ListItem
-                key={r.title}
-                icon={r.icon}
-                description={r.line}
-                {...(r.badge === undefined
-                  ? { chevron: true }
-                  : {
-                      trailing: (
-                        <Badge size="sm" tone="warning">
-                          {String(r.badge)}
-                        </Badge>
-                      ),
-                    })}
-                onPress={r.go}
-              >
-                {r.title}
-              </ListItem>
-            ))}
-          </List>
-        </Stack>
+        // One card per group (S1): its name and what it is for, then a row per setting.
+        <Card key={g.title} padded={false} className="overflow-hidden">
+          <View className="gap-0.5 px-4 pb-1 pt-4">
+            <Text variant="headline" accessibilityRole="header">
+              {g.title}
+            </Text>
+            <Text variant="footnote" tone="muted">
+              {g.sub}
+            </Text>
+          </View>
+          {g.rows.map((r) => (
+            <ListItem
+              key={r.title}
+              listitem={false}
+              icon={r.icon}
+              description={r.line}
+              {...(r.badge === undefined
+                ? { chevron: true }
+                : {
+                    trailing: (
+                      <Badge size="sm" tone="danger" variant="solid">
+                        {String(r.badge)}
+                      </Badge>
+                    ),
+                  })}
+              onPress={r.go}
+            >
+              {r.title}
+            </ListItem>
+          ))}
+          {g.title === 'You' ? (
+            <ListItem listitem={false} icon={Languages} description={`English · ${zone}`}>
+              Language and region
+            </ListItem>
+          ) : null}
+        </Card>
       ))}
-      {youShown ? (
-        <Stack gap={2}>
-          <Text
-            variant="caption"
-            weight="semibold"
-            tone="subtle"
-            accessibilityRole="header"
-            className="px-4 text-[12px] leading-none"
-          >
-            You
-          </Text>
-          <Text variant="footnote" tone="muted" className="px-1">
-            Appearance: how the app looks on this phone. Only you see this.
-          </Text>
-          <SegmentedControl
-            value={look}
-            fullWidth
-            accessibilityLabel="Appearance"
-            onValueChange={(next) => {
-              const chosen = LOOKS.find(([value]) => value === next)?.[0] ?? 'system';
-              chooseLook(chosen);
-              setLook(chosen);
-            }}
-          >
-            {LOOKS.map(([value, label]) => (
-              <SegmentedControlItem key={value} value={value}>
-                {label}
-              </SegmentedControlItem>
-            ))}
-          </SegmentedControl>
-        </Stack>
+      {choosingLook ? (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setChoosingLook(false);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Appearance</DialogTitle>
+              <DialogDescription>
+                How the app looks on this phone. Only you see this.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogBody>
+              <SegmentedControl
+                value={look}
+                fullWidth
+                accessibilityLabel="Appearance"
+                onValueChange={(next) => {
+                  const chosen = LOOKS.find(([value]) => value === next)?.[0] ?? 'system';
+                  chooseLook(chosen);
+                  setLook(chosen);
+                }}
+              >
+                {LOOKS.map(([value, label]) => (
+                  <SegmentedControlItem key={value} value={value}>
+                    {label}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+            </DialogBody>
+            <DialogFooter>
+              <Button
+                className="flex-1"
+                onPress={() => {
+                  setChoosingLook(false);
+                }}
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       ) : null}
     </Page>
   );

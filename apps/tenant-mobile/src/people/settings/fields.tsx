@@ -3,6 +3,9 @@ import {
   AutoGrid,
   Badge,
   Button,
+  Card,
+  ChipGroup,
+  ChipGroupItem,
   DatePicker,
   Dialog,
   DialogBody,
@@ -33,7 +36,7 @@ import {
   Stat,
   Text,
 } from '@reach/ui-native';
-import { ArrowUpDown, Ellipsis, Folder, Lock, Pencil, Plus, Send } from 'lucide-react-native';
+import { ArrowUpDown, Ellipsis, Eye, Folder, Lock, Pencil, Plus, Send } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
@@ -42,6 +45,8 @@ import { useAct } from '../act';
 import { ask, useSigned } from '../api';
 import type { PeopleScreen } from '../routes';
 import { FieldEditor } from './field-editor';
+import { FieldSentenceDialog, NewFieldDialog } from './field-sentence';
+import { fieldSentence } from './sentences';
 import { COLLECT, DATA_TYPE_LABEL, type Registry, type RegistryField } from './fields-model';
 
 const PENDING: Readonly<
@@ -89,6 +94,13 @@ export function FieldRegistry({
   const [adding, setAdding] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [chip, setChip] = useState<string>('');
+  const [saying, setSaying] = useState<RegistryField | null>(null);
+  const [describing, setDescribing] = useState<string | null>(null);
+  const [editingIn, setEditingIn] = useState<{
+    field: RegistryField | null;
+    section: Registry['sections'][number];
+  } | null>(null);
 
   const load = async (): Promise<void> => {
     const answer = await ask<Registry>(signed, 'Registry');
@@ -275,87 +287,151 @@ export function FieldRegistry({
     );
   }
 
-  // Every section.
-  const found = needle === '' ? [] : registry.fields.filter(matches);
+  // Every field, a section at a time (design v3 S3): each reads as one sentence.
+  const shownSection = registry.sections.find((s) => s.key === chip) ?? registry.sections[0];
+  const listed = registry.fields.filter((f) =>
+    needle === '' ? f.sectionKey === shownSection?.key : matches(f),
+  );
+  const sentenceOf = (f: RegistryField): string => {
+    const w = fieldSentence(f);
+    return `${f.collectAt === 'hr_only' ? `${w.who} fills it in` : `Asked at ${w.asked}`} · ${w.see === 'Everyone' ? 'everyone sees it' : `${w.see.charAt(0).toLowerCase()}${w.see.slice(1)} see it`}`;
+  };
   return (
-    <Page title={title} back={back} trailing={publish}>
-      <SearchField
-        value={find}
-        onValueChange={setFind}
-        placeholder="Search by name or key"
-        label="Search fields"
-      />
-      {registry.unpublishedChanges === 0 ? null : (
-        <Alert
-          tone="info"
-          title={`${String(registry.unpublishedChanges)} ${registry.unpublishedChanges === 1 ? 'change waits' : 'changes wait'} to be published`}
-        >
+    <Page
+      title={title}
+      back={back}
+      trailing={
+        <View className="flex-row items-center gap-1">
+          {registry.unpublishedChanges > 0 ? publish : null}
           <Button
             size="sm"
             variant="primary"
+            startIcon={<Icon icon={Plus} tone="on-accent" />}
+            accessibilityLabel="Add a field"
+            onPress={() => {
+              setDescribing('');
+            }}
+          />
+        </View>
+      }
+    >
+      <Card>
+        <View className="flex-row items-center gap-3">
+          <View className="flex-1 gap-0.5">
+            <Text variant="headline">
+              {registry.published === null
+                ? 'Not published yet'
+                : `Version ${String(registry.published.version)} is live`}
+            </Text>
+            <Text variant="footnote" tone="muted">
+              {registry.unpublishedChanges === 0
+                ? 'No changes waiting'
+                : `${String(registry.unpublishedChanges)} ${registry.unpublishedChanges === 1 ? 'change waits' : 'changes wait'} to be published`}
+            </Text>
+          </View>
+          <Button
+            size="sm"
+            variant={registry.unpublishedChanges > 0 ? 'primary' : 'secondary'}
+            startIcon={<Icon icon={registry.unpublishedChanges > 0 ? Send : Eye} />}
             onPress={() => {
               setPublishing(true);
             }}
           >
-            Review and publish
+            {registry.unpublishedChanges > 0 ? 'Publish' : 'Preview'}
           </Button>
-        </Alert>
-      )}
-      {needle !== '' ? (
-        found.length === 0 ? (
-          <EmptyState
-            icon={Folder}
-            title="Nothing matches"
-            description="Try another name or key."
-          />
-        ) : (
-          <List>
-            {found.map((f) => (
-              <ListItem
-                key={f.key}
-                description={`${registry.sections.find((s) => s.key === f.sectionKey)?.label ?? ''} · ${lineOf(f)}`}
-                chevron
-                onPress={() => {
-                  navigation.push('FieldRegistry', { section: f.sectionKey });
-                }}
-              >
-                {f.label}
-              </ListItem>
+        </View>
+      </Card>
+      <SearchField
+        ask
+        value={find}
+        onValueChange={setFind}
+        onSearch={(text) => {
+          if (text.trim().split(/\s+/u).length > 2) {
+            setDescribing(text.trim());
+            setFind('');
+          }
+        }}
+        placeholder="Find a field, or describe a new one"
+        label="Find a field or describe a new one"
+      />
+      {needle === '' ? (
+        <View>
+          <ChipGroup
+            type="single"
+            value={shownSection?.key ?? ''}
+            onValueChange={setChip}
+            accessibilityLabel="Sections"
+            scroll
+          >
+            {registry.sections.map((s) => (
+              <ChipGroupItem key={s.key} value={s.key}>
+                {`${s.label} ${String(registry.fields.filter((f) => f.sectionKey === s.key).length)}`}
+              </ChipGroupItem>
             ))}
-          </List>
-        )
-      ) : ordering ? (
+          </ChipGroup>
+        </View>
+      ) : null}
+      {ordering ? (
         <SortableList
-          items={registry.sections.map((s) => ({ ...s, id: s.key, locked: s.fixed }))}
+          items={registry.sections.map((x) => ({ ...x, id: x.key, locked: x.fixed }))}
           label="Sections"
-          itemLabel={(s) => s.label}
+          itemLabel={(x) => x.label}
           onReorder={(move) => {
             void act('ReorderDraftSections', { order: [...move.order] }).then(reload);
           }}
         >
-          {(s) => <SortableRowText title={s.label} />}
+          {(x) => <SortableRowText title={x.label} />}
         </SortableList>
+      ) : listed.length === 0 ? (
+        <EmptyState
+          icon={Folder}
+          title={needle === '' ? 'No fields yet' : 'Nothing matches'}
+          description={needle === '' ? 'Describe one above.' : 'Try another name or key.'}
+        />
       ) : (
         <List>
-          {registry.sections.map((s) => {
-            const n = registry.fields.filter((f) => f.sectionKey === s.key).length;
+          {listed.map((f) => {
+            const sec = registry.sections.find((x) => x.key === f.sectionKey);
             return (
               <ListItem
-                key={s.key}
-                icon={s.fixed ? Lock : Folder}
-                description={`${String(n)} ${n === 1 ? 'field' : 'fields'}`}
-                chevron
-                onPress={() => {
-                  navigation.push('FieldRegistry', { section: s.key });
-                }}
+                key={f.key}
+                description={sentenceOf(f)}
+                wrap
+                supporting={
+                  <View className="flex-row flex-wrap gap-1.5">
+                    {f.origin !== 'tenant' ? (
+                      <Badge size="sm" icon={Lock}>
+                        Built in
+                      </Badge>
+                    ) : null}
+                    {f.requiredness === 'always' ? (
+                      <Badge size="sm" tone="accent">
+                        Required
+                      </Badge>
+                    ) : null}
+                    {f.pending === null ? null : (
+                      <Badge size="sm" tone={PENDING[f.pending]?.tone ?? 'neutral'}>
+                        {PENDING[f.pending]?.label ?? f.pending}
+                      </Badge>
+                    )}
+                  </View>
+                }
+                chevron={sec?.fixed !== true}
+                {...(sec === undefined || sec.fixed
+                  ? {}
+                  : {
+                      onPress: () => {
+                        setSaying(f);
+                      },
+                    })}
               >
-                {s.label}
+                {f.label}
               </ListItem>
             );
           })}
         </List>
       )}
-      {needle === '' ? (
+      {needle === '' && shownSection !== undefined ? (
         <View className="flex-row gap-2">
           <Button
             className="flex-1"
@@ -373,10 +449,77 @@ export function FieldRegistry({
               setOrdering((o) => !o);
             }}
           >
-            {ordering ? 'Done' : 'Reorder'}
+            {ordering ? 'Done' : 'Reorder sections'}
           </Button>
         </View>
       ) : null}
+      {needle === '' && shownSection !== undefined && !ordering ? (
+        <View className="flex-row">
+          <Button
+            variant="link"
+            onPress={() => {
+              navigation.push('FieldRegistry', { section: shownSection.key });
+            }}
+          >
+            {`Reorder the fields in ${shownSection.label}`}
+          </Button>
+        </View>
+      ) : null}
+      {saying === null
+        ? null
+        : (() => {
+            const sec = registry.sections.find((x) => x.key === saying.sectionKey);
+            return sec === undefined ? null : (
+              <FieldSentenceDialog
+                section={sec}
+                field={saying}
+                onClose={() => {
+                  setSaying(null);
+                }}
+                onSaved={() => {
+                  setSaying(null);
+                  reload();
+                }}
+                onMore={() => {
+                  setSaying(null);
+                  setEditingIn({ field: saying, section: sec });
+                }}
+              />
+            );
+          })()}
+      {describing === null ? null : (
+        <NewFieldDialog
+          registry={registry}
+          initial={describing}
+          onClose={() => {
+            setDescribing(null);
+          }}
+          onSaved={() => {
+            setDescribing(null);
+            reload();
+          }}
+          onChange={(sec) => {
+            setDescribing(null);
+            setEditingIn({ field: null, section: sec });
+          }}
+        />
+      )}
+      {editingIn === null ? null : (
+        <FieldEditor
+          registry={registry}
+          section={editingIn.section}
+          field={editingIn.field}
+          onClose={() => {
+            setEditingIn(null);
+          }}
+          onSaved={(review) => {
+            setEditingIn(null);
+            reload();
+            if (review !== null)
+              navigation.navigate('FieldChange', { key: review.key, to: review.to });
+          }}
+        />
+      )}
       {adding ? (
         <AddSection
           onClose={() => {

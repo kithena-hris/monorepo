@@ -14,6 +14,7 @@ import {
 import { AttendanceClock, standing, type Punch } from '../../domain/attendance/clock.js';
 import { needsManager, openDays } from '../../domain/attendance/correction.js';
 import {
+  clockInRefused,
   dayOf,
   overtimeBecomes,
   restBreaches,
@@ -123,6 +124,10 @@ const isCorrection = (p: Punch): boolean => p.deviceId === null && p.at !== p.re
 const scheduleOf = async (tx: Tx, member: Member): Promise<Schedule> =>
   (await tx.attendance.schedule(member.personId)) ?? DEFAULT_SCHEDULE;
 
+/** S16: HR switched this way of clocking in off. */
+export const clockInOff = (): Result<never> =>
+  refuse('CLOCK_IN_OFF', 'Clocking in this way is switched off. Ask HR.');
+
 /** Clock in, start or end a break, clock out, from whichever source (§11.1). */
 export const punch =
   (deps: Pick<Deps, 'uow' | 'clock' | 'newId'>) =>
@@ -130,6 +135,7 @@ export const punch =
     transact(deps, caller.tenantId, async (tx) => {
       const member = await self(tx, caller);
       if (!member.ok) return member;
+      if (clockInRefused(await tx.attendance.rules(), input.source)) return clockInOff();
       const clock = await clockOf(tx, member.value, caller.tenantId);
       const punched = clock.punch({
         id: deps.newId(),

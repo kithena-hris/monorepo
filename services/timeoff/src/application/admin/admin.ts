@@ -314,8 +314,14 @@ export const setTeamMinimum =
 
 export const setAttendanceRules =
   (deps: AdminDeps) =>
-  (caller: Caller, rules: AttendanceRules): Promise<Result<void>> =>
+  (
+    caller: Caller,
+    body: Omit<AttendanceRules, 'clockIn'> & {
+      readonly clockIn?: AttendanceRules['clockIn'] | undefined;
+    },
+  ): Promise<Result<void>> =>
     asHr(deps, caller, async (tx) => {
+      const rules = { ...body, clockIn: body.clockIn ?? (await tx.attendance.rules()).clockIn };
       const minutes = [
         rules.breakAfterMinutes,
         rules.breakMinutes,

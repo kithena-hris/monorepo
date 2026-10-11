@@ -16,7 +16,25 @@
         "backgroundColor": "#4d53f0"
       }
     },
-    "plugins": ["expo-web-browser", "expo-secure-store", "expo-sharing", "expo-notifications"],
+    "plugins": [
+      "expo-web-browser",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-notifications",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Kithena can suggest someone from your contacts when you are asked for an emergency contact. Only the person you choose is read."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Kithena reads the number on your ID card from a photo, so you don't have to type it. The photo isn't kept.",
+          "photosPermission": "Kithena uses a photo you choose for your profile."
+        }
+      ]
+    ],
     "icon": "./assets/icon.png"
   }
 }

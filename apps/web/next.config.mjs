@@ -11,6 +11,10 @@ const config = {
   // compiles it with the app. One compiler, one set of settings, and no
   // watch-and-rebuild step between editing a component and seeing it here.
   transpilePackages: ['@reach/ui'],
+  // Tesseract finds its worker script and WebAssembly by path at run time, so
+  // the phone's ID-card reader (`app/api/mobile/read`) loads it from
+  // node_modules rather than from a bundle.
+  serverExternalPackages: ['tesseract.js'],
   typedRoutes: true,
   // Types are checked once, by `pnpm typecheck` and the authoritative TS 6
   // pass. Next repeating it in the build makes the slow step slower and can

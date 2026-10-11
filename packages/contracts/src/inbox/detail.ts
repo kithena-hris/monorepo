@@ -54,6 +54,11 @@ export const TimeOffApprovalDetail = z.object({
   week: z.array(z.object({ date: CalendarDate, out: z.array(name()) })),
   /** "1 of 6 already out". */
   alreadyOut: z.object({ out: z.int(), of: z.int() }).nullable(),
+  /**
+   * The days approving it would leave the team below its minimum: "Wed 21 would
+   * leave 4 of 7 in". Empty when it clears, or the team has no minimum.
+   */
+  short: z.array(z.object({ date: CalendarDate, in: z.int(), of: z.int(), required: z.int() })),
   balanceAfter: amount().nullable(),
   allowance: amount().nullable(),
   /** A declined earlier ask this one replaces: "24 Dec, which you declined". */

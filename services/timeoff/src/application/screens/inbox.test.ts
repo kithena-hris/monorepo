@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DateSpan, LeaveTypeKey, type PersonId } from '@kithena/contracts';
 
+import { setTeamMinimum } from '../admin/admin.js';
 import { decideRequest } from '../approval/decide.js';
 import { nudgeRequest, sendRequest } from '../request/request.js';
-import { caller, people, world } from '../testing/world.js';
+import { ADA_ACCOUNT, caller, people, PLATFORM, world } from '../testing/world.js';
 import { spanLabel, timeOffInbox } from './inbox.js';
 
 const vacation = LeaveTypeKey.parse('vacation');
@@ -27,6 +28,23 @@ function setup(at = '2026-10-01T07:00:00.000Z') {
 }
 
 describe('Time Off in the Inbox', () => {
+  it('names the days approving would leave the team below its minimum', async () => {
+    const { app, ask, inbox } = setup();
+    const set = await setTeamMinimum(app.deps)(caller(null, ADA_ACCOUNT), PLATFORM, {
+      atLeast: 100,
+      unit: 'percent',
+    });
+    expect(set.ok).toBe(true);
+    const id = await ask(people.adam, '2026-10-19', '2026-10-20');
+    const task = (await inbox(people.marco)).find((i) => i.id === `timeoff:approval:${id}`);
+    expect(task?.detail).toMatchObject({
+      short: [
+        { date: '2026-10-19', required: expect.any(Number) as number },
+        { date: '2026-10-20', required: expect.any(Number) as number },
+      ],
+    });
+  });
+
   it('is a task for the approver and a request for the person asking, then an update and receipts', async () => {
     const { app, ask, inbox } = setup();
     const id = await ask(people.adam, '2026-10-19', '2026-10-21');

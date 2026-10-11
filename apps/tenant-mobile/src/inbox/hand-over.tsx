@@ -1,5 +1,6 @@
 import {
   Button,
+  Chip,
   DatePicker,
   Dialog,
   DialogBody,
@@ -8,11 +9,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  RadioGroup,
-  RadioGroupItem,
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldLabel,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Text,
 } from '@reach/ui-native';
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 
 import { useAct } from '../people/act';
 import { read, useSigned } from '../people/api';
@@ -35,7 +44,8 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
   const signed = useSigned();
   const { act, busy } = useAct('timeoff');
   const [d, setD] = useState<Delegation | null>(null);
-  const [range, setRange] = useState<{ start: string | null; end: string | null } | null>(null);
+  const [from, setFrom] = useState<string | null>(null);
+  const [until, setUntil] = useState<string | null>(null);
   const [to, setTo] = useState<string | undefined>(undefined);
   useEffect(() => {
     let live = true;
@@ -46,7 +56,7 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
       live = false;
     };
   }, [signed]);
-  const ready = d !== null && range?.start != null && range.end != null && to !== undefined;
+  const ready = d !== null && from !== null && until !== null && to !== undefined;
   return (
     <Dialog
       open
@@ -57,9 +67,7 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Hand over while you’re away</DialogTitle>
-          <DialogDescription>
-            Approvals go to someone else for these dates. People waiting see who has them.
-          </DialogDescription>
+          <DialogDescription>People waiting see who has their request.</DialogDescription>
         </DialogHeader>
         <DialogBody>
           {d?.delegation?.range != null ? (
@@ -67,20 +75,55 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
               {`${d.delegation.delegateName} has them from ${d.delegation.range.from} to ${d.delegation.range.to}.`}
             </Text>
           ) : null}
-          <DatePicker mode="range" label="From – Until" value={range} onChange={setRange} />
-          <RadioGroup value={to} onValueChange={setTo}>
-            {(d?.candidates ?? []).map((c) => (
-              <RadioGroupItem key={c.personId} value={c.personId}>
-                {c.displayName}
-              </RadioGroupItem>
-            ))}
-          </RadioGroup>
+          <Field>
+            <FieldLabel>Who</FieldLabel>
+            <Select value={to ?? ''} onValueChange={setTo}>
+              <FieldControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose someone" />
+                </SelectTrigger>
+              </FieldControl>
+              <SelectContent title="Who">
+                {(d?.candidates ?? []).map((c) => (
+                  <SelectItem key={c.personId} value={c.personId}>
+                    {c.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <View className="flex-row gap-2.5">
+            <View className="flex-1">
+              <Field>
+                <FieldLabel>From</FieldLabel>
+                <DatePicker label="From" value={from} onChange={setFrom} />
+              </Field>
+            </View>
+            <View className="flex-1">
+              <Field>
+                <FieldLabel>Until</FieldLabel>
+                <DatePicker label="Until" value={until} onChange={setUntil} />
+              </Field>
+            </View>
+          </View>
+          <Field>
+            <FieldLabel>What</FieldLabel>
+            <View className="flex-row flex-wrap gap-2">
+              <Chip selected disabled>
+                Time off
+              </Chip>
+            </View>
+            <FieldDescription>Review in People stays with HR.</FieldDescription>
+          </Field>
         </DialogBody>
         <DialogFooter>
           {d?.delegation == null ? (
-            <Button onPress={onClose}>Cancel</Button>
+            <Button className="flex-1" onPress={onClose}>
+              Cancel
+            </Button>
           ) : (
             <Button
+              className="flex-1"
               loading={busy === 'RemoveTimeOffDelegation'}
               onPress={() => {
                 void act(
@@ -94,6 +137,7 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
             </Button>
           )}
           <Button
+            className="flex-1"
             variant="primary"
             disabled={!ready}
             loading={busy === 'SetTimeOffDelegation'}
@@ -103,7 +147,7 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
                 'SetTimeOffDelegation',
                 {
                   approverId: d.approverId,
-                  input: { delegateId: to, range: { from: range.start, to: range.end } },
+                  input: { delegateId: to, range: { from, to: until } },
                 },
                 'Handed over',
               ).then((done) => {

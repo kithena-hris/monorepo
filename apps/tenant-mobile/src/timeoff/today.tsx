@@ -1,10 +1,11 @@
 import {
   Alert,
-  AssistantMark,
+  Avatar,
+  AvatarGroup,
   Badge,
   Button,
   Card,
-  Carousel,
+  DayTiles,
   SearchField,
   Dialog,
   DialogBody,
@@ -26,19 +27,17 @@ import {
 } from '@reach/ui-native';
 import {
   Baby,
-  CalendarDays,
   ChartColumn,
   CheckCheck,
   Clock3,
   Coffee,
+  Flag,
   ListChecks,
-  MapPin,
-  PartyPopper,
   Play,
   Plus,
   QrCode,
   Scale,
-  Settings,
+  Send,
   Square,
   Timer as TimerIcon,
   TriangleAlert,
@@ -49,32 +48,26 @@ import { useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Pressable, View } from 'react-native';
 
-import { Failed, Loading, Page } from '../frame';
+import { Failed, Heading, Loading, Page } from '../frame';
+import { useInbox } from '../inbox/api';
+import { tasksOf } from '../inbox/brief';
+import { shortOf, TaskCard } from '../inbox/task-card';
 import { useAct } from '../people/act';
 import { keptAnswer, read, useSigned, type Signed } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
-import { SuggestionCard, type Described, type Option } from './describe';
+import { BalanceDialog, type Balance } from './balance';
+import { DayDialog, mondayOf, type CalendarAnswer } from './calendar';
+import { DescribedCard, useDescribed } from './describe-answer';
 import { leaveIcon } from './icons';
-import { clockTime, duration, localDate, minuteOfDay, partOfDay, stopwatch } from './time';
-import { amount, longDate, relativeDay, shortDate, spanLabel, statusOf } from './words';
+import { approversOf, RequestDialog } from './request-dialog';
+import { ChangeOrCancel } from './requests';
+import { clockTime, duration, localDate, minuteOfDay, stopwatch, todayHere } from './time';
+import { addDays, amount, asDate, longDate, shortDate, spanLabel, statusOf } from './words';
 
 type ClockState = 'out' | 'in' | 'on_break';
 type WorkModel = 'office' | 'remote' | 'client';
 type PunchKind = 'in' | 'out' | 'break_start' | 'break_end';
-
-export interface Balance {
-  readonly leaveTypeKey: string;
-  readonly name: string;
-  readonly unit: 'day' | 'hour';
-  readonly colorToken: string;
-  readonly icon: string;
-  readonly left: string;
-  readonly used: string;
-  readonly booked: string;
-  readonly allowance: string;
-  readonly yearly: string | null;
-}
 
 interface Span {
   readonly from: string;
@@ -196,7 +189,7 @@ function Timer({
   }, [running]);
   const seconds = worked * 60 + (running ? Math.max(0, Math.floor((at - since) / 1000)) : 0);
   return (
-    <Text variant="title1" weight="bold" className="tabular-nums" accessibilityRole="timer">
+    <Text variant="title2" weight="bold" className="tabular-nums" accessibilityRole="timer">
       {stopwatch(seconds)}
     </Text>
   );
@@ -274,7 +267,7 @@ function ClockCard({
   };
   const sub =
     state === 'in'
-      ? `Since ${clockTime(first?.from ?? minute)} · ${duration(left)} to go`
+      ? `In since ${clockTime(first?.from ?? minute)} · ${duration(left)} to go`
       : state === 'on_break'
         ? `${duration(worked)} worked of ${duration(today.plannedMinutes)}`
         : worked > 0
@@ -285,21 +278,22 @@ function ClockCard({
   return (
     <Card>
       <Stack gap={3}>
-        <View className="flex-row items-center gap-2">
-          <Badge size="sm" tone={STATE[state].tone} dot>
-            {STATE[state].label}
-          </Badge>
-          {workModel === null || state === 'out' ? null : (
-            <Badge size="sm" icon={MapPin}>
-              {WHERE[workModel]}
-            </Badge>
-          )}
-        </View>
+        {/* Compact (v3 T1): the time worked, since when and where, and the two buttons. */}
         <View className="flex-row items-center gap-3">
+          <View
+            accessibilityLabel={STATE[state].label}
+            className={
+              state === 'in'
+                ? 'size-2.5 rounded-full bg-success'
+                : state === 'on_break'
+                  ? 'size-2.5 rounded-full bg-warning'
+                  : 'size-2.5 rounded-full bg-fg-subtle'
+            }
+          />
           <View className="flex-1">
             <Timer worked={worked} running={state === 'in'} since={since} />
             <Text variant="footnote" tone="muted">
-              {sub}
+              {workModel === null || state === 'out' ? sub : `${sub} · ${WHERE[workModel]}`}
             </Text>
           </View>
           {state === 'in' ? (
@@ -313,12 +307,12 @@ function ClockCard({
               />
               <Button
                 variant="primary"
-                startIcon={<Icon icon={Square} />}
-                accessibilityLabel="Clock out"
                 onPress={() => {
                   setClosing(Date.now());
                 }}
-              />
+              >
+                Clock out
+              </Button>
             </>
           ) : state === 'on_break' ? (
             <Button
@@ -332,7 +326,6 @@ function ClockCard({
             </Button>
           ) : null}
         </View>
-        {dayBar(today.segments, minute)}
         {state === 'out' ? (
           <>
             <SegmentedControl
@@ -448,108 +441,120 @@ function keptHome(signed: Signed): Home | null {
   };
 }
 
-/**
- * Kithena's suggestions, there as the tab opens rather than behind a button:
- * the dates Time Off ranks best for this person, worded by the assistant,
- * each one tap from a request or handed to the planner with it. Typing what
- * you want goes straight to the planner. Until the ranking answers, the
- * overview's best bridge stands in.
- */
-function Suggestions({
-  navigation,
-  fallback,
+/** One balance the tab leads with (T1): the number, the bar, and Details for the ledger. */
+function BalanceCard({
+  main,
+  others,
+  onDetails,
 }: {
-  navigation: PeopleScreen<'TimeOff'>['navigation'];
-  fallback: { bridge: Bridge; leaveTypeKey: string } | null;
-}): React.JSX.Element | null {
-  const { load } = useTimeOff<Described>('TimeOffDescribe', {});
-  const [typed, setTyped] = useState('');
-  const ranked = load.status === 'ready' ? load.data : null;
-  const leaveTypeKey = ranked?.understood.leaveTypeKey ?? fallback?.leaveTypeKey ?? null;
-  const options: readonly Option[] =
-    ranked?.options ??
-    (fallback === null
-      ? []
-      : [
-          {
-            from: fallback.bridge.from,
-            to: fallback.bridge.to,
-            used: fallback.bridge.used,
-            away: fallback.bridge.away,
-            holidays: fallback.bridge.holidays,
-            short: [],
-            fewest: null,
-            fits: true,
-            leftAfter: null,
-            line: fallback.bridge.text,
-          },
-        ]);
-  const choose = (o: Option): void => {
-    navigation.navigate('TimeOffRequest', {
-      ...(leaveTypeKey === null ? {} : { leaveTypeKey }),
-      from: o.from,
-      to: o.to,
-    });
-  };
-  const plan = (sentence?: string): void => {
-    navigation.navigate('TimeOffDescribe', sentence === undefined ? undefined : { sentence });
-  };
+  main: Balance;
+  others: readonly Balance[];
+  onDetails: (b: Balance) => void;
+}): React.JSX.Element {
+  const hours = main.unit === 'hour';
   return (
-    <Stack gap={2}>
-      <View className="flex-row items-center gap-2 px-1">
-        <AssistantMark size={18} />
-        <Text variant="footnote" weight="semibold" tone="muted" className="flex-1">
-          Kithena suggests
-        </Text>
-        <Button
-          size="sm"
-          variant="link"
-          onPress={() => {
-            plan();
-          }}
-        >
-          More
-        </Button>
-      </View>
-      <SearchField
-        value={typed}
-        onValueChange={setTyped}
-        onSearch={(value) => {
-          if (value.trim() !== '') plan(value.trim());
-        }}
-        placeholder="A long weekend in December…"
-        label="Describe the time off you want"
-      />
-      {options.length === 0 ? null : (
-        <Carousel accessibilityLabel="Suggested dates" controls="none" slideWidth={0.88}>
-          {options.slice(0, 5).map((o, i) => (
-            <SuggestionCard
-              key={`${o.from}${o.to}`}
-              option={o}
-              best={ranked !== null && i === 0}
-              onChoose={() => {
-                choose(o);
-              }}
-              onMore={() => {
-                plan(`${String(o.away.days)} days off around ${spanLabel(o.from, o.to)}`);
-              }}
+    <Card padded={false} className="overflow-hidden">
+      <View className="gap-3 p-4">
+        <View className="flex-row items-center gap-2.5">
+          <View className="size-9 items-center justify-center rounded-[11px] bg-accent-subtle">
+            <Icon icon={leaveIcon(main.icon)} size={17} tone="accent" />
+          </View>
+          <Text variant="headline" className="flex-1">
+            {main.name}
+          </Text>
+          <Button
+            size="xs"
+            variant="link"
+            onPress={() => {
+              onDetails(main);
+            }}
+          >
+            Details
+          </Button>
+        </View>
+        <View className="flex-row items-baseline gap-2">
+          <Text className="text-[52px] font-bold leading-[54px] tracking-[-0.04em] tabular-nums">
+            {amount(main.left)}
+          </Text>
+          <Text tone="muted">
+            {hours
+              ? 'hours banked'
+              : main.yearly === null
+                ? 'days left'
+                : `days left of ${amount(main.yearly)}`}
+          </Text>
+        </View>
+        {main.yearly === null ? null : (
+          <>
+            <Progress
+              label={`${amount(main.used)} used, ${amount(main.booked)} booked`}
+              value={Number(main.used) + Number(main.booked)}
+              max={Number(main.yearly)}
             />
+            <Text variant="footnote" tone="muted">
+              {`${amount(main.used)} used · ${amount(main.booked)} booked · ${amount(main.left)} left`}
+            </Text>
+          </>
+        )}
+      </View>
+      {others.length === 0 ? null : (
+        <View className="flex-row border-t border-border">
+          {others.slice(0, 3).map((b, i) => (
+            <Pressable
+              key={b.leaveTypeKey}
+              accessibilityRole="button"
+              accessibilityLabel={`${b.name}: where it went`}
+              onPress={() => {
+                onDetails(b);
+              }}
+              className={i > 0 ? 'flex-1 gap-1 border-l border-border p-3' : 'flex-1 gap-1 p-3'}
+            >
+              <Text variant="footnote" tone="muted" numberOfLines={1}>
+                {b.name}
+              </Text>
+              <Text weight="semibold">
+                {b.unit === 'hour'
+                  ? `${amount(b.left)}h banked`
+                  : b.yearly === null && Number(b.left) === 0
+                    ? 'No limit'
+                    : `${amount(b.left)} left`}
+              </Text>
+            </Pressable>
           ))}
-        </Carousel>
+        </View>
       )}
-    </Stack>
+    </Card>
   );
 }
 
+const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
+
 /**
- * The Time off tab (design MT1): today first — the live clock with break
- * and clock-out in thumb reach, balances as a row to swipe, one suggestion
- * at a time, and what is coming up.
+ * The Time off tab (design v3 T1, T2, T8): everything in one scroll and no
+ * sub-pages to find it. The clock, the balance with Details, a box to
+ * describe what you want that answers in place, what waits for a manager,
+ * what is coming up (each opens change or cancel), who is off this week
+ * (each day opens who and why), the bigger plans, and the holidays.
  */
 export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.Element {
   const signed = useSigned();
   const [data, setData] = useState<Home | null>(() => keptHome(signed));
   const [failed, setFailed] = useState<string | null>(null);
+  const [typed, setTyped] = useState('');
+  const [sentence, setSentence] = useState<string | null>(null);
+  const described = useDescribed(sentence);
+  const [open, setOpen] = useState<
+    | { kind: 'request'; from?: string; to?: string; leaveTypeKey?: string }
+    | { kind: 'balance'; leaveTypeKey: string; name: string }
+    | { kind: 'change'; requestId: string; left: string | null }
+    | { kind: 'day'; date: string }
+    | null
+  >(null);
+  const { inbox } = useInbox();
+  const panel = useTimeOff<{ leaveTypes: { key: string; name: string; colorToken: string }[] }>(
+    'TimeOffRequestPanel',
+    {},
+  ).load;
   // HR's count beside Balance adjustments: what waits for them to decide.
   const adjustments = useTimeOff<{ items: { canDecide: boolean }[] }>('TimeOffBalanceAdjustments');
   useFocusEffect(adjustments.reload);
@@ -557,6 +562,13 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
     adjustments.load.status === 'ready'
       ? adjustments.load.data.items.filter((a) => a.canDecide).length
       : 0;
+  const todayDate = todayHere();
+  const week = mondayOf(todayDate);
+  const team = useTimeOff<CalendarAnswer>('TimeOffCalendarTimeline', {
+    scope: 'team',
+    from: week,
+    to: addDays(week, 4),
+  });
 
   const load = async (): Promise<void> => {
     const now = Date.now();
@@ -586,21 +598,35 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
     void load();
     return navigation.addListener('focus', () => {
       void load();
+      team.reload();
     });
     // `load` reads only `signed`.
   }, [navigation, signed]);
 
+  const request = (
+    <Button
+      size="sm"
+      variant="primary"
+      startIcon={<Icon icon={Plus} tone="on-accent" />}
+      onPress={() => {
+        setOpen({ kind: 'request' });
+      }}
+    >
+      Request
+    </Button>
+  );
+
   // What was already showing stays; only an empty screen says it failed.
   if (failed !== null && data === null) {
     return (
-      <Page large="Time off">
+      <Page large="Time off" trailing={request}>
         <Failed message={failed} onRetry={() => void load()} />
       </Page>
     );
   }
   if (data === null) {
     return (
-      <Page large="Time off">
+      <Page large="Time off" trailing={request}>
         <Loading label="Loading your time off" />
       </Page>
     );
@@ -621,8 +647,8 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
         ? { chevron: true }
         : {
             trailing: (
-              <Badge size="sm" tone="danger" variant="solid">
-                {String(row.count)}
+              <Badge size="sm" tone="warning">
+                {`${String(row.count)} to look at`}
               </Badge>
             ),
           })}
@@ -633,117 +659,220 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
   );
   const zone = overview.member?.timeZone ?? 'UTC';
   const today = localDate(now, zone);
-  const tracked = overview.balances.find((b) => b.unit === 'day' && b.yearly !== null);
-  const bridge = overview.bridges[0];
-  const ahead = holidays.filter((h) => h.date >= today).slice(0, 2);
+  const city = (zone.split('/').at(-1) ?? zone).replaceAll('_', ' ');
+  const main =
+    overview.balances.find((b) => b.unit === 'day' && b.yearly !== null) ?? overview.balances[0];
+  const others = overview.balances.filter((b) => b !== main);
+  const ahead = holidays.filter((h) => h.date >= today).slice(0, 3);
+  const approvals = (inbox === null ? [] : tasksOf(inbox)).filter(
+    (t) => t.kind === 'timeoff.approval',
+  );
+  const answer = described.answer;
+  const typeOf = (key: string | null) =>
+    panel.status === 'ready' ? panel.data.leaveTypes.find((t) => t.key === key) : undefined;
+  const days =
+    team.load.status !== 'ready'
+      ? []
+      : [0, 1, 2, 3, 4].map((n) => {
+          const date = addDays(week, n);
+          const c =
+            team.load.status === 'ready'
+              ? team.load.data.coverage.find((x) => x.date === date)
+              : undefined;
+          const answerNow = team.load.status === 'ready' ? team.load.data : null;
+          const out = (answerNow?.entries ?? [])
+            .filter((e) => e.span.from <= date && date <= e.span.to)
+            .map(
+              (e) =>
+                answerNow?.people.find((p) => p.personId === e.personId)?.displayName ?? 'Someone',
+            );
+          const holiday = answerNow?.holidays.find((h) => h.date === date);
+          return {
+            id: date,
+            label: WEEKDAY.format(asDate(date)),
+            value: c === undefined ? (holiday === undefined ? '–' : '·') : String(c.in),
+            today: date === todayDate,
+            attention: c?.below === true,
+            accessibilityLabel: `${longDate(date)}: ${c === undefined ? 'no count' : `${String(c.in)} of ${String(c.of)} in`}${c?.below === true ? ', below the minimum' : ''}`,
+            footer:
+              holiday !== undefined ? (
+                'Holiday'
+              ) : out.length === 0 ? (
+                'All in'
+              ) : (
+                <AvatarGroup size={22} max={2}>
+                  {out.map((n) => (
+                    <Avatar key={n} name={n} decorative />
+                  ))}
+                </AvatarGroup>
+              ),
+          };
+        });
+
   return (
     <Page
       large="Time off"
-      trailing={
-        <Button
-          size="sm"
-          variant="ghost"
-          startIcon={<Icon icon={Plus} />}
-          accessibilityLabel="Request time off"
-          onPress={() => {
-            navigation.navigate('TimeOffRequest');
+      trailing={request}
+      {...(answer !== null && answer.preview !== null
+        ? {
+            foot: (
+              <>
+                <Button
+                  className="flex-1"
+                  onPress={() => {
+                    setOpen({
+                      kind: 'request',
+                      ...(answer.preview === null
+                        ? {}
+                        : { from: answer.preview.span.from, to: answer.preview.span.to }),
+                      ...(answer.described?.understood.leaveTypeKey == null
+                        ? {}
+                        : { leaveTypeKey: answer.described.understood.leaveTypeKey }),
+                    });
+                  }}
+                >
+                  Change
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant="primary"
+                  startIcon={<Icon icon={Send} tone="on-accent" />}
+                  loading={described.sending}
+                  onPress={() => {
+                    void described.send().then((id) => {
+                      if (id === null) return;
+                      setSentence(null);
+                      setTyped('');
+                      void load();
+                    });
+                  }}
+                >
+                  {approversOf(answer.preview) === null
+                    ? 'Send'
+                    : `Send to ${approversOf(answer.preview) ?? ''}`}
+                </Button>
+              </>
+            ),
+          }
+        : {})}
+    >
+      {open?.kind === 'request' ? (
+        <RequestDialog
+          initial={open}
+          onClose={() => {
+            setOpen(null);
+          }}
+          onSent={() => {
+            setOpen(null);
+            setSentence(null);
+            setTyped('');
+            void load();
           }}
         />
-      }
-    >
+      ) : null}
+      {open?.kind === 'balance' ? (
+        <BalanceDialog
+          leaveTypeKey={open.leaveTypeKey}
+          name={open.name}
+          onClose={() => {
+            setOpen(null);
+          }}
+        />
+      ) : null}
+      {open?.kind === 'change' ? (
+        <ChangeOrCancel
+          requestId={open.requestId}
+          left={open.left}
+          onClose={() => {
+            setOpen(null);
+          }}
+          onDone={() => {
+            setOpen(null);
+            void load();
+          }}
+        />
+      ) : null}
+      {open?.kind === 'day' ? (
+        <DayDialog
+          date={open.date}
+          scope="team"
+          seed={team.load.status === 'ready' ? team.load.data : null}
+          typeOf={typeOf}
+          onClose={() => {
+            setOpen(null);
+          }}
+        />
+      ) : null}
+
       {overview.member === null ? (
         <Alert tone="info" title="Nothing here for you yet">
           Time Off does not have you as an employee yet, so there are no balances to show or time
           off to request. There will be once HR hires you in People.
         </Alert>
-      ) : (
-        <Text tone="muted">{`Good ${partOfDay(now, zone)}, ${overview.member.firstName} · ${longDate(today)}`}</Text>
+      ) : null}
+
+      {approvals.length === 0 || inbox === null ? null : (
+        <>
+          <Alert tone="accent" variant="summary">
+            {`${approvals.length === 1 ? 'One request waits' : `${String(approvals.length)} requests wait`} for you.${approvals.some((a) => shortOf(a).length > 0) ? ' One would leave the team below its minimum.' : ' None leaves the team short.'}`}
+          </Alert>
+          <Heading title="Waiting for you" />
+          {approvals.map((item) => (
+            <TaskCard
+              key={item.id}
+              item={item}
+              now={inbox.now}
+              zone={inbox.zone}
+              navigation={navigation}
+            />
+          ))}
+        </>
       )}
+
       {overview.clock === null ? null : (
         <ClockCard clock={overview.clock} now={now} zone={zone} onPunched={() => void load()} />
       )}
-      {overview.balances.length === 0 ? null : (
-        <Carousel accessibilityLabel="Your balances" controls="none" slideWidth={0.64}>
-          {overview.balances.map((b) => {
-            const hours = b.unit === 'hour';
-            return (
-              <Pressable
-                key={b.leaveTypeKey}
-                accessibilityRole="button"
-                accessibilityLabel={`${b.name}: where the days went`}
-                onPress={() => {
-                  navigation.navigate('TimeOffBalance', {
-                    leaveTypeKey: b.leaveTypeKey,
-                    name: b.name,
-                  });
-                }}
-              >
-                <Stat
-                  label={b.name}
-                  icon={<Icon icon={leaveIcon(b.icon)} />}
-                  value={hours ? `${amount(b.left)}h` : amount(b.left)}
-                  unit={hours ? 'banked' : 'days left'}
-                  {...(b.yearly === null
-                    ? {}
-                    : {
-                        chart: (
-                          <Progress
-                            label={`${b.name}: ${amount(b.used)} used, ${amount(b.booked)} booked`}
-                            value={Number(b.used) + Number(b.booked)}
-                            max={Number(b.yearly)}
-                          />
-                        ),
-                        description: `${amount(b.used)} used · ${amount(b.booked)} booked`,
-                      })}
-                />
-              </Pressable>
-            );
-          })}
-        </Carousel>
-      )}
-      {overview.member === null ? null : (
-        <Suggestions
-          navigation={navigation}
-          fallback={
-            bridge === undefined || tracked === undefined
-              ? null
-              : { bridge, leaveTypeKey: tracked.leaveTypeKey }
-          }
+      {main === undefined ? null : (
+        <BalanceCard
+          main={main}
+          others={others}
+          onDetails={(b) => {
+            setOpen({ kind: 'balance', leaveTypeKey: b.leaveTypeKey, name: b.name });
+          }}
         />
       )}
-      <View className="flex-row items-center px-1">
-        <Text variant="footnote" weight="semibold" tone="muted" className="flex-1">
-          Coming up
-        </Text>
-        <Button
-          size="sm"
-          variant="link"
-          onPress={() => {
-            navigation.navigate('TimeOffRequests');
+      {overview.member === null ? null : (
+        <SearchField
+          ask
+          value={typed}
+          onValueChange={(text) => {
+            setTyped(text);
+            if (text.trim() === '') setSentence(null);
           }}
-        >
-          All
-        </Button>
-      </View>
-      {ahead.length === 0 && overview.comingUp.length === 0 ? (
+          onSearch={(value) => {
+            setSentence(value.trim() === '' ? null : value.trim());
+          }}
+          placeholder="Describe it: “Friday and the Monday after”"
+          label="Describe the time off you want"
+        />
+      )}
+      {answer === null ? null : (
+        <DescribedCard answer={answer} note={described.note} onNote={described.setNote} />
+      )}
+
+      <Heading
+        title="Coming up"
+        action="All"
+        onAction={() => {
+          navigation.navigate('TimeOffRequests');
+        }}
+      />
+      {overview.comingUp.length === 0 ? (
         <Text tone="muted" className="px-1">
           Nothing booked yet.
         </Text>
       ) : (
         <List>
-          {ahead.map((h) => (
-            <ListItem
-              key={h.date}
-              icon={PartyPopper}
-              description={`${shortDate(h.date)} · holiday · ${relativeDay(today, h.date)}`}
-              chevron
-              onPress={() => {
-                navigation.navigate('TimeOffHolidays');
-              }}
-            >
-              {h.name}
-            </ListItem>
-          ))}
           {overview.comingUp.map((r) => {
             const type = overview.balances.find((b) => b.leaveTypeKey === r.leaveTypeKey);
             const status = statusOf(r.status);
@@ -751,51 +880,61 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
               <ListItem
                 key={r.requestId}
                 icon={leaveIcon(type?.icon)}
-                description={
-                  r.waitingOn === 'manager'
-                    ? 'Waiting for your manager'
-                    : r.waitingOn === 'hr'
-                      ? 'Waiting for HR'
-                      : `${amount(r.workingDays)} ${amount(r.workingDays) === '1' ? 'day' : 'days'}`
-                }
+                description={`${r.leaveTypeName} · ${amount(r.workingDays)} ${amount(r.workingDays) === '1' ? 'day' : 'days'}`}
                 trailing={
                   <Badge size="sm" tone={status.tone} dot>
-                    {status.label}
+                    {r.waitingOn === 'manager'
+                      ? 'With your manager'
+                      : r.waitingOn === 'hr'
+                        ? 'With HR'
+                        : status.label}
                   </Badge>
                 }
                 onPress={() => {
-                  navigation.navigate('TimeOffRequestDetail', { requestId: r.requestId });
+                  setOpen({ kind: 'change', requestId: r.requestId, left: type?.left ?? null });
                 }}
               >
-                {`${r.leaveTypeName} · ${spanLabel(r.span.from, r.span.to)}`}
+                {spanLabel(r.span.from, r.span.to)}
               </ListItem>
             );
           })}
         </List>
       )}
+
+      {days.length === 0 ? null : (
+        <>
+          <Heading
+            title="Team this week"
+            action="Calendar"
+            onAction={() => {
+              navigation.navigate('TimeOffCalendar');
+            }}
+          />
+          <DayTiles
+            days={days}
+            onPress={(date) => {
+              setOpen({ kind: 'day', date });
+            }}
+          />
+        </>
+      )}
+
+      <Heading title="More" />
       <List>
         {[
-          go({
-            label: 'Calendar',
-            line: 'Who is off this week',
-            icon: CalendarDays,
-            open: () => {
-              navigation.navigate('TimeOffCalendar');
-            },
-          }),
           ...(overview.member === null
             ? []
             : [
                 go({
-                  label: 'Your requests',
-                  line: 'Coming up, past and cancelled',
-                  icon: ListChecks,
+                  label: 'Plan parental leave',
+                  line: 'Kithena drafts the plan from the law where you work',
+                  icon: Baby,
                   open: () => {
-                    navigation.navigate('TimeOffRequests');
+                    navigation.navigate('TimeOffParental');
                   },
                 }),
                 go({
-                  label: 'Timesheet',
+                  label: 'My timesheet',
                   line: 'Your week, worked against planned',
                   icon: Clock3,
                   open: () => {
@@ -803,11 +942,11 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   },
                 }),
                 go({
-                  label: 'Parental leave',
-                  line: 'Plan it, then send it to HR',
-                  icon: Baby,
+                  label: 'Your requests',
+                  line: 'Coming up, past and cancelled',
+                  icon: ListChecks,
                   open: () => {
-                    navigation.navigate('TimeOffParental');
+                    navigation.navigate('TimeOffRequests');
                   },
                 }),
                 go({
@@ -913,18 +1052,29 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                     navigation.navigate('TimeOffInsights');
                   },
                 }),
-                go({
-                  label: 'Time off settings',
-                  line: 'Leave types, policies, approvals, holidays',
-                  icon: Settings,
-                  open: () => {
-                    navigation.navigate('TimeOffSettings');
-                  },
-                }),
               ]
             : []),
         ]}
       </List>
+
+      {ahead.length === 0 ? null : (
+        <>
+          <Heading
+            title={`Holidays in ${city}`}
+            action="All"
+            onAction={() => {
+              navigation.navigate('TimeOffHolidays');
+            }}
+          />
+          <List>
+            {ahead.map((h) => (
+              <ListItem key={h.date} icon={Flag} description={h.name}>
+                {`${WEEKDAY.format(asDate(h.date))} ${shortDate(h.date)}`}
+              </ListItem>
+            ))}
+          </List>
+        </>
+      )}
     </Page>
   );
 }

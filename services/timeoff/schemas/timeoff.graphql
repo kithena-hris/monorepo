@@ -550,19 +550,6 @@ type TimeOffAttendanceRequests {
   overtime: TimeOffOvertimePolicy!
 }
 
-type TimeOffAttendanceRules {
-  breakAfterMinutes: Int!
-  breakMinutes: Int!
-  overtime: TimeOffAttendanceRulesOvertime!
-  restMinutes: Int!
-  weeklyMaxMinutes: Int!
-}
-
-type TimeOffAttendanceRulesOvertime {
-  becomes: String!
-  multiplier: String!
-}
-
 type TimeOffAutoApproval {
   oneDayAboveMinimum: Boolean!
   shortenOrCancel: Boolean!
@@ -693,6 +680,13 @@ type TimeOffCaseStep {
 
 type TimeOffChatAnswers {
   namesPrivateLeave: Boolean!
+}
+
+type TimeOffClockInWays {
+  mobile: Boolean!
+  pin: Boolean!
+  reader: Boolean!
+  web: Boolean!
 }
 
 type TimeOffConsumingModule {
@@ -1735,7 +1729,21 @@ type TimeOffSettingsApprovals {
 
 type TimeOffSettingsAttendance {
   defaultSchedule: JSON
-  rules: TimeOffAttendanceRules!
+  rules: TimeOffSettingsAttendanceRules!
+}
+
+type TimeOffSettingsAttendanceRules {
+  breakAfterMinutes: Int!
+  breakMinutes: Int!
+  clockIn: TimeOffClockInWays!
+  overtime: TimeOffSettingsAttendanceRulesOvertime!
+  restMinutes: Int!
+  weeklyMaxMinutes: Int!
+}
+
+type TimeOffSettingsAttendanceRulesOvertime {
+  becomes: String!
+  multiplier: String!
 }
 
 type TimeOffSettingsHolidays {

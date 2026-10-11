@@ -242,7 +242,9 @@ export function TimeOffParental({
   navigation,
 }: PeopleScreen<'TimeOffParental'>): React.JSX.Element {
   const { load, reload } = useTimeOff<Parental>('TimeOffParentalPlan');
-  const [step, setStep] = useState<'about' | 'plan' | 'handover' | 'send' | null>(null);
+  const [step, setStep] = useState<'overview' | 'about' | 'plan' | 'handover' | 'send' | null>(
+    null,
+  );
   const back = { label: 'Time off', onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
@@ -267,22 +269,129 @@ export function TimeOffParental({
   }
   const plan = d.plan;
   const sent = plan !== null && (plan.status === 'sent' || plan.status === 'approved');
-  const at = plan === null ? 'about' : (step ?? (sent ? null : 'plan'));
+  const at = plan === null ? 'about' : (step ?? (sent ? null : 'overview'));
   const manager = d.managerName ?? 'your manager';
   if (plan !== null && sent && at === null) {
     return <Sent plan={plan} manager={manager} back={back} onChanged={reload} />;
+  }
+  if (plan !== null && at === 'overview') {
+    // The whole plan on one screen (design v3 T10): drafted already, changed where you want.
+    const e = plan.entitlement;
+    return (
+      <Page
+        title="Parental leave"
+        back={back}
+        foot={
+          <>
+            <Button className="flex-1" onPress={navigation.goBack}>
+              Save draft
+            </Button>
+            <Button
+              className="flex-1"
+              variant="primary"
+              disabled={plan.problems.length > 0}
+              onPress={() => {
+                setStep('send');
+              }}
+            >
+              {`Send to HR and ${manager.split(' ')[0] ?? manager}`}
+            </Button>
+          </>
+        }
+      >
+        <Alert tone="accent" variant="summary">
+          {plan.explanation?.text ??
+            `${plan.birth === null ? `Baby due ${longDate(plan.childDate)}` : `Born ${longDate(plan.childDate)}`}. You get ${weeks(lawWeeks(e))}${e.companyWeeks > 0 ? ` and ${weeks(e.companyWeeks)} from your company` : ''}. Here is a plan; change what you want.`}
+        </Alert>
+        <View className="flex-row gap-2">
+          <Stat
+            className="flex-1"
+            size={20}
+            label="Right after the birth"
+            value={weeks(e.mandatoryWeeks)}
+          />
+          <Stat
+            className="flex-1"
+            size={20}
+            label="Flexible, first year"
+            value={weeks(e.flexibleWeeks)}
+          />
+          {e.laterWeeks === 0 ? null : (
+            <Stat className="flex-1" size={20} label="For later" value={weeks(e.laterWeeks)} />
+          )}
+        </View>
+        {plan.problems.map((p) => (
+          <Alert key={p.code} tone="warning">
+            {p.message}
+          </Alert>
+        ))}
+        <Card padded={false} className="overflow-hidden">
+          <View className="flex-row items-center justify-between px-4 pb-1 pt-4">
+            <Text variant="headline">Your plan</Text>
+            <Button
+              size="xs"
+              variant="link"
+              onPress={() => {
+                setStep('plan');
+              }}
+            >
+              Change
+            </Button>
+          </View>
+          <VerticalPlan plan={plan} />
+        </Card>
+        <Card padded={false} className="overflow-hidden">
+          <View className="flex-row items-center justify-between px-4 pb-1 pt-4">
+            <Text variant="headline">Who covers</Text>
+            <Button
+              size="xs"
+              variant="link"
+              onPress={() => {
+                setStep('handover');
+              }}
+            >
+              {plan.handover.length === 0 ? 'Add' : 'Change'}
+            </Button>
+          </View>
+          {plan.handover.length === 0 ? (
+            <Text tone="muted" className="px-4 pb-4">
+              Nobody yet. Say who takes over what while you’re away.
+            </Text>
+          ) : (
+            plan.handover.map((h) => (
+              <ListItem
+                key={h.work}
+                listitem={false}
+                leading={<Avatar name={h.coveredBy} size={40} />}
+                description={h.coveredBy}
+              >
+                {h.work}
+              </ListItem>
+            ))
+          )}
+        </Card>
+        <Button
+          variant="ghost"
+          onPress={() => {
+            setStep('about');
+          }}
+        >
+          Change the date or who you are
+        </Button>
+      </Page>
+    );
   }
   const index = ['about', 'plan', 'handover', 'send'].indexOf(at ?? 'about');
   return (
     <Page
       title="Parental leave"
       back={
-        at === 'about' || at === 'plan'
+        plan === null
           ? back
           : {
-              label: 'Back',
+              label: 'Your plan',
               onPress: () => {
-                setStep(at === 'send' ? 'handover' : 'plan');
+                setStep('overview');
               },
             }
       }
@@ -310,7 +419,7 @@ export function TimeOffParental({
           plan={plan}
           onChanged={reload}
           onNext={() => {
-            setStep('handover');
+            setStep('overview');
           }}
           onBack={() => {
             setStep('about');
@@ -322,7 +431,7 @@ export function TimeOffParental({
           manager={manager}
           onSaved={() => {
             reload();
-            setStep('send');
+            setStep('overview');
           }}
         />
       ) : (

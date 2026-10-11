@@ -133,7 +133,11 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
         .values({ tenantId, personId, effectiveFrom: sql`current_date`, scheduleKey: key });
     },
 
-    rules: () => readSetting<AttendanceRules>(tx, 'attendance_rules', DEFAULT_RULES),
+    // A document saved before a rule existed takes that rule's default.
+    rules: async () => ({
+      ...DEFAULT_RULES,
+      ...(await readSetting<Partial<AttendanceRules>>(tx, 'attendance_rules', {})),
+    }),
     setRules: (rules) => writeSetting(tx, tenantId, 'attendance_rules', rules),
 
     async periods() {

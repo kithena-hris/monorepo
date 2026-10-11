@@ -4,8 +4,6 @@ import {
   Button,
   Card,
   CardTitle,
-  ChipGroup,
-  ChipGroupItem,
   Combobox,
   DatePicker,
   Dialog,
@@ -47,12 +45,11 @@ import {
   Hash,
   MoveRight,
   Pencil,
-  Plus,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 
-import { Failed, Loading, Page } from '../../frame';
+import { Failed, Heading, Loading, Page } from '../../frame';
 import { useAct } from '../act';
 import { ask, useSigned } from '../api';
 import type { PeopleScreen } from '../routes';
@@ -187,7 +184,6 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
   const [state, setState] = useState<State | null>(null);
   const [packs, setPacks] = useState<readonly Pack[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [tab, setTab] = useState<string>('entities');
   const [editing, setEditing] = useState<Editing | null>(null);
 
   const load = async (): Promise<void> => {
@@ -262,40 +258,27 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         </DropdownMenuContent>
       </DropdownMenu>
     ) : undefined;
-  const add = (label: string, open: () => void) =>
-    can ? (
-      <Button variant="primary" startIcon={<Icon icon={Plus} />} onPress={open}>
-        {label}
-      </Button>
-    ) : null;
+  // One page of headed sections (v3 S7): each its title, and Add where it can be added to.
+  const add = (title: string, open?: () => void) => (
+    <Heading
+      title={title}
+      {...(can && open !== undefined ? { action: 'Add', onAction: open } : {})}
+    />
+  );
   const tabs = TABS.filter(
     ([value]) =>
       (value !== 'country-packs' || packs !== null) &&
       (value !== 'pay-bands' || state.payBands !== null),
   );
+  const shown = (value: string): boolean => tabs.some(([v]) => v === value);
 
   return (
     <Page title="Organisation" back={back}>
-      <View>
-        <ChipGroup
-          type="single"
-          value={tab}
-          onValueChange={setTab}
-          accessibilityLabel="Organisation settings"
-          scroll
-        >
-          {tabs.map(([value, label]) => (
-            <ChipGroupItem key={value} value={value} variant="view">
-              {label}
-            </ChipGroupItem>
-          ))}
-        </ChipGroup>
-      </View>
       {can ? null : <Alert tone="info">Only a People administrator changes these.</Alert>}
 
-      {tab === 'entities' ? (
+      {shown('entities') ? (
         <>
-          {add('Add a legal entity', () => {
+          {add('Legal entities', () => {
             setEditing({ kind: 'entity', entity: null });
           })}
           {state.legalEntities.length === 0 ? (
@@ -345,13 +328,16 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         </>
       ) : null}
 
-      {tab === 'locations' ? (
+      {shown('locations') ? (
         <>
-          {state.legalEntities.some((e) => !e.archived)
-            ? add('Add a location', () => {
-                setEditing({ kind: 'location', location: null });
-              })
-            : null}
+          {add(
+            'Locations',
+            state.legalEntities.some((e) => !e.archived)
+              ? () => {
+                  setEditing({ kind: 'location', location: null });
+                }
+              : undefined,
+          )}
           {state.locations.length === 0 ? (
             <EmptyState
               icon={Building2}
@@ -408,9 +394,9 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         </>
       ) : null}
 
-      {tab === 'org-units' ? (
+      {shown('org-units') ? (
         <>
-          {add('Add an org unit', () => {
+          {add('Org units', () => {
             setEditing({ kind: 'unit', unit: null, mode: 'add' });
           })}
           {state.orgUnits.length === 0 ? (
@@ -460,7 +446,8 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         </>
       ) : null}
 
-      {tab === 'numbering' ? (
+      {shown('numbering') ? add('Employee numbers') : null}
+      {shown('numbering') ? (
         state.legalEntities.length === 0 ? (
           <EmptyState
             icon={Hash}
@@ -498,7 +485,8 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         )
       ) : null}
 
-      {tab === 'country-packs' && packs !== null ? (
+      {shown('country-packs') && packs !== null ? add('Country packs') : null}
+      {shown('country-packs') && packs !== null ? (
         packs.length === 0 ? (
           <EmptyState
             icon={Building2}
@@ -530,14 +518,15 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         )
       ) : null}
 
-      {tab === 'reminders' ? <Reminders state={state} onSaved={reload} /> : null}
+      {shown('reminders') ? add('Reminders') : null}
+      {shown('reminders') ? <Reminders state={state} onSaved={reload} /> : null}
 
-      {tab === 'pay-bands' && state.payBands !== null ? (
+      {shown('pay-bands') && state.payBands !== null ? (
         <>
           <Text tone="muted">
             Compa-ratio is salary divided by the band midpoint for the grade and currency.
           </Text>
-          {add('Add pay band', () => {
+          {add('Pay bands', () => {
             setEditing({ kind: 'band', band: null });
           })}
           {state.payBands.length === 0 ? (

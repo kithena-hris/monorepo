@@ -2459,6 +2459,70 @@
           "anchor": "coach-mark-the-rules"
         }
       ]
+    },
+    {
+      "id": "action-card",
+      "name": "ActionCard",
+      "title": "Components/ActionCard",
+      "group": "Components",
+      "desc": "Something to act on with its button on the card: a task, an approval, a request, finished without opening it.",
+      "stories": [
+        {
+          "name": "Playground",
+          "anchor": "action-card-playground"
+        },
+        {
+          "name": "Tasks",
+          "anchor": "action-card-tasks"
+        }
+      ]
+    },
+    {
+      "id": "hero",
+      "name": "Hero",
+      "title": "Components/Hero",
+      "group": "Components",
+      "desc": "The top of a page about one person or thing: its picture large, its name, badges and quick actions.",
+      "stories": [
+        {
+          "name": "Playground",
+          "anchor": "hero-playground"
+        },
+        {
+          "name": "With quick actions",
+          "anchor": "hero-with-quick-actions"
+        }
+      ]
+    },
+    {
+      "id": "sentence",
+      "name": "Sentence",
+      "title": "Components/Sentence",
+      "group": "Components",
+      "desc": "A setting read as one sentence, each choice a highlighted part that opens its options.",
+      "stories": [
+        {
+          "name": "Playground",
+          "anchor": "sentence-playground"
+        },
+        {
+          "name": "One part open",
+          "anchor": "sentence-one-part-open"
+        }
+      ]
+    },
+    {
+      "id": "day-tiles",
+      "name": "DayTiles",
+      "title": "Components/DayTiles",
+      "group": "Components",
+      "desc": "A short run of days side by side, each with one number and who is behind it.",
+      "stories": [
+        {
+          "name": "Playground",
+          "anchor": "day-tiles-playground"
+        }
+      ]
     }
   ],
   "Data": [

@@ -52,7 +52,7 @@ import { scheduleVariables, type ScheduleDraft } from './schedule';
 
 type Every = 'day' | 'week' | 'month';
 
-interface ScheduleRow {
+export interface ScheduleRow {
   readonly id: string;
   readonly name: string;
   readonly paused: boolean;
@@ -90,7 +90,7 @@ const EACH_SEES_THEIR_OWN = 'Each recipient sees only the people and columns the
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const hh = (hour: number): string => `${String(hour).padStart(2, '0')}:00`;
 
-function cadenceText(r: Pick<ScheduleRow, 'every' | 'weekday' | 'day' | 'hour'>): string {
+export function cadenceText(r: Pick<ScheduleRow, 'every' | 'weekday' | 'day' | 'hour'>): string {
   if (r.every === 'week')
     return `Weekly on ${WEEKDAYS[(r.weekday ?? 1) - 1] ?? 'Monday'} at ${hh(r.hour)}`;
   if (r.every === 'month') return `Monthly on day ${String(r.day ?? 1)} at ${hh(r.hour)}`;

@@ -48,7 +48,7 @@ export const OPERATIONS = {
   /** T33: breaks, limits, overtime and the default schedule; HR */
   TimeOffAttendanceSettings: `query TimeOffAttendanceSettings {
     timeOffAttendanceSettings {
-      defaultSchedule rules { breakAfterMinutes breakMinutes overtime { becomes multiplier } restMinutes weeklyMaxMinutes }
+      defaultSchedule rules { breakAfterMinutes breakMinutes clockIn { mobile pin reader web } overtime { becomes multiplier } restMinutes weeklyMaxMinutes }
     }
   }`,
 

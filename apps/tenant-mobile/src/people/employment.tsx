@@ -15,6 +15,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  Icon,
   Input,
   List,
   ListItem,
@@ -27,7 +28,9 @@ import {
   Text,
   Textarea,
 } from '@reach/ui-native';
+import { Sparkles } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
+import { View } from 'react-native';
 
 import { useAct } from './act';
 import { longDate } from './display';
@@ -253,6 +256,7 @@ export function MoveDialog({
   timeZone,
   lastPeriod,
   placement,
+  reports = 0,
   onClose,
   onDone,
 }: {
@@ -263,6 +267,8 @@ export function MoveDialog({
   timeZone: string;
   lastPeriod: Period | null;
   placement: Placement | null;
+  /** How many report to them: a leaver's reports need a new manager. */
+  reports?: number;
   onClose: () => void;
   onDone: () => void;
 }): React.JSX.Element {
@@ -460,11 +466,24 @@ export function MoveDialog({
         </>
       ) : null}
       {happens === null ? null : (
-        <Card variant="fill">
-          <Text weight="semibold">What happens</Text>
+        // What follows from it (design v3 P17), so nothing is forgotten and nothing is a surprise.
+        <Card variant={kind === 'giveNotice' || kind === 'terminate' ? 'assistant' : 'fill'}>
+          <View className="flex-row items-center gap-2">
+            {kind === 'giveNotice' || kind === 'terminate' ? (
+              <Icon icon={Sparkles} size={16} tone="accent" />
+            ) : null}
+            <Text weight="semibold">
+              {kind === 'giveNotice' || kind === 'terminate' ? 'Kithena will also' : 'What happens'}
+            </Text>
+          </View>
           <Text variant="subhead" tone="muted">
             {happens}
           </Text>
+          {(kind === 'giveNotice' || kind === 'terminate') && reports > 0 ? (
+            <Text variant="subhead" tone="muted">
+              {`${first}’s ${String(reports)} ${reports === 1 ? 'report needs' : 'reports need'} a new manager before then.`}
+            </Text>
+          ) : null}
         </Card>
       )}
     </ActionDialog>

@@ -20,6 +20,11 @@ const card = cva('rounded-m-card bg-surface', {
       fill: 'bg-surface-sunken',
       /** Lifted off the canvas, for content that floats over context. */
       elevated: 'bg-surface-raised shadow-lg',
+      /**
+       * What the assistant worked out, as distinct from what somebody entered: an
+       * accent edge. Pair it with a sparkles title so the edge is not the only cue.
+       */
+      assistant: 'border-[1.5px] border-accent',
     },
     padded: { true: 'p-4 gap-1.5', false: '' },
     /** Something wanted and missing: the warning edge. The card's own words carry the meaning. */
