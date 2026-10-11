@@ -7,6 +7,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  Icon,
   Input,
   Select,
   SelectContent,
@@ -20,9 +21,11 @@ import {
   Textarea,
   type InputType,
 } from '@reach/ui-native';
+import { Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 
 import { ask, useSigned, type RecordField, type Value } from './api';
+import { ibanCheck, nifSuggestion } from './checks';
 import { uploadFile } from './media';
 
 /** Types whose value is a file People keeps: uploaded when chosen, its id saved like any value. */
@@ -372,6 +375,10 @@ export function AttributeInput({
       : `Changed by ${field.ownedBy}.`
     : null;
   const hint = kept ?? owned ?? field.description;
+  // Worked out as it is typed (design v3 P15, P20): the right NIF letter, a bank's name.
+  const typed = typeof value === 'string' ? value : '';
+  const nif = field.dataType === 'national_id' ? nifSuggestion(typed) : null;
+  const iban = field.dataType === 'bank_account' ? ibanCheck(typed) : null;
   return (
     <Field
       invalid={problem !== undefined}
@@ -388,6 +395,28 @@ export function AttributeInput({
         personId={personId}
       />
       {warning === undefined ? null : <FieldDescription tone="warning">{warning}</FieldDescription>}
+      {nif === null ? null : (
+        <>
+          <FieldDescription tone="warning">{`For ${nif.slice(0, -1)} the letter should be ${nif.at(-1) ?? ''}.`}</FieldDescription>
+          <Button
+            variant="tinted"
+            fullWidth
+            startIcon={<Icon icon={Sparkles} tone="accent" />}
+            onPress={() => {
+              onChange(nif);
+            }}
+          >
+            {`Use ${nif}`}
+          </Button>
+        </>
+      )}
+      {iban === null ? null : (
+        <FieldDescription tone={iban.valid ? 'muted' : 'warning'}>
+          {iban.valid
+            ? `${iban.bank === null ? '' : `${iban.bank} · `}the number checks out`
+            : 'The check digits don’t match: look at the number again.'}
+        </FieldDescription>
+      )}
       {hint === null ? null : <FieldDescription>{hint}</FieldDescription>}
       {problem === undefined ? null : <FieldError>{problem}</FieldError>}
     </Field>

@@ -4,13 +4,14 @@ import {
   Button,
   Card,
   EmptyState,
-  Inline,
+  Icon,
+  ListItem,
   Progress,
-  Stack,
   Text,
 } from '@reach/ui-native';
-import { CircleCheck } from 'lucide-react-native';
+import { Circle, CircleCheck } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from './act';
@@ -108,9 +109,10 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
     setSaved([...done, section.key]);
   };
 
+  const left = total - count;
   return (
     <Page
-      title={`Welcome, ${data.firstName}`}
+      large={`Welcome, ${data.firstName}`}
       back={back}
       {...(section === undefined
         ? {}
@@ -126,7 +128,7 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
                       setWarnings(null);
                     }}
                   >
-                    Do this later
+                    Later
                   </Button>
                 )}
                 <Button
@@ -150,42 +152,90 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
         />
       ) : (
         <>
-          <Text tone="muted">
-            {count === total
+          <Alert tone="accent" variant="summary">
+            {left === 0
               ? 'All done. You can change any of this later from your profile.'
-              : `${String(count)} of ${String(total)} sections done. You can stop any time; nothing you have saved is lost.`}
-          </Text>
-          <Progress value={count} max={total} label="Sections done" />
-          {section === undefined ? (
-            <Alert tone="success" title="All done">
-              {skipped.length === 0
-                ? 'Everything is saved. Change any of it later from your profile.'
-                : 'What you left for later is on your profile, in the Me tab.'}
-            </Alert>
-          ) : (
-            <Card>
-              <Stack gap={4}>
-                <Inline justify="between">
-                  <Text variant="title3">{section.label}</Text>
-                  <Badge size="sm" tone={ASK[section.ask].tone}>
-                    {ASK[section.ask].text}
-                  </Badge>
-                </Inline>
-                {section.fields.map((field) => (
-                  <AttributeInput
-                    key={field.key}
-                    field={field}
-                    value={field.key in draft ? draft[field.key] : original[field.key]}
-                    onChange={(value) => {
-                      setDraft((d) => ({ ...d, [field.key]: value }));
-                      setWarnings(null);
-                    }}
-                    warning={warnings?.find((w) => w.key === field.key)?.message}
-                  />
-                ))}
-              </Stack>
-            </Card>
-          )}
+              : `${left === 1 ? 'One short step' : `${String(left)} short steps`} left. HR only sees what you finish, and nothing you save is lost.`}
+          </Alert>
+          {/* One checklist (P20): done steps ticked, the current one open in place. */}
+          <Card padded={false} className="overflow-hidden">
+            <View className="gap-2 px-4 pb-2 pt-4">
+              <Text variant="headline">{`${String(count)} of ${String(total)} done`}</Text>
+              <Progress value={count} max={total} label="Steps done" />
+            </View>
+            {data.sections.map((s, i) => {
+              const finished = done.has(s.key);
+              const current = section?.key === s.key;
+              if (current)
+                return (
+                  <View key={s.key} className="gap-4 bg-accent-subtle px-4 py-4">
+                    <View className="flex-row items-center gap-3">
+                      <View className="size-7 items-center justify-center rounded-full bg-accent-solid">
+                        <Text variant="footnote" weight="bold" className="text-fg-on-accent">
+                          {String(i + 1)}
+                        </Text>
+                      </View>
+                      <Text variant="headline" className="flex-1">
+                        {s.label}
+                      </Text>
+                      {s.ask === 'required' ? null : (
+                        <Badge size="sm" tone={ASK[s.ask].tone}>
+                          {ASK[s.ask].text}
+                        </Badge>
+                      )}
+                    </View>
+                    {s.fields.map((field) => (
+                      <AttributeInput
+                        key={field.key}
+                        field={field}
+                        value={field.key in draft ? draft[field.key] : original[field.key]}
+                        onChange={(value) => {
+                          setDraft((d) => ({ ...d, [field.key]: value }));
+                          setWarnings(null);
+                        }}
+                        warning={warnings?.find((w) => w.key === field.key)?.message}
+                      />
+                    ))}
+                  </View>
+                );
+              return (
+                <ListItem
+                  key={s.key}
+                  listitem={false}
+                  leading={
+                    <Icon
+                      icon={finished ? CircleCheck : Circle}
+                      size={22}
+                      tone={finished ? 'success' : 'subtle'}
+                    />
+                  }
+                  {...(finished || s.ask === 'required'
+                    ? {}
+                    : { description: ASK[s.ask].text })}
+                  {...(finished
+                    ? { className: 'opacity-70' }
+                    : {
+                        chevron: true,
+                        onPress: () => {
+                          // Jump to it: what comes before it is left for later.
+                          setSkipped(
+                            data.sections
+                              .slice(0, i)
+                              .filter((x) => !done.has(x.key))
+                              .map((x) => x.key),
+                          );
+                          setWarnings(null);
+                        },
+                      })}
+                >
+                  {s.label}
+                </ListItem>
+              );
+            })}
+          </Card>
+          {section === undefined && skipped.length > 0 ? (
+            <Text tone="muted">What you left for later is on your profile, in the Me tab.</Text>
+          ) : null}
         </>
       )}
     </Page>
