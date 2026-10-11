@@ -14,7 +14,8 @@ persisted_operations:
   # Self-hosted, no control plane: the safelist is the files under
   # `persisted/operations/<sha256>.json`, one `{ "version": 1, "body": … }`
   # per operation, generated from the tenant app's list
-  # (`apps/web/src/lib/people-operations.ts` and `timeoff-operations.ts`,
+  # (`apps/web/src/lib/people-operations.ts`, `timeoff-operations.ts` and
+  # `documents-operations.ts`,
   # `pnpm --filter @kithena/gateway persist`). Relative to the router's
   # working directory: `apps/gateway` for `pnpm dev`, `/` in the image, where
   # `persisted/` is mounted.
@@ -124,6 +125,22 @@ headers:
         - op: 'set'
           name: 'x-internal-token'
           value: '${TIMEOFF_API_TOKEN}'
+    # Documents (`services/documents/src/http/caller.ts`): Time Off's principal,
+    # under Documents' own secret.
+    documents:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","impersonatedBy":' +
+            (request.auth.claims.act?.sub == nil || request.auth.claims.act?.kind == 'view_as' ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"viewedBy":' +
+            (request.auth.claims.act?.sub != nil && request.auth.claims.act?.kind == 'view_as' ? '"' + request.auth.claims.act.sub + '"' : 'null') +
+            ',"entitlements":${KITHENA_ENTITLEMENTS}}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${DOCUMENTS_API_TOKEN}'
     # The central activity log (`platform/audit`, `docs/audit.md`): the same
     # principal, less what only People reads, and its own secret — one per
     # pair of services, so a leak of People's does not open the log.
@@ -186,15 +203,18 @@ security:
       enabled: true
       limit: 20
 
-# No file comes through the router. An import's file goes from the browser
-# straight to object storage with a presigned PUT that People issues (PRD
-# §14.2); the router carries only where to put it. Uploads are off, so a
-# multipart request is refused here, before any subgraph sees it.
+# No multipart file comes through the router. An import's file goes from the
+# browser straight to object storage with a presigned PUT that People issues
+# (PRD §14.2); a Documents file is base64 inside a JSON mutation (Documents PRD
+# §8.1). Uploads are off, so a multipart request is refused here.
 file_upload:
   enabled: false
 
-# Every body is small JSON: the router's default ceiling stands.
 traffic_shaping:
+  # Every body is small JSON but a Documents upload, which carries one file of
+  # up to 25 MB as base64 (Documents PRD §8.1): about 34 MB, so 40 MB here.
+  router:
+    max_request_body_size: 40MB
   all:
     request_timeout: 30s
   # Committing a 100 MB import writes every row in one transaction, which can
@@ -202,6 +222,9 @@ traffic_shaping:
   subgraphs:
     people:
       request_timeout: 300s
+    # A 25 MB upload, sealed and stored, or a watermarked copy drawn.
+    documents:
+      request_timeout: 120s
 
 # Event-driven federation: a Redpanda topic backs a GraphQL subscription
 # declaratively, instead of per-module pub/sub plumbing.

@@ -230,6 +230,19 @@ CREATE TABLE documents.idempotency_key (
   CONSTRAINT idempotency_key_length CHECK (length(key) BETWEEN 1 AND 255)
 );
 
+-- Every tenant with a document, for the nightly sweep: Time Off's
+-- `timeoff.tenant`. Listing is open (ids only); registering is the tenant's own.
+CREATE TABLE documents.tenant (
+  tenant_id     uuid PRIMARY KEY,
+  first_seen_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE documents.tenant ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents.tenant FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_list ON documents.tenant FOR SELECT USING (true);
+CREATE POLICY tenant_register ON documents.tenant FOR INSERT
+  WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+GRANT SELECT, INSERT ON documents.tenant TO svc_documents;
+
 CREATE TRIGGER document_type_touch BEFORE UPDATE ON documents.document_type
   FOR EACH ROW EXECUTE FUNCTION documents.touch_updated_at();
 CREATE TRIGGER document_touch BEFORE UPDATE ON documents.document
