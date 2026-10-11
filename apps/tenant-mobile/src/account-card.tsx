@@ -33,8 +33,8 @@ export const fullName = (person: Person): string =>
 
 /** What the account menu does beyond the screen it is on: the tab bar's and the app's. */
 export interface AccountActions {
-  /** Shows the Me tab, or the Time off tab. */
-  readonly open: (tab: 'me' | 'timeoff') => void;
+  /** Shows another tab: Me, Time off, the Inbox. */
+  readonly open: (tab: 'home' | 'timeoff' | 'people' | 'inbox' | 'me') => void;
   /** Whether the company has Time Off, so My time off has somewhere to go. */
   readonly timeOff: boolean;
   /** Signs out and asks for another company's address. */

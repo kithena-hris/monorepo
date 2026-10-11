@@ -1,41 +1,29 @@
 import {
-  Badge,
+  ActionCard,
+  Alert,
   Button,
   Card,
   CardDescription,
   CardTitle,
-  CircularProgress,
   Icon,
-  Inline,
-  List,
-  ListItem,
   Stack,
   Stat,
-  Text,
   useToast,
 } from '@reach/ui-native';
-import {
-  BellRing,
-  Camera,
-  CircleCheck,
-  ClipboardList,
-  CircleDashed,
-  Clock,
-  Copy,
-  KeyRound,
-  PencilLine,
-  ScanFace,
-  TriangleAlert,
-  UserPlus,
-} from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable } from 'react-native';
+import { Camera, ClipboardList } from 'lucide-react-native';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { Pressable, View } from 'react-native';
 
-import { Failed, Loading, Page } from '../frame';
-import { AddPersonDialog } from './add-person';
+import { AccountActionsContext } from '../account-card';
+import { Failed, Heading, Loading, Page } from '../frame';
+import { useInbox } from '../inbox/api';
+import { homeBrief, tasksOf } from '../inbox/brief';
+import { TaskCard } from '../inbox/task-card';
+import { useTimeOff } from '../timeoff/api';
+import { clockTime, duration } from '../timeoff/time';
+import { amount } from '../timeoff/words';
 import { ask, useSigned } from './api';
-import { longDate } from './display';
-import { changePhoto, PersonAvatar, uploadFile } from './media';
+import { changePhoto, uploadFile } from './media';
 import type { OnboardingData } from './onboarding';
 import type { PeopleScreen } from './routes';
 
@@ -112,138 +100,37 @@ interface Overview {
   } | null;
 }
 
-interface HrFigures {
-  readonly headcount: { value: number; change: number | null } | null;
-  readonly complete: { percent: number; incomplete: number } | null;
-  readonly expiring: number | null;
-  readonly waiting: {
-    identifiers: number | null;
-    duplicates: number | null;
-    accessRequests: number | null;
-    identifiersBy: string[] | null;
-    duplicatesBy: string[] | null;
-    accessRequestsBy: string[] | null;
+/** Enough of Time Off's overview for Home's two tiles. */
+interface TimeOffGlance {
+  readonly clock: {
+    readonly state: 'out' | 'in' | 'on_break';
+    readonly today: {
+      readonly workedMinutes: number | null;
+      readonly segments: readonly { readonly kind: string; readonly from: number }[];
+    };
   } | null;
-  readonly starting: readonly {
-    id: string;
-    name: string;
-    avatarUrl: string | null;
-    detail: string;
-    missing: number | null;
+  readonly balances: readonly {
+    readonly leaveTypeKey: string;
+    readonly name: string;
+    readonly unit: 'day' | 'hour';
+    readonly left: string;
+    readonly yearly: string | null;
   }[];
 }
 
-/** "2 hours ago", "yesterday", "3 days ago": how long something has waited. */
-function waited(since: string, now: string): string {
-  const hours = Math.max(0, Math.floor((Date.parse(now) - Date.parse(since)) / 3_600_000));
-  if (hours < 1) return 'just now';
-  if (hours < 24) return `${String(hours)} ${hours === 1 ? 'hour' : 'hours'} ago`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? 'yesterday' : `${String(days)} days ago`;
-}
-
-const counted = (n: number, one: string, many: string): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
-
-/** HR's figures, read beside the overview, each People's own; one refused is left out. */
-async function readHr(signed: ReturnType<typeof useSigned>): Promise<HrFigures> {
-  const [analytics, waiting, starting] = await Promise.all([
-    ask<{
-      headcount: { value: number; change: number | null };
-      complete: { percent: number; incomplete: number } | null;
-      expiringIn90Days: number | null;
-    }>(signed, 'Analytics', { segment: null }),
-    ask<HrFigures['waiting']>(signed, 'Waiting'),
-    ask<{
-      people: {
-        id: string;
-        name: string;
-        avatarUrl: string | null;
-        values: { key: string; value: string }[];
-        missing: number | null;
-      }[];
-    }>(signed, 'Directory', {
-      conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
-      sort: 'hire_date:asc',
-    }),
-  ]);
-  return {
-    headcount: analytics.ok ? analytics.data.headcount : null,
-    complete: analytics.ok ? analytics.data.complete : null,
-    expiring: analytics.ok ? analytics.data.expiringIn90Days : null,
-    waiting: waiting.ok ? waiting.data : null,
-    starting: starting.ok
-      ? starting.data.people.slice(0, 5).map((p) => ({
-          id: p.id,
-          name: p.name,
-          avatarUrl: p.avatarUrl,
-          missing: p.missing,
-          // "Data analyst · 1 Nov": what they will do, and when they start.
-          detail: p.values
-            .filter((v) => v.key !== 'status' && v.value !== '')
-            .map((v) => (/^\d{4}-\d{2}-\d{2}$/.test(v.value) ? longDate(v.value) : v.value))
-            .slice(0, 2)
-            .join(' · '),
-        }))
-      : [],
-  };
-}
-
-/** A row of the To do or Needs HR list: a tile, what, why, and the one way onward. */
-function Todo({
-  icon,
-  tone,
-  title,
-  description,
-  word,
-  primary = false,
-  onPress,
-}: {
-  icon: typeof Clock;
-  tone?: 'danger' | 'warning' | 'info' | 'accent';
-  title: string;
-  description: string;
-  word: string | null;
-  primary?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <ListItem
-      icon={icon}
-      {...(tone === undefined
-        ? {}
-        : { iconTone: tone === 'danger' ? 5 : tone === 'warning' ? 4 : 1 })}
-      description={description}
-      onPress={onPress}
-      {...(word === null
-        ? { chevron: true }
-        : {
-            trailing: (
-              <Button size="sm" variant={primary ? 'primary' : 'secondary'} onPress={onPress}>
-                {word}
-              </Button>
-            ),
-          })}
-    >
-      {title}
-    </ListItem>
-  );
-}
-
 /**
- * People's home (design B1, B2): "Hi", then for anybody their one To do list
- * (corrections, details to add, changes waiting on HR) and their reporting
- * line; for HR the figures and one "Needs HR" list, each row opening Review
- * with its chip chosen, and who is starting. Signing up's last asks (a photo,
- * a file) come first.
+ * Home (design v3 H1): a one-line briefing, the two tasks that matter most
+ * with their buttons on the cards, and the balance and the clock as tiles.
+ * Signing up's last asks (a photo, a file) and onboarding come first.
  */
 export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Element {
   const signed = useSigned();
   const { toast } = useToast();
+  const tabs = useContext(AccountActionsContext);
+  const { inbox } = useInbox();
+  const glance = useTimeOff<TimeOffGlance>('TimeOffOverview', {});
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [hr, setHr] = useState<HrFigures | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
   const [later, setLater] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState(0);
@@ -259,19 +146,19 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
     }
     setFailed(null);
     setOverview(read.data);
-    // What onboarding still asks: a row on Home until every section is saved.
+    // What onboarding still asks: a card on Home until every section is saved.
     void ask<OnboardingData>(signed, 'Onboarding').then((onboarding) => {
       if (mine !== round.current || !onboarding.ok) return;
       setOnboarding(
         onboarding.data.sections.filter((x) => !onboarding.data.saved.includes(x.key)).length,
       );
     });
-    if (read.data.roles.hr) setHr(await readHr(signed));
   };
   useEffect(() => {
     void load();
     return navigation.addListener('focus', () => {
       void load();
+      glance.reload();
     });
   }, [navigation, signed]);
 
@@ -289,171 +176,21 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
       </Page>
     );
 
-  const { me, reportingLine, approvals, team, setup } = overview;
-  const hrHome = overview.roles.hr ? hr : null;
-  const when =
-    me === null
-      ? ''
-      : `${me.location === null ? '' : `${me.location} · `}${new Intl.DateTimeFormat(undefined, { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: me.timeZone }).format(new Date(overview.now))}`;
-  const review = (kind: string): void => {
-    navigation.navigate('Review', { kind });
-  };
-  const edit = (sectionKey: string): void => {
-    navigation.navigate('EditSection', { sectionKey, back: 'Home' });
-  };
-
-  // Their own: corrections, details only they add, and their changes with HR.
-  const corrections = overview.corrections ?? [];
-  const yours = overview.missing.filter((m) => m.ownedBy === null);
-  const theirs = overview.missing.filter((m) => m.ownedBy !== null);
-  const changes = approvals !== null && !approvals.isHr ? approvals.items : [];
-  const percent =
-    me === null || me.required === 0
-      ? 100
-      : Math.round(((me.required - overview.missing.length) / me.required) * 100);
-
-  // HR's: one Needs HR list across every queue.
-  const needs: React.JSX.Element[] = [];
-  if (hrHome !== null) {
-    if ((approvals?.total ?? 0) > 0) {
-      needs.push(
-        <Todo
-          key="changes"
-          icon={PencilLine}
-          title={counted(approvals?.total ?? 0, 'change to approve', 'changes to approve')}
-          description={
-            (approvals?.flagged ?? 0) > 0
-              ? `${String(approvals?.flagged)} ${approvals?.flagged === 1 ? 'looks' : 'look'} unusual`
-              : 'Waiting for your decision'
-          }
-          word={null}
-          onPress={() => {
-            review('changes');
-          }}
-        />,
-      );
-    }
-    const w = hrHome.waiting;
-    if ((w?.identifiers ?? 0) > 0)
-      needs.push(
-        <Todo
-          key="ids"
-          icon={ScanFace}
-          title={counted(w?.identifiers ?? 0, 'identifier to check', 'identifiers to check')}
-          description="Failed a check, or couldn’t be verified"
-          word={null}
-          onPress={() => {
-            review('ids');
-          }}
-        />,
-      );
-    if ((w?.duplicates ?? 0) > 0)
-      needs.push(
-        <Todo
-          key="dups"
-          icon={Copy}
-          title={counted(w?.duplicates ?? 0, 'possible duplicate', 'possible duplicates')}
-          description="Same work email, or name and birth date"
-          word={null}
-          onPress={() => {
-            review('duplicates');
-          }}
-        />,
-      );
-    if ((w?.accessRequests ?? 0) > 0)
-      needs.push(
-        <Todo
-          key="access"
-          icon={KeyRound}
-          title={counted(
-            w?.accessRequests ?? 0,
-            'request for full values',
-            'requests for full values',
-          )}
-          description={`${(w?.accessRequestsBy ?? []).join(' and ') || 'Somebody'} asked to see unmasked values`}
-          word={null}
-          onPress={() => {
-            review('access');
-          }}
-        />,
-      );
-    if (team !== null && team.toFill > 0)
-      needs.push(
-        <Todo
-          key="fill"
-          icon={CircleDashed}
-          title={counted(team.toFill, 'detail for HR', 'details for HR')}
-          description="Missing details only HR keeps"
-          word={null}
-          onPress={() => {
-            review('missing');
-          }}
-        />,
-      );
-    if (team !== null && team.waiting > 0)
-      needs.push(
-        <Todo
-          key="remind"
-          icon={BellRing}
-          title={`${counted(team.waiting, 'person has', 'people have')} details to add`}
-          description="Reminded by email once a week"
-          word={null}
-          onPress={() => {
-            review('missing');
-          }}
-        />,
-      );
-  }
-
+  const { me, setup } = overview;
   const setupShown =
     me !== null &&
     setup !== null &&
     (setup.photo !== null || setup.fields.length > 0) &&
     (!later || setup.photo === 'required' || setup.fields.some((f) => f.required));
+  const tasks = inbox === null ? [] : tasksOf(inbox);
+  const brief = inbox === null ? null : homeBrief(inbox);
+  const time = glance.load.status === 'ready' ? glance.load.data : null;
+  const balance = time?.balances.find((b) => b.unit === 'day' && b.yearly !== null) ?? null;
+  const clock = time?.clock ?? null;
+  const since = clock?.today.segments.find((x) => x.kind !== 'planned' && x.kind !== 'missing');
 
   return (
-    <Page
-      large={me === null ? 'Home' : `Hi ${first(me.name)}`}
-      {...(hrHome === null
-        ? {}
-        : {
-            trailing: (
-              <Button
-                size="sm"
-                startIcon={<Icon icon={UserPlus} />}
-                accessibilityLabel="Add a person"
-                onPress={() => {
-                  setAdding(true);
-                }}
-              />
-            ),
-          })}
-    >
-      <AddPersonDialog
-        open={adding}
-        onOpenChange={setAdding}
-        onAdded={(personId, name) => {
-          navigation.navigate('Profile', { personId, name, back: 'Home' });
-        }}
-      />
-      {when === '' ? null : <Text tone="muted">{when}</Text>}
-
-      {onboarding === 0 ? null : (
-        <List>
-          <Todo
-            icon={ClipboardList}
-            tone="accent"
-            title="Finish your onboarding"
-            description={`${String(onboarding)} ${onboarding === 1 ? 'section' : 'sections'} to go. Each saves on its own.`}
-            word="Continue"
-            primary
-            onPress={() => {
-              navigation.navigate('Onboarding');
-            }}
-          />
-        </List>
-      )}
-
+    <Page large={me === null ? 'Home' : `Hi ${first(me.name)}`}>
       {setupShown ? (
         <Card>
           <CardTitle>Finish setting up your account</CardTitle>
@@ -530,257 +267,102 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
         </Card>
       ) : null}
 
-      {hrHome === null ? null : (
-        <>
-          <Inline gap={2} wrap={false}>
-            {hrHome.headcount === null ? null : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Headcount ${String(hrHome.headcount.value)}: open the Directory`}
-                className="flex-1"
-                onPress={() => {
-                  navigation.navigate('Directory');
-                }}
-              >
-                <Stat label="Headcount" value={hrHome.headcount.value.toLocaleString('en-GB')} />
-              </Pressable>
-            )}
-            {hrHome.complete === null ? null : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${String(hrHome.complete.percent)}% complete: open missing details`}
-                className="flex-1"
-                onPress={() => {
-                  review('missing');
-                }}
-              >
-                <Stat label="Complete" value={hrHome.complete.percent} unit="%" />
-              </Pressable>
-            )}
-          </Inline>
-          <Stack gap={2}>
-            <Inline justify="between" className="px-1">
-              <Text variant="footnote" weight="semibold" tone="muted">
-                Needs HR
-              </Text>
-              <Button
-                size="xs"
-                variant="link"
-                onPress={() => {
-                  navigation.navigate('Review');
-                }}
-              >
-                Review
-              </Button>
-            </Inline>
-            {needs.length === 0 ? (
-              <Card>
-                <Inline gap={2}>
-                  <Icon icon={CircleCheck} tone="success" />
-                  <Text>Nothing needs HR. Records are complete and nothing is flagged.</Text>
-                </Inline>
-              </Card>
-            ) : (
-              <List>{needs}</List>
-            )}
-          </Stack>
-          {hrHome.starting.length === 0 ? null : (
-            <Stack gap={2}>
-              <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-                Starting soon
-              </Text>
-              <List>
-                {hrHome.starting.map((p) => (
-                  <ListItem
-                    key={p.id}
-                    leading={
-                      <PersonAvatar
-                        personId={p.id}
-                        name={p.name}
-                        avatarUrl={p.avatarUrl}
-                        size={40}
-                      />
-                    }
-                    description={p.detail}
-                    trailing={
-                      p.missing === null || p.missing === 0 ? (
-                        <Badge size="sm" tone="success">
-                          Ready
-                        </Badge>
-                      ) : (
-                        <Badge size="sm" tone="warning">{`${String(p.missing)} missing`}</Badge>
-                      )
-                    }
-                    onPress={() => {
-                      navigation.navigate('Profile', {
-                        personId: p.id,
-                        name: p.name,
-                        back: 'Home',
-                      });
-                    }}
-                  >
-                    {p.name}
-                  </ListItem>
-                ))}
-              </List>
-            </Stack>
-          )}
-        </>
+      {brief === null ? null : (
+        <Alert tone="accent" variant="summary">
+          {brief}
+        </Alert>
       )}
 
-      {me === null || hrHome !== null ? null : (
-        <>
-          <Card
-            onPress={() => {
-              navigation.navigate('Profile', { back: 'Home' });
-            }}
-          >
-            <Inline gap={3} wrap={false}>
-              <PersonAvatar personId={me.id} name={me.name} avatarUrl={me.avatarUrl} size={56} />
-              <Stack gap={1} className="flex-1">
-                <Text variant="title3">{me.name}</Text>
-                <Text variant="subhead" tone="muted">
-                  {[me.title, me.department].filter((x) => x !== null).join(' · ')}
-                </Text>
-              </Stack>
-            </Inline>
-          </Card>
-          <Card>
-            <Inline gap={3} wrap={false}>
-              <CircularProgress
-                value={percent}
-                size={44}
-                label={`${String(overview.missing.length)} of ${String(me.required)} required details missing`}
-              />
-              <Stack gap={1} className="flex-1">
-                <Text weight="semibold">{`${String(percent)}% of your record`}</Text>
-                <Text variant="subhead" tone="muted">
-                  {corrections.length + yours.length + changes.length === 0
-                    ? overview.missing.length === 0
-                      ? 'Your record is complete'
-                      : 'Nothing for you to do'
-                    : counted(
-                        corrections.length + yours.length + changes.length,
-                        'thing to do',
-                        'things to do',
-                      )}
-                </Text>
-              </Stack>
-            </Inline>
-            {corrections.length + yours.length + changes.length === 0 ? null : (
-              <List className="mt-2">
-                {corrections.map((c) => (
-                  <Todo
-                    key={`c-${c.key}`}
-                    icon={TriangleAlert}
-                    tone="danger"
-                    title={`Correct your ${c.label}`}
-                    description={`HR couldn’t accept it: ${c.reason}`}
-                    word="Fix"
-                    primary
-                    onPress={() => {
-                      edit(c.sectionKey);
-                    }}
-                  />
-                ))}
-                {yours.map((m) => (
-                  <Todo
-                    key={m.key}
-                    icon={CircleDashed}
-                    title={`Add your ${m.label.toLowerCase()}`}
-                    description={m.section}
-                    word="Add"
-                    onPress={() => {
-                      edit(m.sectionKey);
-                    }}
-                  />
-                ))}
-                {changes.map((c) => (
-                  <Todo
-                    key={c.id}
-                    icon={Clock}
-                    title={`Your new ${c.label.toLowerCase()} is with HR`}
-                    description={`Sent ${waited(c.requestedAt, overview.now)} · nothing changes until HR approves`}
-                    word={null}
-                    onPress={() => {
-                      navigation.navigate('ReviewChange', { id: c.id });
-                    }}
-                  />
-                ))}
-              </List>
-            )}
-            {theirs.length === 0 ? null : (
-              <Text variant="footnote" tone="muted" className="pt-2">
-                {`Waiting on ${[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}: ${theirs.map((m) => m.label).join(', ')}.`}
-              </Text>
-            )}
-          </Card>
-        </>
-      )}
-
-      {reportingLine === null || reportingLine.managers.length === 0 ? null : (
-        <Stack gap={2}>
-          <Inline justify="between" className="px-1">
-            <Text variant="footnote" weight="semibold" tone="muted">
-              Your reporting line
-            </Text>
+      {onboarding === 0 ? null : (
+        <ActionCard
+          icon={ClipboardList}
+          tone="accent"
+          title="Finish your onboarding"
+          description={`${String(onboarding)} ${onboarding === 1 ? 'step' : 'steps'} to go. Each saves on its own.`}
+          actions={
             <Button
-              size="xs"
-              variant="link"
+              size="sm"
+              variant="primary"
               onPress={() => {
-                navigation.navigate('OrgChart');
+                navigation.navigate('Onboarding');
               }}
             >
-              Org chart
+              Continue
             </Button>
-          </Inline>
-          <List>
-            {reportingLine.managers.slice(0, 1).map((m) => (
-              <ListItem
-                key={m.id}
-                leading={
-                  <PersonAvatar personId={m.id} name={m.name} avatarUrl={m.avatarUrl} size={40} />
-                }
-                description={
-                  reportingLine.peers === null
-                    ? 'Your manager'
-                    : `Your manager · ${reportingLine.peers === 0 ? 'nobody else reports to them' : `${String(reportingLine.peers)} ${reportingLine.peers === 1 ? 'other reports' : 'others report'} to ${first(m.name)}`}`
-                }
-                chevron
-                onPress={() => {
-                  navigation.navigate('Profile', { personId: m.id, name: m.name, back: 'Home' });
-                }}
-              >
-                {m.name}
-              </ListItem>
-            ))}
-          </List>
-        </Stack>
+          }
+        />
       )}
 
-      {reportingLine === null || reportingLine.reports.length === 0 ? null : (
-        <Stack gap={2}>
-          <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-            {`Your direct reports · ${String(reportingLine.reportsTotal)}`}
-          </Text>
-          <List>
-            {reportingLine.reports.map((r) => (
-              <ListItem
-                key={r.id}
-                leading={
-                  <PersonAvatar personId={r.id} name={r.name} avatarUrl={r.avatarUrl} size={40} />
+      {tasks.length === 0 || inbox === null ? null : (
+        <>
+          <Heading
+            title="Needs you"
+            action={`Inbox · ${String(inbox.counts.todo)}`}
+            onAction={() => {
+              tabs?.open('inbox');
+            }}
+          />
+          {tasks.slice(0, 2).map((item) => (
+            <TaskCard
+              key={item.id}
+              item={item}
+              now={inbox.now}
+              zone={inbox.zone}
+              navigation={navigation}
+            />
+          ))}
+        </>
+      )}
+
+      {balance === null && clock === null ? null : (
+        <View className="flex-row gap-2.5">
+          {balance === null ? null : (
+            <Pressable
+              className="flex-1"
+              accessibilityRole="button"
+              accessibilityLabel={`${balance.name}: ${amount(balance.left)} days left. Where the days went`}
+              onPress={() => {
+                navigation.navigate('TimeOffBalance', {
+                  leaveTypeKey: balance.leaveTypeKey,
+                  name: balance.name,
+                });
+              }}
+            >
+              <Stat
+                label={balance.name}
+                value={amount(balance.left)}
+                unit="days"
+                size={24}
+                description="left this year"
+              />
+            </Pressable>
+          )}
+          {clock === null ? null : (
+            <Pressable
+              className="flex-1"
+              accessibilityRole="button"
+              accessibilityLabel="Open Time off"
+              onPress={() => {
+                tabs?.open('timeoff');
+              }}
+            >
+              <Stat
+                label={
+                  clock.state === 'in'
+                    ? 'Clocked in'
+                    : clock.state === 'on_break'
+                      ? 'On a break'
+                      : 'Not clocked in'
                 }
-                {...(r.title === null ? {} : { description: r.title })}
-                chevron
-                onPress={() => {
-                  navigation.navigate('Profile', { personId: r.id, name: r.name, back: 'Home' });
-                }}
-              >
-                {r.name}
-              </ListItem>
-            ))}
-          </List>
-        </Stack>
+                value={duration(clock.today.workedMinutes ?? 0)}
+                size={24}
+                description={
+                  since === undefined ? 'worked today' : `since ${clockTime(since.from)}`
+                }
+              />
+            </Pressable>
+          )}
+        </View>
       )}
     </Page>
   );

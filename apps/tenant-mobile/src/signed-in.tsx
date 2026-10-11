@@ -17,7 +17,7 @@ import type { Company, Person } from './account';
 import { AccountActionsContext, AccountMenu, fullName, type AccountActions } from './account-card';
 import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
 import { read, readAhead, SignedContext, type Signed } from './people/api';
-import { AskKithena } from './people/ask';
+import { AskKithena, type TimeOffAsk } from './people/ask';
 import { BulkEdit } from './people/bulk';
 import { Directory } from './people/directory';
 import { EditSection } from './people/edit-section';
@@ -198,6 +198,8 @@ export function SignedIn({
   const [ending, setEnding] = useState(false);
   // The People tab's stack, so an answer's person opens there.
   const [people] = useState(() => createNavigationContainerRef<PeopleRoutes>());
+  // The Time off tab's stack, so an answer's request opens there (v3 H2).
+  const [timeOffStack] = useState(() => createNavigationContainerRef<PeopleRoutes>());
   // The Inbox tab's stack, so a notification opens its item there (M:A2).
   const [inboxStack] = useState(() => createNavigationContainerRef<PeopleRoutes>());
   // The Inbox tab's count: tasks only, as the web's bell counts them (M:A1).
@@ -343,7 +345,7 @@ export function SignedIn({
                 </View>
                 {timeOff ? (
                   <View className="flex-1" style={shown('timeoff')}>
-                    <TabStack initial="TimeOff" />
+                    <TabStack initial="TimeOff" container={timeOffStack} />
                   </View>
                 ) : null}
                 <View className="flex-1" style={shown('people')}>
@@ -393,6 +395,15 @@ export function SignedIn({
                       setTab('inbox');
                       if (inboxStack.isReady()) inboxStack.navigate('InboxItem', { id });
                     }}
+                    {...(timeOff
+                      ? {
+                          onRequest: (asked: TimeOffAsk) => {
+                            setTab('timeoff');
+                            if (timeOffStack.isReady())
+                              timeOffStack.navigate('TimeOffRequest', asked);
+                          },
+                        }
+                      : {})}
                     onOpenPerson={(personId, name) => {
                       setTab('people');
                       if (people.isReady())
