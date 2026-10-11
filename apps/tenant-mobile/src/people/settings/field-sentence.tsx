@@ -115,8 +115,16 @@ function FieldWords({
           { id: 'see', text: words.see, active: open === 'see' },
           ' can see it. ',
           ...(draft.collectAt === 'hr_only'
-            ? ['Nobody is asked for it ', { id: 'asked', text: 'until HR adds it', active: open === 'asked' }, '. ']
-            : ['People are asked for it ', { id: 'asked', text: words.asked, active: open === 'asked' }, '. ']),
+            ? [
+                'Nobody is asked for it ',
+                { id: 'asked', text: 'until HR adds it', active: open === 'asked' },
+                '. ',
+              ]
+            : [
+                'People are asked for it ',
+                { id: 'asked', text: words.asked, active: open === 'asked' },
+                '. ',
+              ]),
           'It’s ',
           {
             id: 'kind',
@@ -138,7 +146,9 @@ function FieldWords({
               key={c.label}
               listitem={false}
               leading={
-                <View className="w-4">{c.on ? <Icon icon={Check} size={16} tone="accent" /> : null}</View>
+                <View className="w-4">
+                  {c.on ? <Icon icon={Check} size={16} tone="accent" /> : null}
+                </View>
               }
               onPress={c.pick}
             >
@@ -202,7 +212,12 @@ export function FieldSentenceDialog({
               </Text>
               <Field>
                 <FieldLabel>{draft.label}</FieldLabel>
-                <Input value="" onChange={() => undefined} disabled placeholder={draft.description || ' '} />
+                <Input
+                  value=""
+                  onChange={() => undefined}
+                  disabled
+                  placeholder={draft.description || ' '}
+                />
               </Field>
             </Card>
             <Card padded={false} className="overflow-hidden">
@@ -248,7 +263,12 @@ export function FieldSentenceDialog({
               void act(
                 'SaveDraftField',
                 {
-                  input: draftInput(draft, field.piiKind, 'human', field.encrypted === true || forced),
+                  input: draftInput(
+                    draft,
+                    field.piiKind,
+                    'human',
+                    field.encrypted === true || forced,
+                  ),
                   editing: field.key,
                 },
                 'Saved to the draft',
@@ -442,7 +462,10 @@ export function AskedChange({
       : {
           ...before,
           visibility: [
-            ...new Set([...before.visibility.filter((v) => !change.remove.includes(v)), ...change.add]),
+            ...new Set([
+              ...before.visibility.filter((v) => !change.remove.includes(v)),
+              ...change.add,
+            ]),
           ],
         };
   return (
@@ -473,7 +496,12 @@ export function AskedChange({
         </View>
       )}
       {change.kind === 'see' && change.add.includes('manager') ? (
-        <ListItem listitem={false} icon={Users} description="Each manager sees only their own reports." className="bg-transparent px-0">
+        <ListItem
+          listitem={false}
+          icon={Users}
+          description="Each manager sees only their own reports."
+          className="bg-transparent px-0"
+        >
           Managers, for their reports
         </ListItem>
       ) : null}
@@ -499,7 +527,10 @@ export function AskedChange({
           onPress={() => {
             void act(
               'SaveDraftField',
-              { input: draftInput(after, field.piiKind, 'human', field.encrypted === true), editing: field.key },
+              {
+                input: draftInput(after, field.piiKind, 'human', field.encrypted === true),
+                editing: field.key,
+              },
               'Saved as a draft',
             ).then((done) => {
               if (done !== null) onDone();

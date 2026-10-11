@@ -651,7 +651,12 @@ export function ChangeOrCancel({
                   {
                     requestId,
                     input: {
-                      span: { from: range.start, to: range.end, startsHalfDay: false, endsHalfDay: false },
+                      span: {
+                        from: range.start,
+                        to: range.end,
+                        startsHalfDay: false,
+                        endsHalfDay: false,
+                      },
                     },
                   },
                   'Change sent',

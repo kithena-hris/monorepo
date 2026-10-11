@@ -108,7 +108,10 @@ export function RequestDialog({
       setTypes(answer.data.leaveTypes);
       setPreview(answer.data.preview);
       // The first type, Vacation as a rule, is chosen until somebody picks another.
-      setType((was) => was ?? answer.data.leaveTypes.find((t) => t.category !== 'parental_leave')?.key ?? null);
+      setType(
+        (was) =>
+          was ?? answer.data.leaveTypes.find((t) => t.category !== 'parental_leave')?.key ?? null,
+      );
     });
     return () => {
       live = false;
@@ -184,7 +187,12 @@ export function RequestDialog({
           <Button
             className="flex-1"
             variant="primary"
-            disabled={preview === null || preview.blocked || preview.negative.kind === 'refused' || type === null}
+            disabled={
+              preview === null ||
+              preview.blocked ||
+              preview.negative.kind === 'refused' ||
+              type === null
+            }
             loading={busy === 'RequestTimeOff'}
             onPress={() => {
               if (preview === null || type === null) return;

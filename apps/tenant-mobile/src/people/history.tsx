@@ -308,7 +308,9 @@ export function HistoryDialog({
     const sectionOf = new Map(
       data.sections.flatMap((sec) => sec.fields.map((f) => [f.key, sec.key] as const)),
     );
-    const fields = new Map(data.sections.flatMap((sec) => sec.fields.map((f) => [f.key, f] as const)));
+    const fields = new Map(
+      data.sections.flatMap((sec) => sec.fields.map((f) => [f.key, f] as const)),
+    );
     const changes = data.changes.map((c) => ({ ...c, value: valueOf(c.value) }));
     const shown = changes
       .filter((c) => fields.has(c.key) && (only === ALL || sectionOf.get(c.key) === only))
@@ -317,7 +319,13 @@ export function HistoryDialog({
     body = (
       <>
         <View>
-          <ChipGroup type="single" value={only} onValueChange={setOnly} accessibilityLabel="Sections" scroll>
+          <ChipGroup
+            type="single"
+            value={only}
+            onValueChange={setOnly}
+            accessibilityLabel="Sections"
+            scroll
+          >
             <ChipGroupItem value={ALL}>All</ChipGroupItem>
             {data.sections
               .filter((sec) => changes.some((c) => sectionOf.get(c.key) === sec.key))
@@ -338,7 +346,9 @@ export function HistoryDialog({
               return (
                 <View
                   key={change.id}
-                  className={i < shown.length - 1 ? 'gap-1.5 border-b border-border py-3' : 'gap-1.5 py-3'}
+                  className={
+                    i < shown.length - 1 ? 'gap-1.5 border-b border-border py-3' : 'gap-1.5 py-3'
+                  }
                 >
                   <View className="flex-row items-baseline gap-2">
                     <Text weight="semibold" className="flex-1">

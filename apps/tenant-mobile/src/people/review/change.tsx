@@ -59,7 +59,7 @@ export function AskDialog({
   item: ApprovalItem;
   onClose: () => void;
   onDone: () => void;
-}) {
+}): React.JSX.Element {
   const { act, busy } = useAct();
   const [question, setQuestion] = useState('');
   const to = firstName(item.requestedBy);

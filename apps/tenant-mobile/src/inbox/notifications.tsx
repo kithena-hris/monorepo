@@ -146,7 +146,9 @@ export function NotificationSettings({
   const setTasks = (patch: Partial<Channels>): void => {
     save({
       ...n,
-      tasks: Object.fromEntries(kinds.map((k) => [k, { ...n.tasks[k], ...patch }])) as Notifications['tasks'],
+      tasks: Object.fromEntries(
+        kinds.map((k) => [k, { ...n.tasks[k], ...patch }]),
+      ) as Notifications['tasks'],
     });
   };
   const card = (title: string, sub: string, children: React.ReactNode): React.JSX.Element => (
@@ -227,7 +229,11 @@ export function NotificationSettings({
                       ...n,
                       updates: {
                         ...n.updates,
-                        [key]: { ...c, phone: on, email: on ? (c.email === 'off' ? 'digest' : c.email) : 'off' },
+                        [key]: {
+                          ...c,
+                          phone: on,
+                          email: on ? (c.email === 'off' ? 'digest' : c.email) : 'off',
+                        },
                       },
                     });
                   }}

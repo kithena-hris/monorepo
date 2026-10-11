@@ -253,11 +253,7 @@ export function TaskCard({
           : {
               icon: iconOf(item.icon),
               tone:
-                item.tone === 'danger'
-                  ? 'danger'
-                  : item.tone === 'warning'
-                    ? 'warning'
-                    : 'neutral',
+                item.tone === 'danger' ? 'danger' : item.tone === 'warning' ? 'warning' : 'neutral',
             })}
         title={item.title}
         meta={ago(item.at, now)}
@@ -416,7 +412,13 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
 }
 
 /** P15: a refused value, the right one worked out where it can be, sent back to HR. */
-export function CorrectDialog({ item, onClose }: { item: Item; onClose: () => void }) {
+export function CorrectDialog({
+  item,
+  onClose,
+}: {
+  item: Item;
+  onClose: () => void;
+}): React.JSX.Element {
   const signed = useSigned();
   const { write, busy } = useInboxWrite();
   const field = d(item)['field'] as Field_ | undefined;

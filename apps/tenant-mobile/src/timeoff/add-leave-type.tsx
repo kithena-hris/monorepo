@@ -723,7 +723,9 @@ export function DescribeLeaveTypeDialog({
   const [text, setText] = useState(initial);
   const [asked, setAsked] = useState<Record<string, unknown> | null>(null);
   const [answer, setAnswer] = useState<
-    (PolicyRead & { rules?: readonly { key: string; label: string; value: string }[] }) | string | null
+    | (PolicyRead & { rules?: readonly { key: string; label: string; value: string }[] })
+    | string
+    | null
   >(null);
   const name = (text.split(/[:.,\n]/u)[0] ?? '').trim();
   const category = categoryOf(text);

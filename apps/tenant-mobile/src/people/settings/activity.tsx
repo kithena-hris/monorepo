@@ -283,40 +283,40 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
       </Button>
       {moreFilters ? (
         <>
-      <DatePicker
-        mode="range"
-        size="sm"
-        label="When"
-        placeholder="Any time"
-        value={
-          filters.from === null && filters.to === null
-            ? null
-            : { start: filters.from, end: filters.to }
-        }
-        onChange={(range) => {
-          set({ from: range.start, to: range.end });
-        }}
-      />
-      <View>
-        <ChipGroup
-          type="single"
-          scroll
-          accessibilityLabel="Who"
-          value={filters.by ?? 'anyone'}
-          onValueChange={(v) => {
-            set({ by: v === '' || v === 'anyone' ? null : v });
-          }}
-        >
-          <ChipGroupItem value="anyone" variant="view">
-            Anyone
-          </ChipGroupItem>
-          {WHO.map((w) => (
-            <ChipGroupItem key={w.value} value={w.value} variant="view">
-              {w.label}
-            </ChipGroupItem>
-          ))}
-        </ChipGroup>
-      </View>
+          <DatePicker
+            mode="range"
+            size="sm"
+            label="When"
+            placeholder="Any time"
+            value={
+              filters.from === null && filters.to === null
+                ? null
+                : { start: filters.from, end: filters.to }
+            }
+            onChange={(range) => {
+              set({ from: range.start, to: range.end });
+            }}
+          />
+          <View>
+            <ChipGroup
+              type="single"
+              scroll
+              accessibilityLabel="Who"
+              value={filters.by ?? 'anyone'}
+              onValueChange={(v) => {
+                set({ by: v === '' || v === 'anyone' ? null : v });
+              }}
+            >
+              <ChipGroupItem value="anyone" variant="view">
+                Anyone
+              </ChipGroupItem>
+              {WHO.map((w) => (
+                <ChipGroupItem key={w.value} value={w.value} variant="view">
+                  {w.label}
+                </ChipGroupItem>
+              ))}
+            </ChipGroup>
+          </View>
         </>
       ) : null}
       {actorName === null && subjectName === null ? null : (

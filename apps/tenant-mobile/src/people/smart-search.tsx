@@ -534,9 +534,7 @@ export function ChipFiltersDialog({
   const signed = useSigned();
   const { chips, date } = chipFields(fields);
   const [picked, setPicked] = useState<Readonly<Record<string, readonly string[]>>>(() =>
-    Object.fromEntries(
-      conditions.filter((c) => c.op === 'in').map((c) => [c.key, c.values]),
-    ),
+    Object.fromEntries(conditions.filter((c) => c.op === 'in').map((c) => [c.key, c.values])),
   );
   const held = conditions.find((c) => date !== null && c.key === date.key && c.op === 'between');
   const [range, setRange] = useState<{ start: string | null; end: string | null } | null>(
@@ -577,9 +575,7 @@ export function ChipFiltersDialog({
     ).then((pairs) => {
       if (live)
         setCounts(
-          Object.fromEntries(
-            pairs.flatMap(([k, n]) => (n === null ? [] : [[k, n] as const])),
-          ),
+          Object.fromEntries(pairs.flatMap(([k, n]) => (n === null ? [] : [[k, n] as const]))),
         );
     });
     return () => {

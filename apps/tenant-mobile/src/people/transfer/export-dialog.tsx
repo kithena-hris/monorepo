@@ -80,7 +80,9 @@ export function ExportDialog({
     const segmentId = who.startsWith('segment:') ? who.slice('segment:'.length) : null;
     const made = await act<{ id: string; links: { url: string }[] }>('RequestExport', {
       format: 'csv',
-      fields: builder.sections.filter((s) => chosen.includes(s.key)).flatMap((s) => s.fields.map((f) => f.key)),
+      fields: builder.sections
+        .filter((s) => chosen.includes(s.key))
+        .flatMap((s) => s.fields.map((f) => f.key)),
       asOf: builder.today,
       ...(segmentId === null ? {} : { segmentId }),
       reason: reason.trim(),
@@ -145,7 +147,9 @@ export function ExportDialog({
                     );
                   })}
                 </View>
-                {tried && chosen.length === 0 ? <FieldError>Choose what goes in.</FieldError> : null}
+                {tried && chosen.length === 0 ? (
+                  <FieldError>Choose what goes in.</FieldError>
+                ) : null}
               </Field>
               <Field required invalid={tried && reason.trim() === ''}>
                 <FieldLabel>Why you need it</FieldLabel>

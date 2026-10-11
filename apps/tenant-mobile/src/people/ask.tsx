@@ -187,7 +187,9 @@ export function AskKithena({
               {(onInbox
                 ? ['What do I need to do this week?', 'What’s waiting on others?']
                 : [
-                    ...(onRequest === undefined ? [] : ['Can I take the Friday before the next holiday?']),
+                    ...(onRequest === undefined
+                      ? []
+                      : ['Can I take the Friday before the next holiday?']),
                     'Who starts this month?',
                     'Who reports to me?',
                   ]

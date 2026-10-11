@@ -190,10 +190,14 @@ export function BalanceDialog({
   else {
     const { balance, entries } = load.data;
     const hours = balance.unit === 'hour';
-    const corrected = new Set(entries.flatMap((e) => (e.supersedes === null ? [] : [e.supersedes])));
+    const corrected = new Set(
+      entries.flatMap((e) => (e.supersedes === null ? [] : [e.supersedes])),
+    );
     const lines = entries.filter((e) => !corrected.has(e.entryId));
     about =
-      balance.yearly === null ? null : `${amount(balance.yearly)} ${hours ? 'hours' : 'days'} this year.`;
+      balance.yearly === null
+        ? null
+        : `${amount(balance.yearly)} ${hours ? 'hours' : 'days'} this year.`;
     body = (
       <ScrollView style={{ flexGrow: 0, maxHeight: 400 }}>
         {lines.length === 0 ? (

@@ -238,8 +238,7 @@ export function ListItem({
   // The press is the web row's `active:` fill, without the scale: a full-width
   // row that shrinks would pull away from its neighbours.
   const { pressed, onPressIn, onPressOut } = usePress();
-  const plain =
-    !content.leading && !content.icon && !content.description && !content.overline;
+  const plain = !content.leading && !content.icon && !content.description && !content.overline;
   const row = cn(
     'w-full flex-row items-center gap-3 bg-surface px-4 py-2',
     plain ? 'min-h-[52px]' : 'min-h-16',

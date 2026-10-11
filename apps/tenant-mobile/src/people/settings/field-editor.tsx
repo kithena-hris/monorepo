@@ -306,7 +306,9 @@ export function draftInput(
     ...(WITH_DECIMALS.has(draft.dataType) && draft.decimals !== null
       ? { decimals: draft.decimals }
       : {}),
-    ...(draft.dataType === 'money' ? { currency: draft.currency === '' ? null : draft.currency } : {}),
+    ...(draft.dataType === 'money'
+      ? { currency: draft.currency === '' ? null : draft.currency }
+      : {}),
   };
 }
 

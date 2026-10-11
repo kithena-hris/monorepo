@@ -65,9 +65,7 @@ export function todoBrief(inbox: InboxAnswer): string | null {
       .filter((d): d is string => d !== null)
       .sort()[0];
     parts.push(
-      later === undefined
-        ? 'The rest has no date.'
-        : `The rest can wait until ${shortDay(later)}.`,
+      later === undefined ? 'The rest has no date.' : `The rest can wait until ${shortDay(later)}.`,
     );
   }
   return parts.join(' ');

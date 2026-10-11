@@ -822,9 +822,21 @@ export function ClashDialog({
               <RadioCard
                 key={`${a.kind}${String(i)}`}
                 value={String(i)}
-                {...(i === 0 ? { badge: <Badge size="sm" tone="accent" icon={Sparkles}>Suggested</Badge> } : {})}
+                {...(i === 0
+                  ? {
+                      badge: (
+                        <Badge size="sm" tone="accent" icon={Sparkles}>
+                          Suggested
+                        </Badge>
+                      ),
+                    }
+                  : {})}
                 {...(a.message === null ? {} : { description: a.message.text })}
-                impact={a.swapped === null ? `${days(String(a.spans.reduce((n, s) => n + (Date.parse(s.to) - Date.parse(s.from)) / 86_400_000 + 1, 0)))} instead` : 'Keeps the team at its minimum'}
+                impact={
+                  a.swapped === null
+                    ? `${days(String(a.spans.reduce((n, s) => n + (Date.parse(s.to) - Date.parse(s.from)) / 86_400_000 + 1, 0)))} instead`
+                    : 'Keeps the team at its minimum'
+                }
               >
                 {words(a)}
               </RadioCard>
@@ -865,7 +877,10 @@ export function ClashDialog({
                 'SuggestTimeOffDates',
                 {
                   requestId,
-                  input: { proposals: [{ spans: picked.spans }], message: picked.message?.text ?? null },
+                  input: {
+                    proposals: [{ spans: picked.spans }],
+                    message: picked.message?.text ?? null,
+                  },
                 },
                 `Sent to ${name}`,
               ).then((done) => {

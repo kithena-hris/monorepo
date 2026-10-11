@@ -333,9 +333,7 @@ export function Documents({
               listitem={false}
               icon={FileText}
               description={
-                d.signature === null
-                  ? (STATE[d.state] ?? d.state)
-                  : `Signed by ${d.signature.name}`
+                d.signature === null ? (STATE[d.state] ?? d.state) : `Signed by ${d.signature.name}`
               }
               {...(waiting
                 ? {

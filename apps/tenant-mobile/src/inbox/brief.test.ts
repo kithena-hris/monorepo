@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { homeBrief, todoBrief, updatesBrief } from './brief';
 
 const item = (over: Record<string, unknown>) => ({
-  id: String(over['id'] ?? 'x'),
+  id: 'x',
   lane: 'task',
   kind: 'people.details',
   dueVerb: 'due',

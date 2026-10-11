@@ -242,9 +242,9 @@ export function TimeOffParental({
   navigation,
 }: PeopleScreen<'TimeOffParental'>): React.JSX.Element {
   const { load, reload } = useTimeOff<Parental>('TimeOffParentalPlan');
-  const [step, setStep] = useState<
-    'overview' | 'about' | 'plan' | 'handover' | 'send' | null
-  >(null);
+  const [step, setStep] = useState<'overview' | 'about' | 'plan' | 'handover' | 'send' | null>(
+    null,
+  );
   const back = { label: 'Time off', onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
@@ -304,8 +304,18 @@ export function TimeOffParental({
             `${plan.birth === null ? `Baby due ${longDate(plan.childDate)}` : `Born ${longDate(plan.childDate)}`}. You get ${weeks(lawWeeks(e))}${e.companyWeeks > 0 ? ` and ${weeks(e.companyWeeks)} from your company` : ''}. Here is a plan; change what you want.`}
         </Alert>
         <View className="flex-row gap-2">
-          <Stat className="flex-1" size={20} label="Right after the birth" value={weeks(e.mandatoryWeeks)} />
-          <Stat className="flex-1" size={20} label="Flexible, first year" value={weeks(e.flexibleWeeks)} />
+          <Stat
+            className="flex-1"
+            size={20}
+            label="Right after the birth"
+            value={weeks(e.mandatoryWeeks)}
+          />
+          <Stat
+            className="flex-1"
+            size={20}
+            label="Flexible, first year"
+            value={weeks(e.flexibleWeeks)}
+          />
           {e.laterWeeks === 0 ? null : (
             <Stat className="flex-1" size={20} label="For later" value={weeks(e.laterWeeks)} />
           )}

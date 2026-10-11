@@ -371,7 +371,18 @@ export function FieldRegistry({
           </ChipGroup>
         </View>
       ) : null}
-      {listed.length === 0 ? (
+      {ordering ? (
+        <SortableList
+          items={registry.sections.map((x) => ({ ...x, id: x.key, locked: x.fixed }))}
+          label="Sections"
+          itemLabel={(x) => x.label}
+          onReorder={(move) => {
+            void act('ReorderDraftSections', { order: [...move.order] }).then(reload);
+          }}
+        >
+          {(x) => <SortableRowText title={x.label} />}
+        </SortableList>
+      ) : listed.length === 0 ? (
         <EmptyState
           icon={Folder}
           title={needle === '' ? 'No fields yet' : 'Nothing matches'}
@@ -435,10 +446,22 @@ export function FieldRegistry({
             className="flex-1"
             startIcon={<Icon icon={ArrowUpDown} />}
             onPress={() => {
+              setOrdering((o) => !o);
+            }}
+          >
+            {ordering ? 'Done' : 'Reorder sections'}
+          </Button>
+        </View>
+      ) : null}
+      {needle === '' && shownSection !== undefined && !ordering ? (
+        <View className="flex-row">
+          <Button
+            variant="link"
+            onPress={() => {
               navigation.push('FieldRegistry', { section: shownSection.key });
             }}
           >
-            Reorder
+            {`Reorder the fields in ${shownSection.label}`}
           </Button>
         </View>
       ) : null}

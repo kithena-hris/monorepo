@@ -209,9 +209,7 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
                       tone={finished ? 'success' : 'subtle'}
                     />
                   }
-                  {...(finished || s.ask === 'required'
-                    ? {}
-                    : { description: ASK[s.ask].text })}
+                  {...(finished || s.ask === 'required' ? {} : { description: ASK[s.ask].text })}
                   {...(finished
                     ? { className: 'opacity-70' }
                     : {

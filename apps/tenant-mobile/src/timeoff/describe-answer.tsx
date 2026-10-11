@@ -49,10 +49,12 @@ export function useDescribed(sentence: string | null): {
       setAnswer(null);
       return undefined;
     }
-    let live = true;
+    const run = { live: true };
+    // Asked as a function: after an await the answer may be for a sentence since replaced.
+    const alive = (): boolean => run.live;
     setAnswer({ sentence, described: null, best: null, preview: null, failed: null });
     void read<Described>(signed, 'TimeOffDescribe', { sentence }, 'timeoff').then(async (d) => {
-      if (!live) return;
+      if (!alive()) return;
       if (!d.ok) {
         setAnswer({ sentence, described: null, best: null, preview: null, failed: d.message });
         return;
@@ -68,7 +70,7 @@ export function useDescribed(sentence: string | null): {
               { leaveTypeKey: type, from: best.from, to: best.to, endsHalfDay: false },
               'timeoff',
             );
-      if (!live) return;
+      if (!alive()) return;
       setAnswer({
         sentence,
         described: d.data,
@@ -78,7 +80,7 @@ export function useDescribed(sentence: string | null): {
       });
     });
     return () => {
-      live = false;
+      run.live = false;
     };
   }, [signed, sentence]);
 
@@ -146,7 +148,10 @@ export function DescribedCard({
                   id: 'clash',
                   icon: CircleCheck,
                   label: 'No clash',
-                  value: best.fewest === null ? 'The team has enough people in.' : `The team stays at ${String(best.fewest.in)} of ${String(best.fewest.of)}.`,
+                  value:
+                    best.fewest === null
+                      ? 'The team has enough people in.'
+                      : `The team stays at ${String(best.fewest.in)} of ${String(best.fewest.of)}.`,
                 }
               : {
                   id: 'clash',

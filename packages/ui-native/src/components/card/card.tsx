@@ -21,7 +21,7 @@ const card = cva('rounded-m-card bg-surface', {
       /** Lifted off the canvas, for content that floats over context. */
       elevated: 'bg-surface-raised shadow-lg',
       /**
-       * What Kithena worked out, as distinct from what somebody entered: an
+       * What the assistant worked out, as distinct from what somebody entered: an
        * accent edge. Pair it with a sparkles title so the edge is not the only cue.
        */
       assistant: 'border-[1.5px] border-accent',

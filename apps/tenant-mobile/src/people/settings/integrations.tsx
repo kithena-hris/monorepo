@@ -310,7 +310,9 @@ export function Integrations({
             listitem={false}
             icon={MessageSquare}
             description={
-              slack.connection === null ? 'Not connected' : `Connected to ${slack.connection.workspace}`
+              slack.connection === null
+                ? 'Not connected'
+                : `Connected to ${slack.connection.workspace}`
             }
             trailing={
               <Button
@@ -351,7 +353,9 @@ export function Integrations({
             listitem={false}
             icon={KeyRound}
             description={
-              scimLive.length === 0 ? 'Not connected' : `From ${scimLive[0]?.system ?? 'one system'}`
+              scimLive.length === 0
+                ? 'Not connected'
+                : `From ${scimLive[0]?.system ?? 'one system'}`
             }
             chevron
             onPress={() => {

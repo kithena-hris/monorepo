@@ -243,7 +243,9 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
                     key={p.accountId}
                     listitem={false}
                     leading={<Avatar name={nameOf(p)} size={36} />}
-                    description={p.roles.length === 0 ? 'No role' : p.roles.map(labelOf).join(' · ')}
+                    description={
+                      p.roles.length === 0 ? 'No role' : p.roles.map(labelOf).join(' · ')
+                    }
                     chevron
                     onPress={() => {
                       setRoleOpen(null);

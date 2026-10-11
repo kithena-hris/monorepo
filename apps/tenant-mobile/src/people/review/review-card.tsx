@@ -117,17 +117,21 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
     return [head, tail];
   };
   const decide = (operation: string, id: string, approve: boolean, extra = {}): void => {
-    void act(operation, { id, approve, note: null, ...extra }, approve ? 'Approved' : 'Rejected').then(
-      (done) => {
-        if (done !== null) void load();
-      },
-    );
+    void act(
+      operation,
+      { id, approve, note: null, ...extra },
+      approve ? 'Approved' : 'Rejected',
+    ).then((done) => {
+      if (done !== null) void load();
+    });
   };
   const page = (row: Row): void => {
     const [head, tail] = idOf(row);
     if (row.kind === 'changes') navigation.navigate('ReviewChange', { id: head });
-    else if (row.kind === 'ids') navigation.navigate('ReviewId', { personId: head, attributeKey: tail });
-    else if (row.kind === 'duplicates') navigation.navigate('ReviewDuplicate', { a: head, b: tail });
+    else if (row.kind === 'ids')
+      navigation.navigate('ReviewId', { personId: head, attributeKey: tail });
+    else if (row.kind === 'duplicates')
+      navigation.navigate('ReviewDuplicate', { a: head, b: tail });
     else if (row.kind === 'access') navigation.navigate('ReviewAccess', { id: head });
     else navigation.navigate('ReviewShare', { id: head });
   };
@@ -217,19 +221,11 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
       `${row.name}’s export`,
     );
   };
-  const chips = CHIPS.waiting.filter(
-    (k) => k === 'missing' || rows.some((r) => r.kind === k),
-  );
+  const chips = CHIPS.waiting.filter((k) => k === 'missing' || rows.some((r) => r.kind === k));
 
   return (
     <Card padded={false} className="overflow-hidden">
-      <ListItem
-        icon={ListChecks}
-        iconTone={5}
-        description={kinds(rows)}
-        wrap
-        listitem={false}
-      >
+      <ListItem icon={ListChecks} iconTone={5} description={kinds(rows)} wrap listitem={false}>
         {`${String(rows.length)} waiting for you`}
       </ListItem>
       {all ? (
@@ -430,7 +426,11 @@ export function ChangeDialog({
                   <Text variant="footnote" tone="subtle">
                     Asked for
                   </Text>
-                  <DisplayValue field={field} value={item.value} className="text-[20px] font-bold" />
+                  <DisplayValue
+                    field={field}
+                    value={item.value}
+                    className="text-[20px] font-bold"
+                  />
                 </View>
               </View>
             </Card>

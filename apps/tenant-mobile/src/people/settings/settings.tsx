@@ -281,7 +281,12 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     });
     if (hr || roles.admin) {
       timeOff.push(
-        section('Leave types', 'Each kind of leave: how much, and who approves', Tags, 'leave-types'),
+        section(
+          'Leave types',
+          'Each kind of leave: how much, and who approves',
+          Tags,
+          'leave-types',
+        ),
         section('Holidays', 'Per location, kept up to date', CalendarDays, 'holidays'),
         section('Approvals', 'Who approves · team minimums · escalation', CheckCheck, 'approvals'),
         section('Attendance', 'Ways to clock in · the working day', Clock3, 'attendance'),
@@ -463,7 +468,9 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Appearance</DialogTitle>
-              <DialogDescription>How the app looks on this phone. Only you see this.</DialogDescription>
+              <DialogDescription>
+                How the app looks on this phone. Only you see this.
+              </DialogDescription>
             </DialogHeader>
             <DialogBody>
               <SegmentedControl

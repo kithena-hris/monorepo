@@ -605,7 +605,20 @@ function PolicyCard({
     probationMonths: probation ?? def.probationMonths,
   };
   const changed = allowance !== null || carry !== null || probation !== null;
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   const save = (): void => {
     void (
       draft === undefined
@@ -639,7 +652,9 @@ function PolicyCard({
           label="How much"
           value={[
             `${amount(first?.days ?? '0')} days a year`,
-            ...def.allowance.slice(1).map((x) => `${amount(x.days)} after ${String(x.fromYears)} years`),
+            ...def.allowance
+              .slice(1)
+              .map((x) => `${amount(x.days)} after ${String(x.fromYears)} years`),
           ].join(', ')}
           onPress={() => {
             setOpen('allowance');
@@ -647,7 +662,11 @@ function PolicyCard({
         />
         <Rule
           label="How it’s earned"
-          value={def.earning === 'monthly' ? `${amount((Number(first?.days ?? '0') / 12).toFixed(3))} days on the 1st of each month` : 'All of it at the start of the year'}
+          value={
+            def.earning === 'monthly'
+              ? `${amount((Number(first?.days ?? '0') / 12).toFixed(3))} days on the 1st of each month`
+              : 'All of it at the start of the year'
+          }
         />
         <Rule
           label="Carry over"
@@ -662,7 +681,11 @@ function PolicyCard({
         />
         <Rule
           label="Waiting period"
-          value={def.probationMonths === 0 ? 'From day one' : `After ${String(def.probationMonths)} months`}
+          value={
+            def.probationMonths === 0
+              ? 'From day one'
+              : `After ${String(def.probationMonths)} months`
+          }
           onPress={() => {
             setOpen('probation');
           }}
@@ -675,7 +698,9 @@ function PolicyCard({
       )}
       {open === null ? null : (
         <RuleDialog
-          title={open === 'allowance' ? 'How much' : open === 'carry' ? 'Carry over' : 'Waiting period'}
+          title={
+            open === 'allowance' ? 'How much' : open === 'carry' ? 'Carry over' : 'Waiting period'
+          }
           busy={busy === 'ReviseTimeOffPolicy' || busy === 'DraftTimeOffPolicy'}
           onClose={close}
           onSave={() => {
@@ -1165,7 +1190,11 @@ function Approvals(): React.JSX.Element {
   const d = load.data;
   const a = auto ?? d.autoApproval;
   const subject = (x: string): string =>
-    x === 'request' ? 'Time off' : x === 'plan' ? 'Parental leave plans' : 'Overtime and clock fixes';
+    x === 'request'
+      ? 'Time off'
+      : x === 'plan'
+        ? 'Parental leave plans'
+        : 'Overtime and clock fixes';
   const minimum = (m: { atLeast: number; unit: 'people' | 'percent' } | null): string =>
     m === null
       ? 'No minimum'
@@ -1213,48 +1242,48 @@ function Approvals(): React.JSX.Element {
         </Rules>
       )}
       <Rules title="Approved without asking">
-      <ListItem
-        listitem={false}
-        description="The team stays above its minimum."
-        trailing={
-          <Switch
-            checked={a.oneDayAboveMinimum}
-            accessibilityLabel="One day, above the minimum"
-            onCheckedChange={(on) => {
-              setAuto({ ...a, oneDayAboveMinimum: on });
+        <ListItem
+          listitem={false}
+          description="The team stays above its minimum."
+          trailing={
+            <Switch
+              checked={a.oneDayAboveMinimum}
+              accessibilityLabel="One day, above the minimum"
+              onCheckedChange={(on) => {
+                setAuto({ ...a, oneDayAboveMinimum: on });
+              }}
+            />
+          }
+        >
+          One day, above the minimum
+        </ListItem>
+        <ListItem
+          listitem={false}
+          description="Fewer days off is never a problem."
+          trailing={
+            <Switch
+              checked={a.shortenOrCancel}
+              accessibilityLabel="Shortening or cancelling"
+              onCheckedChange={(on) => {
+                setAuto({ ...a, shortenOrCancel: on });
+              }}
+            />
+          }
+        >
+          Shortening or cancelling
+        </ListItem>
+        <View className="px-4 pb-4 pt-1">
+          <NumberField
+            label="Sick leave under this many days"
+            size="sm"
+            min={0}
+            max={30}
+            value={a.sickUnderDays}
+            onChange={(n) => {
+              setAuto({ ...a, sickUnderDays: n });
             }}
           />
-        }
-      >
-        One day, above the minimum
-      </ListItem>
-      <ListItem
-        listitem={false}
-        description="Fewer days off is never a problem."
-        trailing={
-          <Switch
-            checked={a.shortenOrCancel}
-            accessibilityLabel="Shortening or cancelling"
-            onCheckedChange={(on) => {
-              setAuto({ ...a, shortenOrCancel: on });
-            }}
-          />
-        }
-      >
-        Shortening or cancelling
-      </ListItem>
-      <View className="px-4 pb-4 pt-1">
-        <NumberField
-          label="Sick leave under this many days"
-          size="sm"
-          min={0}
-          max={30}
-          value={a.sickUnderDays}
-          onChange={(n) => {
-            setAuto({ ...a, sickUnderDays: n });
-          }}
-        />
-      </View>
+        </View>
       </Rules>
       {team === undefined ? null : (
         <RuleDialog
@@ -1410,7 +1439,11 @@ function Attendance(): React.JSX.Element {
       reload();
     });
   };
-  const BECOMES = { comp: 'banked as comp time', paid: 'paid', choose: 'the manager chooses' } as const;
+  const BECOMES = {
+    comp: 'banked as comp time',
+    paid: 'paid',
+    choose: 'the manager chooses',
+  } as const;
   return (
     <>
       {/* Three rows for what counts as a working day (v3 S16), each changed in a modal. */}
@@ -1464,7 +1497,12 @@ function Attendance(): React.JSX.Element {
         </RuleDialog>
       ) : null}
       {open === 'limits' ? (
-        <RuleDialog title="Rest and weekly limit" busy={busy !== null} onClose={close} onSave={save}>
+        <RuleDialog
+          title="Rest and weekly limit"
+          busy={busy !== null}
+          onClose={close}
+          onSave={save}
+        >
           <NumberField
             label="Rest between days (hours)"
             size="sm"
@@ -1572,7 +1610,11 @@ function Holidays(): React.JSX.Element {
   const d = load.data;
   const place = d.locations.find((l) => l.locationKey === loc) ?? d.locations[0];
   const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
-  const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const dayMonth = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
   const layerName = (key: string): string => d.layers.find((l) => l.key === key)?.name ?? key;
   return (
     <>
@@ -1680,7 +1722,12 @@ function Holidays(): React.JSX.Element {
           </Field>
           <Field>
             <FieldLabel>What it is</FieldLabel>
-            <Input value={dayName} onChange={setDayName} size="sm" placeholder="Company anniversary" />
+            <Input
+              value={dayName}
+              onChange={setDayName}
+              size="sm"
+              placeholder="Company anniversary"
+            />
           </Field>
         </RuleDialog>
       ) : null}

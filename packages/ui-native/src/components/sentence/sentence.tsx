@@ -51,7 +51,10 @@ export function Sentence({
           <CssText
             key={`${part.id}-${String(i)}`}
             accessibilityRole="button"
-            accessibilityState={{ expanded: part.active === true, disabled: part.disabled === true }}
+            accessibilityState={{
+              expanded: part.active === true,
+              disabled: part.disabled === true,
+            }}
             {...(part.disabled || !onPartPress
               ? {}
               : {

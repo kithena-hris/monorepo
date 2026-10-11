@@ -182,8 +182,7 @@ export function ImportDialog({
     setAnswered(done);
     if (unsure.length === 1) void planWith(uploadId, mapped);
   };
-  const matched =
-    stage === null ? 0 : stage.columns.filter((c) => c.status === 'mapped').length;
+  const matched = stage === null ? 0 : stage.columns.filter((c) => c.status === 'mapped').length;
   const counts = plan?.review.dryRun.counts;
   const toImport = counts === undefined ? 0 : counts.create + counts.update;
   const leftOut = (fields?.proposals ?? []).length;
@@ -280,9 +279,27 @@ export function ImportDialog({
           {busy === 'plan' ? <Spinner label="Checking every row" /> : null}
           {counts === undefined ? null : (
             <View className="flex-row gap-2">
-              <Stat className="flex-1" inset size={22} label="new people" value={String(counts.create)} />
-              <Stat className="flex-1" inset size={22} label="updates" value={String(counts.update)} />
-              <Stat className="flex-1" inset size={22} label="problems" value={String(counts.blocked)} />
+              <Stat
+                className="flex-1"
+                inset
+                size={22}
+                label="new people"
+                value={String(counts.create)}
+              />
+              <Stat
+                className="flex-1"
+                inset
+                size={22}
+                label="updates"
+                value={String(counts.update)}
+              />
+              <Stat
+                className="flex-1"
+                inset
+                size={22}
+                label="problems"
+                value={String(counts.blocked)}
+              />
             </View>
           )}
           {plan?.blocked == null ? null : (

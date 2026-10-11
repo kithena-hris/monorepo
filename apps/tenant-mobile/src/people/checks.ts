@@ -49,7 +49,11 @@ export function ibanCheck(typed: string): { valid: boolean; bank: string | null 
   const v = typed.replace(/\s/gu, '').toUpperCase();
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/u.test(v)) return null;
   const moved = v.slice(4) + v.slice(0, 4);
-  const numeric = [...moved].map((c) => (/[A-Z]/u.test(c) ? String(c.charCodeAt(0) - 55) : c)).join('');
+  let numeric = '';
+  for (let i = 0; i < moved.length; i += 1) {
+    const c = moved.charAt(i);
+    numeric += /[A-Z]/u.test(c) ? String(c.charCodeAt(0) - 55) : c;
+  }
   let rest = 0;
   for (const digit of numeric) rest = (rest * 10 + Number(digit)) % 97;
   const valid = rest === 1;

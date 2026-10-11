@@ -7,7 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Icon,
   List,
   ListItem,
   Stack,
@@ -17,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Building2, CalendarDays, EyeOff, LogOut, Moon, Settings, User } from 'lucide-react-native';
 import { createContext, useContext, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { Pressable, useColorScheme } from 'react-native';
 
 import type { Person } from './account';
 import { greetingFor } from './address';
@@ -61,7 +60,10 @@ export function AccountMenu(): React.JSX.Element | null {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>
-        <Button size="sm" startIcon={<Icon icon={User} />} accessibilityLabel="Your account" />
+        {/* Your initials, as the design's top right (v3 H1): the account is you. */}
+        <Pressable accessibilityRole="button" accessibilityLabel="Your account" hitSlop={6}>
+          <Avatar name={name} size={36} decorative />
+        </Pressable>
       </DropdownMenuTrigger>
       <DropdownMenuContent label="Your account" align="end" className="w-[300px]">
         {actions.endViewing === null ? null : (

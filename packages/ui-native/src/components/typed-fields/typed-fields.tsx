@@ -68,7 +68,11 @@ export function SearchField({
       onSubmitEditing={() => onSearch?.(value)}
       startAdornment={
         hideIcon ? undefined : (
-          <Icon icon={ask && value !== '' ? Sparkles : Search} size={19} tone={ask && value !== '' ? 'accent' : 'muted'} />
+          <Icon
+            icon={ask && value !== '' ? Sparkles : Search}
+            size={19}
+            tone={ask && value !== '' ? 'accent' : 'muted'}
+          />
         )
       }
       tight={value !== '' || ask}

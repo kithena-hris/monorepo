@@ -315,13 +315,22 @@ interface Needs {
     readonly ownedBy: string | null;
   }[];
   readonly corrections:
-    | readonly { readonly key: string; readonly label: string; readonly sectionKey: string; readonly reason: string }[]
+    | readonly {
+        readonly key: string;
+        readonly label: string;
+        readonly sectionKey: string;
+        readonly reason: string;
+      }[]
     | null;
 }
 
 const clock = (zone: string): string => {
   try {
-    return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone }).format(new Date());
+    return new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: zone,
+    }).format(new Date());
   } catch {
     return '';
   }
@@ -434,7 +443,11 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
       <DropdownMenuTrigger>
         <Button size="sm" startIcon={<Icon icon={Ellipsis} />} accessibilityLabel="Actions" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent label={`Actions for ${data.person.name}`} align="end" className="w-[300px]">
+      <DropdownMenuContent
+        label={`Actions for ${data.person.name}`}
+        align="end"
+        className="w-[300px]"
+      >
         {moves.length === 0 && data.placement === null && roleSection === undefined ? null : (
           <DropdownMenuLabel>Employment</DropdownMenuLabel>
         )}
@@ -569,10 +582,17 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
       },
     });
   if (!own && team !== undefined && !isEmpty(values[team.key]))
-    facts.push({ label: team.label, value: <DisplayValue field={team} value={values[team.key]} /> });
+    facts.push({
+      label: team.label,
+      value: <DisplayValue field={team} value={values[team.key]} />,
+    });
   if (!own && started !== undefined && !isEmpty(values[started.key]))
-    facts.push({ label: 'Started', value: <DisplayValue field={started} value={values[started.key]} /> });
-  if (!own && zone !== null) facts.push({ label: 'Local time', value: `${clock(zone)} · ${city ?? ''}` });
+    facts.push({
+      label: 'Started',
+      value: <DisplayValue field={started} value={values[started.key]} />,
+    });
+  if (!own && zone !== null)
+    facts.push({ label: 'Local time', value: `${clock(zone)} · ${city ?? ''}` });
 
   // Your own: what HR still needs, each with its button (P13).
   const mine = own && needs.status === 'ready' ? needs.data : null;
@@ -974,7 +994,11 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                     onPress={() => {
                       void openFile(signed, value).then((refused) => {
                         if (refused !== null)
-                          toast({ title: 'That did not work', description: refused, tone: 'danger' });
+                          toast({
+                            title: 'That did not work',
+                            description: refused,
+                            tone: 'danger',
+                          });
                       });
                     }}
                   >

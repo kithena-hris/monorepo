@@ -54,7 +54,12 @@ export type KeyValuesProps = {
   className?: string | undefined;
 };
 
-const TONE_GLYPH = { neutral: 'muted', danger: 'danger', warning: 'warning', accent: 'accent' } as const;
+const TONE_GLYPH = {
+  neutral: 'muted',
+  danger: 'danger',
+  warning: 'warning',
+  accent: 'accent',
+} as const;
 
 const keyOf = (item: KeyValueItem, index: number): string =>
   item.id ?? (typeof item.label === 'string' ? item.label : String(index));

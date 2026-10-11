@@ -11,7 +11,7 @@ import { Icon, type LucideIcon } from '../icon/icon.tsx';
  * the detail when there is more to read.
  *
  * The leading is an `Avatar` for a person, or `icon` in a tile for a thing.
- * Under the title, one line of context and, where Kithena worked something
+ * Under the title, one line of context and, where the assistant worked something
  * out, a `hint` beside a sparkles mark. The foot holds what is due on the
  * left and the actions on the right.
  */
@@ -48,7 +48,7 @@ export type ActionCardProps = {
   meta?: string;
   /** One line of context under the title. */
   description?: ReactNode;
-  /** What Kithena worked out about it, beside a sparkles mark, in the accent. */
+  /** What the assistant worked out about it, beside a sparkles mark, in the accent. */
   hint?: ReactNode;
   /** The left of the foot: a `Badge` saying when it is due. */
   due?: ReactNode;
@@ -92,7 +92,9 @@ export function ActionCard({
             {title}
           </CssText>
           {meta ? (
-            <CssText className="text-[12px] font-medium leading-none text-fg-subtle">{meta}</CssText>
+            <CssText className="text-[12px] font-medium leading-none text-fg-subtle">
+              {meta}
+            </CssText>
           ) : null}
         </View>
         {description ? (

@@ -52,9 +52,7 @@ export function Hero({
           </CssText>
         ) : null}
       </View>
-      {badges ? (
-        <View className="flex-row flex-wrap justify-center gap-1.5">{badges}</View>
-      ) : null}
+      {badges ? <View className="flex-row flex-wrap justify-center gap-1.5">{badges}</View> : null}
       {actions ? <View className="mt-1 flex-row justify-center gap-3">{actions}</View> : null}
     </View>
   );

@@ -289,7 +289,9 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
 
   // My team: everybody whose manager is me, when People lets me filter by manager.
   const team: Query | null =
-    myId === null ? null : { ...EVERYONE, conditions: [{ key: 'manager_id', op: 'is', values: [myId] }] };
+    myId === null
+      ? null
+      : { ...EVERYONE, conditions: [{ key: 'manager_id', op: 'is', values: [myId] }] };
 
   // HR's two numbers and who is starting, read beside the list.
   useEffect(() => {
@@ -320,8 +322,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             avatarUrl: p.avatarUrl,
             missing: p.missing,
             start:
-              p.values.find((v) => v.key === 'hire_date' || v.key === 'start_date')?.value ??
-              null,
+              p.values.find((v) => v.key === 'hire_date' || v.key === 'start_date')?.value ?? null,
           })),
         );
     });
@@ -499,7 +500,9 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         onValueChange={type}
         onSearch={(value) => void askIt(value)}
         placeholder={
-          page === null || !bare ? 'Search people, or ask' : `Search ${String(page.total)} people, or ask`
+          page === null || !bare
+            ? 'Search people, or ask'
+            : `Search ${String(page.total)} people, or ask`
         }
         label="Search people, or ask a question"
       />
@@ -522,7 +525,10 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             onUse={(refusal) => {
               setQuestion({ ...question, refused: question.refused.filter((r) => r !== refusal) });
               if (refusal.instead !== null) {
-                setQuery({ ...query, conditions: [...query.conditions, refusal.instead.condition] });
+                setQuery({
+                  ...query,
+                  conditions: [...query.conditions, refusal.instead.condition],
+                });
               }
             }}
             onRemove={(refusal) => {
@@ -1015,7 +1021,12 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                 defaultExpanded={tree.map((n) => n.id)}
                 {...(myId === null ? {} : { defaultSelected: myId })}
                 onSelectedChange={(id) => {
-                  openPerson(id, org.load.status === 'ready' ? org.load.data.people.find((p) => p.id === id)?.name : undefined);
+                  openPerson(
+                    id,
+                    org.load.status === 'ready'
+                      ? org.load.data.people.find((p) => p.id === id)?.name
+                      : undefined,
+                  );
                 }}
               />
             </Card>

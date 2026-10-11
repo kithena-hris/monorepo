@@ -69,7 +69,6 @@ type ClockState = 'out' | 'in' | 'on_break';
 type WorkModel = 'office' | 'remote' | 'client';
 type PunchKind = 'in' | 'out' | 'break_start' | 'break_end';
 
-
 interface Span {
   readonly from: string;
   readonly to: string;
@@ -661,10 +660,13 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
   const zone = overview.member?.timeZone ?? 'UTC';
   const today = localDate(now, zone);
   const city = (zone.split('/').at(-1) ?? zone).replaceAll('_', ' ');
-  const main = overview.balances.find((b) => b.unit === 'day' && b.yearly !== null) ?? overview.balances[0];
+  const main =
+    overview.balances.find((b) => b.unit === 'day' && b.yearly !== null) ?? overview.balances[0];
   const others = overview.balances.filter((b) => b !== main);
   const ahead = holidays.filter((h) => h.date >= today).slice(0, 3);
-  const approvals = (inbox === null ? [] : tasksOf(inbox)).filter((t) => t.kind === 'timeoff.approval');
+  const approvals = (inbox === null ? [] : tasksOf(inbox)).filter(
+    (t) => t.kind === 'timeoff.approval',
+  );
   const answer = described.answer;
   const typeOf = (key: string | null) =>
     panel.status === 'ready' ? panel.data.leaveTypes.find((t) => t.key === key) : undefined;
@@ -673,11 +675,17 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
       ? []
       : [0, 1, 2, 3, 4].map((n) => {
           const date = addDays(week, n);
-          const c = team.load.status === 'ready' ? team.load.data.coverage.find((x) => x.date === date) : undefined;
+          const c =
+            team.load.status === 'ready'
+              ? team.load.data.coverage.find((x) => x.date === date)
+              : undefined;
           const answerNow = team.load.status === 'ready' ? team.load.data : null;
           const out = (answerNow?.entries ?? [])
             .filter((e) => e.span.from <= date && date <= e.span.to)
-            .map((e) => answerNow?.people.find((p) => p.personId === e.personId)?.displayName ?? 'Someone');
+            .map(
+              (e) =>
+                answerNow?.people.find((p) => p.personId === e.personId)?.displayName ?? 'Someone',
+            );
           const holiday = answerNow?.holidays.find((h) => h.date === date);
           return {
             id: date,
@@ -687,17 +695,17 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
             attention: c?.below === true,
             accessibilityLabel: `${longDate(date)}: ${c === undefined ? 'no count' : `${String(c.in)} of ${String(c.of)} in`}${c?.below === true ? ', below the minimum' : ''}`,
             footer:
-              holiday !== undefined
-                ? 'Holiday'
-                : out.length === 0
-                  ? 'All in'
-                  : (
-                      <AvatarGroup size={22} max={2}>
-                        {out.map((n) => (
-                          <Avatar key={n} name={n} decorative />
-                        ))}
-                      </AvatarGroup>
-                    ),
+              holiday !== undefined ? (
+                'Holiday'
+              ) : out.length === 0 ? (
+                'All in'
+              ) : (
+                <AvatarGroup size={22} max={2}>
+                  {out.map((n) => (
+                    <Avatar key={n} name={n} decorative />
+                  ))}
+                </AvatarGroup>
+              ),
           };
         });
 
@@ -714,7 +722,9 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   onPress={() => {
                     setOpen({
                       kind: 'request',
-                      ...(answer.preview === null ? {} : { from: answer.preview.span.from, to: answer.preview.span.to }),
+                      ...(answer.preview === null
+                        ? {}
+                        : { from: answer.preview.span.from, to: answer.preview.span.to }),
                       ...(answer.described?.understood.leaveTypeKey == null
                         ? {}
                         : { leaveTypeKey: answer.described.understood.leaveTypeKey }),
@@ -737,7 +747,9 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                     });
                   }}
                 >
-                  {approversOf(answer.preview) === null ? 'Send' : `Send to ${approversOf(answer.preview) ?? ''}`}
+                  {approversOf(answer.preview) === null
+                    ? 'Send'
+                    : `Send to ${approversOf(answer.preview) ?? ''}`}
                 </Button>
               </>
             ),
@@ -804,7 +816,9 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
           <Alert tone="accent" variant="summary">
             {`${approvals.length === 1 ? 'One request waits' : `${String(approvals.length)} requests wait`} for you.${
               approvals.some(
-                (a) => ((a.detail as { alreadyOut?: { out: number } | null } | null)?.alreadyOut?.out ?? 0) > 0,
+                (a) =>
+                  ((a.detail as { alreadyOut?: { out: number } | null } | null)?.alreadyOut?.out ??
+                    0) > 0,
               )
                 ? ' Others are out the same week, so check the team first.'
                 : ' Nobody else is out those weeks.'
@@ -812,7 +826,13 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
           </Alert>
           <Heading title="Waiting for you" />
           {approvals.map((item) => (
-            <TaskCard key={item.id} item={item} now={inbox.now} zone={inbox.zone} navigation={navigation} />
+            <TaskCard
+              key={item.id}
+              item={item}
+              now={inbox.now}
+              zone={inbox.zone}
+              navigation={navigation}
+            />
           ))}
         </>
       )}

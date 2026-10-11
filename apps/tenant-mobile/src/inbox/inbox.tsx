@@ -197,8 +197,8 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
   /** One of my requests (I7): who has it and since when, and a nudge once it has waited. */
   const requestRow = (item: Item): React.JSX.Element => {
     const detail = d(item);
-    const nudge = detail['nudge'] as { from: string; used: boolean } | null;
-    const can = nudge !== null && nudge !== undefined && !nudge.used && now >= nudge.from;
+    const nudge = (detail['nudge'] ?? null) as { from: string; used: boolean } | null;
+    const can = nudge !== null && !nudge.used && now >= nudge.from;
     const changeId = str(detail['changeId']);
     const requestId = str(detail['requestId']);
     return (
@@ -208,7 +208,13 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
         description={item.status?.label ?? item.summary ?? undefined}
         {...(item.status === null || item.summary === null
           ? {}
-          : { supporting: <Text variant="footnote" tone="subtle">{item.summary}</Text> })}
+          : {
+              supporting: (
+                <Text variant="footnote" tone="subtle">
+                  {item.summary}
+                </Text>
+              ),
+            })}
         onPress={() => {
           open(item);
         }}
@@ -258,7 +264,8 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
     </ListItem>
   );
 
-  const brief = lane === 'todo' ? todoBrief(inbox) : lane === 'updates' ? updatesBrief(inbox) : null;
+  const brief =
+    lane === 'todo' ? todoBrief(inbox) : lane === 'updates' ? updatesBrief(inbox) : null;
 
   return (
     <Page large="Inbox" trailing={trailing}>
@@ -369,7 +376,9 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
           <View key={g.label ?? 'all'} className="gap-2">
             {g.label === null ? null : <Heading title={g.label} />}
             <List>
-              {g.items.map(lane === 'updates' ? updateRow : lane === 'requests' ? requestRow : doneRow)}
+              {g.items.map(
+                lane === 'updates' ? updateRow : lane === 'requests' ? requestRow : doneRow,
+              )}
             </List>
           </View>
         ))

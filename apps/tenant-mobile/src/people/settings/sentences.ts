@@ -28,7 +28,9 @@ export function seersOf(visibility: readonly ViewerScope[]): string {
   if (visibility.includes('directory')) return 'Everyone';
   // Lower-cased after the first, but a name like HR stays as it is.
   const named = AUDIENCES.filter((a) => visibility.includes(a.id)).map((a, i) =>
-    i === 0 || a.label === a.label.toUpperCase() ? a.label : a.label.charAt(0).toLowerCase() + a.label.slice(1),
+    i === 0 || a.label === a.label.toUpperCase()
+      ? a.label
+      : a.label.charAt(0).toLowerCase() + a.label.slice(1),
   );
   if (named.length === 0) return 'Nobody';
   return join(named);
@@ -49,7 +51,9 @@ export function writersOf(ownership: readonly WriterRole[]): string {
     i === 0 ? WRITER_WORD[w] : WRITER_WORD[w].replace(/^The |^Their /u, (m) => m.toLowerCase()),
   );
   if (words.length === 0) return 'Nobody';
-  return words.length === 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} or ${words.at(-1) ?? ''}`;
+  return words.length === 1
+    ? (words[0] ?? '')
+    : `${words.slice(0, -1).join(', ')} or ${words.at(-1) ?? ''}`;
 }
 
 /** "sign-up or onboarding": when it is asked for, as the end of "asked for it at …". */
@@ -80,7 +84,9 @@ const SCOPE_WORDS: readonly [RegExp, ViewerScope][] = [
 ];
 
 const scopesIn = (text: string): ViewerScope[] =>
-  SCOPE_WORDS.filter(([re]) => re.test(text)).map(([, s]) => s).filter((s, i, all) => all.indexOf(s) === i);
+  SCOPE_WORDS.filter(([re]) => re.test(text))
+    .map(([, s]) => s)
+    .filter((s, i, all) => all.indexOf(s) === i);
 
 /** The field a sentence names: its label's words, longest first, or a plural of it. */
 export function fieldNamed(
@@ -90,16 +96,29 @@ export function fieldNamed(
   const text = ` ${sentence.toLowerCase().replace(/[’']s\b/gu, '')} `;
   const hits = fields.filter((f) => {
     const label = f.label.toLowerCase();
-    return text.includes(` ${label} `) || text.includes(` ${label}s `) || text.includes(` ${label}es `) || text.includes(` ${label.replace(/y$/u, 'ies')} `);
+    return (
+      text.includes(` ${label} `) ||
+      text.includes(` ${label}s `) ||
+      text.includes(` ${label}es `) ||
+      text.includes(` ${label.replace(/y$/u, 'ies')} `)
+    );
   });
   // "Let managers see salaries": a field named like an audience (Manager) loses to one that isn't.
   const plain = hits.filter((f) => !SCOPE_WORDS.some(([re]) => re.test(f.label)));
-  return [...(plain.length > 0 ? plain : hits)].sort((a, b) => b.label.length - a.label.length)[0] ?? null;
+  return (
+    [...(plain.length > 0 ? plain : hits)].sort((a, b) => b.label.length - a.label.length)[0] ??
+    null
+  );
 }
 
 /** A change to one field's settings, read from a sentence (S2). */
 export type FieldChange =
-  | { readonly kind: 'see'; readonly key: string; readonly add: readonly ViewerScope[]; readonly remove: readonly ViewerScope[] }
+  | {
+      readonly kind: 'see';
+      readonly key: string;
+      readonly add: readonly ViewerScope[];
+      readonly remove: readonly ViewerScope[];
+    }
   | { readonly kind: 'required'; readonly key: string; readonly required: boolean };
 
 export function changeFrom(
@@ -153,7 +172,9 @@ export function describedField(text: string): Described {
   const name = (clean.split(/[,.;:\n]| for | - /u)[0] ?? '').trim();
   const label = name.charAt(0).toUpperCase() + name.slice(1);
   // A range of sizes, or a list after "one of" or in brackets.
-  const range = /\b(XXS|XS|S|M|L|XL|XXL|XXXL)\s*(?:to|-|–)\s*(XXS|XS|S|M|L|XL|XXL|XXXL)\b/u.exec(clean);
+  const range = /\b(XXS|XS|S|M|L|XL|XXL|XXXL)\s*(?:to|-|–)\s*(XXS|XS|S|M|L|XL|XXL|XXXL)\b/u.exec(
+    clean,
+  );
   const listed = /one of ([^.;]+)/iu.exec(clean) ?? /\(([^)]+)\)/u.exec(clean);
   let options: string[] = [];
   if (range !== null) {
@@ -190,7 +211,12 @@ export function describedField(text: string): Described {
           ? 'anytime'
           : 'onboarding';
   const people = collectAt !== 'hr_only' && /\b(people|they|employees?|everyone) fill/u.test(lower);
-  const ownership: WriterRole[] = collectAt === 'hr_only' ? ['hr'] : people || collectAt !== 'anytime' ? ['employee', 'hr'] : ['hr'];
+  const ownership: WriterRole[] =
+    collectAt === 'hr_only'
+      ? ['hr']
+      : people || collectAt !== 'anytime'
+        ? ['employee', 'hr']
+        : ['hr'];
   const onlyHr = /\bonly hr\b/u.test(lower);
   const seen = onlyHr ? [] : scopesIn(lower.replace(/\bfill[^,.;]*/gu, ' '));
   const visibility: ViewerScope[] = onlyHr

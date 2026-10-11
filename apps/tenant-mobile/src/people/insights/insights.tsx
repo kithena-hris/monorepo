@@ -875,7 +875,13 @@ function Summary({ a, segment }: { a: Analytics; segment: string | null }): Reac
       const got = answer.ok
         ? (parsed(answer.data) as { points?: readonly { text: string }[] } | null)
         : null;
-      if (live) setSaid((got?.points ?? []).slice(0, 3).map((p) => p.text).join(' ') || null);
+      if (live)
+        setSaid(
+          (got?.points ?? [])
+            .slice(0, 3)
+            .map((p) => p.text)
+            .join(' ') || null,
+        );
     });
     return () => {
       live = false;
@@ -918,7 +924,12 @@ function Summary({ a, segment }: { a: Analytics; segment: string | null }): Reac
           />
         )}
         {a.startingSoon === null ? null : (
-          <Stat label="Starting soon" value={String(a.startingSoon)} size={26} description="hired, not started" />
+          <Stat
+            label="Starting soon"
+            value={String(a.startingSoon)}
+            size={26}
+            description="hired, not started"
+          />
         )}
       </AutoGrid>
       {trend.length === 0 ? null : (
