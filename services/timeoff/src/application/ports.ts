@@ -645,6 +645,14 @@ export interface Tx {
   readonly settings: SettingStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
+  /**
+   * Wait for, then hold until this transaction ends, the company's one lock on
+   * who is granted what: publishing a policy and adding a member take it
+   * first, so neither reads before the other has committed. Without it, a
+   * hire landing as a policy was published saw no policy, the publish saw no
+   * member, and that person was granted nothing until the night's accrual.
+   */
+  lockEntitlements(): Promise<void>;
 }
 
 export interface UnitOfWork {

@@ -166,6 +166,46 @@ function handOver(field: HTMLInputElement | HTMLTextAreaElement): void {
   field.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+/**
+ * The files chosen in a container's file inputs, by each input's place among
+ * them: what the server's HTML holds before the browser draws the screen
+ * afresh in its place (`remote-screen.tsx`), and would otherwise take with it.
+ */
+export function chosenFiles(container: Element): (FileList | null)[] {
+  return [...container.querySelectorAll<HTMLInputElement>('input[type=file]')].map((input) =>
+    (input.files?.length ?? 0) > 0 ? input.files : null,
+  );
+}
+
+/**
+ * Hand `chosen` to the file inputs drawn in `container`, place by place, as
+ * the change React reads from a person choosing them. The screen is drawn a
+ * moment after the old HTML goes, so this waits for its inputs, a second at
+ * most, then gives up as a picker left untouched would.
+ */
+export function handFilesOver(
+  container: Element,
+  chosen: readonly (FileList | null)[],
+  tries = 20,
+): void {
+  if (chosen.every((files) => files === null)) return;
+  const inputs = [...container.querySelectorAll<HTMLInputElement>('input[type=file]')];
+  if (inputs.length < chosen.length) {
+    if (tries > 0) {
+      setTimeout(() => {
+        handFilesOver(container, chosen, tries - 1);
+      }, 50);
+    }
+    return;
+  }
+  chosen.forEach((files, i) => {
+    const input = inputs[i];
+    if (files === null || input === undefined) return;
+    input.files = files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
 /** A press as a person makes it: down, up, click — the compatibility mouse events unless down was cancelled. */
 function replay(target: Element, press: Press): void {
   if (press.kind === 'submit') {

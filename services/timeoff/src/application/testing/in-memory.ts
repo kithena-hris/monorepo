@@ -452,6 +452,8 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.events.push(...events);
       },
     }),
+    // One transaction at a time here already: nothing to wait for.
+    lockEntitlements: () => Promise.resolve(),
     idempotency: promised<IdempotencyStore>({
       find: (key) => s.keys.get(key) ?? null,
       save: (key, stored) => {

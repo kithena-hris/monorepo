@@ -136,6 +136,34 @@ afterAll(async () => {
   await stopPg?.();
 });
 
+describe('who is granted what, one transaction at a time', () => {
+  it('makes a second publish or hire wait until the first has committed', async () => {
+    const order: string[] = [];
+    let held: () => void = () => undefined;
+    const holding = new Promise<void>((resolve) => {
+      held = resolve;
+    });
+    // The first takes the lock, says so, and keeps it until told to finish.
+    const first = uow.run(TENANT, async (tx) => {
+      await tx.lockEntitlements();
+      order.push('first holds');
+      await holding;
+      order.push('first done');
+    });
+    await expect.poll(() => order).toEqual(['first holds']);
+    const second = uow.run(TENANT, async (tx) => {
+      await tx.lockEntitlements();
+      order.push('second holds');
+    });
+    // Given time, the second still waits: nothing between the two runs.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(order).toEqual(['first holds']);
+    held();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['first holds', 'first done', 'second holds']);
+  });
+});
+
 describe('members', () => {
   it('round-trips an imported member, nothing applied yet, as it went in', async () => {
     expect(await run((tx) => tx.members.get(people.adam))).toEqual(member(people.adam, 'adam'));
