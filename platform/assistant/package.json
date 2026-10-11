@@ -10,14 +10,18 @@
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
     "start": "node dist/src/main.js",
-    "eval": "tsx eval/run.ts"
+    "eval": "tsx eval/run.ts",
+    "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
+    "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
+    "graphql": "^16.11.0",
+    "graphql-yoga": "^5.24.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

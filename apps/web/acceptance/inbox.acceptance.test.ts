@@ -37,13 +37,18 @@ beforeAll(async () => {
     expect(done.status, JSON.stringify(done.body)).toBeLessThan(300);
   }
 
-  // Hired, Adam reporting to Priya.
+  // Hired, Adam reporting to Priya: Priya first, so she is Time Off's HR and
+  // its vacation policy is published before Adam joins. A member is granted
+  // the year's leave as they join; one who joined before the policy waits
+  // for the night's accrual job, which nothing runs here.
   const [entity] = await stack.sql<{ id: string }[]>`
     SELECT id::text FROM people.legal_entity WHERE tenant_id = ${TENANT} LIMIT 1`;
-  for (const [who, given, family, manager] of [
-    [ADMIN, 'Priya', 'Shah', null],
-    [EMPLOYEE, 'Adam', 'Ruiz', ADMIN.person],
-  ] as const) {
+  const hire = async (
+    who: typeof ADMIN,
+    given: string,
+    family: string,
+    manager: string | null,
+  ): Promise<void> => {
     await stack.asPeople(ADMIN.account, `/v1/people/${who.person}`, {
       method: 'PATCH',
       body: {
@@ -59,7 +64,8 @@ beforeAll(async () => {
       legalEntityId: entity?.id,
     });
     expect(hired.status, JSON.stringify(hired.body)).toBe(200);
-  }
+  };
+  await hire(ADMIN, 'Priya', 'Shah', null);
 
   // Time Off: a vacation policy, once Priya is its HR by its consumer.
   await eventually(
@@ -87,6 +93,7 @@ beforeAll(async () => {
   await stack.asTimeOff(ADMIN.account, 'POST', `/v1/timeoff/policies/${policyId}/publish`, {
     effectiveFrom: `${String(new Date().getUTCFullYear())}-01-01`,
   });
+  await hire(EMPLOYEE, 'Adam', 'Ruiz', ADMIN.person);
   await eventually(
     'Adam as a member, reporting to Priya',
     () => stack.sql<{ manager: string | null }[]>`
@@ -94,8 +101,8 @@ beforeAll(async () => {
        WHERE tenant_id = ${TENANT} AND person_id = ${EMPLOYEE.person}`,
     ([m]) => m?.manager === ADMIN.person,
   );
-  // And his vacation granted: Time Off works it out after he joins, and a
-  // request asked before then is refused for a zero balance.
+  // And his vacation granted, which joining does: a request asked before
+  // then is refused for a zero balance.
   await eventually(
     'Adam’s vacation balance',
     async () => {

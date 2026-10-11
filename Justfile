@@ -76,7 +76,7 @@ codegen:
 # fresh from its schema — no service has to be running. `pnpm --filter
 # @kithena/gateway compose` still introspects running subgraphs, for `just dev`.
 supergraph:
-    pnpm turbo run codegen --filter=@kithena/people --filter=@kithena/timeoff --output-logs=errors-only
+    pnpm turbo run codegen --filter=@kithena/people --filter=@kithena/timeoff --filter=@kithena/assistant --output-logs=errors-only
     pnpm --filter @kithena/gateway check
 
 # Build or refresh the code knowledge graph in graphify-out/ (free, no model).

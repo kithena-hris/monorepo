@@ -17,9 +17,12 @@ import { refused, type RestRequest, type RestResponse } from './rest.js';
  * not the router's: it opens these routes and no others, and the router's
  * opens every route but these. The wiring runs them read-only (`readOnly`).
  *
- * The assistant asks as a person and only as one: a principal claiming a
- * support session or a view-as is refused, so a leaked token cannot borrow
- * support's every-role reach.
+ * The assistant forwards the session it was asked in unchanged (AST-035): a
+ * question from the web in a view-as is the employee's, read-only, and one in
+ * a support session is support's, recorded as the operator's — exactly as on
+ * People's own screens, because `callerFrom` is theirs. Every route here is a
+ * read under `readOnly` whatever the session, so a leaked token reads what
+ * the principal it names could read, and writes nothing.
  */
 
 export const CAPABILITIES = '/internal/capabilities';
@@ -43,10 +46,6 @@ export function capabilityRoutes(
   return async (request) => {
     const asking = await deps.callerFrom(request);
     if (!asking.ok) return refused(asking.error);
-    const { viewer } = asking.value;
-    if (viewer.support !== undefined || viewer.viewing !== undefined) {
-      return refused(failure('UNAUTHENTICATED', 'The assistant asks as a person, and only as one'));
-    }
     const path = request.url.split('?')[0] ?? '';
     if (path === CAPABILITIES && request.method === 'GET') {
       return answered(await deps.catalogue(asking.value));

@@ -9,6 +9,7 @@
     { "path": "../../packages/auth-kit" },
     { "path": "../../packages/contracts" },
     { "path": "../../packages/domain-kit" },
+    { "path": "../../packages/graphql-kit" },
     { "path": "../../packages/telemetry" }
   ]
 }
