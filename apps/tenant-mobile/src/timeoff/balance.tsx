@@ -22,8 +22,20 @@ import type { PeopleScreen } from '../people/routes';
 import { todayHere } from './time';
 import { useTimeOff } from './api';
 import { leaveIcon } from './icons';
-import type { Balance } from './today';
 import { amount, monthName, shortDate, signed } from './words';
+
+export interface Balance {
+  readonly leaveTypeKey: string;
+  readonly name: string;
+  readonly unit: 'day' | 'hour';
+  readonly colorToken: string;
+  readonly icon: string;
+  readonly left: string;
+  readonly used: string;
+  readonly booked: string;
+  readonly allowance: string;
+  readonly yearly: string | null;
+}
 
 interface Entry {
   readonly entryId: string;

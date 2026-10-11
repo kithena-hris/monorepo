@@ -4,6 +4,9 @@ import {
   Button,
   Card,
   CardTitle,
+  Chip,
+  ChipGroup,
+  ChipGroupItem,
   CopyField,
   DatePicker,
   Dialog,
@@ -21,6 +24,7 @@ import {
   List,
   ListItem,
   NumberField,
+  SearchField,
   SegmentedControl,
   SegmentedControlItem,
   Select,
@@ -42,6 +46,7 @@ import {
   Plug,
   Plus,
   Scale,
+  Sparkles,
   Tags,
   Trash2,
 } from 'lucide-react-native';
@@ -49,11 +54,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Failed, Loading, Page } from '../frame';
+import { Failed, Heading, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
 import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
+import { DescribeLeaveTypeDialog } from './add-leave-type';
 import { leaveIcon } from './icons';
 import { todayHere } from './time';
 import { amount, shortDate } from './words';
@@ -64,13 +70,13 @@ type Section =
 const SECTIONS: readonly { key: Section; label: string; line: string; icon: typeof Tags }[] = [
   {
     key: 'leave-types',
-    label: 'Leave types and policies',
+    label: 'Leave types',
     line: 'What people can take, and how much',
     icon: Tags,
   },
   {
     key: 'negative',
-    label: 'Going below zero',
+    label: 'Balance rules',
     line: 'How far, who approves, and what happens after',
     icon: Scale,
   },
@@ -82,13 +88,13 @@ const SECTIONS: readonly { key: Section; label: string; line: string; icon: type
   },
   {
     key: 'attendance',
-    label: 'Attendance rules',
+    label: 'Attendance',
     line: 'Breaks, rest, weekly limits and overtime',
     icon: Clock3,
   },
   {
     key: 'holidays',
-    label: 'Holiday calendars',
+    label: 'Holidays',
     line: 'National, regional and city holidays',
     icon: CalendarDays,
   },
@@ -170,21 +176,92 @@ interface LeaveTypeRow {
   readonly policyIds: readonly string[];
 }
 
-export const CATEGORIES = [
-  ['annual_leave', 'Vacation', 'sun'],
-  ['sick_leave', 'Sick leave', 'thermometer'],
-  ['parental_leave', 'Parental leave', 'baby'],
-  ['unpaid_leave', 'Unpaid leave', 'circle-slash'],
-  ['other', 'Something else', 'flag'],
-] as const;
+/** A card of rules with a title (v3 S13–S17): each rule a small grey label over a plain answer. */
+function Rules({
+  title,
+  action,
+  onAction,
+  children,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <Card padded={false} className="overflow-hidden">
+      <View className="flex-row items-center justify-between px-4 pb-1 pt-4">
+        <Text variant="headline">{title}</Text>
+        {action === undefined || onAction === undefined ? null : (
+          <Button size="xs" variant="link" onPress={onAction}>
+            {action}
+          </Button>
+        )}
+      </View>
+      {children}
+    </Card>
+  );
+}
 
-export const keyOf = (name: string): string =>
-  name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
+/** One rule: its label, the answer in words, and a tap to change it in a modal. */
+function Rule({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress?: () => void;
+}): React.JSX.Element {
+  return (
+    <ListItem
+      listitem={false}
+      overline={label}
+      {...(onPress === undefined ? {} : { chevron: true, onPress })}
+    >
+      {value}
+    </ListItem>
+  );
+}
+
+/** A modal with one rule's control and Save. */
+function RuleDialog({
+  title,
+  busy,
+  onClose,
+  onSave,
+  children,
+}: {
+  title: string;
+  busy: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <DialogBody>{children}</DialogBody>
+        <DialogFooter>
+          <Button className="flex-1" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button className="flex-1" variant="primary" loading={busy} onPress={onSave}>
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function LeaveTypes({
   onOpen,
@@ -202,6 +279,8 @@ function LeaveTypes({
   useFocusEffect(reload);
   const [weeks, setWeeks] = useState<number | null>(null);
   const [years, setYears] = useState<number | null>(null);
+  const [typed, setTyped] = useState('');
+  const [describing, setDescribing] = useState<string | null>(null);
   if (load.status !== 'ready') {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
@@ -212,9 +291,34 @@ function LeaveTypes({
   const company = load.data.parentalCompany;
   return (
     <>
-      <Button variant="primary" startIcon={<Icon icon={Plus} />} onPress={onAdd}>
-        Add a leave type
-      </Button>
+      <SearchField
+        ask
+        value={typed}
+        onValueChange={setTyped}
+        onSearch={(text) => {
+          setDescribing(text.trim());
+        }}
+        placeholder="Describe a new kind of leave"
+        label="Describe a new kind of leave"
+      />
+      {describing === null ? null : (
+        <DescribeLeaveTypeDialog
+          initial={describing}
+          onClose={() => {
+            setDescribing(null);
+          }}
+          onSteps={() => {
+            setDescribing(null);
+            onAdd();
+          }}
+          onCreated={(key, name) => {
+            setDescribing(null);
+            setTyped('');
+            reload();
+            onOpen(key, name);
+          }}
+        />
+      )}
       <List>
         {load.data.leaveTypes
           .filter((t) => !t.deleted)
@@ -244,6 +348,15 @@ function LeaveTypes({
             </ListItem>
           ))}
       </List>
+      <View className="flex-row items-start gap-1.5 px-1">
+        <Icon icon={Sparkles} size={13} tone="accent" />
+        <Text variant="footnote" tone="accent" className="flex-1">
+          Kithena checks each type against the law where it applies.
+        </Text>
+      </View>
+      <Button variant="ghost" startIcon={<Icon icon={Plus} />} onPress={onAdd}>
+        Add one step by step
+      </Button>
       <Card>
         <Stack gap={2}>
           <CardTitle>Company parental weeks</CardTitle>
@@ -367,7 +480,19 @@ export function TimeOffLeaveType({
   const policy = d.policies.find((p) => p.id === chosen) ?? d.policies[0];
   return (
     <Page title={route.params.name} back={back}>
-      <Text tone="muted">{`Applies in ${[...d.places.countries, ...d.places.locations].join(', ') || 'every place'}`}</Text>
+      <Card>
+        <View className="flex-row items-center gap-3">
+          <View className="size-11 items-center justify-center rounded-[13px] bg-accent-subtle">
+            <Icon icon={leaveIcon(d.leaveType.definition.icon)} size={20} tone="accent" />
+          </View>
+          <View className="flex-1 gap-0.5">
+            <Text variant="headline">{d.leaveType.definition.name.default}</Text>
+            <Text variant="footnote" tone="muted">
+              {`Applies in ${[...d.places.countries, ...d.places.locations].join(', ') || 'every place'}`}
+            </Text>
+          </View>
+        </View>
+      </Card>
       {d.policies.length > 1 ? (
         <Select value={policy?.id ?? ''} onValueChange={setChosen}>
           <SelectTrigger size="sm" accessibilityLabel="Policy">
@@ -458,6 +583,7 @@ function PolicyCard({
   const [carry, setCarry] = useState<number | null>(null);
   const [probation, setProbation] = useState<number | null>(null);
   const [from, setFrom] = useState<string | null>(todayHere());
+  const [open, setOpen] = useState<'allowance' | 'carry' | 'probation' | null>(null);
   if (shown === undefined) return <Text tone="muted">No version yet.</Text>;
   const def = shown.definition;
   const first = def.allowance[0];
@@ -479,85 +605,116 @@ function PolicyCard({
     probationMonths: probation ?? def.probationMonths,
   };
   const changed = allowance !== null || carry !== null || probation !== null;
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const save = (): void => {
+    void (
+      draft === undefined
+        ? act('DraftTimeOffPolicy', { input: revised }, 'Saved as a draft')
+        : act('ReviseTimeOffPolicy', { policyId, input: revised }, 'Draft saved')
+    ).then((done) => {
+      if (done === null) return;
+      setAllowance(null);
+      setCarry(null);
+      setProbation(null);
+      setOpen(null);
+      onChanged();
+      preview.reload();
+    });
+  };
+  const close = (): void => {
+    setOpen(null);
+    setAllowance(null);
+    setCarry(null);
+    setProbation(null);
+  };
   return (
     <>
-      <Card>
-        <Stack gap={3}>
-          <View className="flex-row items-center gap-2">
-            <CardTitle className="flex-1">{`Version ${String(shown.version)}`}</CardTitle>
-            <Badge size="sm" tone={draft === undefined ? 'success' : 'warning'}>
-              {draft === undefined
-                ? `In effect${shown.effectiveFrom === null ? '' : ` from ${shortDate(shown.effectiveFrom)}`}`
-                : 'Draft'}
-            </Badge>
-          </View>
-          <NumberField
-            label="Days a year"
-            size="sm"
-            min={0}
-            max={365}
-            step={0.5}
-            value={allowance ?? Number(first?.days ?? '0')}
-            onChange={setAllowance}
-          />
-          {def.allowance.length > 1 ? (
-            <Text variant="footnote" tone="muted">
-              {def.allowance
-                .slice(1)
-                .map((a) => `${amount(a.days)} from ${String(a.fromYears)} years`)
-                .join(' · ')}
-            </Text>
-          ) : null}
-          <NumberField
-            label="Carried over, at most"
-            size="sm"
-            min={0}
-            max={365}
-            step={0.5}
-            value={carry ?? Number(def.carryOver?.maxDays ?? '0')}
-            onChange={setCarry}
-          />
-          <NumberField
-            label="Probation, months"
-            size="sm"
-            min={0}
-            max={24}
-            value={probation ?? def.probationMonths}
-            onChange={setProbation}
-          />
-          <Text
-            variant="footnote"
-            tone="muted"
-          >{`Earned ${def.earning === 'monthly' ? 'month by month' : 'up front'}.`}</Text>
-          <View className="flex-row gap-2">
-            <Button
-              className="flex-1"
-              variant="primary"
-              disabled={!changed}
-              loading={busy === 'ReviseTimeOffPolicy' || busy === 'DraftTimeOffPolicy'}
-              onPress={() => {
-                void (
-                  draft === undefined
-                    ? act('DraftTimeOffPolicy', { input: revised }, 'Saved as a draft')
-                    : act('ReviseTimeOffPolicy', { policyId, input: revised }, 'Draft saved')
-                ).then((done) => {
-                  if (done === null) return;
-                  setAllowance(null);
-                  setCarry(null);
-                  setProbation(null);
-                  onChanged();
-                  preview.reload();
-                });
-              }}
-            >
-              Save draft
-            </Button>
-            <Button className="flex-1" onPress={onDescribe}>
-              Describe in words
-            </Button>
-          </View>
-        </Stack>
-      </Card>
+      {/* The rules, each a label and a plain answer (v3 S13); a tap changes one in a modal. */}
+      <Rules
+        title={draft === undefined ? 'Rules' : `Rules · draft of version ${String(shown.version)}`}
+        action="Describe"
+        onAction={onDescribe}
+      >
+        <Rule
+          label="How much"
+          value={[
+            `${amount(first?.days ?? '0')} days a year`,
+            ...def.allowance.slice(1).map((x) => `${amount(x.days)} after ${String(x.fromYears)} years`),
+          ].join(', ')}
+          onPress={() => {
+            setOpen('allowance');
+          }}
+        />
+        <Rule
+          label="How it’s earned"
+          value={def.earning === 'monthly' ? `${amount((Number(first?.days ?? '0') / 12).toFixed(3))} days on the 1st of each month` : 'All of it at the start of the year'}
+        />
+        <Rule
+          label="Carry over"
+          value={
+            def.carryOver === null
+              ? 'Nothing carried over'
+              : `Up to ${amount(def.carryOver.maxDays)} days${def.carryOver.useBy === null ? '' : `, used by ${String(def.carryOver.useBy.day)} ${months[def.carryOver.useBy.month - 1] ?? ''}`}`
+          }
+          onPress={() => {
+            setOpen('carry');
+          }}
+        />
+        <Rule
+          label="Waiting period"
+          value={def.probationMonths === 0 ? 'From day one' : `After ${String(def.probationMonths)} months`}
+          onPress={() => {
+            setOpen('probation');
+          }}
+        />
+      </Rules>
+      {draft === undefined ? null : (
+        <Text variant="footnote" tone="muted" className="px-1">
+          {`Version ${String(shown.version)} is a draft. Nothing changes for anyone until it is published below.`}
+        </Text>
+      )}
+      {open === null ? null : (
+        <RuleDialog
+          title={open === 'allowance' ? 'How much' : open === 'carry' ? 'Carry over' : 'Waiting period'}
+          busy={busy === 'ReviseTimeOffPolicy' || busy === 'DraftTimeOffPolicy'}
+          onClose={close}
+          onSave={() => {
+            if (changed) save();
+            else close();
+          }}
+        >
+          {open === 'allowance' ? (
+            <NumberField
+              label="Days a year"
+              size="sm"
+              min={0}
+              max={365}
+              step={0.5}
+              value={allowance ?? Number(first?.days ?? '0')}
+              onChange={setAllowance}
+            />
+          ) : open === 'carry' ? (
+            <NumberField
+              label="Carried over, at most"
+              size="sm"
+              min={0}
+              max={365}
+              step={0.5}
+              value={carry ?? Number(def.carryOver?.maxDays ?? '0')}
+              onChange={setCarry}
+            />
+          ) : (
+            <NumberField
+              label="Months before it is earned"
+              size="sm"
+              min={0}
+              max={24}
+              value={probation ?? def.probationMonths}
+              onChange={setProbation}
+            />
+          )}
+        </RuleDialog>
+      )}
       {draft === undefined || preview.load.status !== 'ready' ? null : (
         <Card>
           <Stack gap={2}>
@@ -743,6 +900,17 @@ export function TimeOffPolicyDescribe({
 
 type Rule = { limit: string; approvers: string; atYearEnd: string; onLeaving: string };
 
+const NEG_APPROVERS: Readonly<Record<string, string>> = {
+  manager: 'their manager decides',
+  manager_then_hr: 'their manager, then HR',
+  hr: 'HR decides',
+};
+const ON_LEAVING: Readonly<Record<string, string>> = {
+  final_pay: 'Taken from the last salary',
+  write_off: 'Written off',
+  hr_decides: 'HR decides',
+};
+
 function Negative(): React.JSX.Element {
   const { load, reload } = useTimeOff<{
     policies: {
@@ -762,28 +930,48 @@ function Negative(): React.JSX.Element {
     );
   }
   const policy = load.data.policies.find((p) => p.policyId === editing);
+  const example = load.data.policies.find((p) => p.rule !== null);
   return (
     <>
-      <Text tone="muted">
-        How far below zero people may go on each balance, who approves it, and what happens to it
-        after.
-      </Text>
-      <List>
+      {example?.rule == null ? null : (
+        <Alert tone="accent" variant="summary">
+          {`With these rules, people can book up to ${amount(example.rule.limit)} days of ${example.leaveTypeName.toLowerCase()} beyond what they have left.`}
+        </Alert>
+      )}
+      <Rules title="Going below zero">
         {load.data.policies.map((p) => (
-          <ListItem
+          <Rule
             key={p.policyId}
-            description={
-              p.rule === null ? 'Nobody may go below zero' : `Up to ${amount(p.rule.limit)} days`
+            label={p.leaveTypeName}
+            value={
+              p.rule === null
+                ? 'Not allowed'
+                : `Up to ${amount(p.rule.limit)} days · ${NEG_APPROVERS[p.rule.approvers] ?? p.rule.approvers}`
             }
-            chevron
             onPress={() => {
               setEditing(p.policyId);
             }}
-          >
-            {p.leaveTypeName}
-          </ListItem>
+          />
         ))}
-      </List>
+      </Rules>
+      {load.data.policies.some((p) => p.rule !== null) ? (
+        <Rules title="When someone leaves">
+          {load.data.policies.flatMap((p) =>
+            p.rule === null
+              ? []
+              : [
+                  <Rule
+                    key={p.policyId}
+                    label={`Days below zero · ${p.leaveTypeName}`}
+                    value={ON_LEAVING[p.rule.onLeaving] ?? p.rule.onLeaving}
+                    onPress={() => {
+                      setEditing(p.policyId);
+                    }}
+                  />,
+                ],
+          )}
+        </Rules>
+      ) : null}
       {policy === undefined ? null : (
         <NegativeDialog
           policy={policy}
@@ -966,6 +1154,7 @@ function Approvals(): React.JSX.Element {
     Readonly<Record<string, { atLeast: number; unit: 'people' | 'percent' } | null>>
   >({});
   const [chat, setChat] = useState<boolean | null>(null);
+  const [teamOpen, setTeamOpen] = useState<string | null>(null);
   if (load.status !== 'ready') {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
@@ -975,27 +1164,55 @@ function Approvals(): React.JSX.Element {
   }
   const d = load.data;
   const a = auto ?? d.autoApproval;
-  const changedTeams = d.teams.filter(
-    (t) => t.teamKey in mins && JSON.stringify(mins[t.teamKey]) !== JSON.stringify(t.minimum),
-  );
+  const subject = (x: string): string =>
+    x === 'request' ? 'Time off' : x === 'plan' ? 'Parental leave plans' : 'Overtime and clock fixes';
+  const minimum = (m: { atLeast: number; unit: 'people' | 'percent' } | null): string =>
+    m === null
+      ? 'No minimum'
+      : m.unit === 'percent'
+        ? `At least ${String(m.atLeast)}% in`
+        : `At least ${String(m.atLeast)} in`;
+  const team = d.teams.find((t) => t.teamKey === teamOpen);
   return (
     <>
-      <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Who approves
-      </Text>
-      <List>
+      {/* Three short lists (v3 S15): who approves, how many stay in, and what if nobody answers. */}
+      <Rules title="Who approves">
         {d.rules.map((r, i) => (
-          <ListItem
+          <Rule
             key={`${r.subject}${String(i)}`}
-            description={`${r.when === 'always' ? 'Always' : r.when === 'below_zero' ? 'Below zero' : 'Unpaid'}${r.leaveTypes === null ? '' : ` · ${r.leaveTypes.join(', ')}`}`}
-          >
-            {`${r.subject === 'request' ? 'Requests' : r.subject === 'plan' ? 'Parental plans' : 'Timesheets'}: ${r.approvers.map((x) => APPROVER[x] ?? x).join(', then ')}`}
-          </ListItem>
+            label={`${r.leaveTypes === null ? subject(r.subject) : r.leaveTypes.join(', ')}${r.when === 'always' ? '' : r.when === 'below_zero' ? ' · below zero' : ' · unpaid'}`}
+            value={
+              r.approvers.length === 0
+                ? 'Nobody. The manager is told'
+                : r.approvers.map((x) => APPROVER[x] ?? x).join(', then ')
+            }
+          />
         ))}
-      </List>
-      <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Approved without asking
-      </Text>
+      </Rules>
+      <Rules title="Team minimums">
+        {d.teams.map((t) => {
+          const m = t.teamKey in mins ? (mins[t.teamKey] ?? null) : t.minimum;
+          return (
+            <Rule
+              key={t.teamKey}
+              label={t.teamName}
+              value={minimum(m)}
+              onPress={() => {
+                setTeamOpen(t.teamKey);
+              }}
+            />
+          );
+        })}
+      </Rules>
+      {d.escalation === null ? null : (
+        <Rules title="If nobody decides">
+          <Rule
+            label={`After ${String(d.escalation.afterWorkingDays)} working days`}
+            value={`Remind ${d.escalation.to === 'manager_chain' ? 'the manager, then their manager' : (APPROVER[d.escalation.to] ?? d.escalation.to).toLowerCase()}`}
+          />
+        </Rules>
+      )}
+      <Rules title="Approved without asking">
       <ListItem
         listitem={false}
         description="The team stays above its minimum."
@@ -1026,62 +1243,81 @@ function Approvals(): React.JSX.Element {
       >
         Shortening or cancelling
       </ListItem>
-      <NumberField
-        label="Sick leave under this many days"
-        size="sm"
-        min={0}
-        max={30}
-        value={a.sickUnderDays}
-        onChange={(n) => {
-          setAuto({ ...a, sickUnderDays: n });
-        }}
-      />
-      <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Team minimums
-      </Text>
-      {d.teams.map((t) => {
-        const m = t.teamKey in mins ? mins[t.teamKey] : t.minimum;
-        return (
-          <View key={t.teamKey} className="flex-row items-center gap-2">
-            <Text className="flex-1">{t.teamName}</Text>
-            <View style={{ width: 140 }}>
-              <NumberField
-                label={`${t.teamName}: at least`}
-                hideLabel
-                size="sm"
-                min={0}
-                value={m?.atLeast ?? null}
-                onChange={(n) => {
-                  setMins((all) => ({
-                    ...all,
-                    [t.teamKey]: n === null ? null : { atLeast: n, unit: m?.unit ?? 'people' },
-                  }));
-                }}
-              />
-            </View>
-            <SegmentedControl
-              size="sm"
-              value={m?.unit ?? 'people'}
-              accessibilityLabel={`${t.teamName}: unit`}
-              onValueChange={(u) => {
-                setMins((all) => ({
-                  ...all,
-                  [t.teamKey]: {
-                    atLeast: m?.atLeast ?? 1,
-                    unit: u === 'percent' ? 'percent' : 'people',
-                  },
-                }));
-              }}
-            >
-              <SegmentedControlItem value="people">In</SegmentedControlItem>
-              <SegmentedControlItem value="percent">%</SegmentedControlItem>
-            </SegmentedControl>
-          </View>
-        );
-      })}
+      <View className="px-4 pb-4 pt-1">
+        <NumberField
+          label="Sick leave under this many days"
+          size="sm"
+          min={0}
+          max={30}
+          value={a.sickUnderDays}
+          onChange={(n) => {
+            setAuto({ ...a, sickUnderDays: n });
+          }}
+        />
+      </View>
+      </Rules>
+      {team === undefined ? null : (
+        <RuleDialog
+          title={`${team.teamName}: who must stay in`}
+          busy={busy === 'SetTimeOffTeamMinimum'}
+          onClose={() => {
+            setTeamOpen(null);
+          }}
+          onSave={() => {
+            void act(
+              'SetTimeOffTeamMinimum',
+              {
+                teamKey: team.teamKey,
+                input: {
+                  minimum: team.teamKey in mins ? (mins[team.teamKey] ?? null) : team.minimum,
+                },
+              },
+              'Saved',
+            ).then((done) => {
+              if (done === null) return;
+              setTeamOpen(null);
+              setMins({});
+              reload();
+            });
+          }}
+        >
+          <NumberField
+            label="At least"
+            size="sm"
+            min={0}
+            value={(team.teamKey in mins ? mins[team.teamKey] : team.minimum)?.atLeast ?? null}
+            onChange={(n) => {
+              const m = team.teamKey in mins ? (mins[team.teamKey] ?? null) : team.minimum;
+              setMins((all) => ({
+                ...all,
+                [team.teamKey]: n === null ? null : { atLeast: n, unit: m?.unit ?? 'people' },
+              }));
+            }}
+          />
+          <SegmentedControl
+            fullWidth
+            size="sm"
+            value={(team.teamKey in mins ? mins[team.teamKey] : team.minimum)?.unit ?? 'people'}
+            accessibilityLabel="Counted as"
+            onValueChange={(u) => {
+              const m = team.teamKey in mins ? (mins[team.teamKey] ?? null) : team.minimum;
+              setMins((all) => ({
+                ...all,
+                [team.teamKey]: {
+                  atLeast: m?.atLeast ?? 1,
+                  unit: u === 'percent' ? 'percent' : 'people',
+                },
+              }));
+            }}
+          >
+            <SegmentedControlItem value="people">People in</SegmentedControlItem>
+            <SegmentedControlItem value="percent">Percent in</SegmentedControlItem>
+          </SegmentedControl>
+        </RuleDialog>
+      )}
       <Button
         variant="primary"
-        disabled={auto === null && changedTeams.length === 0}
+        disabled={auto === null}
         loading={busy !== null}
         onPress={() => {
           void (async () => {
@@ -1093,13 +1329,6 @@ function Approvals(): React.JSX.Element {
               },
             });
             if (set === null) return;
-            for (const t of changedTeams) {
-              const done = await act('SetTimeOffTeamMinimum', {
-                teamKey: t.teamKey,
-                input: { minimum: mins[t.teamKey] ?? null },
-              });
-              if (done === null) return;
-            }
             setAuto(null);
             setMins({});
             reload();
@@ -1157,6 +1386,7 @@ function Attendance(): React.JSX.Element {
   );
   const { act, busy } = useAct('timeoff');
   const [rules, setRules] = useState<AttendanceRules | null>(null);
+  const [open, setOpen] = useState<'breaks' | 'limits' | 'overtime' | null>(null);
   if (load.status !== 'ready') {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
@@ -1169,94 +1399,129 @@ function Attendance(): React.JSX.Element {
     setRules({ ...r, ...patch });
   };
   const hours = (m: number): number => Math.round((m / 60) * 10) / 10;
+  const close = (): void => {
+    setOpen(null);
+    setRules(null);
+  };
+  const save = (): void => {
+    void act('SetTimeOffAttendanceRules', { input: r }, 'Saved').then((done) => {
+      if (done === null) return;
+      close();
+      reload();
+    });
+  };
+  const BECOMES = { comp: 'banked as comp time', paid: 'paid', choose: 'the manager chooses' } as const;
   return (
     <>
-      <Text tone="muted">What the working-time law asks for, and what overtime becomes.</Text>
-      <NumberField
-        label="Break after (hours)"
-        size="sm"
-        min={0}
-        max={24}
-        step={0.5}
-        value={hours(r.breakAfterMinutes)}
-        onChange={(n) => {
-          set({ breakAfterMinutes: Math.round((n ?? 0) * 60) });
-        }}
-      />
-      <NumberField
-        label="Break length (minutes)"
-        size="sm"
-        min={0}
-        max={240}
-        value={r.breakMinutes}
-        onChange={(n) => {
-          set({ breakMinutes: n ?? 0 });
-        }}
-      />
-      <NumberField
-        label="Rest between days (hours)"
-        size="sm"
-        min={0}
-        max={24}
-        step={0.5}
-        value={hours(r.restMinutes)}
-        onChange={(n) => {
-          set({ restMinutes: Math.round((n ?? 0) * 60) });
-        }}
-      />
-      <NumberField
-        label="Weekly maximum (hours)"
-        size="sm"
-        min={0}
-        max={80}
-        step={0.5}
-        value={hours(r.weeklyMaxMinutes)}
-        onChange={(n) => {
-          set({ weeklyMaxMinutes: Math.round((n ?? 0) * 60) });
-        }}
-      />
-      <Field>
-        <FieldLabel>Overtime becomes</FieldLabel>
-        <SegmentedControl
-          fullWidth
-          size="sm"
-          value={r.overtime.becomes}
-          accessibilityLabel="Overtime becomes"
-          onValueChange={(v) => {
-            set({
-              overtime: { ...r.overtime, becomes: v as AttendanceRules['overtime']['becomes'] },
-            });
+      {/* Three rows for what counts as a working day (v3 S16), each changed in a modal. */}
+      <Rules title="Working day">
+        <Rule label="Schedule" value={load.data.defaultSchedule ?? 'Not set'} />
+        <Rule
+          label="Breaks"
+          value={`${String(r.breakMinutes)} minutes after ${String(hours(r.breakAfterMinutes))} hours`}
+          onPress={() => {
+            setOpen('breaks');
           }}
-        >
-          <SegmentedControlItem value="comp">Comp time</SegmentedControlItem>
-          <SegmentedControlItem value="paid">Pay</SegmentedControlItem>
-          <SegmentedControlItem value="choose">Manager chooses</SegmentedControlItem>
-        </SegmentedControl>
-      </Field>
-      <NumberField
-        label="Paid at (×)"
-        size="sm"
-        min={1}
-        max={3}
-        step={0.25}
-        value={Number(r.overtime.multiplier)}
-        onChange={(n) => {
-          set({ overtime: { ...r.overtime, multiplier: (n ?? 1).toFixed(2) } });
-        }}
-      />
-      <Button
-        variant="primary"
-        disabled={rules === null}
-        loading={busy === 'SetTimeOffAttendanceRules'}
-        onPress={() => {
-          void act('SetTimeOffAttendanceRules', { input: r }, 'Saved').then(() => {
-            setRules(null);
-            reload();
-          });
-        }}
-      >
-        Save
-      </Button>
+        />
+        <Rule
+          label="Rest and weekly limit"
+          value={`${String(hours(r.restMinutes))} hours between days · ${String(hours(r.weeklyMaxMinutes))} a week`}
+          onPress={() => {
+            setOpen('limits');
+          }}
+        />
+        <Rule
+          label="Overtime"
+          value={`Manager approves · ${BECOMES[r.overtime.becomes]} at ×${r.overtime.multiplier}`}
+          onPress={() => {
+            setOpen('overtime');
+          }}
+        />
+      </Rules>
+      {open === 'breaks' ? (
+        <RuleDialog title="Breaks" busy={busy !== null} onClose={close} onSave={save}>
+          <NumberField
+            label="Break after (hours)"
+            size="sm"
+            min={0}
+            max={24}
+            step={0.5}
+            value={hours(r.breakAfterMinutes)}
+            onChange={(n) => {
+              set({ breakAfterMinutes: Math.round((n ?? 0) * 60) });
+            }}
+          />
+          <NumberField
+            label="Break length (minutes)"
+            size="sm"
+            min={0}
+            max={240}
+            value={r.breakMinutes}
+            onChange={(n) => {
+              set({ breakMinutes: n ?? 0 });
+            }}
+          />
+        </RuleDialog>
+      ) : null}
+      {open === 'limits' ? (
+        <RuleDialog title="Rest and weekly limit" busy={busy !== null} onClose={close} onSave={save}>
+          <NumberField
+            label="Rest between days (hours)"
+            size="sm"
+            min={0}
+            max={24}
+            step={0.5}
+            value={hours(r.restMinutes)}
+            onChange={(n) => {
+              set({ restMinutes: Math.round((n ?? 0) * 60) });
+            }}
+          />
+          <NumberField
+            label="Weekly maximum (hours)"
+            size="sm"
+            min={0}
+            max={80}
+            step={0.5}
+            value={hours(r.weeklyMaxMinutes)}
+            onChange={(n) => {
+              set({ weeklyMaxMinutes: Math.round((n ?? 0) * 60) });
+            }}
+          />
+        </RuleDialog>
+      ) : null}
+      {open === 'overtime' ? (
+        <RuleDialog title="Overtime" busy={busy !== null} onClose={close} onSave={save}>
+          <Field>
+            <FieldLabel>Overtime becomes</FieldLabel>
+            <SegmentedControl
+              fullWidth
+              size="sm"
+              value={r.overtime.becomes}
+              accessibilityLabel="Overtime becomes"
+              onValueChange={(v) => {
+                set({
+                  overtime: { ...r.overtime, becomes: v as AttendanceRules['overtime']['becomes'] },
+                });
+              }}
+            >
+              <SegmentedControlItem value="comp">Comp time</SegmentedControlItem>
+              <SegmentedControlItem value="paid">Pay</SegmentedControlItem>
+              <SegmentedControlItem value="choose">Manager chooses</SegmentedControlItem>
+            </SegmentedControl>
+          </Field>
+          <NumberField
+            label="Paid at (×)"
+            size="sm"
+            min={1}
+            max={3}
+            step={0.25}
+            value={Number(r.overtime.multiplier)}
+            onChange={(n) => {
+              set({ overtime: { ...r.overtime, multiplier: (n ?? 1).toFixed(2) } });
+            }}
+          />
+        </RuleDialog>
+      ) : null}
     </>
   );
 }
@@ -1278,7 +1543,12 @@ interface HolidaySettings {
 }
 
 function Holidays(): React.JSX.Element {
-  const [year, setYear] = useState(new Date().getUTCFullYear());
+  const thisYear = new Date().getUTCFullYear();
+  const [year, setYear] = useState(thisYear);
+  const [loc, setLoc] = useState('');
+  const [addingDay, setAddingDay] = useState(false);
+  const [dayOff, setDayOff] = useState<string | null>(null);
+  const [dayName, setDayName] = useState('');
   const { load, reload } = useTimeOff<HolidaySettings>('TimeOffHolidaySettings', { year });
   const { act, busy } = useAct('timeoff');
   const [drafting, setDrafting] = useState<{ layerKey: string; source: string } | null>(null);
@@ -1300,61 +1570,148 @@ function Holidays(): React.JSX.Element {
     );
   }
   const d = load.data;
+  const place = d.locations.find((l) => l.locationKey === loc) ?? d.locations[0];
+  const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
+  const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const layerName = (key: string): string => d.layers.find((l) => l.key === key)?.name ?? key;
   return (
     <>
+      {/* Per location (v3 S14): chips with how many days each keeps, the year, then the days. */}
+      <View>
+        <ChipGroup
+          type="single"
+          value={place?.locationKey ?? ''}
+          onValueChange={setLoc}
+          accessibilityLabel="Location"
+          scroll
+        >
+          {d.locations.map((l) => (
+            <ChipGroupItem key={l.locationKey} value={l.locationKey}>
+              {`${l.locationKey} ${String(l.holidays.length)}`}
+            </ChipGroupItem>
+          ))}
+        </ChipGroup>
+      </View>
       <SegmentedControl
-        fullWidth
         value={String(year)}
+        size="sm"
         accessibilityLabel="Year"
         onValueChange={(y) => {
           setYear(Number(y));
         }}
       >
-        {[year - 1, year, year + 1].map((y) => (
+        {[thisYear, thisYear + 1].map((y) => (
           <SegmentedControlItem key={y} value={String(y)}>
             {String(y)}
           </SegmentedControlItem>
         ))}
       </SegmentedControl>
-      <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Where people work
-      </Text>
-      {d.locations.map((l) => (
-        <Card key={l.locationKey}>
-          <Stack gap={2}>
-            <CardTitle>{l.locationKey}</CardTitle>
-            <Text
-              variant="footnote"
-              tone="muted"
-            >{`${String(l.holidays.length)} holidays in ${String(year)}`}</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {d.layers.map((layer) => {
-                const on = l.layerKeys.includes(layer.key);
-                return (
-                  <Button
-                    key={layer.key}
-                    size="sm"
-                    variant={on ? 'primary' : 'secondary'}
-                    loading={busy === 'AssignTimeOffHolidayCalendars'}
-                    onPress={() => {
-                      const next = on
-                        ? l.layerKeys.filter((k) => k !== layer.key)
-                        : [...l.layerKeys, layer.key];
-                      void act(
-                        'AssignTimeOffHolidayCalendars',
-                        { locationKey: l.locationKey, input: { layerKeys: next } },
-                        'Saved',
-                      ).then(reload);
-                    }}
-                  >
-                    {layer.name}
-                  </Button>
-                );
-              })}
-            </View>
-          </Stack>
-        </Card>
-      ))}
+      {place === undefined ? null : place.holidays.length === 0 ? (
+        <Text tone="muted">{`No holidays for ${place.locationKey} in ${String(year)} yet.`}</Text>
+      ) : (
+        <List>
+          {place.holidays.map((h) => (
+            <ListItem
+              key={`${h.date}${h.layer}`}
+              leading={
+                <View className="w-12">
+                  <Text variant="footnote" tone="subtle">
+                    {weekday.format(new Date(`${h.date}T12:00:00Z`))}
+                  </Text>
+                  <Text weight="bold">{dayMonth.format(new Date(`${h.date}T12:00:00Z`))}</Text>
+                </View>
+              }
+              description={layerName(h.layer)}
+            >
+              {h.name}
+            </ListItem>
+          ))}
+        </List>
+      )}
+      <Button
+        startIcon={<Icon icon={Plus} />}
+        disabled={place === undefined}
+        onPress={() => {
+          setAddingDay(true);
+        }}
+      >
+        Add a company day off
+      </Button>
+      {addingDay && place !== undefined ? (
+        <RuleDialog
+          title="A company day off"
+          busy={busy !== null}
+          onClose={() => {
+            setAddingDay(false);
+          }}
+          onSave={() => {
+            if (dayOff === null || dayName.trim() === '') return;
+            const own = d.layers.find((l) => l.key === 'company-days');
+            void (async () => {
+              const saved = await act('SaveTimeOffHolidayCalendar', {
+                calendarKey: 'company-days',
+                input: {
+                  name: own?.name ?? 'Company days off',
+                  level: own?.level ?? 'city',
+                  weekendRule: own?.weekendRule ?? 'none',
+                  holidays: [...(own?.holidays ?? []), { date: dayOff, name: dayName.trim() }].sort(
+                    (p, q) => p.date.localeCompare(q.date),
+                  ),
+                },
+              });
+              if (saved === null) return;
+              if (!place.layerKeys.includes('company-days')) {
+                const assigned = await act('AssignTimeOffHolidayCalendars', {
+                  locationKey: place.locationKey,
+                  input: { layerKeys: [...place.layerKeys, 'company-days'] },
+                });
+                if (assigned === null) return;
+              }
+              setAddingDay(false);
+              setDayOff(null);
+              setDayName('');
+              reload();
+            })();
+          }}
+        >
+          <Field>
+            <FieldLabel>Day</FieldLabel>
+            <DatePicker label="Day" size="sm" value={dayOff} onChange={setDayOff} />
+          </Field>
+          <Field>
+            <FieldLabel>What it is</FieldLabel>
+            <Input value={dayName} onChange={setDayName} size="sm" placeholder="Company anniversary" />
+          </Field>
+        </RuleDialog>
+      ) : null}
+      {place === undefined ? null : (
+        <>
+          <Heading title={`Calendars ${place.locationKey} keeps`} />
+          <View className="flex-row flex-wrap gap-2">
+            {d.layers.map((layer) => {
+              const on = place.layerKeys.includes(layer.key);
+              return (
+                <Chip
+                  key={layer.key}
+                  selected={on}
+                  onPress={() => {
+                    const next = on
+                      ? place.layerKeys.filter((k) => k !== layer.key)
+                      : [...place.layerKeys, layer.key];
+                    void act(
+                      'AssignTimeOffHolidayCalendars',
+                      { locationKey: place.locationKey, input: { layerKeys: next } },
+                      'Saved',
+                    ).then(reload);
+                  }}
+                >
+                  {layer.name}
+                </Chip>
+              );
+            })}
+          </View>
+        </>
+      )}
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
         Calendars
       </Text>

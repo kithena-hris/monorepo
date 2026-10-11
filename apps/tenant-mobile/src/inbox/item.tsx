@@ -70,7 +70,7 @@ import { ask, formInputs, useSigned, type Signed } from '../people/api';
 import { shareBase64 } from '../people/media';
 import type { PeopleRoutes, PeopleScreen } from '../people/routes';
 import { changeInbox, readInbox, useInbox } from './api';
-import { RowBadges } from './inbox';
+import { RowBadges } from './row-badges';
 import {
   days,
   firstName,

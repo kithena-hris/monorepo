@@ -56,7 +56,7 @@ import { useAct } from '../people/act';
 import { keptAnswer, read, useSigned, type Signed } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
-import { BalanceDialog } from './balance';
+import { BalanceDialog, type Balance } from './balance';
 import { DayDialog, mondayOf, type CalendarAnswer } from './calendar';
 import { DescribedCard, useDescribed } from './describe-answer';
 import { leaveIcon } from './icons';
@@ -69,18 +69,6 @@ type ClockState = 'out' | 'in' | 'on_break';
 type WorkModel = 'office' | 'remote' | 'client';
 type PunchKind = 'in' | 'out' | 'break_start' | 'break_end';
 
-export interface Balance {
-  readonly leaveTypeKey: string;
-  readonly name: string;
-  readonly unit: 'day' | 'hour';
-  readonly colorToken: string;
-  readonly icon: string;
-  readonly left: string;
-  readonly used: string;
-  readonly booked: string;
-  readonly allowance: string;
-  readonly yearly: string | null;
-}
 
 interface Span {
   readonly from: string;

@@ -36,7 +36,7 @@ import {
   Textarea,
 } from '@reach/ui-native';
 import { ArrowLeft, ArrowRight, Send, Sparkles } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Loading, Page } from '../frame';
@@ -45,7 +45,7 @@ import { read, useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
 import { leaveIcon } from './icons';
-import { CATEGORIES, keyOf } from './settings';
+import { CATEGORIES, keyOf } from './leave-kinds';
 import { todayHere } from './time';
 import { amount, shortDate } from './words';
 
@@ -689,5 +689,179 @@ function Members({ policyId, unit }: { policyId: string; unit: string }): React.
         </Text>
       </Stack>
     </Card>
+  );
+}
+
+/** What kind of leave a description is about, from its words. */
+function categoryOf(text: string): string {
+  if (/\bsick|ill(ness)?\b/iu.test(text)) return 'sick_leave';
+  if (/\bparental|maternity|paternity|birth|adopt/iu.test(text)) return 'parental_leave';
+  if (/\bunpaid\b/iu.test(text)) return 'unpaid_leave';
+  if (/\bvacation|annual|holiday\b/iu.test(text)) return 'annual_leave';
+  return 'other';
+}
+
+/**
+ * A new leave type, described (design v3 S12): paste the handbook line or say
+ * it. Time Off's reader drafts the rules and asks the one question the text
+ * leaves open; Create writes the type and its draft policy, which then opens
+ * to be checked and published. Edit rules is the step-by-step flow.
+ */
+export function DescribeLeaveTypeDialog({
+  initial,
+  onClose,
+  onCreated,
+  onSteps,
+}: {
+  initial: string;
+  onClose: () => void;
+  onCreated: (key: string, name: string) => void;
+  onSteps: () => void;
+}): React.JSX.Element {
+  const signed = useSigned();
+  const { act, busy } = useAct('timeoff');
+  const [text, setText] = useState(initial);
+  const [asked, setAsked] = useState<Record<string, unknown> | null>(null);
+  const [answer, setAnswer] = useState<
+    (PolicyRead & { rules?: readonly { key: string; label: string; value: string }[] }) | string | null
+  >(null);
+  const name = (text.split(/[:.,\n]/u)[0] ?? '').trim();
+  const category = categoryOf(text);
+  const unpaid = /\bunpaid\b/iu.test(text);
+
+  const readIt = (with_: Record<string, unknown>): void => {
+    setAsked(with_);
+    setAnswer(null);
+    void read<PolicyRead & { rules?: { key: string; label: string; value: string }[] }>(
+      signed,
+      'TimeOffPolicyRead',
+      with_,
+      'timeoff',
+    ).then((a) => {
+      setAnswer(a.ok ? a.data : a.message);
+    });
+  };
+  // A description handed in from the list's box is read at once.
+  useEffect(() => {
+    if (initial.trim() !== '') readIt({ text: initial.trim() });
+  }, []);
+  const read_ = typeof answer === 'object' && answer !== null ? answer : null;
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New leave type</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Textarea
+            value={text}
+            onChange={setText}
+            placeholder="Bereavement: 5 paid days for close family, 2 for anyone else. No approval, just tell the manager."
+            accessibilityLabel="Describe the leave"
+          />
+          <Button
+            size="sm"
+            disabled={text.trim() === '' || busy !== null}
+            startIcon={<Icon icon={Sparkles} />}
+            onPress={() => {
+              readIt({ text: text.trim() });
+            }}
+          >
+            {asked === null ? 'Read it' : 'Read it again'}
+          </Button>
+          {asked === null ? null : answer === null ? (
+            <Loading label="Reading it" />
+          ) : typeof answer === 'string' ? (
+            <Alert tone="danger">{answer}</Alert>
+          ) : (
+            <Card variant="assistant" className="gap-3">
+              <View className="flex-row items-center gap-2">
+                <Icon icon={Sparkles} size={16} tone="accent" />
+                <Text variant="headline" className="flex-1">
+                  {name === '' ? 'The new leave' : name}
+                </Text>
+              </View>
+              <List>
+                <ListItem listitem={false} overline="Paid">
+                  {unpaid ? 'No, unpaid' : 'Yes, full pay'}
+                </ListItem>
+                {(read_?.rules ?? []).map((r) => (
+                  <ListItem key={r.key} listitem={false} overline={r.label} wrap>
+                    {r.value}
+                  </ListItem>
+                ))}
+              </List>
+              {read_?.question == null ? null : (
+                <Card variant="fill" className="gap-2">
+                  <Text weight="semibold">{read_.question.title}</Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {read_.question.options.map((o) => (
+                      <Button
+                        key={o.value}
+                        size="sm"
+                        variant="tinted"
+                        onPress={() => {
+                          readIt({ ...asked, [read_.question?.key ?? '']: o.value });
+                        }}
+                      >
+                        {o.label}
+                      </Button>
+                    ))}
+                  </View>
+                </Card>
+              )}
+              {(read_?.problems ?? []).map((p) => (
+                <Text key={p.path} variant="footnote" tone="warning">
+                  {p.message}
+                </Text>
+              ))}
+            </Card>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button className="flex-1" onPress={onSteps}>
+            Edit rules
+          </Button>
+          <Button
+            className="flex-1"
+            variant="primary"
+            disabled={keyOf(name) === '' || read_ === null}
+            loading={busy !== null}
+            onPress={() => {
+              void (async () => {
+                const defined = await act<{ key: string }>('DefineTimeOffLeaveType', {
+                  input: {
+                    key: keyOf(name),
+                    name: { default: name },
+                    category,
+                    colorToken: category === 'sick_leave' ? 'chart-3' : 'chart-4',
+                    icon: CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag',
+                    unit: 'day',
+                    tracked: read_?.definition != null,
+                    paid: unpaid ? 'unpaid' : 'paid',
+                    visibility: category === 'sick_leave' ? 'off_only' : 'type',
+                  },
+                });
+                if (defined === null) return;
+                if (read_?.definition != null) {
+                  const drafted = await act('DraftTimeOffPolicy', {
+                    input: { ...read_.definition, leaveTypeKey: defined.key },
+                  });
+                  if (drafted === null) return;
+                }
+                onCreated(defined.key, name);
+              })();
+            }}
+          >
+            Create
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
