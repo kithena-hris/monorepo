@@ -149,6 +149,16 @@ describe('prepareRemoteSsr', () => {
     warn.mockRestore();
   });
 
+  it('keeps rendering with the build it verified while the host does not answer', async () => {
+    serve(CODE);
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    // The manifest unreadable for a moment: a slow host, a cold CDN.
+    const manifest = files['/ssr/manifest.json'];
+    delete files['/ssr/manifest.json'];
+    expect(await prepareRemoteSsr(base)).toMatchObject({ ssr: `${base}/ssr/people.cjs` });
+    if (manifest !== undefined) files['/ssr/manifest.json'] = manifest;
+  });
+
   it('falls back to the browser for a substituted build, and says so once per build without the code', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const substituted = `exports.Profile = function () { return 'SECRET-LOOKING-CODE'; };`;

@@ -221,16 +221,27 @@ export async function prepareRemoteSsr(
       text(`${base}/ssr/manifest.json.sig`),
     ]),
   );
-  // Down, slow or not deployed with a server build: nothing to say.
-  if (fetched === undefined || manifest === undefined || signature === undefined) return undefined;
   const pinned = process.env[pin] ?? '';
-  const same =
-    kept !== undefined &&
-    kept.manifest === manifest &&
-    kept.signature === signature &&
-    kept.pinned === pinned;
-  let ready = same && fetched === 'unchanged' ? kept : undefined;
+  let ready: typeof kept;
+  if (fetched === undefined || manifest === undefined || signature === undefined) {
+    // Down, slow (each read has 2 s) or not deployed with a server build. One
+    // slow answer is not a reason to draw the page in the browser: the build
+    // last verified here, under this key, still renders. Only bytes already
+    // checked are kept this way; anything new is fetched and checked as ever.
+    if (kept === undefined || kept.pinned !== pinned) return undefined;
+    ready = kept;
+  } else {
+    const same =
+      kept !== undefined &&
+      kept.manifest === manifest &&
+      kept.signature === signature &&
+      kept.pinned === pinned;
+    ready = same && fetched === 'unchanged' ? kept : undefined;
+  }
   if (ready === undefined) {
+    if (fetched === undefined || manifest === undefined || signature === undefined) {
+      return undefined;
+    }
     const whole = fetched === 'unchanged' ? await fetchBuild(url, undefined) : fetched;
     if (whole === undefined || whole === 'unchanged') return undefined;
     const verdict = verifyBuild(key, manifest, signature, whole.code, name);
