@@ -697,7 +697,7 @@ describe('at 390×844, with a finger', () => {
     expect(getComputedStyle(row).overflowX).toBe('auto');
     const remind = screen.getByRole('button', { name: 'Remind all' });
     expect(remind).toBeVisible();
-    expect(remind.closest('div')).toHaveTextContent('388 people');
+    expect(remind.closest('div')).toMatchTextContent('388 people');
   });
 
   it('smart search: results scrolling forever, with where you are and the way back (MA2)', async () => {
@@ -1190,7 +1190,7 @@ describe('at 390×844, with a finger', () => {
       ).toBeInTheDocument();
       // Who, by name: each a card whose title is the name.
       const who = screen.getByRole('table', { name: 'People without T-shirt size' });
-      expect(within(who).getAllByRole('row').at(1)).toHaveTextContent('Kevin Malone');
+      expect(within(who).getAllByRole('row').at(1)).toMatchTextContent('Kevin Malone');
       expect(screen.getByRole('button', { name: 'Approve and run' })).toBeEnabled();
       await again();
     });
@@ -1206,7 +1206,7 @@ describe('at 390×844, with a finger', () => {
       const [title] = within(within(left).getAllByRole('row')[1] as HTMLElement).getAllByRole(
         'cell',
       );
-      expect(title).toHaveTextContent('Pam Beesly');
+      expect(title).toMatchTextContent('Pam Beesly');
       await again();
     });
 
@@ -1236,7 +1236,7 @@ describe('at 390×844, with a finger', () => {
       }
       // Whoever a value leaves empty is a card titled by their name.
       const left = screen.getByRole('table', { name: /^Left without a work location/ });
-      expect(within(left).getAllByRole('row').at(1)).toHaveTextContent('Toby Flenderson');
+      expect(within(left).getAllByRole('row').at(1)).toMatchTextContent('Toby Flenderson');
       await again();
     });
 
