@@ -30,8 +30,11 @@ export async function punch(
   kind: 'in' | 'out' | 'break_start' | 'break_end',
   workModel: 'office' | 'remote' | 'client',
   source: 'web' | 'mobile' = 'web',
+  insideOfficeArea: boolean | null = null,
 ): Promise<Outcome> {
-  const a = await timeOff('PunchTimeOffClock', { input: { kind, workModel, source } });
+  const a = await timeOff('PunchTimeOffClock', {
+    input: { kind, workModel, source, insideOfficeArea },
+  });
   return a.ok ? { ok: true } : { ok: false, message: a.message };
 }
 
@@ -242,10 +245,7 @@ const outcome = (a: { ok: true } | { ok: false; message: string }): Outcome =>
  * Coming up or Decided after `after` (the last page's `next`), as the list
  * scrolls: Time Off's keyset page of only the people the caller decides for.
  */
-export async function approvalsPage(
-  tab: 'coming_up' | 'decided',
-  after: string,
-): Promise<unknown> {
+export async function approvalsPage(tab: 'coming_up' | 'decided', after: string): Promise<unknown> {
   const answer = await timeOff<unknown>('TimeOffApprovals', { tab, after });
   return answer.ok ? answer.data : null;
 }

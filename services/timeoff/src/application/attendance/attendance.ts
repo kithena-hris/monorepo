@@ -16,10 +16,12 @@ import { needsManager, openDays } from '../../domain/attendance/correction.js';
 import {
   clockInRefused,
   dayOf,
+  outsideOfficeArea,
   overtimeBecomes,
   restBreaches,
   weekOf,
   type Day,
+  type Office,
   type WeekTotal,
 } from '../../domain/attendance/day.js';
 import {
@@ -135,7 +137,10 @@ export const punch =
     transact(deps, caller.tenantId, async (tx) => {
       const member = await self(tx, caller);
       if (!member.ok) return member;
-      if (clockInRefused(await tx.attendance.rules(), input.source)) return clockInOff();
+      const rules = await tx.attendance.rules();
+      if (clockInRefused(rules, input.source)) return clockInOff();
+      if (outsideOfficeArea(rules, input))
+        return refuse('OUTSIDE_OFFICE_AREA', 'Clock in from inside the office area.');
       const clock = await clockOf(tx, member.value, caller.tenantId);
       const punched = clock.punch({
         id: deps.newId(),
@@ -201,6 +206,9 @@ export const correctPunch =
 
 export interface Timesheet {
   readonly days: readonly Day[];
+  /** For the clock's one location check: where counts, and whether a clock-in must be there. */
+  readonly offices: readonly Office[];
+  readonly onlyInOfficeArea: boolean;
   /** One per week touched, from its Monday. */
   readonly weeks: readonly (WeekTotal & { readonly monday: CalendarDate })[];
   /** Days without a clock-out, waiting for one (§11.4). */
@@ -235,6 +243,8 @@ export const timesheet =
       const inRange = (date: CalendarDate) => date >= input.from && date <= input.to;
       return ok({
         days,
+        offices: rules.offices,
+        onlyInOfficeArea: rules.clockIn.area,
         weeks: mondays.map((monday) => ({
           monday,
           ...weekOf(

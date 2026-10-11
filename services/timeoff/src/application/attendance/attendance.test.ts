@@ -186,6 +186,32 @@ describe('the clock and the timesheet (TOF-042)', () => {
       clockIn: { web: false, mobile: true },
     });
   });
+
+  it('takes a clock-in only from inside the office area, once HR has an office (S16)', async () => {
+    const { app } = setup();
+    const set = setAttendanceRules(app.deps);
+    const { offices: _none, ...rules } = app.state(TENANT).attendanceRules;
+    const area = { ...rules.clockIn, area: true };
+    expect(await set(hr, { ...rules, clockIn: area })).toMatchObject({
+      ok: false,
+      error: { code: 'NO_OFFICE_AREA' },
+    });
+    const madrid = { name: 'Madrid', latitude: 40.4168, longitude: -3.7038, radiusMetres: 150 };
+    expect(await set(hr, { ...rules, clockIn: area, offices: [madrid] })).toMatchObject({
+      ok: true,
+    });
+
+    const clockIn = (insideOfficeArea: boolean | null) =>
+      punch(app.deps)(
+        adam,
+        PunchInput.parse({ kind: 'in', source: 'mobile', workModel: 'office', insideOfficeArea }),
+      );
+    expect(await clockIn(null)).toMatchObject({
+      ok: false,
+      error: { code: 'OUTSIDE_OFFICE_AREA' },
+    });
+    expect(await clockIn(true)).toMatchObject({ ok: true, value: { state: 'in' } });
+  });
 });
 
 describe('HR’s exceptions and the inspector’s record (TOF-095)', () => {

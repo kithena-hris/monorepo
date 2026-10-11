@@ -683,6 +683,7 @@ type TimeOffChatAnswers {
 }
 
 type TimeOffClockInWays {
+  area: Boolean!
   mobile: Boolean!
   pin: Boolean!
   reader: Boolean!
@@ -1207,6 +1208,13 @@ type TimeOffNudgesSent {
   unreachable: Int!
 }
 
+type TimeOffOffice {
+  latitude: Float!
+  longitude: Float!
+  name: String!
+  radiusMetres: Int!
+}
+
 type TimeOffOpenDay {
   date: String!
   lastPunchAt: String!
@@ -1266,6 +1274,8 @@ type TimeOffOverview {
 }
 
 type TimeOffOverviewClock {
+  offices: [TimeOffOffice!]!
+  onlyInOfficeArea: Boolean!
   state: String!
   today: TimeOffDay!
   workModel: String
@@ -1736,6 +1746,7 @@ type TimeOffSettingsAttendanceRules {
   breakAfterMinutes: Int!
   breakMinutes: Int!
   clockIn: TimeOffClockInWays!
+  offices: [TimeOffOffice!]!
   overtime: TimeOffSettingsAttendanceRulesOvertime!
   restMinutes: Int!
   weeklyMaxMinutes: Int!
@@ -1813,6 +1824,8 @@ type TimeOffTimesheet {
   corrections: [TimeOffCorrection!]!
   days: [TimeOffDay!]!
   member: TimeOffMember!
+  offices: [TimeOffOffice!]!
+  onlyInOfficeArea: Boolean!
   open: [TimeOffOpenDay!]!
   overtime: [TimeOffOvertimeDecision!]!
   punches: [TimeOffPunch!]!

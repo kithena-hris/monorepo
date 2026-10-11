@@ -58,7 +58,7 @@ import {
   type WorkModel,
 } from '../attendance/time';
 import type { Loadable, Outcome } from '../load';
-import { checkOnce, type Office } from './location';
+import { checkOnce, insideFor, type Office } from './location';
 
 /**
  * The clock in the top bar (T2, PRD §11.1), on every page of Kithena: a pill
@@ -86,6 +86,8 @@ export interface ClockData {
   readonly now: string;
   /** Where the company works from, for the phone's one check; none, it never asks. */
   readonly offices?: readonly Office[];
+  /** S16: a clock-in counts only from inside one of `offices`. */
+  readonly onlyInOfficeArea?: boolean;
 }
 
 export interface TopBarClockProps {
@@ -95,6 +97,7 @@ export interface TopBarClockProps {
     kind: PunchKind,
     workModel: WorkModel,
     source: PunchSource,
+    insideOfficeArea?: boolean | null,
   ) => Promise<Outcome>;
 }
 
@@ -151,7 +154,12 @@ function Clock({
     if (onPunch === undefined) return;
     setFailed(null);
     start(async () => {
-      const outcome = await onPunch(kind, where, coarse ? 'mobile' : 'web');
+      const outcome = await onPunch(
+        kind,
+        where,
+        coarse ? 'mobile' : 'web',
+        await insideFor(kind, data),
+      );
       if (!outcome.ok) setFailed(outcome.message);
     });
   };

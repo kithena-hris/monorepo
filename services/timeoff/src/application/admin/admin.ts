@@ -316,12 +316,23 @@ export const setAttendanceRules =
   (deps: AdminDeps) =>
   (
     caller: Caller,
-    body: Omit<AttendanceRules, 'clockIn'> & {
+    body: Omit<AttendanceRules, 'clockIn' | 'offices'> & {
       readonly clockIn?: AttendanceRules['clockIn'] | undefined;
+      readonly offices?: AttendanceRules['offices'] | undefined;
     },
   ): Promise<Result<void>> =>
     asHr(deps, caller, async (tx) => {
-      const rules = { ...body, clockIn: body.clockIn ?? (await tx.attendance.rules()).clockIn };
+      const was = await tx.attendance.rules();
+      const rules = {
+        ...body,
+        clockIn: body.clockIn ?? was.clockIn,
+        offices: body.offices ?? was.offices,
+      };
+      if (rules.clockIn.area && rules.offices.length === 0) {
+        return refuse('NO_OFFICE_AREA', 'Add an office before asking people to clock in there', [
+          'offices',
+        ]);
+      }
       const minutes = [
         rules.breakAfterMinutes,
         rules.breakMinutes,
