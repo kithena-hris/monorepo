@@ -73,6 +73,6 @@ describe(`mapping a 23-column file ${coarse ? 'with a finger' : 'with a mouse'}`
     expect(box?.scrollTop).toBeGreaterThan(0);
     await userEvent.click(within(list).getByRole('option', { name: 'Hometown' }));
     await expect.poll(() => screen.queryByRole('listbox')).toBeNull();
-    expect(last).toHaveTextContent('Hometown');
+    expect(last).toMatchTextContent('Hometown');
   });
 });

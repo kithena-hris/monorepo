@@ -300,7 +300,7 @@ describe('ImportFlow', () => {
     expect(left).toHaveTextContent('nobody in this company or this file is called “Gabe Lewis”');
     // Whose cell it is comes first: the name, then the row and the cell.
     expect(within(left).getAllByRole('columnheader')[0]).toHaveTextContent('Name');
-    expect(within(left).getAllByRole('row')[1]).toHaveTextContent(/^Pam Beesly14M14/);
+    expect(within(left).getAllByRole('row')[1]?.textContent).toMatch(/^Pam Beesly14M14/);
 
     expect(screen.getByText('D7 — empty')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Skipped rows' })).toHaveTextContent(

@@ -133,7 +133,12 @@ describe('the organisation settings (PEO-119)', () => {
     const p = props();
     const opened: (string | null)[] = [];
     const { container, rerender } = render(
-      <Organisation {...p} tab="org-units" onTabChange={vi.fn()} onOpenChange={(o) => opened.push(o)} />,
+      <Organisation
+        {...p}
+        tab="org-units"
+        onTabChange={vi.fn()}
+        onOpenChange={(o) => opened.push(o)}
+      />,
     );
     expect(screen.getByRole('cell', { name: 'Platform' })).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
@@ -142,7 +147,15 @@ describe('the organisation settings (PEO-119)', () => {
     await user.click(screen.getByRole('button', { name: 'Add org unit' }));
     expect(opened).toEqual(['unit:new']);
 
-    rerender(<Organisation {...p} tab="org-units" onTabChange={vi.fn()} open="unit:new" onOpenChange={vi.fn()} />);
+    rerender(
+      <Organisation
+        {...p}
+        tab="org-units"
+        onTabChange={vi.fn()}
+        open="unit:new"
+        onOpenChange={vi.fn()}
+      />,
+    );
     const add = screen.getByRole('dialog', { name: 'Add an org unit' });
     await user.click(within(add).getByRole('button', { name: 'Save' }));
     expect(within(add).getByText('A name is needed.')).toBeInTheDocument();
@@ -153,7 +166,13 @@ describe('the organisation settings (PEO-119)', () => {
     expect(p.onCreateOrgUnit).toHaveBeenCalledWith({ name: 'Data', parentId: ENG });
 
     rerender(
-      <Organisation {...p} tab="org-units" onTabChange={vi.fn()} open={`unit-move:${ENG}`} onOpenChange={vi.fn()} />,
+      <Organisation
+        {...p}
+        tab="org-units"
+        onTabChange={vi.fn()}
+        open={`unit-move:${ENG}`}
+        onOpenChange={vi.fn()}
+      />,
     );
     const move = screen.getByRole('dialog', { name: 'Move Engineering' });
     await user.click(within(move).getByRole('button', { name: 'Under' }));
@@ -169,7 +188,8 @@ describe('the organisation settings (PEO-119)', () => {
     render(
       <Organisation
         {...p}
-        tab="org-units" onTabChange={vi.fn()}
+        tab="org-units"
+        onTabChange={vi.fn()}
         open={`unit-archive:${PLATFORM}`}
         onOpenChange={vi.fn()}
       />,
@@ -184,7 +204,8 @@ describe('the organisation settings (PEO-119)', () => {
     render(
       <Organisation
         {...props({ load: { status: 'ready', data: state({ canManage: false }) } })}
-        tab="org-units" onTabChange={vi.fn()}
+        tab="org-units"
+        onTabChange={vi.fn()}
         open="unit:new"
         onOpenChange={vi.fn()}
       />,
@@ -323,7 +344,7 @@ describe('the organisation settings (PEO-119)', () => {
     expect(within(spain).getByText('Pending legal review')).toBeInTheDocument();
     const germany = within(table).getByRole('row', { name: /Germany/ });
     expect(within(germany).getByText('Reviewed by A. Counsel on 2026-10-01')).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent(/Nothing is erased automatically/);
+    expect(screen.getByRole('alert').textContent).toMatch(/Nothing is erased automatically/);
     expect(await axeViolations(container)).toEqual([]);
   });
 

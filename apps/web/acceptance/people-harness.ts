@@ -156,6 +156,14 @@ export async function keyboardUp(page: Page): Promise<void> {
 }
 
 export async function upload(page: Page, name: string, text: string): Promise<void> {
+  // Into the live screen. A file chosen on the server's HTML before the
+  // screen hydrates is lost when the browser draws the screen afresh instead,
+  // and the import then never moves on.
+  await page.waitForFunction(
+    () => document.querySelector('[data-remote][data-hydrating]') === null,
+    undefined,
+    { timeout: 30_000 },
+  );
   await page.locator('input[type=file]').setInputFiles({
     name,
     mimeType: 'text/csv',

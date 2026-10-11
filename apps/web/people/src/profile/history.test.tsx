@@ -109,7 +109,7 @@ describe('PersonHistory', () => {
     expect(fix).toHaveTextContent('Base salary corrected');
     expect(within(fix as HTMLElement).getByText('Correction')).toBeInTheDocument();
     // From what it replaced, to what it is.
-    expect(fix).toHaveTextContent(/50,000\.00.*to.*51,000\.00/);
+    expect(fix?.textContent).toMatch(/50,000\.00.*to.*51,000\.00/);
     expect(fix).toHaveTextContent('By You');
     const [june] = within(days[1] as HTMLElement).getAllByRole('listitem');
     // Recorded on the 20th of May, in force from the 1st of June: both said.
