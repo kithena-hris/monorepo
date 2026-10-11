@@ -3,6 +3,7 @@ import {
   Avatar,
   Badge,
   Button,
+  Card,
   Dialog,
   DialogBody,
   DialogContent,
@@ -22,8 +23,9 @@ import {
   Text,
   useToast,
 } from '@reach/ui-native';
-import { FileText, PenLine, Sparkles, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { Contact, getPermissionsAsync } from 'expo-contacts';
+import { BookUser, FileText, PenLine, Sparkles, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { ask, formInputs, useSigned } from '../people/api';
@@ -31,6 +33,7 @@ import { nifSuggestion } from '../people/checks';
 import { ClashDialog } from '../timeoff/approvals';
 import { shareBase64 } from '../people/media';
 import { readInbox } from './api';
+import { contactShaped, valuesFrom, type PickedContact } from './contact-fill';
 import { d, FieldInput, openIn, str, type Field_, type Nav } from './item';
 import { ago, days, dueOf, firstName, iconOf, type Item } from './model';
 
@@ -378,6 +381,44 @@ function Shell({
   );
 }
 
+/** Someone from the phone's contacts, read only once chosen or allowed. */
+async function contactOf(c: Contact): Promise<PickedContact> {
+  const [name, phones, emails] = await Promise.all([c.getFullName(), c.getPhones(), c.getEmails()]);
+  return { name, phone: phones[0]?.number ?? null, email: emails[0]?.address ?? null };
+}
+
+/**
+ * I2's suggestion: when the contacts were already shared with the app, the
+ * first person with your family name who isn't you; otherwise nothing is read
+ * until you choose somebody in the system's own picker.
+ */
+function useSuggestion(enabled: boolean): PickedContact | null {
+  const { person } = useSigned();
+  const [found, setFound] = useState<PickedContact | null>(null);
+  useEffect(() => {
+    const family = person.name?.family ?? '';
+    if (!enabled || family === '') return undefined;
+    const run = { live: true };
+    void (async () => {
+      const allowed = await getPermissionsAsync().catch(() => null);
+      if (allowed?.granted !== true) return;
+      const matches = await Contact.getAll({ name: family, limit: 5 }).catch(() => []);
+      const me = `${person.name?.given ?? ''} ${family}`.trim().toLowerCase();
+      for (const c of matches) {
+        const picked = await contactOf(c);
+        if (picked.name.toLowerCase() !== me && picked.phone !== null) {
+          if (run.live) setFound(picked);
+          return;
+        }
+      }
+    })();
+    return () => {
+      run.live = false;
+    };
+  }, [enabled, person]);
+  return found;
+}
+
 /** I2: the details somebody asked for, added to the record from the card. */
 function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
   const { write, busy } = useInboxWrite();
@@ -386,6 +427,13 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
   const [values, setValues] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(fields.map((f) => [f.key, f.value ?? ''])),
   );
+  const shaped = contactShaped(fields);
+  const suggested = useSuggestion(shaped);
+  const [used, setUsed] = useState(false);
+  const pour = (c: PickedContact): void => {
+    setValues((was) => ({ ...was, ...valuesFrom(fields, c) }));
+    setUsed(true);
+  };
   const filled = fields.every((f) => !f.required || (values[f.key] ?? '') !== '');
   return (
     <Shell
@@ -418,6 +466,43 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
         </>
       }
     >
+      {!shaped || used ? null : suggested !== null ? (
+        <Card variant="fill" padded={false}>
+          <ListItem
+            listitem={false}
+            className="bg-transparent"
+            leading={<Avatar name={suggested.name} size={36} />}
+            description="From your phone’s contacts"
+            trailing={
+              <Button
+                size="sm"
+                variant="link"
+                onPress={() => {
+                  pour(suggested);
+                }}
+              >
+                Use
+              </Button>
+            }
+          >
+            {`Use ${suggested.name}?`}
+          </ListItem>
+        </Card>
+      ) : (
+        <Button
+          variant="tinted"
+          startIcon={<Icon icon={BookUser} tone="accent" />}
+          onPress={() => {
+            void Contact.presentPicker()
+              .then(async (c) => {
+                if (c !== null) pour(await contactOf(c));
+              })
+              .catch(() => undefined);
+          }}
+        >
+          Choose from your contacts
+        </Button>
+      )}
       {fields.map((f) => (
         <FieldInput
           key={f.key}
