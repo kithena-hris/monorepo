@@ -158,6 +158,9 @@ export const publishPolicy =
     effectiveFrom: CalendarDate,
   ): Promise<Result<{ version: number; refolded: number }>> =>
     asHr(deps, caller, async (tx) => {
+      // Before anything is read: a member added at this moment is either in
+      // the list below or sees this version once it is committed.
+      await tx.lockEntitlements();
       const policy = await tx.policies.get(id);
       if (policy === null) return notFound('Policy');
       const ctx = contextFor(deps, userActor(caller), caller.correlationId, 'UTC');

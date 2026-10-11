@@ -91,6 +91,8 @@ export async function upsertIn(
   fields: MemberFields,
   applied: Applied,
 ): Promise<Result<Upserted>> {
+  // As a policy's publish does, so a hire never misses a policy published at the same moment.
+  await tx.lockEntitlements();
   const existing = await tx.members.get(fields.personId);
   if (existing !== null && stale(existing, applied)) {
     return ok({ member: existing, created: false, applied: false, posted: [] });

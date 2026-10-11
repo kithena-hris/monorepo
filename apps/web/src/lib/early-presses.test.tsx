@@ -6,7 +6,13 @@ import { renderToString } from 'react-dom/server';
 import { runInThisContext } from 'node:vm';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { EARLY_PRESSES_SCRIPT, WAITING, releaseEarlyPresses } from './early-presses';
+import {
+  EARLY_PRESSES_SCRIPT,
+  WAITING,
+  chosenFiles,
+  handFilesOver,
+  releaseEarlyPresses,
+} from './early-presses';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -222,6 +228,48 @@ function Island({
   }, [container]);
   return <Section onSave={onSave} />;
 }
+
+describe('a file chosen on the server’s HTML, when the screen is drawn afresh', () => {
+  /** A file input whose `files` a test can set and read, as jsdom builds no FileList itself. */
+  function fileInput(files: unknown = null): HTMLInputElement {
+    const input = document.createElement('input');
+    input.type = 'file';
+    let held = files;
+    Object.defineProperty(input, 'files', {
+      get: () => held,
+      set: (next: unknown) => {
+        held = next;
+      },
+    });
+    return input;
+  }
+
+  it('goes to the input drawn in its place, as a change, once that input is there', async () => {
+    const chosen = { length: 1, 0: new File(['a,b'], 'people.csv') } as unknown as FileList;
+    const server = document.createElement('div');
+    server.append(fileInput(chosen));
+    const kept = chosenFiles(server);
+    expect(kept).toEqual([chosen]);
+
+    // The fresh screen draws its input a moment later.
+    const stage = document.createElement('div');
+    document.body.append(stage);
+    handFilesOver(stage, kept);
+    const drawn = fileInput();
+    const changed = vi.fn();
+    drawn.addEventListener('change', changed);
+    stage.append(drawn);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(drawn.files).toBe(chosen);
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the screen alone when nothing was chosen', () => {
+    const server = document.createElement('div');
+    server.append(fileInput());
+    expect(chosenFiles(server)).toEqual([null]);
+  });
+});
 
 describe('with React hydrating the screen', () => {
   it('saves what was typed, once, from a Save pressed while the code was loading', async () => {

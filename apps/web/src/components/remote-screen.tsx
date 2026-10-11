@@ -20,7 +20,7 @@ import { preloadModule } from 'react-dom';
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 
-import { WAITING, releaseEarlyPresses } from '../lib/early-presses';
+import { WAITING, chosenFiles, handFilesOver, releaseEarlyPresses } from '../lib/early-presses';
 
 /*
  * The shell's React and the shell's Reach, offered to every remote.
@@ -420,8 +420,12 @@ function Host({
     clearTimeout(stage.timer);
     if (stage.element !== container && stage.element.parentNode !== container) {
       // Drawn from nothing in an element the server filled: its HTML goes
-      // first, or the screen shows twice until the stage's first paint.
+      // first, or the screen shows twice until the stage's first paint. A
+      // file already chosen there (an import's) goes to the screen drawn in
+      // its place, rather than out with the old HTML.
+      const chosen = chosenFiles(container);
       container.replaceChildren(stage.element);
+      handFilesOver(stage.element, chosen);
     }
     // And it is no longer waiting: still marked, it would hold every press
     // on the screen for a hydration that is not coming. A press it held was

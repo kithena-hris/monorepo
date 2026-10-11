@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { sql } from 'drizzle-orm';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { publish, withTenant } from '@kithena/db-kit';
@@ -64,6 +65,12 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
     settings: drizzleSettings(tx, tenantId),
     idempotency: drizzleIdempotency(tx, tenantId),
     outbox: { publish: (events) => publish(tx, outbox, events) },
+    // Re-entrant within a transaction, so an import adding many members takes it once.
+    lockEntitlements: async () => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`timeoff.entitlements:${tenantId}`}, 0))`,
+      );
+    },
   };
 }
 
