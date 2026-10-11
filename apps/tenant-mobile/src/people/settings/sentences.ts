@@ -167,7 +167,8 @@ export interface Described {
 const SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
 export function describedField(text: string): Described {
-  const clean = text.trim();
+  // A sentence, not a document: a cap keeps every pattern below linear in practice.
+  const clean = text.trim().slice(0, 500);
   const lower = clean.toLowerCase();
   const name = (clean.split(/[,.;:\n]| for | - /u)[0] ?? '').trim();
   const label = name.charAt(0).toUpperCase() + name.slice(1);
@@ -175,14 +176,18 @@ export function describedField(text: string): Described {
   const range = /\b(XXS|XS|S|M|L|XL|XXL|XXXL)\s*(?:to|-|–)\s*(XXS|XS|S|M|L|XL|XXL|XXXL)\b/u.exec(
     clean,
   );
-  const listed = /one of ([^.;]+)/iu.exec(clean) ?? /\(([^)]+)\)/u.exec(clean);
+  const open = clean.indexOf('(');
+  const shut = open === -1 ? -1 : clean.indexOf(')', open + 1);
+  const listed =
+    /one of ([^.;]+)/iu.exec(clean)?.[1] ??
+    (open !== -1 && shut > open + 1 ? clean.slice(open + 1, shut) : null);
   let options: string[] = [];
   if (range !== null) {
     const from = SIZES.indexOf(range[1] ?? '');
     const to = SIZES.indexOf(range[2] ?? '');
     if (from !== -1 && to >= from) options = SIZES.slice(from, to + 1);
   } else if (listed !== null) {
-    options = (listed[1] ?? '')
+    options = listed
       .split(/,|\bor\b|\band\b/u)
       .map((o) => o.trim())
       .filter((o) => o !== '');
