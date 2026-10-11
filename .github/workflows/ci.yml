@@ -408,11 +408,28 @@ jobs:
   # Hermetic: every server is on loopback or in a container, and the webhook
   # test posts to the harness's own HTTPS receiver. Nothing reaches the
   # internet except the image and browser downloads before the suite starts.
-  web-acceptance:
-    name: web acceptance
+  #
+  # The files run on three runners at once rather than one after another: the
+  # People file alone is five and a half minutes and perf two, so in one job
+  # the suite was about ten. Each runner builds the three apps itself (about
+  # 20 s) and starts its own stack, as each file already did. `web acceptance`
+  # itself is the aggregate below, the name the branch ruleset requires.
+  web-acceptance-files:
+    name: web acceptance (${{ matrix.part }})
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: people
+            files: acceptance/people.acceptance.test.ts
+          - part: perf
+            files: acceptance/perf.acceptance.test.ts
+          # Every other file, so a new one is never left out.
+          - part: rest
+            files: ''
     steps:
       - name: checkout
         if: needs.changes.outputs.web == 'true'
@@ -440,20 +457,43 @@ jobs:
         if: needs.changes.outputs.web == 'true'
         env:
           ACCEPTANCE_LOGS: ${{ runner.temp }}/acceptance-servers.log
-        run: pnpm --filter @kithena/web test:acceptance
+          FILES: ${{ matrix.files }}
+        run: |
+          if [ -z "$FILES" ]; then
+            FILES="$(cd apps/web && ls acceptance/*.acceptance.test.ts | grep -v -e '/people\.' -e '/perf\.' | tr '\n' ' ')"
+          fi
+          echo "files: $FILES"
+          # shellcheck disable=SC2086 # one argument per file
+          pnpm --filter @kithena/web test:acceptance $FILES
       # The servers' last output, which is what explains a red run; the suite
       # writes it on the way down whatever the result.
       - name: keep the server logs
         if: failure() && needs.changes.outputs.web == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: web-acceptance-logs
+          name: web-acceptance-logs-${{ matrix.part }}
           path: ${{ runner.temp }}/acceptance-servers.log
           retention-days: 7
 
       - name: nothing to check
         if: needs.changes.outputs.web != 'true'
         run: echo "::notice::No change this job covers (apps/web, People, Time Off, identity, the gateway, packages, migrations or shared config). On main it runs unless this tree already passed it in its pull request."
+
+  web-acceptance:
+    name: web acceptance
+    needs: [changes, web-acceptance-files]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every part passed
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          FILES: ${{ needs.web-acceptance-files.result }}
+        run: |
+          echo "changes: $CHANGES, files: $FILES"
+          # A failed detector skips the parts; that is not a pass.
+          [ "$CHANGES" = success ] && [ "$FILES" = success ]
 
   design-system:
     needs: changes
