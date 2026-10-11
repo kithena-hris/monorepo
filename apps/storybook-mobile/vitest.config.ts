@@ -10,8 +10,12 @@ import { defineConfig } from 'vitest/config';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** A 390×844 phone with a finger, in Chromium. */
-const browser = {
+/**
+ * A 390×844 phone with a finger, in Chromium: made fresh for each project,
+ * since Vitest names the browser instance in place and one shared object
+ * gives every project the same name.
+ */
+const browser = () => ({
   enabled: true,
   headless: true,
   provider: playwright({
@@ -19,7 +23,7 @@ const browser = {
   }),
   viewport: { width: 390, height: 844 },
   instances: [{ browser: 'chromium' as const }],
-};
+});
 
 /**
  * `@rn-primitives`' native builds, which ship JSX for Metro to compile: here
@@ -49,18 +53,22 @@ function nativePrimitives(): Plugin {
  * for Android, as the sidebar lists them (`.storybook/device.tsx`).
  */
 export default defineConfig({
-  plugins: [storybookTest({ configDir: join(here, '.storybook') })],
   test: {
-    name: 'storybook-mobile',
     // The browser server's address: `test.api` since Vitest 5 (`browser.api` before).
     api: { host: '127.0.0.1' },
-    browser,
-    setupFiles: ['./.storybook/vitest.setup.ts'],
+    // Every project says all it needs, and the root config nothing: with
+    // Storybook's plugin and a browser on the root, Vitest 5 also ran every
+    // story as the root and again under the device project, neither with a
+    // platform declared, and the accessibility gate failed in both.
     projects: [
       ...(['ios', 'android'] as const).map((platform) => ({
-        extends: true as const,
+        plugins: [storybookTest({ configDir: join(here, '.storybook') })],
         define: { __REACH_PLATFORM__: JSON.stringify(platform) },
-        test: { name: `storybook-mobile (${platform})` },
+        test: {
+          name: `storybook-mobile (${platform})`,
+          browser: browser(),
+          setupFiles: ['./.storybook/vitest.setup.ts'],
+        },
       })),
       // Reach Mobile's overlays with `@rn-primitives`' native builds, as a
       // device draws them (`packages/ui-native/src/test/*.device-test.tsx`).
@@ -75,7 +83,7 @@ export default defineConfig({
           name: 'reach-mobile on a device',
           root: here,
           include: ['../../packages/ui-native/src/test/*.device-test.tsx'],
-          browser,
+          browser: browser(),
         },
       },
     ],
