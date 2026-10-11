@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
+import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
 
@@ -381,7 +382,20 @@ describe('A press on a People screen before its code has loaded', () => {
     const { page, errors, release, close } = await late(ADMIN.session);
     await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`, { waitUntil: 'commit' });
     const edit = page.getByRole('button', { name: /^Edit .+/ }).first();
-    await edit.waitFor({ timeout: 30_000 });
+    await edit.waitFor({ timeout: 30_000 }).catch(async (error: unknown) => {
+      // TEMPORARY: what the page held when its Edit button never came.
+      const state = await page.evaluate(() => ({
+        url: location.href,
+        waiting: document.querySelector('[data-remote][data-hydrating]') !== null,
+        remote: document.querySelector('[data-remote]')?.outerHTML.slice(0, 4000) ?? 'none',
+        buttons: [...document.querySelectorAll('button')].map((b) => b.textContent).slice(0, 40),
+      }));
+      const log = process.env['ACCEPTANCE_LOGS'];
+      if (log !== undefined) {
+        appendFileSync(log, `\n--- EDIT-DIAG\n${JSON.stringify({ state, errors }, null, 1)}\n`);
+      }
+      throw error;
+    });
     expect(await waiting(page), errors.join('\n')).toBe(true);
     const entries = await page.evaluate(() => history.length);
     await edit.click();
