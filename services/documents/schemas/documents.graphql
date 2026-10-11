@@ -288,6 +288,52 @@ type DocumentsWho {
   people: [DocumentsPerson!]!
 }
 
+type DocumentsdocumentsInbox {
+  items: [DocumentsdocumentsInboxItems!]!
+}
+
+type DocumentsdocumentsInboxItems {
+  area: String
+  at: String!
+  count: Int
+  detail: JSON
+  due: String
+  dueVerb: String!
+  from: DocumentsdocumentsInboxItemsFrom
+  icon: String!
+  id: String!
+  kind: String!
+  lane: String!
+  link: String!
+  message: String
+  module: String!
+  openIn: String!
+  outcome: DocumentsdocumentsInboxItemsStatus
+  replies: Int!
+  status: DocumentsdocumentsInboxItemsStatus
+  summary: String
+  team: DocumentsdocumentsInboxItemsTeam
+  title: String!
+  tone: String
+}
+
+type DocumentsdocumentsInboxItemsFrom {
+  name: String
+  personId: String
+}
+
+type DocumentsdocumentsInboxItemsStatus {
+  label: String!
+  tone: String!
+}
+
+type DocumentsdocumentsInboxItemsTeam {
+  mine: Boolean!
+  role: String!
+  takenAt: String
+  takenBy: DocumentsdocumentsInboxItemsFrom
+}
+
 """
 A JSON value, shaped as the matching REST schema in the OpenAPI document says.
 """
@@ -433,6 +479,10 @@ type Query {
   A version’s bytes: watermarked for a Confidential view, logged when Confidential
   """
   documentsFile(device: String, documentId: String!, mode: String, version: Int): DocumentsFile!
+  """
+  What Documents has in this person’s Inbox: documents asked of them, and access to decide
+  """
+  documentsInbox: DocumentsdocumentsInbox!
   """
   The Documents screen: what needs you, the queues, and every document you can open
   """

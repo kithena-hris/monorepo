@@ -26,7 +26,8 @@ export async function POST(request: Request): Promise<Response> {
   const body: unknown = await request.json().catch(() => null);
   const read = (key: string): unknown =>
     body !== null && typeof body === 'object' ? Reflect.get(body, key) : undefined;
-  const area = read('area') === 'timeoff' ? 'timeoff' : 'people';
+  const asked = read('area');
+  const area = asked === 'timeoff' || asked === 'documents' ? asked : 'people';
   const operation = read('operation');
   const variables: unknown = read('variables') ?? {};
   if (typeof operation !== 'string' || typeof variables !== 'object' || variables === null) {

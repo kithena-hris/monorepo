@@ -7,6 +7,7 @@ import {
   DocumentTypeDefinition,
   DocumentTypeKey,
   Grantee,
+  InboxAnswer,
   Permission,
   PersonId,
 } from '@kithena/contracts';
@@ -23,6 +24,7 @@ import {
   upload,
   type UploadedFile,
 } from '../application/documents.js';
+import { documentsInbox } from '../application/inbox.js';
 import { importMembers, MemberRow } from '../application/members.js';
 import { checkFile } from '../domain/document/document.js';
 import {
@@ -339,6 +341,15 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ personId: PersonId }),
     answer: PersonFileView,
     run: (deps, caller, { params }) => personFile(deps, caller, params.personId),
+  }),
+  route({
+    name: 'documentsInbox',
+    method: 'GET',
+    path: `${V1}/inbox`,
+    summary:
+      'What Documents has in this person’s Inbox: documents asked of them, and access to decide',
+    answer: InboxAnswer,
+    run: (deps, caller) => documentsInbox(deps, caller),
   }),
   route({
     name: 'documentsSettings',

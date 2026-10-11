@@ -65,6 +65,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** What Documents has in this person's Inbox (DOC-025) */
+  DocumentsInbox: `query DocumentsInbox {
+    documentsInbox {
+      items { area at count detail due dueVerb from { name personId } icon id kind lane link message module openIn outcome { label tone } replies status { label tone } summary team { mine role takenAt takenBy { name personId } } title tone }
+    }
+  }`,
+
   /** S1–S6: settings */
   DocumentsSettings: `query DocumentsSettings {
     documentsSettings {
