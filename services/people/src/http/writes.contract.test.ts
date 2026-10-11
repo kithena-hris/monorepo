@@ -202,8 +202,10 @@ describe("a screen's keyed write", () => {
   });
 
   it('refuses the same key with a different body', async () => {
+    // Counted from here: Vitest clears a mock's calls between tests.
+    const made = createEndpoint.mock.calls.length;
     const other = await rest({ ...request, body: request.body.replace('people', 'staff') });
     expect(other?.body).toMatchObject({ error: { code: 'IDEMPOTENCY_KEY_REUSED' } });
-    expect(createEndpoint).toHaveBeenCalledTimes(1);
+    expect(createEndpoint).toHaveBeenCalledTimes(made);
   });
 });
