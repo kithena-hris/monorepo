@@ -42,10 +42,14 @@ for (const c of CASES) {
   } else {
     // oxlint-disable-next-line no-await-in-loop -- one question at a time, within a provider's rate limit
     let planned = await planner.plan(TENANT, prepared.request);
-    // A free tier's tokens-per-minute runs out within a few questions: wait it out.
+    // A free tier's tokens-per-minute runs out within a few questions: wait it
+    // out. A whole minute, the window the limit counts over: Groq's free tier
+    // allows 8,000 tokens a minute and a question reserves about 3,700 (its
+    // prompt and max_tokens), so a 20 s wait kept retrying into the same
+    // full window and every question came back refused.
     for (let tries = 1; !planned.ok && planned.code === 'FAILED' && tries < 6; tries += 1) {
       // oxlint-disable-next-line no-await-in-loop -- waiting is the point
-      await new Promise((r) => setTimeout(r, 20_000));
+      await new Promise((r) => setTimeout(r, 61_000));
       // oxlint-disable-next-line no-await-in-loop -- one question at a time
       planned = await planner.plan(TENANT, prepared.request);
     }

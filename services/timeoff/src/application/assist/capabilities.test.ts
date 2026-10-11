@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   DateSpan,
+  ItemsResult,
+  LedgerEntry,
   LeaveTypeDefinition,
   LeaveTypeKey,
   PersonId,
   RuntimeCatalogue,
   TeamKey,
   TimeOffAway,
+  TimeOffBalances,
   TimeOffManagers,
+  TimeOffPending,
 } from '@kithena/contracts';
 
 import { LeaveType } from '../../domain/policy/leave-type.js';
 import { decideRequest } from '../approval/decide.js';
+import { approvals } from '../screens/manager.js';
 import type { Caller } from '../ports.js';
 import { sendRequest } from '../request/request.js';
 import { setChatAnswers } from '../settings/chat.js';
@@ -22,11 +27,12 @@ import {
   member,
   people,
   PLATFORM,
+  sickType,
   TENANT,
   vacationType,
   world,
 } from '../testing/world.js';
-import { away, capabilityCatalogue, managers } from './capabilities.js';
+import { away, balances, capabilityCatalogue, managers, pending } from './capabilities.js';
 
 /** Assistant PRD §8.5: what Time Off offers the assistant, as the asker. */
 
@@ -40,6 +46,8 @@ describe('Time Off’s capability catalogue (AST-022)', () => {
     expect(catalogue.serves).toEqual([
       { name: 'timeoff.away', version: 1 },
       { name: 'timeoff.managers', version: 1 },
+      { name: 'timeoff.balances', version: 1 },
+      { name: 'timeoff.pending', version: 1 },
     ]);
     expect(catalogue.leaveTypes).toEqual([
       { key: 'sick', name: 'Sick', private: true, category: 'sick_leave' },
@@ -400,6 +408,256 @@ describe('timeoff.managers (AST-024)', () => {
     expect(await managersOf(app, hr, [NIA, ZOE, people.adam], 0)).toMatchObject({
       rows: [],
       total: 3,
+    });
+  });
+});
+
+/* -------------------------------------------------------- timeoff.balances -- */
+
+describe('timeoff.balances (AST-030)', () => {
+  /**
+   * Everyone on Platform has the year's 25 days of vacation; Omar has asked
+   * for two of them and Leo for half of one. Zoe, in Sales and approved by
+   * Ravi, has no grant at all. Sick leave is tracked here, with Adam's 3 days.
+   */
+  async function balancesWorld() {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    const s = app.state(TENANT);
+    s.minimums.delete(PLATFORM);
+    s.members.set(
+      ZOE,
+      member(ZOE, 'Zoe Lane', {
+        teamKey: TeamKey.parse('sales'),
+        teamName: 'Sales',
+        managerPersonId: people.ravi,
+      }),
+    );
+    const tracked = LeaveType.define(LeaveTypeDefinition.parse({ ...sickType(), tracked: true }));
+    if (!tracked.ok) throw new Error(tracked.error.message);
+    s.leaveTypes.set('sick', tracked.value);
+    s.ledger.push(
+      LedgerEntry.parse({
+        entryId: '0189eeee-0000-7000-8000-000000000001',
+        personId: people.adam,
+        leaveTypeKey: 'sick',
+        kind: 'grant',
+        amount: '3.000',
+        unit: 'day',
+        effectiveOn: '2026-01-01',
+        occurredAt: '2025-12-01T00:00:00.000Z',
+        policyVersion: null,
+        supersedes: null,
+        requestId: null,
+        reason: null,
+      }),
+    );
+    for (const [who, span] of [
+      [people.omar, { from: '2026-10-06', to: '2026-10-07' }],
+      [people.leo, { from: '2026-10-06', to: '2026-10-06', endsHalfDay: true }],
+    ] as const) {
+      // oxlint-disable-next-line no-await-in-loop -- two requests, in order
+      const sent = await sendRequest(app.deps)(caller(who), {
+        leaveTypeKey: LeaveTypeKey.parse('vacation'),
+        span: DateSpan.parse(span),
+      });
+      if (!sent.ok) throw new Error(sent.error.message);
+    }
+    return app;
+  }
+
+  async function left(app: App, who: Caller, input: Record<string, unknown> = {}) {
+    const answer = await balances(app.deps)(
+      who,
+      TimeOffBalances.schemas.input.parse({ limit: 25, ...input }),
+    );
+    if (!answer.ok) throw new Error(answer.error.message);
+    return TimeOffBalances.schemas.output.parse(answer.value);
+  }
+  const of = (result: Awaited<ReturnType<typeof left>>) =>
+    result.kind === 'people' ? result.rows.map((r) => [r.name, r.detail]) : result.kind;
+  const more = (n: string) => ({ filters: [{ key: 'days_left', op: 'after', values: [n] }] });
+
+  it('shows HR everyone’s vacation, from the ledger, as decimal text', async () => {
+    const result = await left(await balancesWorld(), hr);
+    expect(of(result)).toEqual([
+      ['Adam Novak', '25 days left'],
+      ['Hana Kim', '25 days left'],
+      ['Leo Martin', '24.5 days left'],
+      ['Marco Ruiz', '25 days left'],
+      ['Omar Haddad', '23 days left'],
+      ['Ravi Patel', '25 days left'],
+      ['Yuki Tanaka', '25 days left'],
+      ['Zoe Lane', '0 days left'],
+    ]);
+    expect(result).toMatchObject({
+      total: 8,
+      scope: 'everyone',
+      described: 'with a Vacation balance',
+    });
+    expect(result.kind === 'people' && result.rows[0]?.groups).toEqual({
+      team: 'Platform',
+      location: 'madrid',
+    });
+  });
+
+  it('shows an approver their own and the people they approve, and an employee only their own', async () => {
+    const app = await balancesWorld();
+    const marco = await left(app, caller(people.marco));
+    expect(marco).toMatchObject({ total: 7, scope: 'visible' });
+    expect(marco.kind === 'people' && marco.rows.find((r) => r.self)?.name).toBe('Marco Ruiz');
+    expect(of(await left(app, caller(people.omar)))).toEqual([['Omar Haddad', '23 days left']]);
+    expect(of(await left(app, caller(people.omar), { name: '@me' }))).toEqual([
+      ['Omar Haddad', '23 days left'],
+    ]);
+    // Leo's balance is not Omar's to see, so for Omar there is nobody by that name.
+    expect(await left(app, caller(people.omar), { name: 'leo' })).toEqual({
+      kind: 'not_found',
+      name: 'leo',
+    });
+    expect(of(await left(app, caller(people.marco), { name: 'leo' }))).toEqual([
+      ['Leo Martin', '24.5 days left'],
+    ]);
+    expect(await left(app, hr, { name: '@me' })).toEqual({ kind: 'not_found', self: true });
+    // Zoe is not Omar's to see, so naming her id changes nothing.
+    expect(of(await left(app, caller(people.omar), { personIds: [ZOE, people.omar] }))).toEqual([
+      ['Omar Haddad', '23 days left'],
+    ]);
+  });
+
+  it('filters on the days left, more, fewer or exactly', async () => {
+    const app = await balancesWorld();
+    const over = await left(app, caller(people.marco), more('24'));
+    expect(of(over).length).toBe(6);
+    expect(over).toMatchObject({ described: 'with more than 24 days of Vacation left' });
+    expect(
+      of(await left(app, hr, { filters: [{ key: 'days_left', op: 'before', values: ['24'] }] })),
+    ).toEqual([
+      ['Omar Haddad', '23 days left'],
+      ['Zoe Lane', '0 days left'],
+    ]);
+    expect(
+      of(await left(app, hr, { filters: [{ key: 'days_left', op: 'is', values: ['24.5'] }] })),
+    ).toEqual([['Leo Martin', '24.5 days left']]);
+    const sales = await left(app, hr, {
+      filters: [...more('10').filters, { key: 'team', op: 'in', values: ['sales'] }],
+    });
+    expect(sales).toMatchObject({
+      total: 0,
+      described: 'in Sales with more than 10 days of Vacation left',
+    });
+    for (const bad of [
+      { key: 'days_left', op: 'after', values: ['ten'] },
+      { key: 'days_left', op: 'after', values: [] },
+      { key: 'days_left', op: 'in', values: ['10'] },
+    ]) {
+      // oxlint-disable-next-line no-await-in-loop -- each refused
+      const answer = await balances(app.deps)(
+        hr,
+        TimeOffBalances.schemas.input.parse({ limit: 25, filters: [bad] }),
+      );
+      expect(answer.ok).toBe(false);
+    }
+  });
+
+  it('writes a private type “Away” beside a name unless the company chose to name it', async () => {
+    const app = await balancesWorld();
+    const sickLeave = { filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
+    expect(await left(app, hr, sickLeave)).toMatchObject({ total: 8, described: 'with a Sick balance' });
+    expect(of(await left(app, hr, { filters: [...sickLeave.filters, ...more('0').filters] }))).toEqual([
+      ['Adam Novak', '3 days left'],
+    ]);
+    const both = { filters: [{ key: 'leave_type', op: 'in', values: ['vacation', 'Sick'] }] };
+    expect(of(await left(app, caller(people.marco), { ...both, name: 'adam' }))).toEqual([
+      ['Adam Novak', '3 days left · Away, 25 days left · Vacation'],
+    ]);
+    await setChatAnswers(app.deps)(hr, { namesPrivateLeave: true });
+    expect(of(await left(app, caller(people.marco), { ...both, name: 'adam' }))).toEqual([
+      ['Adam Novak', '3 days left · Sick, 25 days left · Vacation'],
+    ]);
+    // A teammate never sees another’s balance, of any type: only his own.
+    expect(of(await left(app, caller(people.omar), sickLeave))).toEqual([
+      ['Omar Haddad', '0 days left'],
+    ]);
+  });
+
+  it('counts without listing and gives every id when asked', async () => {
+    const counted = await left(await balancesWorld(), hr, { limit: 0, ids: true, ...more('24') });
+    expect(counted).toMatchObject({ rows: [], total: 6 });
+    expect(counted.kind === 'people' && counted.ids?.length).toBe(6);
+  });
+});
+
+/* --------------------------------------------------------- timeoff.pending -- */
+
+describe('timeoff.pending (AST-031)', () => {
+  async function waiting(app: App, who: Caller, limit = 25) {
+    const answer = await pending(app.deps)(who, TimeOffPending.schemas.input.parse({ limit }));
+    if (!answer.ok) throw new Error(answer.error.message);
+    return ItemsResult.parse(TimeOffPending.schemas.output.parse(answer.value));
+  }
+
+  /** Who the approvals screen's "waiting" tab (T16) shows the asker. */
+  async function screen(app: App, who: Caller): Promise<string[]> {
+    const view = await approvals(app.deps)(who, { tab: 'waiting' });
+    if (!view.ok) throw new Error(view.error.message);
+    return [...view.value.lookCloser.map((l) => l.item), ...view.value.clear]
+      .map((i) => i.displayName)
+      .toSorted();
+  }
+
+  it('is exactly the asker’s queue, as T16 shows it', async () => {
+    const app = await october();
+    for (const who of [caller(people.marco), caller(people.omar), caller(people.ravi), hr]) {
+      // oxlint-disable-next-line no-await-in-loop -- four askers
+      const result = await waiting(app, who);
+      // oxlint-disable-next-line no-await-in-loop -- four askers
+      const shown = await screen(app, who);
+      expect(result.items.map((i) => i.name).toSorted()).toEqual(shown);
+      expect(result.total).toBe(shown.length);
+    }
+    expect((await waiting(app, caller(people.omar))).total).toBe(0);
+  });
+
+  it('labels each with its type and days, a private type as Away unless the company names it', async () => {
+    const app = await october();
+    // A type teammates see only as "Off" is private, whatever its category.
+    const personal = LeaveType.define(
+      LeaveTypeDefinition.parse({
+        ...vacationType(),
+        key: 'personal',
+        name: { default: 'Personal' },
+        tracked: false,
+        visibility: 'off_only',
+      }),
+    );
+    if (!personal.ok) throw new Error(personal.error.message);
+    app.state(TENANT).leaveTypes.set('personal', personal.value);
+    const sent = await sendRequest(app.deps)(caller(people.ravi), {
+      leaveTypeKey: LeaveTypeKey.parse('personal'),
+      span: DateSpan.parse({ from: '2026-10-12', to: '2026-10-14' }),
+    });
+    if (!sent.ok) throw new Error(sent.error.message);
+
+    const labels = async () => {
+      return (await waiting(app, caller(people.marco))).items;
+    };
+    // Monday 12 October is a public holiday in Madrid: two days.
+    expect(await labels()).toEqual([
+      { name: 'Hana Kim', label: 'Vacation · Tue 6 Oct (1 day)' },
+      { name: 'Ravi Patel', label: 'Away · Mon 12 Oct to Wed 14 Oct (2 days)' },
+    ]);
+    await setChatAnswers(app.deps)(hr, { namesPrivateLeave: true });
+    expect((await labels())[1]?.label).toBe('Personal · Mon 12 Oct to Wed 14 Oct (2 days)');
+  });
+
+  it('lists up to the limit and counts them all', async () => {
+    const app = await october();
+    const all = await waiting(app, caller(people.marco));
+    expect(all.total).toBeGreaterThan(0);
+    expect(await waiting(app, caller(people.marco), 0)).toEqual({
+      kind: 'items',
+      items: [],
+      total: all.total,
     });
   });
 });

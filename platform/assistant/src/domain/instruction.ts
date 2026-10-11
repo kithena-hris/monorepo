@@ -8,9 +8,11 @@ import type { Offer } from './plan.js';
  *
  * The instruction is fixed text, in the voice of People's `instructionFor()`:
  * the plan's shapes, the inputs, the date words, `@me`, and the rules a model
- * gets wrong. The context is this question's: the masked question, today in
- * words, each capability the asker may use — what it is about, what it takes,
- * the fields its filters may name — and one line per module the company
+ * gets wrong. The context is this question's: the masked question, the
+ * earlier questions of a follow-up masked the same way (People's `earlier`,
+ * questions only, never answers), today in words, each capability the asker
+ * may use — what it is about, what it takes, the fields its filters may
+ * name — and one line per module the company
  * cannot use. Configuration only: never a value from a record, never a
  * person's id, never a result.
  *
@@ -28,14 +30,15 @@ export const INSTRUCTION = [
   '{"kind":"unclear","reply":"<one short sentence>"}  — anything else',
   'Steps: at most four, with ids s1 to s4. A step may add "within":"<an earlier step id>" to look only among the people that step found; that is the only way to join two steps, and a capability marked within "required" means nothing without it.',
   'Inputs, only those a capability takes: "filters":[{"key":"<field key>","op":"<op>","values":["..."]}], "match":"all"|"any", "on":<date>, "name":"<a person named in the question>", "sort":{"key":"<field or metric key>","direction":"asc"|"desc"}. Never write personIds, limit or ids: Kithena sets those.',
-  'Ops: is, in, not_in, contains, before, after, between, empty, not_empty. For a field with options use in or not_in with the option values. Use only the keys, options and capabilities given; never invent one.',
-  'Dates: one of today, tomorrow, yesterday, this_week, next_week, last_week, this_month, next_month, last_month, or a calendar date as YYYY-MM-DD; a span is {"from":<date>,"to":<date>}. Use a word wherever one fits; for a named day, write its date from days.',
+  'Ops: is, in, not_in, contains, before, after, between, empty, not_empty. For a field with options use in or not_in with the option values. For a number field, after means more than and before means less than, with the number as the one value. Use only the keys, options and capabilities given; never invent one. A step filters only by its own capability’s fields: to narrow by a field another capability has (a location or a department on people.find, say), make that capability’s step first and add "within" to the other.',
+  'Dates: one of today, tomorrow, yesterday, this_week, next_week, last_week, this_month, next_month, last_month, or a calendar date as YYYY-MM-DD; a span is {"from":<date>,"to":<date>}. Use a word wherever one fits: when the question says tomorrow, next week or another of those words, write that word, never the dates it stands for. A weekday’s name (Monday to Sunday) is not one of those words: write that day’s date as days gives it, never the name. For example, with days {"Friday":"2026-10-09"}, “off on Friday” is "on":"2026-10-09", never "on":"Friday".',
   'The asker is a person here too. When the question is about them (me, my, I, myself), use the name "@me". Never ask who "me" is.',
-  'Answer kinds: "count" for how many, with "by":"<group key>" to split by a group the capability lists (in the answer, never in an input); "list" to name people, also for "is anyone…?"; "one" for a single person, for what waits for approval, or for a name that may match several people.',
+  'Answer kinds: "count" for how many, with "by":"<group key>" to split by a group the capability lists, written exactly as one of its own groups and never a field key: “in each location” with groups ["team","location"] is "by":"location", never "by":"location_id" (in the answer, never in an input) whenever the question says by, per, each or every of that group; "list" to name people, also for "is anyone…?"; "one" for a single person, for what waits for approval, or for a name that may match several people. How much leave somebody has left is "list", even when it is only the asker. When the question asks what waits for the asker in general ("what’s waiting for me?"), plan a step for every capability that says what waits for the asker, and answer {"kind":"one","step":["s1","s2"]}.',
   'Being off, out or away on a day is time off. A status of "On leave" in the directory is employment status, not who is away today.',
   'A leave type option labelled "a leave type named in the question" stands for words of the question replaced by its value (L1, L2): filter by that value as it is.',
-  'Add "say" to a plan: one warm, natural sentence a helpful colleague would open with, in the asker’s language. You have not seen the answer yet, so in "say" never write a number, a leave type value such as L1, a name you were not given, or any fact: write {n} where the count goes.',
+  'Add "say" to a plan: one warm, natural sentence a helpful colleague would open with, in the asker’s language. You have not seen the answer yet, so in "say" never write a number, a digit of any kind (not a date, not a leave type value such as L1: say "that leave" instead), a name you were not given, or any fact: write {n} where the count goes.',
   'For unclear, "reply" is a friendly sentence saying what you can help with.',
+  'Earlier questions from the same conversation, oldest first, may be in "earlier": they are context, not questions to answer again. Use them to understand a short follow-up such as "and tomorrow?" or "what about Engineering?": keep what the follow-up does not change from the latest earlier question it continues, and change what it says.',
 ].join('\n');
 
 /** One line each for a module the company cannot use, so the model can say so rather than guess. */
@@ -52,12 +55,20 @@ export interface PlanPrompt {
 
 export interface PromptInput {
   readonly question: string;
+  /** Earlier questions in the conversation, masked, oldest first: never their answers. */
+  readonly earlier?: readonly string[];
   readonly today: Today;
   readonly offer: Offer;
   readonly unavailable: readonly ModuleKey[];
 }
 
-export function promptFor({ question, today, offer, unavailable }: PromptInput): PlanPrompt {
+export function promptFor({
+  question,
+  earlier = [],
+  today,
+  offer,
+  unavailable,
+}: PromptInput): PlanPrompt {
   const day = spoken({ from: today.date, to: today.date }, today);
   // `spoken` leaves out this year; the model is told it.
   const date = day.endsWith(today.date.slice(0, 4)) ? day : `${day} ${today.date.slice(0, 4)}`;
@@ -94,6 +105,7 @@ export function promptFor({ question, today, offer, unavailable }: PromptInput):
     instruction: INSTRUCTION,
     context: {
       question,
+      ...(earlier.length === 0 ? {} : { earlier }),
       today: today.utc ? `${date}, in UTC` : date,
       days: comingDays(today),
       capabilities,

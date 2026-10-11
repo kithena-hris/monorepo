@@ -179,6 +179,56 @@ describe('§7.1 how many people are off today', () => {
   });
 });
 
+describe('a follow-up in the same conversation', () => {
+  const followUp = (text: string, earlier: string[]) => ({ ...question(text), earlier });
+  const away = (on: string, extra: Record<string, unknown> = {}) =>
+    one('timeoff.away', { on, ...extra });
+
+  it('"and tomorrow?" after "who’s off today?" is planned with the earlier question, and runs for tomorrow', async () => {
+    const { modules, calls } = fakeModules(BOTH_MODULES, {
+      'timeoff.away': returns(people(0, 'away on Wednesday 7 October')),
+    });
+    const { planner, requests } = fakePlanner(away('tomorrow'));
+    const asked = await ask({ modules, planner })(
+      followUp('And tomorrow?', ['Who’s off today?']),
+      'c',
+    );
+    expect(requests[0]?.question).toBe('And tomorrow?');
+    expect(requests[0]?.earlier).toEqual(['Who’s off today?']);
+    expect(calls[0]?.input.on).toEqual({ from: '2026-10-07', to: '2026-10-07' });
+    expect(asked.outcome).toBe('answered');
+  });
+
+  it('masks a private type in an earlier question, and unmasks the follow-up’s plan by it', async () => {
+    const { modules, calls } = fakeModules(BOTH_MODULES, {
+      'timeoff.away': returns(people(1, 'away on Baja médica on Wednesday 7 October')),
+    });
+    const filters = [{ key: 'leave_type', op: 'in', values: ['L1'] }];
+    const { planner, requests } = fakePlanner(away('tomorrow', { filters }));
+    await ask({ modules, planner })(
+      followUp('And tomorrow?', ['Who is off sick today?', 'Who is on Baja médica?']),
+      'c',
+    );
+    expect(requests[0]?.earlier).toEqual(['Who is L1 today?', 'Who is on L1?']);
+    const types = requests[0]?.offer.get('timeoff.away')?.fields.find((f) => f.key === 'leave_type');
+    expect(types?.options.map((o) => o.value)).toEqual(['vacation', 'personal', 'comp', 'L1']);
+    expect(calls[0]?.input.filters).toEqual([{ key: 'leave_type', op: 'in', values: ['sick'] }]);
+  });
+
+  it('leaves out an earlier question the assistant would refuse, and answers this one', async () => {
+    const { modules } = fakeModules(BOTH_MODULES, {
+      'timeoff.away': returns(people(2, 'away on Wednesday 7 October')),
+    });
+    const { planner, requests } = fakePlanner(away('tomorrow'));
+    const asked = await ask({ modules, planner })(
+      followUp('Who is off tomorrow?', ['Who is pregnant?', 'Who is off today?']),
+      'c',
+    );
+    expect(requests[0]?.earlier).toEqual(['Who is off today?']);
+    expect(asked.outcome).toBe('answered');
+  });
+});
+
 describe('§7.2 the managers of people on sick leave today', () => {
   const plan = {
     kind: 'plan',
@@ -723,5 +773,124 @@ describe('a question from the web, in the session it was asked in (AST-035)', ()
     );
     expect(sent.length).toBeGreaterThan(0);
     expect(sent.every((as) => as.viewedBy === null && as.impersonatedBy === null)).toBe(true);
+  });
+});
+
+describe('balances, end to end (AST-030)', () => {
+  it('how much vacation do I have left?', async () => {
+    const { modules, calls } = fakeModules(
+      { people: PEOPLE_CATALOGUE, timeoff: TIMEOFF_CATALOGUE },
+      {
+        'timeoff.balances': returns(
+          people(
+            1,
+            'with a Vacation balance',
+            [{ name: 'Marco Ruiz', detail: '12.5 days left', self: true }],
+            { scope: 'visible' },
+          ),
+        ),
+      },
+    );
+    const { planner } = fakePlanner(
+      one('timeoff.balances', {
+        name: '@me',
+        filters: [{ key: 'leave_type', op: 'in', values: ['vacation'] }],
+      }),
+    );
+    const asked = await ask({ modules, planner })(
+      question('How much vacation do I have left?'),
+      'c',
+    );
+    expect(calls).toEqual([
+      {
+        name: 'timeoff.balances',
+        input: {
+          name: '@me',
+          filters: [{ key: 'leave_type', op: 'in', values: ['vacation'] }],
+          limit: 25,
+        },
+      },
+    ]);
+    expect(asked.answer.text).toBe('You have 12.5 days left.');
+  });
+
+  it('who in my team has more than 10 days left?', async () => {
+    const { modules, calls } = fakeModules(
+      { people: PEOPLE_CATALOGUE, timeoff: TIMEOFF_CATALOGUE },
+      {
+        'people.reports': returns(people(2, 'Marco Ruiz', [], { ids: [1, 2] })),
+        'timeoff.balances': returns(
+          people(
+            1,
+            'with more than 10 days of Vacation left',
+            [{ name: 'Adam Novak', detail: '12.5 days left' }],
+            { scope: 'visible' },
+          ),
+        ),
+      },
+    );
+    const { planner } = fakePlanner({
+      kind: 'plan',
+      steps: [
+        { id: 's1', capability: 'people.reports', input: { name: '@me' } },
+        {
+          id: 's2',
+          capability: 'timeoff.balances',
+          within: 's1',
+          input: { filters: [{ key: 'days_left', op: 'after', values: ['10'] }] },
+        },
+      ],
+      answer: { kind: 'list', step: 's2' },
+    });
+    const asked = await ask({ modules, planner })(
+      question('Who in my team has more than 10 days left?'),
+      'c',
+    );
+    expect(calls[1]).toEqual({
+      name: 'timeoff.balances',
+      input: {
+        filters: [{ key: 'days_left', op: 'after', values: ['10'] }],
+        limit: 25,
+        personIds: [id(1), id(2)],
+      },
+    });
+    expect(asked.answer.text).toContain('• Adam Novak — 12.5 days left');
+  });
+});
+
+describe('what’s waiting for me, end to end (AST-032)', () => {
+  it('asks People and Time Off for their queues and lists each under its name', async () => {
+    const { modules, calls } = fakeModules(
+      { people: PEOPLE_CATALOGUE, timeoff: TIMEOFF_CATALOGUE },
+      {
+        'people.approvals': returns({
+          kind: 'items',
+          items: [{ name: 'Jim Halpert', label: 'Job title' }],
+          total: 1,
+        }),
+        'timeoff.pending': returns({
+          kind: 'items',
+          items: [{ name: 'Hana Kim', label: 'Vacation · Tue 6 Oct (1 day)' }],
+          total: 1,
+        }),
+      },
+    );
+    const { planner } = fakePlanner({
+      kind: 'plan',
+      steps: [
+        { id: 's1', capability: 'people.approvals', input: {} },
+        { id: 's2', capability: 'timeoff.pending', input: {} },
+      ],
+      answer: { kind: 'one', step: ['s1', 's2'] },
+    });
+    const asked = await ask({ modules, planner })(question('What’s waiting for me?'), 'c');
+    expect(calls).toEqual([
+      { name: 'people.approvals', input: { limit: 25 } },
+      { name: 'timeoff.pending', input: { limit: 25 } },
+    ]);
+    expect(asked.answer.text).toBe(
+      '2 things are waiting for you:\nPeople:\n• Jim Halpert — Job title\nTime Off:\n• Hana Kim — Vacation · Tue 6 Oct (1 day)',
+    );
+    expect(asked).toMatchObject({ outcome: 'answered', steps: 2, answerKind: 'one' });
   });
 });

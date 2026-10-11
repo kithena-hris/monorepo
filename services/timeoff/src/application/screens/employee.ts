@@ -157,6 +157,19 @@ export async function approves(
   return approver || delegate;
 }
 
+/**
+ * Whose balances the caller may see: their own, the people they approve or
+ * cover, and everyone's for HR. The People Graph's rule and the assistant's.
+ */
+export async function seesBalances(
+  deps: Pick<Deps, 'authz'>,
+  caller: Caller,
+  personId: PersonId,
+  hr: boolean,
+): Promise<boolean> {
+  return hr || caller.personId === personId || approves(deps, caller, personId);
+}
+
 /* --------------------------------------------------------------- screens -- */
 
 type Unwritten<V> = Omit<V, 'bridges'> & { readonly bridges: readonly BridgeFacts[] };
@@ -483,9 +496,9 @@ export const personBalances =
   (deps: ReadDeps) =>
   (caller: Caller, personId: PersonId): Promise<Result<BalanceView[] | null>> =>
     transact<BalanceView[] | null>(deps, caller.tenantId, async (tx) => {
-      const allowed =
-        (await selfOrHr(deps, caller, personId)) || (await approves(deps, caller, personId));
-      if (!allowed) return ok(null);
+      if (!(await seesBalances(deps, caller, personId, await isHrAdmin(deps, caller)))) {
+        return ok(null);
+      }
       const member = await tx.members.get(personId);
       if (member === null) return ok(null);
       return ok(await balancesIn(tx, member, deps.clock.date(member.timeZone)));

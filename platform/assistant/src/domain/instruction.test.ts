@@ -17,13 +17,18 @@ import { offer } from './plan.js';
 
 const today = todayIn('Europe/Madrid', fixedClock('2026-10-06T10:00:00Z'));
 
-function promptOf(question: string, catalogues: readonly RuntimeCatalogue[]) {
+function promptOf(
+  question: string,
+  catalogues: readonly RuntimeCatalogue[],
+  earlier: readonly string[] = [],
+) {
   const leaveTypes = catalogues.flatMap((c) => c.leaveTypes);
-  const masked = mask(question, leaveTypes);
+  const masked = mask(question, leaveTypes, earlier);
   const present = new Set(catalogues.map((c) => c.module));
   const unavailable = (['people', 'timeoff'] as ModuleKey[]).filter((m) => !present.has(m));
   return promptFor({
     question: masked.question,
+    earlier: masked.earlier,
     today,
     offer: maskOffer(offer(catalogues), leaveTypes, masked.refs),
     unavailable,
@@ -74,6 +79,8 @@ describe('the planner’s prompt', () => {
       'people.managers',
       'people.approvals',
       'timeoff.away',
+      'timeoff.balances',
+      'timeoff.pending',
     ]);
     const away = JSON.stringify(capabilities.find((c) => c.capability === 'timeoff.away'));
     expect(away).toContain('"value":"L1","label":"a leave type named in the question"');
@@ -99,9 +106,27 @@ describe('the planner’s prompt', () => {
     expect(prompt.context['today']).toBe('Tuesday 6 October 2026, in UTC');
   });
 
+  it('gives earlier questions, masked, for a follow-up, and nothing when there are none', () => {
+    const prompt = promptOf('And tomorrow?', BOTH, ['Who is on sick leave today?']);
+    expect(prompt.context['question']).toBe('And tomorrow?');
+    expect(prompt.context['earlier']).toEqual(['Who is on L1 today?']);
+    expect(JSON.stringify(prompt)).not.toMatch(/\bsick\b/iu);
+    expect(INSTRUCTION).toMatch(/"earlier".*"and tomorrow\?"/u);
+    expect(promptOf('Who is off today?', BOTH).context).not.toHaveProperty('earlier');
+  });
+
   it('tells the model what "on leave" means, and that it writes no number in say', () => {
     expect(INSTRUCTION).toMatch(/employment status, not who is away/u);
     expect(INSTRUCTION).toMatch(/never write a number/u);
     expect(INSTRUCTION).toMatch(/"@me"/u);
+  });
+
+  it('tells the model how a number field compares, and that leave left is listed (AST-030)', () => {
+    expect(INSTRUCTION).toMatch(/number field, after means more than and before means less than/u);
+    expect(INSTRUCTION).toMatch(/How much leave somebody has left is "list"/u);
+  });
+
+  it('tells the model one answer may list what waits in several capabilities (AST-032)', () => {
+    expect(INSTRUCTION).toContain('{"kind":"one","step":["s1","s2"]}');
   });
 });

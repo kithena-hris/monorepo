@@ -252,6 +252,85 @@ describe('People’s sentences, carried over from ask.ts', () => {
     expect(none.text).toBe('You’re all caught up. Nothing is waiting for your approval.');
   });
 
+  it('lists the time off waiting for the asker’s decision, or says none is (AST-031)', async () => {
+    const a = await answer(one('timeoff.pending', {}, 'one'), {
+      s1: {
+        kind: 'items',
+        items: [{ name: 'Hana Kim', label: 'Vacation · Tue 6 Oct (1 day)' }],
+        total: 1,
+      },
+    });
+    expect(a.text).toBe(
+      '1 time off request is waiting for your decision:\n• Hana Kim — Vacation · Tue 6 Oct (1 day)',
+    );
+    expect(a.understood).toBe('What waits for your decision in Time Off');
+    const none = await answer(one('timeoff.pending', {}, 'one'), {
+      s1: { kind: 'items', items: [], total: 0 },
+    });
+    expect(none.text).toBe('You’re all caught up. No time off requests are waiting for you.');
+  });
+
+  it('never writes a private type beside a name in a chat app, in what waits either', async () => {
+    const a = await answer(one('timeoff.pending', {}, 'one'), {
+      s1: {
+        kind: 'items',
+        items: [{ name: 'Adam Novak', label: 'Baja médica · Tue 6 Oct (1 day)' }],
+        total: 1,
+      },
+    });
+    expect(a.text).toContain('• Adam Novak — Away · Tue 6 Oct (1 day)');
+  });
+
+  describe('what’s waiting for me, across modules (AST-032)', () => {
+    const both = (extra = {}) => ({
+      kind: 'plan',
+      steps: [
+        { id: 's1', capability: 'people.approvals', input: {} },
+        { id: 's2', capability: 'timeoff.pending', input: {} },
+      ],
+      answer: { kind: 'one', step: ['s1', 's2'] },
+      ...extra,
+    });
+    const approvals = {
+      kind: 'items',
+      items: [{ name: 'Jim Halpert', label: 'Job title' }],
+      total: 1,
+    };
+    const pendingOf = (n: number) => ({
+      kind: 'items',
+      items: Array.from({ length: n }, () => ({
+        name: 'Hana Kim',
+        label: 'Vacation · Tue 6 Oct (1 day)',
+      })),
+      total: n,
+    });
+
+    it('lists each module’s under its name', async () => {
+      const a = await answer(both(), { s1: approvals, s2: pendingOf(2) });
+      expect(a).toEqual({
+        text: '3 things are waiting for you:\nPeople:\n• Jim Halpert — Job title\nTime Off:\n• Hana Kim — Vacation · Tue 6 Oct (1 day)\n• Hana Kim — Vacation · Tue 6 Oct (1 day)',
+        understood: 'What waits for you in People and Time Off',
+        people: [],
+        answered: true,
+      });
+    });
+
+    it('says where nothing waits, and when nothing does anywhere', async () => {
+      const a = await answer(both({ say: 'Here is your queue, {n} in all.' }), {
+        s1: approvals,
+        s2: pendingOf(0),
+      });
+      expect(a.text).toBe(
+        'Here is your queue, 1 in all.\nPeople:\n• Jim Halpert — Job title\nTime Off: nothing waiting.',
+      );
+      const none = await answer(both(), {
+        s1: { ...approvals, items: [], total: 0 },
+        s2: pendingOf(0),
+      });
+      expect(none.text).toBe('You’re all caught up. Nothing is waiting for you.');
+    });
+  });
+
   it('drops an opening that carries a number of its own', async () => {
     const a = await answer(one('people.find', SALES, 'count', { say: 'All {n} of the 3 teams:' }), {
       s1: people(2, 'whose department is Sales'),
@@ -493,6 +572,82 @@ describe('the worked examples', () => {
       'Not for you.',
     );
     expect(failedAnswer({ code: 'TOO_BROAD' }).text).toMatch(/^That covers too many people/u);
+  });
+});
+
+describe('balances (AST-030)', () => {
+  const VACATION = { key: 'leave_type', op: 'in', values: ['vacation'] };
+  const MORE_THAN_TEN = { key: 'days_left', op: 'after', values: ['10'] };
+
+  it('how much vacation do I have left: the asker’s own, said to them', async () => {
+    const a = await answer(one('timeoff.balances', { name: '@me', filters: [VACATION] }), {
+      s1: people(
+        1,
+        'with a Vacation balance',
+        [{ name: 'Adam Novak', detail: '12.5 days left', self: true }],
+        { scope: 'visible' },
+      ),
+    });
+    expect(a).toEqual({
+      text: 'You have 12.5 days left.',
+      understood: 'You, with a Vacation balance',
+      people: [],
+      answered: true,
+    });
+  });
+
+  it('who in my team has more than ten days left: named, each with their days', async () => {
+    const a = await answer(
+      {
+        kind: 'plan',
+        steps: [
+          { id: 's1', capability: 'people.reports', input: { name: '@me' } },
+          {
+            id: 's2',
+            capability: 'timeoff.balances',
+            input: { filters: [MORE_THAN_TEN] },
+            within: 's1',
+          },
+        ],
+        answer: { kind: 'list', step: 's2' },
+      },
+      {
+        s1: people(2, 'Marco Ruiz', [], { ids: [1, 2] }),
+        s2: people(
+          1,
+          'with more than 10 days of Vacation left',
+          [{ name: 'Adam Novak', detail: '12.5 days left' }],
+          { scope: 'visible' },
+        ),
+      },
+    );
+    expect(a.text).toBe(
+      'I found 1 person you can see reporting to Marco Ruiz and with more than 10 days of Vacation left. You see your own team; HR sees everyone.\n• Adam Novak — 12.5 days left',
+    );
+  });
+
+  it('never writes a private type beside a name in a chat app, in any part of the detail', async () => {
+    const a = await answer(one('timeoff.balances', { filters: [VACATION] }), {
+      s1: people(1, 'with a Vacation balance', [
+        { name: 'Adam Novak', detail: '3 days left · Baja médica, 25 days left · Vacation' },
+      ]),
+    });
+    expect(a.text).toContain('• Adam Novak — 3 days left · Away, 25 days left · Vacation');
+  });
+
+  it('gives a private type’s balances as a count in a chat app, even about the asker', async () => {
+    const sick = { name: '@me', filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
+    const a = await answer(one('timeoff.balances', sick), {
+      s1: people(
+        1,
+        'with a Baja médica balance',
+        [{ name: 'Adam Novak', detail: '3 days left', self: true }],
+        { scope: 'visible' },
+      ),
+    });
+    expect(a.people).toEqual([]);
+    expect(a.text).not.toContain('Adam');
+    expect(a.text).not.toContain('3 days');
   });
 });
 

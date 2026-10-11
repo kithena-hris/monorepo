@@ -32,8 +32,9 @@ import type { Identity, Modules, Planner, Principal, Refused } from './ports.js'
  * §7, §10).
  *
  * Who is asking, from identity; what each of their modules offers them, in
- * parallel, leaving out one that fails; the question masked and refused where
- * it must be; a plan from the model; the plan unmasked, read and run in
+ * parallel, leaving out one that fails; the question, and the earlier
+ * questions of a follow-up, masked and refused where they must be; a plan
+ * from the model; the plan unmasked, read and run in
  * waves, each call as the asker; the answer written from what came back. The
  * use case decides nothing about who may see what: every module does that
  * for itself.
@@ -194,7 +195,8 @@ export function asker(
     const offered = offer(catalogues);
     const leaveTypes = catalogues.flatMap((c) => c.leaveTypes);
 
-    const masked = mask(q.question, leaveTypes);
+    // A chat app's follow-up carries its earlier questions; the web's `ask` has none.
+    const masked = mask(q.question, leaveTypes, 'earlier' in q ? q.earlier : undefined);
     const refusal = refused(masked.question);
     if (refusal !== null) {
       return { answer: refusedAnswer(refusal), outcome: 'refused', reason: refusal.kind, called };
@@ -207,6 +209,8 @@ export function asker(
     const today = todayIn(asking.timeZone, deps.clock);
     const planned = await planner.plan(q.tenantId, {
       question: masked.question,
+      // Questions only, never answers (§4); one this question would refuse stays out.
+      earlier: masked.earlier.filter((e) => refused(e) === null),
       today,
       offer: shown,
       unavailable: SERVING.filter((m) => !present.includes(m)),

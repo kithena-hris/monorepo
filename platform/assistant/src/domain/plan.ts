@@ -102,11 +102,20 @@ export interface ValidStep {
   readonly within?: StepId;
 }
 
+/**
+ * The answer as read: one step, and for an answer over several queues
+ * ("what's waiting for me?") the other `items` steps it lists, in order.
+ */
+export type ValidAnswer =
+  | Extract<PlanAnswer, { kind: 'count' }>
+  | { readonly kind: 'list'; readonly step: StepId }
+  | { readonly kind: 'one'; readonly step: StepId; readonly also?: readonly StepId[] };
+
 export type ValidPlan =
   | {
       readonly kind: 'plan';
       readonly steps: readonly ValidStep[];
-      readonly answer: PlanAnswer;
+      readonly answer: ValidAnswer;
       /** The model's opening, kept only when it is plain words (`saying`). */
       readonly say?: string;
     }
@@ -266,19 +275,24 @@ export function readPlan(text: string, offered: Offer): Result<ValidPlan, PlanRe
   if (new Set(plan.steps.map((s) => s.id)).size !== plan.steps.length) {
     return refuse('DUPLICATE_STEP');
   }
+  // The steps the answer names: one, or for "one" over several queues, each once.
+  const [first, ...also] =
+    typeof plan.answer.step === 'string' ? [plan.answer.step] : [...new Set(plan.answer.step)];
+  if (first === undefined) return refuse('ANSWER_STEP');
+
   // Two slips a model makes with the right meaning, put where they belong:
   // "within" written inside the input, and a count's group written as an input.
   let by = plan.answer.kind === 'count' ? plan.answer.by : undefined;
   const written = plan.steps.map((step) => {
     const { within, groupBy, ...input } = step.input;
-    if (by === undefined && step.id === plan.answer.step && typeof groupBy === 'string') {
-      by = groupBy;
-    }
+    if (by === undefined && step.id === first && typeof groupBy === 'string') by = groupBy;
     const lifted = step.within ?? StepId.safeParse(within).data;
     return { ...step, input, ...(lifted === undefined ? {} : { within: lifted }) };
   });
-  const answer =
-    plan.answer.kind === 'count' && by !== undefined ? { ...plan.answer, by } : plan.answer;
+  const answer: ValidAnswer =
+    plan.answer.kind === 'count'
+      ? { kind: 'count', step: first, ...(by === undefined ? {} : { by }) }
+      : { kind: plan.answer.kind, step: first };
 
   const steps: ValidStep[] = [];
   for (const step of written) {
@@ -288,7 +302,12 @@ export function readPlan(text: string, offered: Offer): Result<ValidPlan, PlanRe
   }
 
   const answered = steps.find((s) => s.id === answer.step);
-  if (answered === undefined) return refuse('ANSWER_STEP');
+  const queues = also.map((id) => steps.find((s) => s.id === id));
+  if (answered === undefined || queues.includes(undefined)) return refuse('ANSWER_STEP');
+  // Several steps in one answer are queues of what waits, listed module by module.
+  if (also.length > 0 && [answered, ...queues].some((s) => s?.capability.output !== 'items')) {
+    return refuse('ANSWER_KIND');
+  }
   const people = answered.capability.output === 'people';
   // A list of what waits for approval is written the same as "one": read it so.
   const kind = answer.kind === 'list' && !people ? 'one' : answer.kind;
@@ -302,7 +321,7 @@ export function readPlan(text: string, offered: Offer): Result<ValidPlan, PlanRe
   return ok({
     kind: 'plan',
     steps,
-    answer: kind === answer.kind ? answer : { kind: 'one', step: answer.step },
+    answer: kind === 'one' ? { kind, step: first, ...(also.length === 0 ? {} : { also }) } : answer,
     ...(say === undefined ? {} : { say }),
   });
 }
