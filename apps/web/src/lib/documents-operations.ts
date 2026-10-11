@@ -43,7 +43,7 @@ export const OPERATIONS = {
         grants { kind id label permission endsOn }
         may { edit share download delete protect unprotect }
         confidentialBy views { who action at } activity { who action at }
-        accessRequests { id who reason at } held
+        accessRequests { id who reason at } held people { ${PERSON} }
       }
       closed { owner requested }
     }
@@ -85,7 +85,13 @@ export const OPERATIONS = {
     'input: $input, ',
     'uploadId url method headers',
   ),
-  UploadDocument: write('UploadDocument', 'uploadDocument', '$input: JSON!, ', 'input: $input, ', 'id'),
+  UploadDocument: write(
+    'UploadDocument',
+    'uploadDocument',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'id',
+  ),
   AddDocumentVersion: write(
     'AddDocumentVersion',
     'addDocumentVersion',
@@ -163,7 +169,13 @@ export const OPERATIONS = {
     'sectionId: $sectionId, input: $input, ',
     'id',
   ),
-  AskForDocument: write('AskForDocument', 'askForDocument', '$input: JSON!, ', 'input: $input, ', 'id'),
+  AskForDocument: write(
+    'AskForDocument',
+    'askForDocument',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'id',
+  ),
   RemindDocumentRequest: write(
     'RemindDocumentRequest',
     'remindDocumentRequest',
@@ -178,7 +190,13 @@ export const OPERATIONS = {
     'requestId: $requestId, ',
     'id',
   ),
-  PlaceLegalHold: write('PlaceLegalHold', 'placeLegalHold', '$input: JSON!, ', 'input: $input, ', 'id'),
+  PlaceLegalHold: write(
+    'PlaceLegalHold',
+    'placeLegalHold',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'id',
+  ),
   LiftLegalHold: write(
     'LiftLegalHold',
     'liftLegalHold',

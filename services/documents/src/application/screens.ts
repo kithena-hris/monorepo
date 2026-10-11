@@ -137,6 +137,9 @@ function rowOf(
   };
 }
 
+const peopleOf = (dir: Directory) =>
+  [...dir.byPerson.values()].filter((m) => m.status !== 'terminated').map(personRef);
+
 async function typesOf(ctx: Ctx): Promise<Types> {
   return new Map((await ctx.tx.types.list()).map((t) => [t.key as string, t]));
 }
@@ -299,9 +302,8 @@ export async function library(
       rows,
       total: live.length,
       types: typeOptions(types),
-      people: ctx.viewer.hr
-        ? [...dir.byPerson.values()].filter((m) => m.status !== 'terminated').map(personRef)
-        : [],
+      // Names and teams only: who a document could be shared with or filed to.
+      people: peopleOf(dir),
     });
   });
 }
@@ -537,6 +539,7 @@ export async function documentScreen(
             }))
         : [],
       held: held.has(id),
+      people: controls ? peopleOf(dir) : [],
     };
     return ok({ document: view, closed: null });
   });

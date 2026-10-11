@@ -154,7 +154,7 @@ export interface AppShellProps {
 /**
  * What a person can reach today, and what is coming.
  *
- * The dashboard, Time off and People are built. The rest are listed as
+ * The dashboard, Time off, People and Documents are built. The rest are listed as
  * disabled rather than hidden, because a sidebar that grows an item per
  * release teaches nobody where anything lives — and each one maps to a module
  * in `ModuleKey`, so this list is the product's shape rather than a guess at
@@ -176,7 +176,7 @@ const AREAS: readonly {
     label: 'Documents',
     icon: <Document />,
     href: '/documents',
-    built: false,
+    built: true,
     module: 'module.documents',
   },
 ];

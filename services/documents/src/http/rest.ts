@@ -157,8 +157,7 @@ export const UploadedBody = z.strictObject({
   mediaType: z.string().max(200),
 });
 
-const incomingKey = (caller: Caller, uploadId: string) =>
-  `incoming/${caller.tenantId}/${uploadId}`;
+const incomingKey = (caller: Caller, uploadId: string) => `incoming/${caller.tenantId}/${uploadId}`;
 
 /**
  * The bytes a write carries, from the request or from the bucket, and what to
@@ -167,18 +166,26 @@ const incomingKey = (caller: Caller, uploadId: string) =>
 async function fileOf(
   deps: Deps,
   caller: Caller,
-  body: { file?: z.output<typeof FileBody> | undefined; upload?: z.output<typeof UploadedBody> | undefined },
+  body: {
+    file?: z.output<typeof FileBody> | undefined;
+    upload?: z.output<typeof UploadedBody> | undefined;
+  },
 ): Promise<Result<{ file: UploadedFile; done: () => Promise<void> }>> {
   if (body.file !== undefined) {
     const f = body.file;
     return ok({
-      file: { name: f.name, mediaType: f.mediaType, bytes: new Uint8Array(Buffer.from(f.base64, 'base64')) },
+      file: {
+        name: f.name,
+        mediaType: f.mediaType,
+        bytes: new Uint8Array(Buffer.from(f.base64, 'base64')),
+      },
       done: async () => {},
     });
   }
   const u = body.upload;
   if (u === undefined) return err(failure('BAD_REQUEST', 'Send a file or an upload', ['file']));
-  if (deps.transfers === undefined) return err(failure('UNAVAILABLE', 'Uploads are not set up here'));
+  if (deps.transfers === undefined)
+    return err(failure('UNAVAILABLE', 'Uploads are not set up here'));
   const key = incomingKey(caller, u.uploadId);
   const bytes = await deps.transfers.readIncoming(key, 100 * 1024 * 1024);
   if (bytes === null) return err(failure('NOT_FOUND', 'Nothing was uploaded', ['upload']));
@@ -308,7 +315,11 @@ export const ROUTES: readonly Route[] = [
           : await deps.transfers.handOut(
               `outgoing/${caller.tenantId}/${deps.newId()}`,
               f.bytes,
-              { fileName: f.fileName, mediaType: f.mediaType, download: params.mode === 'download' },
+              {
+                fileName: f.fileName,
+                mediaType: f.mediaType,
+                download: params.mode === 'download',
+              },
               600,
             );
       return ok({

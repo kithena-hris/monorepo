@@ -1,4 +1,10 @@
-import { DeleteObjectCommand, GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  NoSuchKey,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'node:stream';
 
@@ -27,8 +33,14 @@ export function s3Transfers(env: NodeJS.ProcessEnv, bucket: string): Transfers {
     responseChecksumValidation: 'WHEN_REQUIRED' as const,
   };
   const inner = get('ENDPOINT');
-  const client = new S3Client({ ...config, ...(inner ? { endpoint: inner, forcePathStyle: true } : {}) });
-  const signer = new S3Client({ ...config, ...(endpoint ? { endpoint, forcePathStyle: true } : {}) });
+  const client = new S3Client({
+    ...config,
+    ...(inner ? { endpoint: inner, forcePathStyle: true } : {}),
+  });
+  const signer = new S3Client({
+    ...config,
+    ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
+  });
   return {
     async presignPut(Key, size, seconds) {
       const command = new PutObjectCommand({

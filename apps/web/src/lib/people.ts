@@ -440,7 +440,8 @@ async function call(
           : {}),
       };
     }
-    if (keyed && name !== 'CompleteFileUpload') changed();
+    // Asking where to put a file changes nothing anybody sees.
+    if (keyed && name !== 'CompleteFileUpload' && name !== 'StartDocumentUpload') changed();
     // Every operation asks for one root field.
     return { ok: true, data: Object.values(answer.data)[0] };
   } catch (cause) {

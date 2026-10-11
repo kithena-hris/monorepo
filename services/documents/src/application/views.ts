@@ -185,6 +185,7 @@ export const DocumentView = z
       z.object({ id: z.string(), who: z.string(), reason: z.string(), at: z.string() }),
     ),
     held: z.boolean(),
+    people: z.array(PersonRef),
   })
   .meta(Title('DocumentsDocument'));
 export type DocumentView = z.infer<typeof DocumentView>;

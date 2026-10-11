@@ -35,6 +35,7 @@ type DocumentsDocument {
   held: Boolean!
   may: DocumentsDocumentMay!
   owner: String!
+  people: [DocumentsPerson!]!
   row: DocumentsRow!
   versions: [DocumentsVersion!]!
   views: [DocumentsLogEntry!]!
