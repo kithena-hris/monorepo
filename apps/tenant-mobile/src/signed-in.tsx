@@ -8,7 +8,15 @@ import {
   type NavigationContainerRefWithCurrent,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { CalendarDays, Eye, House, Inbox as InboxIcon, User, Users } from 'lucide-react-native';
+import {
+  CalendarDays,
+  Eye,
+  FolderOpen,
+  House,
+  Inbox as InboxIcon,
+  User,
+  Users,
+} from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +24,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Company, Person } from './account';
 import { AccountActionsContext, AccountMenu, fullName, type AccountActions } from './account-card';
 import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
+import { DocumentDetail } from './documents/document';
+import { DocumentsHome } from './documents/documents-tab';
+import { DocumentsPersonFile } from './documents/person-file';
+import { DocumentsSettings } from './documents/settings';
 import { read, readAhead, SignedContext, type Signed } from './people/api';
 import { AskKithena, type TimeOffAsk } from './people/ask';
 import { BulkEdit } from './people/bulk';
@@ -75,7 +87,7 @@ import type { PeopleRoutes } from './people/routes';
 
 const Stack_ = createNativeStackNavigator<PeopleRoutes>();
 
-type Tab = 'home' | 'timeoff' | 'people' | 'inbox' | 'me';
+type Tab = 'home' | 'timeoff' | 'people' | 'inbox' | 'documents' | 'me';
 
 /**
  * A tab's own stack: what was pushed in it stays when another tab is chosen
@@ -158,6 +170,10 @@ const TabStack = memo(function TabStack({
           <Stack_.Screen name="TimeOffSettings" component={TimeOffSettings} />
           <Stack_.Screen name="TimeOffLeaveType" component={TimeOffLeaveType} />
           <Stack_.Screen name="TimeOffPolicyDescribe" component={TimeOffPolicyDescribe} />
+          <Stack_.Screen name="Documents" component={DocumentsHome} />
+          <Stack_.Screen name="DocumentDetail" component={DocumentDetail} />
+          <Stack_.Screen name="DocumentsPersonFile" component={DocumentsPersonFile} />
+          <Stack_.Screen name="DocumentsSettings" component={DocumentsSettings} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
@@ -276,6 +292,30 @@ export function SignedIn({
       clearTimeout(timer);
     };
   }, [signed]);
+  // The Documents tab (MD1), for a company that has Documents: it takes the
+  // last tab, and Me moves to the avatar on Home. Asked as Time Off's is.
+  const [documents, setDocuments] = useState(false);
+  useEffect(() => {
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = (): void => {
+      void read(
+        signed,
+        'DocumentsLibrary',
+        { show: 'all', q: '', queue: null, deleted: false },
+        'documents',
+      ).then((answer) => {
+        if (!live) return;
+        setDocuments(answer.ok);
+        if (!answer.ok && answer.code !== 'NOT_ENTITLED') timer = setTimeout(check, 30_000);
+      });
+    };
+    check();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [signed]);
   // The Inbox's notifications on the phone (INB-051): a press opens the item.
   useInboxNotifications(
     signed,
@@ -350,6 +390,11 @@ export function SignedIn({
                 <View className="flex-1" style={shown('inbox')}>
                   <TabStack initial="Inbox" container={inboxStack} />
                 </View>
+                {documents ? (
+                  <View className="flex-1" style={shown('documents')}>
+                    <TabStack initial="Documents" />
+                  </View>
+                ) : null}
                 <View className="flex-1" style={shown('me')}>
                   <TabStack initial="Profile" />
                 </View>
@@ -371,12 +416,18 @@ export function SignedIn({
                         icon: InboxIcon,
                         ...(waiting > 0 ? { badge: waiting } : {}),
                       },
-                      { key: 'me', label: 'Me', icon: User },
+                      documents
+                        ? { key: 'documents', label: 'Documents', icon: FolderOpen }
+                        : { key: 'me', label: 'Me', icon: User },
                     ]}
                     value={tab}
                     onValueChange={(key) => {
                       setTab(
-                        key === 'timeoff' || key === 'people' || key === 'inbox' || key === 'me'
+                        key === 'timeoff' ||
+                          key === 'people' ||
+                          key === 'inbox' ||
+                          key === 'documents' ||
+                          key === 'me'
                           ? key
                           : 'home',
                       );

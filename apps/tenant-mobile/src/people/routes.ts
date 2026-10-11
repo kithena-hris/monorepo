@@ -137,6 +137,14 @@ export type PeopleRoutes = {
   WebhookLog: { id: string; url: string };
   /** Who did what, and when (H6); `areas` opens it narrowed, as People's settings link it. */
   Activity: { areas?: readonly string[] } | undefined;
+  /** The Documents tab (Documents MD1, MH1): what needs you, HR's queues, everything you can open. */
+  Documents: undefined;
+  /** A document (MR1, MR4), or who owns it when it is closed (MA2). */
+  DocumentDetail: { id: string; title: string };
+  /** A person's file (MH2): what their types require, and what they have. */
+  DocumentsPersonFile: { personId: string; name: string };
+  /** Settings › Documents (MS1–MS6). */
+  DocumentsSettings: undefined;
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;

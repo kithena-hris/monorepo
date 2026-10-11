@@ -21,12 +21,13 @@ import {
 import {
   Bell,
   Building2,
-  Languages,
-  Moon,
   CalendarDays,
   CheckCheck,
   Clock3,
+  FolderOpen,
   History,
+  Languages,
+  Moon,
   Plug,
   Scale,
   ScrollText,
@@ -300,6 +301,18 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     }
   }
 
+  // Documents' (MS1): one row to its page, which says who may change what.
+  const documents: Row[] = [
+    {
+      title: 'Documents',
+      line: 'Document types · access and sharing · retention and legal holds',
+      icon: FolderOpen,
+      go: () => {
+        navigation.navigate('DocumentsSettings');
+      },
+    },
+  ];
+
   const activity: Row[] =
     roles.hr || roles.admin
       ? [
@@ -339,6 +352,7 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     [
       { title: 'People', sub: 'What records hold, who sees them, where they go', rows: people },
       { title: 'Time off', sub: 'How people request, earn and use days off', rows: timeOff },
+      { title: 'Documents', sub: 'What is kept, who sees it, how long it stays', rows: documents },
       { title: 'Activity', sub: 'Who changed what, and when', rows: activity },
       { title: 'You', sub: 'Only on your account', rows: you },
     ] as const

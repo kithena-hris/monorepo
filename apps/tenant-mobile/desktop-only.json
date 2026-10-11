@@ -11,5 +11,14 @@
   "ChangeTimeOffLeaveType": "Not called by the web either: no Time Off screen uses it yet, so neither does the app.",
   "ImportTimeOffMembers": "Not called by the web either: no Time Off screen uses it yet, so neither does the app.",
   "PeopleInbox": "Read for the phone too, by /api/mobile/inbox: the web's own merge of every module's Inbox, which the app asks instead of each module.",
-  "TimeOffInbox": "Read for the phone too, by /api/mobile/inbox: the web's own merge of every module's Inbox, which the app asks instead of each module."
+  "TimeOffInbox": "Read for the phone too, by /api/mobile/inbox: the web's own merge of every module's Inbox, which the app asks instead of each module.",
+  "DocumentsInbox": "Read for the phone too, by /api/mobile/inbox: the web's own merge of every module's Inbox, which the app asks instead of each module.",
+  "RenameDocument": "Documents Mobile: the phone names a document when it is added (MD3); renaming afterwards is the web's.",
+  "SetDocumentExpiry": "Documents Mobile MD3: Kithena reads the expiry when a scan is filed (Phase 3); setting it by hand is the web's.",
+  "RestoreDocument": "Documents web H3: Deleted is a filter in the web's ⋯ menu; the phone has no Deleted view.",
+  "ChangeDocumentSection": "Documents Mobile MD5 and MD6: the phone creates sections and shows them; moving documents between them is the web's row menu.",
+  "CancelDocumentRequest": "Documents web H2: withdrawing a request HR made is on the web's person file; the phone reminds and asks (MH2, MH3).",
+  "PlaceLegalHold": "Documents web H3: legal holds are placed from the web; the phone lists and lifts them (MS6).",
+  "ConfirmDocumentDeletion": "Documents web H3: confirming deletion when retention ends is a desk task; the phone shows the To delete count (MH1).",
+  "SaveDocumentType": "Documents Mobile MS2: the phone lists document types; editing a type's sentence is the web's (S3)."
 }
