@@ -1,4 +1,4 @@
-import { ChevronDown, CircleX, Search } from 'lucide-react-native';
+import { ArrowUp, ChevronDown, CircleX, Search, Sparkles } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
@@ -35,6 +35,12 @@ export type SearchFieldProps = Omit<
   label?: string;
   /** Where the surrounding screen already says "search". */
   hideIcon?: boolean;
+  /**
+   * The box takes a question as well as a name: a sparkles mark at its end
+   * while empty, and once something is typed a send button that runs
+   * `onSearch`, as the keyboard's key does.
+   */
+  ask?: boolean;
 };
 
 /**
@@ -48,6 +54,7 @@ export function SearchField({
   onSearch,
   label = 'Search',
   hideIcon = false,
+  ask = false,
   ...props
 }: SearchFieldProps): React.JSX.Element {
   const input = useRef<RNTextInput>(null);
@@ -59,10 +66,32 @@ export function SearchField({
       onChange={onValueChange}
       accessibilityLabel={label}
       onSubmitEditing={() => onSearch?.(value)}
-      startAdornment={hideIcon ? undefined : <Icon icon={Search} size={19} tone="muted" />}
-      tight={value !== ''}
+      startAdornment={
+        hideIcon ? undefined : (
+          <Icon icon={ask && value !== '' ? Sparkles : Search} size={19} tone={ask && value !== '' ? 'accent' : 'muted'} />
+        )
+      }
+      tight={value !== '' || ask}
       endAdornment={
-        value === '' ? undefined : (
+        ask ? (
+          value === '' ? (
+            <View
+              aria-hidden
+              className="size-[34px] items-center justify-center rounded-full bg-accent-subtle"
+            >
+              <Icon icon={Sparkles} size={16} tone="accent" />
+            </View>
+          ) : (
+            <Button
+              size="xs"
+              variant="primary"
+              className="size-[34px]"
+              startIcon={<Icon icon={ArrowUp} size={17} tone="on-accent" />}
+              accessibilityLabel="Ask"
+              onPress={() => onSearch?.(value)}
+            />
+          )
+        ) : value === '' ? undefined : (
           <Button
             variant="ghost"
             size="xs"

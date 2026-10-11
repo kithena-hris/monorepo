@@ -820,3 +820,19 @@ export {
   type SchedulerSlot,
   type SchedulerTone,
 } from './components/scheduler/scheduler.tsx';
+export {
+  ActionCard,
+  type ActionCardProps,
+} from './components/action-card/action-card.tsx';
+export {
+  Hero,
+  QuickAction,
+  type HeroProps,
+  type QuickActionProps,
+} from './components/hero/hero.tsx';
+export {
+  Sentence,
+  type SentencePart,
+  type SentenceProps,
+} from './components/sentence/sentence.tsx';
+export { DayTiles, type DayTile, type DayTilesProps } from './components/day-tiles/day-tiles.tsx';

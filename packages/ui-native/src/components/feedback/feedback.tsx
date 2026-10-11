@@ -44,22 +44,25 @@ const alert = cva('flex-row items-start gap-3 px-4 py-3.5', {
     /**
      * `soft` sits among content. `outline` keeps the surface and marks the
      * edge, for a busy background. `solid` is for a blocking problem only.
-     * `banner` runs edge to edge at the top of a page.
+     * `banner` runs edge to edge at the top of a page. `summary` opens a page
+     * or a modal with what it holds in one or two sentences: the glyph on a
+     * round tile, the words at full contrast.
      */
     variant: {
       soft: 'rounded-[18px]',
+      summary: 'rounded-[20px]',
       outline: 'rounded-[18px] border border-border-strong bg-surface',
       solid: 'rounded-[18px]',
       banner: 'rounded-none',
     },
   },
   compoundVariants: [
-    { variant: ['soft', 'banner'], tone: 'info', class: 'bg-info-subtle' },
-    { variant: ['soft', 'banner'], tone: 'success', class: 'bg-success-subtle' },
-    { variant: ['soft', 'banner'], tone: 'warning', class: 'bg-warning-subtle' },
-    { variant: ['soft', 'banner'], tone: 'danger', class: 'bg-danger-subtle' },
-    { variant: ['soft', 'banner'], tone: 'accent', class: 'bg-accent-subtle' },
-    { variant: ['soft', 'banner'], tone: 'neutral', class: 'bg-surface-sunken' },
+    { variant: ['soft', 'banner', 'summary'], tone: 'info', class: 'bg-info-subtle' },
+    { variant: ['soft', 'banner', 'summary'], tone: 'success', class: 'bg-success-subtle' },
+    { variant: ['soft', 'banner', 'summary'], tone: 'warning', class: 'bg-warning-subtle' },
+    { variant: ['soft', 'banner', 'summary'], tone: 'danger', class: 'bg-danger-subtle' },
+    { variant: ['soft', 'banner', 'summary'], tone: 'accent', class: 'bg-accent-subtle' },
+    { variant: ['soft', 'banner', 'summary'], tone: 'neutral', class: 'bg-surface-sunken' },
     // A solid `Badge`'s fills: each holds 4.5:1 with its text in both themes.
     { variant: 'solid', tone: 'info', class: 'bg-info-fg' },
     { variant: 'solid', tone: 'success', class: 'bg-success-solid' },
@@ -91,6 +94,16 @@ const glyphTone: Record<AlertTone, Tone> = {
   danger: 'danger',
   accent: 'accent',
   neutral: 'muted',
+};
+
+/** A summary's round tile: the solid fill of its tone. */
+const tileFill: Record<AlertTone, string> = {
+  info: 'bg-info-fg',
+  success: 'bg-success-solid',
+  warning: 'bg-warning-fg',
+  danger: 'bg-danger-solid',
+  accent: 'bg-accent-solid',
+  neutral: 'bg-invert',
 };
 
 /** On a solid fill, everything takes the fill's text colour. */
@@ -140,9 +153,10 @@ export function Alert({
 }: AlertProps): React.JSX.Element {
   const t = tone ?? 'info';
   const solid = variant === 'solid';
+  const summary = variant === 'summary';
   const urgent = t === 'danger' || t === 'warning';
   const [text, ink] = solid ? solidInk[t] : ['text-fg', glyphTone[t]];
-  const message = solid ? text : 'text-fg-muted';
+  const message = solid ? text : summary ? 'text-fg font-medium' : 'text-fg-muted';
 
   return (
     <View
@@ -154,7 +168,14 @@ export function Alert({
       aria-live={urgent ? 'assertive' : 'polite'}
       className={cn(alert({ tone: t, variant }), className)}
     >
-      {hideIcon ? null : (
+      {hideIcon ? null : summary ? (
+        <View
+          aria-hidden
+          className={cn('size-7 items-center justify-center rounded-full', tileFill[t])}
+        >
+          <Icon icon={icon ?? glyph[t]} size={14} tone={solidInk[t][1]} />
+        </View>
+      ) : (
         <View className="pt-px">
           <Icon icon={icon ?? glyph[t]} tone={ink} />
         </View>
@@ -167,7 +188,14 @@ export function Alert({
         ) : null}
         {children ? (
           typeof children === 'string' ? (
-            <CssText className={cn('text-subhead leading-[1.5]', message)}>{children}</CssText>
+            <CssText
+              className={cn(
+                summary ? 'pt-[3px] text-[15px] leading-[1.45]' : 'text-subhead leading-[1.5]',
+                message,
+              )}
+            >
+              {children}
+            </CssText>
           ) : (
             children
           )

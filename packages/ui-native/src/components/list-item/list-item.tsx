@@ -76,8 +76,18 @@ export type ListItemProps = {
   icon?: LucideIcon;
   /** Fills `icon`'s tile with a series colour and draws the glyph white. */
   iconTone?: IconTone;
-  /** One line under the title, truncated. */
+  /**
+   * A small grey label above the title, for a setting read as a sentence:
+   * "Carry over" over "Up to 5 days, used by 31 March". The title is then the
+   * value, and wraps.
+   */
+  overline?: string;
+  /** One line under the title, truncated unless `wrap`. */
   description?: ReactNode;
+  /** Lets the title and the description wrap instead of truncating. */
+  wrap?: boolean;
+  /** Not seen yet: a dot in the accent before the leading. */
+  unread?: boolean;
   /** A longer passage under the description, clamped to two lines. */
   supporting?: ReactNode;
   /** Small text at the end of the title line: a timestamp. */
@@ -134,16 +144,26 @@ function Body({
   leading,
   icon,
   iconTone,
+  overline,
   description,
+  wrap = false,
+  unread = false,
   supporting,
   meta,
   trailing,
   chevron,
 }: Omit<ListItemProps, 'onPress' | 'swipeActions' | 'className'>): React.JSX.Element {
   // A navigation row with nothing around its title reads lighter, as a phone's settings list does.
-  const plain = !leading && !icon && !description;
+  const plain = !leading && !icon && !description && !overline;
+  const lines = wrap || overline ? {} : { numberOfLines: 1 };
   return (
     <>
+      {unread ? (
+        <View
+          accessibilityLabel="Unread"
+          className="-ml-2.5 -mr-1.5 size-2 rounded-full bg-accent-solid"
+        />
+      ) : null}
       {icon ? (
         <View
           aria-hidden
@@ -158,9 +178,14 @@ function Body({
         <View>{leading}</View>
       ) : null}
       <View className="min-w-0 flex-1 gap-0.5">
+        {overline ? (
+          <CssText className="pb-0.5 text-[13px] font-medium leading-[1.2] text-fg-subtle">
+            {overline}
+          </CssText>
+        ) : null}
         <View className="flex-row items-start justify-between gap-2">
           <CssText
-            numberOfLines={1}
+            {...lines}
             className={cn(
               'flex-1 text-callout leading-[1.3] text-fg',
               plain ? 'font-medium' : 'font-semibold',
@@ -176,7 +201,7 @@ function Body({
         </View>
         {description ? (
           <CssText
-            numberOfLines={1}
+            {...lines}
             // Under a message's title the sender is a byline, a size down.
             className={cn(
               'leading-[1.3] text-fg-muted',
@@ -213,7 +238,8 @@ export function ListItem({
   // The press is the web row's `active:` fill, without the scale: a full-width
   // row that shrinks would pull away from its neighbours.
   const { pressed, onPressIn, onPressOut } = usePress();
-  const plain = !content.leading && !content.icon && !content.description;
+  const plain =
+    !content.leading && !content.icon && !content.description && !content.overline;
   const row = cn(
     'w-full flex-row items-center gap-3 bg-surface px-4 py-2',
     plain ? 'min-h-[52px]' : 'min-h-16',

@@ -67,6 +67,12 @@ export type VirtualListProps<T> = {
   onEndReached?: () => void;
   /** Under the last row while the next page loads. */
   footer?: ReactNode;
+  /**
+   * Scrolls with the list, above the rows: what a tab shows before its list,
+   * so the page is one scroll. The rows then sit on the page as a card of
+   * their own, under it, rather than the whole list being one card.
+   */
+  header?: ReactNode;
   /** The next page is on its way: a spinner sits under the last row. */
   loadingMore?: boolean;
   /** What a screen reader hears as a page lands: "20 more people". */
@@ -110,6 +116,7 @@ export function VirtualList<T>({
   empty,
   onEndReached,
   footer,
+  header,
   loadingMore = false,
   moreLoaded,
   gap,
@@ -189,19 +196,23 @@ export function VirtualList<T>({
     }
   };
 
-  if (count === 0) {
-    return (
-      <View className={cn('overflow-hidden rounded-m-card bg-surface p-4 shadow-sm', className)}>
-        {empty}
-      </View>
-    );
-  }
+  const emptyCard = (
+    <View className={cn('overflow-hidden rounded-m-card bg-surface p-4 shadow-sm', className)}>
+      {empty}
+    </View>
+  );
+  if (count === 0 && header === undefined) return emptyCard;
 
   const rowId = (index: number): string => `${id}-row-${String(index)}`;
+  // With a header the rows are the card, each its slice of it: the first rounds the top.
+  const headed = header !== undefined;
   return (
     <View
       style={{ height }}
-      className={cn('overflow-hidden rounded-m-card bg-surface shadow-sm', className)}
+      className={cn(
+        headed ? 'overflow-hidden' : 'overflow-hidden rounded-m-card bg-surface shadow-sm',
+        headed ? undefined : className,
+      )}
     >
       <FlashList
         ref={list}
@@ -218,6 +229,12 @@ export function VirtualList<T>({
         {...(initialIndex !== undefined ? { initialScrollIndex: initialIndex } : {})}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
+        {...(headed
+          ? {
+              ListHeaderComponent: <View className="pb-3">{header}</View>,
+              ListEmptyComponent: emptyCard,
+            }
+          : {})}
         onScroll={() => {
           // By row, not by offset: offsets are estimates until every row has been measured.
           const first = list.current?.getFirstVisibleIndex() ?? view.current.first;
@@ -254,6 +271,9 @@ export function VirtualList<T>({
               style={gap !== undefined && index < count - 1 ? { marginBottom: gap } : undefined}
               className={cn(
                 gap === undefined && separators && index < count - 1 && 'border-b border-border',
+                headed && 'overflow-hidden bg-surface',
+                headed && index === 0 && 'rounded-t-m-card',
+                headed && index === count - 1 && 'rounded-b-m-card',
                 index === active && 'bg-accent-subtle',
               )}
             >
