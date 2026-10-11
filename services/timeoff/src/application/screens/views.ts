@@ -198,6 +198,16 @@ export const PunchView = named(
 );
 
 /* -------------------------------------------------------------- employee -- */
+/** A point and a radius; an office's, never a person's. */
+const OfficeView = named(
+  'TimeOffOffice',
+  z.strictObject({
+    name: z.string().trim().min(1).max(80),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    radiusMetres: z.int().min(25).max(5000),
+  }),
+);
 
 export const OverviewView = named(
   'TimeOffOverview',
@@ -209,6 +219,9 @@ export const OverviewView = named(
         state: ClockState,
         workModel: AttendanceWorkModel.nullable(),
         today: DayView,
+        /** For the one location check at clocking in (S16). */
+        offices: z.array(OfficeView),
+        onlyInOfficeArea: z.boolean(),
       })
       .nullable(),
     balances: z.array(BalanceView),
@@ -551,6 +564,9 @@ export const TimesheetView = named(
   z.object({
     member: MemberView,
     days: z.array(DayView),
+    /** For the clock's one location check (S16). */
+    offices: z.array(OfficeView),
+    onlyInOfficeArea: z.boolean(),
     weeks: z.array(
       named(
         'TimeOffWeek',
@@ -1034,7 +1050,13 @@ export const NegativeBalanceView = named(
 );
 
 const ClockInWays = z
-  .strictObject({ reader: z.boolean(), web: z.boolean(), mobile: z.boolean(), pin: z.boolean() })
+  .strictObject({
+    reader: z.boolean(),
+    web: z.boolean(),
+    mobile: z.boolean(),
+    pin: z.boolean(),
+    area: z.boolean(),
+  })
   .meta({ title: 'TimeOffClockInWays' });
 
 export const AttendanceRulesBody = named(
@@ -1050,13 +1072,15 @@ export const AttendanceRulesBody = named(
     }),
     /** Absent keeps the ways already set. */
     clockIn: ClockInWays.optional(),
+    /** Absent keeps the offices already set. */
+    offices: z.array(OfficeView).max(50).optional(),
   }),
 );
 
 export const AttendanceSettingsView = named(
   'TimeOffSettingsAttendance',
   z.object({
-    rules: AttendanceRulesBody.extend({ clockIn: ClockInWays }),
+    rules: AttendanceRulesBody.extend({ clockIn: ClockInWays, offices: z.array(OfficeView) }),
     /** The schedule a member without one works (JSON: the schedule's own shape). */
     defaultSchedule: z.unknown(),
   }),

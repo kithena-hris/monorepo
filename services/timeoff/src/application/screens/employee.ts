@@ -213,13 +213,14 @@ export const overview =
           timeZone: me.timeZone,
           punches: await tx.attendance.punches(me.personId),
         });
+        const rules = await tx.attendance.rules();
         const day = dayOf({
           date: today,
           schedule: (await tx.attendance.schedule(me.personId)) ?? DEFAULT_SCHEDULE,
           shifts: clock.shifts,
           now: deps.clock.instant(),
           timeZone: me.timeZone,
-          rules: await tx.attendance.rules(),
+          rules,
         });
         const types = await typesOf(tx);
         const comingUp = (
@@ -248,6 +249,8 @@ export const overview =
             state: clock.state,
             workModel: standing(clock.punches).at(-1)?.workModel ?? null,
             today: day,
+            offices: rules.offices,
+            onlyInOfficeArea: rules.clockIn.area,
           },
           balances: await balancesIn(tx, me, today),
           comingUp,

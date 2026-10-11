@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Overview as Framed } from '../index';
@@ -97,7 +97,9 @@ describe('the overview', () => {
     );
     render(<Overview load={ready(adam())} onPunch={onPunch} />);
     fireEvent.click(screen.getByRole('button', { name: 'Start break' }));
-    expect(onPunch).toHaveBeenCalledWith('break_start', 'office');
+    await waitFor(() => {
+      expect(onPunch).toHaveBeenCalledWith('break_start', 'office', 'web', null);
+    });
     expect(await screen.findByText('Already on a break')).toBeTruthy();
   });
 

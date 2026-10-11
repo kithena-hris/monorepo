@@ -25,6 +25,16 @@ export interface AttendanceRules {
   readonly overtime: OvertimePolicy;
   /** S16's "Ways to clock in": a way switched off refuses its punches. */
   readonly clockIn: ClockInWays;
+  /** Where the company works from, which `clockIn.area` compares a clock-in with. */
+  readonly offices: readonly Office[];
+}
+
+/** An office as a point and how near still counts as being there. Never a person's location. */
+export interface Office {
+  readonly name: string;
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly radiusMetres: number;
 }
 
 export interface ClockInWays {
@@ -34,6 +44,12 @@ export interface ClockInWays {
   readonly mobile: boolean;
   /** A shared kiosk, with a PIN. */
   readonly pin: boolean;
+  /**
+   * Only inside the office area: a clock-in from the web or the app says
+   * whether the device was inside one of `offices`, checked there once and
+   * sent as that boolean alone (PRD §11.2). A reader or kiosk is at the office.
+   */
+  readonly area: boolean;
 }
 
 /** Whether the rules refuse a punch from this source and, at a kiosk, this credential. */
@@ -45,6 +61,23 @@ export function clockInRefused(
   const way =
     source === 'web' || source === 'mobile' ? source : credential === 'pin' ? 'pin' : 'reader';
   return !rules.clockIn[way];
+}
+
+/** Whether the rules refuse this clock-in for not being inside the office area. */
+export function outsideOfficeArea(
+  rules: AttendanceRules,
+  punch: {
+    readonly source: PunchSource;
+    readonly kind: string;
+    readonly insideOfficeArea: boolean | null;
+  },
+): boolean {
+  return (
+    rules.clockIn.area &&
+    punch.kind === 'in' &&
+    (punch.source === 'web' || punch.source === 'mobile') &&
+    punch.insideOfficeArea !== true
+  );
 }
 
 export interface OvertimePolicy {
@@ -59,7 +92,8 @@ export const DEFAULT_RULES: AttendanceRules = {
   restMinutes: 12 * 60,
   weeklyMaxMinutes: 42 * 60,
   overtime: { becomes: 'choose', multiplier: '1.25' },
-  clockIn: { reader: true, web: true, mobile: true, pin: true },
+  clockIn: { reader: true, web: true, mobile: true, pin: true, area: false },
+  offices: [],
 };
 
 export type SegmentKind = 'worked' | 'break' | 'overtime' | 'missing' | 'planned' | 'live';

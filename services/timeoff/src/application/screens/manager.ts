@@ -432,6 +432,8 @@ export const timesheetScreen =
           view: {
             member: memberView(member),
             days: [...s.days],
+            offices: [...s.offices],
+            onlyInOfficeArea: s.onlyInOfficeArea,
             weeks: s.weeks.map((w) => ({ ...w, flags: [...w.flags] })),
             open: s.open.map((o) => ({ ...o, suggestion: null })),
             restBreaches: [...s.restBreaches],

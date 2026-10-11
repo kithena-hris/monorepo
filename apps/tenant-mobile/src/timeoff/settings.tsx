@@ -18,6 +18,7 @@ import {
   DialogTitle,
   EmptyState,
   Field,
+  FieldControl,
   FieldLabel,
   Icon,
   Input,
@@ -61,6 +62,7 @@ import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
 import { DescribeLeaveTypeDialog } from './add-leave-type';
 import { leaveIcon } from './icons';
+import { hereOnce, type Office } from './office-area';
 import { todayHere } from './time';
 import { amount, shortDate } from './words';
 
@@ -1407,7 +1409,8 @@ interface AttendanceRules {
   readonly restMinutes: number;
   readonly weeklyMaxMinutes: number;
   readonly overtime: { becomes: 'comp' | 'paid' | 'choose'; multiplier: string };
-  readonly clockIn: { reader: boolean; web: boolean; mobile: boolean; pin: boolean };
+  readonly clockIn: { reader: boolean; web: boolean; mobile: boolean; pin: boolean; area: boolean };
+  readonly offices: readonly Office[];
 }
 
 const WAYS = [
@@ -1423,7 +1426,9 @@ function Attendance(): React.JSX.Element {
   );
   const { act, busy } = useAct('timeoff');
   const [rules, setRules] = useState<AttendanceRules | null>(null);
-  const [open, setOpen] = useState<'breaks' | 'limits' | 'overtime' | null>(null);
+  const [open, setOpen] = useState<'breaks' | 'limits' | 'overtime' | 'offices' | null>(null);
+  const [office, setOffice] = useState({ name: '', radiusMetres: 150 });
+  const [locating, setLocating] = useState<string | null>(null);
   if (load.status !== 'ready') {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
@@ -1439,12 +1444,37 @@ function Attendance(): React.JSX.Element {
   const close = (): void => {
     setOpen(null);
     setRules(null);
+    setLocating(null);
   };
   const save = (): void => {
     void act('SetTimeOffAttendanceRules', { input: r }, 'Saved').then((done) => {
       if (done === null) return;
       close();
       reload();
+    });
+  };
+  const flip = (way: keyof AttendanceRules['clockIn'], on: boolean): void => {
+    const next = { ...r, clockIn: { ...r.clockIn, [way]: on } };
+    setRules(next);
+    void act('SetTimeOffAttendanceRules', { input: next }, 'Saved').then((done) => {
+      if (done === null) setRules(null);
+      else reload();
+    });
+  };
+  const addHere = (): void => {
+    setLocating(null);
+    void hereOnce().then((here) => {
+      if (here === null) {
+        setLocating('Kithena could not tell where this phone is. Allow location and try again.');
+        return;
+      }
+      set({
+        offices: [
+          ...r.offices,
+          { name: office.name.trim(), ...here, radiusMetres: office.radiusMetres },
+        ],
+      });
+      setOffice({ name: '', radiusMetres: 150 });
     });
   };
   const BECOMES = {
@@ -1466,12 +1496,7 @@ function Attendance(): React.JSX.Element {
                 checked={r.clockIn[way]}
                 accessibilityLabel={label}
                 onCheckedChange={(on) => {
-                  const next = { ...r, clockIn: { ...r.clockIn, [way]: on } };
-                  setRules(next);
-                  void act('SetTimeOffAttendanceRules', { input: next }, 'Saved').then((done) => {
-                    if (done === null) setRules(null);
-                    else reload();
-                  });
+                  flip(way, on);
                 }}
               />
             }
@@ -1479,6 +1504,36 @@ function Attendance(): React.JSX.Element {
             {label}
           </ListItem>
         ))}
+        <ListItem
+          listitem={false}
+          description="Location is checked only at the moment you clock in"
+          trailing={
+            <Switch
+              checked={r.clockIn.area}
+              accessibilityLabel="Only inside the office area"
+              onCheckedChange={(on) => {
+                // Nowhere to compare with yet: say where the office is first, then save both.
+                if (on && r.offices.length === 0) {
+                  set({ clockIn: { ...r.clockIn, area: true } });
+                  setOpen('offices');
+                } else flip('area', on);
+              }}
+            />
+          }
+        >
+          Only inside the office area
+        </ListItem>
+        <Rule
+          label="Offices"
+          value={
+            r.offices.length === 0
+              ? 'None yet'
+              : r.offices.map((o) => `${o.name} · ${String(o.radiusMetres)} m`).join(', ')
+          }
+          onPress={() => {
+            setOpen('offices');
+          }}
+        />
       </Rules>
       {/* Three rows for what counts as a working day (v3 S16), each changed in a modal. */}
       <Rules title="Working day">
@@ -1559,6 +1614,61 @@ function Attendance(): React.JSX.Element {
               set({ weeklyMaxMinutes: Math.round((n ?? 0) * 60) });
             }}
           />
+        </RuleDialog>
+      ) : null}
+      {open === 'offices' ? (
+        <RuleDialog title="Offices" busy={busy !== null} onClose={close} onSave={save}>
+          <Text variant="footnote" tone="muted">
+            Stand in the office and add it. A clock-in within the distance counts as there.
+          </Text>
+          {r.offices.map((o, i) => (
+            <ListItem
+              key={`${o.name}-${String(i)}`}
+              listitem={false}
+              description={`Within ${String(o.radiusMetres)} m`}
+              trailing={
+                <Button
+                  size="xs"
+                  variant="link"
+                  onPress={() => {
+                    set({ offices: r.offices.filter((_, j) => j !== i) });
+                  }}
+                >
+                  Remove
+                </Button>
+              }
+            >
+              {o.name}
+            </ListItem>
+          ))}
+          <Field>
+            <FieldLabel>Name</FieldLabel>
+            <FieldControl>
+              <Input
+                size="sm"
+                value={office.name}
+                placeholder="Madrid office"
+                onChange={(name) => {
+                  setOffice({ ...office, name });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <NumberField
+            label="Counts within (metres)"
+            size="sm"
+            min={25}
+            max={5000}
+            step={25}
+            value={office.radiusMetres}
+            onChange={(n) => {
+              setOffice({ ...office, radiusMetres: n ?? 150 });
+            }}
+          />
+          {locating === null ? null : <Alert tone="warning">{locating}</Alert>}
+          <Button disabled={office.name.trim() === ''} onPress={addHere}>
+            Add where you are now
+          </Button>
         </RuleDialog>
       ) : null}
       {open === 'overtime' ? (

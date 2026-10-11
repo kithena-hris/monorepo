@@ -39,7 +39,7 @@ export interface AttendanceRules {
     readonly multiplier: string;
   };
   /** Which ways of clocking in are on; switched on the phone (S16). */
-  readonly clockIn?: { readonly web: boolean; readonly mobile: boolean };
+  readonly clockIn?: { readonly web: boolean; readonly mobile: boolean; readonly area?: boolean };
 }
 
 type WorkWindow = { readonly start: number; readonly end: number; readonly breakMinutes: number };
@@ -127,11 +127,7 @@ function Ready({
               <ListItem
                 icon={<icons.location aria-hidden />}
                 description="Location is only checked at the moment of a punch, and never kept."
-                trailing={
-                  <Badge size="sm" variant="outline">
-                    Off
-                  </Badge>
-                }
+                trailing={onOff(rules.clockIn?.area ?? false)}
               >
                 Only inside the office area
               </ListItem>

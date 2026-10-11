@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { runScreenCommand } from '@reach/ui';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -48,7 +48,9 @@ describe('the clock in the top bar', () => {
     expect(panel.getByRole('button', { name: 'Start break' })).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
     fireEvent.click(panel.getByRole('button', { name: 'Clock out' }));
-    expect(onPunch).toHaveBeenCalledWith('out', 'office', 'web');
+    await waitFor(() => {
+      expect(onPunch).toHaveBeenCalledWith('out', 'office', 'web', null);
+    });
   });
 
   it('keeps what you are working on, in your own words, on this device', () => {
@@ -101,7 +103,9 @@ describe('the clock in the top bar', () => {
     fireEvent.click(panel.getByRole('radio', { name: 'Remote' }));
     expect(await axeViolations(document.body)).toEqual([]);
     fireEvent.click(panel.getByRole('button', { name: 'Clock in' }));
-    expect(onPunch).toHaveBeenCalledWith('in', 'remote', 'web');
+    await waitFor(() => {
+      expect(onPunch).toHaveBeenCalledWith('in', 'remote', 'web', null);
+    });
   });
 
   it('says so when the clock does not change', async () => {

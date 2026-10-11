@@ -606,7 +606,8 @@ describe('attendance', () => {
       restMinutes: 720,
       weeklyMaxMinutes: 2520,
       overtime: { becomes: 'comp' as const, multiplier: '1.50' },
-      clockIn: { reader: true, web: true, mobile: false, pin: true },
+      clockIn: { reader: true, web: true, mobile: false, pin: true, area: true },
+      offices: [{ name: 'Madrid', latitude: 40.4168, longitude: -3.7038, radiusMetres: 150 }],
     };
     const period = {
       id: ids(),

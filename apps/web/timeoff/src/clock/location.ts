@@ -4,6 +4,8 @@
  * device. The coordinates never leave this file: nothing is stored, nothing
  * is sent, and the punch carries the work model it suggested, which the
  * person can change. Time Off refuses a punch that carries a latitude.
+ * When the company takes clock-ins only inside the office area (S16), the
+ * punch carries one boolean more: whether this check found an office.
  */
 
 /** A place a company works from, and how near counts as being there. */
@@ -61,4 +63,16 @@ export function checkOnce(
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 5000 },
     );
   });
+}
+
+/**
+ * What a punch says about the office area (S16): `null` unless it is a
+ * clock-in and the company asks, else whether the one check found an office.
+ */
+export async function insideFor(
+  kind: string,
+  place: { readonly offices?: readonly Office[]; readonly onlyInOfficeArea?: boolean },
+): Promise<boolean | null> {
+  if (kind !== 'in' || place.onlyInOfficeArea !== true) return null;
+  return (await checkOnce(place.offices ?? [])) !== null;
 }

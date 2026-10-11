@@ -48,7 +48,7 @@ export const OPERATIONS = {
   /** T33: breaks, limits, overtime and the default schedule; HR */
   TimeOffAttendanceSettings: `query TimeOffAttendanceSettings {
     timeOffAttendanceSettings {
-      defaultSchedule rules { breakAfterMinutes breakMinutes clockIn { mobile pin reader web } overtime { becomes multiplier } restMinutes weeklyMaxMinutes }
+      defaultSchedule rules { breakAfterMinutes breakMinutes clockIn { area mobile pin reader web } offices { latitude longitude name radiusMetres } overtime { becomes multiplier } restMinutes weeklyMaxMinutes }
     }
   }`,
 
@@ -202,7 +202,7 @@ export const OPERATIONS = {
   /** T1: the clock, the balances, what is coming up and who is off today */
   TimeOffOverview: `query TimeOffOverview {
     timeOffOverview {
-      balances { allowance booked colorToken icon leaveTypeKey left name unit used yearly } bridges { away { days from to } from holidays { date name } text { ai text } to used } clock { state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } comingUp { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } teamToday { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } }
+      balances { allowance booked colorToken icon leaveTypeKey left name unit used yearly } bridges { away { days from to } from holidays { date name } text { ai text } to used } clock { offices { latitude longitude name radiusMetres } onlyInOfficeArea state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } comingUp { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } teamToday { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } }
     }
   }`,
 
@@ -279,7 +279,7 @@ export const OPERATIONS = {
   /** T20: a timesheet by week or month, the caller’s own unless a member is named */
   TimeOffTimesheet: `query TimeOffTimesheet($from: String!, $personId: String, $to: String!) {
     timeOffTimesheet(from: $from, personId: $personId, to: $to) {
-      corrections { needsManager punch { at id kind reason recordedAt source supersedes workModel } } days { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } open { date lastPunchAt suggestion { ai at evidence { at source what } time } } overtime { date minutes outcome } punches { at id kind reason recordedAt source supersedes workModel } restBreaches { date restMinutes } weeks { flags monday overtimeMinutes plannedMinutes workedMinutes }
+      corrections { needsManager punch { at id kind reason recordedAt source supersedes workModel } } days { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } offices { latitude longitude name radiusMetres } onlyInOfficeArea open { date lastPunchAt suggestion { ai at evidence { at source what } time } } overtime { date minutes outcome } punches { at id kind reason recordedAt source supersedes workModel } restBreaches { date restMinutes } weeks { flags monday overtimeMinutes plannedMinutes workedMinutes }
     }
   }`,
 

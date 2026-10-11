@@ -61,6 +61,7 @@ import { DayDialog, mondayOf, type CalendarAnswer } from './calendar';
 import { DescribedCard, useDescribed } from './describe-answer';
 import { leaveIcon } from './icons';
 import { approversOf, RequestDialog } from './request-dialog';
+import { insideFor, type Office } from './office-area';
 import { ChangeOrCancel } from './requests';
 import { clockTime, duration, localDate, minuteOfDay, stopwatch, todayHere } from './time';
 import { addDays, amount, asDate, longDate, shortDate, spanLabel, statusOf } from './words';
@@ -96,6 +97,8 @@ interface Overview {
   readonly clock: {
     readonly state: ClockState;
     readonly workModel: WorkModel | null;
+    readonly offices: readonly Office[];
+    readonly onlyInOfficeArea: boolean;
     readonly today: {
       readonly date: string;
       readonly workedMinutes: number | null;
@@ -258,12 +261,16 @@ function ClockCard({
       worked: workedBy(at),
       since: at,
     });
-    void act('PunchTimeOffClock', { input: { kind, workModel: model, source: 'mobile' } }).then(
-      (done) => {
+    void insideFor(kind, clock)
+      .then((insideOfficeArea) =>
+        act('PunchTimeOffClock', {
+          input: { kind, workModel: model, source: 'mobile', insideOfficeArea },
+        }),
+      )
+      .then((done) => {
         if (done === null) setMine(null);
         else onPunched();
-      },
-    );
+      });
   };
   const sub =
     state === 'in'

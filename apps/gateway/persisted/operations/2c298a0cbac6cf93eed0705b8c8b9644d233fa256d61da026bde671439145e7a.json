@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffAttendanceSettings {\n    timeOffAttendanceSettings {\n      defaultSchedule rules { breakAfterMinutes breakMinutes clockIn { area mobile pin reader web } offices { latitude longitude name radiusMetres } overtime { becomes multiplier } restMinutes weeklyMaxMinutes }\n    }\n  }"}

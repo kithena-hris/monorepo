@@ -6,6 +6,7 @@ import { shiftsOf, type Punch } from './clock.js';
 import {
   DEFAULT_RULES,
   clockInRefused,
+  outsideOfficeArea,
   dayOf,
   overtimeBecomes,
   restBreaches,
@@ -210,5 +211,31 @@ describe('the ways to clock in', () => {
     expect(clockInRefused(off('pin'), 'kiosk', 'badge')).toBe(false);
     expect(clockInRefused(off('reader'), 'kiosk', 'qr')).toBe(true);
     expect(clockInRefused(off('reader'), 'badge')).toBe(true);
+  });
+});
+
+describe('only inside the office area', () => {
+  const area = { ...DEFAULT_RULES, clockIn: { ...DEFAULT_RULES.clockIn, area: true } };
+  const clockIn = (over: object) => ({
+    source: 'mobile' as const,
+    kind: 'in' as const,
+    insideOfficeArea: null,
+    ...over,
+  });
+
+  it('asks nothing while the switch is off', () => {
+    expect(outsideOfficeArea(DEFAULT_RULES, clockIn({}))).toBe(false);
+  });
+
+  it('refuses a clock-in from the app or the web unless it was inside', () => {
+    expect(outsideOfficeArea(area, clockIn({}))).toBe(true);
+    expect(outsideOfficeArea(area, clockIn({ insideOfficeArea: false }))).toBe(true);
+    expect(outsideOfficeArea(area, clockIn({ source: 'web' }))).toBe(true);
+    expect(outsideOfficeArea(area, clockIn({ insideOfficeArea: true }))).toBe(false);
+  });
+
+  it('checks the clock-in only, and never a reader, which is at the office', () => {
+    expect(outsideOfficeArea(area, clockIn({ kind: 'out' }))).toBe(false);
+    expect(outsideOfficeArea(area, clockIn({ source: 'kiosk' }))).toBe(false);
   });
 });

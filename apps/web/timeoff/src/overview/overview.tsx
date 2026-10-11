@@ -30,6 +30,7 @@ import {
 } from 'react';
 
 import { ClockIn, ClockOutSheet } from '../clock/clock';
+import { insideFor, type Office } from '../clock/location';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import {
   amount,
@@ -83,6 +84,9 @@ export interface OverviewData {
   } | null;
   readonly clock: {
     readonly state: ClockState;
+    /** S16: where a clock-in counts, when the company asks. */
+    readonly offices?: readonly Office[];
+    readonly onlyInOfficeArea?: boolean;
     readonly workModel: WorkModel | null;
     readonly today: {
       readonly date: string;
@@ -159,6 +163,7 @@ export interface OverviewProps {
     kind: PunchKind,
     workModel: WorkModel,
     source?: 'web' | 'mobile',
+    insideOfficeArea?: boolean | null,
   ) => Promise<Outcome>;
 }
 
@@ -288,7 +293,12 @@ function ClockCard({
     if (onPunch === undefined) return;
     setFailed(null);
     start(async () => {
-      const outcome = await (mobile ? onPunch(kind, model, 'mobile') : onPunch(kind, model));
+      const outcome = await onPunch(
+        kind,
+        model,
+        mobile ? 'mobile' : 'web',
+        await insideFor(kind, clock),
+      );
       if (!outcome.ok) setFailed(outcome.message);
     });
   };
@@ -367,7 +377,7 @@ function ClockCard({
           className="hidden touch:flex"
           workModel={where}
           onWorkModel={setWhere}
-          offices={[]}
+          offices={clock.offices ?? []}
           disabled={onPunch === undefined || pending}
           onClockIn={(model) => {
             press('in', model, true);
