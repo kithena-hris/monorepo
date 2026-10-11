@@ -244,6 +244,31 @@ export interface Blobs {
   delete(key: string): Promise<void>;
 }
 
+/**
+ * Files that skip the shell: the browser PUTs an upload straight to the
+ * bucket and GETs a copy from it (PRD §8.1), because a request through the
+ * shell's functions stops at 4.5 MB. Absent in memory, where files travel
+ * inside the request instead.
+ */
+export interface Transfers {
+  /** Where the browser PUTs `size` bytes, for a few minutes. */
+  presignPut(
+    key: string,
+    size: number,
+    seconds: number,
+  ): Promise<{ url: string; method: 'PUT'; headers: Record<string, string> }>;
+  /** What the browser put there, up to `max` bytes; null when nothing is. */
+  readIncoming(key: string, max: number): Promise<Uint8Array | null | 'too_large'>;
+  remove(key: string): Promise<void>;
+  /** A copy to hand out, and the link that opens it for a few minutes. */
+  handOut(
+    key: string,
+    bytes: Uint8Array,
+    file: { fileName: string; mediaType: string; download: boolean },
+    seconds: number,
+  ): Promise<string>;
+}
+
 /** A notice to somebody by email, through messaging; absent sends nothing. */
 export interface Mailer {
   send(input: {
@@ -257,6 +282,7 @@ export interface Mailer {
 export interface Deps {
   readonly uow: UnitOfWork;
   readonly blobs: Blobs;
+  readonly transfers?: Transfers;
   readonly clock: Clock;
   readonly newId: () => string;
   readonly mailer?: Mailer;

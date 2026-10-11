@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PlaceLegalHold($input: JSON!, $key: String!) {\n    placeLegalHold(input: $input, idempotencyKey: $key) { id }\n  }"}

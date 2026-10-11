@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetDocumentAccessSettings($input: JSON!, $key: String!) {\n    setDocumentAccessSettings(input: $input, idempotencyKey: $key) { ok }\n  }"}

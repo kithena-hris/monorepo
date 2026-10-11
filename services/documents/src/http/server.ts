@@ -76,6 +76,7 @@ export function documentsListener(graphql: Listener, rest?: RestDispatch): Liste
 }
 
 export interface DocumentsServerOptions extends Pick<Deps, 'uow' | 'blobs'> {
+  readonly transfers?: Deps['transfers'];
   readonly callerFrom: CallerFrom;
   readonly clock?: Deps['clock'];
   readonly newId?: Deps['newId'];
@@ -95,6 +96,7 @@ export function documentsServer(options: DocumentsServerOptions): {
     clock: options.clock ?? systemClock,
     newId: options.newId ?? uuidv7,
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
+    ...(options.transfers === undefined ? {} : { transfers: options.transfers }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

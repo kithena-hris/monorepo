@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AskForDocument($input: JSON!, $key: String!) {\n    askForDocument(input: $input, idempotencyKey: $key) { id }\n  }"}

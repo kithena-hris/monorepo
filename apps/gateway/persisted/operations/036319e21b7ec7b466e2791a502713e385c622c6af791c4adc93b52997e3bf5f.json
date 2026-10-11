@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DeleteDocument($documentId: String!, $key: String!) {\n    deleteDocument(documentId: $documentId, idempotencyKey: $key) { id }\n  }"}

@@ -205,16 +205,13 @@ security:
 
 # No multipart file comes through the router. An import's file goes from the
 # browser straight to object storage with a presigned PUT that People issues
-# (PRD §14.2); a Documents file is base64 inside a JSON mutation (Documents PRD
-# §8.1). Uploads are off, so a multipart request is refused here.
+# (PRD §14.2), and a Documents file the same way (Documents PRD §8.1). Uploads
+# are off, so a multipart request is refused here.
 file_upload:
   enabled: false
 
+# Every body is small JSON: the router's default ceiling stands.
 traffic_shaping:
-  # Every body is small JSON but a Documents upload, which carries one file of
-  # up to 25 MB as base64 (Documents PRD §8.1): about 34 MB, so 40 MB here.
-  router:
-    max_request_body_size: 40MB
   all:
     request_timeout: 30s
   # Committing a 100 MB import writes every row in one transaction, which can

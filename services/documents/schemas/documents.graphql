@@ -61,10 +61,11 @@ type DocumentsDone {
 }
 
 type DocumentsFile {
-  base64: String!
+  base64: String
   fileName: String!
   mediaType: String!
   original: Boolean!
+  url: String
 }
 
 type DocumentsGrant {
@@ -259,6 +260,13 @@ type DocumentsTypeSaved {
   key: String!
 }
 
+type DocumentsUpload {
+  headers: JSON!
+  method: String!
+  uploadId: String!
+  url: String!
+}
+
 type DocumentsVersion {
   fileName: String!
   mediaType: String!
@@ -400,6 +408,14 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """
+  Where the browser puts a file before filing it: a presigned PUT, for ten minutes
+  """
+  startDocumentUpload(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsUpload!
   """File a document: Private to start, the type’s rules applied"""
   uploadDocument(
     idempotencyKey: String!

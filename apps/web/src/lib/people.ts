@@ -10,6 +10,10 @@ import {
   OPERATIONS as TIMEOFF_OPERATIONS,
   type OperationName as TimeOffOperationName,
 } from './timeoff-operations';
+import {
+  OPERATIONS as DOCUMENTS_OPERATIONS,
+  type OperationName as DocumentsOperationName,
+} from './documents-operations';
 import { currentPerson } from './session';
 import { SESSION_COOKIE } from './session-cookie';
 import { timed } from './timing';
@@ -188,9 +192,10 @@ interface Area {
   readonly service: string;
   readonly operations: Readonly<Record<string, string>>;
 }
-const AREAS: Readonly<Record<'people' | 'timeoff', Area>> = {
+const AREAS: Readonly<Record<'people' | 'timeoff' | 'documents', Area>> = {
   people: { service: 'People', operations: OPERATIONS },
   timeoff: { service: 'Time Off', operations: TIMEOFF_OPERATIONS },
+  documents: { service: 'Documents', operations: DOCUMENTS_OPERATIONS },
 };
 
 /**
@@ -256,6 +261,14 @@ export async function timeOff<T>(
   variables: Record<string, unknown> = {},
 ): Promise<PeopleAnswer<T>> {
   return ask<T>('timeoff', name, variables);
+}
+
+/** One of Documents' operations (`documents-operations.ts`), as `people` runs People's. */
+export async function documents<T>(
+  name: DocumentsOperationName,
+  variables: Record<string, unknown> = {},
+): Promise<PeopleAnswer<T>> {
+  return ask<T>('documents', name, variables);
 }
 
 /**

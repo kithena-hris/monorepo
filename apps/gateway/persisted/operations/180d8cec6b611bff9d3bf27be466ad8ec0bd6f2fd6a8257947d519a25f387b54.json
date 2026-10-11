@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CancelDocumentRequest($requestId: String!, $key: String!) {\n    cancelDocumentRequest(requestId: $requestId, idempotencyKey: $key) { id }\n  }"}

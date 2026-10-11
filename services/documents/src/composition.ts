@@ -9,6 +9,7 @@ import { yogaOptions } from './graphql/schema.js';
 import { callerFromHeaders, withMember, type RecordedEntitlements } from './http/caller.js';
 import { documentsListener, documentsServer } from './http/server.js';
 import { blobsFrom } from './infrastructure/blobs.js';
+import { s3Transfers } from './infrastructure/transfers.js';
 import { drizzleUnitOfWork, documentsDatabase } from './infrastructure/unit-of-work.js';
 
 /**
@@ -58,6 +59,7 @@ export async function composeDocuments(env: NodeJS.ProcessEnv = process.env): Pr
   const { listener, deps } = documentsServer({
     uow,
     blobs: blobsFrom(env),
+    ...(env['DOCUMENTS_BUCKET'] ? { transfers: s3Transfers(env, env['DOCUMENTS_BUCKET']) } : {}),
     callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
   });
   return { listener, storage: { db, uow, deps } };

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RestoreDocument($documentId: String!, $key: String!) {\n    restoreDocument(documentId: $documentId, idempotencyKey: $key) { id }\n  }"}

@@ -24,6 +24,7 @@ import {
   type UploadedFile,
 } from '../application/documents.js';
 import { importMembers, MemberRow } from '../application/members.js';
+import { checkFile } from '../domain/document/document.js';
 import {
   askForDocument,
   cancelRequest,
@@ -52,9 +53,11 @@ import type { CallerFrom } from './caller.js';
  * with its answer in the write's own transaction; no route decides who may
  * do anything — the application layer does.
  *
- * **Files travel as base64 in JSON**, through the router like everything
- * else, so Documents has no second public address. 25 MB a file
- * (ponytail: a presigned upload straight to the bucket when 100 MB matters).
+ * **Files skip the router.** The browser PUTs to the bucket with a presigned
+ * URL (`startDocumentUpload`) and the write names the upload; a file read
+ * back is a presigned link to a copy. A request through the shell stops at
+ * 4.5 MB on Vercel. Without a bucket (tests, a laptop) a file of up to 25 MB
+ * travels inside the request as base64 instead.
  */
 
 export interface RestRequest {
@@ -140,17 +143,69 @@ const Created = z.object({ id: z.string() }).meta({ title: 'DocumentsCreated' })
 /** 25 MB of bytes is at most this many base64 characters. */
 const MAX_BASE64 = Math.ceil((25 * 1024 * 1024) / 3) * 4;
 
+/** A small file inside the request: tests, and a store with no presigned uploads. */
 export const FileBody = z.strictObject({
   name: z.string().trim().min(1).max(255),
   mediaType: z.string().max(200),
-  base64: z.base64().max(MAX_BASE64, 'Files are up to 25 MB'),
+  base64: z.base64().max(MAX_BASE64, 'Files sent inside a request are up to 25 MB'),
 });
 
-const fileOf = (f: z.output<typeof FileBody>): UploadedFile => ({
-  name: f.name,
-  mediaType: f.mediaType,
-  bytes: new Uint8Array(Buffer.from(f.base64, 'base64')),
+/** A file the browser already PUT to the bucket (`startDocumentUpload`). */
+export const UploadedBody = z.strictObject({
+  uploadId: z.uuid(),
+  name: z.string().trim().min(1).max(255),
+  mediaType: z.string().max(200),
 });
+
+const incomingKey = (caller: Caller, uploadId: string) =>
+  `incoming/${caller.tenantId}/${uploadId}`;
+
+/**
+ * The bytes a write carries, from the request or from the bucket, and what to
+ * do once the write is over: an upload is read once and deleted, kept or not.
+ */
+async function fileOf(
+  deps: Deps,
+  caller: Caller,
+  body: { file?: z.output<typeof FileBody> | undefined; upload?: z.output<typeof UploadedBody> | undefined },
+): Promise<Result<{ file: UploadedFile; done: () => Promise<void> }>> {
+  if (body.file !== undefined) {
+    const f = body.file;
+    return ok({
+      file: { name: f.name, mediaType: f.mediaType, bytes: new Uint8Array(Buffer.from(f.base64, 'base64')) },
+      done: async () => {},
+    });
+  }
+  const u = body.upload;
+  if (u === undefined) return err(failure('BAD_REQUEST', 'Send a file or an upload', ['file']));
+  if (deps.transfers === undefined) return err(failure('UNAVAILABLE', 'Uploads are not set up here'));
+  const key = incomingKey(caller, u.uploadId);
+  const bytes = await deps.transfers.readIncoming(key, 100 * 1024 * 1024);
+  if (bytes === null) return err(failure('NOT_FOUND', 'Nothing was uploaded', ['upload']));
+  if (bytes === 'too_large') return err(failure('TOO_LARGE', 'Files are up to 100 MB', ['upload']));
+  return ok({
+    file: { name: u.name, mediaType: u.mediaType, bytes },
+    done: () => deps.transfers?.remove(key) ?? Promise.resolve(),
+  });
+}
+
+/** Runs a write with a file, then lets the upload go. */
+async function withFile<T>(
+  deps: Deps,
+  caller: Caller,
+  body: Parameters<typeof fileOf>[2],
+  write: (file: UploadedFile) => Promise<Result<T>>,
+): Promise<Result<T>> {
+  const got = await fileOf(deps, caller, body);
+  if (!got.ok) return got;
+  try {
+    return await write(got.value.file);
+  } finally {
+    await got.value.done();
+  }
+}
+
+const OneFile = { file: FileBody.optional(), upload: UploadedBody.optional() };
 
 export const UploadBody = z.strictObject({
   title: z.string().trim().min(1).max(200),
@@ -159,12 +214,12 @@ export const UploadBody = z.strictObject({
   sectionId: z.uuid().nullable().default(null),
   expiresOn: CalendarDate.nullable().default(null),
   requestId: z.uuid().nullable().default(null),
-  file: FileBody,
+  ...OneFile,
 });
 
 export const VersionBody = z.strictObject({
   note: z.string().max(500).nullable().default(null),
-  file: FileBody,
+  ...OneFile,
 });
 
 export const GrantsBody = z.strictObject({
@@ -177,11 +232,13 @@ export const GrantsBody = z.strictObject({
 
 const DocParams = z.object({ documentId: DocumentId });
 
+/** A link to the copy, for a few minutes; or, with no bucket, the bytes themselves. */
 const FileAnswer = z
   .object({
     fileName: z.string(),
     mediaType: z.string(),
-    base64: z.string(),
+    url: z.string().nullable(),
+    base64: z.string().nullable(),
     original: z.boolean(),
   })
   .meta({ title: 'DocumentsFile' });
@@ -237,18 +294,31 @@ export const ROUTES: readonly Route[] = [
       device: z.string().max(200).nullable().default(null),
     }),
     answer: FileAnswer,
-    run: (deps, caller, { params }) =>
-      content(deps, caller, params.documentId, {
+    run: async (deps, caller, { params }) => {
+      const got = await content(deps, caller, params.documentId, {
         version: params.version,
         mode: params.mode,
         device: params.device,
-      }),
-    shape: (f) => ({
-      fileName: f.fileName,
-      mediaType: f.mediaType,
-      base64: Buffer.from(f.bytes).toString('base64'),
-      original: f.original,
-    }),
+      });
+      if (!got.ok) return got;
+      const f = got.value;
+      const url =
+        deps.transfers === undefined
+          ? null
+          : await deps.transfers.handOut(
+              `outgoing/${caller.tenantId}/${deps.newId()}`,
+              f.bytes,
+              { fileName: f.fileName, mediaType: f.mediaType, download: params.mode === 'download' },
+              600,
+            );
+      return ok({
+        fileName: f.fileName,
+        mediaType: f.mediaType,
+        url,
+        base64: url === null ? Buffer.from(f.bytes).toString('base64') : null,
+        original: f.original,
+      });
+    },
   }),
   route({
     name: 'documentsPersonFile',
@@ -270,6 +340,36 @@ export const ROUTES: readonly Route[] = [
 
   /* ------------------------------------------------------------- writes -- */
   route({
+    name: 'startDocumentUpload',
+    method: 'POST',
+    path: `${V1}/uploads`,
+    summary: 'Where the browser puts a file before filing it: a presigned PUT, for ten minutes',
+    body: z.strictObject({
+      name: z.string().trim().min(1).max(255),
+      mediaType: z.string().max(200),
+      size: z.int().positive(),
+    }),
+    answer: z
+      .object({
+        uploadId: z.string(),
+        url: z.string(),
+        method: z.literal('PUT'),
+        headers: z.record(z.string(), z.string()),
+      })
+      .meta({ title: 'DocumentsUpload' }),
+    status: 201,
+    run: async (deps, caller, { body }) => {
+      const fit = checkFile({ mediaType: body.mediaType, size: body.size });
+      if (!fit.ok) return fit;
+      if (deps.transfers === undefined) {
+        return err(failure('UNAVAILABLE', 'Uploads are not set up here'));
+      }
+      const uploadId = deps.newId();
+      const put = await deps.transfers.presignPut(incomingKey(caller, uploadId), body.size, 600);
+      return ok({ uploadId, ...put });
+    },
+  }),
+  route({
     name: 'uploadDocument',
     method: 'POST',
     path: `${V1}/d`,
@@ -277,7 +377,8 @@ export const ROUTES: readonly Route[] = [
     body: UploadBody,
     answer: Created,
     status: 201,
-    run: (deps, caller, { body }) => upload(deps, caller, { ...body, file: fileOf(body.file) }),
+    run: (deps, caller, { body }) =>
+      withFile(deps, caller, body, (file) => upload(deps, caller, { ...body, file })),
     shape: created,
   }),
   route({
@@ -290,7 +391,9 @@ export const ROUTES: readonly Route[] = [
     answer: z.object({ version: z.int() }).meta({ title: 'DocumentsVersionAdded' }),
     status: 201,
     run: (deps, caller, { params, body }) =>
-      addVersion(deps, caller, params.documentId, fileOf(body.file), body.note),
+      withFile(deps, caller, body, (file) =>
+        addVersion(deps, caller, params.documentId, file, body.note),
+      ),
   }),
   route({
     name: 'shareDocument',

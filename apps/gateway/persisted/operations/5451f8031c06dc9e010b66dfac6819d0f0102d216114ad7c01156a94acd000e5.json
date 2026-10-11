@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DecideDocumentAccess($requestId: String!, $input: JSON!, $key: String!) {\n    decideDocumentAccess(requestId: $requestId, input: $input, idempotencyKey: $key) { id }\n  }"}
