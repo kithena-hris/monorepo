@@ -20,7 +20,11 @@ export const ModuleEntitlement = z
 export type ModuleEntitlement = z.infer<typeof ModuleEntitlement>;
 
 /** The modules Kithena ships today: what the back office offers to switch on. */
-export const OFFERED_MODULES: readonly ModuleEntitlement[] = ['module.people', 'module.timeoff'];
+export const OFFERED_MODULES: readonly ModuleEntitlement[] = [
+  'module.people',
+  'module.timeoff',
+  'module.documents',
+];
 
 /**
  * Modules that cannot be switched on without naming who administers them
@@ -37,6 +41,7 @@ export const OFFERED_MODULES: readonly ModuleEntitlement[] = ['module.people', '
 export const ADMINISTERED_MODULES: readonly ModuleEntitlement[] = [
   'module.people',
   'module.timeoff',
+  'module.documents',
 ];
 
 /**

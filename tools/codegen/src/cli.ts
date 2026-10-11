@@ -17,13 +17,14 @@ import { fileURLToPath } from 'node:url';
 import * as z from 'zod';
 import {
   allCapabilities,
+  documentsEvents,
   identityEvents,
   policy,
   peopleEvents,
   timeoffEvents,
 } from '@kithena/contracts';
 
-const allEvents = [...identityEvents, ...peopleEvents, ...timeoffEvents];
+const allEvents = [...identityEvents, ...peopleEvents, ...timeoffEvents, ...documentsEvents];
 
 function jsonSchemas(): Record<string, unknown> {
   return Object.fromEntries(

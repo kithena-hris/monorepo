@@ -114,7 +114,7 @@ jobs:
           # Time Off, identity, the router's config and persisted operations,
           # every migration, and every package (the design system renders the
           # screens, `packages/testing` starts the containers).
-          web='^(apps/web/|services/people/|services/timeoff/|platform/identity/|apps/gateway/|packages/|migrations/)'
+          web='^(apps/web/|services/people/|services/timeoff/|services/documents/|apps/web/documents/|platform/identity/|apps/gateway/|packages/|migrations/)'
           # What the integration suites run: every package with one, what they
           # import (the kits; never `packages/ui`, which a service may not
           # import), and the migrations their containers apply.
@@ -363,7 +363,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        module: [people, timeoff]
+        module: [people, timeoff, documents]
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

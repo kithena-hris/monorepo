@@ -13,6 +13,10 @@ const WORDS: Record<string, { label: string; description: string }> = {
     label: 'Time off',
     description: 'Leave requests, approvals and balances.',
   },
+  'module.documents': {
+    label: 'Documents',
+    description: 'Contracts, policies and payslips, with signatures and retention.',
+  },
 };
 
 export const MODULE_CHOICES: readonly {
