@@ -48,6 +48,8 @@ import type { Condition, DirectoryField } from './filters';
 import { PersonAvatar } from './media';
 import { orgTree, type OrgNode, type OrgPerson } from './org';
 import { ReviewCard } from './review/review-card';
+import { ExportDialog } from './transfer/export-dialog';
+import { ImportDialog } from './transfer/import-dialog';
 import { parsed } from './review/load';
 import { useRoles } from './roles';
 import type { PeopleScreen } from './routes';
@@ -264,6 +266,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
   const [more, setMore] = useState(false);
   const [height, setHeight] = useState(0);
   const [adding, setAdding] = useState(false);
+  const [moving, setMoving] = useState<'import' | 'export' | null>(null);
   const [figures, setFigures] = useState<Figures | null>(null);
   const [starters, setStarters] = useState<readonly Starter[]>([]);
   const counts = useRead<Readonly<Record<string, number | null>>>('Waiting').load;
@@ -800,7 +803,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         <DropdownMenuItem
           icon={Upload}
           onSelect={() => {
-            navigation.navigate('Import');
+            setMoving('import');
           }}
         >
           Import from a spreadsheet
@@ -808,7 +811,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         <DropdownMenuItem
           icon={Download}
           onSelect={() => {
-            navigation.navigate('Export');
+            setMoving('export');
           }}
         >
           Export
@@ -865,6 +868,40 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
 
   const dialogs = (
     <>
+      {moving === 'import' ? (
+        <ImportDialog
+          onClose={() => {
+            setMoving(null);
+          }}
+          onStarted={(id) => {
+            setMoving(null);
+            navigation.navigate('ImportRun', { id });
+          }}
+          onFull={() => {
+            setMoving(null);
+            navigation.navigate('Import');
+          }}
+          onHistory={() => {
+            setMoving(null);
+            navigation.navigate('ImportExport');
+          }}
+        />
+      ) : null}
+      {moving === 'export' ? (
+        <ExportDialog
+          onClose={() => {
+            setMoving(null);
+          }}
+          onDone={(id) => {
+            setMoving(null);
+            navigation.navigate('ExportRecord', { id });
+          }}
+          onFull={() => {
+            setMoving(null);
+            navigation.navigate('Export');
+          }}
+        />
+      ) : null}
       <AddPersonDialog
         open={adding}
         onOpenChange={setAdding}
