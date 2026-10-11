@@ -409,10 +409,11 @@ jobs:
   # test posts to the harness's own HTTPS receiver. Nothing reaches the
   # internet except the image and browser downloads before the suite starts.
   #
-  # The files run on three runners at once rather than one after another: the
-  # People file alone is five and a half minutes and perf two, so in one job
-  # the suite was about ten. Each runner builds the three apps itself (about
-  # 20 s) and starts its own stack, as each file already did. `web acceptance`
+  # The files run on runners of their own at once rather than one after
+  # another: in one job the suite was about ten minutes. People's tests are
+  # three files (its core flows, other companies, its pages), each a part,
+  # then perf, then every other file. Each runner builds the three apps
+  # itself (about 20 s) and starts its own stack, as each file already did. `web acceptance`
   # itself is the aggregate below, the name the branch ruleset requires.
   web-acceptance-files:
     name: web acceptance (${{ matrix.part }})
@@ -425,6 +426,10 @@ jobs:
         include:
           - part: people
             files: acceptance/people.acceptance.test.ts
+          - part: people-companies
+            files: acceptance/people-companies.acceptance.test.ts
+          - part: people-pages
+            files: acceptance/people-pages.acceptance.test.ts
           - part: perf
             files: acceptance/perf.acceptance.test.ts
           # Every other file, so a new one is never left out.
@@ -460,7 +465,7 @@ jobs:
           FILES: ${{ matrix.files }}
         run: |
           if [ -z "$FILES" ]; then
-            FILES="$(cd apps/web && ls acceptance/*.acceptance.test.ts | grep -v -e '/people\.' -e '/perf\.' | tr '\n' ' ')"
+            FILES="$(cd apps/web && ls acceptance/*.acceptance.test.ts | grep -v -e '/people' -e '/perf\.' | tr '\n' ' ')"
           fi
           echo "files: $FILES"
           # shellcheck disable=SC2086 # one argument per file
