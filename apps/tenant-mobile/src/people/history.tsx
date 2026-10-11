@@ -4,7 +4,17 @@ import {
   Badge,
   Button,
   Card,
+  ChipGroup,
+  ChipGroupItem,
   DatePicker,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Icon,
   EmptyState,
   Inline,
   KeyValues,
@@ -20,8 +30,9 @@ import {
   Timeline,
   TimelineItem,
 } from '@reach/ui-native';
-import { Bot, Lock } from 'lucide-react-native';
+import { ArrowRight, Bot, Lock } from 'lucide-react-native';
 import { useState } from 'react';
+import { ScrollView, View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import { useRead, valueOf, valuesOf, type Entry, type RecordField } from './api';
@@ -59,7 +70,7 @@ const dayOf = (iso: string): string => {
  */
 export function History({ navigation, route }: PeopleScreen<'History'>): React.JSX.Element {
   const { personId, back } = route.params;
-  const [asOf, setAsOf] = useState<string | null>(null);
+  const [asOf, setAsOf] = useState<string | null>(route.params.asOf ?? null);
   const [only, setOnly] = useState(ALL);
   const { load, reload } = useRead<HistoryData>('History', { personId: personId ?? null, asOf });
 
@@ -258,5 +269,125 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
         </Button>
       )}
     </>,
+  );
+}
+
+const short = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+
+/**
+ * History in a centred modal (design v3 P18): before and after on every
+ * line, newest first, narrowed by section. "As it was on…" opens the whole
+ * record rebuilt for a date.
+ */
+export function HistoryDialog({
+  personId,
+  name,
+  onClose,
+  onAsOf,
+}: {
+  personId: string | null;
+  name: string;
+  onClose: () => void;
+  /** The record rebuilt for a date, on its own page. */
+  onAsOf: () => void;
+}): React.JSX.Element {
+  const [only, setOnly] = useState(ALL);
+  const { load, reload } = useRead<HistoryData>('History', { personId, asOf: null });
+  const first = name.split(' ')[0] ?? name;
+  const today = dayOf(new Date().toISOString());
+  const yesterday = dayOf(new Date(Date.now() - 86_400_000).toISOString());
+  const when = (iso: string): string => {
+    const d = dayOf(iso);
+    return d === today ? 'Today' : d === yesterday ? 'Yesterday' : short.format(new Date(iso));
+  };
+  let body: React.ReactNode;
+  if (load.status === 'loading') body = <Loading label="Loading the history" />;
+  else if (load.status === 'error') body = <Failed message={load.message} onRetry={reload} />;
+  else {
+    const data = load.data;
+    const sectionOf = new Map(
+      data.sections.flatMap((sec) => sec.fields.map((f) => [f.key, sec.key] as const)),
+    );
+    const fields = new Map(data.sections.flatMap((sec) => sec.fields.map((f) => [f.key, f] as const)));
+    const changes = data.changes.map((c) => ({ ...c, value: valueOf(c.value) }));
+    const shown = changes
+      .filter((c) => fields.has(c.key) && (only === ALL || sectionOf.get(c.key) === only))
+      .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+      .slice(0, 40);
+    body = (
+      <>
+        <View>
+          <ChipGroup type="single" value={only} onValueChange={setOnly} accessibilityLabel="Sections" scroll>
+            <ChipGroupItem value={ALL}>All</ChipGroupItem>
+            {data.sections
+              .filter((sec) => changes.some((c) => sectionOf.get(c.key) === sec.key))
+              .map((sec) => (
+                <ChipGroupItem key={sec.key} value={sec.key}>
+                  {sec.label}
+                </ChipGroupItem>
+              ))}
+          </ChipGroup>
+        </View>
+        <ScrollView style={{ flexGrow: 0, maxHeight: 380 }}>
+          {shown.length === 0 ? (
+            <Text tone="muted">No changes recorded.</Text>
+          ) : (
+            shown.map((change, i) => {
+              const field = fields.get(change.key) as RecordField;
+              const previous = previousOf(change, changes);
+              return (
+                <View
+                  key={change.id}
+                  className={i < shown.length - 1 ? 'gap-1.5 border-b border-border py-3' : 'gap-1.5 py-3'}
+                >
+                  <View className="flex-row items-baseline gap-2">
+                    <Text weight="semibold" className="flex-1">
+                      {field.label}
+                    </Text>
+                    <Text variant="footnote" tone="subtle">
+                      {`${when(change.recordedAt)} · ${change.actor?.kind === 'system' ? 'Kithena' : (change.by.split(' ')[0] ?? change.by)}`}
+                    </Text>
+                  </View>
+                  <View className="flex-row flex-wrap items-center gap-2">
+                    {previous === undefined ? null : (
+                      <>
+                        <DisplayValue
+                          field={field}
+                          value={previous.value}
+                          className="text-fg-subtle line-through"
+                        />
+                        <Icon icon={ArrowRight} size={14} tone="subtle" />
+                      </>
+                    )}
+                    <DisplayValue field={field} value={change.value} />
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      </>
+    );
+  }
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>History</DialogTitle>
+          <DialogDescription>{`Every change to ${personId === null ? 'your' : `${first}’s`} record, newest first.`}</DialogDescription>
+        </DialogHeader>
+        <DialogBody>{body}</DialogBody>
+        <DialogFooter>
+          <Button className="flex-1" onPress={onAsOf}>
+            See the record as it was on…
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

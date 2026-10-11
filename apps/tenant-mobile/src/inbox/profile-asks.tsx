@@ -1,9 +1,7 @@
 import {
+  Badge,
   Button,
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Checkbox,
   DatePicker,
   Dialog,
@@ -14,16 +12,17 @@ import {
   DialogHeader,
   DialogTitle,
   Icon,
-  List,
   ListItem,
   RadioGroup,
   RadioGroupItem,
   Switch,
+  Text,
   Textarea,
   useToast,
 } from '@reach/ui-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { Download, FileText, Send } from 'lucide-react-native';
+import { FileText, Send } from 'lucide-react-native';
+import { View } from 'react-native';
 import { useEffect, useState } from 'react';
 
 import { useAct } from '../people/act';
@@ -279,7 +278,14 @@ const STATE: Readonly<Record<string, string>> = {
 };
 
 /** The person's Documents (D2, F1), each opened in the phone's viewer. */
-export function Documents({ personId }: { personId: string | null }): React.JSX.Element | null {
+export function Documents({
+  personId,
+  onAdd,
+}: {
+  personId: string | null;
+  /** HR's way to send one: "Send" beside the title. */
+  onAdd?: () => void;
+}): React.JSX.Element | null {
   const signed = useSigned();
   const { toast } = useToast();
   const [docs, setDocs] = useState<readonly Doc[] | null>(null);
@@ -292,54 +298,64 @@ export function Documents({ personId }: { personId: string | null }): React.JSX.
       live = false;
     };
   }, [signed, personId]);
-  if (docs === null || docs.length === 0) return null;
+  if (docs === null || (docs.length === 0 && onAdd === undefined)) return null;
+  const open = (d: Doc): void => {
+    void ask<string>(signed, 'PeopleDocumentFile', { id: d.id }).then(async (a) => {
+      if (!a.ok) {
+        toast({ title: 'That did not open', description: a.message, tone: 'danger' });
+        return;
+      }
+      const f = JSON.parse(a.data) as { name: string; mediaType: string; data: string };
+      await shareBase64(f.data, f.name, f.mediaType);
+    });
+  };
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Documents</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <List>
-          {docs.map((d) => (
+    // One card per section (design v3 P12): the title and its one action, then the rows.
+    <Card padded={false} className="overflow-hidden">
+      <View className="flex-row items-center justify-between px-4 pb-1 pt-4">
+        <Text variant="headline">Documents</Text>
+        {onAdd === undefined ? null : (
+          <Button size="xs" variant="link" onPress={onAdd}>
+            Send
+          </Button>
+        )}
+      </View>
+      {docs.length === 0 ? (
+        <Text tone="muted" className="px-4 pb-4">
+          Nothing sent yet.
+        </Text>
+      ) : (
+        docs.map((d) => {
+          const waiting = d.state === 'open';
+          return (
             <ListItem
               key={d.id}
+              listitem={false}
               icon={FileText}
-              description={[
-                STATE[d.state] ?? d.state,
-                d.signature === null ? d.sentAt.slice(0, 10) : `by ${d.signature.name}`,
-              ].join(' · ')}
-              trailing={
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  accessibilityLabel={`Open ${d.name}`}
-                  startIcon={<Icon icon={Download} />}
-                  onPress={() => {
-                    void ask<string>(signed, 'PeopleDocumentFile', { id: d.id }).then(async (a) => {
-                      if (!a.ok) {
-                        toast({
-                          title: 'That did not open',
-                          description: a.message,
-                          tone: 'danger',
-                        });
-                        return;
-                      }
-                      const f = JSON.parse(a.data) as {
-                        name: string;
-                        mediaType: string;
-                        data: string;
-                      };
-                      await shareBase64(f.data, f.name, f.mediaType);
-                    });
-                  }}
-                />
+              description={
+                d.signature === null
+                  ? (STATE[d.state] ?? d.state)
+                  : `Signed by ${d.signature.name}`
               }
+              {...(waiting
+                ? {
+                    trailing: (
+                      <Badge size="sm" tone="warning">
+                        To sign
+                      </Badge>
+                    ),
+                  }
+                : { chevron: true })}
+              accessibilityLabel={`Open ${d.name}`}
+              onPress={() => {
+                open(d);
+              }}
             >
               {d.name}
             </ListItem>
-          ))}
-        </List>
-      </CardContent>
+          );
+        })
+      )}
     </Card>
   );
 }

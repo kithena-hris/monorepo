@@ -4,27 +4,49 @@ import {
   Badge,
   Button,
   Card,
-  ChipGroup,
-  ChipGroupItem,
+  CircularProgress,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Hero,
   Icon,
   Inline,
   KeyValues,
-  List,
   ListItem,
+  QuickAction,
   Stack,
   Text,
   useToast,
 } from '@reach/ui-native';
 import * as WebBrowser from 'expo-web-browser';
 import {
+  AtSign,
+  Banknote,
+  Briefcase,
+  Cake,
   CalendarCheck,
+  CalendarDays,
   Camera,
+  CircleDashed,
+  Heart,
+  House,
+  IdCard,
+  Landmark,
+  MessageCircle,
+  Network,
+  Settings,
+  Smartphone,
+  TriangleAlert,
+  Type,
+  User as UserIcon,
   Image as ImageIcon,
   Paperclip,
   CalendarX,
@@ -48,9 +70,10 @@ import {
   UserX,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Linking, Pressable, View } from 'react-native';
 
-import { Account } from '../account-card';
+import { Account, AccountActionsContext } from '../account-card';
 import { FILE_TYPES } from './attribute-input';
 import { changePhoto, openFile, PersonAvatar, removePhoto } from './media';
 import { Failed, Loading, Page } from '../frame';
@@ -66,6 +89,8 @@ import {
   type Value,
 } from './api';
 import { DisplayValue, longDate } from './display';
+import { EditSectionDialog } from './edit-section';
+import { HistoryDialog } from './history';
 import {
   EmploymentPeriods,
   isDestructive,
@@ -158,9 +183,6 @@ const MOVE_ICON: Record<MoveKind, LucideIcon> = {
   hire: CalendarX,
 };
 
-/** The History pill's value: never a section's key, which is a field key's shape. */
-const HISTORY = '#history';
-
 /** "2026-11-01" or an instant, as a day in words. */
 const day = (iso: string): string => longDate(iso.slice(0, 10));
 
@@ -249,10 +271,69 @@ function contactOf(data: ProfileData, values: Readonly<Record<string, Value>>, t
   return null;
 }
 
+/** A field's glyph in its row's tile, by what it holds. */
+function iconFor(field: RecordField): LucideIcon {
+  const key = field.key;
+  if (/birth/u.test(key)) return Cake;
+  if (/title|role|job/u.test(key)) return Briefcase;
+  if (/department|team|unit/u.test(key)) return Network;
+  if (/location|office/u.test(key)) return MapPin;
+  if (/emergency/u.test(key)) return Heart;
+  switch (field.dataType) {
+    case 'national_id':
+      return IdCard;
+    case 'bank_account':
+      return Landmark;
+    case 'address':
+      return House;
+    case 'phone':
+      return Smartphone;
+    case 'email':
+      return AtSign;
+    case 'money':
+      return Banknote;
+    case 'date':
+      return CalendarDays;
+    case 'person_ref':
+      return UserIcon;
+    case 'image':
+    case 'file':
+    case 'document':
+      return Paperclip;
+    default:
+      return Type;
+  }
+}
+
+/** What HR still needs from the viewer, from `Overview` (design v3 P13). */
+interface Needs {
+  readonly me: { readonly missing: number | null; readonly required: number } | null;
+  readonly missing: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly sectionKey: string;
+    readonly ownedBy: string | null;
+  }[];
+  readonly corrections:
+    | readonly { readonly key: string; readonly label: string; readonly sectionKey: string; readonly reason: string }[]
+    | null;
+}
+
+const clock = (zone: string): string => {
+  try {
+    return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone }).format(new Date());
+  } catch {
+    return '';
+  }
+};
+
 /**
- * A record (design D1, D2): the person centred at the top with Email and
- * Call, the sections as a row of pills, and each field's value with what
- * waits to replace it. The viewer's own when no person is named: the Me tab.
+ * A record (design v3 P11–P13): a photo header with four quick actions, the
+ * four facts people look for most, then one card per section where every
+ * detail is a row with an icon, a small grey label and a large value. A
+ * missing detail says so with an Ask; a pending change sits under the value
+ * it would replace. Edits are one centred modal per section. The viewer's
+ * own when no person is named: the Me tab, opening on what HR still needs.
  *
  * Everything here is what People sent for this viewer: a field they may not
  * read is not in the answer to draw, and one they may not change has no
@@ -261,11 +342,11 @@ function contactOf(data: ProfileData, values: Readonly<Record<string, Value>>, t
 export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.JSX.Element {
   const personId = route.params?.personId ?? null;
   const { load, reload } = useRead<ProfileData>('Profile', { personId });
-  const [chosen, setChosen] = useState<string | null>(null);
   const back = route.params?.back;
   const { act, busy } = useAct();
   const signed = useSigned();
   const { toast } = useToast();
+  const tabs = useContext(AccountActionsContext);
   const [open, setOpen] = useState<
     | { kind: 'move'; move: MoveKind }
     | { kind: 'place' }
@@ -273,15 +354,20 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
     | { kind: 'view' }
     | { kind: 'ask' }
     | { kind: 'send' }
+    | { kind: 'edit'; sectionKey: string }
+    | { kind: 'history' }
+    | { kind: 'docs' }
     | null
   >(null);
   const roles = useRoles();
+  const own = personId === null;
+  const needs = useRead<Needs>('Overview').load;
   const close = (): void => {
     setOpen(null);
   };
   const [viewing, setViewing] = useState(false);
 
-  // Back from editing, or from anywhere a change could have been made: read it again.
+  // Back from anywhere a change could have been made: read it again.
   const seen = useRef(false);
   useEffect(
     () =>
@@ -294,9 +380,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
 
   const frame = (children: ReactNode, trailing?: ReactNode): React.JSX.Element => (
     <Page
-      {...(back === undefined
-        ? { large: load.status === 'ready' ? load.data.person.name : (route.params?.name ?? 'Me') }
-        : { back: { label: back, onPress: navigation.goBack } })}
+      {...(back === undefined ? {} : { back: { label: back, onPress: navigation.goBack } })}
       {...(trailing === undefined ? {} : { trailing })}
     >
       {children}
@@ -309,64 +393,71 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
   const data = load.data;
   const values = valuesOf(data.values);
   const status = data.employment?.status ?? null;
-  const missingIn = (fields: readonly RecordField[]): number =>
-    fields.filter((f) => f.missing === true || (f.required && isEmpty(values[f.key]))).length;
   const sections = data.sections.filter((s) => s.fields.length > 0);
-  const section = sections.find((s) => s.key === chosen) ?? sections[0];
-  // Nobody emails or calls themselves: the Me tab's record offers neither.
-  const own = personId === null;
   // Profile names nobody's id for the viewer's own record; their photo's address does.
   const meId = /photos\/([0-9a-f-]{36})/i.exec(data.person.avatarUrl ?? '')?.[1] ?? null;
   const email = own ? null : contactOf(data, values, 'email');
   const phone = own ? null : contactOf(data, values, 'phone');
   // The chain runs from the top of the organisation down: the manager is its last.
   const manager = data.reportingLine?.chain.at(-1);
-  const editable =
-    section !== undefined && section.fields.some((f) => !f.readOnly && f.keptIn === null);
   const firstName = data.person.name.split(' ')[0] ?? data.person.name;
-  const edit =
-    section === undefined || !editable ? undefined : (
-      <Button
-        size="sm"
-        variant="primary"
-        startIcon={<Icon icon={Pencil} />}
-        accessibilityLabel={`Edit ${section.label}`}
-        onPress={() => {
-          navigation.navigate('EditSection', {
-            ...(personId === null ? {} : { personId }),
-            sectionKey: section.key,
-            back: own ? 'Me' : firstName,
-          });
-        }}
-      />
-    );
+  const editable = (section: (typeof sections)[number]): boolean =>
+    section.fields.some((f) => !f.readOnly && f.keptIn === null);
+  const edit = (sectionKey: string): void => {
+    setOpen({ kind: 'edit', sectionKey });
+  };
+  const fieldOf = (pattern: RegExp): RecordField | undefined =>
+    sections.flatMap((s) => s.fields).find((f) => pattern.test(f.key));
+  const sectionWith = (pattern: RegExp): string | undefined =>
+    sections.find((s) => s.fields.some((f) => pattern.test(f.key) && !f.readOnly))?.key;
 
   // What the viewer may ask the person to fill in, all at once (design D4).
   const askable = data.sections
     .flatMap((x) => x.fields)
     .filter((f) => f.askable === true && isEmpty(values[f.key]));
   const moves = own ? [] : offeredMoves(status);
-  const menu = own ? null : (
+  const roleSection = sectionWith(/title|department|team|job/u);
+  const paySection = sections.find((s) =>
+    s.fields.some((f) => f.dataType === 'money' && !f.readOnly),
+  )?.key;
+  const menu = own ? (
+    <Button
+      size="sm"
+      startIcon={<Icon icon={Settings} />}
+      accessibilityLabel="Settings"
+      onPress={() => {
+        navigation.navigate('Settings');
+      }}
+    />
+  ) : (
     <DropdownMenu>
       <DropdownMenuTrigger>
         <Button size="sm" startIcon={<Icon icon={Ellipsis} />} accessibilityLabel="Actions" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent label={`Actions for ${data.person.name}`}>
-        {moves.length === 0 && data.placement === null ? null : (
+      <DropdownMenuContent label={`Actions for ${data.person.name}`} align="end" className="w-[300px]">
+        {moves.length === 0 && data.placement === null && roleSection === undefined ? null : (
           <DropdownMenuLabel>Employment</DropdownMenuLabel>
         )}
-        {moves.map((kind) => (
+        {roleSection === undefined ? null : (
           <DropdownMenuItem
-            key={kind}
-            icon={MOVE_ICON[kind]}
-            destructive={isDestructive(kind)}
+            icon={Briefcase}
             onSelect={() => {
-              setOpen({ kind: 'move', move: kind });
+              edit(roleSection);
             }}
           >
-            {MOVE_LABEL[kind]}
+            Change role or team
           </DropdownMenuItem>
-        ))}
+        )}
+        {paySection === undefined ? null : (
+          <DropdownMenuItem
+            icon={Banknote}
+            onSelect={() => {
+              edit(paySection);
+            }}
+          >
+            Change pay
+          </DropdownMenuItem>
+        )}
         {data.placement === null ? null : (
           <DropdownMenuItem
             icon={MapPin}
@@ -377,6 +468,19 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             Change placement
           </DropdownMenuItem>
         )}
+        {moves
+          .filter((kind) => !isDestructive(kind))
+          .map((kind) => (
+            <DropdownMenuItem
+              key={kind}
+              icon={MOVE_ICON[kind]}
+              onSelect={() => {
+                setOpen({ kind: 'move', move: kind });
+              }}
+            >
+              {MOVE_LABEL[kind]}
+            </DropdownMenuItem>
+          ))}
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Record</DropdownMenuLabel>
         {askable.length === 0 ? null : (
@@ -402,7 +506,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         <DropdownMenuItem
           icon={HistoryIcon}
           onSelect={() => {
-            navigation.navigate('History', { personId, back: firstName });
+            setOpen({ kind: 'history' });
           }}
         >
           History
@@ -413,7 +517,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             setOpen({ kind: 'pdf' });
           }}
         >
-          Download PDF
+          Download record
         </DropdownMenuItem>
         {data.person.canViewAs === true ? (
           <DropdownMenuItem
@@ -425,10 +529,59 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             {`View as ${firstName}`}
           </DropdownMenuItem>
         ) : null}
+        {moves.some(isDestructive) ? <DropdownMenuSeparator /> : null}
+        {moves.filter(isDestructive).map((kind) => (
+          <DropdownMenuItem
+            key={kind}
+            icon={MOVE_ICON[kind]}
+            destructive
+            onSelect={() => {
+              setOpen({ kind: 'move', move: kind });
+            }}
+          >
+            {kind === 'terminate' ? 'End employment' : MOVE_LABEL[kind]}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
   const today = data.calendar?.today ?? new Date().toISOString().slice(0, 10);
+
+  // The four facts (P11): manager, team, started, and the time where they are.
+  const team = fieldOf(/department|team/u);
+  const started = fieldOf(/hire_date|start_date/u);
+  const zone = data.calendar?.timeZone ?? null;
+  const city = zone === null ? null : (zone.split('/').at(-1) ?? zone).replaceAll('_', ' ');
+  const facts: { label: string; value: ReactNode; onPress?: () => void }[] = [];
+  if (!own && manager !== undefined)
+    facts.push({
+      label: 'Manager',
+      value: (
+        <View className="flex-row items-center gap-2">
+          <Avatar name={manager.name} size={24} decorative />
+          <Text weight="semibold" numberOfLines={1} className="flex-1">
+            {manager.name}
+          </Text>
+        </View>
+      ),
+      onPress: () => {
+        navigation.push('Profile', { personId: manager.id, name: manager.name, back: firstName });
+      },
+    });
+  if (!own && team !== undefined && !isEmpty(values[team.key]))
+    facts.push({ label: team.label, value: <DisplayValue field={team} value={values[team.key]} /> });
+  if (!own && started !== undefined && !isEmpty(values[started.key]))
+    facts.push({ label: 'Started', value: <DisplayValue field={started} value={values[started.key]} /> });
+  if (!own && zone !== null) facts.push({ label: 'Local time', value: `${clock(zone)} · ${city ?? ''}` });
+
+  // Your own: what HR still needs, each with its button (P13).
+  const mine = own && needs.status === 'ready' ? needs.data : null;
+  const corrections = mine?.corrections ?? [];
+  const yours = (mine?.missing ?? []).filter((m) => m.ownedBy === null);
+  const percent =
+    mine?.me == null || mine.me.required === 0
+      ? null
+      : Math.round(((mine.me.required - mine.missing.length) / mine.me.required) * 100);
 
   return frame(
     <>
@@ -454,6 +607,48 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
           onClose={close}
           onDone={reload}
         />
+      ) : null}
+      {open?.kind === 'edit' ? (
+        <EditSectionDialog
+          personId={personId ?? undefined}
+          sectionKey={open.sectionKey}
+          onClose={() => {
+            close();
+            reload();
+          }}
+        />
+      ) : null}
+      {open?.kind === 'history' ? (
+        <HistoryDialog
+          personId={personId}
+          name={data.person.name}
+          onClose={close}
+          onAsOf={() => {
+            close();
+            navigation.navigate('History', {
+              ...(personId === null ? {} : { personId }),
+              back: own ? 'Me' : firstName,
+              asOf: today,
+            });
+          }}
+        />
+      ) : null}
+      {open?.kind === 'docs' ? (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) close();
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Your documents</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <Documents personId={personId} />
+            </DialogBody>
+          </DialogContent>
+        </Dialog>
       ) : null}
       {open?.kind === 'ask' && personId !== null ? (
         <AskDialog
@@ -503,227 +698,348 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
           }}
         />
       ) : null}
-      <Stack gap={2} align="center" className="pt-2">
-        <PersonAvatar
-          personId={personId ?? meId}
-          name={data.person.name}
-          avatarUrl={data.person.avatarUrl}
-          size="3xl"
-          {...(status === 'active' ? { status: 'success' as const } : {})}
-        />
-        {data.person.canChangePhoto === true ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button size="xs" variant="ghost" startIcon={<Icon icon={Camera} />}>
-                {data.person.avatarUrl === null ? 'Add a photo' : 'Change photo'}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent label="Photo">
-              <DropdownMenuItem
-                icon={ImageIcon}
-                onSelect={() => {
-                  void changePhoto(signed, personId).then((up) => {
-                    if (up === null) return;
-                    if (up.ok) {
-                      toast({ title: 'Photo saved', tone: 'success' });
-                      reload();
-                    } else
-                      toast({
-                        title: 'That did not work',
-                        description: up.message,
-                        tone: 'danger',
+
+      <Hero
+        media={
+          <View className="items-center gap-1">
+            <PersonAvatar
+              personId={personId ?? meId}
+              name={data.person.name}
+              avatarUrl={data.person.avatarUrl}
+              size={96}
+              {...(status === 'active' ? { status: 'success' as const } : {})}
+            />
+            {data.person.canChangePhoto === true ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Button size="xs" variant="ghost" startIcon={<Icon icon={Camera} />}>
+                    {data.person.avatarUrl === null ? 'Add a photo' : 'Change photo'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent label="Photo">
+                  <DropdownMenuItem
+                    icon={ImageIcon}
+                    onSelect={() => {
+                      void changePhoto(signed, personId).then((up) => {
+                        if (up === null) return;
+                        if (up.ok) {
+                          toast({ title: 'Photo saved', tone: 'success' });
+                          reload();
+                        } else
+                          toast({
+                            title: 'That did not work',
+                            description: up.message,
+                            tone: 'danger',
+                          });
                       });
-                  });
+                    }}
+                  >
+                    Choose a photo
+                  </DropdownMenuItem>
+                  {data.person.avatarUrl === null ? null : (
+                    <DropdownMenuItem
+                      icon={Trash2}
+                      destructive
+                      onSelect={() => {
+                        void removePhoto(signed, personId).then((refused) => {
+                          if (refused === null) reload();
+                          else
+                            toast({
+                              title: 'That did not work',
+                              description: refused,
+                              tone: 'danger',
+                            });
+                        });
+                      }}
+                    >
+                      Remove photo
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </View>
+        }
+        title={data.person.name}
+        {...(data.person.summary === null ? {} : { subtitle: data.person.summary })}
+        badges={
+          <>
+            {own && percent !== null ? (
+              <Badge size="sm" tone="accent">{`${String(percent)}% complete`}</Badge>
+            ) : status === null ? null : (
+              <Badge size="sm" dot tone={STATUS_TONE[STATUS[status] ?? ''] ?? 'neutral'}>
+                {STATUS[status] ?? status}
+              </Badge>
+            )}
+            {own || data.person.missing === null || data.person.missing === 0 ? null : (
+              <Badge size="sm" tone="warning">{`${String(data.person.missing)} missing`}</Badge>
+            )}
+          </>
+        }
+        actions={
+          own ? (
+            <>
+              {sections.find(editable) === undefined ? null : (
+                <QuickAction
+                  icon={Pencil}
+                  label="Edit"
+                  onPress={() => {
+                    const first = sections.find(editable);
+                    if (first !== undefined) edit(first.key);
+                  }}
+                />
+              )}
+              {tabs?.timeOff === true ? (
+                <QuickAction
+                  icon={CalendarDays}
+                  label="Time off"
+                  onPress={() => {
+                    tabs.open('timeoff');
+                  }}
+                />
+              ) : null}
+              <QuickAction
+                icon={FileText}
+                label="Documents"
+                onPress={() => {
+                  setOpen({ kind: 'docs' });
                 }}
-              >
-                Choose a photo
-              </DropdownMenuItem>
-              {data.person.avatarUrl === null ? null : (
-                <DropdownMenuItem
-                  icon={Trash2}
-                  destructive
-                  onSelect={() => {
-                    void removePhoto(signed, personId).then((refused) => {
-                      if (refused === null) reload();
-                      else
-                        toast({ title: 'That did not work', description: refused, tone: 'danger' });
-                    });
+              />
+              <QuickAction
+                icon={Settings}
+                label="Settings"
+                onPress={() => {
+                  navigation.navigate('Settings');
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <QuickAction
+                icon={MessageCircle}
+                label="Message"
+                disabled={phone === null}
+                onPress={() => {
+                  if (phone !== null) void Linking.openURL(`sms:${phone}`);
+                }}
+              />
+              <QuickAction
+                icon={Phone}
+                label="Call"
+                disabled={phone === null}
+                onPress={() => {
+                  if (phone !== null) void Linking.openURL(`tel:${phone}`);
+                }}
+              />
+              <QuickAction
+                icon={Mail}
+                label="Email"
+                disabled={email === null}
+                onPress={() => {
+                  if (email !== null) void Linking.openURL(`mailto:${email}`);
+                }}
+              />
+              <QuickAction
+                icon={Network}
+                label="Org chart"
+                onPress={() => {
+                  navigation.navigate('People', { view: 'org' });
+                }}
+              />
+            </>
+          )
+        }
+      />
+
+      {facts.length === 0 ? null : (
+        <View className="flex-row flex-wrap gap-2.5">
+          {facts.map((f) => (
+            <Pressable
+              key={f.label}
+              className="w-[48.5%]"
+              disabled={f.onPress === undefined}
+              accessibilityRole={f.onPress === undefined ? undefined : 'button'}
+              onPress={f.onPress}
+            >
+              <Card className="gap-2">
+                <Text variant="footnote" tone="subtle">
+                  {f.label}
+                </Text>
+                {typeof f.value === 'string' ? <Text weight="semibold">{f.value}</Text> : f.value}
+              </Card>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {!own ? null : corrections.length + yours.length === 0 ? null : (
+        <Card padded={false} className="overflow-hidden">
+          <View className="flex-row items-center gap-3 px-4 pb-1 pt-4">
+            {percent === null ? null : (
+              <CircularProgress value={percent} size={44} label={`${String(percent)}% complete`} />
+            )}
+            <View className="flex-1">
+              <Text variant="headline">{`${String(corrections.length + yours.length)} ${corrections.length + yours.length === 1 ? 'thing' : 'things'} HR needs`}</Text>
+              <Text variant="subhead" tone="muted">
+                Each saves on its own.
+              </Text>
+            </View>
+          </View>
+          {corrections.map((c) => (
+            <ListItem
+              key={`c-${c.key}`}
+              listitem={false}
+              icon={TriangleAlert}
+              iconTone={5}
+              description={c.reason}
+              trailing={
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={() => {
+                    edit(c.sectionKey);
                   }}
                 >
-                  Remove photo
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        {back === undefined ? null : (
-          <Text accessibilityRole="header" variant="title2" weight="bold" className="text-center">
-            {data.person.name}
-          </Text>
-        )}
-        {data.person.summary === null ? null : (
-          <Text tone="muted" className="text-center">
-            {data.person.summary}
-          </Text>
-        )}
-        <Inline gap={2} justify="center">
-          {status === null ? null : (
-            <Badge size="sm" dot tone={STATUS_TONE[STATUS[status] ?? ''] ?? 'neutral'}>
-              {STATUS[status] ?? status}
-            </Badge>
-          )}
-          {data.person.missing === null || data.person.missing === 0 ? null : (
-            <Badge size="sm" tone="warning">{`${String(data.person.missing)} missing`}</Badge>
-          )}
-        </Inline>
-        {email === null && phone === null ? null : (
-          <Inline gap={2} justify="center" className="pt-1">
-            {email === null ? null : (
-              <Button size="sm" startIcon={<Icon icon={Mail} />} href={`mailto:${email}`}>
-                Email
-              </Button>
-            )}
-            {phone === null ? null : (
-              <Button size="sm" startIcon={<Icon icon={Phone} />} href={`tel:${phone}`}>
-                Call
-              </Button>
-            )}
-          </Inline>
-        )}
-      </Stack>
+                  Fix
+                </Button>
+              }
+            >
+              {`Correct your ${c.label}`}
+            </ListItem>
+          ))}
+          {yours.map((m) => (
+            <ListItem
+              key={m.key}
+              listitem={false}
+              icon={CircleDashed}
+              trailing={
+                <Button
+                  size="sm"
+                  onPress={() => {
+                    edit(m.sectionKey);
+                  }}
+                >
+                  Add
+                </Button>
+              }
+            >
+              {`Add your ${m.label.toLowerCase()}`}
+            </ListItem>
+          ))}
+        </Card>
+      )}
 
-      {sections.length > 1 ? (
-        <ChipGroup
-          type="single"
-          value={section?.key ?? ''}
-          onValueChange={(key) => {
-            // History is the last pill, as in the design, and a screen of its own.
-            if (key === HISTORY) {
-              navigation.navigate('History', {
-                ...(personId === null ? {} : { personId }),
-                back: own ? 'Me' : firstName,
-              });
-              return;
-            }
-            setChosen(key);
-          }}
-          accessibilityLabel="Sections"
-          scroll
-        >
-          {sections.map((s) => {
-            const missing = missingIn(s.fields);
-            return (
-              <ChipGroupItem key={s.key} value={s.key} variant="view">
-                {missing === 0 ? s.label : `${s.label} · ${String(missing)}`}
-              </ChipGroupItem>
-            );
-          })}
-          <ChipGroupItem value={HISTORY} variant="view" icon={HistoryIcon}>
-            History
-          </ChipGroupItem>
-        </ChipGroup>
-      ) : null}
-
-      {section === undefined ? null : (
-        <Card>
+      {sections.map((section) => (
+        <Card key={section.key} padded={false} className="overflow-hidden pb-1">
+          <View className="flex-row items-center justify-between px-4 pb-1 pt-4">
+            <Text variant="headline">{section.label}</Text>
+            {editable(section) ? (
+              <Button
+                size="xs"
+                variant="link"
+                onPress={() => {
+                  edit(section.key);
+                }}
+              >
+                Edit
+              </Button>
+            ) : null}
+          </View>
           <KeyValues
-            layout="stacked"
+            layout="detail"
             items={section.fields.map((field) => {
+              const value = values[field.key];
+              const empty = isEmpty(value);
               const waiting = data.pending?.find((p) => p.key === field.key);
+              const file =
+                FILE_TYPES.has(field.dataType) && typeof value === 'string' && value !== '';
               return {
                 id: field.key,
-                label: (
-                  <Inline gap={2}>
-                    <Text variant="subhead" tone="muted">
-                      {field.label}
-                    </Text>
-                    {field.sensitive === true ? (
-                      <Badge size="sm" tone="warning" icon={Lock}>
-                        Sensitive
-                      </Badge>
-                    ) : null}
-                    {/* HR or a manager may ask the person to fill in what they own (design D1). */}
-                    {field.askable === true && !own && isEmpty(values[field.key]) ? (
-                      <Button
-                        size="xs"
-                        startIcon={<Icon icon={Send} />}
-                        loading={busy === 'RequestDetails'}
-                        onPress={() => {
-                          void act<{ asked: number }>(
-                            'RequestDetails',
-                            { personId, keys: [field.key] },
-                            `Asked ${firstName} for ${field.label.toLowerCase()}`,
-                          );
-                        }}
-                      >
-                        Ask
-                      </Button>
-                    ) : null}
-                  </Inline>
+                icon: iconFor(field),
+                label: field.label,
+                ...(field.sensitive === true
+                  ? {
+                      badge: (
+                        <Badge size="sm" tone="warning" icon={Lock}>
+                          Sensitive
+                        </Badge>
+                      ),
+                    }
+                  : {}),
+                empty: empty && !file,
+                value: file ? (
+                  <Button
+                    size="sm"
+                    startIcon={<Icon icon={Paperclip} />}
+                    onPress={() => {
+                      void openFile(signed, value).then((refused) => {
+                        if (refused !== null)
+                          toast({ title: 'That did not work', description: refused, tone: 'danger' });
+                      });
+                    }}
+                  >
+                    {data.files?.find((f) => f.id === value)?.name ?? 'Open the file'}
+                  </Button>
+                ) : empty ? (
+                  'Not added yet'
+                ) : (
+                  <DisplayValue field={field} value={value} className="text-[17px] font-semibold" />
                 ),
-                value: (
-                  <Stack gap={2} className="w-full">
-                    {FILE_TYPES.has(field.dataType) &&
-                    typeof values[field.key] === 'string' &&
-                    values[field.key] !== '' ? (
-                      <Button
-                        size="sm"
-                        startIcon={<Icon icon={Paperclip} />}
-                        onPress={() => {
-                          const id = values[field.key] as string;
-                          void openFile(signed, id).then((refused) => {
-                            if (refused !== null)
-                              toast({
-                                title: 'That did not work',
-                                description: refused,
-                                tone: 'danger',
-                              });
-                          });
-                        }}
-                      >
-                        {data.files?.find((f) => f.id === values[field.key])?.name ??
-                          'Open the file'}
-                      </Button>
-                    ) : (
-                      <DisplayValue field={field} value={values[field.key]} />
-                    )}
-                    {waiting === undefined ? null : (
-                      <PendingNote field={field} pending={waiting} onDone={reload} />
-                    )}
-                  </Stack>
-                ),
+                ...(waiting === undefined
+                  ? {}
+                  : { below: <PendingNote field={field} pending={waiting} onDone={reload} /> }),
+                // HR or a manager may ask the person to fill in what they own (P12).
+                ...(field.askable === true && !own && empty
+                  ? {
+                      trailing: (
+                        <Button
+                          size="sm"
+                          variant="tinted"
+                          startIcon={<Icon icon={Send} tone="accent" />}
+                          loading={busy === 'RequestDetails'}
+                          onPress={() => {
+                            void act<{ asked: number }>(
+                              'RequestDetails',
+                              { personId, keys: [field.key] },
+                              `Asked ${firstName} for ${field.label.toLowerCase()}`,
+                            );
+                          }}
+                        >
+                          Ask
+                        </Button>
+                      ),
+                    }
+                  : {}),
               };
             })}
           />
         </Card>
-      )}
+      ))}
 
-      {manager === undefined ? null : (
-        <Stack gap={2}>
-          <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-            Reporting line
-          </Text>
-          <List>
-            <ListItem
-              leading={<Avatar name={manager.name} size={40} decorative />}
-              description={manager.title === null ? 'Manager' : `Manager · ${manager.title}`}
-              chevron
-              onPress={() => {
-                navigation.push('Profile', {
-                  personId: manager.id,
-                  name: manager.name,
-                  back: data.person.name.split(' ')[0] ?? data.person.name,
-                });
-              }}
-            >
-              {manager.name}
-            </ListItem>
-          </List>
-        </Stack>
-      )}
-
+      <Documents
+        personId={personId}
+        {...(roles.hr && !own
+          ? {
+              onAdd: () => {
+                setOpen({ kind: 'send' });
+              },
+            }
+          : {})}
+      />
       <EmploymentPeriods periods={data.employment?.periods ?? []} />
-      <Documents personId={personId} />
+      <Card padded={false} className="overflow-hidden">
+        <ListItem
+          listitem={false}
+          icon={HistoryIcon}
+          description="Every change, with the value before it"
+          chevron
+          onPress={() => {
+            setOpen({ kind: 'history' });
+          }}
+        >
+          History
+        </ListItem>
+      </Card>
 
       {/* Your own record, in the Me tab: where you are signed in, and the way out. */}
       {own && back === undefined ? (
@@ -734,9 +1050,6 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         />
       ) : null}
     </>,
-    <Inline gap={2} wrap={false}>
-      {menu}
-      {edit}
-    </Inline>,
+    menu,
   );
 }

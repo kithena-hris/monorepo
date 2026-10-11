@@ -40,7 +40,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import { Failed, Heading, Loading, Page } from '../frame';
+import { Failed, Loading, Page } from '../frame';
 import { useAct } from './act';
 import { AddPersonDialog } from './add-person';
 import { ask, useRead, useSigned } from './api';

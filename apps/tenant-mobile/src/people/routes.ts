@@ -29,7 +29,7 @@ export type PeopleRoutes = {
   /** One section of a record, editable: `personId` absent is the viewer's own. */
   EditSection: { personId?: string; sectionKey: string; back: string };
   /** A record's changes, newest first, and the record as of a date. */
-  History: { personId?: string; back: string };
+  History: { personId?: string; back: string; asOf?: string };
   /** Every decision and missing detail, in one queue (design E1). */
   Review: { kind?: string } | undefined;
   /** One change to decide, answer or withdraw (E2, E6). */
