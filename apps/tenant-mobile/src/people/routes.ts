@@ -10,7 +10,12 @@ import type { Condition } from './filters';
 export type PeopleRoutes = {
   /** The Home tab: the person's own To do, or HR's figures and Needs HR (design B1, B2). */
   Home: undefined;
-  People: undefined;
+  /**
+   * The People tab (v3 P1–P7): the directory with what needs HR on top.
+   * `conditions` opens it on these, as a point in What changed links to its
+   * records; `view` opens the org chart.
+   */
+  People: { search?: string; conditions?: readonly Condition[]; view?: 'list' | 'org' } | undefined;
   /** The Inbox tab: To do, Updates, Requests and Done (M:A1). */
   Inbox: undefined;
   /** One Inbox item on its own page, its buttons pinned (M:B1–B7, M:C2–C4, M:D2, M:F2). */
@@ -19,9 +24,6 @@ export type PeopleRoutes = {
   Notifications: undefined;
   /** A new starter's sections, one at a time (D7). */
   Onboarding: undefined;
-  /** `conditions`: opened on these, as a point in What changed links to its records. */
-  Directory: { search?: string; conditions?: readonly Condition[] } | undefined;
-  OrgChart: undefined;
   /** `personId` absent: the viewer's own record. `back` is what the bar's back says. */
   Profile: { personId?: string; name?: string; back?: string } | undefined;
   /** One section of a record, editable: `personId` absent is the viewer's own. */

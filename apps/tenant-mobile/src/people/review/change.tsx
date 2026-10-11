@@ -34,7 +34,7 @@ import { approvalsOf } from './load';
 import { daysLeft, firstName, isClosed, isFlagged, type ApprovalItem } from './model';
 
 /** Enough of a field to draw a value: a pending value carries no options or type. */
-const asField = (item: ApprovalItem): RecordField => ({
+export const asField = (item: ApprovalItem): RecordField => ({
   key: item.key,
   label: item.label,
   description: null,
@@ -51,7 +51,7 @@ const asField = (item: ApprovalItem): RecordField => ({
 });
 
 /** "Ask Marco": a question to the requester, kept with the change. */
-function AskDialog({
+export function AskDialog({
   item,
   onClose,
   onDone,

@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Chip,
+  DatePicker,
   Dialog,
   DialogBody,
   DialogContent,
@@ -25,11 +26,11 @@ import {
   type FilterGroup,
 } from '@reach/ui-native';
 import * as SecureStore from 'expo-secure-store';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { useAct } from './act';
-import { ask, type Signed } from './api';
+import { ask, useSigned, type Signed } from './api';
 import { describeCondition, filterFields, type Condition, type DirectoryField } from './filters';
 import { parsed } from './review/load';
 
@@ -484,6 +485,183 @@ export function SaveViewDialog({
             }}
           >
             Save view
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The fields Filters offers as chips: a few choices each, and a start date as a range. */
+function chipFields(fields: readonly DirectoryField[]): {
+  readonly chips: readonly DirectoryField[];
+  readonly date: DirectoryField | null;
+} {
+  return {
+    chips: fields
+      .filter(
+        (f) =>
+          (f.kind === 'select' || f.kind === 'status') &&
+          f.options.length > 0 &&
+          f.options.length <= 12,
+      )
+      .slice(0, 3),
+    date:
+      fields.find((f) => f.kind === 'date' && /hire|start/u.test(f.key)) ??
+      fields.find((f) => f.kind === 'date') ??
+      null,
+  };
+}
+
+/**
+ * Filter people (design v3 P5): chips with live counts, centred, and a
+ * button that says how many people it leaves. Anything a chip cannot say
+ * is under More conditions, the full builder.
+ */
+export function ChipFiltersDialog({
+  fields,
+  conditions,
+  onApply,
+  onMore,
+  onClose,
+}: {
+  fields: readonly DirectoryField[];
+  conditions: readonly Condition[];
+  onApply: (conditions: readonly Condition[]) => void;
+  onMore: () => void;
+  onClose: () => void;
+}): React.JSX.Element {
+  const signed = useSigned();
+  const { chips, date } = chipFields(fields);
+  const [picked, setPicked] = useState<Readonly<Record<string, readonly string[]>>>(() =>
+    Object.fromEntries(
+      conditions.filter((c) => c.op === 'in').map((c) => [c.key, c.values]),
+    ),
+  );
+  const held = conditions.find((c) => date !== null && c.key === date.key && c.op === 'between');
+  const [range, setRange] = useState<{ start: string | null; end: string | null } | null>(
+    held === undefined ? null : { start: held.values[0] ?? null, end: held.values[1] ?? null },
+  );
+  const [counts, setCounts] = useState<Readonly<Record<string, number>>>({});
+  const [total, setTotal] = useState<number | null>(null);
+
+  const chosen = (without?: string): Condition[] => [
+    ...Object.entries(picked)
+      .filter(([key, values]) => key !== without && values.length > 0)
+      .map(([key, values]) => ({ key, op: 'in', values })),
+    ...(date !== null && range !== null && (range.start !== null || range.end !== null)
+      ? [{ key: date.key, op: 'between', values: [range.start ?? '', range.end ?? ''] }]
+      : []),
+  ];
+
+  // How many each chip would leave, beside what else is chosen, and the total.
+  // ponytail: one Directory read per chip (a dozen at most); a facet count in People if it grows.
+  const key = JSON.stringify([picked, range]);
+  useEffect(() => {
+    let live = true;
+    const count = (cs: readonly Condition[]) =>
+      ask<{ total: number }>(signed, 'Directory', {
+        conditions: cs.length === 0 ? null : cs,
+        top: null,
+      }).then((a) => (a.ok ? a.data.total : null));
+    void count(chosen()).then((n) => {
+      if (live) setTotal(n);
+    });
+    void Promise.all(
+      chips.flatMap((f) =>
+        f.options.map(async (o) => {
+          const n = await count([...chosen(f.key), { key: f.key, op: 'in', values: [o.value] }]);
+          return [`${f.key}:${o.value}`, n] as [string, number | null];
+        }),
+      ),
+    ).then((pairs) => {
+      if (live)
+        setCounts(
+          Object.fromEntries(
+            pairs.flatMap(([k, n]) => (n === null ? [] : [[k, n] as const])),
+          ),
+        );
+    });
+    return () => {
+      live = false;
+    };
+  }, [key, signed]);
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Filter people</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <ScrollView style={{ flexGrow: 0, maxHeight: 460 }} contentContainerClassName="gap-4">
+            {chips.map((f) => (
+              <View key={f.key} className="gap-2">
+                <Text variant="subhead" weight="semibold" tone="muted">
+                  {f.label}
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {f.options.map((o) => {
+                    const on = (picked[f.key] ?? []).includes(o.value);
+                    const n = counts[`${f.key}:${o.value}`];
+                    return (
+                      <Chip
+                        key={o.value}
+                        selected={on}
+                        onPress={() => {
+                          setPicked((was) => {
+                            const values = was[f.key] ?? [];
+                            return {
+                              ...was,
+                              [f.key]: on
+                                ? values.filter((v) => v !== o.value)
+                                : [...values, o.value],
+                            };
+                          });
+                        }}
+                      >
+                        {n === undefined ? o.label : `${o.label} ${String(n)}`}
+                      </Chip>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+            {date === null ? null : (
+              <Field>
+                <FieldLabel>{`${date.label} between`}</FieldLabel>
+                <DatePicker mode="range" label={date.label} value={range} onChange={setRange} />
+              </Field>
+            )}
+            <Button variant="link" onPress={onMore}>
+              More conditions
+            </Button>
+          </ScrollView>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            className="flex-1"
+            onPress={() => {
+              setPicked({});
+              setRange(null);
+            }}
+          >
+            Clear
+          </Button>
+          <Button
+            className="flex-1"
+            variant="primary"
+            onPress={() => {
+              onApply(chosen());
+              onClose();
+            }}
+          >
+            {total === null ? 'Show people' : `Show ${people(total)}`}
           </Button>
         </DialogFooter>
       </DialogContent>

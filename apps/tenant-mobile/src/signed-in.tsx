@@ -19,10 +19,8 @@ import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
 import { read, readAhead, SignedContext, type Signed } from './people/api';
 import { AskKithena, type TimeOffAsk } from './people/ask';
 import { BulkEdit } from './people/bulk';
-import { Directory } from './people/directory';
 import { EditSection } from './people/edit-section';
 import { History } from './people/history';
-import { OrgChart } from './people/org-chart';
 import { PeopleHome as Home } from './people/home';
 import { Inbox } from './inbox/inbox';
 import { InboxItem } from './inbox/item';
@@ -30,7 +28,7 @@ import { NotificationSettings } from './inbox/notifications';
 import { readInbox } from './inbox/api';
 import { useInboxNotifications } from './inbox/notify';
 import { Onboarding } from './people/onboarding';
-import { PeopleHome } from './people/people-home';
+import { PeopleTab } from './people/people-tab';
 import { Profile } from './people/profile';
 import { ReviewChange } from './people/review/change';
 import { ReviewAccess, ReviewShare } from './people/review/decide';
@@ -105,9 +103,7 @@ const TabStack = memo(function TabStack({
           <Stack_.Screen name="InboxItem" component={InboxItem} />
           <Stack_.Screen name="Notifications" component={NotificationSettings} />
           <Stack_.Screen name="Onboarding" component={Onboarding} />
-          <Stack_.Screen name="People" component={PeopleHome} />
-          <Stack_.Screen name="Directory" component={Directory} />
-          <Stack_.Screen name="OrgChart" component={OrgChart} />
+          <Stack_.Screen name="People" component={PeopleTab} />
           <Stack_.Screen name="Profile" component={Profile} />
           <Stack_.Screen name="EditSection" component={EditSection} />
           <Stack_.Screen name="History" component={History} />

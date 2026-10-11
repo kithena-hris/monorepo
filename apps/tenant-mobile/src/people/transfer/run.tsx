@@ -74,7 +74,7 @@ export function ImportRun({ navigation, route }: PeopleScreen<'ImportRun'>): Rea
                 fullWidth
                 variant="primary"
                 onPress={() => {
-                  navigation.navigate('Directory');
+                  navigation.navigate('People');
                 }}
               >
                 Open in Directory

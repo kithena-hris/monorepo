@@ -78,7 +78,7 @@ import {
   type Period,
   type Placement,
 } from './employment';
-import { STATUS_TONE } from './directory';
+import { STATUS_TONE } from './people-tab';
 import type { PeopleScreen } from './routes';
 import { useRoles } from './roles';
 import { AskDialog, Documents, SendDocumentDialog } from '../inbox/profile-asks';

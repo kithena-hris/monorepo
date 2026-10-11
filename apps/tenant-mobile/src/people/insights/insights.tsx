@@ -774,8 +774,9 @@ export function Insights({ navigation, route }: PeopleScreen<'Insights'>): React
           go={(to) => {
             if (to.screen === 'Insights') setTab(to.tab);
             else if (to.screen === 'Directory')
-              navigation.navigate('Directory', { conditions: to.conditions });
-            else navigation.navigate(to.screen);
+              navigation.navigate('People', { conditions: to.conditions });
+            else if (to.screen === 'OrgChart') navigation.navigate('People', { view: 'org' });
+            else navigation.navigate('Review');
           }}
         />
       ) : load.status === 'error' ? (
