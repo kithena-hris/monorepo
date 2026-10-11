@@ -773,6 +773,8 @@ describe('a question from the web, in the session it was asked in (AST-035)', ()
     );
     expect(sent.length).toBeGreaterThan(0);
     expect(sent.every((as) => as.viewedBy === null && as.impersonatedBy === null)).toBe(true);
+  });
+});
 
 describe('balances, end to end (AST-030)', () => {
   it('how much vacation do I have left?', async () => {

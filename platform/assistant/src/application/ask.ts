@@ -195,7 +195,8 @@ export function asker(
     const offered = offer(catalogues);
     const leaveTypes = catalogues.flatMap((c) => c.leaveTypes);
 
-    const masked = mask(q.question, leaveTypes, q.earlier);
+    // A chat app's follow-up carries its earlier questions; the web's `ask` has none.
+    const masked = mask(q.question, leaveTypes, 'earlier' in q ? q.earlier : undefined);
     const refusal = refused(masked.question);
     if (refusal !== null) {
       return { answer: refusedAnswer(refusal), outcome: 'refused', reason: refusal.kind, called };
