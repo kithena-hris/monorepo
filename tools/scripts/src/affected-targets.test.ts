@@ -79,6 +79,7 @@ describe('reason', () => {
       'slack',
       'audit',
       'timeoff',
+      'documents',
       'assistant',
       'router',
     ]);

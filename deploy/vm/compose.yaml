@@ -234,6 +234,44 @@ services:
         # heavy read hold every other one past the shell's ten seconds.
         limits: { memory: 512m, cpus: '1.0' }
 
+  # Documents (`services/documents`, DOC-028): consumer groups on People's and
+  # identity's topics, the trash sweep, a SIGTERM drain. Its own schema as
+  # `svc_documents`; its files in the documents bucket on S3, sealed with
+  # `DOCUMENTS_ENCRYPTION_KEY`, reached through the instance role. The router
+  # reaches it at `http://documents:4003/graphql` with `DOCUMENTS_API_TOKEN`,
+  # which `documents.env` and `router.env` both get from the one secret.
+  documents:
+    image: ${DOCUMENTS_IMAGE:?DOCUMENTS_IMAGE is set by deploy.sh}
+    restart: unless-stopped
+    env_file: documents.env
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=256
+      KAFKA_BROKERS: redpanda:9092
+      DOCUMENTS_DATABASE_URL: postgres://svc_documents:${DOCUMENTS_DB_PASSWORD:?DOCUMENTS_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4003/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 3s
+      retries: 3
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+    deploy:
+      resources:
+        # ponytail: a guess, Time Off's less its Temporal worker. A watermarked
+        # 25-page PDF is drawn in memory; measure after the first deploy.
+        limits: { memory: 384m, cpus: '1.0' }
+
   # The outbox relay: Debezium Server, one per database, each tailing one
   # outbox and publishing its rows to Redpanda (`debezium.env` has the
   # shared settings and why). Started by `deploy.sh migrate`, after the
