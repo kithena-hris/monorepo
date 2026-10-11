@@ -51,7 +51,7 @@ import { Pressable, View } from 'react-native';
 import { Failed, Heading, Loading, Page } from '../frame';
 import { useInbox } from '../inbox/api';
 import { tasksOf } from '../inbox/brief';
-import { TaskCard } from '../inbox/task-card';
+import { shortOf, TaskCard } from '../inbox/task-card';
 import { useAct } from '../people/act';
 import { keptAnswer, read, useSigned, type Signed } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
@@ -814,15 +814,7 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
       {approvals.length === 0 || inbox === null ? null : (
         <>
           <Alert tone="accent" variant="summary">
-            {`${approvals.length === 1 ? 'One request waits' : `${String(approvals.length)} requests wait`} for you.${
-              approvals.some(
-                (a) =>
-                  ((a.detail as { alreadyOut?: { out: number } | null } | null)?.alreadyOut?.out ??
-                    0) > 0,
-              )
-                ? ' Others are out the same week, so check the team first.'
-                : ' Nobody else is out those weeks.'
-            }`}
+            {`${approvals.length === 1 ? 'One request waits' : `${String(approvals.length)} requests wait`} for you.${approvals.some((a) => shortOf(a).length > 0) ? ' One would leave the team below its minimum.' : ' None leaves the team short.'}`}
           </Alert>
           <Heading title="Waiting for you" />
           {approvals.map((item) => (

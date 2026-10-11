@@ -73,10 +73,33 @@ export function useInboxWrite(): {
   return { write, busy };
 }
 
-/** "No clash. Omar has 14 days left.": what a manager needs before approving (I5). */
+interface Short {
+  readonly date: string;
+  readonly in: number;
+  readonly of: number;
+  readonly required: number;
+}
+
+/** The days approving it would leave the team below its minimum (Time Off's `short`). */
+export const shortOf = (item: Item): readonly Short[] =>
+  ((d(item)['short'] ?? []) as readonly Short[]).filter((x) => x.in < x.required);
+
+const weekday = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+
+/**
+ * What a manager needs before approving (I5, T8): "Wed 21 would leave 4 of 7
+ * in. Your minimum is 5." on a clash; "No clash. Omar has 14 days left." otherwise.
+ */
 export function approvalHint(item: Item): string | null {
   const detail = d(item);
   const who = firstName(str(detail['personName']));
+  const short = shortOf(item)[0];
+  if (short !== undefined)
+    return `${weekday.format(new Date(`${short.date}T12:00:00Z`))} would leave ${String(short.in)} of ${String(short.of)} in. Your minimum is ${String(short.required)}.`;
   const week = (detail['week'] ?? []) as { date: string; out: string[] }[];
   const others = [...new Set(week.flatMap((w) => w.out))];
   const left = str(detail['balanceAfter']);
@@ -84,8 +107,8 @@ export function approvalHint(item: Item): string | null {
     others.length === 0
       ? 'No clash.'
       : others.length === 1
-        ? `${firstName(others[0])} is the only other person out.`
-        : `${String(others.length)} others are out that week.`;
+        ? `No clash. ${firstName(others[0])} is the only other person out.`
+        : `No clash, with ${String(others.length)} others out that week.`;
   return [clash, left === null ? null : `${who} has ${days(left)} left.`]
     .filter((x) => x !== null)
     .join(' ');
@@ -197,8 +220,7 @@ export function TaskCard({
       };
       actions = (
         <>
-          {/* ponytail: "others out that week" stands for a clash; the modal says if the team is short. */}
-          {((detail['alreadyOut'] as { out: number } | null)?.out ?? 0) > 0
+          {shortOf(item).length > 0
             ? action('Options', () => {
                 setOpen('clash');
               })

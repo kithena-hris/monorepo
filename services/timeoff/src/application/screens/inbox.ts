@@ -17,6 +17,7 @@ import { escalation } from '../../domain/approval/delegation.js';
 import { addDays, amount, days } from '../../domain/days.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
 import { approvalQueue } from '../approval/decide.js';
+import { teamBelow } from '../request/assess.js';
 import { NUDGE_AFTER_MS } from '../request/request.js';
 import {
   DEFAULT_ESCALATION,
@@ -550,6 +551,16 @@ async function approvalItem(
     teamName: member.teamName,
     week,
     alreadyOut: team.length === 0 ? null : { out: mostOut, of: team.length + 1 },
+    short: (
+      await teamBelow(
+        tx,
+        member,
+        span.from,
+        span.to,
+        [{ personId: member.personId, span, status: 'pending' }],
+        request.id,
+      )
+    ).map((d) => ({ date: d.date, in: d.in, of: d.of, required: d.required })),
     balanceAfter: amount(after),
     allowance: balance.allowance,
     firstAsk:
