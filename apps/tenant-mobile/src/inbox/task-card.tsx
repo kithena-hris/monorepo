@@ -29,6 +29,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { ask, formInputs, useSigned } from '../people/api';
+import { ScanIdButton } from '../people/attribute-input';
 import { nifSuggestion } from '../people/checks';
 import { ClashDialog } from '../timeoff/approvals';
 import { shareBase64 } from '../people/media';
@@ -608,6 +609,13 @@ export function CorrectDialog({
         >
           {`Use ${suggestion}`}
         </Button>
+      )}
+      {field === undefined ? null : (
+        <ScanIdButton
+          onValue={(v) => {
+            type(v);
+          }}
+        />
       )}
     </Shell>
   );
