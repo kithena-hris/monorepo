@@ -43,6 +43,8 @@ export default defineConfig({
   // specifier to `index.ts` would send the stylesheet import to
   // `index.ts/styles.css`.
   test: {
+    // The browser server's address: `test.api` since Vitest 5 (`browser.api` before).
+    api: { host: BROWSER_HOST },
     projects: [
       {
         extends: true,
@@ -53,7 +55,6 @@ export default defineConfig({
             headless: true,
             // Vitest 4 takes a provider factory here; the 3.x string form is gone.
             provider: playwright(),
-            api: { host: BROWSER_HOST },
             instances: [{ browser: 'chromium' }],
           },
           setupFiles: ['./.storybook/vitest.setup.ts'],
@@ -70,7 +71,6 @@ export default defineConfig({
               contextOptions: { isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
             }),
             viewport: { width: 390, height: 844 },
-            api: { host: BROWSER_HOST },
             instances: [{ browser: 'chromium' }],
           },
           setupFiles: ['./.storybook/vitest.setup.ts', './.storybook/tap-floor.ts'],

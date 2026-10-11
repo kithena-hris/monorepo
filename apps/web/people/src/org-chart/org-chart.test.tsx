@@ -108,7 +108,7 @@ describe('the org chart’s direction and search, in the address', () => {
       />,
       { wrapper: TooltipProvider },
     );
-    expect(screen.getByRole('button', { name: 'Find someone' })).not.toHaveTextContent(
+    expect(screen.getByRole('button', { name: 'Find someone' }).textContent).not.toMatch(
       /Adam|Marco|Nora/,
     );
   });

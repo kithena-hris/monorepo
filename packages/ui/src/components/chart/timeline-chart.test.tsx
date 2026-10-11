@@ -81,7 +81,7 @@ describe('<TimelineChart variant="track">', () => {
         to: { start: '2027-02-15', end: '2027-02-28' },
       }),
     );
-    expect(screen.getByRole('status')).toHaveTextContent(/2 weeks moved to/);
+    expect(screen.getByRole('status').textContent).toMatch(/2 weeks moved to/);
   });
 
   it('Escape puts it back', async () => {
@@ -89,7 +89,7 @@ describe('<TimelineChart variant="track">', () => {
     const bar = segment(/Phase A, 2 weeks/);
     await press(bar, 'Space', 'ArrowRight', 'Escape');
     expect(onItemMove).not.toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent(/cancelled/);
+    expect(screen.getByRole('status').textContent).toMatch(/cancelled/);
   });
 
   it('stops at the start of the axis without banking the extra presses', async () => {

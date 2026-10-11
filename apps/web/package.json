@@ -24,7 +24,7 @@
     "next": "^16.4.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-hook-form": "^7.88.0",
+    "react-hook-form": "^7.89.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -40,6 +40,6 @@
     "playwright": "^1.63.0",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.1.12",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.3"
   }
 }

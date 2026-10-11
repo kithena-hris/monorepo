@@ -21,6 +21,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [react()],
   test: {
+    // One IPv4 address for the port check, the bind and the URL the browser
+    // loads; see apps/storybook/vitest.config.ts. `test.api` since Vitest 5.
+    api: { host: '127.0.0.1' },
     projects: [
       {
         extends: true,
@@ -70,9 +73,6 @@ export default defineConfig({
               },
             }),
             viewport: { width: 390, height: 844 },
-            // One IPv4 address for the port check, the bind and the URL the
-            // browser loads; see apps/storybook/vitest.config.ts.
-            api: { host: '127.0.0.1' },
             instances: [{ browser: 'chromium' }],
           },
         },
@@ -93,7 +93,6 @@ export default defineConfig({
             // Big enough for the largest desk the tests use, so the frame is never scaled.
             provider: playwright({ contextOptions: { viewport: { width: 1440, height: 900 } } }),
             viewport: { width: 1280, height: 800 },
-            api: { host: '127.0.0.1' },
             instances: [{ browser: 'chromium' }],
           },
         },

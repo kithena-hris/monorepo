@@ -28,6 +28,6 @@
   "devDependencies": {
     "@kithena/testing": "workspace:*",
     "@types/nodemailer": "^8.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.3"
   }
 }

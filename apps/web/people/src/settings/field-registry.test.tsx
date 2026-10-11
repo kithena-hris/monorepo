@@ -597,7 +597,7 @@ describe('FieldRegistry', () => {
 
     await user.click(screen.getByRole('button', { name: 'Preview sign-up' }));
     const sheet = screen.getByRole('dialog', { name: 'Sign-up preview' });
-    expect(within(sheet).getByRole('navigation', { name: 'Sign-up steps' })).toHaveTextContent(
+    expect(within(sheet).getByRole('navigation', { name: 'Sign-up steps' }).textContent).toMatch(
       /About you.*Your details.*Review.*Your passkey/,
     );
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));

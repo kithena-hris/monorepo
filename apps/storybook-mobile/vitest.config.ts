@@ -18,7 +18,6 @@ const browser = {
     contextOptions: { isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
   }),
   viewport: { width: 390, height: 844 },
-  api: { host: '127.0.0.1' },
   instances: [{ browser: 'chromium' as const }],
 };
 
@@ -53,6 +52,8 @@ export default defineConfig({
   plugins: [storybookTest({ configDir: join(here, '.storybook') })],
   test: {
     name: 'storybook-mobile',
+    // The browser server's address: `test.api` since Vitest 5 (`browser.api` before).
+    api: { host: '127.0.0.1' },
     browser,
     setupFiles: ['./.storybook/vitest.setup.ts'],
     projects: [
