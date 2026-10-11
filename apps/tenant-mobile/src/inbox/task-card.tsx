@@ -28,6 +28,7 @@ import { View } from 'react-native';
 
 import { ask, formInputs, useSigned } from '../people/api';
 import { nifSuggestion } from '../people/checks';
+import { ClashDialog } from '../timeoff/approvals';
 import { shareBase64 } from '../people/media';
 import { readInbox } from './api';
 import { d, FieldInput, openIn, str, type Field_, type Nav } from './item';
@@ -90,7 +91,7 @@ export function approvalHint(item: Item): string | null {
     .join(' ');
 }
 
-type Open = 'details' | 'correct' | 'sign' | null;
+type Open = 'details' | 'correct' | 'sign' | 'clash' | null;
 
 export function TaskCard({
   item,
@@ -196,12 +197,10 @@ export function TaskCard({
       };
       actions = (
         <>
-          {detail['clash'] === true
+          {/* ponytail: "others out that week" stands for a clash; the modal says if the team is short. */}
+          {((detail['alreadyOut'] as { out: number } | null)?.out ?? 0) > 0
             ? action('Options', () => {
-                navigation.navigate('TimeOffDecision', {
-                  requestId: requestId ?? '',
-                  name: str(detail['personName']) ?? 'Request',
-                });
+                setOpen('clash');
               })
             : null}
           <Button
@@ -302,6 +301,18 @@ export function TaskCard({
           item={item}
           onClose={() => {
             setOpen(null);
+          }}
+        />
+      ) : null}
+      {open === 'clash' ? (
+        <ClashDialog
+          requestId={str(detail['requestId']) ?? ''}
+          onClose={() => {
+            setOpen(null);
+          }}
+          onDone={() => {
+            setOpen(null);
+            void readInbox(signed);
           }}
         />
       ) : null}

@@ -815,9 +815,11 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
         <>
           <Alert tone="accent" variant="summary">
             {`${approvals.length === 1 ? 'One request waits' : `${String(approvals.length)} requests wait`} for you.${
-              approvals.some((a) => (a.detail as { clash?: boolean } | null)?.clash === true)
-                ? ' One would leave the team short.'
-                : ' None leaves the team short.'
+              approvals.some(
+                (a) => ((a.detail as { alreadyOut?: { out: number } | null } | null)?.alreadyOut?.out ?? 0) > 0,
+              )
+                ? ' Others are out the same week, so check the team first.'
+                : ' Nobody else is out those weeks.'
             }`}
           </Alert>
           <Heading title="Waiting for you" />

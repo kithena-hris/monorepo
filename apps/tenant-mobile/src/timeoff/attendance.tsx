@@ -312,7 +312,7 @@ function FixDialog({
   onSaved: () => void;
 }): React.JSX.Element {
   const { act, busy } = useAct('timeoff');
-  const [choice, setChoice] = useState(open.suggestion === null ? 'other' : 'suggested');
+  const [choice, setChoice] = useState(open.suggestion === null ? 'other' : 'picked');
   const [time, setTime] = useState<string | null>(open.suggestion?.time ?? null);
   const [note, setNote] = useState('');
   const after = minuteOfDay(open.lastPunchAt, zone);
@@ -320,7 +320,7 @@ function FixDialog({
   const before = day.segments
     .filter((s) => ['worked', 'overtime', 'live'].includes(s.kind))
     .reduce((n, s) => n + (s.to - s.from), 0);
-  const at = choice === 'suggested' ? (open.suggestion?.time ?? null) : time;
+  const at = time;
   const chosen = at === null ? null : Number(at.slice(0, 2)) * 60 + Number(at.slice(3));
   const worked =
     chosen === null
@@ -337,43 +337,69 @@ function FixDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{`When did you finish on ${weekday(day.date)}?`}</DialogTitle>
-          <DialogDescription>{`Your last punch was at ${clockTime(after)}. The clock-out you add goes beside the record; nothing is overwritten.`}</DialogDescription>
+          <DialogDescription>{`You ${lastKind === 'in' ? 'clocked in' : 'last punched'} at ${clockTime(after)} and didn’t clock out. Nothing is overwritten.`}</DialogDescription>
         </DialogHeader>
         <DialogBody>
           {open.suggestion === null ? null : (
-            <Card variant="fill">
-              <Stack gap={1}>
-                <View className="flex-row items-center gap-2">
-                  <AssistantMark size={18} />
-                  <Text
-                    weight="semibold"
-                    className="flex-1"
-                  >{`Around ${open.suggestion.time}`}</Text>
-                  {open.suggestion.ai ? <Badge size="sm">AI</Badge> : null}
-                </View>
-                {open.suggestion.evidence.map((e) => (
-                  <Text key={`${e.source}${e.at}`} variant="footnote" tone="muted">
-                    {`${e.source === 'calendar' ? 'Your meeting ended' : 'Your last action in Kithena was'} at ${clockTime(minuteOfDay(e.at, zone))} · ${e.what}`}
-                  </Text>
-                ))}
-              </Stack>
+            // From your day (v3 T5): the likely time, and the signals it came from.
+            <Card variant="assistant">
+              <View className="flex-row items-center gap-2">
+                <AssistantMark size={18} />
+                <Text weight="semibold" className="flex-1">
+                  From your day
+                </Text>
+              </View>
+              {open.suggestion.evidence.map((e) => (
+                <Text key={`${e.source}${e.at}`} variant="subhead" tone="muted">
+                  {`${e.source === 'calendar' ? 'Your meeting ended' : 'Your last action in Kithena was'} at ${clockTime(minuteOfDay(e.at, zone))} · ${e.what}`}
+                </Text>
+              ))}
             </Card>
           )}
-          <RadioGroup accessibilityLabel="Finished at" value={choice} onValueChange={setChoice}>
-            {open.suggestion === null ? null : (
-              <RadioCard
-                value="suggested"
-                description={
-                  worked === null
-                    ? ''
-                    : `${duration(worked)}${overtime > 0 ? ` · ${duration(overtime)} overtime` : ''}`
-                }
-              >
-                {open.suggestion.time}
-              </RadioCard>
-            )}
-            <RadioCard value="other">Another time</RadioCard>
-          </RadioGroup>
+          <View className="flex-row flex-wrap gap-2.5">
+            {[
+              ...new Set(
+                [
+                  open.suggestion?.time ?? null,
+                  ...(open.suggestion?.evidence ?? []).map((e) =>
+                    clockTime(minuteOfDay(e.at, zone)),
+                  ),
+                ].filter((t): t is string => t !== null),
+              ),
+            ]
+              .slice(0, 3)
+              .map((t) => {
+                const on = choice !== 'other' && time === t;
+                return (
+                  <Button
+                    key={t}
+                    className="min-w-[46%] flex-1"
+                    variant={on ? 'tinted' : 'secondary'}
+                    accessibilityLabel={t === open.suggestion?.time ? `${t}, suggested` : t}
+                    onPress={() => {
+                      setChoice('picked');
+                      setTime(t);
+                    }}
+                  >
+                    {t === open.suggestion?.time ? `${t} · Suggested` : t}
+                  </Button>
+                );
+              })}
+            <Button
+              className="min-w-[46%] flex-1"
+              variant={choice === 'other' ? 'tinted' : 'secondary'}
+              onPress={() => {
+                setChoice('other');
+              }}
+            >
+              Another time
+            </Button>
+          </View>
+          {worked === null ? null : (
+            <Text variant="footnote" tone="muted">
+              {`${duration(worked)} worked${overtime > 0 ? ` · ${duration(overtime)} overtime` : ''}`}
+            </Text>
+          )}
           {choice === 'other' ? (
             <TimePicker label="Finished at" size="sm" step={5} value={time} onChange={setTime} />
           ) : null}

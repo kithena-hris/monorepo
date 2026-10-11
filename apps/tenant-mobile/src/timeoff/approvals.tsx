@@ -21,6 +21,8 @@ import {
   Icon,
   List,
   ListItem,
+  RadioCard,
+  RadioGroup,
   SegmentedControl,
   SegmentedControlItem,
   Stack,
@@ -739,5 +741,142 @@ export function TimeOffDelegation({
         </>
       )}
     </Page>
+  );
+}
+
+const dayName = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+});
+
+/**
+ * Solving a clash (design v3 T9): instead of a bare decline, the ways to keep
+ * the team in, each with its cost spelled out. Time Off works out the swaps;
+ * the requester takes one in a tap. Approving anyway stays a choice.
+ */
+export function ClashDialog({
+  requestId,
+  onClose,
+  onDone,
+}: {
+  requestId: string;
+  onClose: () => void;
+  onDone: () => void;
+}): React.JSX.Element {
+  const { load } = useTimeOff<Decision>('TimeOffRequestDecision', { requestId });
+  const { act, busy } = useAct('timeoff');
+  const [choice, setChoice] = useState<string>('0');
+  if (load.status !== 'ready')
+    return (
+      <Dialog
+        open
+        onOpenChange={(o) => {
+          if (!o) onClose();
+        }}
+      >
+        <DialogContent>
+          <DialogBody>
+            {load.status === 'error' ? (
+              <Text tone="muted">{load.message}</Text>
+            ) : (
+              <Loading label="Working out the options" />
+            )}
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
+    );
+  const d = load.data;
+  const short = d.belowMinimum[0];
+  const ways = d.alternatives.filter((a) => a.affects === 'requester' && a.spans.length > 0);
+  const name = d.member.firstName;
+  const words = (a: Alternative): string =>
+    a.swapped === null
+      ? `Suggest ${a.spans.map((s) => spanLabel(s.from, s.to)).join(' and ')}`
+      : `Ask ${name} to swap ${a.swapped.out.map((x) => dayName.format(asDate(x))).join(', ')} for ${a.swapped.in.map((x) => dayName.format(asDate(x))).join(', ')}`;
+  const picked = choice === 'approve' ? null : ways[Number(choice)];
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {short === undefined
+              ? `${name}’s ${spanLabel(d.request.span.from, d.request.span.to)}`
+              : `${dayName.format(asDate(short.date))} would be short`}
+          </DialogTitle>
+          {short === undefined ? null : (
+            <DialogDescription>
+              {`${ways.length === 0 ? 'One way' : `${String(ways.length + 1)} ways`} to decide. The team asks for at least ${String(short.required)} in.`}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+        <DialogBody>
+          <RadioGroup accessibilityLabel="What to do" value={choice} onValueChange={setChoice}>
+            {ways.map((a, i) => (
+              <RadioCard
+                key={`${a.kind}${String(i)}`}
+                value={String(i)}
+                {...(i === 0 ? { badge: <Badge size="sm" tone="accent" icon={Sparkles}>Suggested</Badge> } : {})}
+                {...(a.message === null ? {} : { description: a.message.text })}
+                impact={a.swapped === null ? `${days(String(a.spans.reduce((n, s) => n + (Date.parse(s.to) - Date.parse(s.from)) / 86_400_000 + 1, 0)))} instead` : 'Keeps the team at its minimum'}
+              >
+                {words(a)}
+              </RadioCard>
+            ))}
+            <RadioCard
+              value="approve"
+              description={
+                short === undefined
+                  ? `${days(d.request.workingDays)} as asked.`
+                  : `${String(short.in)} of ${String(short.of)} in on ${dayName.format(asDate(short.date))}.`
+              }
+              {...(short === undefined ? {} : { impact: 'Below the minimum' })}
+            >
+              Approve anyway
+            </RadioCard>
+          </RadioGroup>
+        </DialogBody>
+        <DialogFooter>
+          <Button className="flex-1" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            className="flex-1"
+            variant="primary"
+            loading={busy !== null}
+            onPress={() => {
+              if (picked === undefined || picked === null) {
+                void act(
+                  'DecideTimeOffRequest',
+                  { requestId, input: { decision: 'approve' } },
+                  'Approved',
+                ).then((done) => {
+                  if (done !== null) onDone();
+                });
+                return;
+              }
+              void act(
+                'SuggestTimeOffDates',
+                {
+                  requestId,
+                  input: { proposals: [{ spans: picked.spans }], message: picked.message?.text ?? null },
+                },
+                `Sent to ${name}`,
+              ).then((done) => {
+                if (done !== null) onDone();
+              });
+            }}
+          >
+            {picked === undefined || picked === null ? 'Approve' : `Send to ${name}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
