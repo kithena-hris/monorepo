@@ -286,6 +286,13 @@ the asker in the module's own authorization. Requirements are in
 way. Each lane is a pull request into `assistant`; `assistant` goes to `main`
 once, when Phase 1's lanes have landed.
 
+**The Documents module is specified and being built on the `documents`
+branch.** Requirements are in `docs/documents-prd.md` and the tickets,
+`DOC-001` to `DOC-064`, in `docs/documents-build-plan.md`, which is the record
+of its progress. Its screens are the **Kithena Documents** pages (web and
+mobile) in the same Claude Design project. `documents` goes to `main` as one
+pull request.
+
 ## Adding a module
 
 1. `services/<name>/module.manifest.ts` with `dependsOn: []`. If that array

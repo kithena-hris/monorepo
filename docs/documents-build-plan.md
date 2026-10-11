@@ -1,0 +1,154 @@
+# Documents module — build plan
+
+Every ticket needed to ship the Documents module, in an order that works. Tick
+each box as it lands, in the same commit as the work.
+
+**This file, in the repository, is the record of progress.**
+
+| What                  | Where                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| Requirements          | [`docs/documents-prd.md`](./documents-prd.md)                                              |
+| Screens, web          | Claude Design project `6fed6ac8…`, page **Kithena Documents**                              |
+| Screens, mobile       | Same project, page **Kithena Documents Mobile** (ids prefixed `M` here)                    |
+| Screen source on disk | `.claude/design/documents/` (`dc-web.js`); `_build/dc-core.js`, `dc-mob.js` via DesignSync |
+| The plan this mirrors | [`docs/timeoff-build-plan.md`](./timeoff-build-plan.md)                                    |
+
+### How the work lands
+
+Everything is built on the branch **`documents`**, one commit per ticket or
+small group, and goes to `main` as **one pull request**.
+
+### Rules no ticket restates
+
+- `dependsOn: []`. People and Time Off are joined by the shell (PRD §5.4).
+- Zod is the single schema source; every contract field is classified.
+- `occurredAt` and `effectiveFrom` on every event.
+- No `new Date()` in the domain; calendar dates are `date`.
+- Screens are built from Reach; what Reach lacks is added to Reach first.
+- Authorization in the application layer, never only in a resolver.
+- Every filter and view in the URL; server-rendered first page.
+- The domain computes every number; a model reads, cites and writes (PRD §14).
+
+---
+
+## Phase 0 — unblock
+
+- [ ] **DOC-001** Schema bootstrap: `documents` schema, `svc_documents NOBYPASSRLS`,
+      `init-db.sql`, `atlas.sum`. Integration test: no tenant, no rows.
+- [ ] **DOC-002** Outbox and Debezium: `documents.outbox`, Debezium table list.
+- [ ] **DOC-003** `services/documents` boots like Time Off: `main.ts`, `/healthz`,
+      `/graphql`, `DOCUMENTS_PORT` 4003, `module.manifest.ts` (`dependsOn: []`,
+      `requiresPeopleSource: 'either'`).
+- [ ] **DOC-004** Dockerfile; `module.documents` offered (`OFFERED_MODULES`).
+- [ ] **DOC-005** Codegen walks `documentsEvents`.
+
+## Phase 1 — boots alone, does the job
+
+### Contracts
+
+- [ ] **DOC-006** Primitives and views: access level, grant, document, version,
+      type, section, request, queue counts (`packages/contracts/src/documents`).
+- [ ] **DOC-007** Events (PRD §13), each payload classified.
+
+### Domain (test first)
+
+- [ ] **DOC-008** Access rules (PRD §6.2): who opens, downloads, shares, lowers
+      Confidential, deletes; about-me documents.
+- [ ] **DOC-009** Document aggregate: file, version, share, grants with end
+      dates, Private ends grants, Confidential with its setter, delete, restore.
+- [ ] **DOC-010** Document types: the sentence parts, required-for, expiry,
+      retention rule; the fourteen seeded types.
+- [ ] **DOC-011** Retention: deletion date from rule and member dates; holds win;
+      30-day trash.
+- [ ] **DOC-012** A person's checklist: required types, what they have, next action.
+- [ ] **DOC-013** Queues: to sign, expiring (60 days), missing, to delete.
+- [ ] **DOC-014** Sections: company and personal; entries never change access.
+- [ ] **DOC-015** Document requests and access requests.
+
+### Storage and application
+
+- [ ] **DOC-016** Tables and RLS (PRD §17), Drizzle definitions, unit of work.
+- [ ] **DOC-017** Blob store: sealed S3 (copied from People), in-memory; SeaweedFS
+      locally.
+- [ ] **DOC-018** Members: projection from People events and an import; HR from
+      identity's administrator events.
+- [ ] **DOC-019** Use cases: upload, version, share, protect, view (with log),
+      download, delete, restore, sections, requests, access requests, settings.
+- [ ] **DOC-020** Confidential rendering: watermark PDFs and images per viewer.
+- [ ] **DOC-021** Screen reads: library, viewer, person file, settings pages.
+
+### Transports
+
+- [ ] **DOC-022** REST and OpenAPI with idempotency keys; upload as a raw body.
+- [ ] **DOC-023** Subgraph generated from the routes; `just supergraph` composes.
+- [ ] **DOC-024** OpenFGA model: `owner`, `subject`, `viewer`, `editor`, `hr`.
+- [ ] **DOC-025** Inbox source: to sign, to acknowledge, requested, access requests.
+- [ ] **DOC-026** Composition root, seed for Acme (the design's documents).
+- [ ] **DOC-027** Standalone acceptance: People absent, AI keys unset; a member
+      cannot open, list, download or find what they may not open.
+- [ ] **DOC-028** CI standalone matrix, deploy (compose, `deploy.sh`, router),
+      `docs/environments.md` names for a person.
+
+### Web
+
+- [ ] **DOC-029** Reach: `SignaturePad`, `PageStage`, `CodeInput`, document icon
+      tones on `Avatar`.
+- [ ] **DOC-030** The shell loads a third remote; `apps/web/documents` (port 3004);
+      sidebar item; persisted operations.
+- [ ] **DOC-031** Library B1, B2, B6, H1, H3 (queues and Deleted in place).
+- [ ] **DOC-032** Upload C1 (type, person) and the share question C3; new version C4.
+- [ ] **DOC-033** Viewer D1 without AI; confidential E2; access request E3.
+- [ ] **DOC-034** Share E1.
+- [ ] **DOC-035** Personal sections B5; a person's file B3; asking for a document H2.
+- [ ] **DOC-036** Settings S1, S2, S3, S5, S6.
+
+### Mobile
+
+- [ ] **DOC-037** Documents tab replaces Me (MD1); Me moves to the avatar on Home.
+- [ ] **DOC-038** MD2, MD4, MD5, MD6, MA1, MA2, MR1, MR4 without AI; scan to upload.
+- [ ] **DOC-039** HR: MH1, MH2, MH3, MH6; settings MS1–MS3, MS5, MS6.
+- [ ] **DOC-040** Coverage gate: every web operation in the app or `desktop-only.json`.
+
+## Phase 2 — signatures and acknowledgements
+
+- [ ] **DOC-041** Envelope domain: signers in order, fields, states, correct,
+      void, reassign, decline, expiry (test first).
+- [ ] **DOC-042** Sealing: stamp fields on the PDF, certificate of completion,
+      file the signed version.
+- [ ] **DOC-043** Identity check: Kithena login, or an emailed code through
+      messaging (hashed, 10 minutes, 5 attempts).
+- [ ] **DOC-044** Envelope storage, use cases, routes, events, Inbox items.
+- [ ] **DOC-045** Web K1–K3: signers, placing fields, review and send.
+- [ ] **DOC-046** Web K4–K7: the signer's page, adopt a signature, code, ⋯ menu;
+      the public `/sign/<token>` page.
+- [ ] **DOC-047** Web K8–K11: tracking, sealed, every request, settings.
+- [ ] **DOC-048** Acknowledgement campaigns: domain, routes, Inbox, F2, F3.
+- [ ] **DOC-049** Mobile MX1–MX7, MH5.
+
+## Phase 3 — AI
+
+- [ ] **DOC-050** Decision recorded in `docs/tech-stack.md`; text extraction per
+      page; AI ports (`Reader`, `Writer`) through the gateway; medical dates only.
+- [ ] **DOC-051** Summary with page citations D1, MR1; payslip explained MR4.
+- [ ] **DOC-052** Follow-ups D2, MR2 through Ask Kithena's window; assistant
+      capabilities for Documents.
+- [ ] **DOC-053** Ask across documents B4, MR5 (only what the asker can open).
+- [ ] **DOC-054** Version compare D3, "what changed" in C4.
+- [ ] **DOC-055** Sort uploads C1, MD3; bulk split C2.
+- [ ] **DOC-056** Describe a type S4, MS4; AI settings S7, MS7; field placement K2.
+
+## Phase 4 — with People and Time Off
+
+- [ ] **DOC-057** People's ⋯ menu G1, MP1; export to Documents G2, MP2.
+- [ ] **DOC-058** Import from Documents G4.
+- [ ] **DOC-059** Generate letters G3 (templates and merge).
+- [ ] **DOC-060** Fill a record from a document G5, MP3, K9.
+- [ ] **DOC-061** Documents on a profile G6, MP4.
+- [ ] **DOC-062** Uploads that answer HR J1, J2, J6, MJ1, MJ2, MJ5.
+- [ ] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
+- [ ] **DOC-064** A letter that changes a record J7, MJ6.
+
+## Blocked / left for a person
+
+- Environment secrets and the Vercel project for `apps/web/documents`, the S3
+  bucket and `DOCUMENTS_*` settings (named in `docs/environments.md` by DOC-028).
