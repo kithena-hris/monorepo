@@ -35,7 +35,7 @@ import { calendarFeed, useTimeOff } from './api';
 import { todayHere } from './time';
 import { addDays, asDate, longDate, nextWorkingDay, spanLabel, statusOf } from './words';
 
-type Scope = 'team' | 'company' | 'me';
+export type Scope = 'team' | 'company' | 'me';
 type View_ = 'week' | 'month' | 'year';
 
 interface Entry {
@@ -46,7 +46,7 @@ interface Entry {
   readonly span: { from: string; to: string; startsHalfDay: boolean; endsHalfDay: boolean };
 }
 
-interface CalendarAnswer {
+export interface CalendarAnswer {
   readonly entries: readonly Entry[];
   readonly people: readonly { personId: string; displayName: string; teamName: string | null }[];
   readonly coverage: readonly {
@@ -66,7 +66,7 @@ interface LeaveType {
 }
 
 /** The Monday of the week a date is in. */
-function mondayOf(date: string): string {
+export function mondayOf(date: string): string {
   const day = asDate(date).getUTCDay();
   return addDays(date, day === 0 ? -6 : 1 - day);
 }
@@ -340,7 +340,7 @@ export function TimeOffCalendar({
 }
 
 /** One day (MT14): who is in, and who is off and why, as much as the viewer may see. */
-function DayDialog({
+export function DayDialog({
   date,
   scope,
   seed,

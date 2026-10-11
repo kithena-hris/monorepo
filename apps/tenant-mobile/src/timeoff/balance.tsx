@@ -1,5 +1,21 @@
-import { Alert, Icon, List, ListItem, Progress, Stat, Text } from '@reach/ui-native';
+import {
+  Alert,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Icon,
+  List,
+  ListItem,
+  Progress,
+  Stat,
+  Text,
+} from '@reach/ui-native';
 import { Hourglass } from 'lucide-react-native';
+import { ScrollView, View } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
 import type { PeopleScreen } from '../people/routes';
@@ -135,5 +151,87 @@ export function TimeOffBalance({
         </List>
       )}
     </Page>
+  );
+}
+
+/**
+ * Where the days went, in a centred modal (design v3 T6): a plain ledger,
+ * oldest first, and what is left at its foot. Details on the balance opens it.
+ */
+export function BalanceDialog({
+  leaveTypeKey,
+  name,
+  onClose,
+}: {
+  leaveTypeKey: string;
+  name: string;
+  onClose: () => void;
+}): React.JSX.Element {
+  const { load, reload } = useTimeOff<{ balance: Balance; entries: Entry[] }>('TimeOffBalance', {
+    leaveTypeKey,
+  });
+  let body: React.ReactNode;
+  let foot: React.ReactNode = null;
+  let about: string | null = null;
+  if (load.status === 'error') body = <Failed message={load.message} onRetry={reload} />;
+  else if (load.status === 'loading') body = <Loading label="Loading the balance" />;
+  else {
+    const { balance, entries } = load.data;
+    const hours = balance.unit === 'hour';
+    const corrected = new Set(entries.flatMap((e) => (e.supersedes === null ? [] : [e.supersedes])));
+    const lines = entries.filter((e) => !corrected.has(e.entryId));
+    about =
+      balance.yearly === null ? null : `${amount(balance.yearly)} ${hours ? 'hours' : 'days'} this year.`;
+    body = (
+      <ScrollView style={{ flexGrow: 0, maxHeight: 400 }}>
+        {lines.length === 0 ? (
+          <Text tone="muted">Nothing has changed this balance yet.</Text>
+        ) : (
+          lines.map((e, i) => (
+            <View
+              key={e.entryId}
+              className={`flex-row items-center gap-3 py-3 ${i < lines.length - 1 ? 'border-b border-border' : ''}`}
+            >
+              <View className="flex-1 gap-0.5">
+                <Text weight="semibold">{what(e)}</Text>
+                <Text variant="footnote" tone="muted">
+                  {[shortDate(e.effectiveOn), e.reason].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              <Text
+                weight="bold"
+                tone={e.amount.startsWith('-') ? 'default' : 'success'}
+                className="tabular-nums"
+              >{`${signed(e.amount)}${hours ? 'h' : ''}`}</Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
+    );
+    foot = (
+      <View className="flex-1 flex-row items-baseline justify-between">
+        <Text weight="semibold">Left</Text>
+        <Text variant="title2" weight="bold" className="tabular-nums">
+          {hours ? `${amount(balance.left)}h` : `${amount(balance.left)} days`}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{`Where your ${name.toLowerCase()} went`}</DialogTitle>
+          {about === null ? null : <DialogDescription>{about}</DialogDescription>}
+        </DialogHeader>
+        <DialogBody>{body}</DialogBody>
+        {foot === null ? null : <DialogFooter>{foot}</DialogFooter>}
+      </DialogContent>
+    </Dialog>
   );
 }
