@@ -45,6 +45,8 @@ export interface Document {
   readonly confidentialBy: ConfidentialBy | null;
   readonly grants: readonly Grant[];
   readonly currentVersion: number;
+  /** When the current version was uploaded: what "Updated" shows. */
+  readonly versionAt: Instant;
   readonly expiresOn: CalendarDate | null;
   readonly deletedAt: Instant | null;
   readonly createdAt: Instant;
@@ -107,6 +109,7 @@ export function fileDocument(input: FileInput): Result<Document> {
     confidentialBy: input.confidentialByType ? 'type' : null,
     grants: [],
     currentVersion: 1,
+    versionAt: input.version.uploadedAt,
     expiresOn: input.expiresOn,
     deletedAt: null,
     createdAt: input.at,
@@ -122,7 +125,7 @@ export function addVersion(doc: Document, version: Version): Result<Document> {
   if (version.n !== doc.currentVersion + 1) {
     return err(failure('VERSION_CONFLICT', 'Somebody added a version first; reload'));
   }
-  return ok({ ...doc, currentVersion: version.n });
+  return ok({ ...doc, currentVersion: version.n, versionAt: version.uploadedAt });
 }
 
 /** Replaces who it is shared with; none left is Private (PRD §6.3). */

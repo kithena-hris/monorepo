@@ -1,0 +1,263 @@
+import type { Clock, PendingEvent } from '@kithena/domain-kit';
+import type {
+  CalendarDate,
+  DocumentId,
+  DocumentTypeKey,
+  Instant,
+  PersonId,
+  TenantId,
+} from '@kithena/contracts';
+
+import type { Document, Version } from '../domain/document/document.js';
+import type { DocumentType } from '../domain/type/document-type.js';
+
+/**
+ * What Documents' use cases read and write through, and nothing wider.
+ * Time Off's shape: every store is reached through `UnitOfWork.run`, bound
+ * to one tenant transaction, so row-level security sees the tenant. Bytes are
+ * the one thing outside it (`Blobs`): an object store has no transaction.
+ */
+
+export interface Caller {
+  readonly tenantId: TenantId;
+  readonly accountId: string;
+  /** The member the account signs in as; null for an account that is none. */
+  readonly personId: PersonId | null;
+  readonly correlationId: string;
+}
+
+/* ---------------------------------------------------------------- members -- */
+
+export interface Member {
+  readonly personId: PersonId;
+  readonly accountId: string | null;
+  readonly displayName: string;
+  readonly workEmail: string | null;
+  readonly managerPersonId: PersonId | null;
+  readonly teamKey: string | null;
+  readonly teamName: string | null;
+  readonly locationKey: string | null;
+  readonly hireDate: CalendarDate | null;
+  readonly terminationDate: CalendarDate | null;
+  readonly status: string;
+}
+
+export interface MemberStore {
+  get(personId: PersonId): Promise<Member | null>;
+  byAccount(accountId: string): Promise<Member | null>;
+  list(): Promise<readonly Member[]>;
+  /**
+   * Writes when `(effectiveFrom, eventId)` moves forward, so a redelivered or
+   * older event changes nothing; answers whether it wrote.
+   */
+  upsert(member: Member, eventId: string, effectiveFrom: CalendarDate): Promise<boolean>;
+}
+
+/** HR for Documents: who identity names administrator of `module.documents`. */
+export interface HrStore {
+  has(accountId: string): Promise<boolean>;
+  list(): Promise<readonly string[]>;
+  add(accountId: string): Promise<void>;
+  remove(accountId: string): Promise<void>;
+}
+
+/* --------------------------------------------------------------- documents -- */
+
+export interface TypeStore {
+  list(): Promise<readonly (DocumentType & { readonly archived: boolean })[]>;
+  get(key: DocumentTypeKey): Promise<(DocumentType & { readonly archived: boolean }) | null>;
+  save(type: DocumentType, archived: boolean): Promise<void>;
+}
+
+export interface DocumentStore {
+  get(id: DocumentId): Promise<Document | null>;
+  /** Insert or replace, grants included. */
+  save(doc: Document): Promise<void>;
+  /**
+   * Every document a viewer might open: owned, about them, shared with them,
+   * their team or everyone, filed for everyone, and every filed one for HR.
+   * A superset; the domain's `canOpen` decides.
+   */
+  candidates(viewer: {
+    accountId: string;
+    personId: PersonId | null;
+    teamKey: string | null;
+    hr: boolean;
+  }): Promise<readonly Document[]>;
+  /** Filed documents, for HR's queues. */
+  filed(): Promise<readonly Document[]>;
+  about(personId: PersonId): Promise<readonly Document[]>;
+}
+
+export interface VersionStore {
+  list(id: DocumentId): Promise<readonly Version[]>;
+  get(id: DocumentId, n: number): Promise<Version | null>;
+  add(id: DocumentId, version: Version): Promise<void>;
+}
+
+export interface Section {
+  readonly id: string;
+  readonly kind: 'company' | 'personal';
+  readonly ownerAccount: string | null;
+  readonly name: string;
+}
+
+export interface SectionStore {
+  /** Company sections and this account's own. */
+  visibleTo(accountId: string): Promise<readonly Section[]>;
+  get(id: string): Promise<Section | null>;
+  save(section: Section): Promise<void>;
+  remove(id: string): Promise<void>;
+  entries(
+    sectionIds: readonly string[],
+  ): Promise<readonly { sectionId: string; documentId: DocumentId }[]>;
+  add(sectionId: string, documentId: DocumentId): Promise<void>;
+  removeEntry(sectionId: string, documentId: DocumentId): Promise<void>;
+}
+
+export interface ViewEntry {
+  readonly id: string;
+  readonly documentId: DocumentId;
+  readonly accountId: string;
+  readonly action: 'view' | 'download';
+  readonly device: string | null;
+  readonly at: Instant;
+}
+
+export interface ViewLog {
+  add(entry: ViewEntry): Promise<void>;
+  list(id: DocumentId, limit: number): Promise<readonly ViewEntry[]>;
+}
+
+export interface AccessRequest {
+  readonly id: string;
+  readonly documentId: DocumentId;
+  readonly requesterAccount: string;
+  readonly reason: string;
+  readonly status: 'open' | 'granted' | 'refused';
+  readonly createdAt: Instant;
+  readonly decidedAt: Instant | null;
+  readonly decidedBy: string | null;
+}
+
+export interface AccessRequestStore {
+  get(id: string): Promise<AccessRequest | null>;
+  save(request: AccessRequest): Promise<void>;
+  /** Open requests for documents this account owns, or every filed one for HR. */
+  open(): Promise<readonly AccessRequest[]>;
+}
+
+export interface DocRequest {
+  readonly id: string;
+  readonly personId: PersonId;
+  readonly typeKey: DocumentTypeKey;
+  readonly dueOn: CalendarDate | null;
+  readonly message: string;
+  readonly status: 'open' | 'fulfilled' | 'cancelled';
+  readonly createdBy: string;
+  readonly createdAt: Instant;
+  readonly remindedAt: Instant | null;
+  readonly documentId: DocumentId | null;
+}
+
+export interface DocRequestStore {
+  get(id: string): Promise<DocRequest | null>;
+  save(request: DocRequest): Promise<void>;
+  forPerson(personId: PersonId): Promise<readonly DocRequest[]>;
+  open(): Promise<readonly DocRequest[]>;
+}
+
+export interface LegalHold {
+  readonly id: string;
+  readonly name: string;
+  readonly setBy: string;
+  readonly setAt: Instant;
+  readonly liftedAt: Instant | null;
+  readonly documentIds: readonly DocumentId[];
+}
+
+export interface HoldStore {
+  list(): Promise<readonly LegalHold[]>;
+  get(id: string): Promise<LegalHold | null>;
+  save(hold: LegalHold): Promise<void>;
+  /** Documents an unlifted hold keeps. */
+  held(): Promise<ReadonlySet<string>>;
+}
+
+export interface Activity {
+  readonly id: string;
+  readonly documentId: DocumentId | null;
+  readonly accountId: string | null;
+  readonly action: string;
+  readonly detail: Readonly<Record<string, unknown>>;
+  readonly at: Instant;
+}
+
+export interface ActivityStore {
+  add(entry: Activity): Promise<void>;
+  list(filter: { documentId?: DocumentId; limit: number }): Promise<readonly Activity[]>;
+}
+
+export interface SettingsStore {
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<void>;
+}
+
+export interface StoredKey {
+  readonly requestHash: string;
+  readonly status: number;
+  readonly answer: unknown;
+}
+
+export interface IdempotencyStore {
+  find(key: string): Promise<StoredKey | null>;
+  /** False when somebody saved the key first. */
+  save(key: string, stored: StoredKey): Promise<boolean>;
+}
+
+export interface Tx {
+  readonly tenantId: TenantId;
+  readonly members: MemberStore;
+  readonly hr: HrStore;
+  readonly types: TypeStore;
+  readonly documents: DocumentStore;
+  readonly versions: VersionStore;
+  readonly sections: SectionStore;
+  readonly views: ViewLog;
+  readonly accessRequests: AccessRequestStore;
+  readonly docRequests: DocRequestStore;
+  readonly holds: HoldStore;
+  readonly activity: ActivityStore;
+  readonly settings: SettingsStore;
+  readonly idempotency: IdempotencyStore;
+  readonly outbox: { publish(events: readonly PendingEvent[]): Promise<void> };
+}
+
+export interface UnitOfWork {
+  run<T>(tenantId: TenantId, fn: (tx: Tx) => Promise<T>): Promise<T>;
+}
+
+/** Bytes, sealed at rest, keyed `<tenant>/<document>/<version>`. */
+export interface Blobs {
+  put(key: string, bytes: Uint8Array, mediaType: string): Promise<void>;
+  get(key: string): Promise<Uint8Array | null>;
+  delete(key: string): Promise<void>;
+}
+
+/** A notice to somebody by email, through messaging; absent sends nothing. */
+export interface Mailer {
+  send(input: {
+    readonly tenantId: TenantId;
+    readonly to: string;
+    readonly template: string;
+    readonly variables: Readonly<Record<string, string>>;
+  }): Promise<void>;
+}
+
+export interface Deps {
+  readonly uow: UnitOfWork;
+  readonly blobs: Blobs;
+  readonly clock: Clock;
+  readonly newId: () => string;
+  readonly mailer?: Mailer;
+}
