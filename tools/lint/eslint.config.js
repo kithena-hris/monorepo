@@ -36,6 +36,9 @@ export default tseslint.config(
       // reads a stylesheet and does colour maths, so there is nothing typed for
       // the type-aware rules to check even if they could load it.
       'tools/email/*.mjs',
+      // Same case: the script that runs this config over the repository a
+      // part at a time (`pnpm lint`).
+      'tools/lint/*.mjs',
       // Same case: build and deploy steps of an app, plain Node scripts that
       // belong to no tsconfig (the shell's renderer bundle, the remote's
       // signed manifest).
