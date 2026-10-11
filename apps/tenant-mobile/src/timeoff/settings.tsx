@@ -1407,7 +1407,15 @@ interface AttendanceRules {
   readonly restMinutes: number;
   readonly weeklyMaxMinutes: number;
   readonly overtime: { becomes: 'comp' | 'paid' | 'choose'; multiplier: string };
+  readonly clockIn: { reader: boolean; web: boolean; mobile: boolean; pin: boolean };
 }
+
+const WAYS = [
+  ['reader', 'Badge or phone at a reader', 'At a kiosk, with a badge or the app’s code'],
+  ['web', 'Web, from the top bar', 'Everyone'],
+  ['mobile', 'Mobile app', 'Everyone'],
+  ['pin', 'Shared kiosk with a PIN', 'At a kiosk, without a badge'],
+] as const;
 
 function Attendance(): React.JSX.Element {
   const { load, reload } = useTimeOff<{ defaultSchedule: string | null; rules: AttendanceRules }>(
@@ -1446,6 +1454,32 @@ function Attendance(): React.JSX.Element {
   } as const;
   return (
     <>
+      {/* Switches for how people clock in (v3 S16), each saved as it flips. */}
+      <Rules title="Ways to clock in">
+        {WAYS.map(([way, label, description]) => (
+          <ListItem
+            key={way}
+            listitem={false}
+            description={description}
+            trailing={
+              <Switch
+                checked={r.clockIn[way]}
+                accessibilityLabel={label}
+                onCheckedChange={(on) => {
+                  const next = { ...r, clockIn: { ...r.clockIn, [way]: on } };
+                  setRules(next);
+                  void act('SetTimeOffAttendanceRules', { input: next }, 'Saved').then((done) => {
+                    if (done === null) setRules(null);
+                    else reload();
+                  });
+                }}
+              />
+            }
+          >
+            {label}
+          </ListItem>
+        ))}
+      </Rules>
       {/* Three rows for what counts as a working day (v3 S16), each changed in a modal. */}
       <Rules title="Working day">
         <Rule label="Schedule" value={load.data.defaultSchedule ?? 'Not set'} />

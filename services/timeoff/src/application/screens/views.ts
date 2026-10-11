@@ -1033,6 +1033,10 @@ export const NegativeBalanceView = named(
   }),
 );
 
+const ClockInWays = z
+  .strictObject({ reader: z.boolean(), web: z.boolean(), mobile: z.boolean(), pin: z.boolean() })
+  .meta({ title: 'TimeOffClockInWays' });
+
 export const AttendanceRulesBody = named(
   'TimeOffAttendanceRules',
   z.strictObject({
@@ -1044,13 +1048,15 @@ export const AttendanceRulesBody = named(
       becomes: z.enum(['comp', 'paid', 'choose']),
       multiplier: z.string().regex(/^\d+(\.\d+)?$/u),
     }),
+    /** Absent keeps the ways already set. */
+    clockIn: ClockInWays.optional(),
   }),
 );
 
 export const AttendanceSettingsView = named(
   'TimeOffSettingsAttendance',
   z.object({
-    rules: AttendanceRulesBody,
+    rules: AttendanceRulesBody.extend({ clockIn: ClockInWays }),
     /** The schedule a member without one works (JSON: the schedule's own shape). */
     defaultSchedule: z.unknown(),
   }),

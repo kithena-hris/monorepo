@@ -14,6 +14,7 @@ import {
   teamRightNow,
   timesheet,
 } from './attendance.js';
+import { setAttendanceRules } from '../admin/admin.js';
 import { inspectorExport } from './inspector-files.js';
 
 const adam = caller(people.adam);
@@ -165,6 +166,25 @@ describe('the clock and the timesheet (TOF-042)', () => {
     expect([...s.periods.values()]).toEqual([
       expect.objectContaining({ from: '2026-10-01', to: '2026-10-31', closedAt: null }),
     ]);
+  });
+  it('refuses a way of clocking in HR switched off, and keeps it off when HR saves the rest (S16)', async () => {
+    const { app, at } = setup();
+    const set = setAttendanceRules(app.deps);
+    const rules = app.state(TENANT).attendanceRules;
+    expect(await set(hr, { ...rules, clockIn: { ...rules.clockIn, web: false } })).toMatchObject({
+      ok: true,
+    });
+    const { clockIn: _kept, ...rest } = app.state(TENANT).attendanceRules;
+    expect(await set(hr, { ...rest, breakMinutes: 45 })).toMatchObject({ ok: true });
+
+    expect(await at('2026-10-05T07:00:00.000Z', 'in')).toMatchObject({
+      ok: false,
+      error: { code: 'CLOCK_IN_OFF' },
+    });
+    expect(app.state(TENANT).attendanceRules).toMatchObject({
+      breakMinutes: 45,
+      clockIn: { web: false, mobile: true },
+    });
   });
 });
 

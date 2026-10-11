@@ -1,5 +1,5 @@
 import { dateFormat, err, failure, localDate, ok, type Result } from '@kithena/domain-kit';
-import type { CalendarDate, Instant } from '@kithena/contracts';
+import type { CalendarDate, Instant, PunchSource } from '@kithena/contracts';
 
 import { ms, type Shift } from './clock.js';
 import { daysBetween, plannedOn, type PlannedDay, type Schedule } from './schedule.js';
@@ -23,6 +23,28 @@ export interface AttendanceRules {
   /** Planned week plus the overtime allowed on top: 40h + 2h. */
   readonly weeklyMaxMinutes: number;
   readonly overtime: OvertimePolicy;
+  /** S16's "Ways to clock in": a way switched off refuses its punches. */
+  readonly clockIn: ClockInWays;
+}
+
+export interface ClockInWays {
+  /** A badge, or a phone's code, at a reader. */
+  readonly reader: boolean;
+  readonly web: boolean;
+  readonly mobile: boolean;
+  /** A shared kiosk, with a PIN. */
+  readonly pin: boolean;
+}
+
+/** Whether the rules refuse a punch from this source and, at a kiosk, this credential. */
+export function clockInRefused(
+  rules: AttendanceRules,
+  source: PunchSource,
+  credential?: 'badge' | 'pin' | 'qr',
+): boolean {
+  const way =
+    source === 'web' || source === 'mobile' ? source : credential === 'pin' ? 'pin' : 'reader';
+  return !rules.clockIn[way];
 }
 
 export interface OvertimePolicy {
@@ -37,6 +59,7 @@ export const DEFAULT_RULES: AttendanceRules = {
   restMinutes: 12 * 60,
   weeklyMaxMinutes: 42 * 60,
   overtime: { becomes: 'choose', multiplier: '1.25' },
+  clockIn: { reader: true, web: true, mobile: true, pin: true },
 };
 
 export type SegmentKind = 'worked' | 'break' | 'overtime' | 'missing' | 'planned' | 'live';

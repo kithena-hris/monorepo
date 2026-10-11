@@ -38,6 +38,8 @@ export interface AttendanceRules {
     /** Paid overtime's rate, as a decimal string: "1.25". */
     readonly multiplier: string;
   };
+  /** Which ways of clocking in are on; switched on the phone (S16). */
+  readonly clockIn?: { readonly web: boolean; readonly mobile: boolean };
 }
 
 type WorkWindow = { readonly start: number; readonly end: number; readonly breakMinutes: number };
@@ -58,6 +60,15 @@ export interface AttendanceSettingsProps {
 }
 
 const TITLE = 'Attendance';
+
+const onOff = (on: boolean): JSX.Element =>
+  on ? (
+    <Badge size="sm">On</Badge>
+  ) : (
+    <Badge size="sm" variant="outline">
+      Off
+    </Badge>
+  );
 const DESCRIPTION = 'How people clock in, and what counts as a working day.';
 const page = '@container/attendance flex flex-col gap-6';
 const columns =
@@ -102,14 +113,14 @@ function Ready({
               <ListItem
                 icon={<icons.system aria-hidden />}
                 description="Everyone"
-                trailing={<Badge size="sm">On</Badge>}
+                trailing={onOff(rules.clockIn?.web ?? true)}
               >
                 Web, from the top bar
               </ListItem>
               <ListItem
                 icon={<icons.phone aria-hidden />}
                 description="Everyone"
-                trailing={<Badge size="sm">On</Badge>}
+                trailing={onOff(rules.clockIn?.mobile ?? true)}
               >
                 Mobile app
               </ListItem>

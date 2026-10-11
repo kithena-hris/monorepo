@@ -3,7 +3,14 @@ import { unwrap } from '@kithena/domain-kit';
 import { CalendarDate, type Instant } from '@kithena/contracts';
 
 import { shiftsOf, type Punch } from './clock.js';
-import { DEFAULT_RULES, dayOf, overtimeBecomes, restBreaches, weekOf } from './day.js';
+import {
+  DEFAULT_RULES,
+  clockInRefused,
+  dayOf,
+  overtimeBecomes,
+  restBreaches,
+  weekOf,
+} from './day.js';
 import { hm, weekdays, type Schedule } from './schedule.js';
 import { MADRID, at, punch, thursdayNoon, week } from './t20.fixture.js';
 
@@ -179,5 +186,29 @@ describe('what overtime becomes', () => {
       ok: false,
       error: { code: 'CHOICE_NOT_OFFERED' },
     });
+  });
+});
+
+describe('the ways to clock in', () => {
+  const off = (way: keyof typeof DEFAULT_RULES.clockIn) => ({
+    ...DEFAULT_RULES,
+    clockIn: { ...DEFAULT_RULES.clockIn, [way]: false },
+  });
+
+  it('takes a punch from every way by default', () => {
+    expect(clockInRefused(DEFAULT_RULES, 'web')).toBe(false);
+    expect(clockInRefused(DEFAULT_RULES, 'kiosk', 'pin')).toBe(false);
+  });
+
+  it('refuses the way switched off, and only that one', () => {
+    expect(clockInRefused(off('mobile'), 'mobile')).toBe(true);
+    expect(clockInRefused(off('mobile'), 'web')).toBe(false);
+  });
+
+  it('tells a PIN at a kiosk from a badge or a phone at a reader', () => {
+    expect(clockInRefused(off('pin'), 'kiosk', 'pin')).toBe(true);
+    expect(clockInRefused(off('pin'), 'kiosk', 'badge')).toBe(false);
+    expect(clockInRefused(off('reader'), 'kiosk', 'qr')).toBe(true);
+    expect(clockInRefused(off('reader'), 'badge')).toBe(true);
   });
 });
