@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
 import fontkit from '@pdf-lib/fontkit';
@@ -13,7 +14,18 @@ import type { PDFDocument, PDFFont } from 'pdf-lib';
  * customer signs in Chinese, Japanese or Korean.
  */
 
-const FONTS = new URL('../../assets/fonts/', import.meta.url);
+/**
+ * `assets/fonts` at the package's root, found from wherever this file runs:
+ * `src/application` in tests, `dist/src/application` once built (the build's
+ * root is the package, so the compiled file sits a folder deeper).
+ */
+const FONTS = (() => {
+  for (const up of ['../../', '../../../']) {
+    const dir = new URL(`${up}assets/fonts/`, import.meta.url);
+    if (existsSync(dir)) return dir;
+  }
+  return new URL('../../assets/fonts/', import.meta.url);
+})();
 
 let files: Promise<{ body: Uint8Array; bold: Uint8Array; script: Uint8Array }> | undefined;
 const load = () =>

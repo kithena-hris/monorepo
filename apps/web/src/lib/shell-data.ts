@@ -442,9 +442,10 @@ export function areaFrame(
   const here = currentPlace(settings, route);
   return {
     section: here?.label ?? null,
+    // The module's crumb opens Settings on that module, not on the first one.
     trail: [
       { href: '/settings', label: 'Settings' },
-      { href: '/settings', label: area.label },
+      { href: `/settings?area=${area.settings.split('/').pop() ?? ''}`, label: area.label },
     ],
     actions: [],
     siblings: siblingsOf(settings, here),

@@ -57,7 +57,8 @@ export function SettingsIndex({
 }): JSX.Element {
   // The search is in the address (`?q=`), once typing rests: a link to
   // "the settings about Slack" opens with them found.
-  const held = useSearchParams().get('q') ?? '';
+  const params = useSearchParams();
+  const held = params.get('q') ?? '';
   const [query, setQuery] = useState(held);
   const sent = useRef(held);
   useEffect(() => {
@@ -75,7 +76,9 @@ export function SettingsIndex({
       clearTimeout(timer);
     };
   }, [query]);
-  const [active, setActive] = useState(modules[0]?.key);
+  // The area on show is in the address too (`?area=documents`): a setting's
+  // crumb and the browser's Back open the area it was opened from.
+  const active = params.get('area') ?? modules[0]?.key;
   const needle = query.trim().toLowerCase();
   const module = modules.find((m) => m.key === active) ?? modules[0];
   const attention = modules.flatMap((m) =>
@@ -127,14 +130,26 @@ export function SettingsIndex({
                 </Chip>
               ))}
             </div>
-            <div className="grid gap-8 @3xl/page:grid-cols-[13.75rem_minmax(0,1fr)]">
+            <div
+              className="grid gap-8 @3xl/page:grid-cols-[13.75rem_minmax(0,1fr)]"
+              // An area's link is a real address (a new tab opens it), but a
+              // plain click changes the area in place rather than loading the page.
+              onClickCapture={(event) => {
+                const link = (event.target as HTMLElement).closest('a[href^="?area="]');
+                if (link !== null && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
+                  event.preventDefault();
+                }
+              }}
+            >
               <TertiaryNav
                 label="Settings areas"
                 variant="fill"
                 current="page"
-                items={modules.map((m) => ({ id: m.key, label: m.title, href: `#${m.key}` }))}
+                items={modules.map((m) => ({ id: m.key, label: m.title, href: `?area=${m.key}` }))}
                 {...(module.key === '' ? {} : { activeId: module.key })}
-                onSelect={setActive}
+                onSelect={(key) => {
+                  noteInAddress({ area: key === modules[0]?.key ? null : key }, 'push');
+                }}
                 touchLayout="pills"
               />
               <section id={module.key} aria-labelledby={`${module.key}-title`} className="min-w-0">
