@@ -45,7 +45,7 @@
     "dependency-cruiser": "^18.4.0",
     "eslint": "^10.11.0",
     "oxlint": "^1.87.0",
-    "playwright": "^1.63.0",
+    "playwright": "^1.64.0",
     "prettier": "^3.9.9",
     "syncpack": "^15.3.3",
     "tsx": "^4.23.15",
