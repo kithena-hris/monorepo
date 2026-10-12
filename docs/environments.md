@@ -1281,7 +1281,12 @@ module can merge first and switch on later. In this order:
    variables `VERCEL_PROJECT_ID_DOCUMENTS_REMOTE_PRODUCTION`,
    `DOCUMENTS_REMOTE_URL_PRODUCTION` and `DOCUMENTS_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`,
    as Time Off's three.
-4. **Selling it**: `module.documents` in `KITHENA_ENTITLEMENTS_PRODUCTION`, or
+4. **Outside signers**: the tunnel routes `/v1/documents/sign/*` on the API
+   host to `http://documents:4003`, the shell's Vercel project gets
+   `DOCUMENTS_PUBLIC_URL` (that host), and `MESSAGING_DOCUMENTS_TOKEN` goes into
+   both `DOCUMENTS_ENV` and messaging's settings so the link and its code are
+   emailed. Without it, colleagues still sign with their login.
+5. **Selling it**: `module.documents` in `KITHENA_ENTITLEMENTS_PRODUCTION`, or
    switched on per company in the back office, which names its administrator.
 
 Documents is not on staging.

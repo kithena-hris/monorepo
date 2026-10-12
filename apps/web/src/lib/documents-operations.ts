@@ -44,6 +44,7 @@ export const OPERATIONS = {
         may { edit share download delete protect unprotect }
         confidentialBy views { who action at } activity { who action at }
         accessRequests { id who reason at } held people { ${PERSON} }
+        signing { id status signed of mine } campaigns { id done of dueOn acknowledged asked } pdf
       }
       closed { owner requested }
     }
@@ -62,6 +63,34 @@ export const OPERATIONS = {
       person { ${PERSON} } jobLine hireDate have of hr
       checklist { typeKey name kind state detail documentId requestId dueOn action }
       rows { ${ROW} } types { ${TYPE} }
+    }
+  }`,
+
+  /** K10: every signature request this person follows or signs */
+  DocumentsEnvelopes: `query DocumentsEnvelopes {
+    documentsEnvelopes { rows { id documentId title status signed of waitingOn dueOn createdAt needsYou } }
+  }`,
+
+  /** K4, K8: a signature request as its signer or its sender sees it */
+  DocumentsEnvelope: `query DocumentsEnvelope($envelopeId: String!) {
+    documentsEnvelope(envelopeId: $envelopeId) {
+      id documentId title version pages status message dueOn createdAt completedAt signedVersion sender voidReason follows
+      signers { id order name email check status signedAt allowDelegate }
+      fields { id signerId kind page x y w h required label value }
+      me { signerId status turn }
+      trail { who action at note } people { personId name }
+    }
+  }`,
+
+  /** The version being signed, or the sealed one */
+  DocumentsEnvelopeFile: `query DocumentsEnvelopeFile($envelopeId: String!) {
+    documentsEnvelopeFile(envelopeId: $envelopeId) { fileName mediaType url base64 original }
+  }`,
+
+  /** F3: who has acknowledged a policy */
+  DocumentsCampaign: `query DocumentsCampaign($campaignId: String!) {
+    documentsCampaign(campaignId: $campaignId) {
+      id documentId title version dueOn sentAt done of left { personId name teamName }
     }
   }`,
 
@@ -238,6 +267,76 @@ export const OPERATIONS = {
     '$input: JSON!, ',
     'input: $input, ',
     'ok',
+  ),
+  SendForSignature: write(
+    'SendForSignature',
+    'sendForSignature',
+    '$documentId: String!, $input: JSON!, ',
+    'documentId: $documentId, input: $input, ',
+    'id',
+  ),
+  SignEnvelope: write(
+    'SignEnvelope',
+    'signEnvelope',
+    '$envelopeId: String!, $input: JSON!, ',
+    'envelopeId: $envelopeId, input: $input, ',
+    'completed',
+  ),
+  DeclineEnvelope: write(
+    'DeclineEnvelope',
+    'declineEnvelope',
+    '$envelopeId: String!, $input: JSON!, ',
+    'envelopeId: $envelopeId, input: $input, ',
+    'id',
+  ),
+  AskEnvelopeSender: write(
+    'AskEnvelopeSender',
+    'askEnvelopeSender',
+    '$envelopeId: String!, $input: JSON!, ',
+    'envelopeId: $envelopeId, input: $input, ',
+    'id',
+  ),
+  VoidEnvelope: write(
+    'VoidEnvelope',
+    'voidEnvelope',
+    '$envelopeId: String!, $input: JSON!, ',
+    'envelopeId: $envelopeId, input: $input, ',
+    'id',
+  ),
+  RemindEnvelope: write(
+    'RemindEnvelope',
+    'remindEnvelope',
+    '$envelopeId: String!, ',
+    'envelopeId: $envelopeId, ',
+    'id',
+  ),
+  ReassignEnvelopeSigner: write(
+    'ReassignEnvelopeSigner',
+    'reassignEnvelopeSigner',
+    '$envelopeId: String!, $input: JSON!, ',
+    'envelopeId: $envelopeId, input: $input, ',
+    'id',
+  ),
+  SealEnvelope: write(
+    'SealEnvelope',
+    'sealEnvelope',
+    '$envelopeId: String!, $input: JSON!, ',
+    'envelopeId: $envelopeId, input: $input, ',
+    'version',
+  ),
+  SendForAcknowledgement: write(
+    'SendForAcknowledgement',
+    'sendForAcknowledgement',
+    '$documentId: String!, $input: JSON!, ',
+    'documentId: $documentId, input: $input, ',
+    'id',
+  ),
+  AcknowledgeDocument: write(
+    'AcknowledgeDocument',
+    'acknowledgeDocument',
+    '$campaignId: String!, ',
+    'campaignId: $campaignId, ',
+    'id',
   ),
 } as const;
 

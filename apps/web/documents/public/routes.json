@@ -1,11 +1,45 @@
 {
   "routes": [
-    { "path": "/documents/all", "component": "Library" },
-    { "path": "/documents/d/:id", "component": "DocumentView" },
-    { "path": "/documents/people/:id", "component": "PersonFile" },
-    { "path": "/settings/documents/types", "component": "DocumentTypes" },
-    { "path": "/settings/documents/access", "component": "AccessSettings" },
-    { "path": "/settings/documents/retention", "component": "RetentionSettings" }
+    {
+      "path": "/documents/all",
+      "component": "Library"
+    },
+    {
+      "path": "/documents/d/:id",
+      "component": "DocumentView"
+    },
+    {
+      "path": "/documents/people/:id",
+      "component": "PersonFile"
+    },
+    {
+      "path": "/documents/envelopes",
+      "component": "Envelopes"
+    },
+    {
+      "path": "/documents/envelopes/:id",
+      "component": "Envelope"
+    },
+    {
+      "path": "/documents/d/:id/send",
+      "component": "SendForSignature"
+    },
+    {
+      "path": "/documents/campaigns/:id",
+      "component": "Campaign"
+    },
+    {
+      "path": "/settings/documents/types",
+      "component": "DocumentTypes"
+    },
+    {
+      "path": "/settings/documents/access",
+      "component": "AccessSettings"
+    },
+    {
+      "path": "/settings/documents/retention",
+      "component": "RetentionSettings"
+    }
   ],
   "actions": [],
   "sections": [
@@ -16,7 +50,14 @@
       "icon": "folder",
       "description": "Every document you can open, what needs you, and HR’s queues",
       "summary": "Every document you can open",
-      "owns": ["/documents/d/:id", "/documents/people/:id"]
+      "owns": [
+        "/documents/d/:id",
+        "/documents/people/:id",
+        "/documents/envelopes",
+        "/documents/envelopes/:id",
+        "/documents/d/:id/send",
+        "/documents/campaigns/:id"
+      ]
     }
   ],
   "slots": {},

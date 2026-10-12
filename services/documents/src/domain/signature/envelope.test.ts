@@ -153,7 +153,7 @@ describe('signing (K4–K6)', () => {
       sign(
         env,
         's-nora',
-        { signature: { kind: 'drawn', image: 'data:image/png;base64,AAAA' }, values: {} },
+        { signature: { kind: 'drawn', path: 'M 10 60 L 120 40 L 300 80' }, values: {} },
         at(5),
       ),
     );

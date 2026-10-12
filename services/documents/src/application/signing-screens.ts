@@ -75,6 +75,8 @@ export const EnvelopeView = z
       }),
     ),
     voidReason: z.string().nullable(),
+    /** Colleagues a turn could pass to; the sender's only. */
+    people: z.array(z.object({ personId: z.string(), name: z.string() })),
   })
   .meta(Title('DocumentsEnvelope'));
 export type EnvelopeView = z.infer<typeof EnvelopeView>;
@@ -106,6 +108,7 @@ function viewOf(
   trail: readonly EnvelopeEvent[],
   me: string | null,
   follows: boolean,
+  people: readonly { personId: string; name: string }[] = [],
 ): EnvelopeView {
   const mine = env.signers.find((s) => s.id === me);
   const name = (signerId: string | null) =>
@@ -174,6 +177,7 @@ function viewOf(
         }))
       : [],
     voidReason: env.voidReason,
+    people: follows ? [...people] : [],
   };
 }
 

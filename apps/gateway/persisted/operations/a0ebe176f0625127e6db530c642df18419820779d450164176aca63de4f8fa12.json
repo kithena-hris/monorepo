@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AskEnvelopeSender($envelopeId: String!, $input: JSON!, $key: String!) {\n    askEnvelopeSender(envelopeId: $envelopeId, input: $input, idempotencyKey: $key) { id }\n  }"}

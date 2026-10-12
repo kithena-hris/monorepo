@@ -215,7 +215,17 @@ function Ready({
             {data.needsYou.map((n) => (
               <ListItem
                 key={n.id}
-                icon={n.kind === 'request' ? <icons.upload /> : <icons.locked />}
+                icon={
+                  n.kind === 'request' ? (
+                    <icons.upload />
+                  ) : n.kind === 'sign' ? (
+                    <icons.edit />
+                  ) : n.kind === 'acknowledge' ? (
+                    <icons.document />
+                  ) : (
+                    <icons.locked />
+                  )
+                }
                 iconTone="accent"
                 description={[n.detail, n.dueOn === null ? null : `Due ${shortDate(n.dueOn)}`]
                   .filter(Boolean)
@@ -234,6 +244,18 @@ function Ready({
                       }}
                     >
                       Add it
+                    </Button>
+                  ) : n.kind === 'sign' || n.kind === 'acknowledge' ? (
+                    <Button size="sm" variant="primary" asChild>
+                      <a
+                        href={
+                          n.kind === 'sign'
+                            ? `/documents/envelopes/${n.id}`
+                            : href(n.documentId ?? '')
+                        }
+                      >
+                        {n.kind === 'sign' ? 'Review and sign' : 'Read it'}
+                      </a>
                     </Button>
                   ) : (
                     <AccessDecision id={n.id} onDecide={props.onDecideAccess} />
@@ -511,7 +533,15 @@ function QueueList({
               }
               description={r.detail}
               trailing={
-                r.action === 'view' && r.documentId !== null ? (
+                (r.action === 'sign' || r.action === 'view') &&
+                r.requestId !== null &&
+                queue === 'to_sign' ? (
+                  <Button size="sm" variant={r.action === 'sign' ? 'primary' : 'secondary'} asChild>
+                    <a href={`/documents/envelopes/${r.requestId}`}>
+                      {r.action === 'sign' ? 'Sign' : 'Open'}
+                    </a>
+                  </Button>
+                ) : r.action === 'view' && r.documentId !== null ? (
                   <Button size="sm" variant="secondary" asChild>
                     <a href={href(r.documentId)}>Open</a>
                   </Button>

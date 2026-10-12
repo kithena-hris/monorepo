@@ -12,3 +12,7 @@ export const PersonFile = split(() => import('./people/person-file'), 'PersonFil
 export const DocumentTypes = split(() => import('./settings/settings'), 'DocumentTypes');
 export const AccessSettings = split(() => import('./settings/settings'), 'AccessSettings');
 export const RetentionSettings = split(() => import('./settings/settings'), 'RetentionSettings');
+export const Envelopes = split(() => import('./envelopes/envelopes'), 'Envelopes');
+export const Envelope = split(() => import('./envelopes/envelopes'), 'Envelope');
+export const SendForSignature = split(() => import('./envelopes/envelopes'), 'SendForSignature');
+export const Campaign = split(() => import('./envelopes/campaign'), 'Campaign');

@@ -110,6 +110,7 @@ type DocumentsEnvelope {
   me: DocumentsEnvelopeMe
   message: String!
   pages: Int!
+  people: [DocumentsEnvelopePeople!]!
   sender: String!
   signedVersion: Int
   signers: [DocumentsSigner!]!
@@ -124,6 +125,11 @@ type DocumentsEnvelopeMe {
   signerId: String!
   status: String!
   turn: Boolean!
+}
+
+type DocumentsEnvelopePeople {
+  name: String!
+  personId: String!
 }
 
 type DocumentsEnvelopeRow {

@@ -26,10 +26,11 @@ const HOST_SUFFIX = process.env['TENANT_HOST_SUFFIX'] ?? '';
  * (`/kiosk/<id>` and its service worker), which has no session at all: it
  * presents its own device token, which Time Off checks. And the phone app's
  * `/api/mobile/*`, which carries a bearer rather than a cookie and checks it
- * itself. Anything else redirects.
+ * itself. And an outside signer's page (`/sign/<token>`), whose token is
+ * the only key and which Documents checks. Anything else redirects.
  */
 const PUBLIC_PATH =
-  /^\/(login|recover|signed-out|auth\/|api\/(session|recover|mobile\/)|kiosk\/|kiosk-sw\.js$)/;
+  /^\/(login|recover|signed-out|auth\/|api\/(session|recover|mobile\/)|kiosk\/|kiosk-sw\.js$|sign\/)/;
 
 /**
  * Resolved tenants, briefly.

@@ -49,11 +49,9 @@ export async function seal(
     if ((field.kind === 'signature' || field.kind === 'initials') && signer?.signature != null) {
       const mark = signer.signature;
       if (mark.kind === 'drawn') {
-        const png = await pdf.embedPng(
-          Buffer.from(mark.image.slice('data:image/png;base64,'.length), 'base64'),
-        );
-        const scale = Math.min((field.w * width) / png.width, boxH / png.height);
-        page.drawImage(png, { x, y, width: png.width * scale, height: png.height * scale });
+        // The pad's box is 400 × 120, y down, as an SVG path is drawn from its top left.
+        const scale = Math.min((field.w * width) / 400, boxH / 120);
+        page.drawSvgPath(mark.path, { x, y: y + boxH, scale, borderColor: ink, borderWidth: 1.5 / scale });
       } else {
         const text = field.kind === 'initials' ? initials(mark.text) : mark.text;
         page.drawText(drawable(text), {

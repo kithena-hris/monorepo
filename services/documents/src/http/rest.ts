@@ -301,7 +301,7 @@ const OriginBody = {
 
 const Mark = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('typed'), text: z.string().max(120) }),
-  z.strictObject({ kind: z.literal('drawn'), image: z.string().max(400_000) }),
+  z.strictObject({ kind: z.literal('drawn'), path: z.string().max(40_000) }),
 ]);
 
 const SignBody = z.strictObject({

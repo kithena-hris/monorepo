@@ -16,7 +16,8 @@ export type FieldKind = 'signature' | 'initials' | 'date' | 'name' | 'title' | '
 
 export type SignatureMark =
   | { readonly kind: 'typed'; readonly text: string }
-  | { readonly kind: 'drawn'; readonly image: string };
+  /** Reach's `SignaturePad`: an SVG path in a 400 × 120 box. */
+  | { readonly kind: 'drawn'; readonly path: string };
 
 export interface Signer {
   readonly id: string;
@@ -293,7 +294,7 @@ export function sign(
   }
   if (
     mark.kind === 'drawn' &&
-    (!mark.image.startsWith('data:image/png;base64,') || mark.image.length > 400_000)
+    (!/^[ML][\d.\sML-]*$/u.test(mark.path.trim()) || mark.path.length > 40_000)
   ) {
     return err(failure('SIGNATURE', 'Draw your signature again', ['signature']));
   }

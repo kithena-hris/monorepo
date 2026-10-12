@@ -5,6 +5,12 @@
 import './styles.css';
 
 import { DocumentView as DocumentScreen } from './document/document';
+import { Campaign as CampaignScreen } from './envelopes/campaign';
+import {
+  Envelope as EnvelopeScreen,
+  Envelopes as EnvelopesScreen,
+  SendForSignature as SendScreen,
+} from './envelopes/envelopes';
 import { framed } from './frame';
 import { Library as LibraryScreen } from './library/library';
 import { PersonFile as PersonFileScreen } from './people/person-file';
@@ -20,3 +26,7 @@ export const PersonFile = framed(PersonFileScreen);
 export const DocumentTypes = framed(TypesScreen);
 export const AccessSettings = framed(AccessScreen);
 export const RetentionSettings = framed(RetentionScreen);
+export const Envelopes = framed(EnvelopesScreen);
+export const Envelope = framed(EnvelopeScreen);
+export const SendForSignature = framed(SendScreen);
+export const Campaign = framed(CampaignScreen);

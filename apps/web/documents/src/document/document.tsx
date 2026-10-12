@@ -56,6 +56,14 @@ export interface DocumentViewProps {
   readonly onRestore?: ((id: string) => Promise<Outcome>) | undefined;
   readonly onRequestAccess?: ((id: string, reason: string) => Promise<Outcome>) | undefined;
   readonly onDecideAccess?: ((requestId: string, grant: boolean) => Promise<Outcome>) | undefined;
+  readonly onAcknowledge?: ((campaignId: string) => Promise<Outcome>) | undefined;
+  readonly onSendForAcknowledgement?:
+    | ((
+        documentId: string,
+        audience: { kind: 'everyone' },
+        dueOn: string | null,
+      ) => Promise<{ ok: true; id: string } | { ok: false; message: string }>)
+    | undefined;
   readonly path?: string | undefined;
 }
 
@@ -189,6 +197,22 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                   Download
                 </Button>
               ) : null}
+              {doc.may.share &&
+              doc.pdf &&
+              (doc.signing === null || doc.signing.status !== 'sent') ? (
+                <Button variant="secondary" startIcon={<icons.edit aria-hidden />} asChild>
+                  <a
+                    href={`/documents/d/${row.id}/send`}
+                    onClick={(e) => {
+                      if (props.onNavigate === undefined) return;
+                      e.preventDefault();
+                      props.onNavigate(`/documents/d/${row.id}/send`);
+                    }}
+                  >
+                    Request signature
+                  </a>
+                </Button>
+              ) : null}
               {doc.may.share ? (
                 <Button
                   variant="primary"
@@ -240,6 +264,58 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
               ]}
             />
           </Card>
+          {doc.signing === null ? null : (
+            <Card padded>
+              <div className="flex flex-col gap-2">
+                <span className="font-semibold">
+                  {doc.signing.status === 'sent'
+                    ? `Out for signature · ${String(doc.signing.signed)} of ${String(doc.signing.of)} signed`
+                    : doc.signing.status === 'completed'
+                      ? 'Signed and sealed'
+                      : `Signature request ${doc.signing.status}`}
+                </span>
+                <Button
+                  asChild
+                  size="sm"
+                  variant={
+                    doc.signing.mine && doc.signing.status === 'sent' ? 'primary' : 'secondary'
+                  }
+                  className="self-start"
+                >
+                  <a href={`/documents/envelopes/${doc.signing.id}`}>
+                    {doc.signing.mine && doc.signing.status === 'sent'
+                      ? 'Review and sign'
+                      : 'Open the request'}
+                  </a>
+                </Button>
+              </div>
+            </Card>
+          )}
+          {doc.campaigns.map((c) => (
+            <Card padded key={c.id}>
+              <div className="flex flex-col gap-2">
+                <span className="font-semibold">
+                  {c.asked && !c.acknowledged
+                    ? 'Read it, then acknowledge it'
+                    : `Acknowledged by ${String(c.done)} of ${String(c.of)}`}
+                </span>
+                {c.asked && !c.acknowledged ? (
+                  <Acknowledge id={c.id} onAcknowledge={props.onAcknowledge} />
+                ) : c.asked ? (
+                  <Badge tone="success" size="sm">
+                    You acknowledged it
+                  </Badge>
+                ) : (
+                  <Button asChild size="sm" variant="secondary" className="self-start">
+                    <a href={`/documents/campaigns/${c.id}`}>See who is left</a>
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))}
+          {doc.may.share && !deleted && doc.row.typeKey !== null && doc.row.subject === null ? (
+            <SendAsPolicy id={row.id} onSend={props.onSendForAcknowledgement} />
+          ) : null}
           {!deleted && (doc.may.protect || doc.may.unprotect) ? (
             <Card padded>
               <ProtectSwitch doc={doc} onConfidential={props.onConfidential} />
@@ -503,6 +579,96 @@ function Decide({
         Grant
       </Button>
     </div>
+  );
+}
+
+function Acknowledge({
+  id,
+  onAcknowledge,
+}: {
+  readonly id: string;
+  readonly onAcknowledge: DocumentViewProps['onAcknowledge'];
+}): JSX.Element {
+  const write = useWrite();
+  return (
+    <Button
+      size="sm"
+      variant="primary"
+      className="self-start"
+      loading={write.pending}
+      onClick={() => {
+        write.run(() => onAcknowledge?.(id) ?? Promise.resolve({ ok: true }));
+      }}
+    >
+      I’ve read it
+    </Button>
+  );
+}
+
+/** Sending a policy out (F2): to everyone, to read and acknowledge. */
+function SendAsPolicy({
+  id,
+  onSend,
+}: {
+  readonly id: string;
+  readonly onSend: DocumentViewProps['onSendForAcknowledgement'];
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const write = useWrite();
+  return (
+    <>
+      <Button
+        variant="secondary"
+        className="self-start"
+        startIcon={<icons.send aria-hidden />}
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        Ask everyone to acknowledge it
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send for acknowledgement</DialogTitle>
+            <DialogDescription>
+              Everyone at the company gets a task to read it and say so. New joiners are asked too.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={write.pending}
+              onClick={() => {
+                write.run(
+                  async () => {
+                    const sent = await (onSend?.(id, { kind: 'everyone' }, null) ??
+                      Promise.resolve({ ok: true as const, id: '' }));
+                    return sent.ok ? { ok: true } : sent;
+                  },
+                  () => {
+                    setOpen(false);
+                  },
+                );
+              }}
+            >
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

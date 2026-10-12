@@ -39,6 +39,14 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('DocumentsDocument', { documentId: query.params['id'] ?? '' });
     case 'PersonFile':
       return read('DocumentsPersonFile', { personId: query.params['id'] ?? '' });
+    case 'Envelopes':
+      return read('DocumentsEnvelopes');
+    case 'Envelope':
+      return read('DocumentsEnvelope', { envelopeId: query.params['id'] ?? '' });
+    case 'SendForSignature':
+      return read('DocumentsDocument', { documentId: query.params['id'] ?? '' });
+    case 'Campaign':
+      return read('DocumentsCampaign', { campaignId: query.params['id'] ?? '' });
     case 'DocumentTypes':
     case 'AccessSettings':
     case 'RetentionSettings':

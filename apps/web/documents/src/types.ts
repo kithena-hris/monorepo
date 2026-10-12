@@ -77,7 +77,7 @@ export interface LibraryData {
   readonly sections: readonly Section[];
   readonly needsYou: readonly {
     readonly id: string;
-    readonly kind: 'request' | 'access_request';
+    readonly kind: 'request' | 'access_request' | 'sign' | 'acknowledge';
     readonly title: string;
     readonly detail: string;
     readonly dueOn: string | null;
@@ -161,6 +161,22 @@ export interface DocumentData {
     readonly held: boolean;
     /** Who it could be shared with; empty unless this viewer shares it. */
     readonly people: readonly PersonRef[];
+    readonly signing: {
+      readonly id: string;
+      readonly status: string;
+      readonly signed: number;
+      readonly of: number;
+      readonly mine: boolean;
+    } | null;
+    readonly campaigns: readonly {
+      readonly id: string;
+      readonly done: number;
+      readonly of: number;
+      readonly dueOn: string | null;
+      readonly acknowledged: boolean;
+      readonly asked: boolean;
+    }[];
+    readonly pdf: boolean;
   } | null;
   readonly closed: { readonly owner: string; readonly requested: boolean } | null;
 }
@@ -284,3 +300,89 @@ export interface GrantInput {
   readonly permission: 'view' | 'edit';
   readonly endsOn: string | null;
 }
+
+export type SignerStatus = 'waiting' | 'sent' | 'opened' | 'verified' | 'signed' | 'declined';
+export type FieldKind = 'signature' | 'initials' | 'date' | 'name' | 'title' | 'checkbox' | 'text';
+
+export interface EnvelopeData {
+  readonly id: string;
+  readonly documentId: string;
+  readonly title: string;
+  readonly version: number;
+  readonly pages: number;
+  readonly status: 'sent' | 'completed' | 'declined' | 'voided';
+  readonly message: string;
+  readonly dueOn: string | null;
+  readonly createdAt: string;
+  readonly completedAt: string | null;
+  readonly signedVersion: number | null;
+  readonly sender: string;
+  readonly voidReason: string | null;
+  readonly follows: boolean;
+  readonly signers: readonly {
+    readonly id: string;
+    readonly order: number;
+    readonly name: string;
+    readonly email: string | null;
+    readonly check: 'login' | 'email_code';
+    readonly status: SignerStatus;
+    readonly signedAt: string | null;
+    readonly allowDelegate: boolean;
+  }[];
+  readonly fields: readonly {
+    readonly id: string;
+    readonly signerId: string;
+    readonly kind: FieldKind;
+    readonly page: number;
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+    readonly required: boolean;
+    readonly label: string | null;
+    readonly value: string | null;
+  }[];
+  readonly me: {
+    readonly signerId: string;
+    readonly status: string;
+    readonly turn: boolean;
+  } | null;
+  readonly trail: readonly {
+    readonly who: string;
+    readonly action: string;
+    readonly at: string;
+    readonly note: string | null;
+  }[];
+  readonly people: readonly { readonly personId: string; readonly name: string }[];
+}
+
+export interface EnvelopesData {
+  readonly rows: readonly {
+    readonly id: string;
+    readonly documentId: string;
+    readonly title: string;
+    readonly status: 'sent' | 'completed' | 'declined' | 'voided';
+    readonly signed: number;
+    readonly of: number;
+    readonly waitingOn: string | null;
+    readonly dueOn: string | null;
+    readonly createdAt: string;
+    readonly needsYou: boolean;
+  }[];
+}
+
+export interface CampaignData {
+  readonly id: string;
+  readonly documentId: string;
+  readonly title: string;
+  readonly version: number;
+  readonly dueOn: string | null;
+  readonly sentAt: string;
+  readonly done: number;
+  readonly of: number;
+  readonly left: readonly PersonRef[];
+}
+
+export type Mark =
+  | { readonly kind: 'typed'; readonly text: string }
+  | { readonly kind: 'drawn'; readonly path: string };

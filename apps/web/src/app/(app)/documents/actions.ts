@@ -1,5 +1,8 @@
 'use server';
 
+import { headers } from 'next/headers';
+
+import { currentTenant } from '../../../lib/branding';
 import { documents } from '../../../lib/people';
 
 /**
@@ -190,4 +193,138 @@ export async function fileLink(
   if (!a.ok) return { ok: false, message: a.message };
   const url = a.data.url ?? `data:${a.data.mediaType};base64,${a.data.base64 ?? ''}`;
   return { ok: true, url, fileName: a.data.fileName, mediaType: a.data.mediaType };
+}
+
+/* ------------------------------------------------- signatures (K1–K10) -- */
+
+/** Where a signing link points and whose name is on the email: this company's own host. */
+async function origin(): Promise<{ origin: string; companyName: string }> {
+  const inbound = await headers();
+  const host = inbound.get('x-forwarded-host') ?? inbound.get('host') ?? 'localhost:3000';
+  const proto =
+    inbound.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  const tenant = await currentTenant();
+  return {
+    origin: `${proto}://${host}`,
+    companyName: tenant?.branding.displayName ?? tenant?.slug ?? host,
+  };
+}
+
+export interface SignerInput {
+  readonly personId: string | null;
+  readonly email: string | null;
+  readonly name: string | null;
+  readonly order: number;
+  readonly allowDelegate: boolean;
+}
+
+export interface FieldInput {
+  readonly id: string;
+  readonly signerId: string;
+  readonly kind: 'signature' | 'initials' | 'date' | 'name' | 'title' | 'checkbox' | 'text';
+  readonly page: number;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly required: boolean;
+  readonly label: string | null;
+}
+
+export async function sendForSignature(
+  documentId: string,
+  input: {
+    signers: readonly SignerInput[];
+    fields: readonly FieldInput[];
+    message: string;
+    dueOn: string | null;
+  },
+): Promise<Created> {
+  const a = await documents<{ id: string }>('SendForSignature', {
+    documentId,
+    input: { ...input, ...(await origin()) },
+  });
+  return a.ok ? { ok: true, id: a.data.id } : { ok: false, message: a.message };
+}
+
+export type Mark =
+  | { readonly kind: 'typed'; readonly text: string }
+  | { readonly kind: 'drawn'; readonly path: string };
+
+export async function signEnvelope(
+  envelopeId: string,
+  signature: Mark,
+  values: Readonly<Record<string, string>>,
+): Promise<{ ok: true; completed: boolean } | { ok: false; message: string }> {
+  const a = await documents<{ completed: boolean }>('SignEnvelope', {
+    envelopeId,
+    input: { signature, values, ...(await origin()) },
+  });
+  return a.ok ? { ok: true, completed: a.data.completed } : { ok: false, message: a.message };
+}
+
+export async function declineEnvelope(envelopeId: string, reason: string): Promise<Outcome> {
+  return outcome(await documents('DeclineEnvelope', { envelopeId, input: { reason } }));
+}
+
+export async function askEnvelopeSender(envelopeId: string, question: string): Promise<Outcome> {
+  return outcome(await documents('AskEnvelopeSender', { envelopeId, input: { question } }));
+}
+
+export async function voidEnvelope(envelopeId: string, reason: string): Promise<Outcome> {
+  return outcome(await documents('VoidEnvelope', { envelopeId, input: { reason } }));
+}
+
+export async function remindEnvelope(envelopeId: string): Promise<Outcome> {
+  return outcome(await documents('RemindEnvelope', { envelopeId }));
+}
+
+export async function reassignSigner(
+  envelopeId: string,
+  signerId: string,
+  personId: string,
+): Promise<Outcome> {
+  return outcome(
+    await documents('ReassignEnvelopeSigner', { envelopeId, input: { signerId, personId } }),
+  );
+}
+
+export async function sealEnvelope(envelopeId: string): Promise<Outcome> {
+  const { companyName } = await origin();
+  return outcome(await documents('SealEnvelope', { envelopeId, input: { companyName } }));
+}
+
+/** The version being signed, as a link that lasts minutes. */
+export async function envelopeFileLink(
+  envelopeId: string,
+): Promise<
+  { readonly ok: true; readonly url: string } | { readonly ok: false; readonly message: string }
+> {
+  const a = await documents<{ mediaType: string; url: string | null; base64: string | null }>(
+    'DocumentsEnvelopeFile',
+    { envelopeId },
+  );
+  if (!a.ok) return { ok: false, message: a.message };
+  return { ok: true, url: a.data.url ?? `data:${a.data.mediaType};base64,${a.data.base64 ?? ''}` };
+}
+
+/* ---------------------------------------------- acknowledgements (F2, F3) -- */
+
+export async function sendForAcknowledgement(
+  documentId: string,
+  audience:
+    | { kind: 'everyone' }
+    | { kind: 'teams'; teamKeys: readonly string[] }
+    | { kind: 'people'; personIds: readonly string[] },
+  dueOn: string | null,
+): Promise<Created> {
+  const a = await documents<{ id: string }>('SendForAcknowledgement', {
+    documentId,
+    input: { audience, dueOn },
+  });
+  return a.ok ? { ok: true, id: a.data.id } : { ok: false, message: a.message };
+}
+
+export async function acknowledgeDocument(campaignId: string): Promise<Outcome> {
+  return outcome(await documents('AcknowledgeDocument', { campaignId }));
 }

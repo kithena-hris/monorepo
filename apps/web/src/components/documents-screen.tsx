@@ -92,7 +92,33 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onRequestAccess: actions.requestAccess,
           onDecideAccess: actions.decideAccess,
           onPlaceHold: actions.placeHold,
+          onAcknowledge: actions.acknowledgeDocument,
+          onSendForAcknowledgement: actions.sendForAcknowledgement,
         };
+      case 'Envelopes':
+        return { load: loadable, onNavigate: go };
+      case 'Envelope':
+        return {
+          load: loadable,
+          onNavigate: go,
+          onFileLink: actions.envelopeFileLink,
+          onSign: actions.signEnvelope,
+          onDecline: actions.declineEnvelope,
+          onAsk: actions.askEnvelopeSender,
+          onVoid: actions.voidEnvelope,
+          onRemind: actions.remindEnvelope,
+          onReassign: actions.reassignSigner,
+          onSeal: actions.sealEnvelope,
+        };
+      case 'SendForSignature':
+        return {
+          load: loadable,
+          onNavigate: go,
+          onFileLink: actions.fileLink,
+          onSend: actions.sendForSignature,
+        };
+      case 'Campaign':
+        return { load: loadable, onNavigate: go };
       case 'PersonFile':
         return {
           load: loadable,
