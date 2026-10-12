@@ -53,7 +53,7 @@ import {
   type PersonRef,
   type Row,
 } from './api';
-import { Answers } from './answers';
+import { Answers, Certificate } from './answers';
 import { Reading } from './reading';
 import { ActOnLetter, FillRecord } from './record';
 
@@ -306,6 +306,17 @@ export function DocumentDetail({
           name={row.subject.name}
           onClose={() => {
             setFilling(false);
+          }}
+        />
+      ) : null}
+      {row.deletedAt === null && (row.mine || row.aboutMe) && row.typeKey === 'certificate' ? (
+        <Certificate
+          documentId={id}
+          onRequest={(leaveTypeKey, from) => {
+            navigation.navigate('TimeOffRequest', {
+              leaveTypeKey,
+              ...(from === undefined ? {} : { from }),
+            });
           }}
         />
       ) : null}

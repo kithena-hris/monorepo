@@ -29,9 +29,12 @@ const NOTE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image
 
 export function NoteNeeded({
   requestId,
+  personId,
   onDone,
 }: {
   readonly requestId: string;
+  /** Whose request it is: the viewer's own, or one HR files a photo for (MH4). */
+  readonly personId: string | undefined;
   readonly onDone: () => void;
 }): React.JSX.Element {
   const signed = useSigned();
@@ -53,21 +56,36 @@ export function NoteNeeded({
   };
   const open = (): void => {
     setBusy('list');
-    void askDocuments<{ rows: readonly Row[] }>(signed, 'DocumentsLibrary', {
-      show: 'all',
-    }).then((a) => {
+    void (async () => {
+      const library = await askDocuments<{
+        viewer: { personId: string | null };
+        rows: readonly Row[];
+      }>(signed, 'DocumentsLibrary', { show: 'all' });
+      const own =
+        !library.ok || personId === undefined || library.data.viewer.personId === personId;
+      const file = own
+        ? null
+        : await askDocuments<{ rows: readonly Row[] }>(signed, 'DocumentsPersonFile', {
+            personId,
+          });
+      const rows = own
+        ? library.ok
+          ? library.data.rows
+          : []
+        : file?.ok === true
+          ? file.data.rows
+          : [];
       setBusy(null);
       setFiles(
-        a.ok
-          ? a.data.rows.filter(
-              (r) =>
-                r.deletedAt === null &&
-                (r.mine || r.aboutMe) &&
-                (r.kind === 'Medical' || (r.typeKey === null && NOTE_TYPES.has(r.mediaType ?? ''))),
-            )
-          : [],
+        rows.filter(
+          (r) =>
+            r.deletedAt === null &&
+            (own ? r.mine || r.aboutMe : true) &&
+            (r.kind === 'Medical' ||
+              (own && r.typeKey === null && NOTE_TYPES.has(r.mediaType ?? ''))),
+        ),
       );
-    });
+    })();
   };
   const fileNew = async (how: 'scan' | 'file'): Promise<void> => {
     const picked: Picked | null = how === 'scan' ? await scan() : await chooseFile();
@@ -89,7 +107,7 @@ export function NoteNeeded({
       input: {
         title: 'Sick note',
         typeKey: 'sick_note',
-        subjectPersonId: library.data.viewer.personId,
+        subjectPersonId: personId ?? library.data.viewer.personId,
         upload: put.data,
       },
     });
@@ -104,7 +122,7 @@ export function NoteNeeded({
   return (
     <Alert tone="warning" title="A note is needed">
       <View className="gap-2.5">
-        <Text>Leave this long needs a doctor’s note. Only you and HR see it.</Text>
+        <Text>Leave this long needs a doctor’s note. Only its person and HR see it.</Text>
         {!documents ? null : files === null ? (
           <Button size="sm" loading={busy === 'list'} onPress={open}>
             Add note

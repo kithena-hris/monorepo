@@ -506,16 +506,25 @@ interface NoteRow {
  * request asks for: their sick notes first, then their own PDFs and photos,
  * newest first. Documents decides what they may open.
  */
-export async function notesToAttach(): Promise<
-  readonly { readonly id: string; readonly name: string; readonly detail: string }[]
-> {
-  const a = await documents<{ rows: readonly NoteRow[] }>('DocumentsLibrary', { show: 'all' });
-  if (!a.ok) return [];
-  const usable = a.data.rows.filter(
+export async function notesToAttach(
+  personId: string,
+): Promise<readonly { readonly id: string; readonly name: string; readonly detail: string }[]> {
+  // The viewer's own, from their library; somebody else's (HR's, MH4) from their file.
+  const library = await documents<{
+    viewer: { personId: string | null };
+    rows: readonly NoteRow[];
+  }>('DocumentsLibrary', { show: 'all' });
+  if (!library.ok) return [];
+  const own = library.data.viewer.personId === personId;
+  const file = own
+    ? null
+    : await documents<{ rows: readonly NoteRow[] }>('DocumentsPersonFile', { personId });
+  const rows = own ? library.data.rows : file?.ok === true ? file.data.rows : [];
+  const usable = rows.filter(
     (r) =>
       r.deletedAt === null &&
-      (r.mine || r.aboutMe) &&
-      (r.kind === 'Medical' || (r.typeKey === null && NOTE_TYPES.has(r.mediaType ?? ''))),
+      (own ? r.mine || r.aboutMe : true) &&
+      (r.kind === 'Medical' || (own && r.typeKey === null && NOTE_TYPES.has(r.mediaType ?? ''))),
   );
   return usable
     .toSorted((x, y) => Number(y.kind === 'Medical') - Number(x.kind === 'Medical'))
@@ -539,17 +548,17 @@ export async function attachNoteFromDocuments(
  * J3: a note photographed or chosen now: filed in Documents as the person's
  * sick note (HR only, read for its dates alone), then attached to the request.
  */
-export async function attachNewNote(requestId: string, file: File): Promise<Outcome> {
+export async function attachNewNote(
+  requestId: string,
+  file: File,
+  personId: string,
+): Promise<Outcome> {
   if (file.size > MAX_INLINE) return { ok: false, message: 'Notes are up to 25 MB' };
-  const library = await documents<{ viewer: { personId: string | null } }>('DocumentsLibrary', {
-    show: 'all',
-  });
-  if (!library.ok) return library;
   const filed = await documents<{ id: string }>('UploadDocument', {
     input: {
       title: 'Sick note',
       typeKey: 'sick_note',
-      subjectPersonId: library.data.viewer.personId,
+      subjectPersonId: personId,
       file: {
         name: file.name,
         mediaType: file.type,
@@ -840,4 +849,64 @@ export async function generateLetters(
       input: { title, letters, sign, ...(await origin()) },
     }),
   );
+}
+
+/* ------------------------------------- a certificate that unlocks leave (J4) -- */
+
+/** Which of a person's leave types an event entitles them to: by its category, else its name. */
+const EVENTS: readonly {
+  readonly event: RegExp;
+  readonly category?: string;
+  readonly name: RegExp;
+}[] = [
+  {
+    event: /birth|born|adopt/iu,
+    category: 'parental_leave',
+    name: /parent|maternity|paternity|birth|adopt/iu,
+  },
+  { event: /marri|wedding|civil partnership/iu, name: /marri|wedding|partnership/iu },
+  { event: /death|bereave|funeral|passed away/iu, name: /bereave|death|funeral|compassion/iu },
+  { event: /move|relocat|new home/iu, name: /mov|relocat/iu },
+];
+
+/**
+ * J4: the event a certificate records and its date, each with its page, and
+ * the leave type of the viewer's own that it entitles them to. Time Off's
+ * request page then takes the type and the day; nothing is requested here.
+ */
+export async function certificateLeave(documentId: string): Promise<
+  Read<{
+    readonly event: string | null;
+    readonly date: string | null;
+    readonly page: number | null;
+    readonly leaveType: { readonly key: string; readonly name: string } | null;
+  }>
+> {
+  const read = await documents<{
+    fields: readonly { name: string; value: string; page: number }[];
+  }>('ReadDocumentFields', { documentId, input: { names: ['Event', 'Date of the event'] } });
+  if (!read.ok) return read;
+  const event = read.data.fields.find((f) => f.name === 'Event') ?? null;
+  const date = read.data.fields.find(
+    (f) => f.name === 'Date of the event' && /^\d{4}-\d{2}-\d{2}$/u.test(f.value),
+  );
+  const panel = await timeOff<{
+    leaveTypes: readonly { key: string; name: string; category: string }[];
+  }>('TimeOffRequestPanel', {});
+  const rule = event === null ? undefined : EVENTS.find((e) => e.event.test(event.value));
+  const leaveType =
+    rule === undefined || !panel.ok
+      ? undefined
+      : (panel.data.leaveTypes.find(
+          (t) => rule.category !== undefined && t.category === rule.category,
+        ) ?? panel.data.leaveTypes.find((t) => rule.name.test(t.name)));
+  return {
+    ok: true,
+    data: {
+      event: event?.value ?? null,
+      date: date?.value ?? null,
+      page: date?.page ?? event?.page ?? null,
+      leaveType: leaveType === undefined ? null : { key: leaveType.key, name: leaveType.name },
+    },
+  };
 }

@@ -27,7 +27,9 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
   const router = useRouter();
   const pathname = usePathname();
   // People is here: a document can fill the record of the person it is about.
-  const people = useShellData().sections.length > 0;
+  const shellData = useShellData();
+  const people = shellData.sections.length > 0;
+  const timeOffHere = shellData.remotes?.['timeoff'] !== undefined;
   const [, startTransition] = useTransition();
   const loadable =
     load.status === 'ready'
@@ -123,6 +125,8 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onSummarize: actions.summarizeDocument,
           onAskDocument: actions.askDocument,
           onCompare: actions.compareVersions,
+          // With Time Off: a certificate's leave, asked for on its request page (J4).
+          ...(timeOffHere ? { onCertificateLeave: actions.certificateLeave } : {}),
           // With People: fill the person's record from the document (G5).
           ...(people
             ? {

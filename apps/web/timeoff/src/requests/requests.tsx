@@ -68,6 +68,8 @@ interface Span {
 
 export interface RequestItem {
   readonly requestId: string;
+  /** Whose it is: on one request's own answer, not on the lists'. */
+  readonly personId?: string;
   readonly displayName: string;
   readonly leaveTypeKey: string;
   readonly leaveTypeName: string;
@@ -137,9 +139,10 @@ export interface RequestsProps {
   readonly notes?:
     | {
         readonly label: string;
-        readonly load: () => Promise<readonly NoteFile[]>;
+        /** The person the request is for: the viewer, or whoever HR is acting for. */
+        readonly load: (personId: string) => Promise<readonly NoteFile[]>;
         readonly onAttach: (requestId: string, fileId: string) => Promise<Outcome>;
-        readonly onUpload: (requestId: string, file: File) => Promise<Outcome>;
+        readonly onUpload: (requestId: string, file: File, personId: string) => Promise<Outcome>;
       }
     | undefined;
 }
@@ -284,8 +287,8 @@ function Detail({
             {detail.note}
           </p>
         )}
-        {detail.noteNeeded === true ? (
-          <NoteNeeded requestId={request.requestId} notes={notes} />
+        {detail.noteNeeded === true && request.personId !== undefined ? (
+          <NoteNeeded requestId={request.requestId} personId={request.personId} notes={notes} />
         ) : detail.notePresent === true ? (
           <p className="flex items-center gap-1.5 text-sm text-fg-muted">
             <icons.success aria-hidden className="size-4 text-success" />A note is attached.
@@ -678,9 +681,11 @@ export function RequestsSkeleton(): JSX.Element {
  */
 function NoteNeeded({
   requestId,
+  personId,
   notes,
 }: {
   readonly requestId: string;
+  readonly personId: string;
   readonly notes: RequestsProps['notes'];
 }): JSX.Element {
   const [files, setFiles] = useState<readonly NoteFile[] | null>(null);
@@ -696,13 +701,13 @@ function NoteNeeded({
   return (
     <Alert tone="warning" title="A note is needed" icon={<icons.document />}>
       <div className="flex flex-col gap-3">
-        <p>Leave this long needs a doctor’s note. Only you and HR see it.</p>
+        <p>Leave this long needs a doctor’s note. Only its person and HR see it.</p>
         {notes === undefined ? null : files === null ? (
           <Button
             size="sm"
             className="self-start"
             onClick={() => {
-              void notes.load().then(setFiles);
+              void notes.load(personId).then(setFiles);
             }}
           >
             Add note
@@ -739,7 +744,7 @@ function NoteNeeded({
               variant="inline"
               onFiles={(chosen) => {
                 const first = chosen[0];
-                if (first !== undefined) attach(() => notes.onUpload(requestId, first));
+                if (first !== undefined) attach(() => notes.onUpload(requestId, first, personId));
               }}
             />
           </>

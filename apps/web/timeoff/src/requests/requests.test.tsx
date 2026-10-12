@@ -160,7 +160,14 @@ describe('changing or cancelling', () => {
     const onAttach = vi.fn(ok);
     const { container } = render(
       <MyRequests
-        load={ready({ ...data, selected: { ...data.selected, noteNeeded: true } })}
+        load={ready({
+          ...data,
+          selected: {
+            ...data.selected,
+            noteNeeded: true,
+            request: { ...data.selected.request, personId: 'p-adam' },
+          },
+        })}
         notes={{
           label: 'Kept elsewhere',
           load: () => Promise.resolve([{ id: 'f-1', name: 'Doctor’s note', detail: '12 Oct' }]),

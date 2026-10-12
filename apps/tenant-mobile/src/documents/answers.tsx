@@ -199,3 +199,96 @@ export function Answers({
     </Card>
   );
 }
+
+/** Which of a person's leave types an event entitles them to, as the web's shell matches it. */
+const EVENTS: readonly {
+  readonly event: RegExp;
+  readonly category?: string;
+  readonly name: RegExp;
+}[] = [
+  {
+    event: /birth|born|adopt/iu,
+    category: 'parental_leave',
+    name: /parent|maternity|paternity|birth|adopt/iu,
+  },
+  { event: /marri|wedding|civil partnership/iu, name: /marri|wedding|partnership/iu },
+  { event: /death|bereave|funeral|passed away/iu, name: /bereave|death|funeral|compassion/iu },
+  { event: /move|relocat|new home/iu, name: /mov|relocat/iu },
+];
+
+/**
+ * A certificate that unlocks leave on the phone (Documents MJ4, J4): the
+ * event and its date, each with its page, and the leave of your own it
+ * entitles you to, opened in Time Off's request from that day.
+ */
+export function Certificate({
+  documentId,
+  onRequest,
+}: {
+  readonly documentId: string;
+  readonly onRequest: (leaveTypeKey: string, from: string | undefined) => void;
+}): React.JSX.Element {
+  const signed = useSigned();
+  const [read, setRead] = useState<
+    | { event: string | null; date: string | null; leave: { key: string; name: string } | null }
+    | { problem: string }
+    | 'reading'
+    | null
+  >(null);
+  const look = async (): Promise<void> => {
+    setRead('reading');
+    const fields = await askDocuments<{
+      fields: readonly { name: string; value: string; page: number }[];
+    }>(signed, 'ReadDocumentFields', {
+      documentId,
+      input: { names: ['Event', 'Date of the event'] },
+    });
+    if (!fields.ok) {
+      setRead({ problem: fields.message });
+      return;
+    }
+    const event = fields.data.fields.find((f) => f.name === 'Event')?.value ?? null;
+    const date =
+      fields.data.fields.find(
+        (f) => f.name === 'Date of the event' && /^\d{4}-\d{2}-\d{2}$/u.test(f.value),
+      )?.value ?? null;
+    const panel = await ask<{
+      leaveTypes: readonly { key: string; name: string; category: string }[];
+    }>(signed, 'TimeOffRequestPanel', {}, 'timeoff');
+    const rule = event === null ? undefined : EVENTS.find((e) => e.event.test(event));
+    const leave =
+      rule === undefined || !panel.ok
+        ? undefined
+        : (panel.data.leaveTypes.find(
+            (t) => rule.category !== undefined && t.category === rule.category,
+          ) ?? panel.data.leaveTypes.find((t) => rule.name.test(t.name)));
+    setRead({
+      event,
+      date,
+      leave: leave === undefined ? null : { key: leave.key, name: leave.name },
+    });
+  };
+  if (read === null) {
+    return <Button onPress={() => void look()}>Leave this certificate entitles you to</Button>;
+  }
+  if (read === 'reading') return <Spinner label="Kithena is reading the certificate" />;
+  if ('problem' in read) return <Text tone="danger">{read.problem}</Text>;
+  return (
+    <Card variant="assistant">
+      <CardTitle>What this certificate unlocks</CardTitle>
+      <Text>{`${read.event ?? 'It does not say what it records.'}${read.date === null ? '' : ` · ${read.date}`}`}</Text>
+      {read.leave === null ? (
+        <Text tone="muted">None of your leave types is for it.</Text>
+      ) : (
+        <Button
+          variant="primary"
+          onPress={() => {
+            if (read.leave !== null) onRequest(read.leave.key, read.date ?? undefined);
+          }}
+        >
+          {`Request ${read.leave.name}${read.date === null ? '' : ` from ${read.date}`}`}
+        </Button>
+      )}
+    </Card>
+  );
+}

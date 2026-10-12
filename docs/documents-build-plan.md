@@ -213,13 +213,17 @@ small group, and goes to `main` as **one pull request**.
       (J2, at the top of Documents), for them alone, each value with its
       page; People's own save applies what they tick, which closes HR's ask.
       A required document is filed against HR's request as before (H2).
-- [ ] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
+- [x] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
       Built: J3, J5 and MJ3. Time Off gained `attachNote` (its member or HR,
       `timeoff.request.note_attached`, which says only that a note arrived)
       and `noteNeeded` on a request; a request missing its note offers the
       person's sick notes and files in Documents first, or files a new one as
-      their sick note and attaches its id. Left: J4/MJ4 (one certificate
-      unlocking leave, a People detail and a contact) and MH4.
+      their sick note and attaches its id. J4, MJ4: on your own certificate,
+      Kithena reads the event and its date and offers the leave of yours it
+      entitles you to on Time Off's request page from that day, the details
+      and contact HR waits for coming from the answers card (DOC-062). MH4:
+      HR, on somebody's request, attaches that person's notes or files a
+      photo as their sick note.
 - [x] **DOC-064** A letter that changes a record J7, MJ6. As built: on a letter
       about somebody, whoever may share it can act on it (web and phone):
       Kithena reads its last working day with its page, and once HR saves,
