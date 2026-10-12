@@ -45,7 +45,8 @@ import { DATA_TYPE_LABEL } from './words';
 
 export type ReviewAction = 'edit' | 'clear' | 'request' | 'hr' | 'leave';
 
-export interface FieldChangeView {
+/** One field's values, read again as its new type. */
+export interface FieldReview {
   readonly field: {
     readonly key: string;
     readonly label: string;
@@ -55,7 +56,6 @@ export interface FieldChangeView {
     readonly currency: string | null;
     readonly encrypted: boolean;
   };
-  readonly needsReview: boolean;
   readonly withValue: number;
   readonly dateOrder: 'iso' | 'dmy' | 'mdy' | null;
   readonly converted: {
@@ -72,8 +72,14 @@ export interface FieldChangeView {
   readonly actions: readonly ReviewAction[];
   readonly defaultAction: ReviewAction;
   readonly hidden: boolean;
+}
+
+export interface FieldChangeView extends FieldReview {
+  readonly needsReview: boolean;
+  /** Other draft changes published with it, not counting `others`. */
   readonly alsoPublished: number;
-  readonly blockedBy: string | null;
+  /** Every other field changing type in the draft: reviewed here, published together. */
+  readonly others: readonly FieldReview[];
 }
 
 export interface Decision {
@@ -84,8 +90,14 @@ export interface Decision {
 
 export interface FieldChangeProps {
   readonly load: Loadable<FieldChangeView>;
-  /** Publish the change with these decisions; the shell goes back to the fields once it is. */
-  readonly onApply: (decisions: readonly Decision[]) => Promise<Outcome>;
+  /**
+   * Publish the change with these decisions, and each other field's by its
+   * key; the shell goes back to the fields once it is.
+   */
+  readonly onApply: (
+    decisions: readonly Decision[],
+    others: Readonly<Record<string, readonly Decision[]>>,
+  ) => Promise<Outcome>;
   readonly onBack: () => void;
 }
 
@@ -141,6 +153,12 @@ export function FieldChange({ load, onApply, onBack }: FieldChangeProps): JSX.El
   return <Review view={load.data} onApply={onApply} onBack={onBack} />;
 }
 
+type Chosen = Readonly<Record<string, ReviewAction>>;
+type Typed = Readonly<Record<string, AttributeValue>>;
+
+const empty = (v: AttributeValue | undefined) =>
+  v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+
 function Review({
   view,
   onApply,
@@ -151,63 +169,52 @@ function Review({
   readonly onBack: () => void;
 }): JSX.Element {
   const { field } = view;
-  const [chosen, setChosen] = useState<Readonly<Record<string, ReviewAction>>>({});
-  const [typed, setTyped] = useState<Readonly<Record<string, AttributeValue>>>({});
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [bulk, setBulk] = useState<ReviewAction>(view.defaultAction);
+  const reviews: readonly FieldReview[] = [view, ...view.others];
+  // Each field's choices, by its key: one page, one publish, every field its own.
+  const [chosen, setChosen] = useState<Readonly<Record<string, Chosen>>>({});
+  const [typed, setTyped] = useState<Readonly<Record<string, Typed>>>({});
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
 
-  const actionOf = (personId: string): ReviewAction => chosen[personId] ?? view.defaultAction;
-  const empty = (v: AttributeValue | undefined) =>
-    v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
-  const missing = view.unfit.filter(
-    (u) => actionOf(u.personId) === 'edit' && empty(typed[u.personId]),
+  const actionOf = (r: FieldReview, personId: string): ReviewAction =>
+    chosen[r.field.key]?.[personId] ?? r.defaultAction;
+  const missing = reviews.flatMap((r) =>
+    r.unfit.filter(
+      (u) => actionOf(r, u.personId) === 'edit' && empty(typed[r.field.key]?.[u.personId]),
+    ),
   );
   const title = `Change ${field.label} to ${DATA_TYPE_LABEL[field.to].toLowerCase()}`;
   const from =
     field.from === field.to
       ? `Its format changes.`
       : `It is ${DATA_TYPE_LABEL[field.from].toLowerCase()} now.`;
-  const inputField = (name: string) => ({
-    key: field.key,
-    label: `New ${field.label} for ${name}`,
-    description: null,
-    dataType: field.to,
-    options: field.options,
-    required: false,
-    readOnly: false,
-    ...(field.currency === null ? {} : { currency: field.currency }),
-  });
 
-  const applyBulk = (): void => {
-    const rows =
-      selected.size === 0 ? view.unfit : view.unfit.filter((u) => selected.has(u.personId));
-    setChosen((c) => ({ ...c, ...Object.fromEntries(rows.map((u) => [u.personId, bulk])) }));
-  };
+  const decisionsOf = (r: FieldReview): Decision[] =>
+    r.unfit.map((u) => {
+      const action = actionOf(r, u.personId);
+      return action === 'edit'
+        ? { personId: u.personId, action, value: typed[r.field.key]?.[u.personId] ?? null }
+        : { personId: u.personId, action };
+    });
 
   const publish = async (): Promise<void> => {
     setShown(true);
-    if (missing.length > 0 || view.blockedBy !== null) return;
+    if (missing.length > 0) return;
     setBusy(true);
     setRefused(null);
     const outcome = await onApply(
-      view.unfit.map((u) => {
-        const action = actionOf(u.personId);
-        return action === 'edit'
-          ? { personId: u.personId, action, value: typed[u.personId] ?? null }
-          : { personId: u.personId, action };
-      }),
+      decisionsOf(view),
+      Object.fromEntries(view.others.map((o) => [o.field.key, decisionsOf(o)])),
     );
     setBusy(false);
     if (!outcome.ok) setRefused(outcome.message);
   };
 
-  const counts = view.unfit.reduce<Partial<Record<ReviewAction, number>>>((n, u) => {
-    const a = actionOf(u.personId);
-    return { ...n, [a]: (n[a] ?? 0) + 1 };
-  }, {});
+  const counts = reviews
+    .flatMap((r) => r.unfit.map((u) => actionOf(r, u.personId)))
+    .reduce<Partial<Record<ReviewAction, number>>>((n, a) => ({ ...n, [a]: (n[a] ?? 0) + 1 }), {});
+  const conversions = reviews.reduce((n, r) => n + r.converted.count, 0);
 
   return (
     <Stack gap={6}>
@@ -221,10 +228,148 @@ function Review({
         }
       />
 
-      {view.blockedBy === null ? null : (
-        <Alert tone="warning" title={`${view.blockedBy} changes type or format too`}>
-          Review its values first: a publish includes every change in the draft.
+      {view.others.length === 0 ? null : (
+        <Alert
+          tone="info"
+          title={`${listed(view.others.map((o) => o.field.label))} ${view.others.length === 1 ? 'changes' : 'change'} type too`}
+        >
+          Each is reviewed below and published with this one.
         </Alert>
+      )}
+
+      {reviews.map((r, i) => (
+        <FieldValues
+          key={r.field.key}
+          review={r}
+          heading={
+            i === 0
+              ? null
+              : `${r.field.label}: ${DATA_TYPE_LABEL[r.field.from].toLowerCase()} to ${DATA_TYPE_LABEL[r.field.to].toLowerCase()}`
+          }
+          chosen={chosen[r.field.key] ?? {}}
+          typed={typed[r.field.key] ?? {}}
+          shown={shown}
+          onChoose={(next) => {
+            setChosen((c) => ({ ...c, [r.field.key]: { ...c[r.field.key], ...next } }));
+          }}
+          onType={(next) => {
+            setTyped((t) => ({ ...t, [r.field.key]: { ...t[r.field.key], ...next } }));
+          }}
+        />
+      ))}
+
+      <Card variant="fill" padded>
+        <Stack gap={3}>
+          <p className="text-sm">
+            Publishing writes the new version and, together,{' '}
+            {[
+              plural(conversions, 'conversion', 'conversions'),
+              ...(Object.entries(counts) as [ReviewAction, number][]).map(
+                ([a, n]) => `${ACTION[a].label.toLowerCase()} for ${plural(n, 'value', 'values')}`,
+              ),
+            ].join(', ')}
+            .
+            {view.alsoPublished === 0
+              ? ''
+              : ` ${plural(view.alsoPublished, 'other change', 'other changes')} in the draft ${view.alsoPublished === 1 ? 'is' : 'are'} published with it.`}
+          </p>
+          {refused === null ? null : (
+            <Alert tone="danger" title="Nothing was published">
+              {refused}
+            </Alert>
+          )}
+          {shown && missing.length > 0 ? (
+            <Alert tone="danger">
+              {plural(missing.length, 'value still needs', 'values still need')} typing in.
+            </Alert>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="primary"
+              loading={busy}
+              loadingLabel="Publishing the change"
+              onClick={() => {
+                void publish();
+              }}
+            >
+              Publish the change
+            </Button>
+            <Button variant="ghost" onClick={onBack}>
+              Not now
+            </Button>
+          </div>
+        </Stack>
+      </Card>
+    </Stack>
+  );
+}
+
+/** "Department and Job Family", "A, B and C". */
+const listed = (names: readonly string[]): string =>
+  names.length <= 1
+    ? (names[0] ?? '')
+    : `${names.slice(0, -1).join(', ')} and ${names.at(-1) ?? ''}`;
+
+/**
+ * One field's values: what converts, and each value that doesn't fit with
+ * what becomes of it, one at a time or many at once.
+ */
+function FieldValues({
+  review,
+  heading,
+  chosen,
+  typed,
+  shown,
+  onChoose,
+  onType,
+}: {
+  readonly review: FieldReview;
+  /** The field's own heading, for one reviewed below another; null for the page's own. */
+  readonly heading: string | null;
+  readonly chosen: Chosen;
+  readonly typed: Typed;
+  readonly shown: boolean;
+  readonly onChoose: (next: Chosen) => void;
+  readonly onType: (next: Typed) => void;
+}): JSX.Element {
+  const view = review;
+  const { field } = view;
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [bulk, setBulk] = useState<ReviewAction>(view.defaultAction);
+  /** "Type the right value" for many at once: one value, given to each of them. */
+  const [bulkValue, setBulkValue] = useState<AttributeValue>(null);
+  const actionOf = (personId: string): ReviewAction => chosen[personId] ?? view.defaultAction;
+  const inputField = (name: string) => ({
+    key: field.key,
+    label: `New ${field.label} for ${name}`,
+    description: null,
+    dataType: field.to,
+    options: field.options,
+    required: false,
+    readOnly: false,
+    ...(field.currency === null ? {} : { currency: field.currency }),
+  });
+  const applyBulk = (): void => {
+    const rows =
+      selected.size === 0 ? view.unfit : view.unfit.filter((u) => selected.has(u.personId));
+    onChoose(Object.fromEntries(rows.map((u) => [u.personId, bulk])));
+    if (bulk === 'edit' && !empty(bulkValue)) {
+      onType(Object.fromEntries(rows.map((u) => [u.personId, bulkValue])));
+    }
+  };
+  const id = `unfit-${field.key}`;
+  // A second field's controls name it: the same person can be in both lists.
+  const of = heading === null ? '' : ` (${field.label})`;
+
+  return (
+    <section
+      aria-labelledby={heading === null ? undefined : `${id}-field`}
+      className="flex flex-col gap-4"
+    >
+      {heading === null ? null : (
+        <h2 id={`${id}-field`} className="text-lg font-semibold">
+          {heading}
+        </h2>
       )}
       {view.hidden ? (
         <Alert tone="info" title="Values are masked">
@@ -236,7 +381,7 @@ function Review({
 
       <Card>
         <CardHeader>
-          <CardTitle level={2}>
+          <CardTitle level={heading === null ? 2 : 3}>
             {view.withValue === 0
               ? 'Nobody has a value yet'
               : `${plural(view.withValue, 'person has', 'people have')} a value`}
@@ -278,10 +423,10 @@ function Review({
         </CardContent>
       </Card>
 
-      <section aria-labelledby="unfit-heading" className="flex flex-col gap-4">
-        <h2 id="unfit-heading" className="text-md font-semibold">
-          Values that don’t fit
-        </h2>
+      <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
+        <h3 id={`${id}-heading`} className="text-md font-semibold">
+          {`Values that don’t fit${of}`}
+        </h3>
         {view.unfit.length === 0 ? (
           <EmptyState
             title="Every value fits"
@@ -293,8 +438,8 @@ function Review({
               <Field className="min-w-0 flex-1 basis-60">
                 <FieldLabel>
                   {selected.size === 0
-                    ? `For all ${String(view.unfit.length)}`
-                    : `For the ${String(selected.size)} selected`}
+                    ? `For all ${String(view.unfit.length)}${of}`
+                    : `For the ${String(selected.size)} selected${of}`}
                 </FieldLabel>
                 <Select
                   value={bulk}
@@ -316,9 +461,30 @@ function Review({
                   </SelectContent>
                 </Select>
               </Field>
-              <Button onClick={applyBulk}>Apply</Button>
+              {bulk === 'edit' ? (
+                <div className="min-w-0 flex-1 basis-60">
+                  <AttributeInput
+                    field={{
+                      ...inputField(''),
+                      label:
+                        selected.size === 0
+                          ? `${field.label} for all ${String(view.unfit.length)}`
+                          : `${field.label} for the ${String(selected.size)} selected`,
+                    }}
+                    value={bulkValue}
+                    onChange={setBulkValue}
+                  />
+                </div>
+              ) : null}
+              <Button
+                onClick={applyBulk}
+                disabled={bulk === 'edit' && empty(bulkValue)}
+                {...(of === '' ? {} : { 'aria-label': `Apply${of}` })}
+              >
+                Apply
+              </Button>
             </div>
-            <ul className="flex flex-col gap-3" aria-label="Values that don’t fit">
+            <ul className="flex flex-col gap-3" aria-label={`Values that don’t fit${of}`}>
               {view.unfit.map((u) => {
                 const action = actionOf(u.personId);
                 const problem =
@@ -331,7 +497,7 @@ function Review({
                       <div className="flex flex-col gap-3 @container">
                         <div className="flex items-start gap-3">
                           <Checkbox
-                            aria-label={`Select ${u.name}`}
+                            aria-label={`Select ${u.name}${of}`}
                             checked={selected.has(u.personId)}
                             onCheckedChange={(on) => {
                               setSelected((s) => {
@@ -353,11 +519,11 @@ function Review({
                         </div>
                         <div className="grid gap-3 @md:grid-cols-2">
                           <Field>
-                            <FieldLabel>What to do with {u.name}’s value</FieldLabel>
+                            <FieldLabel>{`What to do with ${u.name}’s value${of}`}</FieldLabel>
                             <Select
                               value={action}
                               onValueChange={(v) => {
-                                setChosen((c) => ({ ...c, [u.personId]: v as ReviewAction }));
+                                onChoose({ [u.personId]: v as ReviewAction });
                               }}
                             >
                               <FieldControl>
@@ -381,7 +547,7 @@ function Review({
                               value={typed[u.personId] ?? null}
                               problem={problem}
                               onChange={(value) => {
-                                setTyped((t) => ({ ...t, [u.personId]: value }));
+                                onType({ [u.personId]: value });
                               }}
                             />
                           ) : null}
@@ -395,50 +561,6 @@ function Review({
           </>
         )}
       </section>
-
-      <Card variant="fill" padded>
-        <Stack gap={3}>
-          <p className="text-sm">
-            Publishing writes the new version and, together,{' '}
-            {[
-              plural(view.converted.count, 'conversion', 'conversions'),
-              ...(Object.entries(counts) as [ReviewAction, number][]).map(
-                ([a, n]) => `${ACTION[a].label.toLowerCase()} for ${plural(n, 'person', 'people')}`,
-              ),
-            ].join(', ')}
-            .
-            {view.alsoPublished === 0
-              ? ''
-              : ` ${plural(view.alsoPublished, 'other change', 'other changes')} in the draft ${view.alsoPublished === 1 ? 'is' : 'are'} published with it.`}
-          </p>
-          {refused === null ? null : (
-            <Alert tone="danger" title="Nothing was published">
-              {refused}
-            </Alert>
-          )}
-          {shown && missing.length > 0 ? (
-            <Alert tone="danger">
-              {plural(missing.length, 'value still needs', 'values still need')} typing in.
-            </Alert>
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="primary"
-              loading={busy}
-              loadingLabel="Publishing the change"
-              disabled={view.blockedBy !== null}
-              onClick={() => {
-                void publish();
-              }}
-            >
-              Publish the change
-            </Button>
-            <Button variant="ghost" onClick={onBack}>
-              Not now
-            </Button>
-          </div>
-        </Stack>
-      </Card>
-    </Stack>
+    </section>
   );
 }

@@ -1032,8 +1032,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         const key = params['key'] ?? '';
         return {
           load: loadable,
-          onApply: async (decisions: readonly Readonly<Record<string, unknown>>[]) => {
-            const done = await actions.applyFieldChange(key, at('to'), decisions);
+          onApply: async (
+            decisions: readonly Readonly<Record<string, unknown>>[],
+            others: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>,
+          ) => {
+            const done = await actions.applyFieldChange(key, at('to'), decisions, others);
             if (done.ok) go('/settings/people/fields');
             return done;
           },

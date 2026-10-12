@@ -381,18 +381,21 @@ export const Advice = z.strictObject({
 });
 export const RequiredFrom = z.strictObject({ requiredFrom: z.iso.date() });
 /** What HR decided for each value that does not fit a field's new type. */
+const FieldDecisions = z
+  .array(
+    z.strictObject({
+      personId: z.uuid(),
+      action: z.enum(['edit', 'clear', 'request', 'hr', 'leave']),
+      // Of the new type; the write path validates it as it validates any value.
+      value: z.unknown().optional(),
+    }),
+  )
+  .max(20_000);
 export const FieldChangeBody = z.strictObject({
   to: z.string().max(40).nullable().default(null),
-  decisions: z
-    .array(
-      z.strictObject({
-        personId: z.uuid(),
-        action: z.enum(['edit', 'clear', 'request', 'hr', 'leave']),
-        // Of the new type; the write path validates it as it validates any value.
-        value: z.unknown().optional(),
-      }),
-    )
-    .max(20_000),
+  decisions: FieldDecisions,
+  /** Each other field changing type in the draft, by key, with its own decisions. */
+  others: z.record(z.string().max(64), FieldDecisions).optional(),
   requiredFrom: z.iso.date().optional(),
 });
 /**

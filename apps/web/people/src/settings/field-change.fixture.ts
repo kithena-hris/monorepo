@@ -40,5 +40,5 @@ export const START_DAY: FieldChangeView = {
   defaultAction: 'request',
   hidden: false,
   alsoPublished: 0,
-  blockedBy: null,
+  others: [],
 };

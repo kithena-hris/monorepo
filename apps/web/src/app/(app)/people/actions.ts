@@ -394,13 +394,19 @@ export async function previewPublish(requiredFrom: string): Promise<unknown> {
   return answer.data;
 }
 
-/** Publish a field's new type or format with HR's decision for each value that does not fit. */
+/**
+ * Publish a field's new type or format with HR's decision for each value that
+ * does not fit, and every other field changing type with its own, by key.
+ */
 export async function applyFieldChange(
   field: string,
   to: string | null,
   decisions: readonly Values[],
+  others: Readonly<Record<string, readonly Values[]>> = {},
 ): Promise<Outcome> {
-  return outcome(people('ApplyFieldChange', { field, input: JSON.stringify({ to, decisions }) }));
+  return outcome(
+    people('ApplyFieldChange', { field, input: JSON.stringify({ to, decisions, others }) }),
+  );
 }
 
 export async function publishDraft(requiredFrom: string): Promise<Outcome> {

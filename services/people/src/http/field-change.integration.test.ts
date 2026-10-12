@@ -57,6 +57,19 @@ const start = define({
   ownership: ['employee', 'hr'],
   visibility: ['self', 'hr'],
 });
+/** Two more text fields, both made lists in one draft by the second test. */
+const department = define({
+  key: 'department',
+  label: { default: 'Department' },
+  ownership: ['employee', 'hr'],
+  visibility: ['self', 'hr'],
+});
+const shift = define({
+  key: 'shift',
+  label: { default: 'Shift' },
+  ownership: ['employee', 'hr'],
+  visibility: ['self', 'hr'],
+});
 
 beforeAll(async () => {
   const pg = await startPostgres();
@@ -100,12 +113,12 @@ beforeAll(async () => {
   await seed(MARCO, 'Marco');
   await seed(GRACE, 'Grace');
   await seed(ALAN, 'Alan');
-  const version = versionOf(1, [start]);
+  const version = versionOf(1, [start, department, shift]);
   await inTenant(ACME, async ({ tx }) => {
     await drizzleSchemaRepository().appendVersion(tx, ACME, version, [], '2026-09-01');
     const draft = drizzleDraftWriter();
     for (const s of version.document.sections) await draft.saveSection(tx, ACME, s);
-    await draft.saveAttribute(tx, ACME, start);
+    for (const a of [start, department, shift]) await draft.saveAttribute(tx, ACME, a);
   });
 
   process.env['PEOPLE_DATABASE_URL'] = asService.toString();
@@ -283,5 +296,77 @@ describe('changing a text field to a date', () => {
       'SELECT count(*) AS n FROM people.schema_version',
     );
     expect(Number(versions[0]?.n)).toBe(2);
+  });
+});
+
+describe('two fields changing type in one draft', () => {
+  const field = (key: string, label: string, dataType: string, options: string[] = []) => ({
+    ...asDate,
+    key,
+    label,
+    dataType,
+    options,
+  });
+
+  it('reviews both on one page and publishes them together, each with its own choices', async () => {
+    for (const [id, team, hours] of [
+      [ADA, 'Sales', 'Day'],
+      [MARCO, 'Sales', 'Nights, mostly'],
+      [GRACE, 'Opertions', 'Day'],
+    ] as const) {
+      const wrote = await call('PATCH', `/v1/people/${id}`, {
+        attributes: { department: team, shift: hours },
+      });
+      expect(wrote.status).toBe(200);
+    }
+
+    // Both become lists in the same draft.
+    for (const [f, editing] of [
+      [field('department', 'Department', 'select', ['Sales', 'Operations']), 'department'],
+      [field('shift', 'Shift', 'select', ['Day', 'Night', 'N/A']), 'shift'],
+    ] as const) {
+      expect(
+        (await call('POST', '/v1/schema/draft/attributes', { input: f, editing })).status,
+      ).toBe(200);
+    }
+
+    const review = await call('GET', '/v1/views/registry/fields/department/change?to=select');
+    expect(review.status).toBe(200);
+    expect(review.body).toMatchObject({
+      field: { key: 'department' },
+      converted: { count: 2 },
+      unfit: [{ name: 'Grace Test', before: 'Opertions' }],
+      others: [
+        { field: { key: 'shift' }, converted: { count: 2 }, unfit: [{ name: 'Marco Test' }] },
+      ],
+    });
+    expect(review.body['blockedBy']).toBeUndefined();
+
+    const shiftOptions = (
+      review.body['others'] as { field: { options: { value: string; label: string }[] } }[]
+    )[0]?.field.options;
+    const na = shiftOptions?.find((o) => o.label === 'N/A')?.value;
+    const operations = (
+      review.body['field'] as { options: { value: string; label: string }[] }
+    ).options.find((o) => o.label === 'Operations')?.value;
+    const applied = await call('POST', '/v1/schema/draft/attributes/department/change', {
+      to: 'select',
+      decisions: [{ personId: GRACE, action: 'edit', value: operations }],
+      others: { shift: [{ personId: MARCO, action: 'edit', value: na }] },
+    });
+    expect(applied.status).toBe(201);
+    expect(applied.body).toMatchObject({ converted: 4, edited: 2 });
+
+    const read = async (id: string) =>
+      (await call('GET', `/v1/people/${id}`)).body['attributes'] as Record<string, unknown>;
+    expect(await read(GRACE)).toMatchObject({ department: operations });
+    expect(await read(MARCO)).toMatchObject({ shift: na });
+    const types = (await call('GET', '/v1/schema')).body['attributes'] as {
+      key: string;
+      dataType: string;
+    }[];
+    expect(
+      types.filter((a) => ['department', 'shift'].includes(a.key)).map((a) => a.dataType),
+    ).toEqual(['select', 'select']);
   });
 });
