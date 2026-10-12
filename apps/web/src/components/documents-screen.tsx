@@ -113,6 +113,13 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
                 onReadRecord: actions.recordFromDocument,
                 onApplyRecord: (personId: string, changed: Readonly<Record<string, string>>) =>
                   peopleActions.savePersonSection(personId, '', changed),
+                onReadLetter: actions.letterOutcome,
+                onGiveNotice: (personId: string, lastWorkingDay: string) =>
+                  peopleActions.moveLifecycle(personId, {
+                    kind: 'giveNotice',
+                    lastWorkingDay,
+                    reason: 'resigned',
+                  }),
               }
             : {}),
         };

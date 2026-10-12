@@ -656,3 +656,37 @@ export async function fileSplit(
 ): Promise<Outcome> {
   return outcome(await documents('FileDocumentSplit', { input: { upload, parts } }));
 }
+
+/* --------------------------------------- a letter that changes a record (J7) -- */
+
+/**
+ * J7: what a letter about somebody says that People would act on: the last
+ * working day, with its page. Nothing is written here.
+ */
+export async function letterOutcome(documentId: string): Promise<
+  Read<{
+    readonly personId: string;
+    readonly name: string;
+    readonly lastWorkingDay: { readonly value: string; readonly page: number } | null;
+  }>
+> {
+  const doc = await documents<{
+    document: { row: { subject: { personId: string; name: string } | null } } | null;
+  }>('DocumentsDocument', { documentId });
+  if (!doc.ok) return doc;
+  const subject = doc.data.document?.row.subject ?? null;
+  if (subject === null) return { ok: false, message: 'This letter is about nobody' };
+  const read = await documents<{
+    fields: readonly { name: string; value: string; page: number }[];
+  }>('ReadDocumentFields', { documentId, input: { names: ['Last working day'] } });
+  if (!read.ok) return read;
+  const day = read.data.fields.find((f) => /^\d{4}-\d{2}-\d{2}$/u.test(f.value));
+  return {
+    ok: true,
+    data: {
+      personId: subject.personId,
+      name: subject.name,
+      lastWorkingDay: day === undefined ? null : { value: day.value, page: day.page },
+    },
+  };
+}

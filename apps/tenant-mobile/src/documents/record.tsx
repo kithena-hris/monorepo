@@ -201,3 +201,97 @@ export function FillRecord({
     </Dialog>
   );
 }
+
+/**
+ * A letter that changes a record on the phone (Documents MJ6, J7): the
+ * resignation's last working day, read with its page, becomes the person's
+ * notice once HR saves it.
+ */
+export function ActOnLetter({
+  documentId,
+  personId,
+  name,
+  onClose,
+}: {
+  readonly documentId: string;
+  readonly personId: string;
+  readonly name: string;
+  readonly onClose: () => void;
+}): React.JSX.Element {
+  const signed = useSigned();
+  const [day, setDay] = useState<{ value: string; page: number } | null | string | undefined>();
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void askDocuments<{ fields: readonly { name: string; value: string; page: number }[] }>(
+      signed,
+      'ReadDocumentFields',
+      { documentId, input: { names: ['Last working day'] } },
+    ).then((r) => {
+      if (!live) return;
+      if (!r.ok) setDay(r.message);
+      else setDay(r.data.fields.find((f) => /^\d{4}-\d{2}-\d{2}$/u.test(f.value)) ?? null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [signed, documentId]);
+  const save = async (value: string): Promise<void> => {
+    setSaving(true);
+    const answer = await ask(signed, 'GiveNotice', {
+      personId,
+      lastWorkingDay: value,
+      reason: 'resigned',
+    });
+    setSaving(false);
+    setDone(answer.ok ? 'Their notice is in their record.' : answer.message);
+  };
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{`What this letter changes for ${name}`}</DialogTitle>
+          <DialogDescription>Nothing changes until you save.</DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          {day === undefined ? (
+            <Spinner label="Kithena is reading the letter" />
+          ) : typeof day === 'string' ? (
+            <Alert tone="danger">{day}</Alert>
+          ) : day === null ? (
+            <Text tone="muted">The letter states no last working day.</Text>
+          ) : (
+            <>
+              <Text>{`Give notice: last working day ${day.value} (p. ${String(day.page)}).`}</Text>
+              <Text variant="footnote" tone="muted">
+                Their leave balance is settled on that day, as it is for anybody leaving.
+              </Text>
+            </>
+          )}
+          {done === null ? null : <Text>{done}</Text>}
+        </DialogBody>
+        <DialogFooter>
+          <Button className="flex-1" onPress={onClose}>
+            {done === null ? 'Cancel' : 'Close'}
+          </Button>
+          {done === null && day !== null && typeof day === 'object' ? (
+            <Button
+              className="flex-1"
+              variant="primary"
+              loading={saving}
+              onPress={() => void save(day.value)}
+            >
+              Save
+            </Button>
+          ) : null}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

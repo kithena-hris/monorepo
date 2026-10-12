@@ -54,7 +54,7 @@ import {
   type Row,
 } from './api';
 import { Reading } from './reading';
-import { FillRecord } from './record';
+import { ActOnLetter, FillRecord } from './record';
 
 /**
  * A document on the phone (MR1, MR4, MA1, MA2): who can see it, open it in
@@ -123,6 +123,7 @@ export function DocumentDetail({
   const [sharing, setSharing] = useState(false);
   const [sending, setSending] = useState(false);
   const [filling, setFilling] = useState(false);
+  const [acting, setActing] = useState(false);
   const back = { label: 'Documents', onPress: navigation.goBack };
   const act = async (name: string, variables: Record<string, unknown>): Promise<boolean> => {
     setBusy(name);
@@ -276,6 +277,26 @@ export function DocumentDetail({
         >
           Fill the record from it
         </Button>
+      ) : null}
+      {doc.may.share && row.kind === 'Letter' && row.deletedAt === null && row.subject !== null ? (
+        <Button
+          onPress={() => {
+            setActing(true);
+          }}
+        >
+          Act on this letter
+        </Button>
+      ) : null}
+      {acting && row.subject !== null ? (
+        <ActOnLetter
+          documentId={id}
+          personId={row.subject.personId}
+          name={row.subject.name}
+          onClose={() => {
+            setActing(false);
+            reload();
+          }}
+        />
       ) : null}
       {filling && row.subject !== null ? (
         <FillRecord

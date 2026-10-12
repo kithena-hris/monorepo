@@ -210,7 +210,11 @@ small group, and goes to `main` as **one pull request**.
       person's sick notes and files in Documents first, or files a new one as
       their sick note and attaches its id. Left: J4/MJ4 (one certificate
       unlocking leave, a People detail and a contact) and MH4.
-- [ ] **DOC-064** A letter that changes a record J7, MJ6.
+- [x] **DOC-064** A letter that changes a record J7, MJ6. As built: on a letter
+      about somebody, whoever may share it can act on it (web and phone):
+      Kithena reads its last working day with its page, and once HR saves,
+      People's own give-notice move records it; offboarding and the leave
+      balance follow from People's record as for anybody leaving.
 
 ## Blocked / left for a person
 
