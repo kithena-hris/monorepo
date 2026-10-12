@@ -37,6 +37,8 @@ const config = {
     '/time-off/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
     '/settings/people/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
     '/settings/time-off/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
+    '/documents/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
+    '/settings/documents/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
   },
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],

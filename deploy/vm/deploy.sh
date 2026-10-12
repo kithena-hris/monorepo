@@ -7,6 +7,7 @@
 #   deploy.sh <staging|production> slack <image>
 #   deploy.sh <staging|production> audit <image>
 #   deploy.sh <staging|production> timeoff <image>
+#   deploy.sh <staging|production> documents <image>
 #   deploy.sh <staging|production> assistant <image>
 #
 # `migrate` runs first, as the Neon step does for identity: it makes sure
@@ -26,13 +27,13 @@
 # back never depends on the registry still having the tag.
 set -euo pipefail
 
-usage='usage: deploy.sh <staging|production> <migrate | people <image> | router <image> | slack <image> | audit <image> | timeoff <image> | assistant <image>>'
+usage='usage: deploy.sh <staging|production> <migrate | people <image> | router <image> | slack <image> | audit <image> | timeoff <image> | documents <image> | assistant <image>>'
 env="${1:?$usage}"
 service="${2:?$usage}"
 case "$env" in staging | production) ;; *) echo "unknown environment: $env" >&2; exit 2 ;; esac
 case "$service" in
   migrate) image= ;;
-  people | router | slack | audit | timeoff | assistant) image="${3:?$usage}" ;;
+  people | router | slack | audit | timeoff | documents | assistant) image="${3:?$usage}" ;;
   *) echo "unknown service: $service" >&2; exit 2 ;;
 esac
 
@@ -43,7 +44,7 @@ umask 077
 mkdir -p "$dir"
 chmod 700 "$root" "$dir"
 cp "$here/compose.yaml" "$here/compose.staging.yaml" "$here/debezium.env" "$dir/"
-touch "$dir/state.env" "$dir/people.env" "$dir/router.env" "$dir/slack.env" "$dir/audit.env" "$dir/timeoff.env" "$dir/assistant.env" "$dir/secrets.env" "$dir/relay.env"
+touch "$dir/state.env" "$dir/people.env" "$dir/router.env" "$dir/slack.env" "$dir/audit.env" "$dir/timeoff.env" "$dir/documents.env" "$dir/assistant.env" "$dir/secrets.env" "$dir/relay.env"
 chmod 600 "$dir"/*
 
 get() { sed -n "s/^$1=//p" "$dir/state.env" | tail -n 1; }
@@ -53,7 +54,7 @@ put() {
   mv "$dir/state.env.new" "$dir/state.env"
 }
 
-for secret in VM_POSTGRES_PASSWORD MIGRATOR_PASSWORD PEOPLE_DB_PASSWORD SLACK_DB_PASSWORD AUDIT_DB_PASSWORD TIMEOFF_DB_PASSWORD DEBEZIUM_DB_PASSWORD; do
+for secret in VM_POSTGRES_PASSWORD MIGRATOR_PASSWORD PEOPLE_DB_PASSWORD SLACK_DB_PASSWORD AUDIT_DB_PASSWORD TIMEOFF_DB_PASSWORD DOCUMENTS_DB_PASSWORD DEBEZIUM_DB_PASSWORD; do
   [ -n "$(get "$secret")" ] || put "$secret" "$(openssl rand -hex 24)"
 done
 # The copy of `migrations/` and `atlas.hcl` the workflow put beside this file.
@@ -83,6 +84,7 @@ retry() {
 [ -n "$(get SLACK_IMAGE)" ] || export SLACK_IMAGE=not-deployed-yet
 [ -n "$(get AUDIT_IMAGE)" ] || export AUDIT_IMAGE=not-deployed-yet
 [ -n "$(get TIMEOFF_IMAGE)" ] || export TIMEOFF_IMAGE=not-deployed-yet
+[ -n "$(get DOCUMENTS_IMAGE)" ] || export DOCUMENTS_IMAGE=not-deployed-yet
 [ -n "$(get ASSISTANT_IMAGE)" ] || export ASSISTANT_IMAGE=not-deployed-yet
 
 # Postgres 17 to 18, once, before anything here starts Postgres. 18 cannot
@@ -201,13 +203,16 @@ BEGIN
   -- Every service role a migration grants to, before the migration that would
   -- create it has run: the same list, for the same reason, as the production
   -- workflow's "atlas dev roles" and \`tools/scripts/init-db.sql\`. NOLOGIN;
-  -- only \`svc_people\`, \`svc_slack\`, \`svc_audit\` and \`svc_timeoff\` get a
+  -- only \`svc_people\`, \`svc_slack\`, \`svc_audit\`, \`svc_timeoff\` and \`svc_documents\` get a
   -- login, below: only theirs run here.
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_people') THEN
     CREATE ROLE svc_people NOLOGIN NOBYPASSRLS;
   END IF;
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_timeoff') THEN
     CREATE ROLE svc_timeoff NOLOGIN NOBYPASSRLS;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_documents') THEN
+    CREATE ROLE svc_documents NOLOGIN NOBYPASSRLS;
   END IF;
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_identity') THEN
     CREATE ROLE svc_identity NOLOGIN NOBYPASSRLS;
@@ -233,6 +238,7 @@ ALTER ROLE svc_people LOGIN PASSWORD '$(get PEOPLE_DB_PASSWORD)';
 ALTER ROLE svc_slack LOGIN PASSWORD '$(get SLACK_DB_PASSWORD)';
 ALTER ROLE svc_audit LOGIN PASSWORD '$(get AUDIT_DB_PASSWORD)';
 ALTER ROLE svc_timeoff LOGIN PASSWORD '$(get TIMEOFF_DB_PASSWORD)';
+ALTER ROLE svc_documents LOGIN PASSWORD '$(get DOCUMENTS_DB_PASSWORD)';
 -- The outbox relay's role, made NOLOGIN by its migration. REPLICATION only a
 -- superuser may give, which is why it is here and not in the migration.
 ALTER ROLE svc_debezium LOGIN REPLICATION PASSWORD '$(get DEBEZIUM_DB_PASSWORD)';
@@ -333,6 +339,26 @@ elif [ "$service" = timeoff ]; then
     echo "::error::Time Off cannot reach its database as svc_timeoff" >&2
     exit 1
   }
+elif [ "$service" = documents ]; then
+  compose up --detach --wait --wait-timeout 300 documents
+  retry ask http://documents:4003/healthz || {
+    echo "::error::Documents never answered /healthz" >&2
+    compose logs --tail 80 documents >&2
+    exit 1
+  }
+  # The router's token, which an empty value turns into "refuse everybody":
+  # the one setting whose absence nothing else here would notice.
+  compose exec -T documents node -e "process.exit(process.env.DOCUMENTS_API_TOKEN ? 0 : 1)" || {
+    echo "::error::documents.env has no DOCUMENTS_API_TOKEN; Documents would refuse every request" >&2
+    exit 1
+  }
+  # And its database answers, as \`svc_documents\`: \`/healthz\` does not need one.
+  compose exec -T documents node --input-type=module -e \
+    "import postgres from 'postgres'; const sql = postgres(process.env.DOCUMENTS_DATABASE_URL, { max: 1 });
+     await sql\`SELECT 1 FROM documents.member LIMIT 1\`; await sql.end();" || {
+    echo "::error::Documents cannot reach its database as svc_documents" >&2
+    exit 1
+  }
 else
   compose up --detach --wait --wait-timeout 120 router
   retry ask http://router:4000/health/ready || {
@@ -349,6 +375,6 @@ echo "$env $service: $image"
 # Every kithena image no environment is on or would roll back to.
 keep="$(cat "$root"/*/state.env | sed -nE 's/^[A-Z]+_(IMAGE|PREVIOUS)=//p' | sort -u)"
 docker images --format '{{.Repository}}:{{.Tag}}' \
-  | grep -E '/kithena-(people|router|slack|audit|timeoff|assistant):' \
+  | grep -E '/kithena-(people|router|slack|audit|timeoff|documents|assistant):' \
   | grep -vxF -f <(printf '%s\n' "$keep") \
   | xargs -r docker rmi >/dev/null || true

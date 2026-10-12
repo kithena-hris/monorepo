@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetDocumentConfidential($documentId: String!, $input: JSON!, $key: String!) {\n    setDocumentConfidential(documentId: $documentId, input: $input, idempotencyKey: $key) { id }\n  }"}

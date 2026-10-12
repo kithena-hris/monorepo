@@ -1,0 +1,179 @@
+'use client';
+
+import { usePathname, useRouter } from 'next/navigation';
+import { useTransition, type JSX } from 'react';
+
+import * as actions from '../app/(app)/documents/actions';
+import * as peopleActions from '../app/(app)/people/actions';
+import type { ScreenLoad } from '../lib/people-screens';
+import { AREAS } from '../lib/remotes';
+import type { areaFrame } from '../lib/shell-data';
+import { withQuery } from '../lib/url-state';
+import { useShellData } from './app-shell';
+import { RemoteScreen, type RemoteRoute } from './remote-screen';
+
+/**
+ * A Documents screen's props (DOC-030), as `timeoff-screen.tsx` is Time
+ * Off's: the server's answer as it arrived, and every callback a server
+ * action or a navigation. The one place the shell knows each screen's props.
+ */
+export interface DocumentsScreenProps {
+  readonly route: RemoteRoute | null;
+  readonly load: ScreenLoad | { readonly status: 'loading' };
+  readonly frame: ReturnType<typeof areaFrame>;
+}
+
+export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): JSX.Element {
+  const router = useRouter();
+  const pathname = usePathname();
+  // People is here: a document can fill the record of the person it is about.
+  const people = useShellData().sections.length > 0;
+  const [, startTransition] = useTransition();
+  const loadable =
+    load.status === 'ready'
+      ? { status: 'ready' as const, data: load.data }
+      : load.status === 'error'
+        ? {
+            status: 'error' as const,
+            message: load.message,
+            ...(load.code === 'FORBIDDEN' ||
+            load.code === 'NOT_ENTITLED' ||
+            load.code === 'NOT_FOUND'
+              ? { refused: true as const }
+              : {
+                  retry: () => {
+                    startTransition(() => {
+                      router.refresh();
+                    });
+                  },
+                }),
+          }
+        : { status: 'loading' as const };
+  const go = (to: string): void => {
+    startTransition(() => {
+      router.push(to, { scroll: false });
+    });
+  };
+  /** A filter changed: the address holds it, and the server reads it again. */
+  const filter = (patch: Readonly<Record<string, string | null>>): void => {
+    go(withQuery(window.location.pathname, window.location.search, patch));
+  };
+  const files = {
+    onStartUpload: actions.startUpload,
+    onFileLink: actions.fileLink,
+  };
+
+  const props = ((): Record<string, unknown> => {
+    switch (route?.component) {
+      case 'Library':
+        return {
+          load: loadable,
+          onFilter: filter,
+          onNavigate: go,
+          ...files,
+          onUpload: actions.uploadDocument,
+          onShare: actions.shareDocument,
+          onAskAfterUpload: actions.setAskAfterUpload,
+          onCreateSection: actions.createSection,
+          onChangeSection: actions.changeSection,
+          onDecideAccess: actions.decideAccess,
+          onAsk: actions.askForDocument,
+          onRemind: actions.remindRequest,
+          onRestore: actions.restoreDocument,
+          onConfirmDeletion: actions.confirmDeletion,
+          onAskAcross: actions.askDocuments,
+          onSuggest: actions.suggestFiling,
+        };
+      case 'DocumentView':
+        return {
+          load: loadable,
+          path: pathname,
+          onNavigate: go,
+          ...files,
+          onAddVersion: actions.addVersion,
+          onShare: actions.shareDocument,
+          onConfidential: actions.setConfidential,
+          onRename: actions.renameDocument,
+          onExpiry: actions.setExpiry,
+          onDelete: actions.deleteDocument,
+          onRestore: actions.restoreDocument,
+          onRequestAccess: actions.requestAccess,
+          onDecideAccess: actions.decideAccess,
+          onPlaceHold: actions.placeHold,
+          onAcknowledge: actions.acknowledgeDocument,
+          onSendForAcknowledgement: actions.sendForAcknowledgement,
+          onSummarize: actions.summarizeDocument,
+          onAskDocument: actions.askDocument,
+          onCompare: actions.compareVersions,
+          // With People: fill the person's record from the document (G5).
+          ...(people
+            ? {
+                onReadRecord: actions.recordFromDocument,
+                onApplyRecord: (personId: string, changed: Readonly<Record<string, string>>) =>
+                  peopleActions.savePersonSection(personId, '', changed),
+              }
+            : {}),
+        };
+      case 'Envelopes':
+        return { load: loadable, onNavigate: go };
+      case 'Envelope':
+        return {
+          load: loadable,
+          onNavigate: go,
+          onFileLink: actions.envelopeFileLink,
+          onSign: actions.signEnvelope,
+          onDecline: actions.declineEnvelope,
+          onAsk: actions.askEnvelopeSender,
+          onVoid: actions.voidEnvelope,
+          onRemind: actions.remindEnvelope,
+          onReassign: actions.reassignSigner,
+          onSeal: actions.sealEnvelope,
+        };
+      case 'SendForSignature':
+        return {
+          load: loadable,
+          onNavigate: go,
+          onFileLink: actions.fileLink,
+          onSend: actions.sendForSignature,
+        };
+      case 'Campaign':
+        return { load: loadable, onNavigate: go };
+      case 'PersonFile':
+        return {
+          load: loadable,
+          onNavigate: go,
+          ...files,
+          onUpload: actions.uploadDocument,
+          onAsk: actions.askForDocument,
+          onRemind: actions.remindRequest,
+          onCancel: actions.cancelRequest,
+        };
+      case 'DocumentTypes':
+        return { load: loadable, onSave: actions.saveType, onDescribe: actions.describeType };
+      case 'AiSettings':
+        return { load: loadable, onSave: actions.setAiSettings };
+      case 'AccessSettings':
+        return { load: loadable, onSave: actions.setAccessSettings };
+      case 'RetentionSettings':
+        return { load: loadable, onLift: actions.liftHold };
+      default:
+        return {};
+    }
+  })();
+
+  return (
+    <RemoteScreen
+      name={AREAS.documents.name}
+      area={AREAS.documents.label}
+      route={route}
+      props={{
+        ...props,
+        frame:
+          load.status === 'ready' && load.notice !== undefined
+            ? { ...frame, notice: load.notice }
+            : frame,
+      }}
+      fallback={null}
+    />
+  );
+}

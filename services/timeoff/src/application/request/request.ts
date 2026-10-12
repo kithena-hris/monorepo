@@ -362,6 +362,29 @@ export const cancelRequest =
     return ok({ status: done.value.status });
   };
 
+/**
+ * A note brought after the request (Documents J3, J5), by its member or HR:
+ * the id of the file whoever keeps it gave it. Time Off holds the id and
+ * says only that a note arrived.
+ */
+export const attachNote =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'newId'>) =>
+  (
+    caller: Caller,
+    input: { readonly requestId: LeaveRequestId; readonly fileId: string },
+  ): Promise<Result<{ notePresent: true }>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      const found = await own(tx, deps, caller, input.requestId);
+      if (!found.ok) return found;
+      const { record, member } = found.value;
+      const ctx = contextFor(deps, userActor(caller), caller.correlationId, member.timeZone);
+      const attached = record.request.attachNote(input.fileId, ctx);
+      if (!attached.ok) return attached;
+      const saved = await persist(tx, record, []);
+      if (!saved.ok) return saved;
+      return ok({ notePresent: true as const });
+    });
+
 /** How long a request waits before the person who asked may nudge (Inbox E1, E3). */
 export const NUDGE_AFTER_MS = 48 * 3_600_000;
 

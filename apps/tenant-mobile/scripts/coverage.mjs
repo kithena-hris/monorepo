@@ -5,7 +5,8 @@
  *   pnpm --filter @kithena/tenant-mobile coverage --strict  exit 1 on a gap
  *
  * "Everything the web does" is not a feeling: it is this list. An operation
- * in `apps/web/src/lib/people-operations.ts` or `timeoff-operations.ts` is
+ * in `apps/web/src/lib/people-operations.ts`, `timeoff-operations.ts` or
+ * `documents-operations.ts` is
  * covered when the app asks for it by name (`ask(…, 'Name')`, `useRead('Name')`),
  * or a phone route on the company host runs it for the app (`/api/mobile/*`),
  * or when `desktop-only.json` names it with the design note that keeps it off
@@ -46,6 +47,7 @@ let gaps = 0;
 for (const [module, file] of [
   ['People', 'people-operations.ts'],
   ['Time Off', 'timeoff-operations.ts'],
+  ['Documents', 'documents-operations.ts'],
 ]) {
   const all = operations(file);
   const missing = all.filter((op) => !used.has(op) && !(op in desktopOnly));

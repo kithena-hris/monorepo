@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation LiftLegalHold($holdId: String!, $key: String!) {\n    liftLegalHold(holdId: $holdId, idempotencyKey: $key) { id }\n  }"}

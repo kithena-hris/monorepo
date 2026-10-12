@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { RemoteScreen } from './remote-screen';
+import { DocumentsScreen } from './documents-screen';
 import { TimeOffScreen } from './timeoff-screen';
 import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -11,6 +12,7 @@ import { areaOf, firstUnder, type Area } from '../lib/remotes';
 import { currentPerson } from '../lib/session';
 import { remotePlaces, warmArea } from '../lib/shell';
 import { areaFrame } from '../lib/shell-data';
+import { loadScreen as loadDocumentsScreen } from '../lib/documents-screens';
 import { loadScreen as loadTimeOffScreen } from '../lib/timeoff-screens';
 
 /**
@@ -24,11 +26,12 @@ const SCREENS: Partial<
     Area['name'],
     {
       readonly load: (component: string, query: ScreenQuery, path: string) => Promise<ScreenLoad>;
-      readonly Screen: typeof TimeOffScreen;
+      readonly Screen: typeof TimeOffScreen | typeof DocumentsScreen;
     }
   >
 > = {
   timeoff: { load: loadTimeOffScreen, Screen: TimeOffScreen },
+  documents: { load: loadDocumentsScreen, Screen: DocumentsScreen },
 };
 
 /**

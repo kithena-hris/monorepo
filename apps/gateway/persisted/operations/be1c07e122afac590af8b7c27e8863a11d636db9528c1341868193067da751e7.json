@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ReassignEnvelopeSigner($envelopeId: String!, $input: JSON!, $key: String!) {\n    reassignEnvelopeSigner(envelopeId: $envelopeId, input: $input, idempotencyKey: $key) { id }\n  }"}

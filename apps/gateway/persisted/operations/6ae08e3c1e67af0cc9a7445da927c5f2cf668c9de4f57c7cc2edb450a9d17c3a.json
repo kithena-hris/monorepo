@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DescribeDocumentType($input: JSON!, $key: String!) {\n    describeDocumentType(input: $input, idempotencyKey: $key) { available question type { key name kind filedTo audience confidential medical signers acknowledge requiredFor requiredBy expiryReminders retention aiReads aiEnabled } }\n  }"}

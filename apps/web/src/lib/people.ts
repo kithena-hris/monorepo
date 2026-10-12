@@ -10,6 +10,10 @@ import {
   OPERATIONS as TIMEOFF_OPERATIONS,
   type OperationName as TimeOffOperationName,
 } from './timeoff-operations';
+import {
+  OPERATIONS as DOCUMENTS_OPERATIONS,
+  type OperationName as DocumentsOperationName,
+} from './documents-operations';
 import { currentPerson } from './session';
 import { SESSION_COOKIE } from './session-cookie';
 import { timed } from './timing';
@@ -95,6 +99,17 @@ const MARGIN_MS = 30_000;
 
 const keyOf = (sessionId: string, tenantId: string): string =>
   createHash('sha256').update(`${tenantId}\n${sessionId}`).digest('hex');
+
+/** Writes, by transport, that change nothing on any page. */
+const UNCHANGING = new Set([
+  'CompleteFileUpload',
+  'StartDocumentsUpload',
+  'AskDocument',
+  'AskDocuments',
+  'SuggestDocumentFiling',
+  'DescribeDocumentType',
+  'ReadDocumentFields',
+]);
 
 async function mint(key: string, sessionId: string, tenantId: string): Promise<string | null> {
   const held = minted.get(key);
@@ -188,9 +203,10 @@ interface Area {
   readonly service: string;
   readonly operations: Readonly<Record<string, string>>;
 }
-const AREAS: Readonly<Record<'people' | 'timeoff', Area>> = {
+const AREAS: Readonly<Record<'people' | 'timeoff' | 'documents', Area>> = {
   people: { service: 'People', operations: OPERATIONS },
   timeoff: { service: 'Time Off', operations: TIMEOFF_OPERATIONS },
+  documents: { service: 'Documents', operations: DOCUMENTS_OPERATIONS },
 };
 
 /**
@@ -256,6 +272,14 @@ export async function timeOff<T>(
   variables: Record<string, unknown> = {},
 ): Promise<PeopleAnswer<T>> {
   return ask<T>('timeoff', name, variables);
+}
+
+/** One of Documents' operations (`documents-operations.ts`), as `people` runs People's. */
+export async function documents<T>(
+  name: DocumentsOperationName,
+  variables: Record<string, unknown> = {},
+): Promise<PeopleAnswer<T>> {
+  return ask<T>('documents', name, variables);
 }
 
 /**
@@ -427,7 +451,8 @@ async function call(
           : {}),
       };
     }
-    if (keyed && name !== 'CompleteFileUpload') changed();
+    // Asking where to put a file, or asking Kithena a question, changes nothing anybody sees.
+    if (keyed && !UNCHANGING.has(name)) changed();
     // Every operation asks for one root field.
     return { ok: true, data: Object.values(answer.data)[0] };
   } catch (cause) {

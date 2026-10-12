@@ -7,6 +7,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- One schema per module. No module may read another's schema.
 CREATE SCHEMA IF NOT EXISTS people;
 CREATE SCHEMA IF NOT EXISTS timeoff;
+CREATE SCHEMA IF NOT EXISTS documents;
 CREATE SCHEMA IF NOT EXISTS platform;
 -- Messaging is a platform service too, and gets its own schema for the same
 -- reason a module does: `svc_messaging` can see this and nothing else, so a
@@ -33,6 +34,11 @@ BEGIN
   -- policy, and sick days are the last thing to leak across companies.
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_timeoff') THEN
     CREATE ROLE svc_timeoff LOGIN PASSWORD 'kithena' NOBYPASSRLS;
+  END IF;
+  -- NOBYPASSRLS: every Documents table carries a tenant policy, and a contract
+  -- or a payslip is the last thing to leak across companies.
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_documents') THEN
+    CREATE ROLE svc_documents LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
   -- The identity service is not a module and gets the platform schema instead.
   --
@@ -63,6 +69,7 @@ END $$;
 
 GRANT USAGE ON SCHEMA people   TO svc_people;
 GRANT USAGE ON SCHEMA timeoff  TO svc_timeoff;
+GRANT USAGE ON SCHEMA documents TO svc_documents;
 GRANT USAGE ON SCHEMA platform TO svc_identity;
 GRANT USAGE ON SCHEMA messaging TO svc_messaging;
 

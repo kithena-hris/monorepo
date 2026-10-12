@@ -93,6 +93,8 @@ export interface Config {
   readonly noticeToken?: string | undefined;
   /** Time Off's own secret for its notices (a nudge, TOF-098), apart from People's. */
   readonly timeOffNoticeToken?: string | undefined;
+  /** Documents' own secret for its notices (a signing code, DOC-043). */
+  readonly documentsNoticeToken?: string | undefined;
   readonly tenantAppBase?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
@@ -374,7 +376,11 @@ export function compose(config: Config): RequestHandler {
       ...(choices === undefined ? {} : { choices }),
       ...(digests === undefined ? {} : { digests }),
     }),
-    internalToken: [config.noticeToken ?? '', config.timeOffNoticeToken ?? ''],
+    internalToken: [
+      config.noticeToken ?? '',
+      config.timeOffNoticeToken ?? '',
+      config.documentsNoticeToken ?? '',
+    ],
   });
   const digest = digestRoutes({
     flush:

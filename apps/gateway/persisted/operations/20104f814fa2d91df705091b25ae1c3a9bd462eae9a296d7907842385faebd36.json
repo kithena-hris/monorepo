@@ -1,0 +1,1 @@
+{"version":1,"body":"query CompareDocumentVersions($documentId: String!, $from: Int!, $to: Int!) {\n    compareDocumentVersions(documentId: $documentId, from: $from, to: $to) { available added removed sentences }\n  }"}

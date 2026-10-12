@@ -291,6 +291,15 @@ export const AREAS = {
     env: 'TIMEOFF',
     dev: 'http://localhost:3003',
   },
+  documents: {
+    name: 'documents',
+    label: 'Documents',
+    home: '/documents',
+    settings: '/settings/documents',
+    entitlement: 'module.documents',
+    env: 'DOCUMENTS',
+    dev: 'http://localhost:3004',
+  },
 } as const;
 export type Area = (typeof AREAS)[keyof typeof AREAS];
 

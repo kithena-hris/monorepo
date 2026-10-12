@@ -5,6 +5,7 @@ import {
   LeaveCancelled,
   LeaveChanged,
   LeaveCounterProposed,
+  LeaveNoteAttached,
   LeaveRejected,
   LeaveRequested,
   type CalendarDate,
@@ -104,7 +105,7 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   readonly #leaveType: RequestLeaveType;
   readonly #belowZero: boolean;
   /** Special-category health data (§8.5). Read by the member's and HR's view only. */
-  readonly #sickNoteFileId: string | null;
+  #sickNoteFileId: string | null;
   #status: RequestStatus = 'pending';
   /** The bounds, half days and cost. */
   #span: Span;
@@ -281,6 +282,23 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
     this.#proposals = [];
     this.#raiseCancelled(this.#span.from, this.#span.workingDays, false, ctx);
     return ok(this.#release(this.#span.workingDays, ctx));
+  }
+
+  /**
+   * A note brought after the request (Documents J3, J5): the file is kept by
+   * whoever stores it, this holds its id. Not on a request that no longer
+   * stands; a second note replaces the first.
+   */
+  attachNote(fileId: string, ctx: EventContext): Result<void> {
+    if (['rejected', 'withdrawn', 'cancelled'].includes(this.#status)) {
+      return refuse(this.#status, 'given a note');
+    }
+    this.#sickNoteFileId = fileId;
+    this.#raise(ctx, LeaveNoteAttached, this.#span.from, {
+      requestId: this.id,
+      personId: this.#personId,
+    });
+    return ok(undefined);
   }
 
   /** Other dates instead of a decline (§9.5). The asked-for dates stay booked meanwhile. */

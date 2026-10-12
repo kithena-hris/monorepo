@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetDocumentsAiSettings($input: JSON!, $key: String!) {\n    setDocumentsAiSettings(input: $input, idempotencyKey: $key) { ok }\n  }"}

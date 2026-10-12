@@ -1,0 +1,1 @@
+{"version":1,"body":"query DocumentsFile($documentId: String!, $version: Int, $mode: String, $device: String) {\n    documentsFile(documentId: $documentId, version: $version, mode: $mode, device: $device) {\n      fileName mediaType url base64 original\n    }\n  }"}

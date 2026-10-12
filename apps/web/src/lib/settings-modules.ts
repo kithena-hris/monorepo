@@ -54,6 +54,24 @@ export function settingsModules(
     });
   }
 
+  // Documents' settings, from its own manifest.
+  const docs = shell.remotes?.['documents']?.settings ?? [];
+  if (docs.length > 0) {
+    modules.push({
+      key: 'documents',
+      title: 'Documents',
+      description: 'Document types, who sees what, and how long it is kept.',
+      settings: docs.map((place) => ({
+        path: place.path,
+        label: place.label,
+        description: place.description,
+        icon: place.icon,
+        now: null,
+        attention: null,
+      })),
+    });
+  }
+
   // The company's activity log (`/settings/activity`): the shell's, across
   // modules, for whoever may read it — People administrators and HR.
   if (shell.roles.admin || shell.roles.hr) {

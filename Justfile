@@ -13,7 +13,8 @@ default:
 # the same pipe: Acme's Platform team in October 2026, each on an account
 # identity's seed invited, Ada as its HR, and its OpenFGA store, model and
 # tuples (`services/timeoff/src/seed/`). `turbo run dev` then starts Time Off
-# on 4002 and its remote on 3003 with `.env`'s TIMEOFF_* settings.
+# on 4002 and its remote on 3003 with `.env`'s TIMEOFF_* settings, and
+# Documents on 4003 and its remote on 3004 with its DOCUMENTS_* settings.
 dev:
     docker compose up -d --wait
     pnpm db:migrate
@@ -22,6 +23,7 @@ dev:
     pnpm turbo run build --filter='./packages/*' --output-logs=errors-only
     # The bucket first: the seed uploads its sample photos into it.
     pnpm --filter @kithena/people upload-bucket
+    pnpm --filter @kithena/documents bucket
     pnpm db:seed
     pnpm turbo run dev --parallel --env-mode=loose --concurrency=20
 
@@ -76,7 +78,7 @@ codegen:
 # fresh from its schema — no service has to be running. `pnpm --filter
 # @kithena/gateway compose` still introspects running subgraphs, for `just dev`.
 supergraph:
-    pnpm turbo run codegen --filter=@kithena/people --filter=@kithena/timeoff --filter=@kithena/assistant --output-logs=errors-only
+    pnpm turbo run codegen --filter=@kithena/people --filter=@kithena/timeoff --filter=@kithena/documents --filter=@kithena/assistant --output-logs=errors-only
     pnpm --filter @kithena/gateway check
 
 # Build or refresh the code knowledge graph in graphify-out/ (free, no model).

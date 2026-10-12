@@ -1249,6 +1249,48 @@ same Compose addresses People reads. Who is HR in Time Off is whoever the back
 office names as its administrator (`identity.tenant.administrator_named` for
 `module.timeoff`), so Time Off consumes identity's topic as well as People's.
 
+#### Documents' settings
+
+Documents (`services/documents`, DOC-028) deploys like Time Off: a container on
+the VM (`documents`, 4003, `svc_documents`), the router's subgraph, and its
+remote on Vercel. Every piece is skipped until its setting exists, so the
+module can merge first and switch on later. In this order:
+
+1. **The bucket.** An S3 bucket (`kithena-<account>-documents`) the instance
+   role may read and write. `DOCUMENTS_BUCKET=… DOCUMENTS_CORS_ORIGINS=https://*.app.kithena.com pnpm --filter @kithena/documents bucket`
+   sets its CORS (a presigned PUT and GET from the tenant app) and a one-day
+   lifecycle on `incoming/` and `outgoing/`. The sealed documents themselves
+   have no lifecycle rule: Documents deletes them.
+2. **Environment secrets** in `production`: `DOCUMENTS_API_TOKEN` (the
+   router–Documents pair, `openssl rand -hex 32`) and `DOCUMENTS_ENV`:
+
+   ```bash
+   DOCUMENTS_BUCKET=kithena-<account>-documents
+   DOCUMENTS_S3_REGION=us-east-1
+   # 32 bytes, base64: what every stored file is sealed with. Lose it and the
+   # files are unreadable; it is backed up with the other VM secrets.
+   DOCUMENTS_ENCRYPTION_KEY=<openssl rand -base64 32>
+   ```
+
+   Without `DOCUMENTS_API_TOKEN` the deploy says so and skips Documents; the
+   router is given a throwaway value it needs to start. Once it is set, run the
+   production workflow with `targets: documents` to deploy the container.
+
+3. **The remote**: a Vercel Hobby project for `apps/web/documents` with its
+   custom domain, the secret `DOCUMENTS_REMOTE_SSR_SIGNING_KEY`, and the
+   variables `VERCEL_PROJECT_ID_DOCUMENTS_REMOTE_PRODUCTION`,
+   `DOCUMENTS_REMOTE_URL_PRODUCTION` and `DOCUMENTS_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`,
+   as Time Off's three.
+4. **Outside signers**: the tunnel routes `/v1/documents/sign/*` on the API
+   host to `http://documents:4003`, the shell's Vercel project gets
+   `DOCUMENTS_PUBLIC_URL` (that host), and `MESSAGING_DOCUMENTS_TOKEN` goes into
+   both `DOCUMENTS_ENV` and messaging's settings so the link and its code are
+   emailed. Without it, colleagues still sign with their login.
+5. **Selling it**: `module.documents` in `KITHENA_ENTITLEMENTS_PRODUCTION`, or
+   switched on per company in the back office, which names its administrator.
+
+Documents is not on staging.
+
 #### The assistant's settings
 
 The assistant (`platform/assistant`, `docs/assistant-prd.md` §15) runs on the
@@ -1270,7 +1312,7 @@ available right now."), and the deploy warns rather than fails.
 | `ASSISTANT_PEOPLE_TOKEN`                     | `people.env`, `assistant.env`                       | The assistant → People's `/internal/capabilities*`, and nothing else of People's. Random, 32+ bytes.                                                                        |
 | `ASSISTANT_TIMEOFF_TOKEN`                    | `timeoff.env`, `assistant.env`                      | The assistant → Time Off's `/internal/capabilities*`, likewise.                                                                                                             |
 | `ASSISTANT_IDENTITY_TOKEN`                   | identity's Vercel deploy (`--env`), `assistant.env` | The assistant → identity's `POST /api/internal/tenants/<id>/assistant/asker`. Identity has no fallback for it.                                                              |
-| `ASSISTANT_API_TOKEN`                        | `router.env`, `assistant.env`                       | The router → the assistant's subgraph (`ask(question)`, the web's questions, AST-035) as `x-internal-token`. Random, 32+ bytes, unlike any other pair's.                   |
+| `ASSISTANT_API_TOKEN`                        | `router.env`, `assistant.env`                       | The router → the assistant's subgraph (`ask(question)`, the web's questions, AST-035) as `x-internal-token`. Random, 32+ bytes, unlike any other pair's.                    |
 | `ASSISTANT_API_KEY`                          | `people.env`, `assistant.env`                       | The model's key (Groq by default), the one People's own words already use. `ASSISTANT_BASE_URL` and `ASSISTANT_MODEL` default as People's.                                  |
 | `TENANT_APP_BASE_<ENV>`                      | `assistant.env` (`TENANT_APP_BASE`)                 | A repository variable, messaging's: where an answer's link goes, `https://{slug}.app.kithena.com`.                                                                          |
 | `IDENTITY_URL`                               | `assistant.env`, by the VM job                      | Identity's public address, `https://identity.kithena.com` (staging's `identity.staging`): identity is on Vercel, so it differs by environment and is not a Compose address. |

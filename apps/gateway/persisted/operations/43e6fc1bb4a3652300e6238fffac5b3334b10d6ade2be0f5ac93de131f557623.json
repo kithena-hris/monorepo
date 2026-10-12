@@ -1,0 +1,1 @@
+{"version":1,"body":"query DocumentsCampaign($campaignId: String!) {\n    documentsCampaign(campaignId: $campaignId) {\n      id documentId title version dueOn sentAt done of left { personId name teamName }\n    }\n  }"}

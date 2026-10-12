@@ -23,12 +23,13 @@ import {
   Text,
 } from '@reach/ui-native';
 import * as WebBrowser from 'expo-web-browser';
-import { Download, Sparkles } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Download, FolderOpen, Sparkles } from 'lucide-react-native';
+import { useContext, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { useAct } from '../act';
-import { useRead } from '../api';
+import { askDocuments, DocumentsOn, putFile } from '../../documents/api';
+import { useRead, useSigned } from '../api';
 
 interface Builder {
   readonly today: string;
@@ -53,11 +54,17 @@ export function ExportDialog({
   onClose,
   onDone,
   onFull,
+  onKept,
 }: {
   onClose: () => void;
   onDone: (exportId: string) => void;
   onFull: () => void;
+  /** Kept in Documents rather than downloaded (Documents MP2): the document filed. */
+  onKept?: (documentId: string, title: string) => void;
 }): React.JSX.Element {
+  const signed = useSigned();
+  const documents = useContext(DocumentsOn) && onKept !== undefined;
+  const [keeping, setKeeping] = useState<string | null>(null);
   const { load } = useRead<Builder>('ExportBuilder', {});
   const { act, busy } = useAct();
   const builder = load.status === 'ready' ? load.data : null;
@@ -74,11 +81,11 @@ export function ExportDialog({
   const leftOut = (builder?.sections ?? []).filter(
     (s) => SENSITIVE.test(s.label) && !chosen.includes(s.key),
   );
-  const download = async (): Promise<void> => {
+  const made = async (): Promise<{ id: string; links: { name: string; url: string }[] } | null> => {
     setTried(true);
-    if (builder === null || reason.trim() === '' || chosen.length === 0) return;
+    if (builder === null || reason.trim() === '' || chosen.length === 0) return null;
     const segmentId = who.startsWith('segment:') ? who.slice('segment:'.length) : null;
-    const made = await act<{ id: string; links: { url: string }[] }>('RequestExport', {
+    return act<{ id: string; links: { name: string; url: string }[] }>('RequestExport', {
       format: 'csv',
       fields: builder.sections
         .filter((s) => chosen.includes(s.key))
@@ -87,10 +94,41 @@ export function ExportDialog({
       ...(segmentId === null ? {} : { segmentId }),
       reason: reason.trim(),
     });
-    if (made === null) return;
-    const url = made.links[0]?.url;
+  };
+  /** People's file, put in Documents as an Export from People: HR only, gone in 90 days. */
+  const keep = async (): Promise<void> => {
+    setKeeping(null);
+    const exported = await made();
+    const link = exported?.links[0];
+    if (link === undefined) return;
+    const body = await fetch(link.url)
+      .then((r) => (r.ok ? r.blob() : null))
+      .catch(() => null);
+    if (body === null) {
+      setKeeping('The export could not be read.');
+      return;
+    }
+    const put = await putFile(signed, { name: link.name, mediaType: 'text/csv', body });
+    if (!put.ok) {
+      setKeeping(put.message);
+      return;
+    }
+    const title = link.name.replace(/\.[^.]+$/u, '');
+    const filed = await askDocuments<{ id: string }>(signed, 'UploadDocument', {
+      input: { title, typeKey: 'people_export', upload: put.data },
+    });
+    if (!filed.ok) {
+      setKeeping(filed.message);
+      return;
+    }
+    onKept?.(filed.data.id, title);
+  };
+  const download = async (): Promise<void> => {
+    const exported = await made();
+    if (exported === null) return;
+    const url = exported.links[0]?.url;
     if (url !== undefined) void WebBrowser.openBrowserAsync(url);
-    onDone(made.id);
+    onDone(exported.id);
   };
 
   return (
@@ -168,6 +206,16 @@ export function ExportDialog({
                   </Text>
                 </View>
               )}
+              {keeping === null ? null : <FieldError>{keeping}</FieldError>}
+              {documents ? (
+                <Button
+                  startIcon={<Icon icon={FolderOpen} />}
+                  loading={busy === 'RequestExport'}
+                  onPress={() => void keep()}
+                >
+                  Save to Documents
+                </Button>
+              ) : null}
               <Button variant="link" onPress={onFull}>
                 More options: a date, a format, sending
               </Button>

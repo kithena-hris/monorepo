@@ -10,6 +10,8 @@ import {
   Button,
   DataTable,
   FileUploader,
+  List,
+  ListItem,
   PageHeader,
   PageSection,
   PINNED_BAR,
@@ -121,6 +123,13 @@ export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
 
 type Mapping = Readonly<Record<number, string | null>>;
 
+/** A file kept elsewhere, as the host lists it. */
+export interface KeptFile {
+  readonly id: string;
+  readonly name: string;
+  readonly detail: string;
+}
+
 export interface ImportFlowProps {
   readonly load: Loadable<ImportStage>;
   /**
@@ -128,6 +137,16 @@ export interface ImportFlowProps {
    * reporting how much has gone, 0 to 100, as it goes; then check it.
    */
   readonly onUpload: (file: File, progress: (percent: number) => void) => Promise<Outcome>;
+  /**
+   * Files the host keeps elsewhere that can be imported without a download,
+   * worded by the host ("Already in Documents"); picking one is an upload.
+   * Absent: the file picker only.
+   */
+  readonly kept?: {
+    readonly label: string;
+    readonly load: () => Promise<readonly KeptFile[]>;
+    readonly onPick: (id: string) => Promise<Outcome>;
+  };
   /** Fields proposed for the columns that match none. Nothing is written. */
   readonly propose: (mapping: Mapping) => Promise<Answer<NewFieldsView>>;
   /** Everything the import will do, from these choices, over a dry run. Nothing is written. */
@@ -287,6 +306,62 @@ function Upload({ onUpload }: { readonly onUpload: ImportFlowProps['onUpload'] }
       }}
       onRetry={send}
     />
+  );
+}
+
+/** The host's own files, each imported in place: nobody downloads and re-uploads personal data. */
+function Kept({
+  kept,
+}: {
+  readonly kept: NonNullable<ImportFlowProps['kept']>;
+}): JSX.Element | null {
+  const [files, setFiles] = useState<readonly KeptFile[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void kept.load().then((list) => {
+      if (live) setFiles(list);
+    });
+    return () => {
+      live = false;
+    };
+  }, [kept]);
+  if (files === null || files.length === 0) return null;
+  return (
+    <PageSection title={kept.label}>
+      <Stack gap={3}>
+        <List>
+          {files.map((f) => (
+            <ListItem
+              key={f.id}
+              icon={<icons.spreadsheet aria-hidden />}
+              description={f.detail}
+              trailing={
+                <Button
+                  size="sm"
+                  loading={busy === f.id}
+                  disabled={busy !== null}
+                  onClick={() => {
+                    setBusy(f.id);
+                    setError(null);
+                    void kept.onPick(f.id).then((outcome) => {
+                      setBusy(null);
+                      if (!outcome.ok) setError(outcome.message);
+                    });
+                  }}
+                >
+                  Import
+                </Button>
+              }
+            >
+              {f.name}
+            </ListItem>
+          ))}
+        </List>
+        {error === null ? null : <Alert tone="danger">{error}</Alert>}
+      </Stack>
+    </PageSection>
   );
 }
 
@@ -680,7 +755,10 @@ function Steps({
               <ImportBusy id={busyId} run={running} />
             </div>
           ) : props.setup === undefined ? (
-            <Upload onUpload={props.onUpload} />
+            <>
+              <Upload onUpload={props.onUpload} />
+              {props.kept === undefined ? null : <Kept kept={props.kept} />}
+            </>
           ) : (
             <Alert tone="info" title="An administrator imports the first file">
               Nothing is set up yet. A People administrator imports the first file: approving its

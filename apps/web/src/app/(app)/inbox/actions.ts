@@ -2,7 +2,7 @@
 
 import { refresh } from 'next/cache';
 
-import { people, timeOff } from '../../../lib/people';
+import { documents, people, timeOff } from '../../../lib/people';
 import { changed, type InboxState, type Mute } from '../../../lib/inbox/model';
 import { changeState, inboxNow } from '../../../lib/inbox/server';
 import { answerInbox, type InboxReply } from '../../../lib/inbox/ask';
@@ -227,12 +227,53 @@ export async function sendDocument(input: {
   return done(await people('SendDocument', { ...input }));
 }
 
-/** A person's Documents (D2, F1); none for their own record but their own. */
+/**
+ * A person's Documents (D2, F1); none for their own record but their own.
+ * With the Document center, its file for the person joins them (Documents
+ * G6), each row's id marked so opening it goes to the center's viewer.
+ */
 export async function documentsOf(personId: string | null): Promise<readonly unknown[]> {
-  const a = await people<string>('PeopleDocuments', { personId });
-  if (!a.ok) return [];
-  const list = JSON.parse(a.data) as unknown;
-  return Array.isArray(list) ? (list as readonly unknown[]) : [];
+  const [sent, filed] = await Promise.all([
+    people<string>('PeopleDocuments', { personId }),
+    documentCenterOf(personId),
+  ]);
+  const list: unknown = sent.ok ? JSON.parse(sent.data) : [];
+  return [...(Array.isArray(list) ? (list as readonly unknown[]) : []), ...filed];
+}
+
+interface CenterRow {
+  readonly id: string;
+  readonly title: string;
+  readonly typeName: string | null;
+  readonly updatedAt: string;
+  readonly deletedAt: string | null;
+  readonly status: { readonly label: string } | null;
+}
+
+/** Documents' own answer, or nothing: a company without it, or a viewer it refuses. */
+async function documentCenterOf(personId: string | null): Promise<readonly unknown[]> {
+  let id = personId;
+  if (id === null) {
+    const library = await documents<{ viewer: { personId: string | null } }>('DocumentsLibrary');
+    if (!library.ok || library.data.viewer.personId === null) return [];
+    id = library.data.viewer.personId;
+  }
+  const file = await documents<{ rows: readonly CenterRow[] }>('DocumentsPersonFile', {
+    personId: id,
+  });
+  if (!file.ok) return [];
+  return file.data.rows
+    .filter((r) => r.deletedAt === null)
+    .map((r) => ({
+      id: `documents:${r.id}`,
+      name: r.title,
+      mode: 'keep',
+      state: r.status?.label ?? r.typeName ?? 'Filed',
+      sentAt: r.updatedAt,
+      signature: null,
+      countersignedName: null,
+      href: `/documents/d/${r.id}`,
+    }));
 }
 
 /* ------------------------------------------------------- Time Off -- */

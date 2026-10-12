@@ -1,7 +1,8 @@
 import 'server-only';
 import { cache } from 'react';
 
-import { people, timeOff } from '../people';
+import { documents, people, timeOff } from '../people';
+import type { OperationName as DocumentsOperationName } from '../documents-operations';
 import type { OperationName } from '../people-operations';
 import type { OperationName as TimeOffOperationName } from '../timeoff-operations';
 import { readPreference, writePreference } from '../preferences';
@@ -20,7 +21,9 @@ import { readInbox, type Run } from './sources';
 export const webRun: Run = (area, name, variables = {}) =>
   area === 'people'
     ? people(name as OperationName, variables)
-    : timeOff(name as TimeOffOperationName, variables);
+    : area === 'documents'
+      ? documents(name as DocumentsOperationName, variables)
+      : timeOff(name as TimeOffOperationName, variables);
 
 export const inboxState = cache(async (): Promise<InboxState> =>
   stateOf(await readPreference('inbox')),

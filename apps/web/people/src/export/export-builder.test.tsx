@@ -277,6 +277,23 @@ describe('Export from one sentence (AI13)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('keeps it where the host offers instead of downloading, when it offers one', async () => {
+    const user = fast();
+    const onKeep = vi.fn(ok);
+    const { container } = render(
+      <Page
+        load={{ status: 'ready', data: asManager }}
+        start={{ reason: 'Team offsite' }}
+        onExport={vi.fn(ok)}
+        keep={{ label: 'Keep it elsewhere', description: 'Kept for 90 days.' }}
+        onKeep={onKeep}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Keep it elsewhere' }));
+    expect(onKeep).toHaveBeenCalledWith(expect.objectContaining({ who: 'team', format: 'xlsx' }));
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('schedules it monthly, to the recipient', async () => {
     const user = fast();
     const onSchedule = vi.fn(ok);

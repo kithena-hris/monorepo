@@ -57,6 +57,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): TimeOffDone!
+  """
+  A note for a request, brought after it: the id of the file whoever keeps it gave it
+  """
+  attachTimeOffNote(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    requestId: String!
+  ): TimeOffNoteAttached!
   """Cancel an approved request, or withdraw one nobody has decided"""
   cancelTimeOffRequest(idempotencyKey: String!, requestId: String!): TimeOffRequestStatus!
   """
@@ -1173,6 +1182,10 @@ type TimeOffNegativeBalanceRule {
   onLeaving: String!
 }
 
+type TimeOffNoteAttached {
+  notePresent: Boolean!
+}
+
 type TimeOffNoticeReminder {
   blockFrom: String!
   remindOn: String!
@@ -1599,6 +1612,7 @@ type TimeOffRequestDetail {
   escalated: Boolean!
   mine: Boolean!
   note: String
+  noteNeeded: Boolean!
   notePresent: Boolean!
   pendingChange: TimeOffSpan
   proposalMessage: String

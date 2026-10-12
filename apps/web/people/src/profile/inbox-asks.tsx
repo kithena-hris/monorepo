@@ -67,6 +67,8 @@ export interface ProfileDocument {
     readonly place: string | null;
   } | null;
   readonly countersignedName: string | null;
+  /** Kept somewhere with its own viewer: opening it goes there rather than downloading. */
+  readonly href?: string;
 }
 
 const inDays = (n: number): string => {
@@ -418,15 +420,29 @@ export function Documents({
                     <Badge size="sm" tone={s.tone}>
                       {s.label}
                     </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Download ${d.name}`}
-                      startIcon={<icons.download aria-hidden />}
-                      onClick={() => {
-                        void onOpen(d.id);
-                      }}
-                    />
+                    {d.href === undefined ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Download ${d.name}`}
+                        startIcon={<icons.download aria-hidden />}
+                        onClick={() => {
+                          void onOpen(d.id);
+                        }}
+                      />
+                    ) : (
+                      <Button variant="ghost" size="sm" asChild>
+                        <a
+                          href={d.href}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            void onOpen(d.id);
+                          }}
+                        >
+                          Open
+                        </a>
+                      </Button>
+                    )}
                   </span>
                 }
               >

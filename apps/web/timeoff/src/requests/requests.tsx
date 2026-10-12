@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Dropzone,
   List,
   ListItem,
   PageHeader,
@@ -98,6 +99,17 @@ export interface RequestDetailData {
   readonly canChange: boolean;
   readonly canCancel: boolean;
   readonly canAnswer: boolean;
+  /** A note is attached; what it says only its member and HR may see. */
+  readonly notePresent?: boolean;
+  /** Its leave type asks for a note it does not have yet: told only to its member and HR. */
+  readonly noteNeeded?: boolean;
+}
+
+/** A file kept elsewhere that could be the note, as the host lists it. */
+export interface NoteFile {
+  readonly id: string;
+  readonly name: string;
+  readonly detail: string;
 }
 
 export interface RequestsData {
@@ -117,6 +129,19 @@ export interface RequestsProps {
   readonly onShorten?: ((requestId: string, to: string) => Promise<Outcome>) | undefined;
   /** Take suggestion `accept`, or keep your own dates with null. */
   readonly onAnswer?: ((requestId: string, accept: number | null) => Promise<Outcome>) | undefined;
+  /**
+   * Where a missing note comes from, worded by the host ("From Documents"):
+   * a file already kept, or one chosen now. Absent: the request says a note
+   * is needed and nothing more.
+   */
+  readonly notes?:
+    | {
+        readonly label: string;
+        readonly load: () => Promise<readonly NoteFile[]>;
+        readonly onAttach: (requestId: string, fileId: string) => Promise<Outcome>;
+        readonly onUpload: (requestId: string, file: File) => Promise<Outcome>;
+      }
+    | undefined;
 }
 
 export function MyRequests(props: RequestsProps): JSX.Element {
@@ -218,6 +243,7 @@ function Detail({
   onChange,
   onShorten,
   onAnswer,
+  notes,
 }: {
   readonly detail: RequestDetailData;
   readonly today: string;
@@ -258,6 +284,13 @@ function Detail({
             {detail.note}
           </p>
         )}
+        {detail.noteNeeded === true ? (
+          <NoteNeeded requestId={request.requestId} notes={notes} />
+        ) : detail.notePresent === true ? (
+          <p className="flex items-center gap-1.5 text-sm text-fg-muted">
+            <icons.success aria-hidden className="size-4 text-success" />A note is attached.
+          </p>
+        ) : null}
         {detail.canChange || detail.canCancel ? (
           <div className="flex flex-wrap gap-2 touch:[&>*]:flex-1">
             {detail.canChange ? (
@@ -635,5 +668,84 @@ export function RequestsSkeleton(): JSX.Element {
         <Skeleton className="h-[30rem] rounded-lg @max-[40rem]/requests:hidden" />
       </div>
     </div>
+  );
+}
+
+/**
+ * A request missing its note (Documents J5): a file already kept, offered
+ * first so nobody uploads twice, or one chosen now. Whoever decides learns
+ * that a note arrived, never what it says.
+ */
+function NoteNeeded({
+  requestId,
+  notes,
+}: {
+  readonly requestId: string;
+  readonly notes: RequestsProps['notes'];
+}): JSX.Element {
+  const [files, setFiles] = useState<readonly NoteFile[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const attach = (run: () => Promise<Outcome>): void => {
+    setError(null);
+    start(async () => {
+      const done = await run();
+      if (!done.ok) setError(done.message);
+    });
+  };
+  return (
+    <Alert tone="warning" title="A note is needed" icon={<icons.document />}>
+      <div className="flex flex-col gap-3">
+        <p>Leave this long needs a doctor’s note. Only you and HR see it.</p>
+        {notes === undefined ? null : files === null ? (
+          <Button
+            size="sm"
+            className="self-start"
+            onClick={() => {
+              void notes.load().then(setFiles);
+            }}
+          >
+            Add note
+          </Button>
+        ) : (
+          <>
+            {files.length === 0 ? null : (
+              <List aria-label={notes.label}>
+                {files.map((f) => (
+                  <ListItem
+                    key={f.id}
+                    description={f.detail}
+                    trailing={
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        loading={pending}
+                        onClick={() => {
+                          attach(() => notes.onAttach(requestId, f.id));
+                        }}
+                      >
+                        Attach
+                      </Button>
+                    }
+                  >
+                    {f.name}
+                  </ListItem>
+                ))}
+              </List>
+            )}
+            <Dropzone
+              label="Or choose the note"
+              accept="application/pdf,image/jpeg,image/png,image/webp"
+              variant="inline"
+              onFiles={(chosen) => {
+                const first = chosen[0];
+                if (first !== undefined) attach(() => notes.onUpload(requestId, first));
+              }}
+            />
+          </>
+        )}
+        {error === null ? null : <p className="text-danger-fg">{error}</p>}
+      </div>
+    </Alert>
   );
 }

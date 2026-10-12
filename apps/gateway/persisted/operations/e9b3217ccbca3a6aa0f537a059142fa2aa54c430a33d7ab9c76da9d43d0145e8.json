@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ReadDocumentFields($documentId: String!, $input: JSON!, $key: String!) {\n    readDocumentFields(documentId: $documentId, input: $input, idempotencyKey: $key) { available fields { name value page } }\n  }"}

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetAskAfterUpload($input: JSON!, $key: String!) {\n    setAskAfterUpload(input: $input, idempotencyKey: $key) { ok }\n  }"}

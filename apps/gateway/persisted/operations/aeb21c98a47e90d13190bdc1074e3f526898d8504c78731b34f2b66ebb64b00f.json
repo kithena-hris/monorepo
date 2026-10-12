@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AcknowledgeDocument($campaignId: String!, $key: String!) {\n    acknowledgeDocument(campaignId: $campaignId, idempotencyKey: $key) { id }\n  }"}

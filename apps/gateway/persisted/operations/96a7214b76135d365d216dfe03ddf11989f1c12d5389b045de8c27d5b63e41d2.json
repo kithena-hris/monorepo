@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemindEnvelope($envelopeId: String!, $key: String!) {\n    remindEnvelope(envelopeId: $envelopeId, idempotencyKey: $key) { id }\n  }"}

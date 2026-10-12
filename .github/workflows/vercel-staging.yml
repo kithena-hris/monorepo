@@ -652,8 +652,9 @@ jobs:
           } | put timeoff.env
           # The router will not start with an empty header value, so an unset
           # ASSISTANT_API_TOKEN becomes a throwaway the assistant never holds.
-          printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nTIMEOFF_API_TOKEN=%s\nASSISTANT_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
-            "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" "$TIMEOFF_API_TOKEN" "${ASSISTANT_API_TOKEN:-$(openssl rand -hex 32)}" \
+          # Documents is not on staging; the router still needs its header's value.
+          printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nTIMEOFF_API_TOKEN=%s\nDOCUMENTS_API_TOKEN=%s\nASSISTANT_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
+            "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" "$TIMEOFF_API_TOKEN" "$(openssl rand -hex 32)" "${ASSISTANT_API_TOKEN:-$(openssl rand -hex 32)}" \
             https://identity.staging.kithena.com/.well-known/jwks.json \
             "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" | put router.env
           printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" | put secrets.env

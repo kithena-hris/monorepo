@@ -44,6 +44,7 @@ export const TARGETS = {
   'storybook-mobile': { packages: ['@reach/storybook-mobile'] },
   'people-remote': { packages: ['@kithena/web-people'] },
   'timeoff-remote': { packages: ['@kithena/web-timeoff'] },
+  'documents-remote': { packages: ['@kithena/web-documents'] },
   // The image is People plus the Compose files that run it on the VM.
   people: { packages: ['@kithena/people'], paths: [/^deploy\/vm\//u] },
   // The Slack service: a container beside People on the VM, holding the
@@ -55,6 +56,8 @@ export const TARGETS = {
   // Time Off (TOF-050b): a container beside People on the VM, for People's
   // reasons — consumer groups, jobs, a drain.
   timeoff: { packages: ['@kithena/timeoff'], paths: [/^deploy\/vm\//u] },
+  // Documents (DOC-028): a container beside Time Off, for its reasons.
+  documents: { packages: ['@kithena/documents'], paths: [/^deploy\/vm\//u] },
   // The assistant (assistant PRD §15): a container beside Slack on the VM,
   // which asks it every question.
   assistant: { packages: ['@kithena/assistant'], paths: [/^deploy\/vm\//u] },
@@ -67,6 +70,7 @@ export const TARGETS = {
       /^deploy\/vm\//u,
       /^services\/people\/schemas\//u,
       /^services\/timeoff\/schemas\//u,
+      /^services\/documents\/schemas\//u,
       /^platform\/audit\/schemas\//u,
       /^platform\/assistant\/schemas\//u,
     ],
@@ -264,6 +268,7 @@ function main(argv: string[]): void {
       t === 'slack' ||
       t === 'audit' ||
       t === 'timeoff' ||
+      t === 'documents' ||
       t === 'assistant' ||
       t === 'migrations',
   );

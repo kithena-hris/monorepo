@@ -17,6 +17,7 @@ import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { addDays, daysBetween } from '../../domain/days.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
+import { needsNote } from '../../domain/request/sick.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
 import { assess, LIVE, type Assessment } from '../request/assess.js';
 import {
@@ -387,10 +388,15 @@ export const requestDetail =
       if (member === null) return notFound('Member');
       const status = request.status;
       const pending = request.pendingChange;
+      const types = await typesOf(tx);
       return ok({
-        request: requestItem(record, member, await typesOf(tx)),
+        request: requestItem(record, member, types),
         note: record.note,
         notePresent: request.notePresent,
+        noteNeeded: (() => {
+          const definition = types.get(request.leaveType.key)?.definition;
+          return (mine || hr) && definition !== undefined && needsNote(request, definition);
+        })(),
         // The sick note is health data: its member and HR, nobody else (§8.5).
         sickNoteFileId: mine || hr ? request.sickNoteFileId : null,
         pendingChange:

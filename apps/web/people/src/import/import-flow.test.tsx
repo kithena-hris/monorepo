@@ -114,6 +114,22 @@ describe('ImportFlow', () => {
     expect(onUpload).toHaveBeenCalledTimes(2);
   });
 
+  it('imports a file the host already keeps, without a download', async () => {
+    const user = fast();
+    const onPick = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const kept = {
+      label: 'Kept elsewhere',
+      load: () =>
+        Promise.resolve([{ id: 'f-1', name: 'Headcount October', detail: 'Export · 1 Oct 2026' }]),
+      onPick,
+    };
+    const { container } = render(<ImportFlow {...props(ready({ step: 'upload' }), { kept })} />);
+    expect(await screen.findByText('Headcount October')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Import' }));
+    expect(onPick).toHaveBeenCalledWith('f-1');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('refuses a file over 100 MB before uploading a byte of it', async () => {
     const user = fast();
     const onUpload = vi.fn(() => Promise.resolve({ ok: true as const }));
