@@ -51,10 +51,11 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
                 }),
           }
         : { status: 'loading' as const };
+  // A plain push, as Time Off's: inside a transition React keeps the old
+  // screen until the next one is wholly ready, and a remote screen's switch
+  // never was, so a link looked dead.
   const go = (to: string): void => {
-    startTransition(() => {
-      router.push(to, { scroll: false });
-    });
+    router.push(to, { scroll: false });
   };
   /** A filter changed: the address holds it, and the server reads it again. */
   const filter = (patch: Readonly<Record<string, string | null>>): void => {
