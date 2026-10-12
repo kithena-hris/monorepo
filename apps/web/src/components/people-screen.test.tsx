@@ -21,6 +21,11 @@ const imports = vi.hoisted(() => ({
   runImport: vi.fn(),
   importRun: vi.fn(),
 }));
+vi.mock('../app/(app)/documents/actions', () => ({
+  keepExport: vi.fn(),
+  importableDocuments: vi.fn(() => Promise.resolve([])),
+  importFromDocuments: vi.fn(),
+}));
 vi.mock('../app/(app)/inbox/actions', () => ({
   askForDetails: vi.fn(),
   documentsOf: vi.fn(() => Promise.resolve([])),

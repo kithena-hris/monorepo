@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 
 import { currentTenant } from '../../../lib/branding';
 import { documents, people, timeOff } from '../../../lib/people';
+import { requestExport } from '../people/actions';
 
 /**
  * What the Documents screens' buttons do: server actions, each one operation
@@ -387,10 +388,9 @@ const MAX_INLINE = 25 * 1024 * 1024;
  * builds it as the person, Documents files it as "Export from People",
  * Confidential to HR and deleted after 90 days by its type.
  */
-export async function keepExport(
-  exported:
-    { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string },
-): Promise<Created> {
+export async function keepExport(choice: Parameters<typeof requestExport>[0]): Promise<Created> {
+  // People's export is run here, never handed in: the link fetched is People's own.
+  const exported = await requestExport(choice);
   if (!exported.ok) return exported;
   const link = exported.links[0];
   if (link === undefined) return { ok: false, message: 'People made no file' };

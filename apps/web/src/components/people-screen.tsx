@@ -1318,9 +1318,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                   description: 'Kept Confidential to HR in Documents, and deleted after 90 days.',
                 },
                 onKeep: async (choice: ExportBuilderChoice) => {
-                  const kept = await keepExport(
-                    await actions.requestExport({ ...choice, ...narrowed(choice.who) }),
-                  );
+                  const kept = await keepExport({ ...choice, ...narrowed(choice.who) });
                   if (!kept.ok) return kept;
                   go(`/documents/d/${kept.id}`);
                   return { ok: true };
