@@ -83,14 +83,16 @@ export const meta = (row: Pick<Row, 'typeName' | 'pages' | 'subject'>): string =
     .join(' · ');
 
 /** The access badge's words and tone (A1). */
-export const access = (row: Pick<Row, 'level' | 'confidential' | 'everyone'>) =>
+export const access = (
+  row: Pick<Row, 'level' | 'confidential' | 'everyone'>,
+): { readonly label: string; readonly tone: Tone } =>
   row.confidential
-    ? ({ label: 'Confidential', tone: 'warning' } as const)
+    ? { label: 'Confidential', tone: 'warning' }
     : row.everyone
-      ? ({ label: 'Everyone', tone: 'info' } as const)
+      ? { label: 'Everyone', tone: 'info' }
       : row.level === 'shared'
-        ? ({ label: 'Shared', tone: 'info' } as const)
-        : ({ label: 'Private', tone: 'neutral' } as const);
+        ? { label: 'Shared', tone: 'info' }
+        : { label: 'Private', tone: 'neutral' };
 
 export interface Picked {
   readonly name: string;

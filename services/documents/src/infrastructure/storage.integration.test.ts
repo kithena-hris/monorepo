@@ -37,7 +37,7 @@ const ADA = {
 const MIGRATIONS = new URL('../../../../migrations/', import.meta.url);
 
 let stopPg: (() => Promise<void>) | undefined;
-let clients: ReturnType<typeof postgres>[] = [];
+const clients: ReturnType<typeof postgres>[] = [];
 let asDocuments: PostgresJsDatabase;
 let deps: Deps;
 let n = 0;

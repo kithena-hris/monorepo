@@ -104,14 +104,23 @@ export function ExportDialog({
     const body = await fetch(link.url)
       .then((r) => (r.ok ? r.blob() : null))
       .catch(() => null);
-    if (body === null) return setKeeping('The export could not be read.');
+    if (body === null) {
+      setKeeping('The export could not be read.');
+      return;
+    }
     const put = await putFile(signed, { name: link.name, mediaType: 'text/csv', body });
-    if (!put.ok) return setKeeping(put.message);
+    if (!put.ok) {
+      setKeeping(put.message);
+      return;
+    }
     const title = link.name.replace(/\.[^.]+$/u, '');
     const filed = await askDocuments<{ id: string }>(signed, 'UploadDocument', {
       input: { title, typeKey: 'people_export', upload: put.data },
     });
-    if (!filed.ok) return setKeeping(filed.message);
+    if (!filed.ok) {
+      setKeeping(filed.message);
+      return;
+    }
     onKept?.(filed.data.id, title);
   };
   const download = async (): Promise<void> => {

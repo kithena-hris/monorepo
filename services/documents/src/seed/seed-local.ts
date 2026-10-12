@@ -154,13 +154,12 @@ try {
       await filed(ada, 'Employment certificate', 'letter', adam, 1);
       await filed(ada, 'Payslip · September 2026', 'payslip', adam, 1);
       await filed(ada, 'Work permit · Omar Haddad', 'work_permit', person(3), 2, '2026-12-02');
-      const mine = await filed(as(account(2), adam), 'Mortgage pre-approval', null, null, 2);
+      await filed(as(account(2), adam), 'Mortgage pre-approval', null, null, 2);
       const notes = await filed(as(account(2), adam), 'Platform Q4 roadmap notes', null, null, 4);
       await share(deps, as(account(2), adam), notes, [
         { grantee: { kind: 'member', personId: person(1) }, permission: 'edit', endsOn: null },
         { grantee: { kind: 'member', personId: person(3) }, permission: 'view', endsOn: null },
       ]);
-      void mine;
       logger.info('Acme’s documents seeded');
     }
   }

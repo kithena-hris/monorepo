@@ -126,7 +126,23 @@ export function acknowledge(
 }
 
 /** Who has acknowledged, who is left (F3); HR's. */
-export function campaignScreen(deps: Deps, caller: Caller, campaignId: string) {
+export function campaignScreen(
+  deps: Deps,
+  caller: Caller,
+  campaignId: string,
+): Promise<
+  Result<{
+    id: string;
+    documentId: string;
+    title: string;
+    version: number;
+    dueOn: string | null;
+    sentAt: string;
+    done: number;
+    of: number;
+    left: { personId: string; name: string; teamName: string | null }[];
+  }>
+> {
   return deps.uow.run(caller.tenantId, async (tx) => {
     const ctx = await contextOf(deps, tx, caller);
     const hr = hrOnly(ctx);

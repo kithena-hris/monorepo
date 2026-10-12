@@ -18,7 +18,7 @@ import {
 const at = '2026-10-12T09:00:00.000Z' as Instant;
 const v = (n: number): Version => ({
   n,
-  blobKey: `k${n}`,
+  blobKey: `k${String(n)}`,
   fileName: 'addendum.pdf',
   mediaType: 'application/pdf',
   size: 1200,

@@ -85,7 +85,7 @@ export function documentsConsumer(uow: UnitOfWork): (raw: unknown) => Promise<Ou
               workEmail: p.workEmail,
               managerPersonId: p.managerId,
               teamKey,
-              teamName: existing?.teamKey === teamKey ? (existing?.teamName ?? null) : null,
+              teamName: existing?.teamKey === teamKey ? existing.teamName : null,
               locationKey: existing?.locationKey ?? null,
               hireDate: p.employment.from,
               terminationDate: p.employment.to,

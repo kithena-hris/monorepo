@@ -32,7 +32,7 @@ export interface Composed {
   } | null;
 }
 
-export async function composeDocuments(env: NodeJS.ProcessEnv = process.env): Promise<Composed> {
+export function composeDocuments(env: NodeJS.ProcessEnv = process.env): Promise<Composed> {
   const db = documentsDatabase(env);
   if (db === null) {
     logger.warn(
@@ -40,12 +40,12 @@ export async function composeDocuments(env: NodeJS.ProcessEnv = process.env): Pr
       'DOCUMENTS_DATABASE_URL is not set; serving the schema only',
     );
     const yoga = createYoga(yogaOptions);
-    return {
+    return Promise.resolve({
       listener: documentsListener((request, response) => {
         void yoga(request, response);
       }),
       storage: null,
-    };
+    });
   }
   const uow = drizzleUnitOfWork(db);
   // The router's secret for this pair, as Time Off's; empty refuses everybody.
@@ -72,5 +72,5 @@ export async function composeDocuments(env: NodeJS.ProcessEnv = process.env): Pr
     })(),
     callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
   });
-  return { listener, storage: { db, uow, deps } };
+  return Promise.resolve({ listener, storage: { db, uow, deps } });
 }

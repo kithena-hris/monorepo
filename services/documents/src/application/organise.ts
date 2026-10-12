@@ -2,7 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { CalendarDate, DocumentId, DocumentTypeKey, PersonId } from '@kithena/contracts';
 
 import { canOpen, canShare } from '../domain/access/access.js';
-import { remove } from '../domain/document/document.js';
+import { remove, type Document } from '../domain/document/document.js';
 import { dueForDeletion, trashOver } from '../domain/queues/queues.js';
 import { checkType, SEEDED_TYPES } from '../domain/type/document-type.js';
 import { contextOf, event, factsOf, hrOnly, load, notFound, record, type Ctx } from './context.js';
@@ -401,7 +401,9 @@ export function confirmRetention(
 }
 
 /** Filed documents whose retention has ended, with the date it did. */
-export async function retentionDue(ctx: Ctx) {
+export async function retentionDue(
+  ctx: Ctx,
+): Promise<(Document & { held: boolean; retentionEnded: CalendarDate })[]> {
   const [docs, types, held, members] = await Promise.all([
     ctx.tx.documents.filed(),
     ctx.tx.types.list(),
@@ -543,7 +545,7 @@ export function setAccessSettings(
     const hr = hrOnly(ctx);
     if (!hr.ok) return hr;
     for (const [key, value] of Object.entries(input)) {
-      if (key in ACCESS_SETTINGS && value !== undefined) await ctx.tx.settings.set(key, value);
+      if (key in ACCESS_SETTINGS) await ctx.tx.settings.set(key, value);
     }
     await record(ctx, 'settings_changed', null, { keys: Object.keys(input) });
     return ok(await accessSettings(ctx));

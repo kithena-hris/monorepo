@@ -43,7 +43,10 @@ export function audienceOf(a: Audience, members: readonly AudienceMember[]): Per
   }
 }
 
-export function progressOf(asked: readonly PersonId[], acknowledged: ReadonlySet<string>) {
+export function progressOf(
+  asked: readonly PersonId[],
+  acknowledged: ReadonlySet<string>,
+): { done: number; of: number; left: PersonId[] } {
   const left = asked.filter((p) => !acknowledged.has(p));
   return { done: asked.length - left.length, of: asked.length, left };
 }

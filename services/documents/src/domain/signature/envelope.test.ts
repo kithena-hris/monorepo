@@ -78,10 +78,10 @@ describe('sending (K1–K3)', () => {
   });
 
   it('refuses no signers, a signer twice, or a field for nobody', () => {
+    const second = input.signers[1];
+    if (second === undefined) throw new Error('the input has two signers');
     expect(send({ ...input, signers: [] }).ok).toBe(false);
-    expect(
-      send({ ...input, signers: [input.signers[1]!, { ...input.signers[1]!, id: 's-x' }] }).ok,
-    ).toBe(false);
+    expect(send({ ...input, signers: [second, { ...second, id: 's-x' }] }).ok).toBe(false);
     expect(
       send({
         ...input,

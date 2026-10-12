@@ -29,7 +29,7 @@ export async function pageCount(bytes: Uint8Array, mediaType: string): Promise<n
  * customer's names are outside Latin-1.
  */
 export const drawable = (text: string): string =>
-  [...text].map((c) => (c.charCodeAt(0) <= 0xff || '•–—‘’“”€…'.includes(c) ? c : '?')).join('');
+  Array.from(text, (c) => (c.charCodeAt(0) <= 0xff || '•–—‘’“”€…'.includes(c) ? c : '?')).join('');
 
 /** Media types a watermarked copy can be drawn for; the rest are not shown inline. */
 export const watermarkable = (mediaType: string): boolean =>

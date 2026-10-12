@@ -393,12 +393,11 @@ export function reassign(
   );
 }
 
-export function voidEnvelope(env: Envelope, reason: string, at: Instant): Result<Envelope> {
+export function voidEnvelope(env: Envelope, reason: string, _at: Instant): Result<Envelope> {
   const alive = open(env);
   if (!alive.ok) return alive;
   const why = reason.trim();
   if (why.length === 0) return err(failure('REASON', 'Say why it is cancelled', ['reason']));
-  void at;
   return ok({ ...env, status: 'voided', voidReason: why.slice(0, 1000) });
 }
 

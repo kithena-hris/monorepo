@@ -45,7 +45,7 @@ export function checkType(input: unknown): Result<DocumentType> {
 
 /** "4 years after they leave" — the rule as S2 and S6 say it. */
 export function retentionWords(rule: RetentionRule): string {
-  const years = (n: number) => `${n} year${n === 1 ? '' : 's'}`;
+  const years = (n: number): string => `${String(n)} year${n === 1 ? '' : 's'}`;
   switch (rule.kind) {
     case 'after_leaving':
       return `${years(rule.years)} after they leave`;
@@ -56,7 +56,7 @@ export function retentionWords(rule: RetentionRule): string {
     case 'years':
       return years(rule.years);
     case 'days':
-      return `${rule.days} days`;
+      return `${String(rule.days)} days`;
     case 'forever':
       return 'Every version, forever';
   }

@@ -78,6 +78,20 @@ export interface MemoryWorld {
   readonly events: PendingEvent[];
 }
 
+type Sync<T> = {
+  [K in keyof T]: T[K] extends (...args: infer A) => Promise<infer R> ? (...args: A) => R : never;
+};
+
+/** A store written synchronously, answering through promises as the port does (Time Off's). */
+function promised<T extends object>(sync: Sync<T>): T {
+  return Object.fromEntries(
+    Object.entries(sync).map(([k, fn]) => [
+      k,
+      (...args: unknown[]) => Promise.resolve((fn as (...a: unknown[]) => unknown)(...args)),
+    ]),
+  ) as T;
+}
+
 export function memoryWorld(): MemoryWorld {
   const tenants = new Map<string, TenantState>();
   const events: PendingEvent[] = [];
@@ -94,14 +108,14 @@ export function memoryWorld(): MemoryWorld {
     const s = stateOf(tenantId);
     return {
       tenantId,
-      members: {
-        get: async (id) => s.members.get(id)?.member ?? null,
-        byAccount: async (account) => {
+      members: promised<Tx['members']>({
+        get: (id) => s.members.get(id)?.member ?? null,
+        byAccount: (account) => {
           const found = [...s.members.values()].filter((m) => m.member.accountId === account);
           return found.length === 1 ? (found[0]?.member ?? null) : null;
         },
-        list: async () => [...s.members.values()].map((m) => m.member),
-        upsert: async (member, eventId, effectiveFrom) => {
+        list: () => [...s.members.values()].map((m) => m.member),
+        upsert: (member, eventId, effectiveFrom) => {
           const prior = s.members.get(member.personId);
           if (
             prior !== undefined &&
@@ -113,140 +127,139 @@ export function memoryWorld(): MemoryWorld {
           s.members.set(member.personId, { member, eventId, effectiveFrom });
           return true;
         },
-      },
-      hr: {
-        has: async (a) => s.hr.has(a),
-        list: async () => [...s.hr],
-        add: async (a) => void s.hr.add(a),
-        remove: async (a) => void s.hr.delete(a),
-      },
-      types: {
-        list: async () => [...s.types.values()].map((t) => ({ ...t.type, archived: t.archived })),
-        get: async (key) => {
+      }),
+      hr: promised<Tx['hr']>({
+        has: (a) => s.hr.has(a),
+        list: () => [...s.hr],
+        add: (a) => void s.hr.add(a),
+        remove: (a) => void s.hr.delete(a),
+      }),
+      types: promised<Tx['types']>({
+        list: () => [...s.types.values()].map((t) => ({ ...t.type, archived: t.archived })),
+        get: (key) => {
           const t = s.types.get(key);
           return t === undefined ? null : { ...t.type, archived: t.archived };
         },
-        save: async (type, archived) => void s.types.set(type.key, { type, archived }),
-      },
-      documents: {
-        get: async (id) => s.documents.get(id) ?? null,
-        save: async (doc) => void s.documents.set(doc.id, doc),
-        candidates: async () => [...s.documents.values()],
-        filed: async () => [...s.documents.values()].filter((d) => d.typeKey !== null),
-        about: async (personId) =>
+        save: (type, archived) => void s.types.set(type.key, { type, archived }),
+      }),
+      documents: promised<Tx['documents']>({
+        get: (id) => s.documents.get(id) ?? null,
+        save: (doc) => void s.documents.set(doc.id, doc),
+        candidates: () => [...s.documents.values()],
+        filed: () => [...s.documents.values()].filter((d) => d.typeKey !== null),
+        about: (personId) =>
           [...s.documents.values()].filter((d) => d.subjectPersonId === personId),
-      },
-      versions: {
-        list: async (id) => s.versions.get(id) ?? [],
-        get: async (id, n) => (s.versions.get(id) ?? []).find((v) => v.n === n) ?? null,
-        add: async (id, version) =>
-          void s.versions.set(id, [...(s.versions.get(id) ?? []), version]),
-      },
-      sections: {
-        visibleTo: async (account) =>
+      }),
+      versions: promised<Tx['versions']>({
+        list: (id) => s.versions.get(id) ?? [],
+        get: (id, n) => (s.versions.get(id) ?? []).find((v) => v.n === n) ?? null,
+        add: (id, version) => void s.versions.set(id, [...(s.versions.get(id) ?? []), version]),
+      }),
+      sections: promised<Tx['sections']>({
+        visibleTo: (account) =>
           [...s.sections.values()].filter(
             (x) => x.kind === 'company' || x.ownerAccount === account,
           ),
-        get: async (id) => s.sections.get(id) ?? null,
-        save: async (section) => void s.sections.set(section.id, section),
-        remove: async (id) => {
+        get: (id) => s.sections.get(id) ?? null,
+        save: (section) => void s.sections.set(section.id, section),
+        remove: (id) => {
           s.sections.delete(id);
           s.entries = s.entries.filter((e) => e.sectionId !== id);
         },
-        entries: async (ids) =>
+        entries: (ids) =>
           s.entries
             .filter((e) => ids.includes(e.sectionId))
             .map((e) => ({ sectionId: e.sectionId, documentId: e.documentId as Document['id'] })),
-        add: async (sectionId, documentId) => {
+        add: (sectionId, documentId) => {
           if (!s.entries.some((e) => e.sectionId === sectionId && e.documentId === documentId)) {
             s.entries.push({ sectionId, documentId });
           }
         },
-        removeEntry: async (sectionId, documentId) => {
+        removeEntry: (sectionId, documentId) => {
           s.entries = s.entries.filter(
             (e) => !(e.sectionId === sectionId && e.documentId === documentId),
           );
         },
-      },
-      views: {
-        add: async (entry) => void s.views.push(entry),
-        list: async (id, limit) =>
+      }),
+      views: promised<Tx['views']>({
+        add: (entry) => void s.views.push(entry),
+        list: (id, limit) =>
           s.views
             .filter((v) => v.documentId === id)
             .toSorted((a, b) => b.at.localeCompare(a.at))
             .slice(0, limit),
-      },
-      accessRequests: {
-        get: async (id) => s.accessRequests.get(id) ?? null,
-        save: async (r) => void s.accessRequests.set(r.id, r),
-        open: async () => [...s.accessRequests.values()].filter((r) => r.status === 'open'),
-      },
-      docRequests: {
-        get: async (id) => s.docRequests.get(id) ?? null,
-        save: async (r) => void s.docRequests.set(r.id, r),
-        forPerson: async (p) => [...s.docRequests.values()].filter((r) => r.personId === p),
-        open: async () => [...s.docRequests.values()].filter((r) => r.status === 'open'),
-      },
-      holds: {
-        list: async () => [...s.holds.values()],
-        get: async (id) => s.holds.get(id) ?? null,
-        save: async (h) => void s.holds.set(h.id, h),
-        held: async () =>
+      }),
+      accessRequests: promised<Tx['accessRequests']>({
+        get: (id) => s.accessRequests.get(id) ?? null,
+        save: (r) => void s.accessRequests.set(r.id, r),
+        open: () => [...s.accessRequests.values()].filter((r) => r.status === 'open'),
+      }),
+      docRequests: promised<Tx['docRequests']>({
+        get: (id) => s.docRequests.get(id) ?? null,
+        save: (r) => void s.docRequests.set(r.id, r),
+        forPerson: (p) => [...s.docRequests.values()].filter((r) => r.personId === p),
+        open: () => [...s.docRequests.values()].filter((r) => r.status === 'open'),
+      }),
+      holds: promised<Tx['holds']>({
+        list: () => [...s.holds.values()],
+        get: (id) => s.holds.get(id) ?? null,
+        save: (h) => void s.holds.set(h.id, h),
+        held: () =>
           new Set(
             [...s.holds.values()].filter((h) => h.liftedAt === null).flatMap((h) => h.documentIds),
           ),
-      },
-      activity: {
-        add: async (entry) => void s.activity.push(entry),
-        list: async ({ documentId, limit }) =>
+      }),
+      activity: promised<Tx['activity']>({
+        add: (entry) => void s.activity.push(entry),
+        list: ({ documentId, limit }) =>
           s.activity
             .filter((a) => documentId === undefined || a.documentId === documentId)
             .toSorted((a, b) => b.at.localeCompare(a.at))
             .slice(0, limit),
-      },
-      envelopes: {
-        get: async (id) => s.envelopes.get(id) ?? null,
-        save: async (e) => void s.envelopes.set(e.id, e),
-        forDocument: async (id) => [...s.envelopes.values()].filter((e) => e.documentId === id),
-        forPerson: async (p) =>
+      }),
+      envelopes: promised<Tx['envelopes']>({
+        get: (id) => s.envelopes.get(id) ?? null,
+        save: (e) => void s.envelopes.set(e.id, e),
+        forDocument: (id) => [...s.envelopes.values()].filter((e) => e.documentId === id),
+        forPerson: (p) =>
           [...s.envelopes.values()].filter((e) => e.signers.some((x) => x.personId === p)),
-        byToken: async (hash) => {
+        byToken: (hash) => {
           for (const e of s.envelopes.values()) {
             const signer = e.signers.find((x) => x.tokenHash === hash);
             if (signer !== undefined) return { envelope: e, signerId: signer.id };
           }
           return null;
         },
-        open: async () => [...s.envelopes.values()].filter((e) => e.status === 'sent'),
-        trail: async (id) => s.trail.filter((t) => t.envelopeId === id),
-        record: async (event) => void s.trail.push(event),
-      },
-      campaigns: {
-        get: async (id) => s.campaigns.get(id) ?? null,
-        save: async (c) => void s.campaigns.set(c.id, c),
-        list: async () => [...s.campaigns.values()],
-        acknowledged: async (id) => s.acks.get(id) ?? new Set(),
-        acknowledge: async (id, personId) => {
+        open: () => [...s.envelopes.values()].filter((e) => e.status === 'sent'),
+        trail: (id) => s.trail.filter((t) => t.envelopeId === id),
+        record: (event) => void s.trail.push(event),
+      }),
+      campaigns: promised<Tx['campaigns']>({
+        get: (id) => s.campaigns.get(id) ?? null,
+        save: (c) => void s.campaigns.set(c.id, c),
+        list: () => [...s.campaigns.values()],
+        acknowledged: (id) => s.acks.get(id) ?? new Set(),
+        acknowledge: (id, personId) => {
           const set = s.acks.get(id) ?? new Set<string>();
           set.add(personId);
           s.acks.set(id, set);
         },
-        mine: async (personId) =>
+        mine: (personId) =>
           new Set([...s.acks.entries()].filter(([, set]) => set.has(personId)).map(([id]) => id)),
-      },
-      settings: {
-        get: async (key) => s.settings.get(key) ?? null,
-        set: async (key, value) => void s.settings.set(key, value),
-      },
-      idempotency: {
-        find: async (key) => s.keys.get(key) ?? null,
-        save: async (key, stored) => {
+      }),
+      settings: promised<Tx['settings']>({
+        get: (key) => s.settings.get(key) ?? null,
+        set: (key, value) => void s.settings.set(key, value),
+      }),
+      idempotency: promised<Tx['idempotency']>({
+        find: (key) => s.keys.get(key) ?? null,
+        save: (key, stored) => {
           if (s.keys.has(key)) return false;
           s.keys.set(key, stored);
           return true;
         },
-      },
-      outbox: { publish: async (list) => void events.push(...list) },
+      }),
+      outbox: promised<Tx['outbox']>({ publish: (list) => void events.push(...list) }),
     };
   };
 
@@ -254,9 +267,9 @@ export function memoryWorld(): MemoryWorld {
   return {
     uow: { run: (tenantId, fn) => fn(txFor(tenantId)) },
     blobs: {
-      put: async (key, b) => void bytes.set(key, b),
-      get: async (key) => bytes.get(key) ?? null,
-      delete: async (key) => void bytes.delete(key),
+      put: (key, b) => Promise.resolve(void bytes.set(key, b)),
+      get: (key) => Promise.resolve(bytes.get(key) ?? null),
+      delete: (key) => Promise.resolve(void bytes.delete(key)),
       size: () => bytes.size,
     },
     events,

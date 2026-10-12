@@ -430,7 +430,6 @@ function Ready({
         open={newSection}
         onOpenChange={setNewSection}
         hr={data.viewer.hr}
-        rows={data.rows}
         onCreate={props.onCreateSection}
         onCreated={(id) => props.onFilter?.({ show: `section:${id}` })}
       />
@@ -945,21 +944,18 @@ function NewSection({
   open,
   onOpenChange,
   hr,
-  rows,
   onCreate,
   onCreated,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly hr: boolean;
-  readonly rows: readonly Row[];
   readonly onCreate: LibraryProps['onCreateSection'];
   readonly onCreated: (id: string) => void;
 }): JSX.Element {
   const [name, setName] = useState('');
   const [kind, setKind] = useState<'personal' | 'company'>('personal');
   const write = useWrite();
-  void rows;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>

@@ -1,4 +1,11 @@
-import type { DocumentData, LibraryData, PersonFileData, Row, SettingsData } from '../types';
+import type {
+  DocumentData,
+  EnvelopeData,
+  LibraryData,
+  PersonFileData,
+  Row,
+  SettingsData,
+} from '../types';
 
 /** Acme's documents as the design draws them (B1, B2, B3, D1, S2), for the screens' tests. */
 
@@ -273,9 +280,7 @@ export function adaSettings(): SettingsData {
   };
 }
 
-export function adamToSign(
-  over: Partial<import('../types').EnvelopeData> = {},
-): import('../types').EnvelopeData {
+export function adamToSign(over: Partial<EnvelopeData> = {}): EnvelopeData {
   return {
     id: 'e-1',
     documentId: 'd-add',

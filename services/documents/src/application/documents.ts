@@ -15,7 +15,6 @@ import {
   canOpen,
   canSetConfidential,
   canShare,
-  type Grant,
 } from '../domain/access/access.js';
 import {
   addVersion as nextVersion,
@@ -297,7 +296,12 @@ export interface GrantInput {
 }
 
 /** Replaces who it is shared with (E1); an empty list makes it Private. */
-export function share(deps: Deps, caller: Caller, id: DocumentId, grants: readonly GrantInput[]) {
+export function share(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+  grants: readonly GrantInput[],
+): Promise<Result<Document>> {
   return change(deps, caller, id, async (ctx, doc, facts) => {
     const may = canShare(facts, ctx.viewer);
     if (!may.ok) return may;
@@ -306,7 +310,7 @@ export function share(deps: Deps, caller: Caller, id: DocumentId, grants: readon
     if (everyone && !ctx.viewer.hr && (await ctx.tx.settings.get('everyoneShare')) !== 'anyone') {
       return err(failure('HR_ONLY_EVERYONE', 'Only HR shares with everyone at the company'));
     }
-    const next = shared(doc, grants as readonly Grant[]);
+    const next = shared(doc, grants);
     if (!next.ok) return next;
     const before = new Set(doc.grants.map((g) => JSON.stringify(g.grantee)));
     await ctx.tx.outbox.publish([
@@ -347,7 +351,12 @@ const accessChanged = (ctx: Ctx, doc: Document) =>
     },
   );
 
-export function setConfidential(deps: Deps, caller: Caller, id: DocumentId, on: boolean) {
+export function setConfidential(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+  on: boolean,
+): Promise<Result<Document>> {
   return change(deps, caller, id, async (ctx, doc, facts) => {
     const may = canSetConfidential(facts, ctx.viewer, on);
     if (!may.ok) return may;
@@ -360,7 +369,12 @@ export function setConfidential(deps: Deps, caller: Caller, id: DocumentId, on: 
   });
 }
 
-export function rename(deps: Deps, caller: Caller, id: DocumentId, title: string) {
+export function rename(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+  title: string,
+): Promise<Result<Document>> {
   return change(deps, caller, id, async (ctx, doc, facts) => {
     if (!canEdit(facts, ctx.viewer, ctx.today)) {
       return err(failure('FORBIDDEN', 'You can view this document but not change it'));
@@ -371,7 +385,12 @@ export function rename(deps: Deps, caller: Caller, id: DocumentId, title: string
   });
 }
 
-export function setExpiry(deps: Deps, caller: Caller, id: DocumentId, on: CalendarDate | null) {
+export function setExpiry(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+  on: CalendarDate | null,
+): Promise<Result<Document>> {
   return change(deps, caller, id, async (ctx, doc, facts) => {
     if (!canEdit(facts, ctx.viewer, ctx.today)) {
       return err(failure('FORBIDDEN', 'You can view this document but not change it'));
@@ -381,7 +400,11 @@ export function setExpiry(deps: Deps, caller: Caller, id: DocumentId, on: Calend
   });
 }
 
-export function deleteDocument(deps: Deps, caller: Caller, id: DocumentId) {
+export function deleteDocument(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+): Promise<Result<Document>> {
   return change(deps, caller, id, async (ctx, doc, facts) => {
     const may = canDelete(facts, ctx.viewer);
     if (!may.ok) return may;
@@ -404,7 +427,11 @@ export function deleteDocument(deps: Deps, caller: Caller, id: DocumentId) {
   });
 }
 
-export function restoreDocument(deps: Deps, caller: Caller, id: DocumentId) {
+export function restoreDocument(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+): Promise<Result<Document>> {
   return change(deps, caller, id, async (ctx, doc, facts) => {
     const may = canDelete(facts, ctx.viewer);
     if (!may.ok) return may;

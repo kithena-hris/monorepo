@@ -33,7 +33,11 @@ export async function pagesOf(
 }
 
 /** Pages as the model is shown them: numbered, each and all of them bounded. */
-export function forModel(pages: readonly string[], perPage = 3000, total = 24_000) {
+export function forModel(
+  pages: readonly string[],
+  perPage = 3000,
+  total = 24_000,
+): { page: number; text: string }[] {
   const out: { page: number; text: string }[] = [];
   let used = 0;
   for (const [i, text] of pages.entries()) {

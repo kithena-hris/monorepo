@@ -90,9 +90,9 @@ export function s3Blobs(env: NodeJS.ProcessEnv, bucket: string): Blobs {
 export function memoryBlobs(): Blobs {
   const held = new Map<string, Uint8Array>();
   return {
-    put: async (key, bytes) => void held.set(key, bytes),
-    get: async (key) => held.get(key) ?? null,
-    delete: async (key) => void held.delete(key),
+    put: (key, bytes) => Promise.resolve(void held.set(key, bytes)),
+    get: (key) => Promise.resolve(held.get(key) ?? null),
+    delete: (key) => Promise.resolve(void held.delete(key)),
   };
 }
 

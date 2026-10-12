@@ -7,10 +7,7 @@ import { seal } from './sealing.js';
 
 const at = '2026-10-09T10:00:00.000Z' as Instant;
 
-async function signedEnvelope(
-  name: string,
-  mark: Parameters<typeof sign>[2]['signature'],
-): Promise<Envelope> {
+function signedEnvelope(name: string, mark: Parameters<typeof sign>[2]['signature']): Envelope {
   const sent = send({
     id: 'env',
     documentId: 'd' as DocumentId,
@@ -51,7 +48,7 @@ async function twoPages(): Promise<Uint8Array> {
 
 describe('sealing (K9)', () => {
   it('draws a drawn signature and appends the certificate', async () => {
-    const env = await signedEnvelope('Adam Novak', {
+    const env = signedEnvelope('Adam Novak', {
       kind: 'drawn',
       path: 'M 10 60 L 120 40 L 300 80',
     });
@@ -60,7 +57,7 @@ describe('sealing (K9)', () => {
   });
 
   it('a name the standard fonts cannot draw does not stop the seal', async () => {
-    const env = await signedEnvelope('佐藤 由紀', { kind: 'typed', text: '佐藤 由紀' });
+    const env = signedEnvelope('佐藤 由紀', { kind: 'typed', text: '佐藤 由紀' });
     const out = await PDFDocument.load(await seal(await twoPages(), env, [], 'Acme'));
     expect(out.getPageCount()).toBe(3);
   });

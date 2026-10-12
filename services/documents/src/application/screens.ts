@@ -102,7 +102,7 @@ function statusOf(ctx: Ctx, doc: Document): DocumentRow['status'] {
   if (doc.expiresOn !== null) {
     const left = daysUntil(ctx.today, doc.expiresOn);
     if (left < 0) return { label: 'Expired', tone: 'danger' };
-    if (left <= 60) return { label: `Expires in ${left} days`, tone: 'warning' };
+    if (left <= 60) return { label: `Expires in ${String(left)} days`, tone: 'warning' };
   }
   return null;
 }
@@ -367,7 +367,10 @@ async function hrQueues(ctx: Ctx, types: Types, dir: Directory, live: readonly D
         title: `${types.get(d.typeKey ?? '')?.name ?? d.title}${person ? ` · ${first(person.displayName)}` : ''}`,
         kind: d.kind,
         person: person ? personRef(person) : null,
-        detail: left < 0 ? `Expired ${d.expiresOn}` : `In ${left} days · ${d.expiresOn}`,
+        detail:
+          left < 0
+            ? `Expired ${d.expiresOn ?? ''}`
+            : `In ${String(left)} days · ${d.expiresOn ?? ''}`,
         dueOn: d.expiresOn,
         tone: left < 0 ? 'danger' : 'warning',
         documentId: d.id,
@@ -404,7 +407,7 @@ async function hrQueues(ctx: Ctx, types: Types, dir: Directory, live: readonly D
         person: personRef(m),
         detail:
           row.state === 'asked'
-            ? `Asked ${row.askedOn}`
+            ? `Asked ${row.askedOn ?? ''}`
             : row.dueOn
               ? `Needed by ${row.dueOn}`
               : 'Not asked yet',
@@ -498,7 +501,7 @@ async function hrQueues(ctx: Ctx, types: Types, dir: Directory, live: readonly D
         missingPeople.length === 0
           ? 'Every file complete'
           : missingPeople.slice(0, 2).map(first).join(' and ') +
-            (missingPeople.length > 2 ? ` and ${missingPeople.length - 2} more` : ''),
+            (missingPeople.length > 2 ? ` and ${String(missingPeople.length - 2)} more` : ''),
     },
     {
       key: 'to_delete',
@@ -542,7 +545,7 @@ export async function documentScreen(
     ]);
     const entries = await tx.sections.entries(sections.map((s) => s.id));
     const inSection = new Map([
-      [id as string, entries.filter((e) => e.documentId === id).map((e) => e.sectionId)],
+      [id, entries.filter((e) => e.documentId === id).map((e) => e.sectionId)],
     ]);
     const versionViews = versions
       .toSorted((a, b) => b.n - a.n)
@@ -717,9 +720,9 @@ export async function personFile(
               ? `Expires ${r.expiresOn}`
               : 'In their file'
             : r.state === 'asked'
-              ? `Asked ${r.askedOn}`
+              ? `Asked ${r.askedOn ?? ''}`
               : r.state === 'expired'
-                ? `Expired ${r.expiresOn}`
+                ? `Expired ${r.expiresOn ?? ''}`
                 : 'Not asked yet',
         documentId: r.documentId,
         requestId: r.requestId,

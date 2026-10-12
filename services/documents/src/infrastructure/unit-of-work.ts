@@ -48,7 +48,14 @@ type Row = Record<string, unknown>;
 const rows = async (tx: PostgresJsDatabase, query: SQL): Promise<Row[]> => [
   ...(await tx.execute<Row>(query)),
 ];
-const str = (v: unknown) => (v === null || v === undefined ? null : String(v));
+const str = (v: unknown): string | null =>
+  typeof v === 'string'
+    ? v
+    : typeof v === 'number' || typeof v === 'bigint'
+      ? String(v)
+      : v instanceof Date
+        ? v.toISOString()
+        : null;
 
 function memberOf(r: Row): Member {
   return {
@@ -257,14 +264,16 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
         (await rows(tx, sql`SELECT account_id FROM documents.hr WHERE tenant_id = ${T}`)).map((r) =>
           String(r['account_id']),
         ),
-      add: async (a) =>
-        void (await tx.execute(
+      add: async (a) => {
+        await tx.execute(
           sql`INSERT INTO documents.hr (tenant_id, account_id) VALUES (${T}, ${a}::uuid) ON CONFLICT DO NOTHING`,
-        )),
-      remove: async (a) =>
-        void (await tx.execute(
+        );
+      },
+      remove: async (a) => {
+        await tx.execute(
           sql`DELETE FROM documents.hr WHERE tenant_id = ${T} AND account_id = ${a}::uuid`,
-        )),
+        );
+      },
     },
     types: {
       list: async () =>
@@ -400,17 +409,20 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
               sectionId: String(r['section_id']),
               documentId: r['document_id'] as DocumentId,
             })),
-      add: async (sectionId, documentId) =>
-        void (await tx.execute(sql`INSERT INTO documents.section_entry (tenant_id, section_id, document_id)
-          VALUES (${T}, ${sectionId}::uuid, ${documentId}::uuid) ON CONFLICT DO NOTHING`)),
-      removeEntry: async (sectionId, documentId) =>
-        void (await tx.execute(sql`DELETE FROM documents.section_entry WHERE tenant_id = ${T}
-          AND section_id = ${sectionId}::uuid AND document_id = ${documentId}::uuid`)),
+      add: async (sectionId, documentId) => {
+        await tx.execute(sql`INSERT INTO documents.section_entry (tenant_id, section_id, document_id)
+          VALUES (${T}, ${sectionId}::uuid, ${documentId}::uuid) ON CONFLICT DO NOTHING`);
+      },
+      removeEntry: async (sectionId, documentId) => {
+        await tx.execute(sql`DELETE FROM documents.section_entry WHERE tenant_id = ${T}
+          AND section_id = ${sectionId}::uuid AND document_id = ${documentId}::uuid`);
+      },
     },
     views: {
-      add: async (e: ViewEntry) =>
-        void (await tx.execute(sql`INSERT INTO documents.view_log (tenant_id, id, document_id, account_id, action, device, at)
-          VALUES (${T}, ${e.id}::uuid, ${e.documentId}::uuid, ${e.accountId}::uuid, ${e.action}, ${e.device}, ${e.at}::timestamptz)`)),
+      add: async (e: ViewEntry) => {
+        await tx.execute(sql`INSERT INTO documents.view_log (tenant_id, id, document_id, account_id, action, device, at)
+          VALUES (${T}, ${e.id}::uuid, ${e.documentId}::uuid, ${e.accountId}::uuid, ${e.action}, ${e.device}, ${e.at}::timestamptz)`);
+      },
       list: async (id, limit) =>
         (
           await rows(
@@ -517,11 +529,12 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
         ),
     },
     activity: {
-      add: async (a: Activity) =>
-        void (await tx.execute(sql`INSERT INTO documents.activity (tenant_id, id, document_id, account_id, action, detail, at)
+      add: async (a: Activity) => {
+        await tx.execute(sql`INSERT INTO documents.activity (tenant_id, id, document_id, account_id, action, detail, at)
           VALUES (${T}, ${a.id}::uuid, ${a.documentId}::uuid,
             ${a.accountId !== null && /^[0-9a-f-]{36}$/iu.test(a.accountId) ? a.accountId : null}::uuid,
-            ${a.action}, ${JSON.stringify(a.detail)}::jsonb, ${a.at}::timestamptz)`)),
+            ${a.action}, ${JSON.stringify(a.detail)}::jsonb, ${a.at}::timestamptz)`);
+      },
       list: async ({ documentId, limit }) =>
         (
           await rows(
@@ -614,9 +627,10 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
           detail: r['detail'] as Record<string, unknown>,
           at: String(r['at']) as Instant,
         })),
-      record: async (ev) =>
-        void (await tx.execute(sql`INSERT INTO documents.envelope_event (tenant_id, id, envelope_id, signer_id, action, detail, at)
-          VALUES (${T}, ${ev.id}::uuid, ${ev.envelopeId}::uuid, ${ev.signerId}, ${ev.action}, ${JSON.stringify(ev.detail)}::jsonb, ${ev.at}::timestamptz)`)),
+      record: async (ev) => {
+        await tx.execute(sql`INSERT INTO documents.envelope_event (tenant_id, id, envelope_id, signer_id, action, detail, at)
+          VALUES (${T}, ${ev.id}::uuid, ${ev.envelopeId}::uuid, ${ev.signerId}, ${ev.action}, ${JSON.stringify(ev.detail)}::jsonb, ${ev.at}::timestamptz)`);
+      },
     },
     campaigns: {
       async get(id) {
@@ -649,9 +663,10 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
             )
           ).map((r) => String(r['person_id'])),
         ),
-      acknowledge: async (id, personId, at) =>
-        void (await tx.execute(sql`INSERT INTO documents.acknowledgement (tenant_id, campaign_id, person_id, at)
-          VALUES (${T}, ${id}::uuid, ${personId}::uuid, ${at}::timestamptz) ON CONFLICT DO NOTHING`)),
+      acknowledge: async (id, personId, at) => {
+        await tx.execute(sql`INSERT INTO documents.acknowledgement (tenant_id, campaign_id, person_id, at)
+          VALUES (${T}, ${id}::uuid, ${personId}::uuid, ${at}::timestamptz) ON CONFLICT DO NOTHING`);
+      },
       mine: async (personId) =>
         new Set(
           (
@@ -670,10 +685,11 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
         );
         return r === undefined ? null : r['value'];
       },
-      set: async (key, value) =>
-        void (await tx.execute(sql`INSERT INTO documents.settings (tenant_id, key, value)
+      set: async (key, value) => {
+        await tx.execute(sql`INSERT INTO documents.settings (tenant_id, key, value)
           VALUES (${T}, ${key}, ${JSON.stringify(value)}::jsonb)
-          ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value`)),
+          ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value`);
+      },
     },
     idempotency: {
       async find(key) {

@@ -38,7 +38,9 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
               ? { refused: true as const }
               : {
                   retry: () => {
-                    startTransition(() => router.refresh());
+                    startTransition(() => {
+                      router.refresh();
+                    });
                   },
                 }),
           }

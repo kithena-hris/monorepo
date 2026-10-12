@@ -11,7 +11,7 @@ describe('signing (K4, K5)', () => {
   it('shows Adam his part, and signs only once a signature is adopted', async () => {
     const { container } = render(<screens.Envelope load={ready(adamToSign())} />);
     expect(screen.getByRole('heading', { level: 2, name: 'Your part' })).toBeTruthy();
-    const sign = screen.getByRole('button', { name: 'Sign' }) as HTMLButtonElement;
+    const sign = screen.getByRole<HTMLButtonElement>('button', { name: 'Sign' });
     expect(sign.disabled).toBe(true);
     expect(await axeViolations(container)).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Adopt your signature' }));

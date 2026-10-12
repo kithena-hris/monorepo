@@ -26,7 +26,10 @@ if (storage !== null) {
   };
   const timer = setInterval(() => void sweep(), 6 * 60 * 60 * 1000);
   timer.unref();
-  onShutdown('trash sweep', async () => clearInterval(timer));
+  onShutdown('trash sweep', () => {
+    clearInterval(timer);
+    return Promise.resolve();
+  });
 }
 
 const server = createServer(listener);

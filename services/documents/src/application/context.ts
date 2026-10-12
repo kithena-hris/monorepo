@@ -1,4 +1,11 @@
-import { err, failure, ok, type PendingEvent, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  ok,
+  type DomainFailure,
+  type PendingEvent,
+  type Result,
+} from '@kithena/domain-kit';
 import type { CalendarDate, DocumentId, Instant } from '@kithena/contracts';
 
 import type { AccessFacts, Viewer } from '../domain/access/access.js';
@@ -105,7 +112,7 @@ export async function load(
   return ok({ doc, type });
 }
 
-export const notFound = () => failure('NOT_FOUND', 'No such document');
+export const notFound = (): DomainFailure => failure('NOT_FOUND', 'No such document');
 
 export const hrOnly = (ctx: Ctx): Result<true> =>
   ctx.viewer.hr ? ok(true) : err(failure('FORBIDDEN', 'Only HR can do this'));

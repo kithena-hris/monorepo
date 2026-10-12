@@ -108,10 +108,16 @@ export function UploadDialog({
     if (onStartUpload === undefined || chosen.type !== 'application/pdf') return;
     setReading('reading');
     void putFile(chosen, onStartUpload).then(async (put) => {
-      if (!put.ok) return setReading(null);
+      if (!put.ok) {
+        setReading(null);
+        return;
+      }
       setSent(put.ref);
       const r = await onSuggest(put.ref.uploadId, chosen.name);
-      if (!r.ok || !r.data.available) return setReading(null);
+      if (!r.ok || !r.data.available) {
+        setReading(null);
+        return;
+      }
       const s = r.data;
       if (s.title !== null) setTitle(s.title);
       if (s.typeKey !== null && types.some((t) => t.key === s.typeKey)) setTypeKey(s.typeKey);

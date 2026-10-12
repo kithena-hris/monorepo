@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/restrict-template-expressions --
+   A test reads the JSON a transport answered by its path, and every path it reads is asserted. */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import { fixedClock, ok } from '@kithena/domain-kit';

@@ -37,7 +37,11 @@ async function startConsumers(
     consume(new Kafka(kafka), 'documents', PersonHired.topic, handle),
     consume(new Kafka(kafka), 'documents-identity', TenantAdministratorNamed.topic, handle),
   ]);
-  return { stop: async () => void (await Promise.all(consumers.map((c) => c.disconnect()))) };
+  return {
+    stop: async () => {
+      await Promise.all(consumers.map((c) => c.disconnect()));
+    },
+  };
 }
 
 async function consume(

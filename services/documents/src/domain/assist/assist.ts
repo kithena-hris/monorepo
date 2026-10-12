@@ -43,23 +43,26 @@ export function datesIn(text: string): string[] {
   const found: { at: number; iso: string }[] = [];
   for (const m of text.matchAll(/\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})\b/gu)) {
     const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
-    if (valid(y, mo, d)) found.push({ at: m.index ?? 0, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
+    if (valid(y, mo, d)) found.push({ at: m.index, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
   }
   for (const m of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/gu)) {
     const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-    if (valid(y, mo, d)) found.push({ at: m.index ?? 0, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
+    if (valid(y, mo, d)) found.push({ at: m.index, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
   }
   for (const m of text.matchAll(/\b(\d{1,2}) ([A-Za-z]+) (\d{4})\b/gu)) {
     const mo = MONTHS.indexOf((m[2] ?? '').toLowerCase()) + 1;
     const [d, y] = [Number(m[1]), Number(m[3])];
     if (mo > 0 && valid(y, mo, d))
-      found.push({ at: m.index ?? 0, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
+      found.push({ at: m.index, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
   }
   return [...new Set(found.toSorted((a, b) => a.at - b.at).map((f) => f.iso))];
 }
 
 /** Lines in one version and not the other, blank space ignored. */
-export function changedLines(before: readonly string[], after: readonly string[]) {
+export function changedLines(
+  before: readonly string[],
+  after: readonly string[],
+): { added: string[]; removed: string[] } {
   const clean = (lines: readonly string[]) =>
     lines.map((l) => l.replaceAll(/\s+/gu, ' ').trim()).filter(Boolean);
   const a = clean(before);

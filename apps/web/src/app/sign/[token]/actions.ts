@@ -44,11 +44,14 @@ export async function call<T>(token: string, path: string, body?: unknown): Prom
   return { ok: true, data: json as T };
 }
 
-export async function requestCode(token: string) {
+export async function requestCode(token: string): Promise<Answer<{ sentTo: string }>> {
   return call<{ sentTo: string }>(token, '/code', {});
 }
 
-export async function verifyCode(token: string, code: string) {
+export async function verifyCode(
+  token: string,
+  code: string,
+): Promise<{ ok: true; verified: boolean } | { ok: false; message: string }> {
   const at = await here(token);
   if (at === null) return { ok: false as const, message: 'This link is for another company.' };
   const response = await fetch(`${base()}/v1/documents/sign/${encodeURIComponent(token)}/verify`, {
@@ -70,11 +73,14 @@ export async function signLink(
   token: string,
   signature: { kind: 'typed'; text: string } | { kind: 'drawn'; path: string },
   values: Readonly<Record<string, string>>,
-) {
+): Promise<Answer<{ completed: boolean }>> {
   return call<{ completed: boolean }>(token, '/sign', { signature, values });
 }
 
-export async function declineLink(token: string, reason: string) {
+export async function declineLink(
+  token: string,
+  reason: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const at = await here(token);
   if (at === null) return { ok: false as const, message: 'This link is for another company.' };
   const response = await fetch(`${base()}/v1/documents/sign/${encodeURIComponent(token)}/decline`, {

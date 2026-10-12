@@ -511,7 +511,7 @@ export async function setAiSettings(
   deps: Deps,
   caller: Caller,
   input: Partial<Record<AiFeature, boolean | undefined>>,
-) {
+): Promise<Result<{ ok: true }>> {
   return deps.uow.run(caller.tenantId, async (tx) => {
     const ctx = await contextOf(deps, tx, caller);
     const hr = hrOnly(ctx);

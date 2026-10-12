@@ -97,7 +97,7 @@ export function checklist(
 }
 
 /** "3 of 5": what they have, of what is required. */
-export const progress = (rows: readonly ChecklistRow[]) => ({
+export const progress = (rows: readonly ChecklistRow[]): { have: number; of: number } => ({
   have: rows.filter((r) => r.state === 'have').length,
   of: rows.length,
 });

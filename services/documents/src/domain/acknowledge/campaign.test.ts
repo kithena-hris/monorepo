@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PersonId } from '@kithena/contracts';
 
-import { audienceOf, checkAudience, progressOf, type Audience } from './campaign.js';
+import { audienceOf, checkAudience, progressOf } from './campaign.js';
 
 const m = (id: string, team: string | null, status = 'active') => ({
   personId: id as PersonId,
@@ -26,7 +26,7 @@ describe('who a policy goes to (F2)', () => {
   });
 
   it('refuses an empty audience', () => {
-    expect(checkAudience({ kind: 'teams', teamKeys: [] } as Audience).ok).toBe(false);
+    expect(checkAudience({ kind: 'teams', teamKeys: [] }).ok).toBe(false);
   });
 });
 
