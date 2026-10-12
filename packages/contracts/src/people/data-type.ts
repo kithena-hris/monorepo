@@ -13,39 +13,41 @@ import { AttributeKey, LocalizedString } from './primitives.js';
  * is always the national identifier, because it is the one the shipped types
  * did not cover.
  */
-export const AttributeDataType = z.enum([
-  'text',
-  'long_text',
-  'number',
-  'decimal',
-  'percentage',
-  'money',
-  'boolean',
-  'date',
-  'datetime',
-  'duration',
-  'select',
-  'multi_select',
-  'tags',
-  'email',
-  'phone',
-  'url',
-  'country',
-  'currency',
-  'language',
-  'time_zone',
-  'address',
-  'national_id',
-  'bank_account',
-  'person_ref',
-  'org_unit_ref',
-  'legal_entity_ref',
-  'location_ref',
-  'document_ref',
-  'image',
-  // Registered as a policy-bearing leaf because an event carries this enum
-  // directly, and the codegen walk classifies leaves rather than guessing.
-]).register(policy, asPublic());
+export const AttributeDataType = z
+  .enum([
+    'text',
+    'long_text',
+    'number',
+    'decimal',
+    'percentage',
+    'money',
+    'boolean',
+    'date',
+    'datetime',
+    'duration',
+    'select',
+    'multi_select',
+    'tags',
+    'email',
+    'phone',
+    'url',
+    'country',
+    'currency',
+    'language',
+    'time_zone',
+    'address',
+    'national_id',
+    'bank_account',
+    'person_ref',
+    'org_unit_ref',
+    'legal_entity_ref',
+    'location_ref',
+    'document_ref',
+    'image',
+    // Registered as a policy-bearing leaf because an event carries this enum
+    // directly, and the codegen walk classifies leaves rather than guessing.
+  ])
+  .register(policy, asPublic());
 export type AttributeDataType = z.infer<typeof AttributeDataType>;
 
 /**
@@ -64,7 +66,11 @@ export const SelectOption = z.object({
    * honest alternative to deleting an option somebody's record still points
    * at, which would silently blank a field.
    */
-  retiredAt: z.iso.datetime({ offset: true }).nullable().default(null).register(policy, asInternal()),
+  retiredAt: z.iso
+    .datetime({ offset: true })
+    .nullable()
+    .default(null)
+    .register(policy, asInternal()),
 });
 export type SelectOption = z.infer<typeof SelectOption>;
 
@@ -165,6 +171,12 @@ export const AttributeTypeConfig = z.discriminatedUnion('kind', [
      * out from an employee rather than from a validation message.
      */
     range: z.enum(['any', 'past', 'future']).default('any').register(policy, asInternal()),
+    /**
+     * Whether "no date" is an answer of its own: a permanent contract has no
+     * end date, and that is not the same as nobody having said. The answer is
+     * stored as `INDEFINITE`, so a required field holding it is complete.
+     */
+    openEnded: z.boolean().optional().register(policy, asInternal()),
   }),
   z.object({
     kind: z.literal('datetime'),
@@ -268,6 +280,9 @@ export const AttributeTypeConfig = z.discriminatedUnion('kind', [
   }),
 ]);
 export type AttributeTypeConfig = z.infer<typeof AttributeTypeConfig>;
+
+/** An open-ended date's answer when there is no date: a permanent contract's end. */
+export const INDEFINITE = 'indefinite';
 
 /**
  * Whether a definition's `dataType` and its `typeConfig` agree.

@@ -191,6 +191,8 @@ export interface RecordField {
   readonly missing: boolean | null;
   readonly readOnly: boolean;
   readonly currency: string | null;
+  /** A date that may instead be `indefinite`: a permanent contract has no end. */
+  readonly openEnded?: boolean | null;
   readonly ownedBy: string | null;
   readonly keptIn: string | null;
   readonly sensitive: boolean | null;

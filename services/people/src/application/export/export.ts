@@ -1,7 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import ExcelJS from 'exceljs';
 import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
-import { requiresApproval, type AttributeDefinition } from '@kithena/contracts';
+import { INDEFINITE, requiresApproval, type AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -422,9 +422,7 @@ function withPlaceNames(
             ...r.person,
             attributes: {
               ...r.person.attributes,
-              ...Object.fromEntries(
-                places.map((d) => [d.key, nameOf(r.person.attributes[d.key])]),
-              ),
+              ...Object.fromEntries(places.map((d) => [d.key, nameOf(r.person.attributes[d.key])])),
             },
           },
         },
@@ -468,6 +466,10 @@ function xlsxCell(cell: ExcelJS.Cell, d: AttributeDefinition, value: unknown): v
     cell.value = Number(fromMinor(value.amountMinor, value.currency));
     const decimals = exponentOf(value.currency) ?? 2;
     cell.numFmt = `[$${value.currency}] #,##0${decimals > 0 ? `.${'0'.repeat(decimals)}` : ''}`;
+    return;
+  }
+  if (value === INDEFINITE && d.typeConfig.kind === 'date') {
+    cell.value = 'Indefinite';
     return;
   }
   if (d.typeConfig.kind === 'date' && typeof value === 'string') {

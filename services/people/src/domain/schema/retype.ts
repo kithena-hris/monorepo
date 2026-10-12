@@ -44,11 +44,16 @@ export function needsReview(was: Typed | undefined, now: Typed): boolean {
   const live = new Set(optionsOf(now).flatMap((o) => (o.retiredAt === null ? [o.value] : [])));
   if (optionsOf(was).some((o) => o.retiredAt === null && !live.has(o.value))) return true;
   const rest = (a: Typed): string => {
-    const { options: _options, ...config } = a.typeConfig as Typed['typeConfig'] & {
-      options?: unknown;
-    };
+    const {
+      options: _options,
+      openEnded: _openEnded,
+      ...config
+    } = a.typeConfig as Typed['typeConfig'] & { options?: unknown; openEnded?: unknown };
     return JSON.stringify(Object.entries(config).toSorted(([x], [y]) => x.localeCompare(y)));
   };
+  // Allowing "indefinite" breaks no date; taking it away may break an indefinite one.
+  const open = (a: Typed) => a.typeConfig.kind === 'date' && a.typeConfig.openEnded === true;
+  if (open(was) && !open(now)) return true;
   return rest(was) !== rest(now);
 }
 

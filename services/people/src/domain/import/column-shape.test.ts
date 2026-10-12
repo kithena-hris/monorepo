@@ -35,7 +35,19 @@ describe('the shape of a column', () => {
     [['America/Chicago', 'Asia/Kolkata'], 'time zones', 'time_zone'],
     // Names, where two people share a child: mostly once each, so text, not a list of choices.
     [
-      ['Teddy', 'Astrid', 'Phillip', 'Cece, Phillip', 'Cece, Phillip', 'Melissa', 'Phillip', 'Sasha', 'Drake', 'Jake', 'Jada'],
+      [
+        'Teddy',
+        'Astrid',
+        'Phillip',
+        'Cece, Phillip',
+        'Cece, Phillip',
+        'Melissa',
+        'Phillip',
+        'Sasha',
+        'Drake',
+        'Jake',
+        'Jada',
+      ],
       'free text, up to 13 characters',
       'text',
     ],
@@ -101,5 +113,67 @@ describe('the type a header and its values agree on', () => {
     expect(typeFor(header, shapeOf(values), { hasCurrency: false, ...file }).dataType).toBe(
       dataType,
     );
+  });
+});
+
+describe('a column that names a category', () => {
+  const each = (prefix: string, n: number) =>
+    Array.from({ length: n }, (_, i) => `${prefix}-${String(100 + i)}`);
+
+  it.each([
+    [
+      'Department',
+      [
+        'Operations',
+        'Warehouse',
+        'Engineering',
+        'Sales',
+        'Fleet',
+        'Finance',
+        'IT',
+        'Procurement',
+        'Legal',
+        'People',
+        'Executive',
+        'Product',
+        'Marketing',
+        'Support',
+      ],
+    ],
+    [
+      'Job Family',
+      [
+        'Logistics',
+        'Warehouse',
+        'Software',
+        'Sales',
+        'Transport',
+        'Finance',
+        'IT',
+        'Procurement',
+        'Legal',
+        'HR',
+        'Leadership',
+        'Product',
+        'Marketing',
+        'Service',
+      ],
+    ],
+    ['Cost Center', each('CC', 37)],
+    ['Commission Plan', ['10% of gross margin', '6% of new ARR']],
+    ['HR notes category', ['Internal transfer', 'Relocated', 'Referred']],
+  ])('%s is a list, even when few rows share a value', (header, values) => {
+    const shape = shapeOf(values, header);
+    expect(shape.dataType).toBe('select');
+    expect(shape.options).toEqual(values);
+  });
+
+  it('keeps a name or a title as text', () => {
+    expect(shapeOf(['Ana', 'Ben', 'Chloé', 'Dev'], 'Middle Name').dataType).toBe('text');
+    expect(shapeOf(['Engineer', 'Driver', 'Analyst'], 'Job Title').dataType).toBe('text');
+  });
+
+  it('keeps a category of more than sixty values as text', () => {
+    expect(shapeOf(each('CC', 61), 'Cost Center').dataType).toBe('text');
   });
 });

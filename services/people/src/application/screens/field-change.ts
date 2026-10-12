@@ -1,5 +1,5 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition } from '@kithena/contracts';
+import { INDEFINITE, type AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo } from '../../domain/access/field-access.js';
 import { currentValue, valueAsOf } from '../../domain/person/history.js';
@@ -72,6 +72,7 @@ const DAY = new Intl.DateTimeFormat('en-GB', {
 
 /** A converted value as HR reads it on the review: "12 Mar 2024", an option's label. */
 function shown(value: unknown, to: AttributeDefinition): string {
+  if (value === INDEFINITE) return 'Indefinite';
   if (to.typeConfig.kind === 'date' && typeof value === 'string') {
     return DAY.format(new Date(`${value}T00:00:00Z`));
   }

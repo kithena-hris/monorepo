@@ -1,4 +1,5 @@
 import {
+  Checkbox,
   Combobox,
   CurrencyField,
   DatePicker,
@@ -33,7 +34,7 @@ import {
 } from 'react';
 
 import { FileInput, isFileField } from './files';
-import { isMissing, type AttributeValue, type RecordField } from './model';
+import { INDEFINITE, isMissing, type AttributeValue, type RecordField } from './model';
 import { SensitiveMark } from './pending';
 
 /** The `type` a line of text takes for each data type that is one. */
@@ -267,21 +268,46 @@ export function AttributeControl({
   if (describedBy !== undefined) control['aria-describedby'] = describedBy;
   if (invalid !== undefined) control['aria-invalid'] = invalid;
   switch (field.dataType) {
-    case 'date':
-      return (
+    case 'date': {
+      const indefinite = value === INDEFINITE;
+      const picker = (
         <DatePicker
           {...control}
           {...opened}
           label={label}
           size={size}
-          value={typeof value === 'string' && value !== '' ? value : null}
+          value={typeof value === 'string' && value !== '' && !indefinite ? value : null}
           disabled={disabled}
-          {...(cell === undefined ? {} : { placeholder: 'Missing' })}
+          {...(indefinite
+            ? { placeholder: 'Indefinite' }
+            : cell === undefined
+              ? {}
+              : { placeholder: 'Missing' })}
           onChange={(next) => {
             onChange(next);
           }}
         />
       );
+      // A grid cell has room for the date only; "Indefinite" is set in the form.
+      if (field.openEnded !== true || cell !== undefined) return picker;
+      return (
+        <div className="flex flex-col gap-2">
+          {picker}
+          <Field orientation="horizontal">
+            <FieldControl>
+              <Checkbox
+                checked={indefinite}
+                disabled={disabled}
+                onCheckedChange={(on) => {
+                  onChange(on === true ? INDEFINITE : null);
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>No end date (indefinite)</FieldLabel>
+          </Field>
+        </div>
+      );
+    }
     case 'multi_select':
       return (
         <Combobox
@@ -417,7 +443,9 @@ export function AttributeControl({
           {...(cell === undefined ? {} : { className: 'min-w-32' })}
         >
           <SelectValue
-            placeholder={empty ? 'Nothing to choose from' : cell === undefined ? 'Choose' : 'Missing'}
+            placeholder={
+              empty ? 'Nothing to choose from' : cell === undefined ? 'Choose' : 'Missing'
+            }
           />
         </SelectTrigger>
         <SelectContent>

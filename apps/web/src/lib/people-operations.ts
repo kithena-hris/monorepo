@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required missing readOnly currency ownedBy keptIn sensitive askable
+    key label description dataType options { value label } required missing readOnly currency openEnded ownedBy keptIn sensitive askable
   }`;
 
 const ENTRY = `
@@ -401,7 +401,7 @@ export const OPERATIONS = {
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
         collectAt classification piiKind requiresApproval signup signupAskable aiEligible aiShareable encrypted encryptable origin pending
-        review decimals currency
+        review decimals currency openEnded
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }

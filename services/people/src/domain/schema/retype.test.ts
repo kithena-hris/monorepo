@@ -63,6 +63,13 @@ describe('which changes need the values reviewed', () => {
     expect(needsReview(decimal(2), decimal(2))).toBe(false);
   });
 
+  it('allowing "indefinite" does not; taking it away does', () => {
+    const date = (openEnded: boolean) =>
+      field({ dataType: 'date', typeConfig: { kind: 'date', openEnded } });
+    expect(needsReview(date(false), date(true))).toBe(false);
+    expect(needsReview(date(true), date(false))).toBe(true);
+  });
+
   it('adding an option does not; retiring or removing one does', () => {
     const was = choice([{ value: 'a' }, { value: 'b' }]);
     expect(needsReview(was, choice([{ value: 'a' }, { value: 'b' }, { value: 'c' }]))).toBe(false);
@@ -107,7 +114,7 @@ describe('what happens to a value that does not fit', () => {
     ]);
   });
 
-  it('picks the default by the import\'s rules for who fills a field (who-fills.ts)', () => {
+  it("picks the default by the import's rules for who fills a field (who-fills.ts)", () => {
     const both: Partial<AttributeDefinitionInput> = { ownership: ['employee', 'hr'] };
     // Employment data is HR's even when the employee may fill it in too.
     expect(defaultAction(field(both), 'Employment')).toBe('hr');
@@ -138,7 +145,9 @@ describe('what happens to a value that does not fit', () => {
 
   it('refuses asking the employee for a field only HR fills in, and an edit with no value', () => {
     const hrOnly = field({ ownership: ['hr'] });
-    expect(decide(hrOnly, 'Other', problems, [{ personId: 'p1', action: 'request' }])).toMatchObject({
+    expect(
+      decide(hrOnly, 'Other', problems, [{ personId: 'p1', action: 'request' }]),
+    ).toMatchObject({
       ok: false,
       error: { code: 'ACTION_NOT_ALLOWED' },
     });

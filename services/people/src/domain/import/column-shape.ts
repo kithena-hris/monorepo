@@ -34,6 +34,14 @@ const YES_NO = new Set(['yes', 'no', 'true', 'false', 'y', 'n', 'sí', 'si']);
 const LIST_AT_MOST = 12;
 const CURRENCIES: ReadonlySet<string> = new Set(Intl.supportedValuesOf('currency'));
 const SHORT = 30;
+/**
+ * A header naming a category: its values are the company's own list, however
+ * few rows share each one. Kept a select so nobody types "Opertions".
+ */
+const CATEGORY =
+  /department|division|\bteam\b|famil(y|ies)|cost cent|business unit|\bshift\b|commission|\bplan$|grade|\blevel\b|\bband\b|categor|work model|arrangement|pay (type|frequency)/u;
+/** A category's list can be longer than one guessed from repeats alone. */
+const CATEGORY_AT_MOST = 60;
 
 /** "12345678Z" is "8 digits + letter": each run of a kind, counted. */
 function patternOf(value: string): string {
@@ -47,7 +55,7 @@ function patternOf(value: string): string {
   return runs.map(([kind, n]) => (n === 1 ? kind : `${String(n)} ${kind}s`)).join(' + ');
 }
 
-export function shapeOf(raw: readonly string[]): ColumnShape {
+export function shapeOf(raw: readonly string[], header = ''): ColumnShape {
   const values = raw.map((v) => v.trim()).filter((v) => v !== '');
   const shape = (
     s: string,
@@ -92,22 +100,32 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
   ) {
     return shape('phone-like', 'phone');
   }
-  if (values.every((v) => CURRENCIES.has(v.toUpperCase()))) return shape('currency codes', 'currency');
-  if (values.every((v) => v.includes('/') && isTimeZone(v))) return shape('time zones', 'time_zone');
+  if (values.every((v) => CURRENCIES.has(v.toUpperCase())))
+    return shape('currency codes', 'currency');
+  if (values.every((v) => v.includes('/') && isTimeZone(v)))
+    return shape('time zones', 'time_zone');
   const distinct = [...new Set(values)];
   // A list is mostly repeats: a quarter of the values, at least, are ones seen
   // before. Children's or partners' names repeat now and then, never that much.
   // ponytail: a ratio, so three rows naming two people can still read as a list.
   const repeats = distinct.length * 4 <= values.length * 3;
+  const category = CATEGORY.test(header.toLowerCase());
   const patterns = new Set(values.map(patternOf));
   const [pattern] = patterns;
   // One pattern that never repeats is an identifier; one that repeats is a list of codes.
-  if (patterns.size === 1 && pattern !== undefined && /digit/u.test(pattern) && !repeats)
+  // A code of the company's own (a cost centre) is a list of codes, not an identifier.
+  if (
+    patterns.size === 1 &&
+    pattern !== undefined &&
+    /digit/u.test(pattern) &&
+    !repeats &&
+    !category
+  )
     return shape(pattern, 'text');
   // A list repeats itself: names that mostly never repeat are text, not choices.
   if (
-    distinct.length <= LIST_AT_MOST &&
-    repeats &&
+    distinct.length <= (category ? CATEGORY_AT_MOST : LIST_AT_MOST) &&
+    (repeats || category) &&
     distinct.every((v) => v.length <= SHORT)
   ) {
     return shape(
@@ -126,14 +144,7 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
 
 /** What kind of data a column holds, read from its header and shape: it decides the defaults. */
 export type Kind =
-  | 'financial'
-  | 'identifier'
-  | 'pay'
-  | 'special'
-  | 'contact'
-  | 'birth'
-  | 'business'
-  | 'plain';
+  'financial' | 'identifier' | 'pay' | 'special' | 'contact' | 'birth' | 'business' | 'plain';
 
 /** First match wins: "Tax ID" names a person before "tax" says pay. */
 const KINDS: readonly [RegExp, Kind][] = [
@@ -186,7 +197,8 @@ export function typeFor(
     options: dataType === 'select' ? shape.options : [],
     ...extra,
   });
-  if (/%|percent/u.test(words) && numeric) return as('percentage', { decimals: shape.decimals ?? 2 });
+  if (/%|percent/u.test(words) && numeric)
+    return as('percentage', { decimals: shape.decimals ?? 2 });
   if (/salary|wage|hourly rate|\bamount\b|compensation/u.test(words) && numeric) {
     return file.hasCurrency ? as('money') : as('decimal', { decimals: 2 });
   }

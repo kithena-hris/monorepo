@@ -176,6 +176,8 @@ interface Draft {
   decimals: number | null;
   /** Money in one currency only (ISO 4217), or '' for the record's own. */
   currency: string;
+  /** A date that may instead be indefinite: a permanent contract's end. */
+  openEnded: boolean;
   description: string;
   dataType: DataType;
   options: readonly string[];
@@ -202,6 +204,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
       sectionKey: field.sectionKey,
       decimals: field.decimals ?? null,
       currency: field.currency ?? '',
+      openEnded: field.openEnded === true,
       description: field.description ?? '',
       dataType: field.dataType,
       options: field.options,
@@ -223,6 +226,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     sectionKey: section.key,
     decimals: null,
     currency: '',
+    openEnded: false,
     description: '',
     dataType: 'text',
     options: [],
@@ -514,6 +518,7 @@ export function FieldEditor({
       ...(draft.dataType === 'money'
         ? { currency: draft.currency === '' ? null : draft.currency }
         : {}),
+      ...(draft.dataType === 'date' ? { openEnded: draft.openEnded } : {}),
     });
     setSaving(false);
     if (!outcome.ok) {
@@ -787,6 +792,25 @@ export function FieldEditor({
                       empty to use each person’s own.
                     </FieldDescription>
                     <FieldError>{show.currency}</FieldError>
+                  </Field>
+                ) : null}
+                {draft.dataType === 'date' ? (
+                  <Field orientation="horizontal" className="items-start justify-between gap-4">
+                    <div>
+                      <FieldLabel>Can be indefinite</FieldLabel>
+                      <FieldDescription>
+                        Offers “No end date” beside the date, for a permanent contract. Indefinite
+                        is an answer, so a required field holding it is complete.
+                      </FieldDescription>
+                    </div>
+                    <FieldControl>
+                      <Switch
+                        checked={draft.openEnded}
+                        onCheckedChange={(on) => {
+                          set({ openEnded: on });
+                        }}
+                      />
+                    </FieldControl>
                   </Field>
                 ) : null}
                 {WITH_OPTIONS.has(draft.dataType) ? (
@@ -1380,7 +1404,9 @@ function reformatted(field: RegistryField, draft: Draft): boolean {
     draft.dataType !== field.dataType ||
     field.options.some((o) => !draft.options.includes(o)) ||
     (WITH_DECIMALS.has(draft.dataType) && (draft.decimals ?? 0) !== (field.decimals ?? 0)) ||
-    (draft.dataType === 'money' && draft.currency !== (field.currency ?? ''))
+    (draft.dataType === 'money' && draft.currency !== (field.currency ?? '')) ||
+    // Taking "indefinite" away may leave an indefinite value that no longer fits.
+    (field.openEnded === true && !draft.openEnded)
   );
 }
 

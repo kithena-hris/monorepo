@@ -142,6 +142,8 @@ export interface RegistryView {
     readonly decimals: number | null;
     /** Money's fixed currency, or null: the record's own. */
     readonly currency: string | null;
+    /** A date that may instead be indefinite; false for any other type. */
+    readonly openEnded: boolean;
   }[];
   /** What a predicate's clauses may name, each list the company's own. */
   readonly choices: {
@@ -240,6 +242,7 @@ export async function registryView(
         review: reviewing.has(a.key),
         decimals: 'decimals' in a.typeConfig ? a.typeConfig.decimals : null,
         currency: a.typeConfig.kind === 'money' ? a.typeConfig.currency : null,
+        openEnded: a.typeConfig.kind === 'date' && a.typeConfig.openEnded === true,
       }));
       const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
       const choices = {
@@ -372,6 +375,8 @@ export interface FieldInput {
   readonly decimals?: number | null;
   /** Money in one currency only (an ISO code), or null for the record's own; absent, unchanged. */
   readonly currency?: string | null | undefined;
+  /** A date that may instead be indefinite: a permanent contract's end. */
+  readonly openEnded?: boolean | null;
   /** Whether the assistant may use it; null or absent, it may where it could be (public or internal). */
   readonly aiEligible?: boolean | null;
   /** Required of people added from now on only; existing records are not made incomplete (§6.5). */
@@ -415,6 +420,7 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
       ...(input.dataType === 'money' && input.currency !== undefined
         ? { currency: input.currency }
         : {}),
+      ...(input.dataType === 'date' && input.openEnded === true ? { openEnded: true } : {}),
     },
     // A conditional rule without a predicate is refused by the contract, which
     // names the field; nothing here invents one.
@@ -545,7 +551,8 @@ function configAfter(
   // Matched by label as well as by value: an option an import made keeps its own value.
   const live = given.map((o) => {
     const same =
-      kept.find((k) => k.value === o.value) ?? kept.find((k) => k.label.default === o.label.default);
+      kept.find((k) => k.value === o.value) ??
+      kept.find((k) => k.label.default === o.label.default);
     return same === undefined
       ? { ...o, retiredAt: null }
       : { ...same, label: { ...same.label, default: o.label.default }, retiredAt: null };
@@ -757,7 +764,10 @@ export async function publishDraft(
     asAdmin(deps, tx, asking, async () => {
       const current = await deps.schema.currentVersion(tx, asking.tenantId);
       // A new type or format is published with the review of every value it holds.
-      const [first] = toReview((await deps.schema.loadDraft(tx, asking.tenantId)).attributes, current);
+      const [first] = toReview(
+        (await deps.schema.loadDraft(tx, asking.tenantId)).attributes,
+        current,
+      );
       if (first !== undefined) {
         return err(
           failure(

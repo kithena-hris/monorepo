@@ -1,5 +1,5 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition } from '@kithena/contracts';
+import { INDEFINITE, type AttributeDefinition } from '@kithena/contracts';
 
 import { checkNationalId } from '../../country-packs/national-id.js';
 import { choiceOf } from '../../domain/import/aliases.js';
@@ -106,6 +106,9 @@ function date(cell: string, order: DateOrder): string | undefined {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
+/** What a file writes for a date that never comes. */
+const OPEN_ENDED = /^(indefinite|permanent|open[- ]?ended|ongoing|no end( date)?|none|n\/?a)$/u;
+
 /* ------------------------------------------------------------------- one -- */
 
 function scalar(definition: AttributeDefinition, cell: string, ctx: CellContext): unknown {
@@ -124,6 +127,9 @@ function scalar(definition: AttributeDefinition, cell: string, ctx: CellContext)
       return undefined;
     }
     case 'date':
+      // "Permanent", "no end date": an open-ended date's answer when there is none.
+      if (config.openEnded === true && OPEN_ENDED.test(cell.trim().toLowerCase()))
+        return INDEFINITE;
       return date(cell, ctx.dateOrder);
     case 'select':
     case 'multi_select': {
