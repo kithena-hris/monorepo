@@ -740,6 +740,7 @@ jobs:
           SLACK_ASSISTANT_TOKEN: ${{ secrets.SLACK_ASSISTANT_TOKEN }}
           ASSISTANT_PEOPLE_TOKEN: ${{ secrets.ASSISTANT_PEOPLE_TOKEN }}
           ASSISTANT_TIMEOFF_TOKEN: ${{ secrets.ASSISTANT_TIMEOFF_TOKEN }}
+          ASSISTANT_DOCUMENTS_TOKEN: ${{ secrets.ASSISTANT_DOCUMENTS_TOKEN }}
           ASSISTANT_IDENTITY_TOKEN: ${{ secrets.ASSISTANT_IDENTITY_TOKEN }}
           # The router–assistant pair's (AST-035): `ask` for the web, written
           # into `router.env` and `assistant.env`. Unset, the router is given a
@@ -815,7 +816,8 @@ jobs:
             "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" "$SLACK_ASSISTANT_TOKEN" | put slack.env
           # Each unset piece leaves the assistant answering less, never the deploy red.
           assistant=(ASSISTANT_API_KEY TENANT_APP_BASE SLACK_ASSISTANT_TOKEN ASSISTANT_PEOPLE_TOKEN
-                     ASSISTANT_TIMEOFF_TOKEN ASSISTANT_IDENTITY_TOKEN ASSISTANT_API_TOKEN)
+                     ASSISTANT_TIMEOFF_TOKEN ASSISTANT_DOCUMENTS_TOKEN ASSISTANT_IDENTITY_TOKEN
+                     ASSISTANT_API_TOKEN)
           for name in "${assistant[@]}"; do
             [ -n "${!name}" ] || echo "::warning::$name is unset: the assistant answers less, or not at all (docs/environments.md, \"The assistant's settings\")"
           done
@@ -834,7 +836,14 @@ jobs:
               if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
             done
           } | put timeoff.env
-          printf '%s\nDOCUMENTS_API_TOKEN=%s\n' "$DOCUMENTS_ENV" "$DOCUMENTS_API_TOKEN" | put documents.env
+          # Documents reads with the assistant's model key (PRD §14), and answers
+          # the assistant over the pair token; each optional, as Time Off's are.
+          {
+            printf '%s\nDOCUMENTS_API_TOKEN=%s\n' "$DOCUMENTS_ENV" "$DOCUMENTS_API_TOKEN"
+            for name in ASSISTANT_API_KEY ASSISTANT_DOCUMENTS_TOKEN; do
+              if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
+            done
+          } | put documents.env
           # The router will not start with an empty header value, so an unset
           # ASSISTANT_API_TOKEN becomes a throwaway the assistant never holds.
           printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nTIMEOFF_API_TOKEN=%s\nDOCUMENTS_API_TOKEN=%s\nASSISTANT_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
