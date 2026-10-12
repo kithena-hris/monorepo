@@ -33,6 +33,7 @@ import { useEffect, useState, type JSX } from 'react';
 import { Loaded, type Loadable } from '../load';
 import { ShareDialog } from '../share';
 import { Reading, type ReadingProps } from './reading';
+import { FillRecord, type RecordProps } from './record';
 import { AccessBadge, StatusBadge, pages, putFile, shortDate, useWrite } from '../shared';
 import type { DocumentData, FileLink, FileRef, GrantInput, Outcome, StartUpload } from '../types';
 
@@ -69,6 +70,8 @@ export interface DocumentViewProps {
   readonly onSummarize?: ReadingProps['onSummarize'];
   readonly onAskDocument?: ReadingProps['onAsk'];
   readonly onCompare?: ReadingProps['onCompare'];
+  readonly onReadRecord?: RecordProps['onReadRecord'];
+  readonly onApplyRecord?: RecordProps['onApplyRecord'];
 }
 
 export function DocumentView(props: DocumentViewProps): JSX.Element {
@@ -245,6 +248,13 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Preview doc={doc} onFileLink={props.onFileLink} />
         <div className="flex flex-col gap-4">
+          {deleted || !doc.pdf || row.subject === null || !doc.may.share ? null : (
+            <FillRecord
+              documentId={row.id}
+              onReadRecord={props.onReadRecord}
+              onApplyRecord={props.onApplyRecord}
+            />
+          )}
           {deleted || !doc.pdf ? null : (
             <Reading
               documentId={row.id}

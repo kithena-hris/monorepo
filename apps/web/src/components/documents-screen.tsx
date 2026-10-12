@@ -4,10 +4,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/documents/actions';
+import * as peopleActions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS } from '../lib/remotes';
 import type { areaFrame } from '../lib/shell-data';
 import { withQuery } from '../lib/url-state';
+import { useShellData } from './app-shell';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
 /**
@@ -24,6 +26,8 @@ export interface DocumentsScreenProps {
 export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
+  // People is here: a document can fill the record of the person it is about.
+  const people = useShellData().sections.length > 0;
   const [, startTransition] = useTransition();
   const loadable =
     load.status === 'ready'
@@ -101,6 +105,14 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onSummarize: actions.summarizeDocument,
           onAskDocument: actions.askDocument,
           onCompare: actions.compareVersions,
+          // With People: fill the person's record from the document (G5).
+          ...(people
+            ? {
+                onReadRecord: actions.recordFromDocument,
+                onApplyRecord: (personId: string, changed: Readonly<Record<string, string>>) =>
+                  peopleActions.savePersonSection(personId, '', changed),
+              }
+            : {}),
         };
       case 'Envelopes':
         return { load: loadable, onNavigate: go };

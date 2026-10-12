@@ -240,3 +240,23 @@ describe('the company’s switches (S7)', () => {
     expect(seen.length).toBe(before);
   });
 });
+
+describe('reading fields for a host (G5)', () => {
+  it('reads the names asked, keeping only those asked and pages that exist', async () => {
+    reply = {
+      fields: [
+        { name: 'Notice period', value: 'Three months', page: 2 },
+        { name: 'Salary', value: '52000', page: 9 },
+        { name: 'Shoe size', value: '44', page: 1 },
+      ],
+    };
+    const got = await call('ada', 'POST', `/v1/documents/d/${contract}/fields`, {
+      names: ['Notice period', 'Salary'],
+    });
+    expect(got.body).toEqual({
+      available: true,
+      fields: [{ name: 'Notice period', value: 'Three months', page: 2 }],
+    });
+    expect(JSON.stringify(seen.at(-1))).toContain('Notice period');
+  });
+});

@@ -381,6 +381,14 @@ export const OPERATIONS = {
     'input: $input, ',
     'available question type { key name kind filedTo audience confidential medical signers acknowledge requiredFor requiredBy expiryReminders retention aiReads aiEnabled }',
   ),
+  /** G5: values read from a document, for the names asked, each with its page */
+  ReadDocumentFields: write(
+    'ReadDocumentFields',
+    'readDocumentFields',
+    '$documentId: String!, $input: JSON!, ',
+    'documentId: $documentId, input: $input, ',
+    'available fields { name value page }',
+  ),
   /** S7: the company's switches */
   SetDocumentsAiSettings: write(
     'SetDocumentsAiSettings',

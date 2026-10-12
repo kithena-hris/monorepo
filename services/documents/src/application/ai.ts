@@ -470,6 +470,8 @@ export async function readFields(
   deps: Deps,
   caller: Caller,
   id: DocumentId,
+  /** What to look for, by name: a host's own field labels. Absent: what the type says Kithena reads. */
+  asked: readonly string[] | null = null,
 ): Promise<
   Result<{ available: boolean; fields: { name: string; value: string; page: number }[] }>
 > {
@@ -477,11 +479,11 @@ export async function readFields(
   if (!got.ok) return got;
   if (got.value.kind !== 'text' || deps.reader === undefined)
     return ok({ available: false, fields: [] });
-  const names = got.value.type?.aiReads ?? [];
+  const names = asked ?? got.value.type?.aiReads ?? [];
   if (names.length === 0) return ok({ available: false, fields: [] });
   const { pages, title } = got.value;
   const answer = await deps.reader.read({
-    instruction: `${RULES} Read these fields from the document, each with the page it is on, exactly as written; leave out any the document does not state. Shape: {"fields":[{"name":string,"value":string,"page":number}]}.`,
+    instruction: `${RULES} Read these fields from the document, each with the page it is on, exactly as written but dates as YYYY-MM-DD; leave out any the document does not state. Shape: {"fields":[{"name":string,"value":string,"page":number}]}.`,
     context: { title, fields: names, pages: forModel(pages) },
   });
   const fields = Array.isArray(answer?.['fields'])

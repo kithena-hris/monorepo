@@ -560,3 +560,86 @@ export async function attachNewNote(requestId: string, file: File): Promise<Outc
   if (!filed.ok) return filed;
   return attachNoteFromDocuments(requestId, filed.data.id);
 }
+
+/* --------------------------------------------- record from a document (G5) -- */
+
+/** People's kinds of value a document states in words a person checks. */
+const FILLABLE = new Set(['text', 'number', 'decimal', 'date', 'email', 'phone', 'url']);
+
+interface ProfileField {
+  readonly key: string;
+  readonly label: string;
+  readonly dataType: string;
+  readonly readOnly: boolean;
+}
+type ProfileEntry = { readonly key: string } & Readonly<Record<string, unknown>>;
+
+/** One field as G5 lists it: People's value beside the document's, with its page. */
+export interface RecordRow {
+  readonly key: string;
+  readonly label: string;
+  readonly current: string | null;
+  readonly found: { readonly value: string; readonly page: number } | null;
+}
+
+const shown = (e: ProfileEntry | undefined): string | null => {
+  if (e === undefined) return null;
+  if (typeof e['text'] === 'string') return e['text'];
+  if (typeof e['flag'] === 'boolean') return e['flag'] ? 'Yes' : 'No';
+  if (Array.isArray(e['items'])) return e['items'].join(', ');
+  return null;
+};
+
+/**
+ * G5, MP3, K9: what a document says beside what People holds for the person
+ * it is about. People says which fields this viewer may change and what they
+ * hold; Documents reads the document for those names, each with its page.
+ * Nothing is written here.
+ */
+export async function recordFromDocument(documentId: string): Promise<
+  Read<{
+    readonly personId: string;
+    readonly name: string;
+    readonly rows: readonly RecordRow[];
+  }>
+> {
+  const doc = await documents<{
+    document: { row: { subject: { personId: string; name: string } | null } } | null;
+  }>('DocumentsDocument', { documentId });
+  if (!doc.ok) return doc;
+  const subject = doc.data.document?.row.subject ?? null;
+  if (subject === null) return { ok: false, message: 'This document is about nobody' };
+  const profile = await people<{
+    sections: readonly { fields: readonly ProfileField[] }[];
+    values: readonly ProfileEntry[];
+  }>('Profile', { personId: subject.personId });
+  if (!profile.ok) return profile;
+  const fields = profile.data.sections
+    .flatMap((s) => s.fields)
+    .filter((f) => !f.readOnly && FILLABLE.has(f.dataType))
+    .slice(0, 40);
+  if (fields.length === 0) return { ok: false, message: 'There is nothing here you can change' };
+  const read = await documents<{
+    available: boolean;
+    fields: readonly { name: string; value: string; page: number }[];
+  }>('ReadDocumentFields', { documentId, input: { names: fields.map((f) => f.label) } });
+  if (!read.ok) return read;
+  const values = new Map(profile.data.values.map((v) => [v.key, v]));
+  const found = new Map(read.data.fields.map((f) => [f.name, f]));
+  return {
+    ok: true,
+    data: {
+      personId: subject.personId,
+      name: subject.name,
+      rows: fields.map((f) => {
+        const hit = found.get(f.label);
+        return {
+          key: f.key,
+          label: f.label,
+          current: shown(values.get(f.key)),
+          found: hit === undefined ? null : { value: hit.value, page: hit.page },
+        };
+      }),
+    },
+  };
+}

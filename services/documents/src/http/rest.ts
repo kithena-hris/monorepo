@@ -1090,18 +1090,22 @@ export const ROUTES: readonly Route[] = [
     run: (deps, caller, { body }) => describeType(deps, caller, body.text),
   }),
   route({
-    name: 'documentFields',
-    method: 'GET',
+    name: 'readDocumentFields',
+    method: 'POST',
     path: `${V1}/d/{documentId}/fields`,
-    summary: 'The values its type says Kithena reads, each with its page (G5)',
+    summary: 'Values read from the document, each with its page: the names asked, or its type’s (G5)',
     params: DocParams,
+    body: z.strictObject({
+      names: z.array(z.string().trim().min(1).max(80)).max(40).nullable().default(null),
+    }),
     answer: z
       .object({
         available: z.boolean(),
         fields: z.array(z.object({ name: z.string(), value: z.string(), page: z.int() })),
       })
       .meta({ title: 'DocumentsFields' }),
-    run: (deps, caller, { params }) => readFields(deps, caller, params.documentId),
+    run: (deps, caller, { params, body }) =>
+      readFields(deps, caller, params.documentId, body.names),
   }),
   route({
     name: 'setDocumentsAiSettings',

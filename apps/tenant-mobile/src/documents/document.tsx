@@ -24,7 +24,17 @@ import {
   Text,
   Textarea,
 } from '@reach/ui-native';
-import { Download, Eye, Lock, PenLine, Send, Share2, Trash2, Upload } from 'lucide-react-native';
+import {
+  Download,
+  Eye,
+  Lock,
+  PenLine,
+  Send,
+  Share2,
+  Sparkles,
+  Trash2,
+  Upload,
+} from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -44,6 +54,7 @@ import {
   type Row,
 } from './api';
 import { Reading } from './reading';
+import { FillRecord } from './record';
 
 /**
  * A document on the phone (MR1, MR4, MA1, MA2): who can see it, open it in
@@ -111,6 +122,7 @@ export function DocumentDetail({
   const [busy, setBusy] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [filling, setFilling] = useState(false);
   const back = { label: 'Documents', onPress: navigation.goBack };
   const act = async (name: string, variables: Record<string, unknown>): Promise<boolean> => {
     setBusy(name);
@@ -254,6 +266,26 @@ export function DocumentDetail({
         >
           Send for signature
         </Button>
+      ) : null}
+      {doc.may.share && doc.pdf && row.deletedAt === null && row.subject !== null ? (
+        <Button
+          startIcon={<Icon icon={Sparkles} />}
+          onPress={() => {
+            setFilling(true);
+          }}
+        >
+          Fill the record from it
+        </Button>
+      ) : null}
+      {filling && row.subject !== null ? (
+        <FillRecord
+          documentId={id}
+          personId={row.subject.personId}
+          name={row.subject.name}
+          onClose={() => {
+            setFilling(false);
+          }}
+        />
       ) : null}
       {doc.pdf && row.deletedAt === null ? <Reading documentId={id} /> : null}
       <Heading title="Who can see it" />

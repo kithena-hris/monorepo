@@ -654,6 +654,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """
+  Values read from the document, each with its page: the names asked, or its type’s (G5)
+  """
+  readDocumentFields(
+    documentId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsFields!
   """Hand a signer’s turn to a colleague, where the sender allowed it"""
   reassignEnvelopeSigner(
     envelopeId: String!
@@ -795,8 +804,6 @@ type Query {
   _service: _Service!
   """What changed between two versions (D3)"""
   compareDocumentVersions(documentId: String!, from: Int!, to: Int!): DocumentsCompare!
-  """The values its type says Kithena reads, each with its page (G5)"""
-  documentFields(documentId: String!): DocumentsFields!
   """The document in plain words, each claim cited to its page (D1)"""
   documentSummary(documentId: String!): DocumentsSummary!
   """Who has acknowledged a policy, and who is left (F3)"""

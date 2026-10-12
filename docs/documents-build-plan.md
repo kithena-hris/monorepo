@@ -181,7 +181,14 @@ small group, and goes to `main` as **one pull request**.
       list (`kept`), never that Documents exists. The AI match preview before
       mapping is People's import's own, unchanged.
 - [ ] **DOC-059** Generate letters G3 (templates and merge).
-- [ ] **DOC-060** Fill a record from a document G5, MP3, K9.
+- [x] **DOC-060** Fill a record from a document G5, MP3, K9. As built: on a
+      document about somebody, whoever may share it is offered Fill the record
+      from it (web and phone, and so on a sealed contract, K9). People says
+      which fields this viewer may change and what they hold; Documents reads
+      the document for those field names (`readDocumentFields`), each with
+      its page; People's own section save applies what HR ticks, so a value
+      that needs approving waits for it. Text, numbers and dates only: money
+      and identifiers are typed into People.
 - [x] **DOC-061** Documents on a profile G6, MP4. As built: the profile's
       Documents card, web and phone, adds the Document center's file for the
       person after People's own sent documents; the shell asks Documents

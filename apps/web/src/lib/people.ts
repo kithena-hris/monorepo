@@ -108,6 +108,7 @@ const UNCHANGING = new Set([
   'AskDocuments',
   'SuggestDocumentFiling',
   'DescribeDocumentType',
+  'ReadDocumentFields',
 ]);
 
 async function mint(key: string, sessionId: string, tenantId: string): Promise<string | null> {
