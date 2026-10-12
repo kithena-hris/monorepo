@@ -3,7 +3,7 @@
 import { headers } from 'next/headers';
 
 import { currentTenant } from '../../../lib/branding';
-import { documents } from '../../../lib/people';
+import { documents, people } from '../../../lib/people';
 
 /**
  * What the Documents screens' buttons do: server actions, each one operation
@@ -412,4 +412,75 @@ export async function keepExport(
     },
   });
   return a.ok ? { ok: true, id: a.data.id } : { ok: false, message: a.message };
+}
+
+const SPREADSHEETS = new Set(['text/csv', EXPORT_TYPES['xlsx']]);
+
+/** G4: the spreadsheets this person may open in Documents, for People's import to offer. */
+export async function importableDocuments(): Promise<
+  readonly { readonly id: string; readonly name: string; readonly detail: string }[]
+> {
+  const a = await documents<{
+    rows: readonly {
+      id: string;
+      title: string;
+      typeName: string | null;
+      mediaType: string | null;
+      updatedAt: string;
+      deletedAt: string | null;
+    }[];
+  }>('DocumentsLibrary', { show: 'all' });
+  if (!a.ok) return [];
+  return a.data.rows
+    .filter((r) => r.deletedAt === null && SPREADSHEETS.has(r.mediaType ?? ''))
+    .slice(0, 20)
+    .map((r) => ({
+      id: r.id,
+      name: r.title,
+      detail: `${r.typeName ?? 'Your document'} · ${new Date(r.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
+    }));
+}
+
+/**
+ * G4: a spreadsheet in Documents handed to People's import as its upload:
+ * read from Documents as the person (who must be able to download it) and
+ * put where People's import expects a file. The bytes never reach a browser.
+ */
+export async function importFromDocuments(
+  documentId: string,
+): Promise<
+  | { readonly ok: true; readonly uploadId: string }
+  | { readonly ok: false; readonly message: string }
+> {
+  const file = await documents<{
+    fileName: string;
+    url: string | null;
+    base64: string | null;
+  }>('DocumentsFile', { documentId, mode: 'download', version: null, device: 'web' });
+  if (!file.ok) return file;
+  let bytes: Buffer;
+  if (file.data.url !== null) {
+    const response = await fetch(file.data.url).catch(() => null);
+    if (response === null || !response.ok) {
+      return { ok: false, message: 'The file could not be read from Documents' };
+    }
+    bytes = Buffer.from(await response.arrayBuffer());
+  } else {
+    bytes = Buffer.from(file.data.base64 ?? '', 'base64');
+  }
+  const target = await people<{
+    uploadId: string;
+    url: string;
+    method: string;
+    headers: { name: string; value: string }[];
+  }>('StartImportUpload', { name: file.data.fileName.slice(0, 255), size: bytes.length });
+  if (!target.ok) return target;
+  const put = await fetch(target.data.url, {
+    method: target.data.method,
+    headers: Object.fromEntries(target.data.headers.map((h) => [h.name, h.value])),
+    body: new Uint8Array(bytes),
+  }).catch(() => null);
+  if (put === null || !put.ok)
+    return { ok: false, message: 'The file could not be handed to People' };
+  return { ok: true, uploadId: target.data.uploadId };
 }

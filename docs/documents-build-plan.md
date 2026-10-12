@@ -173,7 +173,13 @@ small group, and goes to `main` as **one pull request**.
       Confidential to HR, deleted after 90 days by its type. People's screens
       learn only a label (`keep`), never that Documents exists. Weekly refresh
       as a new version is left.
-- [ ] **DOC-058** Import from Documents G4.
+- [x] **DOC-058** Import from Documents G4. As built: People's import lists
+      the spreadsheets the person may download from Documents (each row now
+      carries its current version's `mediaType`); picking one, the shell reads
+      it from Documents and hands it to People's import upload server-side, so
+      the bytes never reach a browser. People's screen learns a label and a
+      list (`kept`), never that Documents exists. The AI match preview before
+      mapping is People's import's own, unchanged.
 - [ ] **DOC-059** Generate letters G3 (templates and merge).
 - [ ] **DOC-060** Fill a record from a document G5, MP3, K9.
 - [x] **DOC-061** Documents on a profile G6, MP4. As built: the profile's

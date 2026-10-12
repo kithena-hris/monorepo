@@ -12,7 +12,7 @@
  */
 
 const PERSON = 'personId name teamName';
-const ROW = `id title kind typeKey typeName level confidential everyone who { label people { ${PERSON} } } subject { ${PERSON} } pages updatedAt expiresOn status { label tone } mine aboutMe deletedAt sectionIds`;
+const ROW = `id title kind typeKey typeName level confidential everyone who { label people { ${PERSON} } } subject { ${PERSON} } pages mediaType updatedAt expiresOn status { label tone } mine aboutMe deletedAt sectionIds`;
 const TYPE = 'key name kind filedTo confidential';
 
 const write = (name: string, field: string, params: string, args: string, answer: string) =>

@@ -45,6 +45,8 @@ export const DocumentRow = z
     who: Who,
     subject: PersonRef.nullable(),
     pages: z.int().nullable(),
+    /** The current version's: what a host offers it for, a spreadsheet to import. */
+    mediaType: z.string().nullable(),
     updatedAt: z.string(),
     expiresOn: z.string().nullable(),
     status: Status.nullable(),

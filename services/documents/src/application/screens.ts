@@ -113,7 +113,7 @@ function rowOf(
   types: Types,
   dir: Directory,
   sections: ReadonlyMap<string, readonly string[]>,
-  pages: number | null,
+  current: Current | null,
 ): DocumentRow {
   const type = doc.typeKey === null ? null : (types.get(doc.typeKey) ?? null);
   const who = whoCanSee(ctx, doc, type, dir);
@@ -128,7 +128,8 @@ function rowOf(
     everyone: who.everyone,
     who: { label: who.label, people: who.people },
     subject: who.subject === undefined ? null : personRef(who.subject),
-    pages,
+    pages: current?.pages ?? null,
+    mediaType: current?.mediaType ?? null,
     updatedAt: doc.versionAt,
     expiresOn: doc.expiresOn,
     status: statusOf(ctx, doc),
@@ -158,12 +159,15 @@ const typeOptions = (types: Types): z.infer<typeof TypeOption>[] =>
     }));
 
 /** Pages of each document's current version, read once per screen. */
-async function pagesOf(ctx: Ctx, docs: readonly Document[]): Promise<Map<string, number | null>> {
-  const out = new Map<string, number | null>();
-  // ponytail: one read per document; a `pages` column on `document` when lists grow past hundreds.
+type Current = { readonly pages: number | null; readonly mediaType: string | null };
+
+async function pagesOf(ctx: Ctx, docs: readonly Document[]): Promise<Map<string, Current>> {
+  const out = new Map<string, Current>();
+  // ponytail: one read per document; `pages` and `media_type` columns on `document` when lists grow past hundreds.
   await Promise.all(
     docs.map(async (d) => {
-      out.set(d.id, (await ctx.tx.versions.get(d.id, d.currentVersion))?.pages ?? null);
+      const v = await ctx.tx.versions.get(d.id, d.currentVersion);
+      out.set(d.id, { pages: v?.pages ?? null, mediaType: v?.mediaType ?? null });
     }),
   );
   return out;
@@ -564,7 +568,7 @@ export async function documentScreen(
     const controls = canShare(facts, ctx.viewer).ok;
     const accountName = (a: string) => dir.byAccount.get(a)?.displayName ?? 'Someone';
     const view: DocumentView = {
-      row: rowOf(ctx, doc, types, dir, inSection, current.pages),
+      row: rowOf(ctx, doc, types, dir, inSection, current),
       owner: ownerName,
       versions: versionViews,
       current,

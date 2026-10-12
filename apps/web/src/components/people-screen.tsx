@@ -5,7 +5,11 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
-import { keepExport } from '../app/(app)/documents/actions';
+import {
+  importableDocuments,
+  importFromDocuments,
+  keepExport,
+} from '../app/(app)/documents/actions';
 import * as inbox from '../app/(app)/inbox/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { useShellData } from './app-shell';
@@ -1408,6 +1412,27 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onFieldChange: (field: string | null) => {
             note({ field }, 'replace');
           },
+          ...(documents
+            ? {
+                kept: {
+                  label: 'Already in Documents',
+                  load: importableDocuments,
+                  onPick: async (documentId: string): Promise<Outcome> => {
+                    const handed = await importFromDocuments(documentId);
+                    if (!handed.ok) return handed;
+                    const completed = await actions.completeImportUpload(handed.uploadId);
+                    if (!completed.ok) return completed;
+                    setImporting((s) => ({
+                      uploadId: handed.uploadId,
+                      mapping: {},
+                      stages: [...s.stages, completed.stage as Stage],
+                    }));
+                    note({ step: 'map', field: null }, 'push');
+                    return { ok: true };
+                  },
+                },
+              }
+            : {}),
           onUpload: async (file: File, progress: (percent: number) => void): Promise<Outcome> => {
             const target = await actions.startImportUpload({ name: file.name, size: file.size });
             if (!target.ok) return target;

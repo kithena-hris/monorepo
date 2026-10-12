@@ -357,6 +357,7 @@ type DocumentsRow {
   id: String!
   kind: String!
   level: String!
+  mediaType: String
   mine: Boolean!
   pages: Int
   sectionIds: [String!]!

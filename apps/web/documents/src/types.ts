@@ -37,6 +37,8 @@ export interface Row {
   readonly who: { readonly label: string; readonly people: readonly PersonRef[] };
   readonly subject: PersonRef | null;
   readonly pages: number | null;
+  /** The current version's. */
+  readonly mediaType: string | null;
   readonly updatedAt: string;
   readonly expiresOn: string | null;
   readonly status: { readonly label: string; readonly tone: Tone } | null;

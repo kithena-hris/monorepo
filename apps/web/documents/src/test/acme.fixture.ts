@@ -24,6 +24,7 @@ export const row = (over: Partial<Row> = {}): Row => ({
   who: { label: 'You and HR', people: [] },
   subject: adam,
   pages: 3,
+  mediaType: 'application/pdf',
   updatedAt: '2026-10-12T09:00:00.000Z',
   expiresOn: null,
   status: null,
