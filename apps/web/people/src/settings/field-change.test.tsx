@@ -57,14 +57,17 @@ describe('FieldChange', () => {
     await user.click(days[0] as HTMLElement);
     expect(await axeViolations(container)).toEqual([]);
     await user.click(screen.getByRole('button', { name: 'Publish the change' }));
-    expect(onApply).toHaveBeenCalledWith([
-      { personId: MARCO, action: 'request' },
-      {
-        personId: GRACE,
-        action: 'edit',
-        value: expect.stringMatching(/^\d{4}-\d{2}-15$/) as unknown,
-      },
-    ]);
+    expect(onApply).toHaveBeenCalledWith(
+      [
+        { personId: MARCO, action: 'request' },
+        {
+          personId: GRACE,
+          action: 'edit',
+          value: expect.stringMatching(/^\d{4}-\d{2}-15$/) as unknown,
+        },
+      ],
+      {},
+    );
   });
 
   it('decides for every value at once, or for the ones selected', async () => {
@@ -85,10 +88,13 @@ describe('FieldChange', () => {
     await user.click(await screen.findByRole('option', { name: 'Remove it' }));
     await user.click(screen.getByRole('button', { name: 'Apply' }));
     await user.click(screen.getByRole('button', { name: 'Publish the change' }));
-    expect(onApply).toHaveBeenCalledWith([
-      { personId: MARCO, action: 'clear' },
-      { personId: GRACE, action: 'hr' },
-    ]);
+    expect(onApply).toHaveBeenCalledWith(
+      [
+        { personId: MARCO, action: 'clear' },
+        { personId: GRACE, action: 'hr' },
+      ],
+      {},
+    );
     // Refused: said, and nothing was published.
     expect(await screen.findByText('Refused')).toBeVisible();
   });
@@ -118,10 +124,56 @@ describe('FieldChange', () => {
     await user.click(await screen.findByRole('option', { name: 'N/A' }));
     await user.click(screen.getByRole('button', { name: 'Apply' }));
     await user.click(screen.getByRole('button', { name: 'Publish the change' }));
-    expect(onApply).toHaveBeenCalledWith([
-      { personId: MARCO, action: 'edit', value: 'n_a' },
-      { personId: GRACE, action: 'edit', value: 'n_a' },
-    ]);
+    expect(onApply).toHaveBeenCalledWith(
+      [
+        { personId: MARCO, action: 'edit', value: 'n_a' },
+        { personId: GRACE, action: 'edit', value: 'n_a' },
+      ],
+      {},
+    );
+  });
+
+  it('reviews every field changing type on one page, and publishes each with its own choices', async () => {
+    const user = fast();
+    const onApply = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const shift = {
+      ...START_DAY,
+      field: {
+        ...START_DAY.field,
+        key: 'shift',
+        label: 'Shift',
+        from: 'text' as const,
+        to: 'select' as const,
+        options: [{ value: 'n_a', label: 'N/A' }],
+      },
+      converted: { count: 0, samples: [] },
+      unfit: [{ personId: MARCO, name: 'Marco Rossi', before: 'nights', reason: 'Not an option' }],
+    };
+    const { container } = render(
+      <FieldChange
+        load={{ status: 'ready', data: { ...START_DAY, others: [shift] } }}
+        onApply={onApply}
+        onBack={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Shift changes type too')).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Shift: short text to one of a list' }),
+    ).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: 'For all 1 (Shift)' }));
+    await user.click(await screen.findByRole('option', { name: 'Type the right value' }));
+    await user.click(screen.getByRole('combobox', { name: 'Shift for all 1' }));
+    await user.click(await screen.findByRole('option', { name: 'N/A' }));
+    await user.click(screen.getByRole('button', { name: 'Apply (Shift)' }));
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Publish the change' }));
+    expect(onApply).toHaveBeenCalledWith(
+      [
+        { personId: MARCO, action: 'request' },
+        { personId: GRACE, action: 'request' },
+      ],
+      { shift: [{ personId: MARCO, action: 'edit', value: 'n_a' }] },
+    );
   });
 
   it('says while it checks, and when it could not', async () => {
