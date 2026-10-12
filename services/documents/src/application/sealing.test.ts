@@ -3,6 +3,7 @@ import { PDFDocument } from 'pdf-lib';
 import type { DocumentId, Instant } from '@kithena/contracts';
 
 import { send, sign, markOpened, type Envelope } from '../domain/signature/envelope.js';
+import { facesFor } from './fonts.js';
 import { seal } from './sealing.js';
 
 const at = '2026-10-09T10:00:00.000Z' as Instant;
@@ -56,9 +57,16 @@ describe('sealing (K9)', () => {
     expect(out.getPageCount()).toBe(3);
   });
 
-  it('a name the standard fonts cannot draw does not stop the seal', async () => {
-    const env = signedEnvelope('佐藤 由紀', { kind: 'typed', text: '佐藤 由紀' });
-    const out = await PDFDocument.load(await seal(await twoPages(), env, [], 'Acme'));
+  it('draws a name outside Latin-1 as written, and one no face has without stopping', async () => {
+    const polish = signedEnvelope('Łukasz Ołów', { kind: 'typed', text: 'Łukasz Ołów' });
+    const sealed = await seal(await twoPages(), polish, [], 'Acme');
+    expect((await PDFDocument.load(sealed)).getPageCount()).toBe(3);
+    // The faces draw it as written; only what no face has becomes "?".
+    const { drawable } = await facesFor(await PDFDocument.create());
+    expect(drawable('Łukasz Ольга Nguyễn')).toBe('Łukasz Ольга Nguyễn');
+    expect(drawable('佐藤')).toBe('??');
+    const japanese = signedEnvelope('佐藤 由紀', { kind: 'typed', text: '佐藤 由紀' });
+    const out = await PDFDocument.load(await seal(await twoPages(), japanese, [], 'Acme'));
     expect(out.getPageCount()).toBe(3);
   });
 });
