@@ -10,6 +10,7 @@ import {
   canSetConfidential,
   canShare,
 } from '../domain/access/access.js';
+import { audienceOf } from '../domain/acknowledge/campaign.js';
 import { checklist, progress } from '../domain/checklist/checklist.js';
 import { daysUntil } from '../domain/dates.js';
 import type { Document } from '../domain/document/document.js';
@@ -256,6 +257,44 @@ export async function library(
         });
       }
     }
+    if (ctx.viewer.personId !== null) {
+      for (const env of await tx.envelopes.forPerson(ctx.viewer.personId)) {
+        const me = env.signers.find((x) => x.personId === ctx.viewer.personId);
+        if (
+          env.status !== 'sent' ||
+          me === undefined ||
+          ['waiting', 'signed', 'declined'].includes(me.status)
+        )
+          continue;
+        const doc = (await tx.documents.get(env.documentId))?.title ?? 'A document';
+        needsYou.push({
+          id: env.id,
+          kind: 'sign',
+          title: `Sign ${doc}`,
+          detail: env.message || 'Waiting for your signature',
+          dueOn: env.dueOn,
+          documentId: env.documentId,
+          typeKey: null,
+        });
+      }
+      const members = await tx.members.list();
+      const acked = await tx.campaigns.mine(ctx.viewer.personId);
+      for (const c of await tx.campaigns.list()) {
+        if (c.closedAt !== null || acked.has(c.id)) continue;
+        if (!audienceOf(c.audience, members).includes(ctx.viewer.personId)) continue;
+        const doc = open.find((d) => d.id === c.documentId);
+        if (doc === undefined) continue;
+        needsYou.push({
+          id: c.id,
+          kind: 'acknowledge',
+          title: `Read and acknowledge ${doc.title}`,
+          detail: `Version ${String(c.version)}`,
+          dueOn: c.dueOn,
+          documentId: doc.id,
+          typeKey: null,
+        });
+      }
+    }
     for (const r of await tx.accessRequests.open()) {
       const doc = open.find((d) => d.id === r.documentId);
       if (doc === undefined || !canShare(factsOf(doc, null), ctx.viewer).ok) continue;
@@ -402,12 +441,48 @@ async function hrQueues(ctx: Ctx, types: Types, dir: Directory, live: readonly D
       };
     }),
   );
-  rows.set('to_sign', []);
+  const openEnvelopes = await ctx.tx.envelopes.open();
+  rows.set(
+    'to_sign',
+    openEnvelopes.map((env) => {
+      const doc = live.find((d) => d.id === env.documentId);
+      const waiting = env.signers.find(
+        (s) => !['waiting', 'signed', 'declined'].includes(s.status),
+      );
+      const yours = waiting?.personId != null && waiting.personId === ctx.viewer.personId;
+      const person = doc?.subjectPersonId == null ? undefined : nameOf(doc.subjectPersonId);
+      return {
+        id: env.id,
+        title: doc?.title ?? 'A document',
+        kind: doc?.kind ?? 'Contract',
+        person: person ? personRef(person) : null,
+        detail: `${String(env.signers.filter((s) => s.status === 'signed').length)} of ${String(env.signers.length)} signed${waiting ? ` · waiting for ${yours ? 'you' : first(waiting.name)}` : ''}`,
+        dueOn: env.dueOn,
+        tone: yours ? 'accent' : 'info',
+        documentId: env.documentId,
+        requestId: env.id,
+        typeKey: doc?.typeKey ?? null,
+        action: yours ? 'sign' : 'view',
+      };
+    }),
+  );
 
   const firstExpiring = rows.get('expiring')?.[0];
   const missingPeople = [...new Set(missing.map((r) => r.person?.name ?? ''))].filter(Boolean);
   const tiles: z.infer<typeof Tile>[] = [
-    { key: 'to_sign', label: 'To sign', count: 0, detail: 'Nothing waiting' },
+    {
+      key: 'to_sign',
+      label: 'To sign',
+      count: rows.get('to_sign')?.length ?? 0,
+      detail: (() => {
+        const yours = (rows.get('to_sign') ?? []).filter((r) => r.action === 'sign').length;
+        return (rows.get('to_sign')?.length ?? 0) === 0
+          ? 'Nothing waiting'
+          : yours > 0
+            ? `${String(yours)} need yours`
+            : 'Waiting on others';
+      })(),
+    },
     {
       key: 'expiring',
       label: 'Expiring',
@@ -540,6 +615,41 @@ export async function documentScreen(
         : [],
       held: held.has(id),
       people: controls ? peopleOf(dir) : [],
+      signing: await (async () => {
+        const env = (await tx.envelopes.forDocument(id))[0];
+        if (env === undefined) return null;
+        return {
+          id: env.id,
+          status: env.status,
+          signed: env.signers.filter((s) => s.status === 'signed').length,
+          of: env.signers.length,
+          mine: env.signers.some((s) => s.personId !== null && s.personId === ctx.viewer.personId),
+        };
+      })(),
+      campaigns: await (async () => {
+        const members = [...dir.byPerson.values()];
+        const mine =
+          ctx.viewer.personId === null
+            ? new Set<string>()
+            : await tx.campaigns.mine(ctx.viewer.personId);
+        const out = [];
+        for (const c of (await tx.campaigns.list()).filter((x) => x.documentId === id)) {
+          const asked = audienceOf(c.audience, members);
+          const isAsked = ctx.viewer.personId !== null && asked.includes(ctx.viewer.personId);
+          if (!ctx.viewer.hr && !isAsked) continue;
+          const acked = await tx.campaigns.acknowledged(c.id);
+          out.push({
+            id: c.id,
+            done: asked.filter((p) => acked.has(p)).length,
+            of: asked.length,
+            dueOn: c.dueOn,
+            acknowledged: mine.has(c.id),
+            asked: isAsked,
+          });
+        }
+        return out;
+      })(),
+      pdf: current.mediaType === 'application/pdf',
     };
     return ok({ document: view, closed: null });
   });

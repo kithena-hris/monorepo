@@ -24,7 +24,34 @@ import {
   upload,
   type UploadedFile,
 } from '../application/documents.js';
+import {
+  acknowledge,
+  campaignScreen,
+  sendForAcknowledgement,
+} from '../application/acknowledgements.js';
 import { documentsInbox } from '../application/inbox.js';
+import {
+  askSender,
+  declineAsMember,
+  declineByLink,
+  reassignSigner,
+  remindSigners,
+  requestCode,
+  sealAgain,
+  sendForSignature,
+  signAsMember,
+  signByLink,
+  verifyCode,
+  voidRequest,
+} from '../application/signatures.js';
+import {
+  envelopeFile,
+  envelopeScreen,
+  envelopesScreen,
+  EnvelopesView,
+  EnvelopeView,
+  linkScreen,
+} from '../application/signing-screens.js';
 import { importMembers, MemberRow } from '../application/members.js';
 import { checkFile } from '../domain/document/document.js';
 import {
@@ -92,6 +119,8 @@ export interface Route {
   readonly answer: z.ZodType;
   readonly status: number;
   readonly graphql: boolean;
+  /** Reached by a signing link's token, not through the router: no caller, no key. */
+  readonly public: boolean;
   readonly run: (
     deps: Deps,
     caller: Caller,
@@ -111,6 +140,7 @@ function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.Zo
   readonly body?: B;
   readonly answer: A;
   readonly status?: number;
+  readonly public?: true;
   readonly run: (
     deps: Deps,
     caller: Caller,
@@ -130,7 +160,8 @@ function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.Zo
     body: def.body ?? null,
     answer: def.answer,
     status: def.status ?? 200,
-    graphql: true,
+    graphql: def.public !== true,
+    public: def.public === true,
     run: def.run as Route['run'],
     shape: (def.shape ?? ((v: V) => v)) as Route['shape'],
   };
@@ -262,6 +293,64 @@ const AccessSettingsBody = z.strictObject({
   blockDownload: z.boolean().optional(),
   personalSections: z.boolean().optional(),
 });
+
+const OriginBody = {
+  origin: z.url().max(300),
+  companyName: z.string().trim().min(1).max(120),
+};
+
+const Mark = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('typed'), text: z.string().max(120) }),
+  z.strictObject({ kind: z.literal('drawn'), image: z.string().max(400_000) }),
+]);
+
+const SignBody = z.strictObject({
+  signature: Mark,
+  values: z.record(z.string().max(80), z.string().max(200)).default({}),
+  ...OriginBody,
+});
+
+const FieldBody = z.strictObject({
+  id: z.string().max(80),
+  signerId: z.string().max(20),
+  kind: z.enum(['signature', 'initials', 'date', 'name', 'title', 'checkbox', 'text']),
+  page: z.int().positive(),
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  w: z.number().min(0).max(1),
+  h: z.number().min(0).max(1),
+  required: z.boolean().default(true),
+  label: z.string().max(120).nullable().default(null),
+});
+
+const EnvelopeParams = z.object({ envelopeId: z.uuid() });
+const TokenParams = z.object({ token: z.string().min(40).max(120) });
+const Completed = z.object({ completed: z.boolean() }).meta({ title: 'DocumentsSigned' });
+
+/** A file as a link to a copy that lasts minutes, or the bytes without a bucket. */
+async function handOut(
+  deps: Deps,
+  tenantId: string,
+  f: { bytes: Uint8Array; fileName: string; mediaType: string },
+  download: boolean,
+) {
+  const url =
+    deps.transfers === undefined
+      ? null
+      : await deps.transfers.handOut(
+          `outgoing/${tenantId}/${deps.newId()}`,
+          f.bytes,
+          { fileName: f.fileName, mediaType: f.mediaType, download },
+          600,
+        );
+  return {
+    fileName: f.fileName,
+    mediaType: f.mediaType,
+    url,
+    base64: url === null ? Buffer.from(f.bytes).toString('base64') : null,
+    original: true,
+  };
+}
 
 const V1 = '/v1/documents';
 
@@ -646,6 +735,269 @@ export const ROUTES: readonly Route[] = [
     answer: z.object({ imported: z.int() }).meta({ title: 'DocumentsMembersImported' }),
     run: (deps, caller, { body }) => importMembers(deps, caller, body.rows),
   }),
+
+  /* ------------------------------------------------------- signatures -- */
+  route({
+    name: 'sendForSignature',
+    method: 'POST',
+    path: `${V1}/d/{documentId}/envelopes`,
+    summary: 'Send a PDF for signature: signers in order, fields placed, a message and a due date',
+    params: DocParams,
+    body: z.strictObject({
+      signers: z
+        .array(
+          z.strictObject({
+            personId: PersonId.nullable().default(null),
+            email: z.string().max(320).nullable().default(null),
+            name: z.string().max(200).nullable().default(null),
+            order: z.int().min(1).max(10),
+            allowDelegate: z.boolean().default(false),
+          }),
+        )
+        .min(1)
+        .max(10),
+      fields: z.array(FieldBody).max(200).default([]),
+      message: z.string().max(2000).default(''),
+      dueOn: CalendarDate.nullable().default(null),
+      ...OriginBody,
+    }),
+    answer: Created,
+    status: 201,
+    run: (deps, caller, { params, body }) =>
+      sendForSignature(deps, caller, { documentId: params.documentId, ...body }),
+  }),
+  route({
+    name: 'documentsEnvelopes',
+    method: 'GET',
+    path: `${V1}/envelopes`,
+    summary: 'Every signature request this person follows or must sign (K10)',
+    answer: EnvelopesView,
+    run: (deps, caller) => envelopesScreen(deps, caller),
+  }),
+  route({
+    name: 'documentsEnvelope',
+    method: 'GET',
+    path: `${V1}/envelopes/{envelopeId}`,
+    summary: 'A signature request, as its signer or its sender sees it (K4, K8)',
+    params: EnvelopeParams,
+    answer: EnvelopeView,
+    run: (deps, caller, { params }) => envelopeScreen(deps, caller, params.envelopeId),
+  }),
+  route({
+    name: 'documentsEnvelopeFile',
+    method: 'GET',
+    path: `${V1}/envelopes/{envelopeId}/file`,
+    summary: 'The version being signed, or the sealed one, as a link that lasts minutes',
+    params: EnvelopeParams,
+    answer: FileAnswer,
+    run: async (deps, caller, { params }) => {
+      const f = await envelopeFile(deps, caller, params.envelopeId);
+      return f.ok ? ok(await handOut(deps, caller.tenantId, f.value, false)) : f;
+    },
+  }),
+  route({
+    name: 'signEnvelope',
+    method: 'POST',
+    path: `${V1}/envelopes/{envelopeId}/sign`,
+    summary: 'Sign as yourself: every field of yours filled, the signature adopted',
+    params: EnvelopeParams,
+    body: SignBody,
+    answer: Completed,
+    run: (deps, caller, { params, body }) => signAsMember(deps, caller, params.envelopeId, body),
+  }),
+  route({
+    name: 'declineEnvelope',
+    method: 'POST',
+    path: `${V1}/envelopes/{envelopeId}/decline`,
+    summary: 'Decline to sign, with a reason',
+    params: EnvelopeParams,
+    body: z.strictObject({ reason: z.string().max(1000) }),
+    answer: Created,
+    run: (deps, caller, { params, body }) =>
+      declineAsMember(deps, caller, params.envelopeId, body.reason),
+  }),
+  route({
+    name: 'askEnvelopeSender',
+    method: 'POST',
+    path: `${V1}/envelopes/{envelopeId}/ask`,
+    summary: 'Ask the sender a question; the request waits',
+    params: EnvelopeParams,
+    body: z.strictObject({ question: z.string().max(1000) }),
+    answer: Created,
+    run: (deps, caller, { params, body }) =>
+      askSender(deps, caller, params.envelopeId, body.question),
+  }),
+  route({
+    name: 'voidEnvelope',
+    method: 'POST',
+    path: `${V1}/envelopes/{envelopeId}/void`,
+    summary: 'Cancel a request, with a reason',
+    params: EnvelopeParams,
+    body: z.strictObject({ reason: z.string().max(1000) }),
+    answer: Created,
+    run: (deps, caller, { params, body }) =>
+      voidRequest(deps, caller, params.envelopeId, body.reason),
+  }),
+  route({
+    name: 'remindEnvelope',
+    method: 'POST',
+    path: `${V1}/envelopes/{envelopeId}/remind`,
+    summary: 'Remind whoever it waits on',
+    params: EnvelopeParams,
+    answer: Created,
+    run: (deps, caller, { params }) => remindSigners(deps, caller, params.envelopeId),
+  }),
+  route({
+    name: 'reassignEnvelopeSigner',
+    method: 'POST',
+    path: `${V1}/envelopes/{envelopeId}/reassign`,
+    summary: 'Hand a signer’s turn to a colleague, where the sender allowed it',
+    params: EnvelopeParams,
+    body: z.strictObject({ signerId: z.string().max(20), personId: PersonId }),
+    answer: Created,
+    run: (deps, caller, { params, body }) => reassignSigner(deps, caller, params.envelopeId, body),
+  }),
+  route({
+    name: 'sealEnvelope',
+    method: 'POST',
+    path: `${V1}/envelopes/{envelopeId}/seal`,
+    summary: 'Seal a completed request that did not seal the first time',
+    params: EnvelopeParams,
+    body: z.strictObject({ companyName: z.string().trim().min(1).max(120) }),
+    answer: z.object({ version: z.int() }).meta({ title: 'DocumentsSealed' }),
+    run: (deps, caller, { params, body }) =>
+      sealAgain(deps, caller, params.envelopeId, body.companyName),
+  }),
+  /* An outside signer's link (K6): public, its token the only key. */
+  route({
+    name: 'linkEnvelope',
+    method: 'GET',
+    path: `${V1}/sign/{token}`,
+    summary: 'The request a signing link opens',
+    params: TokenParams,
+    answer: EnvelopeView,
+    public: true,
+    run: (deps, _caller, { params }) => linkScreen(deps, params.token),
+  }),
+  route({
+    name: 'linkEnvelopeFile',
+    method: 'GET',
+    path: `${V1}/sign/{token}/file`,
+    summary: 'The document a signing link opens, as a link that lasts minutes',
+    params: TokenParams,
+    answer: FileAnswer,
+    public: true,
+    run: async (deps, _caller, { params }) => {
+      const f = await envelopeFile(deps, { token: params.token }, null);
+      return f.ok ? ok(await handOut(deps, params.token.split('.')[0] ?? '', f.value, false)) : f;
+    },
+  }),
+  route({
+    name: 'linkRequestCode',
+    method: 'POST',
+    path: `${V1}/sign/{token}/code`,
+    summary: 'Email the signer a six-digit code',
+    params: TokenParams,
+    body: z.strictObject(OriginBody),
+    answer: z.object({ sentTo: z.string() }).meta({ title: 'DocumentsCodeSent' }),
+    public: true,
+    run: (deps, _caller, { params, body }) => requestCode(deps, params.token, body),
+  }),
+  route({
+    name: 'linkVerifyCode',
+    method: 'POST',
+    path: `${V1}/sign/{token}/verify`,
+    summary: 'Check the code; five wrong tries need a new one',
+    params: TokenParams,
+    body: z.strictObject({ code: z.string().regex(/^\d{6}$/u) }),
+    answer: z.object({ verified: z.boolean() }).meta({ title: 'DocumentsCodeChecked' }),
+    public: true,
+    run: (deps, _caller, { params, body }) => verifyCode(deps, params.token, body.code),
+  }),
+  route({
+    name: 'linkSign',
+    method: 'POST',
+    path: `${V1}/sign/{token}/sign`,
+    summary: 'Sign from the link',
+    params: TokenParams,
+    body: SignBody,
+    answer: Completed,
+    public: true,
+    run: (deps, _caller, { params, body }) => signByLink(deps, params.token, body),
+  }),
+  route({
+    name: 'linkDecline',
+    method: 'POST',
+    path: `${V1}/sign/{token}/decline`,
+    summary: 'Decline from the link, with a reason',
+    params: TokenParams,
+    body: z.strictObject({ reason: z.string().max(1000) }),
+    answer: Created,
+    public: true,
+    run: (deps, _caller, { params, body }) => declineByLink(deps, params.token, body.reason),
+  }),
+  /* -------------------------------------------------- acknowledgements -- */
+  route({
+    name: 'sendForAcknowledgement',
+    method: 'POST',
+    path: `${V1}/d/{documentId}/campaigns`,
+    summary: 'Send a policy to everyone, teams or people to read and acknowledge (F2)',
+    params: DocParams,
+    body: z.strictObject({
+      audience: z.discriminatedUnion('kind', [
+        z.strictObject({ kind: z.literal('everyone') }),
+        z.strictObject({
+          kind: z.literal('teams'),
+          teamKeys: z.array(z.string().max(60)).min(1).max(100),
+        }),
+        z.strictObject({
+          kind: z.literal('people'),
+          personIds: z.array(PersonId).min(1).max(5000),
+        }),
+      ]),
+      dueOn: CalendarDate.nullable().default(null),
+    }),
+    answer: Created,
+    status: 201,
+    run: (deps, caller, { params, body }) =>
+      sendForAcknowledgement(deps, caller, {
+        documentId: params.documentId,
+        audience: body.audience,
+        dueOn: body.dueOn,
+      }),
+  }),
+  route({
+    name: 'acknowledgeDocument',
+    method: 'POST',
+    path: `${V1}/campaigns/{campaignId}/acknowledge`,
+    summary: 'I have read it',
+    params: z.object({ campaignId: z.uuid() }),
+    answer: Created,
+    run: (deps, caller, { params }) => acknowledge(deps, caller, params.campaignId),
+  }),
+  route({
+    name: 'documentsCampaign',
+    method: 'GET',
+    path: `${V1}/campaigns/{campaignId}`,
+    summary: 'Who has acknowledged a policy, and who is left (F3)',
+    params: z.object({ campaignId: z.uuid() }),
+    answer: z
+      .object({
+        id: z.string(),
+        documentId: z.string(),
+        title: z.string(),
+        version: z.int(),
+        dueOn: z.string().nullable(),
+        sentAt: z.string(),
+        done: z.int(),
+        of: z.int(),
+        left: z.array(
+          z.object({ personId: z.string(), name: z.string(), teamName: z.string().nullable() }),
+        ),
+      })
+      .meta({ title: 'DocumentsCampaign' }),
+    run: (deps, caller, { params }) => campaignScreen(deps, caller, params.campaignId),
+  }),
 ];
 
 /* ----------------------------------------------------------- dispatcher -- */
@@ -660,6 +1012,9 @@ const STATUS: Record<string, number> = {
   HR_ONLY_EVERYONE: 403,
   CONFIDENTIAL: 403,
   NOT_FOUND: 404,
+  CODE_LOCKED: 429,
+  NOT_YOUR_TURN: 409,
+  ALREADY_OUT: 409,
   GONE: 410,
   VERSION_CONFLICT: 409,
   IDEMPOTENCY_KEY_REUSED: 409,
@@ -800,6 +1155,27 @@ export function restHandler(
     const params = parse(r.params, coerce(r.params, raw));
     if (!params.ok) return refused(params.error);
 
+    if (r.public) {
+      let body: unknown;
+      if (r.body !== null) {
+        let json: unknown;
+        try {
+          json = request.body === '' ? {} : JSON.parse(request.body);
+        } catch {
+          return refused(failure('BAD_REQUEST', 'The body is not JSON'));
+        }
+        const parsed = parse(r.body, json);
+        if (!parsed.ok) return refused(parsed.error);
+        body = parsed.value;
+      }
+      const nobody = {
+        tenantId: '' as Caller['tenantId'],
+        accountId: '',
+        personId: null,
+        correlationId: '',
+      };
+      return answer(r, await r.run(deps, nobody, { params: params.value, body }));
+    }
     const caller = await rest.callerFrom(request);
     if (!caller.ok) return refused(caller.error);
 

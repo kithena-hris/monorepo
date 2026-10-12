@@ -1,6 +1,7 @@
 import { ok, type Result } from '@kithena/domain-kit';
 import type { InboxItem } from '@kithena/contracts';
 
+import { audienceOf } from '../domain/acknowledge/campaign.js';
 import { canOpen, canShare } from '../domain/access/access.js';
 import { contextOf, factsOf } from './context.js';
 import type { Caller, Deps } from './ports.js';
@@ -59,6 +60,63 @@ export async function documentsInbox(
       }
     }
 
+    if (caller.personId !== null) {
+      for (const env of await tx.envelopes.forPerson(caller.personId)) {
+        const me = env.signers.find((x) => x.personId === caller.personId);
+        if (
+          env.status !== 'sent' ||
+          me === undefined ||
+          ['waiting', 'signed', 'declined'].includes(me.status)
+        )
+          continue;
+        const doc = await tx.documents.get(env.documentId);
+        const sender = byAccount.get(env.senderAccount);
+        items.push({
+          ...base,
+          id: `documents:sign:${env.id}`,
+          lane: 'task',
+          kind: 'documents.sign',
+          icon: 'edit',
+          tone: 'accent',
+          title: `Sign ${(doc?.title ?? 'a document').slice(0, 200)}`,
+          summary: env.message === '' ? null : env.message.slice(0, 400),
+          from:
+            sender === undefined ? null : { name: sender.displayName, personId: sender.personId },
+          at: env.createdAt,
+          due: env.dueOn,
+          link: `/documents/envelopes/${env.id}`,
+          message: null,
+        });
+      }
+      const members = await tx.members.list();
+      const acked = await tx.campaigns.mine(caller.personId);
+      for (const c of await tx.campaigns.list()) {
+        if (c.closedAt !== null || acked.has(c.id)) continue;
+        if (!audienceOf(c.audience, members).includes(caller.personId)) continue;
+        const doc = await tx.documents.get(c.documentId);
+        if (doc === null || doc.deletedAt !== null) continue;
+        items.push({
+          ...base,
+          id: `documents:acknowledge:${c.id}`,
+          lane: 'task',
+          kind: 'documents.acknowledge',
+          icon: 'document',
+          tone: 'info',
+          title: `Read and acknowledge ${doc.title.slice(0, 200)}`,
+          summary: null,
+          from: byAccount.has(c.sentBy)
+            ? {
+                name: byAccount.get(c.sentBy)?.displayName ?? null,
+                personId: byAccount.get(c.sentBy)?.personId ?? null,
+              }
+            : null,
+          at: c.createdAt,
+          due: c.dueOn,
+          link: `/documents/d/${doc.id}`,
+          message: null,
+        });
+      }
+    }
     for (const r of await tx.accessRequests.open()) {
       const doc = await tx.documents.get(r.documentId);
       if (doc === null || doc.deletedAt !== null) continue;

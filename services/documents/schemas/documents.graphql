@@ -5,6 +5,24 @@ schema @link(url: "https://specs.apollo.dev/federation/v2.6", import: []) {
   mutation: Mutation
 }
 
+type DocumentsCampaign {
+  documentId: String!
+  done: Int!
+  dueOn: String
+  id: String!
+  left: [DocumentsCampaignLeft!]!
+  of: Int!
+  sentAt: String!
+  title: String!
+  version: Int!
+}
+
+type DocumentsCampaignLeft {
+  name: String!
+  personId: String!
+  teamName: String
+}
+
 type DocumentsChecklistRow {
   action: String!
   detail: String!
@@ -29,14 +47,17 @@ type DocumentsCreated {
 type DocumentsDocument {
   accessRequests: [DocumentsDocumentAccessRequests!]!
   activity: [DocumentsLogEntry!]!
+  campaigns: [DocumentsDocumentCampaigns!]!
   confidentialBy: String
   current: DocumentsVersion!
   grants: [DocumentsGrant!]!
   held: Boolean!
   may: DocumentsDocumentMay!
   owner: String!
+  pdf: Boolean!
   people: [DocumentsPerson!]!
   row: DocumentsRow!
+  signing: DocumentsDocumentSigning
   versions: [DocumentsVersion!]!
   views: [DocumentsLogEntry!]!
 }
@@ -48,6 +69,15 @@ type DocumentsDocumentAccessRequests {
   who: String!
 }
 
+type DocumentsDocumentCampaigns {
+  acknowledged: Boolean!
+  asked: Boolean!
+  done: Int!
+  dueOn: String
+  id: String!
+  of: Int!
+}
+
 type DocumentsDocumentMay {
   delete: Boolean!
   download: Boolean!
@@ -57,8 +87,81 @@ type DocumentsDocumentMay {
   unprotect: Boolean!
 }
 
+type DocumentsDocumentSigning {
+  id: String!
+  mine: Boolean!
+  of: Int!
+  signed: Int!
+  status: String!
+}
+
 type DocumentsDone {
   ok: Boolean!
+}
+
+type DocumentsEnvelope {
+  completedAt: String
+  createdAt: String!
+  documentId: String!
+  dueOn: String
+  fields: [DocumentsField!]!
+  follows: Boolean!
+  id: String!
+  me: DocumentsEnvelopeMe
+  message: String!
+  pages: Int!
+  sender: String!
+  signedVersion: Int
+  signers: [DocumentsSigner!]!
+  status: String!
+  title: String!
+  trail: [DocumentsEnvelopeTrail!]!
+  version: Int!
+  voidReason: String
+}
+
+type DocumentsEnvelopeMe {
+  signerId: String!
+  status: String!
+  turn: Boolean!
+}
+
+type DocumentsEnvelopeRow {
+  createdAt: String!
+  documentId: String!
+  dueOn: String
+  id: String!
+  needsYou: Boolean!
+  of: Int!
+  signed: Int!
+  status: String!
+  title: String!
+  waitingOn: String
+}
+
+type DocumentsEnvelopeTrail {
+  action: String!
+  at: String!
+  note: String
+  who: String!
+}
+
+type DocumentsEnvelopes {
+  rows: [DocumentsEnvelopeRow!]!
+}
+
+type DocumentsField {
+  h: Float!
+  id: String!
+  kind: String!
+  label: String
+  page: Int!
+  required: Boolean!
+  signerId: String!
+  value: String
+  w: Float!
+  x: Float!
+  y: Float!
 }
 
 type DocumentsFile {
@@ -190,6 +293,10 @@ type DocumentsRow {
   who: DocumentsWho!
 }
 
+type DocumentsSealed {
+  version: Int!
+}
+
 type DocumentsSection {
   count: Int!
   id: String!
@@ -214,6 +321,21 @@ type DocumentsSettingsAccess {
   peopleMayTurnOffQuestion: Boolean!
   personalSections: Boolean!
   watermark: Boolean!
+}
+
+type DocumentsSigned {
+  completed: Boolean!
+}
+
+type DocumentsSigner {
+  allowDelegate: Boolean!
+  check: String!
+  email: String
+  id: String!
+  name: String!
+  order: Int!
+  signedAt: String
+  status: String!
 }
 
 type DocumentsStatus {
@@ -340,6 +462,8 @@ A JSON value, shaped as the matching REST schema in the OpenAPI document says.
 scalar JSON
 
 type Mutation {
+  """I have read it"""
+  acknowledgeDocument(campaignId: String!, idempotencyKey: String!): DocumentsCreated!
   """A new version of a document"""
   addDocumentVersion(
     documentId: String!
@@ -347,6 +471,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsVersionAdded!
+  """Ask the sender a question; the request waits"""
+  askEnvelopeSender(
+    envelopeId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsCreated!
   """HR asks a person for a document; it becomes a task in their Inbox"""
   askForDocument(
     idempotencyKey: String!
@@ -381,6 +512,13 @@ type Mutation {
     input: JSON!
     requestId: String!
   ): DocumentsCreated!
+  """Decline to sign, with a reason"""
+  declineEnvelope(
+    envelopeId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsCreated!
   """Move a document to Deleted, for 30 days"""
   deleteDocument(documentId: String!, idempotencyKey: String!): DocumentsCreated!
   """Who works here, when People is absent"""
@@ -397,8 +535,17 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """Hand a signer’s turn to a colleague, where the sender allowed it"""
+  reassignEnvelopeSigner(
+    envelopeId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsCreated!
   """Remind a person of a document HR asked for"""
   remindDocumentRequest(idempotencyKey: String!, requestId: String!): DocumentsCreated!
+  """Remind whoever it waits on"""
+  remindEnvelope(envelopeId: String!, idempotencyKey: String!): DocumentsCreated!
   """Rename a document"""
   renameDocument(
     documentId: String!
@@ -422,6 +569,31 @@ type Mutation {
     input: JSON!
     typeKey: String!
   ): DocumentsTypeSaved!
+  """Seal a completed request that did not seal the first time"""
+  sealEnvelope(
+    envelopeId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsSealed!
+  """
+  Send a policy to everyone, teams or people to read and acknowledge (F2)
+  """
+  sendForAcknowledgement(
+    documentId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsCreated!
+  """
+  Send a PDF for signature: signers in order, fields placed, a message and a due date
+  """
+  sendForSignature(
+    documentId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsCreated!
   """Whether the share question follows your uploads"""
   setAskAfterUpload(
     idempotencyKey: String!
@@ -455,6 +627,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """Sign as yourself: every field of yours filled, the signature adopted"""
+  signEnvelope(
+    envelopeId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsSigned!
   """
   Where the browser puts a file before filing it: a presigned PUT, for ten minutes
   """
@@ -469,12 +648,29 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """Cancel a request, with a reason"""
+  voidEnvelope(
+    envelopeId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsCreated!
 }
 
 type Query {
   _service: _Service!
+  """Who has acknowledged a policy, and who is left (F3)"""
+  documentsCampaign(campaignId: String!): DocumentsCampaign!
   """A document, or who owns it when you cannot open it"""
   documentsDocument(documentId: String!): DocumentsOpenOrClosed!
+  """A signature request, as its signer or its sender sees it (K4, K8)"""
+  documentsEnvelope(envelopeId: String!): DocumentsEnvelope!
+  """
+  The version being signed, or the sealed one, as a link that lasts minutes
+  """
+  documentsEnvelopeFile(envelopeId: String!): DocumentsFile!
+  """Every signature request this person follows or must sign (K10)"""
+  documentsEnvelopes: DocumentsEnvelopes!
   """
   A version’s bytes: watermarked for a Confidential view, logged when Confidential
   """

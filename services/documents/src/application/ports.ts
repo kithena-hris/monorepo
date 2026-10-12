@@ -10,6 +10,8 @@ import type {
 
 import type { Document, Version } from '../domain/document/document.js';
 import type { DocumentType } from '../domain/type/document-type.js';
+import type { Audience } from '../domain/acknowledge/campaign.js';
+import type { Envelope } from '../domain/signature/envelope.js';
 
 /**
  * What Documents' use cases read and write through, and nothing wider.
@@ -203,6 +205,50 @@ export interface SettingsStore {
   set(key: string, value: unknown): Promise<void>;
 }
 
+export interface EnvelopeEvent {
+  readonly id: string;
+  readonly envelopeId: string;
+  readonly signerId: string | null;
+  /** sent, opened, code_sent, verified, signed, declined, reassigned, voided, reminded, completed */
+  readonly action: string;
+  readonly detail: Readonly<Record<string, unknown>>;
+  readonly at: Instant;
+}
+
+export interface EnvelopeStore {
+  get(id: string): Promise<Envelope | null>;
+  save(envelope: Envelope): Promise<void>;
+  forDocument(documentId: DocumentId): Promise<readonly Envelope[]>;
+  /** Envelopes with a signer who is this person. */
+  forPerson(personId: PersonId): Promise<readonly Envelope[]>;
+  /** The envelope and signer a link's token opens. */
+  byToken(tokenHash: string): Promise<{ envelope: Envelope; signerId: string } | null>;
+  open(): Promise<readonly Envelope[]>;
+  trail(envelopeId: string): Promise<readonly EnvelopeEvent[]>;
+  record(event: EnvelopeEvent): Promise<void>;
+}
+
+export interface Campaign {
+  readonly id: string;
+  readonly documentId: DocumentId;
+  readonly version: number;
+  readonly audience: Audience;
+  readonly dueOn: CalendarDate | null;
+  readonly sentBy: string;
+  readonly createdAt: Instant;
+  readonly closedAt: Instant | null;
+}
+
+export interface CampaignStore {
+  get(id: string): Promise<Campaign | null>;
+  save(campaign: Campaign): Promise<void>;
+  list(): Promise<readonly Campaign[]>;
+  acknowledged(campaignId: string): Promise<ReadonlySet<string>>;
+  acknowledge(campaignId: string, personId: PersonId, at: Instant): Promise<void>;
+  /** Campaigns this person has acknowledged, by id. */
+  mine(personId: PersonId): Promise<ReadonlySet<string>>;
+}
+
 export interface StoredKey {
   readonly requestHash: string;
   readonly status: number;
@@ -228,6 +274,8 @@ export interface Tx {
   readonly docRequests: DocRequestStore;
   readonly holds: HoldStore;
   readonly activity: ActivityStore;
+  readonly envelopes: EnvelopeStore;
+  readonly campaigns: CampaignStore;
   readonly settings: SettingsStore;
   readonly idempotency: IdempotencyStore;
   readonly outbox: { publish(events: readonly PendingEvent[]): Promise<void> };
@@ -269,13 +317,21 @@ export interface Transfers {
   ): Promise<string>;
 }
 
-/** A notice to somebody by email, through messaging; absent sends nothing. */
+/**
+ * A notice by email, through messaging (`platform/messaging`); absent sends
+ * nothing. Messaging writes every word; Documents says which notice, to whom,
+ * and the link on the company's own host.
+ */
 export interface Mailer {
-  send(input: {
+  notice(input: {
     readonly tenantId: TenantId;
-    readonly to: string;
-    readonly template: string;
-    readonly variables: Readonly<Record<string, string>>;
+    readonly email: string;
+    readonly url: string;
+    readonly companyName: string;
+    readonly dedupeKey: string;
+    readonly notice:
+      | { readonly kind: 'signature_requested' }
+      | { readonly kind: 'signing_code'; readonly code: string };
   }): Promise<void>;
 }
 

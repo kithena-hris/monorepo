@@ -72,6 +72,18 @@ export type Notice =
    */
   | { readonly kind: 'summary_shared' }
   /*
+   * A document sent for signature to somebody outside the company (Documents
+   * K6, X7): only that there is one and from which company, and the link to
+   * the signing page. Never the document's name nor who sent it.
+   */
+  | { readonly kind: 'signature_requested' }
+  /*
+   * The six digits that prove the signer reads this mailbox, sent when they
+   * open the signing page. The one notice carrying a secret, as an enrolment
+   * link is: it works for ten minutes, once, for one signer.
+   */
+  | { readonly kind: 'signing_code'; readonly code: string }
+  /*
    * A nudge to take a break (Time Off, T28): the one notice whose words the
    * module writes, because they are the recipient's own — their days left,
    * a day that suits them — and nobody else's. Time Off guarantees that; this
@@ -110,20 +122,44 @@ export const INBOX_UPDATE_TOPICS = [
 export type InboxUpdateTopic = (typeof INBOX_UPDATE_TOPICS)[number];
 
 const TASK_WORDS: Readonly<Record<InboxTaskTopic, readonly [subject: string, lede: string]>> = {
-  details: ['you were asked for some details', 'Somebody asked you to add a few details to your record.'],
-  correction: ['a detail needs correcting', 'A detail you gave needs correcting before it can be accepted.'],
+  details: [
+    'you were asked for some details',
+    'Somebody asked you to add a few details to your record.',
+  ],
+  correction: [
+    'a detail needs correcting',
+    'A detail you gave needs correcting before it can be accepted.',
+  ],
   document_sign: ['a document to sign', 'A document is waiting for your signature.'],
-  document_acknowledge: ['a document to read', 'A document is waiting for you to read and acknowledge it.'],
-  document_countersign: ['a document to countersign', 'A document you sent was signed and waits for your countersignature.'],
-  time_off_approval: ['a time-off request to decide', 'Somebody asked for time off, and it waits for your decision.'],
-  team_task: ['a task for your team', 'Something needs one of you; whoever takes it tells the others.'],
+  document_acknowledge: [
+    'a document to read',
+    'A document is waiting for you to read and acknowledge it.',
+  ],
+  document_countersign: [
+    'a document to countersign',
+    'A document you sent was signed and waits for your countersignature.',
+  ],
+  time_off_approval: [
+    'a time-off request to decide',
+    'Somebody asked for time off, and it waits for your decision.',
+  ],
+  team_task: [
+    'a task for your team',
+    'Something needs one of you; whoever takes it tells the others.',
+  ],
 };
 
 const UPDATE_WORDS: Readonly<Record<InboxUpdateTopic, readonly [subject: string, lede: string]>> = {
   decided: ['something you asked for was decided', 'A request of yours was decided.'],
   answered: ['somebody answered your request', 'Somebody you asked has answered.'],
-  document_shared: ['a document was shared with you', 'A document was shared with you, and kept with your record.'],
-  document_returned: ['a document you sent came back', 'A document you sent was signed, acknowledged or sent back.'],
+  document_shared: [
+    'a document was shared with you',
+    'A document was shared with you, and kept with your record.',
+  ],
+  document_returned: [
+    'a document you sent came back',
+    'A document you sent was signed, acknowledged or sent back.',
+  ],
   team_news: ['news about your team', 'Somebody joins or leaves your team.'],
   calendar: ['a calendar was updated', 'A calendar or a balance of yours changed.'],
 };
@@ -305,6 +341,23 @@ const COPY: {
     action: 'Open Time off',
     footer: `Sent by Kithena on behalf of ${company}, because HR suggested you take a break. Only you see these numbers.`,
   }),
+  signature_requested: (_notice, company) => ({
+    subject: `${company} sent you a document to sign`,
+    heading: 'A document to sign',
+    lede: `${company} asked you to sign a document with Kithena. Open it to read it, confirm it is you with a code we email you, and sign.`,
+    action: 'Review and sign',
+    footer: `Sent by Kithena on behalf of ${company}. If you were not expecting this, you can ignore it.`,
+  }),
+  signing_code: ({ code }, company) => {
+    if (!/^\d{6}$/u.test(code)) return null;
+    return {
+      subject: `Your code to sign for ${company}: ${code}`,
+      heading: `Your code is ${code}`,
+      lede: `Enter it on the signing page to show it is you. It works for ten minutes. If you did not ask for it, somebody may have your link; nothing can be signed without the code.`,
+      action: 'Back to the document',
+      footer: `Sent by Kithena on behalf of ${company}.`,
+    };
+  },
   summary_shared: (_notice, company) => ({
     subject: `${company}: a People summary was shared with you`,
     heading: 'A People summary for you',

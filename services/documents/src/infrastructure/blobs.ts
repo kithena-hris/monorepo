@@ -109,7 +109,10 @@ export function blobsFrom(env: NodeJS.ProcessEnv): Blobs {
     throw new Error('DOCUMENTS_BUCKET and DOCUMENTS_ENCRYPTION_KEY are required in production');
   }
   if (bucket) {
-    logger.warn({ module: 'documents' }, 'DOCUMENTS_ENCRYPTION_KEY unset; files are stored unsealed');
+    logger.warn(
+      { module: 'documents' },
+      'DOCUMENTS_ENCRYPTION_KEY unset; files are stored unsealed',
+    );
     return s3Blobs(env, bucket);
   }
   logger.warn({ module: 'documents' }, 'DOCUMENTS_BUCKET unset; files are kept in memory');

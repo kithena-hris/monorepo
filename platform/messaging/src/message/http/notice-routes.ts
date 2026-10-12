@@ -45,6 +45,8 @@ const NoticeRequest = z.object({
     z.object({ kind: z.literal('export_shared') }),
     z.object({ kind: z.literal('export_share_requested') }),
     z.object({ kind: z.literal('summary_shared') }),
+    z.object({ kind: z.literal('signature_requested') }),
+    z.object({ kind: z.literal('signing_code'), code: z.string().regex(/^\d{6}$/u) }),
     z.object({
       kind: z.literal('rest_nudge'),
       heading: z.string().min(1).max(NUDGE_HEADING_MAX),
@@ -62,7 +64,7 @@ export interface NoticeRoutesDeps {
   readonly sendNotice: SendNotice;
   /** The Inbox's notices, routed by the person's settings; absent, sent as any notice is. */
   readonly deliverInbox?: (request: InboxRequest) => Promise<Result<InboxOutcome>>;
-  /** One secret per module that asks: People's, Time Off's. Each empty one matches nothing. */
+  /** One secret per module that asks: People's, Time Off's, Documents'. Each empty one matches nothing. */
   readonly internalToken: string | readonly string[];
 }
 

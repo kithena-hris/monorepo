@@ -16,9 +16,11 @@ import { logger, onShutdown } from '@kithena/telemetry';
 import type { Grant } from '../domain/access/access.js';
 import type { Document, Version } from '../domain/document/document.js';
 import type { DocumentType } from '../domain/type/document-type.js';
+import type { Envelope } from '../domain/signature/envelope.js';
 import type {
   AccessRequest,
   Activity,
+  Campaign,
   DocRequest,
   LegalHold,
   Member,
@@ -124,6 +126,22 @@ function versionOf(r: Row): Version {
     note: str(r['note']),
     uploadedAt: String(r['uploaded_at']) as Instant,
     uploadedBy: String(r['uploaded_by']),
+  };
+}
+
+const CAMPAIGN = sql`id, document_id, version, audience, due_on::text AS due_on, sent_by,
+  ${iso(sql`created_at`)} AS created_at, ${iso(sql`closed_at`)} AS closed_at`;
+
+function campaignOf(r: Row): Campaign {
+  return {
+    id: String(r['id']),
+    documentId: r['document_id'] as DocumentId,
+    version: Number(r['version']),
+    audience: r['audience'] as Campaign['audience'],
+    dueOn: str(r['due_on']) as CalendarDate | null,
+    sentBy: String(r['sent_by']),
+    createdAt: String(r['created_at']) as Instant,
+    closedAt: str(r['closed_at']) as Instant | null,
   };
 }
 
@@ -521,6 +539,128 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
           detail: r['detail'] as Record<string, unknown>,
           at: String(r['at']) as Instant,
         })),
+    },
+    envelopes: {
+      async get(id) {
+        if (!/^[0-9a-f-]{36}$/iu.test(id)) return null;
+        const [r] = await rows(
+          tx,
+          sql`SELECT body FROM documents.envelope WHERE tenant_id = ${T} AND id = ${id}::uuid`,
+        );
+        return r === undefined ? null : (r['body'] as Envelope);
+      },
+      async save(e) {
+        await tx.execute(sql`INSERT INTO documents.envelope (tenant_id, id, document_id, version, sender_account, status,
+            body, due_on, created_at, completed_at)
+          VALUES (${T}, ${e.id}::uuid, ${e.documentId}::uuid, ${e.version}, ${e.senderAccount}::uuid, ${e.status},
+            ${JSON.stringify(e)}::jsonb, ${e.dueOn}::date, ${e.createdAt}::timestamptz, ${e.completedAt}::timestamptz)
+          ON CONFLICT (tenant_id, id) DO UPDATE SET status = EXCLUDED.status, body = EXCLUDED.body,
+            completed_at = EXCLUDED.completed_at`);
+        await tx.execute(
+          sql`DELETE FROM documents.envelope_signer WHERE tenant_id = ${T} AND envelope_id = ${e.id}::uuid`,
+        );
+        for (const sg of e.signers) {
+          // oxlint-disable-next-line no-await-in-loop -- one transaction, an envelope's signers
+          await tx.execute(sql`INSERT INTO documents.envelope_signer (tenant_id, envelope_id, signer_id, person_id, token_hash, status)
+            VALUES (${T}, ${e.id}::uuid, ${sg.id}, ${sg.personId}::uuid, ${sg.tokenHash}, ${sg.status})`);
+        }
+      },
+      forDocument: async (id) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT body FROM documents.envelope WHERE tenant_id = ${T} AND document_id = ${id}::uuid ORDER BY created_at DESC`,
+          )
+        ).map((r) => r['body'] as Envelope),
+      forPerson: async (p) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT e.body FROM documents.envelope e WHERE e.tenant_id = ${T} AND EXISTS (
+            SELECT 1 FROM documents.envelope_signer s WHERE s.tenant_id = e.tenant_id AND s.envelope_id = e.id
+              AND s.person_id = ${p}::uuid) ORDER BY e.created_at DESC`,
+          )
+        ).map((r) => r['body'] as Envelope),
+      async byToken(hash) {
+        const [r] = await rows(
+          tx,
+          sql`SELECT e.body, s.signer_id FROM documents.envelope_signer s
+          JOIN documents.envelope e ON e.tenant_id = s.tenant_id AND e.id = s.envelope_id
+          WHERE s.tenant_id = ${T} AND s.token_hash = ${hash}`,
+        );
+        return r === undefined
+          ? null
+          : { envelope: r['body'] as Envelope, signerId: String(r['signer_id']) };
+      },
+      open: async () =>
+        (
+          await rows(
+            tx,
+            sql`SELECT body FROM documents.envelope WHERE tenant_id = ${T} AND status = 'sent' ORDER BY created_at`,
+          )
+        ).map((r) => r['body'] as Envelope),
+      trail: async (id) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT id, envelope_id, signer_id, action, detail, ${iso(sql`at`)} AS at
+          FROM documents.envelope_event WHERE tenant_id = ${T} AND envelope_id = ${id}::uuid ORDER BY at, id`,
+          )
+        ).map((r) => ({
+          id: String(r['id']),
+          envelopeId: String(r['envelope_id']),
+          signerId: str(r['signer_id']),
+          action: String(r['action']),
+          detail: r['detail'] as Record<string, unknown>,
+          at: String(r['at']) as Instant,
+        })),
+      record: async (ev) =>
+        void (await tx.execute(sql`INSERT INTO documents.envelope_event (tenant_id, id, envelope_id, signer_id, action, detail, at)
+          VALUES (${T}, ${ev.id}::uuid, ${ev.envelopeId}::uuid, ${ev.signerId}, ${ev.action}, ${JSON.stringify(ev.detail)}::jsonb, ${ev.at}::timestamptz)`)),
+    },
+    campaigns: {
+      async get(id) {
+        if (!/^[0-9a-f-]{36}$/iu.test(id)) return null;
+        const [r] = await rows(
+          tx,
+          sql`SELECT ${CAMPAIGN} FROM documents.campaign WHERE tenant_id = ${T} AND id = ${id}::uuid`,
+        );
+        return r === undefined ? null : campaignOf(r);
+      },
+      async save(c) {
+        await tx.execute(sql`INSERT INTO documents.campaign (tenant_id, id, document_id, version, audience, due_on, sent_by, created_at, closed_at)
+          VALUES (${T}, ${c.id}::uuid, ${c.documentId}::uuid, ${c.version}, ${JSON.stringify(c.audience)}::jsonb, ${c.dueOn}::date,
+            ${c.sentBy}::uuid, ${c.createdAt}::timestamptz, ${c.closedAt}::timestamptz)
+          ON CONFLICT (tenant_id, id) DO UPDATE SET closed_at = EXCLUDED.closed_at, due_on = EXCLUDED.due_on`);
+      },
+      list: async () =>
+        (
+          await rows(
+            tx,
+            sql`SELECT ${CAMPAIGN} FROM documents.campaign WHERE tenant_id = ${T} ORDER BY created_at DESC`,
+          )
+        ).map(campaignOf),
+      acknowledged: async (id) =>
+        new Set(
+          (
+            await rows(
+              tx,
+              sql`SELECT person_id FROM documents.acknowledgement WHERE tenant_id = ${T} AND campaign_id = ${id}::uuid`,
+            )
+          ).map((r) => String(r['person_id'])),
+        ),
+      acknowledge: async (id, personId, at) =>
+        void (await tx.execute(sql`INSERT INTO documents.acknowledgement (tenant_id, campaign_id, person_id, at)
+          VALUES (${T}, ${id}::uuid, ${personId}::uuid, ${at}::timestamptz) ON CONFLICT DO NOTHING`)),
+      mine: async (personId) =>
+        new Set(
+          (
+            await rows(
+              tx,
+              sql`SELECT campaign_id FROM documents.acknowledgement WHERE tenant_id = ${T} AND person_id = ${personId}::uuid`,
+            )
+          ).map((r) => String(r['campaign_id'])),
+        ),
     },
     settings: {
       async get(key) {

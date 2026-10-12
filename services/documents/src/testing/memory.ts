@@ -3,9 +3,12 @@ import type { TenantId } from '@kithena/contracts';
 
 import type { Document, Version } from '../domain/document/document.js';
 import type { DocumentType } from '../domain/type/document-type.js';
+import type { Envelope } from '../domain/signature/envelope.js';
 import type {
   AccessRequest,
   Activity,
+  Campaign,
+  EnvelopeEvent,
   Blobs,
   DocRequest,
   LegalHold,
@@ -42,6 +45,10 @@ interface TenantState {
   activity: Activity[];
   settings: Map<string, unknown>;
   keys: Map<string, StoredKey>;
+  envelopes: Map<string, Envelope>;
+  trail: EnvelopeEvent[];
+  campaigns: Map<string, Campaign>;
+  acks: Map<string, Set<string>>;
 }
 
 const fresh = (): TenantState => ({
@@ -59,6 +66,10 @@ const fresh = (): TenantState => ({
   activity: [],
   settings: new Map(),
   keys: new Map(),
+  envelopes: new Map(),
+  trail: [],
+  campaigns: new Map(),
+  acks: new Map(),
 });
 
 export interface MemoryWorld {
@@ -192,6 +203,36 @@ export function memoryWorld(): MemoryWorld {
             .filter((a) => documentId === undefined || a.documentId === documentId)
             .toSorted((a, b) => b.at.localeCompare(a.at))
             .slice(0, limit),
+      },
+      envelopes: {
+        get: async (id) => s.envelopes.get(id) ?? null,
+        save: async (e) => void s.envelopes.set(e.id, e),
+        forDocument: async (id) => [...s.envelopes.values()].filter((e) => e.documentId === id),
+        forPerson: async (p) =>
+          [...s.envelopes.values()].filter((e) => e.signers.some((x) => x.personId === p)),
+        byToken: async (hash) => {
+          for (const e of s.envelopes.values()) {
+            const signer = e.signers.find((x) => x.tokenHash === hash);
+            if (signer !== undefined) return { envelope: e, signerId: signer.id };
+          }
+          return null;
+        },
+        open: async () => [...s.envelopes.values()].filter((e) => e.status === 'sent'),
+        trail: async (id) => s.trail.filter((t) => t.envelopeId === id),
+        record: async (event) => void s.trail.push(event),
+      },
+      campaigns: {
+        get: async (id) => s.campaigns.get(id) ?? null,
+        save: async (c) => void s.campaigns.set(c.id, c),
+        list: async () => [...s.campaigns.values()],
+        acknowledged: async (id) => s.acks.get(id) ?? new Set(),
+        acknowledge: async (id, personId) => {
+          const set = s.acks.get(id) ?? new Set<string>();
+          set.add(personId);
+          s.acks.set(id, set);
+        },
+        mine: async (personId) =>
+          new Set([...s.acks.entries()].filter(([, set]) => set.has(personId)).map(([id]) => id)),
       },
       settings: {
         get: async (key) => s.settings.get(key) ?? null,

@@ -415,3 +415,144 @@ describe('the transports agree', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('signatures (K1–K9)', () => {
+  let contract: string;
+  let envelope: string;
+  const origin = { origin: 'https://acme.app.kithena.com', companyName: 'Acme' };
+
+  it('HR sends Adam’s contract to Adam, then to an outside director', async () => {
+    const up = await call('ada', 'POST', '/v1/documents/d', {
+      title: 'Remote-work addendum',
+      typeKey: 'contract_addendum',
+      subjectPersonId: ids.adam.person,
+      file: { name: 'addendum.pdf', mediaType: 'application/pdf', base64: await pdf(3) },
+    });
+    contract = up.body.id;
+    const sent = await call('ada', 'POST', `/v1/documents/d/${contract}/envelopes`, {
+      signers: [
+        { personId: ids.adam.person, order: 1 },
+        { email: 'nora@board.example', name: 'Nora Becker', order: 2 },
+      ],
+      message: 'Please sign by Friday',
+      ...origin,
+    });
+    expect(sent.status).toBe(201);
+    envelope = sent.body.id;
+    const lib = await call('adam', 'GET', '/v1/documents/library');
+    expect(lib.body.needsYou.map((n: { kind: string }) => n.kind)).toContain('sign');
+    const hr = await call('ada', 'GET', '/v1/documents/library?queue=to_sign');
+    expect(hr.body.tiles.find((t: { key: string }) => t.key === 'to_sign').count).toBe(1);
+  });
+
+  it('a second request on the same document waits for the first', async () => {
+    const again = await call('ada', 'POST', `/v1/documents/d/${contract}/envelopes`, {
+      signers: [{ personId: ids.adam.person, order: 1 }],
+      ...origin,
+    });
+    expect(again.body.error.code).toBe('ALREADY_OUT');
+  });
+
+  it('Adam signs with his login; the turn passes on', async () => {
+    const view = await call('adam', 'GET', `/v1/documents/envelopes/${envelope}`);
+    expect(view.body.me).toMatchObject({ turn: true });
+    expect(
+      view.body.fields
+        .filter((f: { signerId: string }) => f.signerId === view.body.me.signerId)
+        .map((f: { kind: string }) => f.kind),
+    ).toEqual(['signature', 'date']);
+    const signed = await call('adam', 'POST', `/v1/documents/envelopes/${envelope}/sign`, {
+      signature: { kind: 'typed', text: 'Adam Novak' },
+      ...origin,
+    });
+    expect(signed.body).toEqual({ completed: false });
+    const followed = await call('ada', 'GET', `/v1/documents/envelopes/${envelope}`);
+    expect(followed.body.signers.map((s: { status: string }) => s.status)).toEqual([
+      'signed',
+      'sent',
+    ]);
+    expect(followed.body.trail.map((t: { action: string }) => t.action)).toEqual([
+      'sent',
+      'signed',
+    ]);
+  });
+
+  it('Marco, who neither signs nor sends, cannot see it', async () => {
+    expect((await call('marco', 'GET', `/v1/documents/envelopes/${envelope}`)).status).toBe(404);
+  });
+
+  it('a link that is not a token opens nothing', async () => {
+    const answer = await server.rest({
+      method: 'GET',
+      url: `/v1/documents/sign/${TENANT}.${'x'.repeat(32)}`,
+      headers: {},
+      body: '',
+    });
+    expect(answer?.status).toBe(404);
+  });
+
+  it('the sender cancels; nobody can sign a cancelled request', async () => {
+    const voided = await call('ada', 'POST', `/v1/documents/envelopes/${envelope}/void`, {
+      reason: 'Wrong version',
+    });
+    expect(voided.status).toBe(200);
+    const late = await call('adam', 'POST', `/v1/documents/envelopes/${envelope}/sign`, {
+      signature: { kind: 'typed', text: 'Adam Novak' },
+      ...origin,
+    });
+    expect(late.status).toBe(422);
+  });
+
+  it('signed by everyone, it is sealed as the next version, with its certificate', async () => {
+    const sent = await call('ada', 'POST', `/v1/documents/d/${contract}/envelopes`, {
+      signers: [{ personId: ids.adam.person, order: 1 }],
+      ...origin,
+    });
+    const done = await call('adam', 'POST', `/v1/documents/envelopes/${sent.body.id}/sign`, {
+      signature: { kind: 'typed', text: 'Adam Novak' },
+      ...origin,
+    });
+    expect(done.body).toEqual({ completed: true });
+    const doc = await call('adam', 'GET', `/v1/documents/d/${contract}`);
+    expect(doc.body.document.current).toMatchObject({ n: 2, note: 'Signed and sealed', pages: 4 });
+    const file = await call('adam', 'GET', `/v1/documents/d/${contract}/file?mode=download`);
+    const sealedPdf = await PDFDocument.load(Buffer.from(file.body.base64, 'base64'));
+    expect(sealedPdf.getPageCount()).toBe(4);
+  });
+});
+
+describe('acknowledgements (F2, F3)', () => {
+  it('HR sends the handbook to everyone; Adam reads and acknowledges it', async () => {
+    const up = await call('ada', 'POST', '/v1/documents/d', {
+      title: 'Travel and expenses policy',
+      typeKey: 'policy',
+      file: { name: 'travel.pdf', mediaType: 'application/pdf', base64: await pdf(8) },
+    });
+    const sent = await call('ada', 'POST', `/v1/documents/d/${up.body.id}/campaigns`, {
+      audience: { kind: 'everyone' },
+    });
+    expect(sent.status).toBe(201);
+    const before = await call('ada', 'GET', `/v1/documents/campaigns/${sent.body.id}`);
+    expect(before.body).toMatchObject({ done: 0, of: 4 });
+    const lib = await call('adam', 'GET', '/v1/documents/library');
+    expect(lib.body.needsYou.map((n: { kind: string }) => n.kind)).toContain('acknowledge');
+    expect(
+      (await call('adam', 'POST', `/v1/documents/campaigns/${sent.body.id}/acknowledge`)).status,
+    ).toBe(200);
+    const after = await call('ada', 'GET', `/v1/documents/campaigns/${sent.body.id}`);
+    expect(after.body).toMatchObject({ done: 1, of: 4 });
+    expect(after.body.left.map((p: { name: string }) => p.name)).not.toContain('Adam Novak');
+  });
+
+  it('only HR sends a policy out', async () => {
+    const mine = await call('adam', 'GET', '/v1/documents/library');
+    const id = mine.body.rows[0].id;
+    expect(
+      (
+        await call('adam', 'POST', `/v1/documents/d/${id}/campaigns`, {
+          audience: { kind: 'everyone' },
+        })
+      ).status,
+    ).toBe(403);
+  });
+});

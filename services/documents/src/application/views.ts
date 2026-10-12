@@ -68,7 +68,7 @@ export const SectionView = z
 export const NeedsYou = z
   .object({
     id: z.string(),
-    kind: z.enum(['request', 'access_request']),
+    kind: z.enum(['request', 'access_request', 'sign', 'acknowledge']),
     title: z.string(),
     detail: z.string(),
     dueOn: z.string().nullable(),
@@ -186,6 +186,28 @@ export const DocumentView = z
     ),
     held: z.boolean(),
     people: z.array(PersonRef),
+    /** The latest signature request on it, if any (K8). */
+    signing: z
+      .object({
+        id: z.string(),
+        status: z.string(),
+        signed: z.int(),
+        of: z.int(),
+        mine: z.boolean(),
+      })
+      .nullable(),
+    /** Its policy campaigns, for HR (F3); this person's own, to acknowledge. */
+    campaigns: z.array(
+      z.object({
+        id: z.string(),
+        done: z.int(),
+        of: z.int(),
+        dueOn: z.string().nullable(),
+        acknowledged: z.boolean(),
+        asked: z.boolean(),
+      }),
+    ),
+    pdf: z.boolean(),
   })
   .meta(Title('DocumentsDocument'));
 export type DocumentView = z.infer<typeof DocumentView>;
