@@ -93,6 +93,37 @@ describe('FieldChange', () => {
     expect(await screen.findByText('Refused')).toBeVisible();
   });
 
+  it('gives everybody one value at once, typed or chosen once', async () => {
+    const user = fast();
+    const onApply = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const toList = {
+      ...START_DAY,
+      field: {
+        ...START_DAY.field,
+        to: 'select' as const,
+        options: [
+          { value: 'tiered', label: 'Tiered' },
+          { value: 'n_a', label: 'N/A' },
+        ],
+      },
+    };
+    render(
+      <FieldChange load={{ status: 'ready', data: toList }} onApply={onApply} onBack={vi.fn()} />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'For all 2' }));
+    await user.click(await screen.findByRole('option', { name: 'Type the right value' }));
+    // Nothing to give yet: Apply waits for the value.
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+    await user.click(screen.getByRole('combobox', { name: 'Start day for all 2' }));
+    await user.click(await screen.findByRole('option', { name: 'N/A' }));
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    await user.click(screen.getByRole('button', { name: 'Publish the change' }));
+    expect(onApply).toHaveBeenCalledWith([
+      { personId: MARCO, action: 'edit', value: 'n_a' },
+      { personId: GRACE, action: 'edit', value: 'n_a' },
+    ]);
+  });
+
   it('says while it checks, and when it could not', async () => {
     const { container, rerender } = render(
       <FieldChange load={{ status: 'loading' }} onApply={vi.fn()} onBack={vi.fn()} />,

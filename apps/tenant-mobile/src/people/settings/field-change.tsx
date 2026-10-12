@@ -230,6 +230,17 @@ export function FieldChange({ navigation, route }: PeopleScreen<'FieldChange'>):
               </SelectContent>
             </Select>
           </Field>
+          {all === 'edit' ? (
+            // One value, given to each of them; any one can still be changed below.
+            <AttributeInput
+              field={{ ...asInput, label: `${field.label} for all of them` }}
+              value={typed[view.unfit[0]?.personId ?? ''] ?? null}
+              personId={null}
+              onChange={(value) => {
+                setTyped(Object.fromEntries(view.unfit.map((u) => [u.personId, value])));
+              }}
+            />
+          ) : null}
           {view.unfit.map((u) => {
             const action = actionOf(u.personId);
             return (

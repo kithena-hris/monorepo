@@ -155,6 +155,8 @@ function Review({
   const [typed, setTyped] = useState<Readonly<Record<string, AttributeValue>>>({});
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [bulk, setBulk] = useState<ReviewAction>(view.defaultAction);
+  /** "Type the right value" for many at once: one value, given to each of them. */
+  const [bulkValue, setBulkValue] = useState<AttributeValue>(null);
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
@@ -185,6 +187,9 @@ function Review({
     const rows =
       selected.size === 0 ? view.unfit : view.unfit.filter((u) => selected.has(u.personId));
     setChosen((c) => ({ ...c, ...Object.fromEntries(rows.map((u) => [u.personId, bulk])) }));
+    if (bulk === 'edit' && !empty(bulkValue)) {
+      setTyped((t) => ({ ...t, ...Object.fromEntries(rows.map((u) => [u.personId, bulkValue])) }));
+    }
   };
 
   const publish = async (): Promise<void> => {
@@ -316,7 +321,24 @@ function Review({
                   </SelectContent>
                 </Select>
               </Field>
-              <Button onClick={applyBulk}>Apply</Button>
+              {bulk === 'edit' ? (
+                <div className="min-w-0 flex-1 basis-60">
+                  <AttributeInput
+                    field={{
+                      ...inputField(''),
+                      label:
+                        selected.size === 0
+                          ? `${field.label} for all ${String(view.unfit.length)}`
+                          : `${field.label} for the ${String(selected.size)} selected`,
+                    }}
+                    value={bulkValue}
+                    onChange={setBulkValue}
+                  />
+                </div>
+              ) : null}
+              <Button onClick={applyBulk} disabled={bulk === 'edit' && empty(bulkValue)}>
+                Apply
+              </Button>
             </div>
             <ul className="flex flex-col gap-3" aria-label="Values that don’t fit">
               {view.unfit.map((u) => {
