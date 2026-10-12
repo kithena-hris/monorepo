@@ -145,10 +145,15 @@ small group, and goes to `main` as **one pull request**.
 - [x] **DOC-051** Summary with page citations D1, MR1; payslip explained MR4.
       As built: `keepCited` drops any claim citing a page the document lacks; a
       payslip gets the same summary, its type's `aiReads` naming what matters.
-- [ ] **DOC-052** Follow-ups D2, MR2 through Ask Kithena's window; assistant
+- [x] **DOC-052** Follow-ups D2, MR2 through Ask Kithena's window; assistant
       capabilities for Documents. Built: questions about one document inside its
-      summary card, web and phone (`askDocument`). Left: the same in the
-      assistant's window, and Documents' assistant capabilities.
+      summary card, web and phone (`askDocument`). Documents' assistant
+      capabilities: `documents.waiting` and `documents.expiring`, read as the
+      asker over `/internal/capabilities` (`ASSISTANT_DOCUMENTS_TOKEN`), so
+      Ask Kithena's window answers what waits and what expires. A question
+      about a document's content stays in the document's own card: the
+      assistant's model only plans and never sees a value, and Documents is
+      the one place a model reads content (`docs/tech-stack.md`).
 - [x] **DOC-053** Ask across documents B4, MR5 (only what the asker can open).
       As built: a search that reads as a question offers Ask Kithena; code picks
       passages (`passages`) from the 40 most recent documents the asker may open,

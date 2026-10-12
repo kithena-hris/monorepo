@@ -1288,6 +1288,15 @@ module can merge first and switch on later. In this order:
    emailed. Without it, colleagues still sign with their login.
 5. **Selling it**: `module.documents` in `KITHENA_ENTITLEMENTS_PRODUCTION`, or
    switched on per company in the back office, which names its administrator.
+6. **The assistant** (DOC-052): `ASSISTANT_DOCUMENTS_TOKEN`
+   (`openssl rand -hex 32`), the assistant–Documents pair, into both the
+   assistant's settings and `documents.env`, as `ASSISTANT_TIMEOFF_TOKEN` is
+   into Time Off's; `DOCUMENTS_URL` is already in the assistant's compose
+   settings. Without the token the assistant treats Documents as absent.
+7. **Reading with a model**: `ASSISTANT_API_KEY` (the assistant's own secret)
+   into `documents.env` as well, and optionally `ASSISTANT_VISION_MODEL` for
+   scans and photos. Without it Documents says its reading is not set up and
+   every screen works without it.
 
 Documents is not on staging.
 

@@ -54,6 +54,15 @@ const server = documentsServer({
   uow: world.uow,
   blobs: world.blobs,
   reader,
+  assistantCallerFrom: (request) => {
+    const who = request.headers['x-test'] as Who;
+    return ok({
+      tenantId: TENANT,
+      accountId: ids[who].account,
+      personId: ids[who].person as PersonId,
+      correlationId: '00000000-0000-4000-8000-000000000001',
+    } satisfies Caller);
+  },
   clock: fixedClock('2026-10-12T09:00:00.000Z'),
   newId: () => `01890000-0000-7000-8000-${String(++counter).padStart(12, '0')}`,
   callerFrom: (request) => {
@@ -404,5 +413,25 @@ describe('letters from a template (G3)', () => {
       aboutMe: true,
     });
     expect(letter.body.document.signing).toMatchObject({ status: 'sent', mine: true });
+  });
+});
+
+describe('the assistant’s door (DOC-052)', () => {
+  const door = (who: 'ada' | 'adam' | 'marco', method: string, url: string, body = '') =>
+    server.capabilities({ method, url, headers: { 'x-test': who }, body });
+
+  it('offers what waits and what expires, and answers each as the asker', async () => {
+    const catalogue = await door('adam', 'GET', '/internal/capabilities');
+    expect(catalogue?.body).toMatchObject({
+      module: 'documents',
+      serves: [{ name: 'documents.waiting' }, { name: 'documents.expiring' }],
+    });
+    const waits = await door('adam', 'POST', '/internal/capabilities/documents.waiting', '{"limit":25}');
+    expect(waits?.body).toMatchObject({ kind: 'items' });
+    // The promotion letter sent to Adam to sign waits for him.
+    expect(JSON.stringify(waits?.body)).toContain('Promotion');
+    const marco = await door('marco', 'POST', '/internal/capabilities/documents.waiting', '{"limit":25}');
+    expect(JSON.stringify(marco?.body)).not.toContain('Promotion');
+    expect((await door('adam', 'POST', '/internal/capabilities/nothing', '{}'))?.status).toBe(404);
   });
 });

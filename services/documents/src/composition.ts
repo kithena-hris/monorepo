@@ -71,6 +71,11 @@ export function composeDocuments(env: NodeJS.ProcessEnv = process.env): Promise<
       return reader === undefined ? {} : { reader };
     })(),
     callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
+    // The assistant's secret for its pair (assistant PRD §15.3); empty refuses it.
+    assistantCallerFrom: withMember(
+      callerFromHeaders(env['ASSISTANT_DOCUMENTS_TOKEN'] ?? '', recorded),
+      uow,
+    ),
   });
   return Promise.resolve({ listener, storage: { db, uow, deps } });
 }
