@@ -10,7 +10,8 @@
 # each resource is looked up first and created only when missing; the policies
 # are re-put every run, so running it again is how a change here reaches AWS.
 #
-#   buckets          kithena-<account>-uploads, -exports and -backups: Block
+#   buckets          kithena-<account>-uploads, -exports, -backups and
+#                    -documents: Block
 #                    Public Access, SSE-S3 by default, BucketOwnerEnforced,
 #                    unversioned, TLS only, and lifecycle rules matching
 #                    People's key layout (uploads: a day; exports/ and
@@ -185,6 +186,7 @@ role() { # <name> <trust policy> <inline policy>
 
 # Bucket names are global, so the account id is in them.
 UPLOADS="kithena-$account-uploads" EXPORTS="kithena-$account-exports" BACKUPS="kithena-$account-backups"
+DOCUMENTS="kithena-$account-documents"
 # `bucket <name> <lifecycle rules, a JSON array>`: private, SSE-S3,
 # owner-enforced, unversioned, TLS only. Created once; the rest is re-put.
 bucket() {
@@ -226,6 +228,11 @@ bucket "$UPLOADS" "[$(rule uploads-1-day '' 1)]"
 act s3api put-bucket-cors --bucket "$UPLOADS" --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[$CORS_ORIGINS],\"AllowedMethods\":[\"PUT\"],\"AllowedHeaders\":[\"content-type\",\"if-none-match\",\"x-amz-server-side-encryption\"],\"MaxAgeSeconds\":3600}]}"
 bucket "$EXPORTS" "[$(rule exports-2-days exports/ 2),$(rule dry-runs-2-days dry-runs/ 2),$(rule imports-8-days imports/ 8),$(rule shared-8-days shared/ 8)]"
 bucket "$BACKUPS" "[$(rule backups-30-days '' 30)]"
+# Documents (docs/environments.md, "Documents' settings"): what a browser put
+# and what was handed out go after a day; the sealed documents themselves stay
+# until Documents deletes them. A presigned PUT and GET from the tenant app.
+bucket "$DOCUMENTS" "[$(rule incoming-expires-after-a-day incoming/ 1),$(rule outgoing-expires-after-a-day outgoing/ 1)]"
+act s3api put-bucket-cors --bucket "$DOCUMENTS" --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"https://*.app.kithena.com\"],\"AllowedMethods\":[\"PUT\",\"GET\"],\"AllowedHeaders\":[\"content-type\",\"if-none-match\"],\"MaxAgeSeconds\":3600}]}"
 
 say "instance role kithena-vm"
 role kithena-vm \
@@ -237,7 +244,10 @@ role kithena-vm \
  {"Sid":"UploadsAndExports","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
   "Resource":["arn:aws:s3:::$UPLOADS/*","arn:aws:s3:::$EXPORTS/*"]},
  {"Sid":"BackupsWithoutDelete","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:AbortMultipartUpload"],
-  "Resource":"arn:aws:s3:::$BACKUPS/*"}]}
+  "Resource":"arn:aws:s3:::$BACKUPS/*"},
+ {"Sid":"ListDocuments","Effect":"Allow","Action":"s3:ListBucket","Resource":"arn:aws:s3:::$DOCUMENTS"},
+ {"Sid":"Documents","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
+  "Resource":"arn:aws:s3:::$DOCUMENTS/*"}]}
 EOF
 )"
 # Managed, so AWS keeps it matched to what the agent calls. Attaching twice is
