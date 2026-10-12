@@ -27,7 +27,9 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
   const router = useRouter();
   const pathname = usePathname();
   // People is here: a document can fill the record of the person it is about.
-  const people = useShellData().sections.length > 0;
+  const shellData = useShellData();
+  const people = shellData.sections.length > 0;
+  const timeOffHere = shellData.remotes?.['timeoff'] !== undefined;
   const [, startTransition] = useTransition();
   const loadable =
     load.status === 'ready'
@@ -58,6 +60,15 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
   const filter = (patch: Readonly<Record<string, string | null>>): void => {
     go(withQuery(window.location.pathname, window.location.search, patch));
   };
+  // With People: your documents answer what your record is waiting for (J1, J2, J6).
+  const answers = people
+    ? {
+        onWaitingFor: actions.waitingFor,
+        onLookFor: actions.lookFor,
+        onAnswer: (changed: Readonly<Record<string, string>>) =>
+          peopleActions.saveOwnSection('', changed),
+      }
+    : {};
   const files = {
     onStartUpload: actions.startUpload,
     onFileLink: actions.fileLink,
@@ -82,6 +93,15 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onRestore: actions.restoreDocument,
           onConfirmDeletion: actions.confirmDeletion,
           onAskAcross: actions.askDocuments,
+          ...(people
+            ? {
+                onPreviewLetters: actions.previewLetters,
+                onGenerateLetters: actions.generateLetters,
+              }
+            : {}),
+          onProposeSplit: actions.proposeSplit,
+          onFileSplit: actions.fileSplit,
+          ...answers,
           onSuggest: actions.suggestFiling,
         };
       case 'DocumentView':
@@ -105,12 +125,22 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onSummarize: actions.summarizeDocument,
           onAskDocument: actions.askDocument,
           onCompare: actions.compareVersions,
+          // With Time Off: a certificate's leave, asked for on its request page (J4).
+          ...(timeOffHere ? { onCertificateLeave: actions.certificateLeave } : {}),
           // With People: fill the person's record from the document (G5).
           ...(people
             ? {
                 onReadRecord: actions.recordFromDocument,
                 onApplyRecord: (personId: string, changed: Readonly<Record<string, string>>) =>
                   peopleActions.savePersonSection(personId, '', changed),
+                ...answers,
+                onReadLetter: actions.letterOutcome,
+                onGiveNotice: (personId: string, lastWorkingDay: string) =>
+                  peopleActions.moveLifecycle(personId, {
+                    kind: 'giveNotice',
+                    lastWorkingDay,
+                    reason: 'resigned',
+                  }),
               }
             : {}),
         };

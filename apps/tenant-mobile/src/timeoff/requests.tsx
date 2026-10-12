@@ -59,6 +59,8 @@ import {
 
 interface Item {
   readonly requestId: string;
+  /** Whose it is: on one request's own answer. */
+  readonly personId?: string;
   readonly category: string;
   readonly leaveTypeKey: string;
   readonly leaveTypeName: string;
@@ -353,7 +355,7 @@ export function TimeOffRequestDetail({
       </Timeline>
       {detail.note === null ? null : <Text tone="muted">{detail.note}</Text>}
       {detail.noteNeeded === true ? (
-        <NoteNeeded requestId={request.requestId} onDone={reload} />
+        <NoteNeeded requestId={request.requestId} personId={request.personId} onDone={reload} />
       ) : detail.notePresent === true ? (
         <Text tone="muted">A note is attached.</Text>
       ) : null}

@@ -389,6 +389,32 @@ export const OPERATIONS = {
     'documentId: $documentId, input: $input, ',
     'available fields { name value page }',
   ),
+  /** C2: where each document in a scanned stack starts, and filing them */
+  ProposeDocumentSplit: write(
+    'ProposeDocumentSplit',
+    'proposeDocumentSplit',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'available pages parts { from to title typeKey subjectPersonId }',
+  ),
+  FileDocumentSplit: write(
+    'FileDocumentSplit',
+    'fileDocumentSplit',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'ids',
+  ),
+  /** G3: a template's text and fields, and the letters made from it */
+  DocumentTemplate: `query DocumentTemplate($documentId: String!) {
+    documentTemplate(documentId: $documentId) { title text fields }
+  }`,
+  GenerateLetters: write(
+    'GenerateLetters',
+    'generateLetters',
+    '$documentId: String!, $input: JSON!, ',
+    'documentId: $documentId, input: $input, ',
+    'ids',
+  ),
   /** S7: the company's switches */
   SetDocumentsAiSettings: write(
     'SetDocumentsAiSettings',

@@ -43,6 +43,8 @@ import {
   SummaryView,
 } from '../application/ai.js';
 import { documentsInbox } from '../application/inbox.js';
+import { fileSplit, proposeSplit } from '../application/split.js';
+import { generateLetters, readTemplate } from '../application/letters.js';
 import {
   askSender,
   declineAsMember,
@@ -259,6 +261,16 @@ async function withFile<T>(
 }
 
 const OneFile = { file: FileBody.optional(), upload: UploadedBody.optional() };
+
+const SplitPart = z
+  .object({
+    from: z.int().min(1),
+    to: z.int().min(1),
+    title: z.string().trim().min(1).max(200),
+    typeKey: z.string().nullable(),
+    subjectPersonId: z.string().nullable(),
+  })
+  .meta({ title: 'DocumentsSplitPart' });
 
 export const UploadBody = z.strictObject({
   title: z.string().trim().min(1).max(200),
@@ -1093,7 +1105,8 @@ export const ROUTES: readonly Route[] = [
     name: 'readDocumentFields',
     method: 'POST',
     path: `${V1}/d/{documentId}/fields`,
-    summary: 'Values read from the document, each with its page: the names asked, or its type’s (G5)',
+    summary:
+      'Values read from the document, each with its page: the names asked, or its type’s (G5)',
     params: DocParams,
     body: z.strictObject({
       names: z.array(z.string().trim().min(1).max(80)).max(40).nullable().default(null),
@@ -1115,6 +1128,75 @@ export const ROUTES: readonly Route[] = [
     body: SettingsView.shape.ai.partial().strict(),
     answer: Done,
     run: (deps, caller, { body }) => setAiSettings(deps, caller, body),
+  }),
+  /* ------------------------------------------------- splitting a scan (C2) -- */
+  route({
+    name: 'proposeDocumentSplit',
+    method: 'POST',
+    path: `${V1}/split`,
+    summary: 'Where each document in a scanned stack starts, what it is and whom it is about (C2)',
+    body: z.strictObject({ ...OneFile }),
+    answer: z
+      .object({
+        available: z.boolean(),
+        pages: z.int(),
+        parts: z.array(SplitPart),
+      })
+      .meta({ title: 'DocumentsSplitProposal' }),
+    run: async (deps, caller, { body }) => {
+      // Read, not consumed: the same upload is filed once HR has checked the parts.
+      const got = await fileOf(deps, caller, body);
+      return got.ok ? proposeSplit(deps, caller, got.value.file) : got;
+    },
+  }),
+  route({
+    name: 'fileDocumentSplit',
+    method: 'POST',
+    path: `${V1}/split/file`,
+    summary: 'File each part of a scanned stack as a document of its own (C2)',
+    body: z.strictObject({ parts: z.array(SplitPart).min(1).max(50), ...OneFile }),
+    answer: z.object({ ids: z.array(z.string()) }).meta({ title: 'DocumentsSplitFiled' }),
+    status: 201,
+    run: (deps, caller, { body }) =>
+      withFile(deps, caller, body, (file) => fileSplit(deps, caller, file, body.parts)),
+  }),
+  /* ------------------------------------------- letters from a template (G3) -- */
+  route({
+    name: 'documentTemplate',
+    method: 'GET',
+    path: `${V1}/d/{documentId}/template`,
+    summary: 'A Template document’s text and the fields it asks for (G3)',
+    params: DocParams,
+    answer: z
+      .object({ title: z.string(), text: z.string(), fields: z.array(z.string()) })
+      .meta({ title: 'DocumentsTemplate' }),
+    run: (deps, caller, { params }) => readTemplate(deps, caller, params.documentId),
+  }),
+  route({
+    name: 'generateLetters',
+    method: 'POST',
+    path: `${V1}/d/{documentId}/letters`,
+    summary:
+      'A letter per person from a template, filed to each and, when asked, sent to sign (G3)',
+    params: DocParams,
+    body: z.strictObject({
+      title: z.string().trim().min(1).max(200),
+      letters: z
+        .array(
+          z.strictObject({
+            personId: PersonId,
+            values: z.record(z.string().max(200), z.string().max(2000)),
+          }),
+        )
+        .min(1)
+        .max(100),
+      sign: z.boolean().default(false),
+      ...OriginBody,
+    }),
+    answer: z.object({ ids: z.array(z.string()) }).meta({ title: 'DocumentsLetters' }),
+    status: 201,
+    run: (deps, caller, { params, body }) =>
+      generateLetters(deps, caller, { templateId: params.documentId, ...body }),
   }),
 ];
 

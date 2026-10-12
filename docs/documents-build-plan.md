@@ -145,10 +145,15 @@ small group, and goes to `main` as **one pull request**.
 - [x] **DOC-051** Summary with page citations D1, MR1; payslip explained MR4.
       As built: `keepCited` drops any claim citing a page the document lacks; a
       payslip gets the same summary, its type's `aiReads` naming what matters.
-- [ ] **DOC-052** Follow-ups D2, MR2 through Ask Kithena's window; assistant
+- [x] **DOC-052** Follow-ups D2, MR2 through Ask Kithena's window; assistant
       capabilities for Documents. Built: questions about one document inside its
-      summary card, web and phone (`askDocument`). Left: the same in the
-      assistant's window, and Documents' assistant capabilities.
+      summary card, web and phone (`askDocument`). Documents' assistant
+      capabilities: `documents.waiting` and `documents.expiring`, read as the
+      asker over `/internal/capabilities` (`ASSISTANT_DOCUMENTS_TOKEN`), so
+      Ask Kithena's window answers what waits and what expires. A question
+      about a document's content stays in the document's own card: the
+      assistant's model only plans and never sees a value, and Documents is
+      the one place a model reads content (`docs/tech-stack.md`).
 - [x] **DOC-053** Ask across documents B4, MR5 (only what the asker can open).
       As built: a search that reads as a question offers Ask Kithena; code picks
       passages (`passages`) from the 40 most recent documents the asker may open,
@@ -156,13 +161,21 @@ small group, and goes to `main` as **one pull request**.
 - [x] **DOC-054** Version compare D3, "what changed" in C4. As built: the
       previous version against the current one, lines by code (`changedLines`)
       and a sentence each by the model; the phone leaves it to the web.
-- [ ] **DOC-055** Sort uploads C1, MD3; bulk split C2. Built: C1, HR's PDF
+- [x] **DOC-055** Sort uploads C1, MD3; bulk split C2. Built: C1, HR's PDF
       read as it is chosen, type, person, name and expiry filled for HR to check.
-      Left: MD3 (phone scans are images; needs OCR) and the bulk split C2.
-- [ ] **DOC-056** Describe a type S4, MS4; AI settings S7, MS7; field placement K2.
+      MD3: a phone's scan is read by a model that sees (`Reader.see`, the
+      endpoint's `ASSISTANT_VISION_MODEL`, images up to 4 MB; never a medical
+      one) and HR's filing dialog fills in what it read. C2: HR splits a scanned
+      stack from the ⋯ menu; Kithena proposes each part's pages, type, person
+      and name, HR changes any of it, and each is filed with its type's rules
+      (`split.ts`, `checkParts`).
+- [x] **DOC-056** Describe a type S4, MS4; AI settings S7, MS7; field placement K2.
       Built: S4 (the draft opens the type editor), S7 and MS7 (switches in
       `documents.settings`, read with Settings › Documents); MS4 is the web's.
-      Left: K2, suggesting where signature fields go.
+      K2: with no fields drawn, each signer, in signing order, signs beside a
+      line the document has ("Signature", "Signed by", and the packs'
+      languages), found in the PDF's text positions (`signatureLines`); a
+      signer with no line left signs at the foot of the last page.
 
 ## Phase 4 — with People and Time Off
 
@@ -180,7 +193,12 @@ small group, and goes to `main` as **one pull request**.
       the bytes never reach a browser. People's screen learns a label and a
       list (`kept`), never that Documents exists. The AI match preview before
       mapping is People's import's own, unchanged.
-- [ ] **DOC-059** Generate letters G3 (templates and merge).
+- [x] **DOC-059** Generate letters G3 (templates and merge). As built: a
+      template is a Template document whose text holds `{{Field}}`
+      placeholders; HR picks people and a template from the ⋯ menu and checks
+      one preview; the shell fills each from that person's record as HR may
+      read it, and Documents draws each letter, files it to the person as a
+      Letter and, when asked, sends it to them to sign (`letters.ts`).
 - [x] **DOC-060** Fill a record from a document G5, MP3, K9. As built: on a
       document about somebody, whoever may share it is offered Fill the record
       from it (web and phone, and so on a sealed contract, K9). People says
@@ -194,15 +212,28 @@ small group, and goes to `main` as **one pull request**.
       person after People's own sent documents; the shell asks Documents
       (`inbox/actions.ts` `documentsOf`), which decides who may read it, and
       each row opens the center's viewer.
-- [ ] **DOC-062** Uploads that answer HR J1, J2, J6, MJ1, MJ2, MJ5.
-- [ ] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
+- [x] **DOC-062** Uploads that answer HR J1, J2, J6, MJ1, MJ2, MJ5. As built:
+      what People is waiting for from the viewer (asked for by HR, or missing)
+      is looked for in their own document (J1, J6) or their five most recent
+      (J2, at the top of Documents), for them alone, each value with its
+      page; People's own save applies what they tick, which closes HR's ask.
+      A required document is filed against HR's request as before (H2).
+- [x] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
       Built: J3, J5 and MJ3. Time Off gained `attachNote` (its member or HR,
       `timeoff.request.note_attached`, which says only that a note arrived)
       and `noteNeeded` on a request; a request missing its note offers the
       person's sick notes and files in Documents first, or files a new one as
-      their sick note and attaches its id. Left: J4/MJ4 (one certificate
-      unlocking leave, a People detail and a contact) and MH4.
-- [ ] **DOC-064** A letter that changes a record J7, MJ6.
+      their sick note and attaches its id. J4, MJ4: on your own certificate,
+      Kithena reads the event and its date and offers the leave of yours it
+      entitles you to on Time Off's request page from that day, the details
+      and contact HR waits for coming from the answers card (DOC-062). MH4:
+      HR, on somebody's request, attaches that person's notes or files a
+      photo as their sick note.
+- [x] **DOC-064** A letter that changes a record J7, MJ6. As built: on a letter
+      about somebody, whoever may share it can act on it (web and phone):
+      Kithena reads its last working day with its page, and once HR saves,
+      People's own give-notice move records it; offboarding and the leave
+      balance follow from People's record as for anybody leaving.
 
 ## Blocked / left for a person
 

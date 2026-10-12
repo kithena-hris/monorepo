@@ -130,6 +130,60 @@ export interface SendInput {
   readonly at: Instant;
 }
 
+/** Where a document says to sign: a page, and the line's top left as fractions of it. */
+export interface SignatureLine {
+  readonly page: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+const clamp = (n: number, size: number): number => Math.min(Math.max(n, 0), 1 - size);
+
+/**
+ * K2: each signer, in signing order, signs beside a line the document has
+ * ("Signature", "Signed by"), the date under it; a signer with no line left
+ * signs at the foot of the last page, as `defaultFields` places them.
+ */
+export function fieldsAt(
+  signerIds: readonly string[],
+  lines: readonly SignatureLine[],
+  lastPage: number,
+): Field[] {
+  const placed = signerIds.slice(0, lines.length).flatMap((signerId, i): Field[] => {
+    const line = lines[i];
+    if (line === undefined) return [];
+    const x = clamp(line.x, 0.38);
+    const y = clamp(line.y, 0.095);
+    return [
+      {
+        id: `${signerId}-signature`,
+        signerId,
+        kind: 'signature',
+        page: line.page,
+        x,
+        y,
+        w: 0.38,
+        h: 0.06,
+        required: true,
+        label: null,
+      },
+      {
+        id: `${signerId}-date`,
+        signerId,
+        kind: 'date',
+        page: line.page,
+        x,
+        y: y + 0.065,
+        w: 0.2,
+        h: 0.03,
+        required: true,
+        label: null,
+      },
+    ];
+  });
+  return [...placed, ...defaultFields(signerIds.slice(lines.length), lastPage)];
+}
+
 const within = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
 
 export function send(input: SendInput): Result<Envelope> {

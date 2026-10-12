@@ -126,6 +126,8 @@ services:
       NODE_OPTIONS: --max-old-space-size=96
       PEOPLE_URL: http://people:4001
       TIMEOFF_URL: http://timeoff:4002
+      # Documents' capabilities (DOC-052): reached once ASSISTANT_DOCUMENTS_TOKEN is in both ends.
+      DOCUMENTS_URL: http://documents:4003
     stop_grace_period: 20s
     healthcheck:
       test:

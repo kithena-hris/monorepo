@@ -5,6 +5,7 @@ import {
   checkCode,
   decline,
   defaultFields,
+  fieldsAt,
   issueCode,
   markOpened,
   reassign,
@@ -236,5 +237,29 @@ describe('everything but signing (K7, K8)', () => {
     const env = ok(voidEnvelope(sent(), 'Wrong version', at(2)));
     expect(env.status).toBe('voided');
     expect(voidEnvelope(env, 'Again', at(3)).ok).toBe(false);
+  });
+});
+
+describe('fields beside the signature lines (K2)', () => {
+  it('puts each signer, in order, beside a line the document has, and the rest at the foot', () => {
+    const fields = fieldsAt(
+      ['a', 'b', 'c'],
+      [
+        { page: 3, x: 0.1, y: 0.7 },
+        { page: 4, x: 0.55, y: 0.2 },
+      ],
+      4,
+    );
+    const sig = (id: string) => fields.find((f) => f.signerId === id && f.kind === 'signature');
+    expect(sig('a')).toMatchObject({ page: 3, x: 0.1, y: 0.7 });
+    expect(sig('b')).toMatchObject({ page: 4, x: 0.55, y: 0.2 });
+    expect(sig('c')).toMatchObject({ page: 4 });
+    expect(fields.filter((f) => f.kind === 'date')).toHaveLength(3);
+  });
+
+  it('keeps a field on its page near an edge', () => {
+    const [sig, date] = fieldsAt(['a'], [{ page: 1, x: 0.9, y: 0.97 }], 1);
+    expect((sig?.x ?? 0) + (sig?.w ?? 0)).toBeLessThanOrEqual(1);
+    expect((date?.y ?? 0) + (date?.h ?? 0)).toBeLessThanOrEqual(1);
   });
 });

@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
-import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { degrees, PDFDocument, rgb } from 'pdf-lib';
+
+import { facesFor } from './fonts.js';
 
 /**
  * What Documents reads from and draws onto a file: a checksum, a PDF's page
@@ -23,14 +25,6 @@ export async function pageCount(bytes: Uint8Array, mediaType: string): Promise<n
   }
 }
 
-/**
- * What the standard fonts can draw: Latin-1 and the few WinAnsi extras.
- * ponytail: anything else becomes "?"; embed a Unicode font (fontkit) when a
- * customer's names are outside Latin-1.
- */
-export const drawable = (text: string): string =>
-  Array.from(text, (c) => (c.charCodeAt(0) <= 0xff || '•–—‘’“”€…'.includes(c) ? c : '?')).join('');
-
 /** Media types a watermarked copy can be drawn for; the rest are not shown inline. */
 export const watermarkable = (mediaType: string): boolean =>
   mediaType === 'application/pdf' || mediaType === 'image/jpeg' || mediaType === 'image/png';
@@ -53,7 +47,7 @@ export async function watermark(
     const page = pdf.addPage([image.width, image.height]);
     page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
   }
-  const font = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const { bold: font, drawable } = await facesFor(pdf);
   const text = drawable(`${line}  ·  ${line}`);
   for (const page of pdf.getPages()) {
     const { width, height } = page.getSize();

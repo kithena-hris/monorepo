@@ -52,6 +52,7 @@ export interface Row {
   readonly id: string;
   readonly title: string;
   readonly kind: Kind;
+  readonly typeKey: string | null;
   readonly typeName: string | null;
   readonly level: 'private' | 'shared';
   readonly confidential: boolean;

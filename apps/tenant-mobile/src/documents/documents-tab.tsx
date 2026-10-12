@@ -26,6 +26,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Spinner,
   Stat,
   Text,
 } from '@reach/ui-native';
@@ -40,11 +41,12 @@ import {
   Sparkles,
   Upload,
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Failed, Heading, Loading, Page } from '../frame';
 import { useSigned } from '../people/api';
+import { Answers } from './answers';
 import { AcrossAnswer, type Answer } from './reading';
 import type { PeopleScreen } from '../people/routes';
 import {
@@ -55,6 +57,7 @@ import {
   putFile,
   scan,
   useDocuments,
+  type FileRef,
   type Picked,
   type PersonRef,
   type Row,
@@ -327,6 +330,15 @@ function Body({
   const shownQueue = data.tiles.find((t) => t.key === queue);
   return (
     <>
+      {queue !== null ? null : (
+        <Answers
+          documentIds={data.rows
+            .filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical')
+            .slice(0, 5)
+            .map((r) => r.id)}
+          titles={Object.fromEntries(data.rows.map((r) => [r.id, r.title]))}
+        />
+      )}
       {data.needsYou.length === 0 ? null : (
         <>
           <Heading title="Needs you" />
@@ -535,12 +547,52 @@ function FileDialog({
   const [subject, setSubject] = useState<string | null>(filing.subjectPersonId);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [expiresOn, setExpiresOn] = useState<string | null>(null);
+  // HR's scan goes up as the dialog opens, so Kithena can read it while HR checks (MD3).
+  const [sent, setSent] = useState<FileRef | null>(null);
+  const [reading, setReading] = useState<'reading' | 'read' | null>(null);
   const type = types.find((t) => t.key === typeKey);
   const fixed = filing.requestId !== null;
+  useEffect(() => {
+    if (!hr || filing.requestId !== null || filing.typeKey !== null) return;
+    let live = true;
+    setReading('reading');
+    void putFile(signed, filing.file).then(async (put) => {
+      if (!put.ok) {
+        if (live) setReading(null);
+        return;
+      }
+      if (live) setSent(put.data);
+      const s = await askDocuments<{
+        available: boolean;
+        title: string | null;
+        typeKey: string | null;
+        subjectPersonId: string | null;
+        expiresOn: string | null;
+      }>(signed, 'SuggestDocumentFiling', {
+        uploadId: put.data.uploadId,
+        input: { name: filing.file.name },
+      });
+      if (!live) return;
+      if (!s.ok || !s.data.available) {
+        setReading(null);
+        return;
+      }
+      if (s.data.title !== null) setTitle(s.data.title);
+      if (s.data.typeKey !== null) setTypeKey(s.data.typeKey);
+      if (s.data.subjectPersonId !== null) setSubject(s.data.subjectPersonId);
+      setExpiresOn(s.data.expiresOn);
+      setReading('read');
+    });
+    return () => {
+      live = false;
+    };
+  }, [hr, filing, signed]);
   const save = async (): Promise<void> => {
     setBusy(true);
     setProblem(null);
-    const put = await putFile(signed, filing.file);
+    const put =
+      sent === null ? await putFile(signed, filing.file) : { ok: true as const, data: sent };
     if (!put.ok) {
       setBusy(false);
       setProblem(put.message);
@@ -552,7 +604,7 @@ function FileDialog({
         typeKey: typeKey === PERSONAL ? null : typeKey,
         subjectPersonId: typeKey === PERSONAL ? null : subject,
         sectionId: null,
-        expiresOn: null,
+        expiresOn,
         requestId: filing.requestId,
         upload: put.data,
       },
@@ -577,6 +629,13 @@ function FileDialog({
           <DialogDescription>It starts Private.</DialogDescription>
         </DialogHeader>
         <DialogBody>
+          {reading === 'reading' ? (
+            <Spinner label="Kithena is reading the scan" />
+          ) : reading === 'read' ? (
+            <Text variant="footnote" tone="muted">
+              {`Kithena filled in what it read${expiresOn === null ? '' : `, expiring ${expiresOn}`}. Check each before adding.`}
+            </Text>
+          ) : null}
           <Field>
             <FieldLabel>Name</FieldLabel>
             <Input value={title} onChange={setTitle} />

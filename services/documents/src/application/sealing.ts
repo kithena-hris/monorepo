@@ -1,7 +1,7 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 
 import type { Envelope } from '../domain/signature/envelope.js';
-import { drawable } from './files.js';
+import { facesFor } from './fonts.js';
 import type { EnvelopeEvent } from './ports.js';
 
 /**
@@ -32,9 +32,7 @@ export async function seal(
   company: string,
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(original, { ignoreEncryption: true });
-  const body = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const script = await pdf.embedFont(StandardFonts.TimesRomanItalic);
+  const { body, bold, script, drawable } = await facesFor(pdf);
   const ink = rgb(0.12, 0.16, 0.36);
   const pages = pdf.getPages();
   for (const field of envelope.fields) {

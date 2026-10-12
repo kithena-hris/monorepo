@@ -25,6 +25,7 @@
     "@kithena/domain-kit": "workspace:*",
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
+    "@pdf-lib/fontkit": "1.1.1",
     "drizzle-orm": "^0.45.3",
     "graphql": "^16.11.0",
     "graphql-yoga": "^5.24.1",

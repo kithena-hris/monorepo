@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/restrict-template-expressions --
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/restrict-template-expressions --
    A test reads the JSON a transport answered by its path, and every path it reads is asserted. */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
@@ -36,10 +36,15 @@ type Who = keyof typeof ids;
 
 const seen: Readonly<Record<string, unknown>>[] = [];
 let reply: Record<string, unknown> | null = null;
+const looked: string[] = [];
 const reader: Reader = {
   read: ({ context }) => {
     seen.push(context);
     return Promise.resolve(reply);
+  },
+  see: ({ image }) => {
+    looked.push(image.mediaType);
+    return Promise.resolve('Residence permit. Valid until 2027-03-01.');
   },
 };
 
@@ -49,6 +54,15 @@ const server = documentsServer({
   uow: world.uow,
   blobs: world.blobs,
   reader,
+  assistantCallerFrom: (request) => {
+    const who = request.headers['x-test'] as Who;
+    return ok({
+      tenantId: TENANT,
+      accountId: ids[who].account,
+      personId: ids[who].person as PersonId,
+      correlationId: '00000000-0000-4000-8000-000000000001',
+    } satisfies Caller);
+  },
   clock: fixedClock('2026-10-12T09:00:00.000Z'),
   newId: () => `01890000-0000-7000-8000-${String(++counter).padStart(12, '0')}`,
   callerFrom: (request) => {
@@ -258,5 +272,166 @@ describe('reading fields for a host (G5)', () => {
       fields: [{ name: 'Notice period', value: 'Three months', page: 2 }],
     });
     expect(JSON.stringify(seen.at(-1))).toContain('Notice period');
+  });
+});
+
+describe('a phone’s photo (MD3, OCR)', () => {
+  const photo = async (title: string, who: 'ada' | 'adam', extra: object) =>
+    (
+      await call(who, 'POST', '/v1/documents/d', {
+        title,
+        ...extra,
+        file: {
+          name: `${title}.jpg`,
+          mediaType: 'image/jpeg',
+          base64: Buffer.from('jpeg').toString('base64'),
+        },
+      })
+    ).body.id as string;
+
+  it('is read by a model that sees, then summarised like any page', async () => {
+    await call('ada', 'PUT', '/v1/documents/settings/ai', { summaries: true });
+    const id = await photo('Permit photo', 'adam', {});
+    reply = {
+      summary: [{ text: 'A residence permit.', pages: [1] }],
+      facts: [],
+      watch: null,
+      questions: [],
+    };
+    const got = await call('adam', 'GET', `/v1/documents/d/${id}/summary`);
+    expect(got.body).toMatchObject({ available: true, summary: [{ text: 'A residence permit.' }] });
+    expect(looked).toContain('image/jpeg');
+    expect(JSON.stringify(seen.at(-1))).toContain('Valid until 2027-03-01');
+  });
+
+  it('a medical photo is never sent to be read', async () => {
+    const before = looked.length;
+    const id = await photo('Note photo', 'ada', {
+      typeKey: 'sick_note',
+      subjectPersonId: ids.adam.person,
+    });
+    const got = await call('ada', 'GET', `/v1/documents/d/${id}/summary`);
+    expect(got.body).toMatchObject({ available: false });
+    expect(looked.length).toBe(before);
+  });
+});
+
+describe('splitting a scanned stack (C2)', () => {
+  it('Kithena proposes the parts; HR files each as its own document', async () => {
+    const base64 = await pdf('Employment contract for Adam', 'Page two', 'Bank details form');
+    reply = {
+      parts: [
+        {
+          from: 1,
+          to: 2,
+          typeKey: 'employment_contract',
+          personId: ids.adam.person,
+          title: 'Contract',
+        },
+        {
+          from: 3,
+          to: 3,
+          typeKey: 'bank_details',
+          personId: ids.adam.person,
+          title: 'Bank details',
+        },
+      ],
+    };
+    const file = { name: 'stack.pdf', mediaType: 'application/pdf', base64 };
+    const proposed = await call('ada', 'POST', '/v1/documents/split', { file });
+    expect(proposed.body).toMatchObject({
+      available: true,
+      pages: 3,
+      parts: [
+        { from: 1, to: 2 },
+        { from: 3, to: 3 },
+      ],
+    });
+    expect((await call('adam', 'POST', '/v1/documents/split', { file })).status).toBe(403);
+    const filed = await call('ada', 'POST', '/v1/documents/split/file', {
+      file,
+      parts: proposed.body.parts,
+    });
+    expect(filed.status).toBe(201);
+    expect(filed.body.ids).toHaveLength(2);
+    const contract = await call('adam', 'GET', `/v1/documents/d/${filed.body.ids[0]}`);
+    expect(contract.body.document.row).toMatchObject({
+      title: 'Contract',
+      pages: 2,
+      aboutMe: true,
+    });
+  });
+
+  it('refuses parts that leave a page out', async () => {
+    const file = { name: 'stack.pdf', mediaType: 'application/pdf', base64: await pdf('a', 'b') };
+    const filed = await call('ada', 'POST', '/v1/documents/split/file', {
+      file,
+      parts: [{ from: 1, to: 1, title: 'A', typeKey: null, subjectPersonId: null }],
+    });
+    expect(filed.status).toBe(422);
+  });
+});
+
+describe('letters from a template (G3)', () => {
+  it('HR fills a template for a person, files it to them and sends it to sign', async () => {
+    const template = await file(
+      'Promotion letter',
+      'ada',
+      { typeKey: 'template' },
+      'Dear {{Preferred name}}, from {{Start date}} you are {{Job title}}.',
+    );
+    const read = await call('ada', 'GET', `/v1/documents/d/${template}/template`);
+    expect(read.body.fields).toEqual(['Preferred name', 'Start date', 'Job title']);
+    expect((await call('adam', 'GET', `/v1/documents/d/${template}/template`)).status).toBe(403);
+    const origin = { origin: 'https://acme.app.kithena.com', companyName: 'Acme' };
+    const short = await call('ada', 'POST', `/v1/documents/d/${template}/letters`, {
+      title: 'Promotion',
+      letters: [{ personId: ids.adam.person, values: { 'Preferred name': 'Adam' } }],
+      ...origin,
+    });
+    expect(short.status).toBe(422);
+    const made = await call('ada', 'POST', `/v1/documents/d/${template}/letters`, {
+      title: 'Promotion',
+      letters: [
+        {
+          personId: ids.adam.person,
+          values: {
+            'Preferred name': 'Adam',
+            'Start date': '1 November 2026',
+            'Job title': 'Senior engineer',
+          },
+        },
+      ],
+      sign: true,
+      ...origin,
+    });
+    expect(made.status).toBe(201);
+    const letter = await call('adam', 'GET', `/v1/documents/d/${made.body.ids[0]}`);
+    expect(letter.body.document.row).toMatchObject({
+      title: 'Promotion',
+      kind: 'Letter',
+      aboutMe: true,
+    });
+    expect(letter.body.document.signing).toMatchObject({ status: 'sent', mine: true });
+  });
+});
+
+describe('the assistant’s door (DOC-052)', () => {
+  const door = (who: 'ada' | 'adam' | 'marco', method: string, url: string, body = '') =>
+    server.capabilities({ method, url, headers: { 'x-test': who }, body });
+
+  it('offers what waits and what expires, and answers each as the asker', async () => {
+    const catalogue = await door('adam', 'GET', '/internal/capabilities');
+    expect(catalogue?.body).toMatchObject({
+      module: 'documents',
+      serves: [{ name: 'documents.waiting' }, { name: 'documents.expiring' }],
+    });
+    const waits = await door('adam', 'POST', '/internal/capabilities/documents.waiting', '{"limit":25}');
+    expect(waits?.body).toMatchObject({ kind: 'items' });
+    // The promotion letter sent to Adam to sign waits for him.
+    expect(JSON.stringify(waits?.body)).toContain('Promotion');
+    const marco = await door('marco', 'POST', '/internal/capabilities/documents.waiting', '{"limit":25}');
+    expect(JSON.stringify(marco?.body)).not.toContain('Promotion');
+    expect((await door('adam', 'POST', '/internal/capabilities/nothing', '{}'))?.status).toBe(404);
   });
 });

@@ -506,16 +506,25 @@ interface NoteRow {
  * request asks for: their sick notes first, then their own PDFs and photos,
  * newest first. Documents decides what they may open.
  */
-export async function notesToAttach(): Promise<
-  readonly { readonly id: string; readonly name: string; readonly detail: string }[]
-> {
-  const a = await documents<{ rows: readonly NoteRow[] }>('DocumentsLibrary', { show: 'all' });
-  if (!a.ok) return [];
-  const usable = a.data.rows.filter(
+export async function notesToAttach(
+  personId: string,
+): Promise<readonly { readonly id: string; readonly name: string; readonly detail: string }[]> {
+  // The viewer's own, from their library; somebody else's (HR's, MH4) from their file.
+  const library = await documents<{
+    viewer: { personId: string | null };
+    rows: readonly NoteRow[];
+  }>('DocumentsLibrary', { show: 'all' });
+  if (!library.ok) return [];
+  const own = library.data.viewer.personId === personId;
+  const file = own
+    ? null
+    : await documents<{ rows: readonly NoteRow[] }>('DocumentsPersonFile', { personId });
+  const rows = own ? library.data.rows : file?.ok === true ? file.data.rows : [];
+  const usable = rows.filter(
     (r) =>
       r.deletedAt === null &&
-      (r.mine || r.aboutMe) &&
-      (r.kind === 'Medical' || (r.typeKey === null && NOTE_TYPES.has(r.mediaType ?? ''))),
+      (own ? r.mine || r.aboutMe : true) &&
+      (r.kind === 'Medical' || (own && r.typeKey === null && NOTE_TYPES.has(r.mediaType ?? ''))),
   );
   return usable
     .toSorted((x, y) => Number(y.kind === 'Medical') - Number(x.kind === 'Medical'))
@@ -539,17 +548,17 @@ export async function attachNoteFromDocuments(
  * J3: a note photographed or chosen now: filed in Documents as the person's
  * sick note (HR only, read for its dates alone), then attached to the request.
  */
-export async function attachNewNote(requestId: string, file: File): Promise<Outcome> {
+export async function attachNewNote(
+  requestId: string,
+  file: File,
+  personId: string,
+): Promise<Outcome> {
   if (file.size > MAX_INLINE) return { ok: false, message: 'Notes are up to 25 MB' };
-  const library = await documents<{ viewer: { personId: string | null } }>('DocumentsLibrary', {
-    show: 'all',
-  });
-  if (!library.ok) return library;
   const filed = await documents<{ id: string }>('UploadDocument', {
     input: {
       title: 'Sick note',
       typeKey: 'sick_note',
-      subjectPersonId: library.data.viewer.personId,
+      subjectPersonId: personId,
       file: {
         name: file.name,
         mediaType: file.type,
@@ -640,6 +649,264 @@ export async function recordFromDocument(documentId: string): Promise<
           found: hit === undefined ? null : { value: hit.value, page: hit.page },
         };
       }),
+    },
+  };
+}
+
+/* ------------------------------------------------- splitting a scan (C2) -- */
+
+export async function proposeSplit(upload: FileRef): Promise<Read<unknown>> {
+  return read(await documents('ProposeDocumentSplit', { input: { upload } }));
+}
+
+export async function fileSplit(
+  upload: FileRef,
+  parts: readonly Record<string, unknown>[],
+): Promise<Outcome> {
+  return outcome(await documents('FileDocumentSplit', { input: { upload, parts } }));
+}
+
+/* --------------------------------------- a letter that changes a record (J7) -- */
+
+/**
+ * J7: what a letter about somebody says that People would act on: the last
+ * working day, with its page. Nothing is written here.
+ */
+export async function letterOutcome(documentId: string): Promise<
+  Read<{
+    readonly personId: string;
+    readonly name: string;
+    readonly lastWorkingDay: { readonly value: string; readonly page: number } | null;
+  }>
+> {
+  const doc = await documents<{
+    document: { row: { subject: { personId: string; name: string } | null } } | null;
+  }>('DocumentsDocument', { documentId });
+  if (!doc.ok) return doc;
+  const subject = doc.data.document?.row.subject ?? null;
+  if (subject === null) return { ok: false, message: 'This letter is about nobody' };
+  const read = await documents<{
+    fields: readonly { name: string; value: string; page: number }[];
+  }>('ReadDocumentFields', { documentId, input: { names: ['Last working day'] } });
+  if (!read.ok) return read;
+  const day = read.data.fields.find((f) => /^\d{4}-\d{2}-\d{2}$/u.test(f.value));
+  return {
+    ok: true,
+    data: {
+      personId: subject.personId,
+      name: subject.name,
+      lastWorkingDay: day === undefined ? null : { value: day.value, page: day.page },
+    },
+  };
+}
+
+/* ---------------------------------- documents that answer HR (J1, J2, J6) -- */
+
+/** A detail People is waiting for from the person signed in: asked for by HR, or missing. */
+export interface Waiting {
+  readonly key: string;
+  readonly label: string;
+  readonly asked: boolean;
+}
+
+/** J1, J2, J6: what People is waiting for from the viewer that a document could say. */
+export async function waitingFor(): Promise<readonly Waiting[]> {
+  const profile = await people<{
+    sections: readonly { fields: readonly (ProfileField & { missing: boolean })[] }[];
+    requests: readonly { key: string; label: string }[];
+  }>('Profile', { personId: null });
+  if (!profile.ok) return [];
+  const asked = new Set(profile.data.requests.map((r) => r.key));
+  return profile.data.sections
+    .flatMap((s) => s.fields)
+    .filter((f) => !f.readOnly && FILLABLE.has(f.dataType) && (asked.has(f.key) || f.missing))
+    .slice(0, 40)
+    .map((f) => ({ key: f.key, label: f.label, asked: asked.has(f.key) }));
+}
+
+/** One answer found: the detail, its value, and the document and page it is on. */
+export interface Found {
+  readonly key: string;
+  readonly label: string;
+  readonly asked: boolean;
+  readonly value: string;
+  readonly page: number;
+  readonly documentId: string;
+}
+
+/**
+ * J1, J2: the viewer's own documents read for what People is waiting for,
+ * the first value found for each. Read for the viewer alone; nothing is sent
+ * to People until they save it.
+ */
+export async function lookFor(documentIds: readonly string[]): Promise<Read<readonly Found[]>> {
+  const waiting = await waitingFor();
+  if (waiting.length === 0) return { ok: true, data: [] };
+  const found = new Map<string, Found>();
+  // ponytail: five documents, one after another; a job when people keep more.
+  for (const documentId of documentIds.slice(0, 5)) {
+    const left = waiting.filter((w) => !found.has(w.key));
+    if (left.length === 0) break;
+    const read = await documents<{
+      fields: readonly { name: string; value: string; page: number }[];
+    }>('ReadDocumentFields', { documentId, input: { names: left.map((w) => w.label) } });
+    if (!read.ok) continue;
+    for (const f of read.data.fields) {
+      const w = left.find((x) => x.label === f.name);
+      if (w !== undefined && !found.has(w.key)) {
+        found.set(w.key, { ...w, value: f.value, page: f.page, documentId });
+      }
+    }
+  }
+  return { ok: true, data: [...found.values()] };
+}
+
+/* ------------------------------------------- letters from a template (G3) -- */
+
+/** Each of a person's record values by its label, as People shows them to the viewer. */
+async function valuesOf(personId: string): Promise<ReadonlyMap<string, string> | null> {
+  const profile = await people<{
+    sections: readonly { fields: readonly ProfileField[] }[];
+    values: readonly ProfileEntry[];
+  }>('Profile', { personId });
+  if (!profile.ok) return null;
+  const entries = new Map(profile.data.values.map((v) => [v.key, v]));
+  const out = new Map<string, string>();
+  for (const f of profile.data.sections.flatMap((s) => s.fields)) {
+    const value = shown(entries.get(f.key));
+    if (value !== null && value.trim() !== '') out.set(f.label.toLowerCase(), value);
+  }
+  return out;
+}
+
+/** One person's values for a template's fields, by the template's own spelling of each. */
+const fill = (fields: readonly string[], values: ReadonlyMap<string, string>) =>
+  Object.fromEntries(
+    fields.flatMap((f) => {
+      const v = values.get(f.toLowerCase());
+      return v === undefined ? [] : [[f, v]];
+    }),
+  );
+
+/**
+ * G3: one letter as it will read, for the first person chosen, and which
+ * fields each person's record cannot fill. Nothing is written.
+ */
+export async function previewLetters(
+  templateId: string,
+  personIds: readonly string[],
+): Promise<
+  Read<{
+    readonly preview: string;
+    readonly missing: readonly { readonly personId: string; readonly fields: readonly string[] }[];
+  }>
+> {
+  const template = await documents<{ text: string; fields: string[] }>('DocumentTemplate', {
+    documentId: templateId,
+  });
+  if (!template.ok) return template;
+  const { text, fields } = template.data;
+  const missing: { personId: string; fields: string[] }[] = [];
+  let preview = text;
+  for (const [i, personId] of personIds.slice(0, 100).entries()) {
+    const values = await valuesOf(personId);
+    const filled = values === null ? {} : fill(fields, values);
+    const lacking = fields.filter((f) => !(f in filled));
+    if (lacking.length > 0) missing.push({ personId, fields: lacking });
+    if (i === 0) {
+      preview = fields.reduce(
+        (t, f) =>
+          t.replaceAll(
+            new RegExp(`\\{\\{\\s*${f.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}\\s*\\}\\}`, 'gu'),
+            filled[f] ?? `{{${f}}}`,
+          ),
+        text,
+      );
+    }
+  }
+  return { ok: true, data: { preview, missing } };
+}
+
+/** G3: the letters made, filed to each person and, when asked, sent to them to sign. */
+export async function generateLetters(
+  templateId: string,
+  title: string,
+  personIds: readonly string[],
+  sign: boolean,
+): Promise<Read<{ readonly ids: readonly string[] }>> {
+  const template = await documents<{ fields: string[] }>('DocumentTemplate', {
+    documentId: templateId,
+  });
+  if (!template.ok) return template;
+  const letters = [];
+  for (const personId of personIds.slice(0, 100)) {
+    const values = await valuesOf(personId);
+    letters.push({ personId, values: values === null ? {} : fill(template.data.fields, values) });
+  }
+  return read(
+    await documents<{ readonly ids: readonly string[] }>('GenerateLetters', {
+      documentId: templateId,
+      input: { title, letters, sign, ...(await origin()) },
+    }),
+  );
+}
+
+/* ------------------------------------- a certificate that unlocks leave (J4) -- */
+
+/** Which of a person's leave types an event entitles them to: by its category, else its name. */
+const EVENTS: readonly {
+  readonly event: RegExp;
+  readonly category?: string;
+  readonly name: RegExp;
+}[] = [
+  {
+    event: /birth|born|adopt/iu,
+    category: 'parental_leave',
+    name: /parent|maternity|paternity|birth|adopt/iu,
+  },
+  { event: /marri|wedding|civil partnership/iu, name: /marri|wedding|partnership/iu },
+  { event: /death|bereave|funeral|passed away/iu, name: /bereave|death|funeral|compassion/iu },
+  { event: /move|relocat|new home/iu, name: /mov|relocat/iu },
+];
+
+/**
+ * J4: the event a certificate records and its date, each with its page, and
+ * the leave type of the viewer's own that it entitles them to. Time Off's
+ * request page then takes the type and the day; nothing is requested here.
+ */
+export async function certificateLeave(documentId: string): Promise<
+  Read<{
+    readonly event: string | null;
+    readonly date: string | null;
+    readonly page: number | null;
+    readonly leaveType: { readonly key: string; readonly name: string } | null;
+  }>
+> {
+  const read = await documents<{
+    fields: readonly { name: string; value: string; page: number }[];
+  }>('ReadDocumentFields', { documentId, input: { names: ['Event', 'Date of the event'] } });
+  if (!read.ok) return read;
+  const event = read.data.fields.find((f) => f.name === 'Event') ?? null;
+  const date = read.data.fields.find(
+    (f) => f.name === 'Date of the event' && /^\d{4}-\d{2}-\d{2}$/u.test(f.value),
+  );
+  const panel = await timeOff<{
+    leaveTypes: readonly { key: string; name: string; category: string }[];
+  }>('TimeOffRequestPanel', {});
+  const rule = event === null ? undefined : EVENTS.find((e) => e.event.test(event.value));
+  const leaveType =
+    rule === undefined || !panel.ok
+      ? undefined
+      : (panel.data.leaveTypes.find(
+          (t) => rule.category !== undefined && t.category === rule.category,
+        ) ?? panel.data.leaveTypes.find((t) => rule.name.test(t.name)));
+  return {
+    ok: true,
+    data: {
+      event: event?.value ?? null,
+      date: date?.value ?? null,
+      page: date?.page ?? event?.page ?? null,
+      leaveType: leaveType === undefined ? null : { key: leaveType.key, name: leaveType.name },
     },
   };
 }

@@ -5,7 +5,8 @@ import { systemClock } from '@kithena/domain-kit';
 import type { Deps } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import { uuidv7 } from '../infrastructure/ids.js';
-import type { CallerFrom } from './caller.js';
+import { CAPABILITIES_PREFIX, capabilitiesHandler } from './capabilities.js';
+import { callerFromHeaders, type CallerFrom } from './caller.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest, type RestResponse } from './rest.js';
 
@@ -32,7 +33,11 @@ async function bodyOf(request: IncomingMessage): Promise<string | null> {
  * The one listener on Documents' one port: `/healthz`, the OpenAPI document
  * and REST v1 in front of GraphQL. Time Off's.
  */
-export function documentsListener(graphql: Listener, rest?: RestDispatch): Listener {
+export function documentsListener(
+  graphql: Listener,
+  rest?: RestDispatch,
+  capabilities?: RestDispatch,
+): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
     if (request.method === 'GET' && request.url === '/healthz') {
@@ -43,7 +48,14 @@ export function documentsListener(graphql: Listener, rest?: RestDispatch): Liste
       response.writeHead(200, { 'content-type': 'application/json' }).end(document);
       return;
     }
-    if (rest === undefined || !(request.url ?? '').startsWith('/v1/')) {
+    // The assistant's capabilities: its own token, never the router's (`capabilities.ts`).
+    const url = request.url ?? '';
+    const dispatch = url.startsWith(CAPABILITIES_PREFIX)
+      ? capabilities
+      : url.startsWith('/v1/')
+        ? rest
+        : undefined;
+    if (dispatch === undefined) {
       graphql(request, response);
       return;
     }
@@ -55,7 +67,7 @@ export function documentsListener(graphql: Listener, rest?: RestDispatch): Liste
           .end('{"error":{"code":"TOO_LARGE","message":"Files are up to 25 MB"}}');
         return;
       }
-      const answer = await rest({
+      const answer = await dispatch({
         method: request.method ?? 'GET',
         url: request.url ?? '/',
         headers: request.headers,
@@ -82,12 +94,15 @@ export interface DocumentsServerOptions extends Pick<Deps, 'uow' | 'blobs'> {
   readonly newId?: Deps['newId'];
   readonly mailer?: Deps['mailer'];
   readonly reader?: Deps['reader'];
+  /** The assistant's, over `ASSISTANT_DOCUMENTS_TOKEN`; without it its capabilities refuse everybody. */
+  readonly assistantCallerFrom?: CallerFrom;
 }
 
 /** Documents' transports over a unit of work and a blob store. */
 export function documentsServer(options: DocumentsServerOptions): {
   readonly listener: Listener;
   readonly rest: RestDispatch;
+  readonly capabilities: RestDispatch;
   readonly graphql: ReturnType<typeof createYoga>;
   readonly deps: Deps;
 } {
@@ -101,14 +116,23 @@ export function documentsServer(options: DocumentsServerOptions): {
     ...(options.reader === undefined ? {} : { reader: options.reader }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
+  const capabilities = capabilitiesHandler({
+    deps,
+    callerFrom: options.assistantCallerFrom ?? callerFromHeaders(''),
+  });
   configureGraphQL({ rest });
   const graphql = createYoga(yogaOptions);
   return {
     rest,
+    capabilities,
     graphql,
     deps,
-    listener: documentsListener((request, response) => {
-      void graphql(request, response);
-    }, rest),
+    listener: documentsListener(
+      (request, response) => {
+        void graphql(request, response);
+      },
+      rest,
+      capabilities,
+    ),
   };
 }

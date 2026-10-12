@@ -162,7 +162,7 @@ describe('§7.1 how many people are off today', () => {
     expect(calls[0]?.input).toEqual({ on: { from: '2026-10-06', to: '2026-10-06' }, limit: 0 });
     // Time Off's team filter and its managers yield to People's (§8.4).
     expect(requests[0]?.offer.has('timeoff.managers')).toBe(false);
-    expect(requests[0]?.unavailable).toEqual([]);
+    expect(requests[0]?.unavailable).toEqual(['documents']);
   });
 
   it('Adam, an employee, is told how many he can see, and what he sees', async () => {
@@ -347,7 +347,7 @@ describe('§7.4 a company with People only', () => {
       'c',
     );
     expect(fetched).toEqual(['people']);
-    expect(requests[0]?.unavailable).toEqual(['timeoff']);
+    expect(requests[0]?.unavailable).toEqual(['timeoff', 'documents']);
     expect([...(requests[0]?.offer.keys() ?? [])].every((n) => n.startsWith('people.'))).toBe(true);
     expect(asked.answer.text).toBe(
       'I can’t see time off: your company doesn’t use Time Off in Kithena. I can help with your people — who is in a team, who reports to whom, how many people work where.',
@@ -444,7 +444,7 @@ describe('a company with neither', () => {
     );
     expect(fetched).toEqual([]);
     expect(requests[0]?.offer.size).toBe(0);
-    expect(requests[0]?.unavailable).toEqual(['people', 'timeoff']);
+    expect(requests[0]?.unavailable).toEqual(['people', 'timeoff', 'documents']);
     expect(asked.answer.text).toBe(
       'I can’t see time off: your company doesn’t use Time Off in Kithena.',
     );
@@ -755,7 +755,7 @@ describe('a question from the web, in the session it was asked in (AST-035)', ()
     const { modules } = sessionModules();
     const { planner, requests } = fakePlanner({ kind: 'unavailable', module: 'timeoff' });
     const asked = await ask({ modules, planner })(viewing('Who is off today?'), 'c');
-    expect(requests[0]?.unavailable).toEqual(['timeoff']);
+    expect(requests[0]?.unavailable).toEqual(['timeoff', 'documents']);
     expect(asked.answer).toEqual({
       text: TIMEOFF_SAYS,
       understood: 'Time Off refused',

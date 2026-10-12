@@ -48,6 +48,7 @@ import { useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
 import { ShareDialog } from '../share';
 import { AccessBadge, DocIcon, StatusBadge, meta, shortDate, useWrite } from '../shared';
+import { Answers, type AnswersProps } from '../answers';
 import { AcrossAnswer } from '../document/reading';
 import type {
   Answer,
@@ -62,6 +63,8 @@ import type {
   StartUpload,
 } from '../types';
 import { ShareQuestion, UploadDialog, type UploadInput, type UploadPreset } from '../upload';
+import { LettersDialog, type LettersProps } from './letters';
+import { SplitDialog, type SplitProps } from './split';
 
 /**
  * The Documents screen (B1, B2, B6, H1, H3; MD1, MH1, MH6): one item, one
@@ -109,6 +112,16 @@ export interface LibraryProps {
   /** C1: what an upload looks like it is. */
   readonly onSuggest?:
     ((uploadId: string, name: string) => Promise<Read<FilingSuggestion>>) | undefined;
+  /** J2: what the record is waiting for, looked for in your own documents. */
+  readonly onWaitingFor?: AnswersProps['onWaitingFor'];
+  readonly onLookFor?: AnswersProps['onLookFor'];
+  readonly onAnswer?: AnswersProps['onAnswer'];
+  /** G3: letters from a template, one per person (HR). */
+  readonly onPreviewLetters?: LettersProps['onPreviewLetters'];
+  readonly onGenerateLetters?: LettersProps['onGenerateLetters'];
+  /** C2: a scanned stack split into its documents (HR). */
+  readonly onProposeSplit?: SplitProps['onProposeSplit'];
+  readonly onFileSplit?: SplitProps['onFileSplit'];
 }
 
 export function Library(props: LibraryProps): JSX.Element {
@@ -136,6 +149,8 @@ function Ready({
   const [asking, setAsking] = useState<{ id: string; title: string } | null>(null);
   const [sharing, setSharing] = useState<{ id: string; title: string } | null>(null);
   const [newSection, setNewSection] = useState(false);
+  const [splitting, setSplitting] = useState(false);
+  const [lettering, setLettering] = useState(false);
   const [query, type] = useTyped(data.q, (q) => props.onFilter?.({ q: q === '' ? null : q }));
   const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(
     null,
@@ -201,6 +216,24 @@ function Ready({
                 >
                   New section
                 </DropdownMenuItem>
+                {data.viewer.hr && props.onGenerateLetters !== undefined ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setLettering(true);
+                    }}
+                  >
+                    Generate letters
+                  </DropdownMenuItem>
+                ) : null}
+                {data.viewer.hr && props.onProposeSplit !== undefined ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setSplitting(true);
+                    }}
+                  >
+                    Split a scan
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() => {
@@ -248,6 +281,18 @@ function Ready({
         <AcrossAnswer question={answer.q} answer={answer.a} onNavigate={props.onNavigate} />
       )}
 
+      {data.deleted || data.queue !== null || data.q !== '' ? null : (
+        <Answers
+          documentIds={data.rows
+            .filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical')
+            .slice(0, 5)
+            .map((r) => r.id)}
+          titles={Object.fromEntries(data.rows.map((r) => [r.id, r.title]))}
+          onWaitingFor={props.onWaitingFor}
+          onLookFor={props.onLookFor}
+          onAnswer={props.onAnswer}
+        />
+      )}
       {data.needsYou.length > 0 && !data.deleted ? (
         <section className="flex flex-col gap-3" aria-labelledby="needs-you">
           <h2 id="needs-you" className="text-md font-semibold">
@@ -426,6 +471,30 @@ function Ready({
           onShare={props.onShare}
         />
       )}
+      {lettering ? (
+        <LettersDialog
+          open
+          onOpenChange={setLettering}
+          templates={data.rows.filter((r) => r.kind === 'Template' && r.deletedAt === null)}
+          people={data.people}
+          onPreviewLetters={props.onPreviewLetters}
+          onGenerateLetters={props.onGenerateLetters}
+          onDone={() => {
+            props.onFilter?.({ q: null });
+          }}
+        />
+      ) : null}
+      {splitting ? (
+        <SplitDialog
+          open
+          onOpenChange={setSplitting}
+          types={data.types}
+          people={data.people}
+          onStartUpload={props.onStartUpload}
+          onProposeSplit={props.onProposeSplit}
+          onFileSplit={props.onFileSplit}
+        />
+      ) : null}
       <NewSection
         open={newSection}
         onOpenChange={setNewSection}

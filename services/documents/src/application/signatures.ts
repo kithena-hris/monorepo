@@ -10,6 +10,7 @@ import {
 import {
   checkCode,
   decline,
+  fieldsAt,
   issueCode,
   markOpened,
   reassign,
@@ -21,6 +22,7 @@ import {
   type Field,
   type SignatureMark,
 } from '../domain/signature/envelope.js';
+import { signatureLines } from './text.js';
 import { contextOf, event, factsOf, load, notFound, record, type Ctx } from './context.js';
 import { sha256 } from './files.js';
 import type { Caller, Deps, Tx } from './ports.js';
@@ -145,6 +147,16 @@ export function sendForSignature(
         });
       }
     }
+    // K2: with no fields drawn, each signer signs beside a line the document has.
+    const bytes = input.fields.length === 0 ? await deps.blobs.get(version.blobKey) : null;
+    const fields =
+      bytes === null
+        ? input.fields
+        : fieldsAt(
+            signers.toSorted((a, b) => a.order - b.order).map((s) => s.id),
+            await signatureLines(bytes),
+            version.pages,
+          );
     const env = send({
       id: deps.newId(),
       documentId: doc.id,
@@ -152,7 +164,7 @@ export function sendForSignature(
       pages: version.pages,
       senderAccount: caller.accountId,
       signers,
-      fields: input.fields,
+      fields,
       message: input.message,
       dueOn: input.dueOn,
       at: ctx.at,

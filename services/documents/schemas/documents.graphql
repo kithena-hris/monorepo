@@ -264,6 +264,10 @@ type DocumentsHold {
   setBy: String!
 }
 
+type DocumentsLetters {
+  ids: [String!]!
+}
+
 type DocumentsLibrary {
   deleted: Boolean!
   needsYou: [DocumentsNeedsYou!]!
@@ -416,6 +420,24 @@ type DocumentsSigner {
   status: String!
 }
 
+type DocumentsSplitFiled {
+  ids: [String!]!
+}
+
+type DocumentsSplitPart {
+  from: Int!
+  subjectPersonId: String
+  title: String!
+  to: Int!
+  typeKey: String
+}
+
+type DocumentsSplitProposal {
+  available: Boolean!
+  pages: Int!
+  parts: [DocumentsSplitPart!]!
+}
+
 type DocumentsStatus {
   label: String!
   tone: String!
@@ -435,6 +457,12 @@ type DocumentsSummaryFacts {
   label: String!
   page: Int!
   value: String!
+}
+
+type DocumentsTemplate {
+  fields: [String!]!
+  text: String!
+  title: String!
 }
 
 type DocumentsTile {
@@ -640,6 +668,21 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsTypeDraft!
+  """File each part of a scanned stack as a document of its own (C2)"""
+  fileDocumentSplit(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsSplitFiled!
+  """
+  A letter per person from a template, filed to each and, when asked, sent to sign (G3)
+  """
+  generateLetters(
+    documentId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsLetters!
   """Who works here, when People is absent"""
   importDocumentMembers(
     idempotencyKey: String!
@@ -654,6 +697,14 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """
+  Where each document in a scanned stack starts, what it is and whom it is about (C2)
+  """
+  proposeDocumentSplit(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsSplitProposal!
   """
   Values read from the document, each with its page: the names asked, or its type’s (G5)
   """
@@ -806,6 +857,8 @@ type Query {
   compareDocumentVersions(documentId: String!, from: Int!, to: Int!): DocumentsCompare!
   """The document in plain words, each claim cited to its page (D1)"""
   documentSummary(documentId: String!): DocumentsSummary!
+  """A Template document’s text and the fields it asks for (G3)"""
+  documentTemplate(documentId: String!): DocumentsTemplate!
   """Who has acknowledged a policy, and who is left (F3)"""
   documentsCampaign(campaignId: String!): DocumentsCampaign!
   """A document, or who owns it when you cannot open it"""
