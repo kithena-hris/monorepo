@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { Money, PostalAddress, type AttributeDefinition } from '@kithena/contracts';
+import { INDEFINITE, Money, PostalAddress, type AttributeDefinition } from '@kithena/contracts';
 
 import { isCountry } from './standard-lists.js';
 
@@ -90,8 +90,12 @@ function scalarFor(definition: AttributeDefinition, today: string): z.ZodType {
     }
     case 'boolean':
       return z.boolean();
-    case 'date':
-      return z.iso.date().refine((v) => inRange(v, config.range, today), `must be ${config.range}`);
+    case 'date': {
+      const day = z.iso
+        .date()
+        .refine((v) => inRange(v, config.range, today), `must be ${config.range}`);
+      return config.openEnded === true ? z.union([day, z.literal(INDEFINITE)]) : day;
+    }
     case 'datetime':
       return z.iso
         .datetime({ offset: true })

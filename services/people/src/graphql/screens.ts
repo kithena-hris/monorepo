@@ -98,6 +98,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       required: t.exposeBoolean('required'),
       readOnly: t.exposeBoolean('readOnly'),
       currency: t.string({ nullable: true, resolve: (f) => f.currency ?? null }),
+      openEnded: t.boolean({
+        nullable: true,
+        description:
+          'True for a date that may instead hold `indefinite`: a permanent contract has no end.',
+        resolve: (f) => (f.openEnded === true ? true : null),
+      }),
       ownedBy: t.string({
         nullable: true,
         description: 'Who changes a read-only field; null when the viewer does.',
@@ -1383,6 +1389,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
         decimals: t.exposeInt('decimals', { nullable: true }),
         currency: t.exposeString('currency', { nullable: true }),
+        openEnded: t.exposeBoolean('openEnded', {
+          description: 'A date that may instead be indefinite.',
+        }),
       }),
     });
   const Registry = builder.objectRef<RegistryView>('PeopleRegistry').implement({
@@ -2527,6 +2536,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'Store it sealed: once on, never off. Existing values are sealed when it is published.',
       }),
       decimals: t.int({ description: 'A number’s decimal places; absent keeps them.' }),
+      openEnded: t.boolean({ description: 'A date that may instead be indefinite.' }),
       currency: t.string({
         description: 'Money in this currency only; null for the record’s own, absent keeps it.',
       }),

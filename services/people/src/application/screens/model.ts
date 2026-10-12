@@ -38,6 +38,8 @@ export interface RecordField {
   readonly missing: boolean;
   readonly readOnly: boolean;
   readonly currency?: string;
+  /** A date that may instead be `indefinite`: a permanent contract's end. */
+  readonly openEnded?: boolean;
   readonly ownedBy?: string;
   /** A change to it waits for HR's approval (PEO-077): marked wherever the field is drawn. */
   readonly sensitive: boolean;

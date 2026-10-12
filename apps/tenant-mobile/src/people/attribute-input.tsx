@@ -8,6 +8,7 @@ import {
   FieldError,
   FieldLabel,
   Icon,
+  Inline,
   Input,
   Select,
   SelectContent,
@@ -211,17 +212,38 @@ function Control({
     );
   }
   switch (field.dataType) {
-    case 'date':
-      return (
+    case 'date': {
+      // An open-ended date's answer when there is none: People's `INDEFINITE`.
+      const indefinite = value === 'indefinite';
+      const picker = (
         <DatePicker
           label={field.label}
-          value={text(value) === '' ? null : text(value)}
+          value={text(value) === '' || indefinite ? null : text(value)}
+          {...(indefinite ? { placeholder: 'Indefinite' } : {})}
           onChange={(next) => {
             onChange(next);
           }}
           disabled={disabled}
         />
       );
+      if (field.openEnded !== true) return picker;
+      return (
+        <Stack gap={2}>
+          {picker}
+          <Inline justify="between">
+            <Text>No end date (indefinite)</Text>
+            <Switch
+              checked={indefinite}
+              onCheckedChange={(on) => {
+                onChange(on ? 'indefinite' : null);
+              }}
+              disabled={disabled}
+              accessibilityLabel="No end date (indefinite)"
+            />
+          </Inline>
+        </Stack>
+      );
+    }
     case 'boolean':
       return (
         <Switch

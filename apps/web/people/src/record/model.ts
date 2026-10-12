@@ -21,6 +21,9 @@ export type AttributeValue =
 
 export type Values = Readonly<Record<string, AttributeValue>>;
 
+/** An open-ended date's answer when there is none: People's `INDEFINITE`. */
+export const INDEFINITE = 'indefinite';
+
 export interface RecordField {
   readonly key: string;
   readonly label: string;
@@ -38,6 +41,8 @@ export interface RecordField {
   readonly readOnly: boolean;
   /** ISO 4217, for a money field. */
   readonly currency?: string;
+  /** A date that may instead be `indefinite`: a permanent contract has no end. */
+  readonly openEnded?: boolean;
   /** Who may change it, named when this viewer may not (§8.3): "HR". */
   readonly ownedBy?: string;
   /** The upstream system it is kept in for this person (PEO-073): changed there, not here. */

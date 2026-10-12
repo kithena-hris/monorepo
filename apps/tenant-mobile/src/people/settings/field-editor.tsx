@@ -309,6 +309,7 @@ export function draftInput(
     ...(draft.dataType === 'money'
       ? { currency: draft.currency === '' ? null : draft.currency }
       : {}),
+    ...(draft.dataType === 'date' ? { openEnded: draft.openEnded } : {}),
   };
 }
 
@@ -578,6 +579,24 @@ export function FieldEditor({
                     <FieldDescription>Empty: each record’s own currency.</FieldDescription>
                     <FieldError>{show['currency'] ?? ''}</FieldError>
                   </Field>
+                ) : null}
+                {draft.dataType === 'date' ? (
+                  <List>
+                    <ListItem
+                      description="Offers “No end date” beside the date, for a permanent contract."
+                      trailing={
+                        <Switch
+                          checked={draft.openEnded}
+                          accessibilityLabel="Can be indefinite"
+                          onCheckedChange={(openEnded) => {
+                            set({ openEnded });
+                          }}
+                        />
+                      }
+                    >
+                      Can be indefinite
+                    </ListItem>
+                  </List>
                 ) : null}
                 {registry.sections.length > 1 ? (
                   <Field>

@@ -75,6 +75,17 @@ describe('dates, across locales', () => {
     expect(coerceDate('2024-02-29', 'iso')).toBe('2024-02-29');
     expect(value(born, '2090-01-01')).toMatch(/^invalid/u);
   });
+  it('reads "permanent" as no end date, only where no date is an answer', () => {
+    const contractEnd = {
+      key: 'contract_end',
+      dataType: 'date' as const,
+      typeConfig: { kind: 'date' as const, range: 'any' as const, openEnded: true },
+    };
+    expect(value(contractEnd, 'Permanent')).toBe('indefinite');
+    expect(value(contractEnd, 'indefinite')).toBe('indefinite');
+    expect(value(contractEnd, '2027-03-22')).toBe('2027-03-22');
+    expect(value(born, 'indefinite')).toMatch(/^invalid/u);
+  });
 });
 
 describe('the rest', () => {

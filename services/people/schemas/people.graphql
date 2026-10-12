@@ -569,6 +569,8 @@ input DraftFieldInput {
   encrypted: Boolean
   key: String!
   label: String!
+  """A date that may instead be indefinite."""
+  openEnded: Boolean
   options: [String!]!
   ownership: [String!]!
   piiKind: String!
@@ -2795,6 +2797,10 @@ type RecordField {
   Required of this person and empty, as their completeness verdict says; only fields the viewer reads.
   """
   missing: Boolean
+  """
+  True for a date that may instead hold `indefinite`: a permanent contract has no end.
+  """
+  openEnded: Boolean
   options: [FieldOption!]
   """Who changes a read-only field; null when the viewer does."""
   ownedBy: String
@@ -2843,6 +2849,8 @@ type RegistryField {
   encrypted: Boolean
   key: String
   label: String
+  """A date that may instead be indefinite."""
+  openEnded: Boolean
   options: [String!]
   origin: String
   ownership: [String!]

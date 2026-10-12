@@ -2,7 +2,7 @@ import { MaskedValue, Money } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { FileValue, isFileField } from './files';
-import { isMissing, type AttributeValue, type RecordField } from './model';
+import { INDEFINITE, isMissing, type AttributeValue, type RecordField } from './model';
 
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' });
 
@@ -34,6 +34,7 @@ export function DisplayValue({
   if (typeof value === 'string') {
     const option = field.options.find((o) => o.value === value);
     if (option !== undefined) return <>{option.label}</>;
+    if (field.dataType === 'date' && value === INDEFINITE) return <>Indefinite</>;
     if (field.dataType === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return <>{longDate(value)}</>;
     }

@@ -254,6 +254,7 @@ function fieldOf(
     missing: missing.has(d.key),
     readOnly,
     ...(config.kind === 'money' && config.currency !== null ? { currency: config.currency } : {}),
+    ...(config.kind === 'date' && config.openEnded === true ? { openEnded: true } : {}),
     ...(readOnly ? { ownedBy: keptIn ?? ownedBy(d) } : {}),
     ...(keptIn === undefined ? {} : { keptIn }),
     sensitive: requiresApproval(d),

@@ -39,7 +39,11 @@ export function DisplayValue({
     const option = field.options.find((o) => o.value === value);
     const shown =
       option?.label ??
-      (field.dataType === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? longDate(value) : value);
+      (field.dataType === 'date' && value === 'indefinite'
+        ? 'Indefinite'
+        : field.dataType === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+          ? longDate(value)
+          : value);
     return (
       <Text weight="medium" className={className}>
         {shown}

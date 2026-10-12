@@ -147,6 +147,8 @@ export interface RegistryField {
   readonly decimals?: number | null;
   /** Money in one currency only; null or absent for the record's own. */
   readonly currency?: string | null;
+  /** A date that may instead be indefinite: a permanent contract's end. */
+  readonly openEnded?: boolean;
 }
 
 export interface RegistryDraft {
@@ -190,6 +192,8 @@ export interface FieldInput {
   readonly decimals?: number | null;
   /** Money in this currency only; null for the record's own. */
   readonly currency?: string | null;
+  /** A date that may instead be indefinite. */
+  readonly openEnded?: boolean;
 }
 
 /**
