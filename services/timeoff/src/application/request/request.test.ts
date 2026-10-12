@@ -4,6 +4,7 @@ import { DateSpan, LedgerEntry, LeaveTypeKey, type PersonId } from '@kithena/con
 import type { LeaveRequestId } from '../../domain/request/leave-request.js';
 import { caller, d, people, TENANT, world } from '../testing/world.js';
 import {
+  attachNote,
   cancelRequest,
   changeRequest,
   previewRequest,
@@ -194,5 +195,27 @@ describe('sending, changing and cancelling (TOF-037)', () => {
     expect(sent).toMatchObject({ ok: true, value: { status: 'approved', noteRequired: false } });
     expect(s.ledger.filter((e) => e.requestId !== null)).toHaveLength(0);
     expect(app.timers.started).toEqual([]);
+  });
+});
+
+describe('a note brought later (Documents J3, J5)', () => {
+  it('its member attaches one to a long sick record; a colleague cannot', async () => {
+    const { app, s } = setup();
+    const sent = await sendRequest(app.deps)(caller(people.adam), {
+      leaveTypeKey: sick,
+      span: span('2026-10-01', '2026-10-06'),
+    });
+    if (!sent.ok) throw new Error(sent.error.message);
+    expect(sent.value.noteRequired).toBe(true);
+    const fileId = '0192f0a0-0000-7000-8000-00000000d0c5';
+    const requestId = sent.value.requestId;
+    expect(await attachNote(app.deps)(caller(people.marco), { requestId, fileId })).toMatchObject({
+      ok: false,
+    });
+    expect(await attachNote(app.deps)(caller(people.adam), { requestId, fileId })).toEqual({
+      ok: true,
+      value: { notePresent: true },
+    });
+    expect(s.requests.get(requestId)?.request.sickNoteFileId).toBe(fileId);
   });
 });

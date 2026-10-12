@@ -153,4 +153,26 @@ describe('changing or cancelling', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Withdraw it' }));
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it('asks for a missing note, offering a file already kept before an upload (Documents J5)', async () => {
+    const data = approved();
+    if (data.selected === null) throw new Error('approved has a request');
+    const onAttach = vi.fn(ok);
+    const { container } = render(
+      <MyRequests
+        load={ready({ ...data, selected: { ...data.selected, noteNeeded: true } })}
+        notes={{
+          label: 'Kept elsewhere',
+          load: () => Promise.resolve([{ id: 'f-1', name: 'Doctor’s note', detail: '12 Oct' }]),
+          onAttach,
+          onUpload: vi.fn(ok),
+        }}
+      />,
+    );
+    expect(screen.getByText('A note is needed')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Attach' }));
+    expect(onAttach).toHaveBeenCalledWith(data.selected.request.requestId, 'f-1');
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });

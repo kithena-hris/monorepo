@@ -39,6 +39,7 @@ import {
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { NoteNeeded } from '../documents/notes';
 import { Failed, Loading, Page } from '../frame';
 import { useAct } from '../people/act';
 import type { PeopleScreen } from '../people/routes';
@@ -79,6 +80,9 @@ interface Detail {
   readonly step: number;
   readonly escalated: boolean;
   readonly note: string | null;
+  /** A note is attached; its leave type asks for one it does not have yet (Documents MJ3). */
+  readonly notePresent?: boolean;
+  readonly noteNeeded?: boolean;
   readonly pendingChange: { from: string; to: string } | null;
   readonly proposals: readonly {
     index: number;
@@ -348,6 +352,11 @@ export function TimeOffRequestDetail({
         ))}
       </Timeline>
       {detail.note === null ? null : <Text tone="muted">{detail.note}</Text>}
+      {detail.noteNeeded === true ? (
+        <NoteNeeded requestId={request.requestId} onDone={reload} />
+      ) : detail.notePresent === true ? (
+        <Text tone="muted">A note is attached.</Text>
+      ) : null}
       {detail.canChange ? (
         <View className="flex-row gap-2">
           <Button

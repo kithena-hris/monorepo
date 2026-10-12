@@ -75,3 +75,21 @@ export function recordSick(
     args.sickNoteFileId === null;
   return ok({ request, entries, noteRequired });
 }
+
+/**
+ * Whether a request still owes its note (Documents J3, J5): a leave type that
+ * asks for one past so many calendar days, a request that runs past them and
+ * still stands, and no note yet. The same count `recordSick` asks with.
+ */
+export function needsNote(
+  request: Pick<LeaveRequest, 'span' | 'status' | 'notePresent'>,
+  leaveType: Pick<LeaveTypeDefinition, 'requiresNote'>,
+): boolean {
+  const afterDays = leaveType.requiresNote?.afterDays;
+  return (
+    afterDays !== undefined &&
+    !request.notePresent &&
+    !['rejected', 'withdrawn', 'cancelled'].includes(request.status) &&
+    daysBetween(request.span.from, request.span.to) > afterDays
+  );
+}

@@ -3,7 +3,7 @@
 import { headers } from 'next/headers';
 
 import { currentTenant } from '../../../lib/branding';
-import { documents, people } from '../../../lib/people';
+import { documents, people, timeOff } from '../../../lib/people';
 
 /**
  * What the Documents screens' buttons do: server actions, each one operation
@@ -483,4 +483,80 @@ export async function importFromDocuments(
   if (put === null || !put.ok)
     return { ok: false, message: 'The file could not be handed to People' };
   return { ok: true, uploadId: target.data.uploadId };
+}
+
+/* ------------------------------------------ with Time Off (DOC-063, J3–J5) -- */
+
+const NOTE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
+
+interface NoteRow {
+  readonly id: string;
+  readonly title: string;
+  readonly kind: string;
+  readonly typeKey: string | null;
+  readonly mediaType: string | null;
+  readonly updatedAt: string;
+  readonly mine: boolean;
+  readonly aboutMe: boolean;
+  readonly deletedAt: string | null;
+}
+
+/**
+ * J5: what this person already has in Documents that could be the note a
+ * request asks for: their sick notes first, then their own PDFs and photos,
+ * newest first. Documents decides what they may open.
+ */
+export async function notesToAttach(): Promise<
+  readonly { readonly id: string; readonly name: string; readonly detail: string }[]
+> {
+  const a = await documents<{ rows: readonly NoteRow[] }>('DocumentsLibrary', { show: 'all' });
+  if (!a.ok) return [];
+  const usable = a.data.rows.filter(
+    (r) =>
+      r.deletedAt === null &&
+      (r.mine || r.aboutMe) &&
+      (r.kind === 'Medical' || (r.typeKey === null && NOTE_TYPES.has(r.mediaType ?? ''))),
+  );
+  return usable
+    .toSorted((x, y) => Number(y.kind === 'Medical') - Number(x.kind === 'Medical'))
+    .slice(0, 10)
+    .map((r) => ({
+      id: r.id,
+      name: r.title,
+      detail: `${r.kind === 'Medical' ? 'Sick note' : 'Your document'} · ${new Date(r.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+    }));
+}
+
+/** J3, J5: the note is the document's id; Time Off says only that one arrived. */
+export async function attachNoteFromDocuments(
+  requestId: string,
+  documentId: string,
+): Promise<Outcome> {
+  return outcome(await timeOff('AttachTimeOffNote', { requestId, input: { fileId: documentId } }));
+}
+
+/**
+ * J3: a note photographed or chosen now: filed in Documents as the person's
+ * sick note (HR only, read for its dates alone), then attached to the request.
+ */
+export async function attachNewNote(requestId: string, file: File): Promise<Outcome> {
+  if (file.size > MAX_INLINE) return { ok: false, message: 'Notes are up to 25 MB' };
+  const library = await documents<{ viewer: { personId: string | null } }>('DocumentsLibrary', {
+    show: 'all',
+  });
+  if (!library.ok) return library;
+  const filed = await documents<{ id: string }>('UploadDocument', {
+    input: {
+      title: 'Sick note',
+      typeKey: 'sick_note',
+      subjectPersonId: library.data.viewer.personId,
+      file: {
+        name: file.name,
+        mediaType: file.type,
+        base64: Buffer.from(await file.arrayBuffer()).toString('base64'),
+      },
+    },
+  });
+  if (!filed.ok) return filed;
+  return attachNoteFromDocuments(requestId, filed.data.id);
 }

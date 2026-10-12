@@ -104,6 +104,7 @@ import {
 } from '../application/parental/parental.js';
 import type { Caller, Deps, StoredKey, UnitOfWork } from '../application/ports.js';
 import {
+  attachNote,
   cancelRequest,
   nudgeRequest,
   changeRequest,
@@ -1093,6 +1094,18 @@ export const ROUTES: readonly Route[] = [
     answer: StatusAnswer,
     run: (deps, caller, { params }) => cancelRequest(deps)(caller, params.requestId),
     shape: (v) => ({ status: v.status }),
+  }),
+  route({
+    name: 'attachTimeOffNote',
+    method: 'PUT',
+    path: `${V1}/requests/{requestId}/note`,
+    summary: 'A note for a request, brought after it: the id of the file whoever keeps it gave it',
+    params: RequestParams,
+    body: z.strictObject({ fileId: z.uuid() }),
+    answer: z.object({ notePresent: z.literal(true) }).meta({ title: 'TimeOffNoteAttached' }),
+    run: (deps, caller, { params, body }) =>
+      attachNote(deps)(caller, { requestId: params.requestId, fileId: body.fileId }),
+    shape: same,
   }),
   route({
     name: 'decideTimeOffRequest',

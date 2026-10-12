@@ -189,6 +189,12 @@ small group, and goes to `main` as **one pull request**.
       each row opens the center's viewer.
 - [ ] **DOC-062** Uploads that answer HR J1, J2, J6, MJ1, MJ2, MJ5.
 - [ ] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
+      Built: J3, J5 and MJ3. Time Off gained `attachNote` (its member or HR,
+      `timeoff.request.note_attached`, which says only that a note arrived)
+      and `noteNeeded` on a request; a request missing its note offers the
+      person's sick notes and files in Documents first, or files a new one as
+      their sick note and attaches its id. Left: J4/MJ4 (one certificate
+      unlocking leave, a People detail and a contact) and MH4.
 - [ ] **DOC-064** A letter that changes a record J7, MJ6.
 
 ## Blocked / left for a person

@@ -3,6 +3,11 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useTransition, type JSX } from 'react';
 
+import {
+  attachNewNote,
+  attachNoteFromDocuments,
+  notesToAttach,
+} from '../app/(app)/documents/actions';
 import * as settings from '../app/(app)/settings/time-off/actions';
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
@@ -10,6 +15,7 @@ import { useCachedRead } from '../lib/query';
 import { AREAS } from '../lib/remotes';
 import type { areaFrame } from '../lib/shell-data';
 import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
+import { useShellData } from './app-shell';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
 /**
@@ -32,6 +38,8 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
   const router = useRouter();
   const pathname = usePathname();
   const live = useSearchParams();
+  // The company has the Document center: a missing note can come from it.
+  const documents = useShellData().remotes?.['documents'] !== undefined;
   // A page of approvals asked for again within half a minute is the one kept (`lib/query.tsx`).
   const cached = useCachedRead();
   const approvalsPage = useMemo(() => cached('approvalsPage', actions.approvalsPage), [cached]);
@@ -160,6 +168,17 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onChange: actions.changeRequest,
           onShorten: actions.shortenRequest,
           onAnswer: actions.answerSuggestion,
+          // A missing note comes from Documents when the company has it (Documents J5).
+          ...(documents
+            ? {
+                notes: {
+                  label: 'From Documents',
+                  load: notesToAttach,
+                  onAttach: attachNoteFromDocuments,
+                  onUpload: attachNewNote,
+                },
+              }
+            : {}),
         };
       case 'Balance':
         return { load: loadable };

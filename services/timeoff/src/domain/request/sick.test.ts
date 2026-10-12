@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { DayAmount, LeaveApproved, LeaveRequested, LeaveTypeKey } from '@kithena/contracts';
+import {
+  DayAmount,
+  LeaveApproved,
+  LeaveNoteAttached,
+  LeaveRequested,
+  LeaveTypeKey,
+} from '@kithena/contracts';
 
 import { ADAM, context, date, TENANT } from '../fixtures.js';
 import { leaveRequestId } from './leave-request.js';
-import { recordSick, type SickLeaveType } from './sick.js';
+import { needsNote, recordSick, type SickLeaveType } from './sick.js';
 
 const HANA_ACCOUNT = '88888888-8888-7888-8888-888888888888';
 const sick: SickLeaveType = {
@@ -104,5 +110,35 @@ describe('recordSick', () => {
     });
     if (result.ok) throw new Error('expected a refusal');
     expect(result.error.code).toBe('NOT_SICK_LEAVE');
+  });
+});
+
+describe('a note brought later (Documents J3, J5)', () => {
+  it('is needed while a long record has none, and not once it is attached', () => {
+    const result = record('2026-10-01', '2026-10-06', '4.000');
+    if (!result.ok) throw new Error(result.error.message);
+    const { request } = result.value;
+    request.drainEvents();
+    expect(needsNote(request, sick)).toBe(true);
+    const attached = request.attachNote('0192f0a0-0000-7000-8000-00000000d0c5', context());
+    expect(attached.ok).toBe(true);
+    expect(request.notePresent).toBe(true);
+    expect(needsNote(request, sick)).toBe(false);
+    const events = request.drainEvents();
+    expect(events.map((e) => e.eventName)).toEqual([LeaveNoteAttached.name]);
+    // The event says a note arrived, never which file or what it says.
+    expect(JSON.stringify(events[0]?.payload)).not.toContain('d0c5');
+  });
+
+  it('is not needed for a short record, and cannot be attached to a cancelled one', () => {
+    const short = record('2026-10-01', '2026-10-02', '2.000');
+    if (!short.ok) throw new Error(short.error.message);
+    expect(needsNote(short.value.request, sick)).toBe(false);
+    const long = record('2026-10-01', '2026-10-06', '4.000');
+    if (!long.ok) throw new Error(long.error.message);
+    long.value.request.withdraw(context());
+    expect(long.value.request.attachNote('0192f0a0-0000-7000-8000-00000000d0c5', context()).ok).toBe(
+      false,
+    );
   });
 });

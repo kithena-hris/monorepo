@@ -278,6 +278,8 @@ export const RequestDetailView = named(
     note: z.string().nullable(),
     /** Whether a sick note is attached; the file itself only to its member and HR. */
     notePresent: z.boolean(),
+    /** Its leave type asks for a note it does not have yet (Documents J5): only its member and HR learn so. */
+    noteNeeded: z.boolean(),
     sickNoteFileId: z.uuid().nullable(),
     pendingChange: SpanView.nullable(),
     proposals: z.array(

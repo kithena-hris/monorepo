@@ -265,6 +265,20 @@ export const LeaveCancelled = defineEvent(
   }),
 );
 
+/**
+ * A note brought after the request (Documents J3, J5): that one arrived,
+ * never which file or what it says. The note is health data and stays with
+ * the request, for its member and HR.
+ */
+export const LeaveNoteAttached = defineEvent(
+  'timeoff.request.note_attached',
+  1,
+  z.object({
+    requestId: requestId(),
+    personId: PersonId,
+  }),
+);
+
 /** An HR adjustment, an expiry or a carry-over posted to the ledger (§7.1). */
 export const BalanceAdjusted = defineEvent(
   'timeoff.balance.adjusted',
@@ -443,6 +457,7 @@ export const timeoffEvents = [
   LeaveCounterProposed,
   LeaveChanged,
   LeaveCancelled,
+  LeaveNoteAttached,
   BalanceAdjusted,
   PolicyPublished,
   AttendancePunched,

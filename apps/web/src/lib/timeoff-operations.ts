@@ -251,7 +251,7 @@ export const OPERATIONS = {
   /** One request, for its member, an approver or HR */
   TimeOffRequest: `query TimeOffRequest($requestId: String!) {
     timeOffRequest(requestId: $requestId) {
-      canAnswer canCancel canChange canDecide chain escalated mine note notePresent pendingChange { endsHalfDay from startsHalfDay to } proposalMessage proposals { index spans { from to } workingDays } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } sickNoteFileId step
+      canAnswer canCancel canChange canDecide chain escalated mine note noteNeeded notePresent pendingChange { endsHalfDay from startsHalfDay to } proposalMessage proposals { index spans { from to } workingDays } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } sickNoteFileId step
     }
   }`,
 
@@ -344,6 +344,13 @@ export const OPERATIONS = {
   NudgeTimeOffRequest: `mutation NudgeTimeOffRequest($key: String!, $requestId: String!) {
     nudgeTimeOffRequest(idempotencyKey: $key, requestId: $requestId) {
       nudgedAt
+    }
+  }`,
+
+  /** Documents J3, J5: a note brought after the request, by the id Documents gave it */
+  AttachTimeOffNote: `mutation AttachTimeOffNote($key: String!, $requestId: String!, $input: JSON!) {
+    attachTimeOffNote(idempotencyKey: $key, requestId: $requestId, input: $input) {
+      notePresent
     }
   }`,
 
