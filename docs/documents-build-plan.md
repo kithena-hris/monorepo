@@ -202,7 +202,12 @@ small group, and goes to `main` as **one pull request**.
       person after People's own sent documents; the shell asks Documents
       (`inbox/actions.ts` `documentsOf`), which decides who may read it, and
       each row opens the center's viewer.
-- [ ] **DOC-062** Uploads that answer HR J1, J2, J6, MJ1, MJ2, MJ5.
+- [x] **DOC-062** Uploads that answer HR J1, J2, J6, MJ1, MJ2, MJ5. As built:
+      what People is waiting for from the viewer (asked for by HR, or missing)
+      is looked for in their own document (J1, J6) or their five most recent
+      (J2, at the top of Documents), for them alone, each value with its
+      page; People's own save applies what they tick, which closes HR's ask.
+      A required document is filed against HR's request as before (H2).
 - [ ] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
       Built: J3, J5 and MJ3. Time Off gained `attachNote` (its member or HR,
       `timeoff.request.note_attached`, which says only that a note arrived)

@@ -33,6 +33,7 @@ import { useEffect, useState, type JSX } from 'react';
 import { Loaded, type Loadable } from '../load';
 import { ShareDialog } from '../share';
 import { Reading, type ReadingProps } from './reading';
+import { Answers, type AnswersProps } from '../answers';
 import { ActOnLetter, type LetterProps } from './letter';
 import { FillRecord, type RecordProps } from './record';
 import { AccessBadge, StatusBadge, pages, putFile, shortDate, useWrite } from '../shared';
@@ -75,6 +76,9 @@ export interface DocumentViewProps {
   readonly onApplyRecord?: RecordProps['onApplyRecord'];
   readonly onReadLetter?: LetterProps['onReadLetter'];
   readonly onGiveNotice?: LetterProps['onGiveNotice'];
+  readonly onWaitingFor?: AnswersProps['onWaitingFor'];
+  readonly onLookFor?: AnswersProps['onLookFor'];
+  readonly onAnswer?: AnswersProps['onAnswer'];
 }
 
 export function DocumentView(props: DocumentViewProps): JSX.Element {
@@ -251,6 +255,14 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Preview doc={doc} onFileLink={props.onFileLink} />
         <div className="flex flex-col gap-4">
+          {deleted || !(row.mine || row.aboutMe) ? null : (
+            <Answers
+              documentIds={[row.id]}
+              onWaitingFor={props.onWaitingFor}
+              onLookFor={props.onLookFor}
+              onAnswer={props.onAnswer}
+            />
+          )}
           {deleted || row.kind !== 'Letter' || row.subject === null || !doc.may.share ? null : (
             <ActOnLetter
               documentId={row.id}

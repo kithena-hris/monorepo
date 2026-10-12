@@ -58,6 +58,15 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
   const filter = (patch: Readonly<Record<string, string | null>>): void => {
     go(withQuery(window.location.pathname, window.location.search, patch));
   };
+  // With People: your documents answer what your record is waiting for (J1, J2, J6).
+  const answers = people
+    ? {
+        onWaitingFor: actions.waitingFor,
+        onLookFor: actions.lookFor,
+        onAnswer: (changed: Readonly<Record<string, string>>) =>
+          peopleActions.saveOwnSection('', changed),
+      }
+    : {};
   const files = {
     onStartUpload: actions.startUpload,
     onFileLink: actions.fileLink,
@@ -84,6 +93,7 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onAskAcross: actions.askDocuments,
           onProposeSplit: actions.proposeSplit,
           onFileSplit: actions.fileSplit,
+          ...answers,
           onSuggest: actions.suggestFiling,
         };
       case 'DocumentView':
@@ -113,6 +123,7 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
                 onReadRecord: actions.recordFromDocument,
                 onApplyRecord: (personId: string, changed: Readonly<Record<string, string>>) =>
                   peopleActions.savePersonSection(personId, '', changed),
+                ...answers,
                 onReadLetter: actions.letterOutcome,
                 onGiveNotice: (personId: string, lastWorkingDay: string) =>
                   peopleActions.moveLifecycle(personId, {

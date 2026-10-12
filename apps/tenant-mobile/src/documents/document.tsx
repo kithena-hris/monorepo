@@ -53,6 +53,7 @@ import {
   type PersonRef,
   type Row,
 } from './api';
+import { Answers } from './answers';
 import { Reading } from './reading';
 import { ActOnLetter, FillRecord } from './record';
 
@@ -308,6 +309,7 @@ export function DocumentDetail({
           }}
         />
       ) : null}
+      {row.deletedAt === null && (row.mine || row.aboutMe) ? <Answers documentIds={[id]} /> : null}
       {doc.pdf && row.deletedAt === null ? <Reading documentId={id} /> : null}
       <Heading title="Who can see it" />
       <List>

@@ -690,3 +690,65 @@ export async function letterOutcome(documentId: string): Promise<
     },
   };
 }
+
+/* ---------------------------------- documents that answer HR (J1, J2, J6) -- */
+
+/** A detail People is waiting for from the person signed in: asked for by HR, or missing. */
+export interface Waiting {
+  readonly key: string;
+  readonly label: string;
+  readonly asked: boolean;
+}
+
+/** J1, J2, J6: what People is waiting for from the viewer that a document could say. */
+export async function waitingFor(): Promise<readonly Waiting[]> {
+  const profile = await people<{
+    sections: readonly { fields: readonly (ProfileField & { missing: boolean })[] }[];
+    requests: readonly { key: string; label: string }[];
+  }>('Profile', { personId: null });
+  if (!profile.ok) return [];
+  const asked = new Set(profile.data.requests.map((r) => r.key));
+  return profile.data.sections
+    .flatMap((s) => s.fields)
+    .filter((f) => !f.readOnly && FILLABLE.has(f.dataType) && (asked.has(f.key) || f.missing))
+    .slice(0, 40)
+    .map((f) => ({ key: f.key, label: f.label, asked: asked.has(f.key) }));
+}
+
+/** One answer found: the detail, its value, and the document and page it is on. */
+export interface Found {
+  readonly key: string;
+  readonly label: string;
+  readonly asked: boolean;
+  readonly value: string;
+  readonly page: number;
+  readonly documentId: string;
+}
+
+/**
+ * J1, J2: the viewer's own documents read for what People is waiting for,
+ * the first value found for each. Read for the viewer alone; nothing is sent
+ * to People until they save it.
+ */
+export async function lookFor(documentIds: readonly string[]): Promise<Read<readonly Found[]>> {
+  const waiting = await waitingFor();
+  if (waiting.length === 0) return { ok: true, data: [] };
+  const found = new Map<string, Found>();
+  // ponytail: five documents, one after another; a job when people keep more.
+  for (const documentId of documentIds.slice(0, 5)) {
+    const left = waiting.filter((w) => !found.has(w.key));
+    if (left.length === 0) break;
+    const read = await documents<{ fields: readonly { name: string; value: string; page: number }[] }>(
+      'ReadDocumentFields',
+      { documentId, input: { names: left.map((w) => w.label) } },
+    );
+    if (!read.ok) continue;
+    for (const f of read.data.fields) {
+      const w = left.find((x) => x.label === f.name);
+      if (w !== undefined && !found.has(w.key)) {
+        found.set(w.key, { ...w, value: f.value, page: f.page, documentId });
+      }
+    }
+  }
+  return { ok: true, data: [...found.values()] };
+}

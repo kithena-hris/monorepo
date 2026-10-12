@@ -63,7 +63,7 @@ describe('splitting a scan (C2)', () => {
       target: { files: [new File(['%PDF'], 'stack.pdf', { type: 'application/pdf' })] },
     });
     expect(await screen.findByDisplayValue('Contract')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'File 2 documents' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'File 2 documents' }));
     await waitFor(() => {
       expect(onFileSplit).toHaveBeenCalledWith(
         { uploadId: 'u-1', name: 'stack.pdf', mediaType: 'application/pdf' },

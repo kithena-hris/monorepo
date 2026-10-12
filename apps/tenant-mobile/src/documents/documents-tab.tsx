@@ -46,6 +46,7 @@ import { Pressable, View } from 'react-native';
 
 import { Failed, Heading, Loading, Page } from '../frame';
 import { useSigned } from '../people/api';
+import { Answers } from './answers';
 import { AcrossAnswer, type Answer } from './reading';
 import type { PeopleScreen } from '../people/routes';
 import {
@@ -329,6 +330,15 @@ function Body({
   const shownQueue = data.tiles.find((t) => t.key === queue);
   return (
     <>
+      {queue !== null ? null : (
+        <Answers
+          documentIds={data.rows
+            .filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical')
+            .slice(0, 5)
+            .map((r) => r.id)}
+          titles={Object.fromEntries(data.rows.map((r) => [r.id, r.title]))}
+        />
+      )}
       {data.needsYou.length === 0 ? null : (
         <>
           <Heading title="Needs you" />

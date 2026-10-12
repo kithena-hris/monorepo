@@ -48,6 +48,7 @@ import { useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
 import { ShareDialog } from '../share';
 import { AccessBadge, DocIcon, StatusBadge, meta, shortDate, useWrite } from '../shared';
+import { Answers, type AnswersProps } from '../answers';
 import { AcrossAnswer } from '../document/reading';
 import type {
   Answer,
@@ -110,6 +111,10 @@ export interface LibraryProps {
   /** C1: what an upload looks like it is. */
   readonly onSuggest?:
     ((uploadId: string, name: string) => Promise<Read<FilingSuggestion>>) | undefined;
+  /** J2: what the record is waiting for, looked for in your own documents. */
+  readonly onWaitingFor?: AnswersProps['onWaitingFor'];
+  readonly onLookFor?: AnswersProps['onLookFor'];
+  readonly onAnswer?: AnswersProps['onAnswer'];
   /** C2: a scanned stack split into its documents (HR). */
   readonly onProposeSplit?: SplitProps['onProposeSplit'];
   readonly onFileSplit?: SplitProps['onFileSplit'];
@@ -262,6 +267,18 @@ function Ready({
         <AcrossAnswer question={answer.q} answer={answer.a} onNavigate={props.onNavigate} />
       )}
 
+      {data.deleted || data.queue !== null || data.q !== '' ? null : (
+        <Answers
+          documentIds={data.rows
+            .filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical')
+            .slice(0, 5)
+            .map((r) => r.id)}
+          titles={Object.fromEntries(data.rows.map((r) => [r.id, r.title]))}
+          onWaitingFor={props.onWaitingFor}
+          onLookFor={props.onLookFor}
+          onAnswer={props.onAnswer}
+        />
+      )}
       {data.needsYou.length > 0 && !data.deleted ? (
         <section className="flex flex-col gap-3" aria-labelledby="needs-you">
           <h2 id="needs-you" className="text-md font-semibold">
