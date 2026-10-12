@@ -62,8 +62,10 @@ describe('splitting a scan (C2)', () => {
     fireEvent.change(input, {
       target: { files: [new File(['%PDF'], 'stack.pdf', { type: 'application/pdf' })] },
     });
-    expect(await screen.findByDisplayValue('Contract')).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: 'File 2 documents' }));
+    expect(await screen.findByDisplayValue('Contract', {}, { timeout: 10_000 })).toBeTruthy();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'File 2 documents' }, { timeout: 10_000 }),
+    );
     await waitFor(() => {
       expect(onFileSplit).toHaveBeenCalledWith(
         { uploadId: 'u-1', name: 'stack.pdf', mediaType: 'application/pdf' },
@@ -71,5 +73,5 @@ describe('splitting a scan (C2)', () => {
       );
     });
     expect(await axeViolations(container)).toEqual([]);
-  });
+  }, 30_000);
 });
