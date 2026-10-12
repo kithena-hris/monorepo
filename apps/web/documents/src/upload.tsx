@@ -22,11 +22,21 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Spinner,
+  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
 import { putFile, useWrite } from './shared';
-import type { Created, FileRef, PersonRef, StartUpload, TypeOption } from './types';
+import type {
+  Created,
+  FileRef,
+  FilingSuggestion,
+  PersonRef,
+  Read,
+  StartUpload,
+  TypeOption,
+} from './types';
 
 /**
  * Adding a document (C1, MD2): drop a file, name it, and — for HR — say what
@@ -63,6 +73,7 @@ export function UploadDialog({
   preset,
   onStartUpload,
   onUpload,
+  onSuggest,
   onDone,
 }: {
   readonly open: boolean;
@@ -73,6 +84,9 @@ export function UploadDialog({
   readonly preset: UploadPreset;
   readonly onStartUpload: StartUpload | undefined;
   readonly onUpload: ((input: UploadInput) => Promise<Created>) | undefined;
+  /** C1: what Kithena reads the upload as, for HR to confirm. */
+  readonly onSuggest?:
+    ((uploadId: string, name: string) => Promise<Read<FilingSuggestion>>) | undefined;
   /** Filed: its id, for the share question that follows (C3). */
   readonly onDone: (id: string, title: string, typed: boolean) => void;
 }): JSX.Element {
@@ -81,18 +95,38 @@ export function UploadDialog({
   const [typeKey, setTypeKey] = useState<string>(preset.typeKey ?? PERSONAL);
   const [subject, setSubject] = useState<string | null>(preset.subjectPersonId);
   const [expiresOn, setExpiresOn] = useState<string | null>(null);
+  // HR's PDF goes up as soon as it is chosen, so Kithena can read it while HR names it.
+  const [sent, setSent] = useState<FileRef | null>(null);
+  const [reading, setReading] = useState<'reading' | 'read' | null>(null);
   const write = useWrite();
   const type = types.find((t) => t.key === typeKey);
   const needsPerson = type?.filedTo === 'person';
   // An employee files their own documents, and a type only when HR asked for it.
   const fixed = preset.requestId !== null;
+  const suggest = (chosen: File): void => {
+    if (!hr || fixed || preset.typeKey !== null || onSuggest === undefined) return;
+    if (onStartUpload === undefined || chosen.type !== 'application/pdf') return;
+    setReading('reading');
+    void putFile(chosen, onStartUpload).then(async (put) => {
+      if (!put.ok) return setReading(null);
+      setSent(put.ref);
+      const r = await onSuggest(put.ref.uploadId, chosen.name);
+      if (!r.ok || !r.data.available) return setReading(null);
+      const s = r.data;
+      if (s.title !== null) setTitle(s.title);
+      if (s.typeKey !== null && types.some((t) => t.key === s.typeKey)) setTypeKey(s.typeKey);
+      if (s.subjectPersonId !== null) setSubject(s.subjectPersonId);
+      if (s.expiresOn !== null) setExpiresOn(s.expiresOn);
+      setReading('read');
+    });
+  };
   const send = (): void => {
     if (file === null) return;
     write.run(async () => {
       if (onStartUpload === undefined || onUpload === undefined) {
         return { ok: false, message: 'Uploading is not available here' };
       }
-      const put = await putFile(file, onStartUpload);
+      const put = sent === null ? await putFile(file, onStartUpload) : { ok: true as const, ref: sent };
       if (!put.ok) return put;
       const name = title.trim() || file.name.replace(/\.[^.]+$/u, '');
       const created = await onUpload({
@@ -107,6 +141,8 @@ export function UploadDialog({
       if (!created.ok) return created;
       setFile(null);
       setTitle('');
+      setSent(null);
+      setReading(null);
       onOpenChange(false);
       onDone(created.id, name, typeKey !== PERSONAL);
       return { ok: true };
@@ -130,9 +166,19 @@ export function UploadDialog({
               const first = files[0];
               if (first === undefined) return;
               setFile(first);
+              setSent(null);
+              setReading(null);
               if (title === '') setTitle(first.name.replace(/\.[^.]+$/u, ''));
+              suggest(first);
             }}
           />
+          {reading === 'reading' ? (
+            <Spinner size="sm" label="Kithena is reading the file" />
+          ) : reading === 'read' ? (
+            <Alert tone="info" icon={<icons.assistant />}>
+              Kithena filled in what it read. Check each before adding.
+            </Alert>
+          ) : null}
           <Field required>
             <FieldLabel>Name</FieldLabel>
             <FieldControl>
@@ -220,7 +266,7 @@ export function UploadDialog({
           <Button
             variant="primary"
             loading={write.pending}
-            disabled={file === null || (needsPerson && subject === null)}
+            disabled={file === null || reading === 'reading' || (needsPerson && subject === null)}
             onClick={send}
           >
             Add

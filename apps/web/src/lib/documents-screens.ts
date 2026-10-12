@@ -50,6 +50,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'DocumentTypes':
     case 'AccessSettings':
     case 'RetentionSettings':
+    case 'AiSettings':
       return read('DocumentsSettings');
     default:
       return { status: 'none' };

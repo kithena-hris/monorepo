@@ -10,7 +10,8 @@ import { askDocuments, useDocuments } from './api';
 
 /**
  * Settings › Documents on the phone (MS1–MS3, MS5, MS6): the types as one
- * line each, the access switches, retention and legal holds. HR changes the
+ * line each, the access switches, Kithena's reading (MS7), retention and
+ * legal holds. HR changes the
  * switches and lifts holds; editing a type's sentence is the web's
  * (`desktop-only.json`).
  */
@@ -28,8 +29,18 @@ interface SettingsData {
   }[];
   readonly access: Readonly<Record<string, boolean | string>>;
   readonly holds: readonly { id: string; name: string; setBy: string; count: number }[];
+  readonly ai: Readonly<Record<string, boolean>>;
   readonly hr: boolean;
 }
+
+/** MS7: what Kithena may do with the company's documents. */
+const READING: readonly (readonly [string, string])[] = [
+  ['summaries', 'Summaries'],
+  ['questions', 'Questions about a document'],
+  ['across', 'Questions across documents'],
+  ['sorting', 'Sort uploads'],
+  ['fields', 'Read fields into People'],
+];
 
 const SWITCHES: readonly (readonly [string, string])[] = [
   ['askAfterUpload', 'Ask once after an upload whether to share'],
@@ -114,6 +125,34 @@ export function DocumentsSettings({
           Log every confidential view
         </ListItem>
       </List>
+      <Heading title="Kithena reading" />
+      <List>
+        {READING.map(([key, label]) => (
+          <ListItem
+            key={key}
+            trailing={
+              <Switch
+                accessibilityLabel={label}
+                checked={d.ai[key] === true}
+                disabled={!d.hr}
+                onCheckedChange={(on) => {
+                  void askDocuments(signed, 'SetDocumentsAiSettings', {
+                    input: { [key]: on },
+                  }).then((a) => {
+                    if (a.ok) reload();
+                    else setProblem(a.message);
+                  });
+                }}
+              />
+            }
+          >
+            {label}
+          </ListItem>
+        ))}
+      </List>
+      <Text variant="footnote" tone="muted">
+        Medical documents are only ever read for their dates.
+      </Text>
       <Heading title="Legal holds" />
       {d.holds.length === 0 ? (
         <Text tone="muted">No holds.</Text>

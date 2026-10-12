@@ -29,6 +29,19 @@ import {
   campaignScreen,
   sendForAcknowledgement,
 } from '../application/acknowledgements.js';
+import {
+  AnswerView,
+  askAbout,
+  askAcross,
+  compareVersions,
+  CompareView,
+  describeType,
+  readFields,
+  setAiSettings,
+  suggestFiling,
+  summarize,
+  SummaryView,
+} from '../application/ai.js';
 import { documentsInbox } from '../application/inbox.js';
 import {
   askSender,
@@ -271,6 +284,7 @@ export const GrantsBody = z.strictObject({
 });
 
 const DocParams = z.object({ documentId: DocumentId });
+
 
 /** A link to the copy, for a few minutes; or, with no bucket, the bytes themselves. */
 const FileAnswer = z
@@ -997,6 +1011,102 @@ export const ROUTES: readonly Route[] = [
       })
       .meta({ title: 'DocumentsCampaign' }),
     run: (deps, caller, { params }) => campaignScreen(deps, caller, params.campaignId),
+  }),
+  /* ----------------------------------------------- Kithena reading (PRD §14) -- */
+  route({
+    name: 'documentSummary',
+    method: 'GET',
+    path: `${V1}/d/{documentId}/summary`,
+    summary: 'The document in plain words, each claim cited to its page (D1)',
+    params: DocParams,
+    answer: SummaryView,
+    run: (deps, caller, { params }) => summarize(deps, caller, params.documentId),
+  }),
+  route({
+    name: 'askDocument',
+    method: 'POST',
+    path: `${V1}/d/{documentId}/ask`,
+    summary: 'A question about this document, answered from its pages (D2)',
+    params: DocParams,
+    body: z.strictObject({ question: z.string().max(500) }),
+    answer: AnswerView,
+    run: (deps, caller, { params, body }) => askAbout(deps, caller, params.documentId, body.question),
+  }),
+  route({
+    name: 'askDocuments',
+    method: 'POST',
+    path: `${V1}/ask`,
+    summary: 'A question across the documents you can open (B4)',
+    body: z.strictObject({ question: z.string().max(500) }),
+    answer: AnswerView,
+    run: (deps, caller, { body }) => askAcross(deps, caller, body.question),
+  }),
+  route({
+    name: 'compareDocumentVersions',
+    method: 'GET',
+    path: `${V1}/d/{documentId}/compare/{from}/{to}`,
+    summary: 'What changed between two versions (D3)',
+    params: z.object({ documentId: DocumentId, from: z.coerce.number().int().positive(), to: z.coerce.number().int().positive() }),
+    answer: CompareView,
+    run: (deps, caller, { params }) =>
+      compareVersions(deps, caller, params.documentId, params.from, params.to),
+  }),
+  route({
+    name: 'suggestDocumentFiling',
+    method: 'POST',
+    path: `${V1}/uploads/{uploadId}/suggest`,
+    summary: 'What an upload looks like it is: a type, a person, a name and an expiry (C1)',
+    params: z.object({ uploadId: z.uuid() }),
+    body: z.strictObject({ name: z.string().trim().min(1).max(255) }),
+    answer: z
+      .object({
+        available: z.boolean(),
+        title: z.string().nullable(),
+        typeKey: z.string().nullable(),
+        subjectPersonId: z.string().nullable(),
+        expiresOn: z.string().nullable(),
+      })
+      .meta({ title: 'DocumentsFilingSuggestion' }),
+    run: (deps, caller, { params, body }) =>
+      suggestFiling(deps, caller, { uploadId: params.uploadId, name: body.name }),
+  }),
+  route({
+    name: 'describeDocumentType',
+    method: 'POST',
+    path: `${V1}/types/describe`,
+    summary: 'A type described in words, drafted as its settings for HR to save (S4)',
+    body: z.strictObject({ text: z.string().max(1000) }),
+    answer: z
+      .object({
+        available: z.boolean(),
+        type: DocumentTypeDefinition.nullable(),
+        question: z.string().nullable(),
+      })
+      .meta({ title: 'DocumentsTypeDraft' }),
+    run: (deps, caller, { body }) => describeType(deps, caller, body.text),
+  }),
+  route({
+    name: 'documentFields',
+    method: 'GET',
+    path: `${V1}/d/{documentId}/fields`,
+    summary: 'The values its type says Kithena reads, each with its page (G5)',
+    params: DocParams,
+    answer: z
+      .object({
+        available: z.boolean(),
+        fields: z.array(z.object({ name: z.string(), value: z.string(), page: z.int() })),
+      })
+      .meta({ title: 'DocumentsFields' }),
+    run: (deps, caller, { params }) => readFields(deps, caller, params.documentId),
+  }),
+  route({
+    name: 'setDocumentsAiSettings',
+    method: 'PUT',
+    path: `${V1}/settings/ai`,
+    summary: 'Switch Kithena’s reading features on or off (S7)',
+    body: SettingsView.shape.ai.partial().strict(),
+    answer: Done,
+    run: (deps, caller, { body }) => setAiSettings(deps, caller, body),
   }),
 ];
 

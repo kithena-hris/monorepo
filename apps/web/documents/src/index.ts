@@ -16,6 +16,7 @@ import { Library as LibraryScreen } from './library/library';
 import { PersonFile as PersonFileScreen } from './people/person-file';
 import {
   AccessSettings as AccessScreen,
+  AiSettings as AiScreen,
   DocumentTypes as TypesScreen,
   RetentionSettings as RetentionScreen,
 } from './settings/settings';
@@ -26,6 +27,7 @@ export const PersonFile = framed(PersonFileScreen);
 export const DocumentTypes = framed(TypesScreen);
 export const AccessSettings = framed(AccessScreen);
 export const RetentionSettings = framed(RetentionScreen);
+export const AiSettings = framed(AiScreen);
 export const Envelopes = framed(EnvelopesScreen);
 export const Envelope = framed(EnvelopeScreen);
 export const SendForSignature = framed(SendScreen);

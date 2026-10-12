@@ -328,3 +328,45 @@ export async function sendForAcknowledgement(
 export async function acknowledgeDocument(campaignId: string): Promise<Outcome> {
   return outcome(await documents('AcknowledgeDocument', { campaignId }));
 }
+
+/* ------------------------------------- Kithena reading (DOC-050 to 056) -- */
+
+/** An answer read, or why not: its shape is the remote's (`types.ts`). */
+export type Read<T> =
+  { readonly ok: true; readonly data: T } | { readonly ok: false; readonly message: string };
+
+const read = <T>(a: { ok: true; data: T } | { ok: false; message: string }): Read<T> =>
+  a.ok ? { ok: true, data: a.data } : { ok: false, message: a.message };
+
+/** D1: asked for after the page shows, so a slow model never holds it up. */
+export async function summarizeDocument(documentId: string): Promise<Read<unknown>> {
+  return read(await documents('DocumentSummary', { documentId }));
+}
+
+export async function askDocument(documentId: string, question: string): Promise<Read<unknown>> {
+  return read(await documents('AskDocument', { documentId, input: { question } }));
+}
+
+export async function askDocuments(question: string): Promise<Read<unknown>> {
+  return read(await documents('AskDocuments', { input: { question } }));
+}
+
+export async function compareVersions(
+  documentId: string,
+  from: number,
+  to: number,
+): Promise<Read<unknown>> {
+  return read(await documents('CompareDocumentVersions', { documentId, from, to }));
+}
+
+export async function suggestFiling(uploadId: string, name: string): Promise<Read<unknown>> {
+  return read(await documents('SuggestDocumentFiling', { uploadId, input: { name } }));
+}
+
+export async function describeType(text: string): Promise<Read<unknown>> {
+  return read(await documents('DescribeDocumentType', { input: { text } }));
+}
+
+export async function setAiSettings(input: Record<string, boolean>): Promise<Outcome> {
+  return outcome(await documents('SetDocumentsAiSettings', { input }));
+}

@@ -33,9 +33,11 @@ import {
   FileUp,
   FolderOpen,
   FolderPlus,
+  PenLine,
   Plus,
   ScanLine,
   Search,
+  Sparkles,
   Upload,
 } from 'lucide-react-native';
 import { useState } from 'react';
@@ -43,6 +45,7 @@ import { Pressable, View } from 'react-native';
 
 import { Failed, Heading, Loading, Page } from '../frame';
 import { useSigned } from '../people/api';
+import { AcrossAnswer, type Answer } from './reading';
 import type { PeopleScreen } from '../people/routes';
 import {
   access,
@@ -125,6 +128,18 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
   const [filing, setFiling] = useState<Filing | null>(null);
   const [asking, setAsking] = useState<{ id: string; title: string } | null>(null);
   const [newSection, setNewSection] = useState(false);
+  const [across, setAcross] = useState<{ q: string; a: Answer | null; error?: string } | null>(
+    null,
+  );
+  // A search that reads as a question goes to Kithena (MR5); a word or two stays a search.
+  const isQuestion = q.trim().endsWith('?') || q.trim().split(/\s+/u).length >= 4;
+  const askAcross = (): void => {
+    const question = q.trim();
+    setAcross({ q: question, a: null });
+    void askDocuments<Answer>(signed, 'AskDocuments', { input: { question } }).then((r) => {
+      setAcross(r.ok ? { q: question, a: r.data } : { q: question, a: null, error: r.message });
+    });
+  };
   const plus = (
     <Button
       size="sm"
@@ -160,6 +175,26 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
         startAdornment={<Icon icon={Search} />}
         accessibilityLabel="Search documents"
       />
+      {isQuestion && across?.q !== q.trim() ? (
+        <Button startIcon={<Icon icon={Sparkles} />} onPress={askAcross}>
+          Ask Kithena
+        </Button>
+      ) : null}
+      {across === null ? null : across.a === null ? (
+        across.error === undefined ? (
+          <Loading label="Kithena is reading your documents" />
+        ) : (
+          <Alert tone="danger">{across.error}</Alert>
+        )
+      ) : (
+        <AcrossAnswer
+          question={across.q}
+          answer={across.a}
+          onOpen={(id, title) => {
+            navigation.navigate('DocumentDetail', { id, title });
+          }}
+        />
+      )}
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
@@ -299,7 +334,7 @@ function Body({
             {data.needsYou.map((n) => (
               <ListItem
                 key={n.id}
-                icon={n.kind === 'request' ? Upload : FolderOpen}
+                icon={n.kind === 'request' ? Upload : n.kind === 'sign' ? PenLine : FolderOpen}
                 description={n.detail}
                 trailing={
                   n.kind === 'request' ? (
@@ -311,6 +346,26 @@ function Body({
                       }}
                     >
                       Add
+                    </Button>
+                  ) : n.kind === 'sign' ? (
+                    <Button
+                      size="xs"
+                      variant="primary"
+                      onPress={() => {
+                        onSign(n.id);
+                      }}
+                    >
+                      Sign
+                    </Button>
+                  ) : n.kind === 'acknowledge' ? (
+                    <Button
+                      size="xs"
+                      variant="primary"
+                      onPress={() => {
+                        if (n.documentId !== null) onOpen(n.documentId, n.title);
+                      }}
+                    >
+                      Read
                     </Button>
                   ) : (
                     <View className="flex-row gap-1.5">

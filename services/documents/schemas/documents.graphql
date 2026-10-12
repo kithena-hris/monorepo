@@ -5,6 +5,45 @@ schema @link(url: "https://specs.apollo.dev/federation/v2.6", import: []) {
   mutation: Mutation
 }
 
+type DocumentTypeDefinition {
+  acknowledge: Boolean!
+  aiEnabled: Boolean!
+  aiReads: [String!]!
+  audience: String!
+  confidential: Boolean!
+  expiryReminders: [Int!]!
+  filedTo: String!
+  key: String!
+  kind: String!
+  medical: Boolean!
+  name: String!
+  requiredBy: Int!
+  requiredFor: String
+  retention: JSON!
+  signers: [String!]!
+}
+
+type DocumentsAiSettings {
+  across: Boolean!
+  fields: Boolean!
+  questions: Boolean!
+  sorting: Boolean!
+  summaries: Boolean!
+}
+
+type DocumentsAnswer {
+  answer: [DocumentsCited!]!
+  available: Boolean!
+  reason: String
+  sources: [DocumentsAnswerSources!]!
+}
+
+type DocumentsAnswerSources {
+  documentId: String!
+  pages: [Int!]!
+  title: String!
+}
+
 type DocumentsCampaign {
   documentId: String!
   done: Int!
@@ -35,9 +74,21 @@ type DocumentsChecklistRow {
   typeKey: String!
 }
 
+type DocumentsCited {
+  pages: [Int!]!
+  text: String!
+}
+
 type DocumentsClosed {
   owner: String!
   requested: Boolean!
+}
+
+type DocumentsCompare {
+  added: [String!]!
+  available: Boolean!
+  removed: [String!]!
+  sentences: [String!]!
 }
 
 type DocumentsCreated {
@@ -170,12 +221,31 @@ type DocumentsField {
   y: Float!
 }
 
+type DocumentsFields {
+  available: Boolean!
+  fields: [DocumentsFieldsFields!]!
+}
+
+type DocumentsFieldsFields {
+  name: String!
+  page: Int!
+  value: String!
+}
+
 type DocumentsFile {
   base64: String
   fileName: String!
   mediaType: String!
   original: Boolean!
   url: String
+}
+
+type DocumentsFilingSuggestion {
+  available: Boolean!
+  expiresOn: String
+  subjectPersonId: String
+  title: String
+  typeKey: String
 }
 
 type DocumentsGrant {
@@ -312,6 +382,7 @@ type DocumentsSection {
 
 type DocumentsSettings {
   access: DocumentsSettingsAccess!
+  ai: DocumentsAiSettings!
   holds: [DocumentsHold!]!
   hr: Boolean!
   sections: [DocumentsSection!]!
@@ -349,6 +420,22 @@ type DocumentsStatus {
   tone: String!
 }
 
+type DocumentsSummary {
+  available: Boolean!
+  dates: [String!]!
+  facts: [DocumentsSummaryFacts!]!
+  questions: [String!]!
+  reason: String
+  summary: [DocumentsCited!]!
+  watch: DocumentsCited
+}
+
+type DocumentsSummaryFacts {
+  label: String!
+  page: Int!
+  value: String!
+}
+
 type DocumentsTile {
   count: Int!
   detail: String!
@@ -375,6 +462,12 @@ type DocumentsType {
   retentionWords: String!
   signers: [String!]!
   used: Int!
+}
+
+type DocumentsTypeDraft {
+  available: Boolean!
+  question: String
+  type: DocumentTypeDefinition
 }
 
 type DocumentsTypeOption {
@@ -477,6 +570,19 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsVersionAdded!
+  """A question about this document, answered from its pages (D2)"""
+  askDocument(
+    documentId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsAnswer!
+  """A question across the documents you can open (B4)"""
+  askDocuments(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsAnswer!
   """Ask the sender a question; the request waits"""
   askEnvelopeSender(
     envelopeId: String!
@@ -527,6 +633,12 @@ type Mutation {
   ): DocumentsCreated!
   """Move a document to Deleted, for 30 days"""
   deleteDocument(documentId: String!, idempotencyKey: String!): DocumentsCreated!
+  """A type described in words, drafted as its settings for HR to save (S4)"""
+  describeDocumentType(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsTypeDraft!
   """Who works here, when People is absent"""
   importDocumentMembers(
     idempotencyKey: String!
@@ -626,6 +738,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """Switch Kithena’s reading features on or off (S7)"""
+  setDocumentsAiSettings(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsDone!
   """Who it is shared with; none makes it Private"""
   shareDocument(
     documentId: String!
@@ -648,6 +766,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsUpload!
+  """
+  What an upload looks like it is: a type, a person, a name and an expiry (C1)
+  """
+  suggestDocumentFiling(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    uploadId: String!
+  ): DocumentsFilingSuggestion!
   """File a document: Private to start, the type’s rules applied"""
   uploadDocument(
     idempotencyKey: String!
@@ -665,6 +792,12 @@ type Mutation {
 
 type Query {
   _service: _Service!
+  """What changed between two versions (D3)"""
+  compareDocumentVersions(documentId: String!, from: Int!, to: Int!): DocumentsCompare!
+  """The values its type says Kithena reads, each with its page (G5)"""
+  documentFields(documentId: String!): DocumentsFields!
+  """The document in plain words, each claim cited to its page (D1)"""
+  documentSummary(documentId: String!): DocumentsSummary!
   """Who has acknowledged a policy, and who is left (F3)"""
   documentsCampaign(campaignId: String!): DocumentsCampaign!
   """A document, or who owns it when you cannot open it"""

@@ -335,6 +335,18 @@ export interface Mailer {
   }): Promise<void>;
 }
 
+/**
+ * A model reading a document's text (PRD §14, Documents' exception in
+ * `docs/tech-stack.md`): one JSON object back, or null when there is no
+ * model, it failed, or it answered something that is not an object.
+ */
+export interface Reader {
+  read(input: {
+    readonly instruction: string;
+    readonly context: Readonly<Record<string, unknown>>;
+  }): Promise<Readonly<Record<string, unknown>> | null>;
+}
+
 export interface Deps {
   readonly uow: UnitOfWork;
   readonly blobs: Blobs;
@@ -342,4 +354,5 @@ export interface Deps {
   readonly clock: Clock;
   readonly newId: () => string;
   readonly mailer?: Mailer;
+  readonly reader?: Reader;
 }

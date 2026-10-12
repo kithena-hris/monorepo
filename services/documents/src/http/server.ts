@@ -81,6 +81,7 @@ export interface DocumentsServerOptions extends Pick<Deps, 'uow' | 'blobs'> {
   readonly clock?: Deps['clock'];
   readonly newId?: Deps['newId'];
   readonly mailer?: Deps['mailer'];
+  readonly reader?: Deps['reader'];
 }
 
 /** Documents' transports over a unit of work and a blob store. */
@@ -97,6 +98,7 @@ export function documentsServer(options: DocumentsServerOptions): {
     newId: options.newId ?? uuidv7,
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.transfers === undefined ? {} : { transfers: options.transfers }),
+    ...(options.reader === undefined ? {} : { reader: options.reader }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

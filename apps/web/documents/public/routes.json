@@ -39,6 +39,10 @@
     {
       "path": "/settings/documents/retention",
       "component": "RetentionSettings"
+    },
+    {
+      "path": "/settings/documents/ai",
+      "component": "AiSettings"
     }
   ],
   "actions": [],
@@ -79,6 +83,12 @@
       "label": "Retention and legal holds",
       "description": "One rule per kind of document, and the holds that override them.",
       "icon": "archive"
+    },
+    {
+      "path": "/settings/documents/ai",
+      "label": "Kithena reading",
+      "description": "Summaries, questions and sorting: what Kithena may do with your documents.",
+      "icon": "assistant"
     }
   ]
 }

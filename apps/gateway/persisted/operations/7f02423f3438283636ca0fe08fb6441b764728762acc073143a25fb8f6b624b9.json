@@ -1,0 +1,1 @@
+{"version":1,"body":"query DocumentSummary($documentId: String!) {\n    documentSummary(documentId: $documentId) {\n      available reason summary { text pages } facts { label value page } watch { text pages } questions dates\n    }\n  }"}

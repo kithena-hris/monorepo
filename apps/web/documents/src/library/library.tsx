@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -47,12 +48,16 @@ import { useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
 import { ShareDialog } from '../share';
 import { AccessBadge, DocIcon, StatusBadge, meta, shortDate, useWrite } from '../shared';
+import { AcrossAnswer } from '../document/reading';
 import type {
+  Answer,
   Created,
+  FilingSuggestion,
   GrantInput,
   LibraryData,
   Outcome,
   QueueKey,
+  Read,
   Row,
   StartUpload,
 } from '../types';
@@ -99,6 +104,11 @@ export interface LibraryProps {
   readonly onRemind?: ((requestId: string) => Promise<Outcome>) | undefined;
   readonly onRestore?: ((documentId: string) => Promise<Outcome>) | undefined;
   readonly onConfirmDeletion?: ((documentIds: readonly string[]) => Promise<Outcome>) | undefined;
+  /** B4: a question across what this person may open. */
+  readonly onAskAcross?: ((question: string) => Promise<Read<Answer>>) | undefined;
+  /** C1: what an upload looks like it is. */
+  readonly onSuggest?:
+    ((uploadId: string, name: string) => Promise<Read<FilingSuggestion>>) | undefined;
 }
 
 export function Library(props: LibraryProps): JSX.Element {
@@ -127,6 +137,17 @@ function Ready({
   const [sharing, setSharing] = useState<{ id: string; title: string } | null>(null);
   const [newSection, setNewSection] = useState(false);
   const [query, type] = useTyped(data.q, (q) => props.onFilter?.({ q: q === '' ? null : q }));
+  const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(null);
+  // A search that reads as a question is offered to Kithena; a word or two stays a search.
+  const question = query.trim().endsWith('?') || query.trim().split(/\s+/u).length >= 4;
+  const askAcross = (): void => {
+    const q = query.trim();
+    if (props.onAskAcross === undefined || q === '') return;
+    setAnswer({ q, a: null });
+    void props.onAskAcross(q).then((r) => {
+      setAnswer(r.ok ? { q, a: r.data } : { q, a: null, error: r.message });
+    });
+  };
   const go = (to: string) => (event: { preventDefault: () => void }) => {
     if (props.onNavigate === undefined) return;
     event.preventDefault();
@@ -202,6 +223,25 @@ function Ready({
         }}
         className="max-w-xl"
       />
+      {question && props.onAskAcross !== undefined && !data.deleted && answer?.q !== query.trim() ? (
+        <Button
+          variant="secondary"
+          className="self-start"
+          startIcon={<icons.assistant aria-hidden />}
+          onClick={askAcross}
+        >
+          Ask Kithena
+        </Button>
+      ) : null}
+      {answer === null ? null : answer.a === null ? (
+        answer.error === undefined ? (
+          <Spinner size="sm" label="Kithena is reading your documents" />
+        ) : (
+          <Alert tone="danger">{answer.error}</Alert>
+        )
+      ) : (
+        <AcrossAnswer question={answer.q} answer={answer.a} onNavigate={props.onNavigate} />
+      )}
 
       {data.needsYou.length > 0 && !data.deleted ? (
         <section className="flex flex-col gap-3" aria-labelledby="needs-you">
@@ -341,6 +381,7 @@ function Ready({
           preset={uploading}
           onStartUpload={props.onStartUpload}
           onUpload={props.onUpload}
+          onSuggest={props.onSuggest}
           onDone={(id, title, typed) => {
             // A typed document follows its type's access; only one's own gets the question.
             if (!typed && data.viewer.askAfterUpload) setAsking({ id, title });

@@ -32,6 +32,7 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { ShareDialog } from '../share';
+import { Reading, type ReadingProps } from './reading';
 import { AccessBadge, StatusBadge, pages, putFile, shortDate, useWrite } from '../shared';
 import type { DocumentData, FileLink, FileRef, GrantInput, Outcome, StartUpload } from '../types';
 
@@ -65,6 +66,9 @@ export interface DocumentViewProps {
       ) => Promise<{ ok: true; id: string } | { ok: false; message: string }>)
     | undefined;
   readonly path?: string | undefined;
+  readonly onSummarize?: ReadingProps['onSummarize'];
+  readonly onAskDocument?: ReadingProps['onAsk'];
+  readonly onCompare?: ReadingProps['onCompare'];
 }
 
 export function DocumentView(props: DocumentViewProps): JSX.Element {
@@ -241,6 +245,15 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Preview doc={doc} onFileLink={props.onFileLink} />
         <div className="flex flex-col gap-4">
+          {deleted || !doc.pdf ? null : (
+            <Reading
+              documentId={row.id}
+              current={doc.current.n}
+              onSummarize={props.onSummarize}
+              onAsk={props.onAskDocument}
+              onCompare={props.onCompare}
+            />
+          )}
           {row.confidential ? (
             <Alert tone="warning" title="Confidential" icon={<icons.sensitive />}>
               {doc.may.download

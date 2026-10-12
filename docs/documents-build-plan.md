@@ -134,15 +134,35 @@ small group, and goes to `main` as **one pull request**.
 
 ## Phase 3 — AI
 
-- [ ] **DOC-050** Decision recorded in `docs/tech-stack.md`; text extraction per
+- [x] **DOC-050** Decision recorded in `docs/tech-stack.md`; text extraction per
       page; AI ports (`Reader`, `Writer`) through the gateway; medical dates only.
-- [ ] **DOC-051** Summary with page citations D1, MR1; payslip explained MR4.
+      As built: one `Reader` port (`infrastructure/reader.ts`), the assistant's
+      OpenAI-compatible endpoint rather than the AI gateway, whose free-text rule
+      refuses document text; unpdf reads pages (`application/text.ts`); a medical
+      type is read for dates by code (`datesIn`) and never sent. Every limit is
+      enforced in `application/ai.ts`; no key means every feature answers "not
+      available" and the screens work without it.
+- [x] **DOC-051** Summary with page citations D1, MR1; payslip explained MR4.
+      As built: `keepCited` drops any claim citing a page the document lacks; a
+      payslip gets the same summary, its type's `aiReads` naming what matters.
 - [ ] **DOC-052** Follow-ups D2, MR2 through Ask Kithena's window; assistant
-      capabilities for Documents.
-- [ ] **DOC-053** Ask across documents B4, MR5 (only what the asker can open).
-- [ ] **DOC-054** Version compare D3, "what changed" in C4.
-- [ ] **DOC-055** Sort uploads C1, MD3; bulk split C2.
+      capabilities for Documents. Built: questions about one document inside its
+      summary card, web and phone (`askDocument`). Left: the same in the
+      assistant's window, and Documents' assistant capabilities.
+- [x] **DOC-053** Ask across documents B4, MR5 (only what the asker can open).
+      As built: a search that reads as a question offers Ask Kithena; code picks
+      passages (`passages`) from the 40 most recent documents the asker may open,
+      never a medical one, and the model answers from those alone.
+- [x] **DOC-054** Version compare D3, "what changed" in C4. As built: the
+      previous version against the current one, lines by code (`changedLines`)
+      and a sentence each by the model; the phone leaves it to the web.
+- [ ] **DOC-055** Sort uploads C1, MD3; bulk split C2. Built: C1, HR's PDF
+      read as it is chosen, type, person, name and expiry filled for HR to check.
+      Left: MD3 (phone scans are images; needs OCR) and the bulk split C2.
 - [ ] **DOC-056** Describe a type S4, MS4; AI settings S7, MS7; field placement K2.
+      Built: S4 (the draft opens the type editor), S7 and MS7 (switches in
+      `documents.settings`, read with Settings › Documents); MS4 is the web's.
+      Left: K2, suggesting where signature fields go.
 
 ## Phase 4 — with People and Time Off
 

@@ -111,6 +111,7 @@ export const OPERATIONS = {
       sections { id kind name count }
       access { askAfterUpload peopleMayTurnOffQuestion everyoneShare companyLinks outsideSharing watermark blockDownload personalSections }
       holds { id name setBy setAt count } hr
+      ai { summaries questions across sorting fields }
     }
   }`,
 
@@ -337,6 +338,56 @@ export const OPERATIONS = {
     '$campaignId: String!, ',
     'campaignId: $campaignId, ',
     'id',
+  ),
+  /** D1, MR1: the document in plain words, each claim cited to its page */
+  DocumentSummary: `query DocumentSummary($documentId: String!) {
+    documentSummary(documentId: $documentId) {
+      available reason summary { text pages } facts { label value page } watch { text pages } questions dates
+    }
+  }`,
+  /** D2, MR2: a question about one document */
+  AskDocument: write(
+    'AskDocument',
+    'askDocument',
+    '$documentId: String!, $input: JSON!, ',
+    'documentId: $documentId, input: $input, ',
+    'available reason answer { text pages } sources { documentId title pages }',
+  ),
+  /** B4, MR5: a question across what the asker may open */
+  AskDocuments: write(
+    'AskDocuments',
+    'askDocuments',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'available reason answer { text pages } sources { documentId title pages }',
+  ),
+  /** D3: what changed between two versions */
+  CompareDocumentVersions: `query CompareDocumentVersions($documentId: String!, $from: Int!, $to: Int!) {
+    compareDocumentVersions(documentId: $documentId, from: $from, to: $to) { available added removed sentences }
+  }`,
+  /** C1: what an upload looks like it is */
+  SuggestDocumentFiling: write(
+    'SuggestDocumentFiling',
+    'suggestDocumentFiling',
+    '$uploadId: String!, $input: JSON!, ',
+    'uploadId: $uploadId, input: $input, ',
+    'available title typeKey subjectPersonId expiresOn',
+  ),
+  /** S4: a type described in words */
+  DescribeDocumentType: write(
+    'DescribeDocumentType',
+    'describeDocumentType',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'available question type { key name kind filedTo audience confidential medical signers acknowledge requiredFor requiredBy expiryReminders retention aiReads aiEnabled }',
+  ),
+  /** S7: the company's switches */
+  SetDocumentsAiSettings: write(
+    'SetDocumentsAiSettings',
+    'setDocumentsAiSettings',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'ok',
   ),
 } as const;
 

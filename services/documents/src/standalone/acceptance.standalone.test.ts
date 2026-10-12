@@ -253,6 +253,12 @@ describe('a contract about Adam (A1, E2, MR4)', () => {
     expect((await call('marco', 'GET', `/v1/documents/d/${id}`)).body.document).toBeNull();
   });
 
+  it('with no model, its summary says so and the screen still works (DOC-050)', async () => {
+    const got = await call('adam', 'GET', `/v1/documents/d/${id}/summary`);
+    expect(got.body).toMatchObject({ available: false, summary: [] });
+    expect((await call('marco', 'GET', `/v1/documents/d/${id}/summary`)).status).toBe(404);
+  });
+
   it('a view is watermarked and logged; Adam downloads the original', async () => {
     const view = await call('adam', 'GET', `/v1/documents/d/${id}/file?mode=view`);
     expect(view.body).toMatchObject({ mediaType: 'application/pdf', original: false });

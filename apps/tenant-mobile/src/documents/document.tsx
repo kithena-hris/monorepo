@@ -43,6 +43,7 @@ import {
   type PersonRef,
   type Row,
 } from './api';
+import { Reading } from './reading';
 
 /**
  * A document on the phone (MR1, MR4, MA1, MA2): who can see it, open it in
@@ -254,6 +255,7 @@ export function DocumentDetail({
           Send for signature
         </Button>
       ) : null}
+      {doc.pdf && row.deletedAt === null ? <Reading documentId={id} /> : null}
       <Heading title="Who can see it" />
       <List>
         <ListItem description={`Owner: ${doc.owner}`}>{row.who.label}</ListItem>

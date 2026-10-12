@@ -100,6 +100,16 @@ const MARGIN_MS = 30_000;
 const keyOf = (sessionId: string, tenantId: string): string =>
   createHash('sha256').update(`${tenantId}\n${sessionId}`).digest('hex');
 
+/** Writes, by transport, that change nothing on any page. */
+const UNCHANGING = new Set([
+  'CompleteFileUpload',
+  'StartDocumentsUpload',
+  'AskDocument',
+  'AskDocuments',
+  'SuggestDocumentFiling',
+  'DescribeDocumentType',
+]);
+
 async function mint(key: string, sessionId: string, tenantId: string): Promise<string | null> {
   const held = minted.get(key);
   if (held !== undefined && held.until > Date.now()) return held.token;
@@ -440,8 +450,8 @@ async function call(
           : {}),
       };
     }
-    // Asking where to put a file changes nothing anybody sees.
-    if (keyed && name !== 'CompleteFileUpload' && name !== 'StartDocumentsUpload') changed();
+    // Asking where to put a file, or asking Kithena a question, changes nothing anybody sees.
+    if (keyed && !UNCHANGING.has(name)) changed();
     // Every operation asks for one root field.
     return { ok: true, data: Object.values(answer.data)[0] };
   } catch (cause) {

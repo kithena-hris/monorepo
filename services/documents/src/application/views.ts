@@ -280,6 +280,16 @@ export const SettingsView = z
       personalSections: z.boolean(),
     }),
     holds: z.array(HoldView),
+    /** S7: Kithena's reading features, each on unless HR switched it off. */
+    ai: z
+      .object({
+        summaries: z.boolean(),
+        questions: z.boolean(),
+        across: z.boolean(),
+        sorting: z.boolean(),
+        fields: z.boolean(),
+      })
+      .meta(Title('DocumentsAiSettings')),
     hr: z.boolean(),
   })
   .meta(Title('DocumentsSettings'));

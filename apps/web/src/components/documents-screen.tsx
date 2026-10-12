@@ -75,6 +75,8 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onRemind: actions.remindRequest,
           onRestore: actions.restoreDocument,
           onConfirmDeletion: actions.confirmDeletion,
+          onAskAcross: actions.askDocuments,
+          onSuggest: actions.suggestFiling,
         };
       case 'DocumentView':
         return {
@@ -94,6 +96,9 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onPlaceHold: actions.placeHold,
           onAcknowledge: actions.acknowledgeDocument,
           onSendForAcknowledgement: actions.sendForAcknowledgement,
+          onSummarize: actions.summarizeDocument,
+          onAskDocument: actions.askDocument,
+          onCompare: actions.compareVersions,
         };
       case 'Envelopes':
         return { load: loadable, onNavigate: go };
@@ -130,7 +135,9 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onCancel: actions.cancelRequest,
         };
       case 'DocumentTypes':
-        return { load: loadable, onSave: actions.saveType };
+        return { load: loadable, onSave: actions.saveType, onDescribe: actions.describeType };
+      case 'AiSettings':
+        return { load: loadable, onSave: actions.setAiSettings };
       case 'AccessSettings':
         return { load: loadable, onSave: actions.setAccessSettings };
       case 'RetentionSettings':

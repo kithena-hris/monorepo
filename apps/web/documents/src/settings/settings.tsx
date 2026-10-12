@@ -36,7 +36,16 @@ import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { DocIcon, shortDate, useWrite } from '../shared';
-import type { DocumentType, Kind, Outcome, Retention, SettingsData } from '../types';
+import type {
+  AiFeature,
+  DocumentType,
+  Kind,
+  Outcome,
+  Read,
+  Retention,
+  SettingsData,
+  TypeDraft,
+} from '../types';
 
 /**
  * Settings › Documents (S1–S3, S5, S6; MS1–MS3, MS5, MS6): document types as
@@ -100,12 +109,16 @@ export function sentence(t: DocumentType & { readonly retentionWords: string }):
 export function DocumentTypes({
   load,
   onSave,
+  onDescribe,
 }: {
   readonly load: Loadable<SettingsData>;
   readonly onSave?:
     ((type: Record<string, unknown>, archived: boolean) => Promise<Outcome>) | undefined;
+  /** S4: a type described in words, drafted for HR to check and save. */
+  readonly onDescribe?: ((text: string) => Promise<Read<TypeDraft>>) | undefined;
 }): JSX.Element {
   const [editing, setEditing] = useState<DocumentType | null>(null);
+  const [drafted, setDrafted] = useState<string | null>(null);
   return (
     <Page
       load={load}
@@ -125,6 +138,15 @@ export function DocumentTypes({
             >
               New document type
             </Button>
+          ) : null}
+          {data.hr && data.ai.sorting && onDescribe !== undefined ? (
+            <Describe
+              onDescribe={onDescribe}
+              onDraft={(type, question) => {
+                setDrafted(question);
+                setEditing(type);
+              }}
+            />
           ) : null}
           <List>
             {data.types
@@ -169,9 +191,11 @@ export function DocumentTypes({
           {editing === null ? null : (
             <TypeDialog
               type={editing}
-              isNew={editing === BLANK}
+              isNew={editing === BLANK || !data.types.some((t) => t.key === editing.key)}
+              question={drafted}
               onClose={() => {
                 setEditing(null);
+                setDrafted(null);
               }}
               onSave={onSave}
             />
@@ -200,6 +224,58 @@ const BLANK: DocumentType = {
   aiEnabled: true,
 };
 
+/** S4: "Visa letters, filed to the person, HR only, kept a year after they leave." */
+function Describe({
+  onDescribe,
+  onDraft,
+}: {
+  readonly onDescribe: (text: string) => Promise<Read<TypeDraft>>;
+  readonly onDraft: (type: DocumentType, question: string | null) => void;
+}): JSX.Element {
+  const [text, setText] = useState('');
+  const write = useWrite();
+  return (
+    <Card variant="assistant" padded className="flex flex-col gap-3">
+      <Field>
+        <FieldLabel>Or describe it, and Kithena drafts the settings</FieldLabel>
+        <FieldControl>
+          <Input
+            value={text}
+            maxLength={1000}
+            placeholder="Visa letters: filed to the person, HR only, kept a year after they leave"
+            onChange={(e) => {
+              setText(e.target.value);
+            }}
+          />
+        </FieldControl>
+        <FieldDescription>You check every choice before it is saved.</FieldDescription>
+      </Field>
+      {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
+      <Button
+        variant="secondary"
+        className="self-start"
+        startIcon={<icons.assistant aria-hidden />}
+        loading={write.pending}
+        disabled={text.trim() === ''}
+        onClick={() => {
+          write.run(async () => {
+            const r = await onDescribe(text.trim());
+            if (!r.ok) return r;
+            if (!r.data.available || r.data.type === null) {
+              return { ok: false, message: 'Kithena could not draft that. Try New document type.' };
+            }
+            onDraft(r.data.type, r.data.question);
+            setText('');
+            return { ok: true };
+          });
+        }}
+      >
+        Draft it
+      </Button>
+    </Card>
+  );
+}
+
 const KINDS: readonly Kind[] = [
   'Contract',
   'Policy',
@@ -225,11 +301,14 @@ const keyOf = (name: string) =>
 function TypeDialog({
   type,
   isNew,
+  question = null,
   onClose,
   onSave,
 }: {
   readonly type: DocumentType;
   readonly isNew: boolean;
+  /** What Kithena's draft left open, when it drafted this. */
+  readonly question?: string | null;
   readonly onClose: () => void;
   readonly onSave:
     ((type: Record<string, unknown>, archived: boolean) => Promise<Outcome>) | undefined;
@@ -267,6 +346,11 @@ function TypeDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
+          {question === null ? null : (
+            <Alert tone="info" title="Drafted by Kithena" icon={<icons.assistant />}>
+              {question}
+            </Alert>
+          )}
           <Field required>
             <FieldLabel>Name</FieldLabel>
             <FieldControl>
@@ -730,5 +814,66 @@ function Lift({
     >
       Lift
     </Button>
+  );
+}
+
+/* ------------------------------------------------- Kithena reading (S7) -- */
+
+const FEATURES: readonly { key: AiFeature; label: string; description: string }[] = [
+  { key: 'summaries', label: 'Summaries', description: 'On every document a person opens' },
+  { key: 'questions', label: 'Questions about a document', description: 'Answered from its pages, citing them' },
+  {
+    key: 'across',
+    label: 'Questions across documents',
+    description: 'From the search box, only from documents the person can open',
+  },
+  { key: 'sorting', label: 'Sort uploads', description: 'Type, person and dates, for HR to confirm' },
+  { key: 'fields', label: 'Read fields into People', description: 'Always reviewed before anything is saved' },
+];
+
+export function AiSettings({
+  load,
+  onSave,
+}: {
+  readonly load: Loadable<SettingsData>;
+  readonly onSave?: ((input: Partial<Record<AiFeature, boolean>>) => Promise<Outcome>) | undefined;
+}): JSX.Element {
+  const write = useWrite();
+  return (
+    <Page
+      load={load}
+      title="Kithena reading"
+      description="What Kithena may do with your documents. Medical documents are only ever read for their dates."
+    >
+      {(data) => (
+        <Card>
+          <CardHeader>
+            <CardTitle level={2}>What Kithena does</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {FEATURES.map((f) => (
+              <Field orientation="horizontal" key={f.key}>
+                <FieldLabel>{f.label}</FieldLabel>
+                <FieldControl>
+                  <Switch
+                    checked={data.ai[f.key]}
+                    disabled={!data.hr || write.pending}
+                    onCheckedChange={(v) => {
+                      write.run(() => onSave?.({ [f.key]: v }) ?? Promise.resolve({ ok: true }));
+                    }}
+                  />
+                </FieldControl>
+                <FieldDescription>{f.description}</FieldDescription>
+              </Field>
+            ))}
+            {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
+            <p className="text-sm text-fg-muted">
+              A type can also be kept from Kithena entirely, in its settings. Every answer cites the
+              pages it came from, and only somebody who may open a document is ever told about it.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </Page>
   );
 }

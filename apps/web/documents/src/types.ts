@@ -252,6 +252,7 @@ export interface SettingsData {
     readonly setAt: string;
     readonly count: number;
   }[];
+  readonly ai: AiSettings;
   readonly hr: boolean;
 }
 
@@ -386,3 +387,60 @@ export interface CampaignData {
 export type Mark =
   | { readonly kind: 'typed'; readonly text: string }
   | { readonly kind: 'drawn'; readonly path: string };
+
+/* -------------------------------------------------- Kithena reading -- */
+
+/** A server action's answer: the data, or why not. */
+export type Read<T> =
+  { readonly ok: true; readonly data: T } | { readonly ok: false; readonly message: string };
+
+/** A sentence and the pages it comes from: every claim Kithena makes carries one. */
+export interface Cited {
+  readonly text: string;
+  readonly pages: readonly number[];
+}
+
+export interface Summary {
+  readonly available: boolean;
+  readonly reason: string | null;
+  readonly summary: readonly Cited[];
+  readonly facts: readonly { readonly label: string; readonly value: string; readonly page: number }[];
+  readonly watch: Cited | null;
+  readonly questions: readonly string[];
+  readonly dates: readonly string[];
+}
+
+export interface Answer {
+  readonly available: boolean;
+  readonly reason: string | null;
+  readonly answer: readonly Cited[];
+  readonly sources: readonly {
+    readonly documentId: string;
+    readonly title: string;
+    readonly pages: readonly number[];
+  }[];
+}
+
+export interface Comparison {
+  readonly available: boolean;
+  readonly added: readonly string[];
+  readonly removed: readonly string[];
+  readonly sentences: readonly string[];
+}
+
+export interface FilingSuggestion {
+  readonly available: boolean;
+  readonly title: string | null;
+  readonly typeKey: string | null;
+  readonly subjectPersonId: string | null;
+  readonly expiresOn: string | null;
+}
+
+export interface TypeDraft {
+  readonly available: boolean;
+  readonly type: DocumentType | null;
+  readonly question: string | null;
+}
+
+export type AiFeature = 'summaries' | 'questions' | 'across' | 'sorting' | 'fields';
+export type AiSettings = Readonly<Record<AiFeature, boolean>>;

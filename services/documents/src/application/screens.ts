@@ -16,6 +16,7 @@ import { daysUntil } from '../domain/dates.js';
 import type { Document } from '../domain/document/document.js';
 import { expiring } from '../domain/queues/queues.js';
 import { retentionWords, type DocumentType } from '../domain/type/document-type.js';
+import { aiSwitches } from './ai.js';
 import { contextOf, factsOf, notFound, type Ctx } from './context.js';
 import { accessSettings, retentionDue } from './organise.js';
 import type { Caller, Deps, Member } from './ports.js';
@@ -763,6 +764,7 @@ export async function settingsScreen(
         .filter((s) => s.kind === 'company')
         .map((s) => ({ id: s.id, kind: s.kind, name: s.name, count: 0 })),
       access: await accessSettings(ctx),
+      ai: await aiSwitches(ctx),
       holds: holds
         .filter((h) => h.liftedAt === null)
         .map((h) => ({

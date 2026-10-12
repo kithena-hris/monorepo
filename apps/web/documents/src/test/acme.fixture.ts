@@ -268,6 +268,7 @@ export function adaSettings(): SettingsData {
         count: 3,
       },
     ],
+    ai: { summaries: true, questions: true, across: true, sorting: true, fields: true },
     hr: true,
   };
 }
