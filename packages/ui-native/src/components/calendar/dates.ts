@@ -114,7 +114,9 @@ export function parseDate(text: string, locale?: string): IsoDate | null {
     const parts = [numeric[1], numeric[2], numeric[3]].map(String);
     const get = (type: string): string => parts[order.indexOf(type as 'day')] ?? '';
     const yearText = get('year');
-    const year = yearText.length === 2 ? 2000 + Number(yearText) : Number(yearText);
+    // "96" is 1996 and "26" is 2026: a two-digit year is the nearer century's.
+    const short = Number(yearText);
+    const year = yearText.length === 2 ? (short < 50 ? 2000 : 1900) + short : short;
     if (yearText.length !== 2 && yearText.length !== 4) return null;
     return valid(year, Number(get('month')), Number(get('day')));
   }

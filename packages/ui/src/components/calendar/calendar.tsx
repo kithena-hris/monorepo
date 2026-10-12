@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
@@ -61,6 +61,74 @@ export function addMonths(iso: IsoDate, months: number): IsoDate {
   ).getUTCDate();
   target.setUTCDate(Math.min(date.getUTCDate(), lastDay));
   return formatIsoDate(target.getTime());
+}
+
+/** The ISO date for these parts, or null when no such day exists (31 February). */
+function isoOf(year: number, month: number, day: number): IsoDate | null {
+  if (![year, month, day].every(Number.isInteger) || year < 1 || month < 1 || day < 1) return null;
+  const t = Date.UTC(year, month - 1, day);
+  const d = new Date(t);
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day
+    ? formatIsoDate(t)
+    : null;
+}
+
+/** "96" is 1996 and "12" is 2012: a two-digit year is the nearer century's. */
+const fullYear = (y: string): number => {
+  const n = Number(y);
+  return y.length > 2 ? n : n < 50 ? 2000 + n : 1900 + n;
+};
+
+/** Month names, long and short, in the locale and in English, to their number. */
+function monthNames(locale: string): Map<string, number> {
+  const names = new Map<string, number>();
+  for (const loc of [locale, 'en']) {
+    for (const width of ['long', 'short'] as const) {
+      const format = new Intl.DateTimeFormat(loc, { month: width, timeZone: 'UTC' });
+      for (let m = 0; m < 12; m++) {
+        names.set(
+          format
+            .format(new Date(Date.UTC(2024, m, 1)))
+            .toLowerCase()
+            .replace('.', ''),
+          m + 1,
+        );
+      }
+    }
+  }
+  return names;
+}
+
+/**
+ * A date as a person types it, as an ISO date, or null: "14/03/1996",
+ * "1996-03-14", "14 March 1996", "March 14, 1996", "14 mar 96". Numbers are
+ * read day first, as the locale writes them; month first in US English.
+ */
+export function parseTypedDate(text: string, locale = 'en-GB'): IsoDate | null {
+  const t = text.trim().toLowerCase().replaceAll(',', ' ').replaceAll(/\s+/gu, ' ');
+  if (t === '') return null;
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/u.exec(t);
+  if (iso) return isoOf(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  const numeric = /^(\d{1,2})[/.\- ](\d{1,2})[/.\- ](\d{2}|\d{4})$/u.exec(t);
+  if (numeric) {
+    const [a, b] = [Number(numeric[1]), Number(numeric[2])];
+    const monthFirst = locale.toLowerCase() === 'en-us';
+    return isoOf(fullYear(numeric[3] ?? ''), monthFirst ? a : b, monthFirst ? b : a);
+  }
+  const names = monthNames(locale);
+  const parts = t.split(' ');
+  if (parts.length === 3) {
+    const [x, y, z] = parts as [string, string, string];
+    const dayFirst = names.get(y.replace('.', ''));
+    if (dayFirst !== undefined && /^\d{1,2}$/u.test(x) && /^\d{2,4}$/u.test(z)) {
+      return isoOf(fullYear(z), dayFirst, Number(x));
+    }
+    const monthFirst = names.get(x.replace('.', ''));
+    if (monthFirst !== undefined && /^\d{1,2}$/u.test(y) && /^\d{2,4}$/u.test(z)) {
+      return isoOf(fullYear(z), monthFirst, Number(y));
+    }
+  }
+  return null;
 }
 
 export interface DateRange {
@@ -193,6 +261,26 @@ const dotTone: Record<CalendarTone, string> = {
   'chart-6': 'bg-chart-6',
 };
 
+/** What each level's arrows do: a month, a year, or a page of twelve years. */
+const STEP = {
+  days: { months: 1, previous: 'Previous month', next: 'Next month' },
+  months: { months: 12, previous: 'Previous year', next: 'Next year' },
+  years: { months: 144, previous: 'Previous twelve years', next: 'Next twelve years' },
+} as const;
+
+/** A month or a year to choose: the day circle's treatment, as a wider pill. */
+const zoomCell = (selected: boolean, disabled: boolean, current: boolean): string =>
+  cn(
+    'tap-target h-10 rounded-full text-sm font-medium tabular-nums touch:h-12 touch:text-base',
+    'transition-colors duration-(--animate-duration-fast)',
+    'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+    selected
+      ? 'bg-accent-solid font-bold text-fg-on-accent hover:bg-accent-hover'
+      : 'text-fg hover:bg-surface-hover',
+    current && !selected && 'font-bold text-accent-fg ring-[1.5px] ring-accent ring-inset',
+    disabled && 'cursor-not-allowed text-fg-disabled line-through hover:bg-transparent',
+  );
+
 function startOfMonth(iso: IsoDate): IsoDate {
   return `${iso.slice(0, 7)}-01`;
 }
@@ -221,8 +309,17 @@ export function Calendar(props: CalendarProps): JSX.Element {
     label = 'Calendar',
   } = props;
   const mode = props.mode ?? 'single';
-  const [internalMonth, setInternalMonth] = useState(() => startOfMonth(month ?? today));
+  // A picker opens on what is chosen: a birthday in 1996 opens on 1996, not on today.
+  const chosen = props.mode === 'range' ? props.selected?.start : props.selected;
+  const [internalMonth, setInternalMonth] = useState(() => startOfMonth(month ?? chosen ?? today));
+  /**
+   * Days, then months, then years: the heading zooms out, so a date decades
+   * away is three presses, not three hundred.
+   */
+  const [view, setView] = useState<'days' | 'months' | 'years'>('days');
   const visibleMonth = month ? startOfMonth(month) : internalMonth;
+  const visibleYear = Number(visibleMonth.slice(0, 4));
+  const decade = Math.floor(visibleYear / 12) * 12;
 
   const setMonth = (next: IsoDate): void => {
     if (!month) setInternalMonth(next);
@@ -245,6 +342,14 @@ export function Calendar(props: CalendarProps): JSX.Element {
         year: 'numeric',
         timeZone: 'UTC',
       }),
+    [locale],
+  );
+  const shortMonthFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }),
+    [locale],
+  );
+  const yearFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { year: 'numeric', timeZone: 'UTC' }),
     [locale],
   );
   const weekdayFormatter = useMemo(
@@ -322,147 +427,228 @@ export function Calendar(props: CalendarProps): JSX.Element {
       aria-label={label}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        {/* Polite, not assertive: paging months should be announced, not
-            interrupt whatever the user was already hearing. */}
-        <p aria-live="polite" className="ps-1.5 text-base font-semibold text-fg touch:text-md">
-          {monthFormatter.format(new Date(parseIsoDate(visibleMonth)))}
-        </p>
+        {/* Polite, not assertive: paging should be announced, not interrupt
+            whatever the user was already hearing. */}
+        {view === 'years' ? (
+          <p aria-live="polite" className="ps-1.5 text-base font-semibold text-fg touch:text-md">
+            {`${String(decade)} – ${String(decade + 11)}`}
+          </p>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-live="polite"
+            aria-label={
+              view === 'days'
+                ? `${monthFormatter.format(new Date(parseIsoDate(visibleMonth)))}, choose a month`
+                : `${String(visibleYear)}, choose a year`
+            }
+            className="-ms-1.5 px-1.5 text-base font-semibold touch:text-md"
+            onClick={() => {
+              setView(view === 'days' ? 'months' : 'years');
+            }}
+            endIcon={<ChevronDown aria-hidden />}
+          >
+            {view === 'days'
+              ? monthFormatter.format(new Date(parseIsoDate(visibleMonth)))
+              : String(visibleYear)}
+          </Button>
+        )}
         <div className="flex gap-0.5">
           <Button
             size="sm"
             variant="ghost"
-            aria-label="Previous month"
+            aria-label={STEP[view].previous}
             onClick={() => {
-              setMonth(addMonths(visibleMonth, -1));
+              setMonth(addMonths(visibleMonth, -STEP[view].months));
             }}
             startIcon={<ChevronLeft />}
           />
           <Button
             size="sm"
             variant="ghost"
-            aria-label="Next month"
+            aria-label={STEP[view].next}
             onClick={() => {
-              setMonth(addMonths(visibleMonth, 1));
+              setMonth(addMonths(visibleMonth, STEP[view].months));
             }}
             startIcon={<ChevronRight />}
           />
         </div>
       </div>
 
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            {weekdayNames.map((name) => (
-              <th
-                key={name}
-                scope="col"
-                className="h-7 text-center text-2xs font-semibold text-fg-subtle"
+      {view === 'months' ? (
+        <div
+          role="group"
+          aria-label={`Months of ${String(visibleYear)}`}
+          className="grid grid-cols-3 gap-1.5"
+        >
+          {Array.from({ length: 12 }, (_, m) => {
+            const first = `${String(visibleYear).padStart(4, '0')}-${String(m + 1).padStart(2, '0')}-01`;
+            const last = addDays(addMonths(first, 1), -1);
+            const out = (max !== undefined && first > max) || (min !== undefined && last < min);
+            const here = first.slice(0, 7) === visibleMonth.slice(0, 7);
+            return (
+              <button
+                key={m}
+                type="button"
+                disabled={out}
+                aria-pressed={here}
+                onClick={() => {
+                  setMonth(first);
+                  setView('days');
+                }}
+                className={zoomCell(here, out, today.slice(0, 7) === first.slice(0, 7))}
               >
-                {/* The short name is shown; the long one is read out, because
+                {shortMonthFormatter.format(new Date(parseIsoDate(first)))}
+              </button>
+            );
+          })}
+        </div>
+      ) : view === 'years' ? (
+        <div
+          role="group"
+          aria-label={`Years ${String(decade)} to ${String(decade + 11)}`}
+          className="grid grid-cols-3 gap-1.5"
+        >
+          {Array.from({ length: 12 }, (_, i) => {
+            const year = decade + i;
+            const first = `${String(year).padStart(4, '0')}-01-01`;
+            const last = `${String(year).padStart(4, '0')}-12-31`;
+            const out = (max !== undefined && first > max) || (min !== undefined && last < min);
+            const here = year === visibleYear;
+            return (
+              <button
+                key={year}
+                type="button"
+                disabled={out}
+                aria-pressed={here}
+                onClick={() => {
+                  setMonth(`${String(year).padStart(4, '0')}-${visibleMonth.slice(5, 7)}-01`);
+                  setView('months');
+                }}
+                className={zoomCell(here, out, today.slice(0, 4) === String(year))}
+              >
+                {yearFormatter.format(new Date(parseIsoDate(first)))}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {weekdayNames.map((name) => (
+                <th
+                  key={name}
+                  scope="col"
+                  className="h-7 text-center text-2xs font-semibold text-fg-subtle"
+                >
+                  {/* The short name is shown; the long one is read out, because
                     "Mo" is announced as "mo". */}
-                <span aria-hidden>{name.slice(0, 2)}</span>
-                <span className="sr-only">{name}</span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: 6 }, (_, week) => (
-            <tr key={week}>
-              {days.slice(week * 7, week * 7 + 7).map((date) => {
-                const outsideMonth = date.slice(0, 7) !== visibleMonth.slice(0, 7);
-                const disabled = isDisabled(date);
-                const selectedDay = isSelected(date);
-                const between = inRange(date);
-                const entry = markers?.[date];
-                const dots: readonly CalendarMarker[] =
-                  entry === undefined ? [] : 'tone' in entry ? [entry] : entry;
-                const style = dayStyles?.[date];
-                // The band under a range runs edge to edge between the ends
-                // and stops at the centre of each end's circle.
-                const isStart = band?.start === date;
-                const isEnd = band?.end === date;
-                const banded =
-                  between ||
-                  (Boolean(band?.end) && band?.start !== band?.end && (isStart || isEnd));
-                const filled = selectedDay || (fromHighlight && (isStart || isEnd));
-                const notes = [
-                  ...dots.map((dot) => dot.label),
-                  style?.label,
-                  fromHighlight && (between || isStart || isEnd) ? highlight.label : undefined,
-                ].filter(Boolean);
+                  <span aria-hidden>{name.slice(0, 2)}</span>
+                  <span className="sr-only">{name}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }, (_, week) => (
+              <tr key={week}>
+                {days.slice(week * 7, week * 7 + 7).map((date) => {
+                  const outsideMonth = date.slice(0, 7) !== visibleMonth.slice(0, 7);
+                  const disabled = isDisabled(date);
+                  const selectedDay = isSelected(date);
+                  const between = inRange(date);
+                  const entry = markers?.[date];
+                  const dots: readonly CalendarMarker[] =
+                    entry === undefined ? [] : 'tone' in entry ? [entry] : entry;
+                  const style = dayStyles?.[date];
+                  // The band under a range runs edge to edge between the ends
+                  // and stops at the centre of each end's circle.
+                  const isStart = band?.start === date;
+                  const isEnd = band?.end === date;
+                  const banded =
+                    between ||
+                    (Boolean(band?.end) && band?.start !== band?.end && (isStart || isEnd));
+                  const filled = selectedDay || (fromHighlight && (isStart || isEnd));
+                  const notes = [
+                    ...dots.map((dot) => dot.label),
+                    style?.label,
+                    fromHighlight && (between || isStart || isEnd) ? highlight.label : undefined,
+                  ].filter(Boolean);
 
-                return (
-                  <td key={date} className="relative h-9 p-0 text-center touch:h-11">
-                    {banded ? (
-                      <span
-                        aria-hidden
-                        className={cn(
-                          'absolute inset-y-0.75 bg-accent-subtle',
-                          isStart ? 'start-1/2' : 'start-0',
-                          isEnd ? 'end-1/2' : 'end-0',
-                        )}
-                      />
-                    ) : null}
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      aria-pressed={selectedDay}
-                      aria-current={date === today ? 'date' : undefined}
-                      aria-label={[
-                        dayFormatter.format(new Date(parseIsoDate(date))),
-                        ...notes,
-                      ].join(', ')}
-                      onClick={() => {
-                        handleSelect(date);
-                      }}
-                      className={cn(
-                        // A 32px circle in a 36px cell at a desk, 40 in 44
-                        // under a thumb: the cell is the target, the circle
-                        // is what a selection looks like.
-                        'tap-target relative mx-auto grid size-8 place-items-center rounded-full touch:size-10',
-                        'text-sm font-medium tabular-nums touch:text-base',
-                        'transition-colors duration-(--animate-duration-fast)',
-                        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-                        outsideMonth || style?.appearance === 'struck'
-                          ? 'text-fg-subtle'
-                          : 'text-fg',
-                        style?.appearance === 'struck' && 'line-through',
-                        style?.appearance === 'danger' && 'text-danger-fg',
-                        !disabled && !filled && 'hover:bg-surface-hover',
-                        filled &&
-                          'bg-accent-solid font-bold text-fg-on-accent no-underline hover:bg-accent-hover',
-                        date === today &&
-                          !filled &&
-                          'font-bold text-accent-fg ring-[1.5px] ring-accent ring-inset',
-                        disabled && 'cursor-not-allowed text-fg-disabled line-through',
-                      )}
-                    >
-                      {Number(date.slice(8))}
-                      {dots.length > 0 ? (
+                  return (
+                    <td key={date} className="relative h-9 p-0 text-center touch:h-11">
+                      {banded ? (
                         <span
                           aria-hidden
-                          className="absolute bottom-0.75 flex gap-0.5 touch:bottom-1.25"
-                        >
-                          {dots.slice(0, 3).map((dot, index) => (
-                            <span
-                              key={index}
-                              className={cn(
-                                'size-[5px] rounded-full',
-                                filled ? 'bg-fg-on-accent' : dotTone[dot.tone],
-                              )}
-                            />
-                          ))}
-                        </span>
+                          className={cn(
+                            'absolute inset-y-0.75 bg-accent-subtle',
+                            isStart ? 'start-1/2' : 'start-0',
+                            isEnd ? 'end-1/2' : 'end-0',
+                          )}
+                        />
                       ) : null}
-                    </button>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        aria-pressed={selectedDay}
+                        aria-current={date === today ? 'date' : undefined}
+                        aria-label={[
+                          dayFormatter.format(new Date(parseIsoDate(date))),
+                          ...notes,
+                        ].join(', ')}
+                        onClick={() => {
+                          handleSelect(date);
+                        }}
+                        className={cn(
+                          // A 32px circle in a 36px cell at a desk, 40 in 44
+                          // under a thumb: the cell is the target, the circle
+                          // is what a selection looks like.
+                          'tap-target relative mx-auto grid size-8 place-items-center rounded-full touch:size-10',
+                          'text-sm font-medium tabular-nums touch:text-base',
+                          'transition-colors duration-(--animate-duration-fast)',
+                          'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+                          outsideMonth || style?.appearance === 'struck'
+                            ? 'text-fg-subtle'
+                            : 'text-fg',
+                          style?.appearance === 'struck' && 'line-through',
+                          style?.appearance === 'danger' && 'text-danger-fg',
+                          !disabled && !filled && 'hover:bg-surface-hover',
+                          filled &&
+                            'bg-accent-solid font-bold text-fg-on-accent no-underline hover:bg-accent-hover',
+                          date === today &&
+                            !filled &&
+                            'font-bold text-accent-fg ring-[1.5px] ring-accent ring-inset',
+                          disabled && 'cursor-not-allowed text-fg-disabled line-through',
+                        )}
+                      >
+                        {Number(date.slice(8))}
+                        {dots.length > 0 ? (
+                          <span
+                            aria-hidden
+                            className="absolute bottom-0.75 flex gap-0.5 touch:bottom-1.25"
+                          >
+                            {dots.slice(0, 3).map((dot, index) => (
+                              <span
+                                key={index}
+                                className={cn(
+                                  'size-[5px] rounded-full',
+                                  filled ? 'bg-fg-on-accent' : dotTone[dot.tone],
+                                )}
+                              />
+                            ))}
+                          </span>
+                        ) : null}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

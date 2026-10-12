@@ -8,6 +8,7 @@ describe('parseDate', () => {
     expect(parseDate('14/10/2026', 'en-GB')).toBe('2026-10-14');
     expect(parseDate('10/14/2026', 'en-US')).toBe('2026-10-14');
     expect(parseDate('14.10.26', 'de-DE')).toBe('2026-10-14');
+    expect(parseDate('14/03/96', 'en-GB')).toBe('1996-03-14');
     expect(parseDate('14 Oct 2026', 'en-GB')).toBe('2026-10-14');
     expect(parseDate('October 14, 2026', 'en-US')).toBe('2026-10-14');
     expect(parseDate('14. Oktober 2026', 'de-DE')).toBe('2026-10-14');
