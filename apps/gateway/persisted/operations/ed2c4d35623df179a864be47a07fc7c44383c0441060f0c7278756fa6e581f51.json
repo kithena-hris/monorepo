@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation StartDocumentsUpload($input: JSON!, $key: String!) {\n    startDocumentsUpload(input: $input, idempotencyKey: $key) { uploadId url method headers }\n  }"}

@@ -139,7 +139,7 @@ export async function putFile(signed: Signed, file: Picked): Promise<Answer<File
     url: string;
     method: string;
     headers: Record<string, string>;
-  }>(signed, 'StartDocumentUpload', {
+  }>(signed, 'StartDocumentsUpload', {
     input: { name: file.name, mediaType: file.mediaType, size: file.body.size },
   });
   if (!started.ok) return started;

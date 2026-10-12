@@ -83,7 +83,7 @@ import type { CallerFrom } from './caller.js';
  * do anything — the application layer does.
  *
  * **Files skip the router.** The browser PUTs to the bucket with a presigned
- * URL (`startDocumentUpload`) and the write names the upload; a file read
+ * URL (`startDocumentsUpload`) and the write names the upload; a file read
  * back is a presigned link to a copy. A request through the shell stops at
  * 4.5 MB on Vercel. Without a bucket (tests, a laptop) a file of up to 25 MB
  * travels inside the request as base64 instead.
@@ -183,7 +183,7 @@ export const FileBody = z.strictObject({
   base64: z.base64().max(MAX_BASE64, 'Files sent inside a request are up to 25 MB'),
 });
 
-/** A file the browser already PUT to the bucket (`startDocumentUpload`). */
+/** A file the browser already PUT to the bucket (`startDocumentsUpload`). */
 export const UploadedBody = z.strictObject({
   uploadId: z.uuid(),
   name: z.string().trim().min(1).max(255),
@@ -451,7 +451,7 @@ export const ROUTES: readonly Route[] = [
 
   /* ------------------------------------------------------------- writes -- */
   route({
-    name: 'startDocumentUpload',
+    name: 'startDocumentsUpload',
     method: 'POST',
     path: `${V1}/uploads`,
     summary: 'Where the browser puts a file before filing it: a presigned PUT, for ten minutes',

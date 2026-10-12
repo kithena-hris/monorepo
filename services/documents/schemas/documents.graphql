@@ -637,7 +637,7 @@ type Mutation {
   """
   Where the browser puts a file before filing it: a presigned PUT, for ten minutes
   """
-  startDocumentUpload(
+  startDocumentsUpload(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!

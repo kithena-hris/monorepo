@@ -31,7 +31,7 @@ export async function startUpload(file: {
   mediaType: string;
   size: number;
 }): Promise<{ ok: true; put: PresignedPut } | { ok: false; message: string }> {
-  const a = await documents<PresignedPut>('StartDocumentUpload', { input: file });
+  const a = await documents<PresignedPut>('StartDocumentsUpload', { input: file });
   return a.ok ? { ok: true, put: a.data } : { ok: false, message: a.message };
 }
 

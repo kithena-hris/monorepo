@@ -144,8 +144,9 @@ describe('the module boots alone', () => {
       headers: { 'x-test': 'ada' },
       body: '',
     });
-    expect(answer?.status).toBe(200);
-    expect((answer?.body as { types: unknown[] }).types).toHaveLength(14);
+    if (answer === null) throw new Error('no answer');
+    expect(answer.status).toBe(200);
+    expect((answer.body as { types: unknown[] }).types).toHaveLength(14);
   });
 
   it('learned its members and its HR from events', async () => {

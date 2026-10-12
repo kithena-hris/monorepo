@@ -85,9 +85,9 @@ export const OPERATIONS = {
     }
   }`,
 
-  StartDocumentUpload: write(
-    'StartDocumentUpload',
-    'startDocumentUpload',
+  StartDocumentsUpload: write(
+    'StartDocumentsUpload',
+    'startDocumentsUpload',
     '$input: JSON!, ',
     'input: $input, ',
     'uploadId url method headers',
