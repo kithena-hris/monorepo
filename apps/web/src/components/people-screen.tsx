@@ -576,6 +576,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           // Their Documents, and one opened (D2, F1).
           onDocuments: () => reads.documentsOf(id ?? null),
           onOpenDocument: async (documentId: string) => {
+            // One from the Document center opens in its viewer (Documents G6).
+            if (documentId.startsWith('documents:')) {
+              go(`/documents/d/${documentId.slice('documents:'.length)}`);
+              return { ok: true as const };
+            }
             const file = await inbox.documentFile(documentId);
             if (file === null)
               return { ok: false as const, message: 'That document could not be opened' };

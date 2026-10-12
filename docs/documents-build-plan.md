@@ -170,7 +170,11 @@ small group, and goes to `main` as **one pull request**.
 - [ ] **DOC-058** Import from Documents G4.
 - [ ] **DOC-059** Generate letters G3 (templates and merge).
 - [ ] **DOC-060** Fill a record from a document G5, MP3, K9.
-- [ ] **DOC-061** Documents on a profile G6, MP4.
+- [x] **DOC-061** Documents on a profile G6, MP4. As built: the profile's
+      Documents card, web and phone, adds the Document center's file for the
+      person after People's own sent documents; the shell asks Documents
+      (`inbox/actions.ts` `documentsOf`), which decides who may read it, and
+      each row opens the center's viewer.
 - [ ] **DOC-062** Uploads that answer HR J1, J2, J6, MJ1, MJ2, MJ5.
 - [ ] **DOC-063** Notes for time off J3, J4, J5, MJ3, MJ4; HR files a photo MH4.
 - [ ] **DOC-064** A letter that changes a record J7, MJ6.

@@ -20,6 +20,8 @@ import {
   Textarea,
   useToast,
 } from '@reach/ui-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
 import { FileText, Send } from 'lucide-react-native';
 import { View } from 'react-native';
@@ -28,6 +30,7 @@ import { useEffect, useState } from 'react';
 import { useAct } from '../people/act';
 import { ask, useSigned } from '../people/api';
 import { blobOf, shareBase64 } from '../people/media';
+import type { PeopleRoutes } from '../people/routes';
 
 /**
  * What HR starts from somebody's profile on the phone (H2, H3) and the
@@ -277,6 +280,40 @@ const STATE: Readonly<Record<string, string>> = {
   declined: 'Sent back',
 };
 
+/** A row of the Document center's file for the person (Documents MP4). */
+interface Filed {
+  readonly id: string;
+  readonly title: string;
+  readonly typeName: string | null;
+  readonly deletedAt: string | null;
+  readonly status: { readonly label: string } | null;
+}
+
+/** Documents' file for this person, or nothing: no Documents, or a viewer it refuses. */
+async function filedFor(
+  signed: ReturnType<typeof useSigned>,
+  personId: string | null,
+): Promise<readonly Filed[]> {
+  let id = personId;
+  if (id === null) {
+    const library = await ask<{ viewer: { personId: string | null } }>(
+      signed,
+      'DocumentsLibrary',
+      {},
+      'documents',
+    );
+    if (!library.ok || library.data.viewer.personId === null) return [];
+    id = library.data.viewer.personId;
+  }
+  const file = await ask<{ rows: readonly Filed[] }>(
+    signed,
+    'DocumentsPersonFile',
+    { personId: id },
+    'documents',
+  );
+  return file.ok ? file.data.rows.filter((r) => r.deletedAt === null) : [];
+}
+
 /** The person's Documents (D2, F1), each opened in the phone's viewer. */
 export function Documents({
   personId,
@@ -287,18 +324,25 @@ export function Documents({
   onAdd?: () => void;
 }): React.JSX.Element | null {
   const signed = useSigned();
+  const navigation = useNavigation<NativeStackNavigationProp<PeopleRoutes>>();
   const { toast } = useToast();
   const [docs, setDocs] = useState<readonly Doc[] | null>(null);
+  const [filed, setFiled] = useState<readonly Filed[]>([]);
   useEffect(() => {
     let live = true;
     void ask<string>(signed, 'PeopleDocuments', { personId }).then((a) => {
       if (live && a.ok) setDocs(JSON.parse(a.data) as Doc[]);
     });
+    void filedFor(signed, personId).then((rows) => {
+      if (live) setFiled(rows);
+    });
     return () => {
       live = false;
     };
   }, [signed, personId]);
-  if (docs === null || (docs.length === 0 && onAdd === undefined)) return null;
+  if (docs === null || (docs.length === 0 && filed.length === 0 && onAdd === undefined)) {
+    return null;
+  }
   const open = (d: Doc): void => {
     void ask<string>(signed, 'PeopleDocumentFile', { id: d.id }).then(async (a) => {
       if (!a.ok) {
@@ -320,10 +364,27 @@ export function Documents({
           </Button>
         )}
       </View>
+      {filed.map((f) => (
+        <ListItem
+          key={f.id}
+          listitem={false}
+          icon={FileText}
+          description={f.status?.label ?? f.typeName ?? 'Filed'}
+          chevron
+          accessibilityLabel={`Open ${f.title}`}
+          onPress={() => {
+            navigation.navigate('DocumentDetail', { id: f.id, title: f.title });
+          }}
+        >
+          {f.title}
+        </ListItem>
+      ))}
       {docs.length === 0 ? (
-        <Text tone="muted" className="px-4 pb-4">
-          Nothing sent yet.
-        </Text>
+        filed.length > 0 ? null : (
+          <Text tone="muted" className="px-4 pb-4">
+            Nothing sent yet.
+          </Text>
+        )
       ) : (
         docs.map((d) => {
           const waiting = d.state === 'open';
