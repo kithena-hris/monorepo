@@ -161,3 +161,37 @@ app or a story says otherwise.
 The design's own duration scale (`--r-dur-1…4`, 120 to 480ms) was never
 shipped on the web, which runs on 80, 140, 200 and 320. The phone runs on what
 ships, because the alternative is two libraries that move at different speeds.
+
+## Documents
+
+Two decisions the Documents module (`services/documents`, `docs/documents-prd.md`)
+makes differently from the rest of the stack, each agreed before it was built.
+
+### Access is decided by the domain, not OpenFGA
+
+Who may open, download, share or delete a document is a function of the
+document's own rows: its owner, the person it is about, HR, and grants to a
+person, a team or everyone, each with an end date (`domain/access/access.ts`).
+Nothing in it is a graph: no manager chain, no delegation. Putting it in
+OpenFGA would mean writing tuples after every share and listing a library
+through `ListObjects`, a second copy of the rows to keep in step with them.
+So the library is prefiltered in SQL (`DocumentStore.candidates`) and every
+row is then decided by the domain, in the application layer, for every
+transport. OpenFGA stays where the shape is a graph: People's and Time Off's.
+
+### A model may read a document
+
+Everywhere else a model sees field names and never a value. Documents is the
+one place a model reads content, because reading the document is the feature:
+summaries with page citations, follow-up questions, what changed between
+versions, sorting an upload, reading a contract's values for People. The
+limits, enforced in Documents and not by convention:
+
+- Only for someone who may open the document, for that request. What is kept
+  is the answer, against the version it was about.
+- Medical document types: dates only, read locally; their text never leaves.
+- A document type can switch AI off entirely.
+- Documents are never used to train a model, and processing stays in the EU
+  where the provider offers it.
+- The domain still computes every number: a salary that disagrees with an
+  offer is two extracted values compared by code, not a model's opinion.

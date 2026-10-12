@@ -125,9 +125,10 @@ on top of who can open, not a fourth audience.
 - **HR** may open every document filed to a person and every company document;
   never another person's own private document.
 
-The domain decides every one of these (`domain/access/`); OpenFGA holds the
-relations (`owner`, `subject`, `viewer`, `editor`, `hr`) and the application
-asks it; the resolver never decides.
+The domain decides every one of these (`domain/access/`), in the application
+layer, for every transport; the resolver never decides. Not OpenFGA: nothing
+here is a graph, and the library is prefiltered in SQL then decided by the
+domain row by row (`docs/tech-stack.md`, "Documents").
 
 ### 6.3 Grants
 
@@ -179,8 +180,13 @@ itself against it and ticks it off.
 ### 8.1 Upload (C1, MD2)
 
 Any file up to 100 MB: PDF, image (JPEG, PNG, HEIC converted on the phone),
-Office documents, CSV. Stored sealed (AES-256-GCM) in the documents bucket;
-Postgres holds the metadata and a SHA-256. Page count is read from PDFs.
+Office documents, CSV. The browser PUTs it straight to the bucket with a
+presigned URL Documents signs (`incoming/`, kept a day), because a request
+through the shell's functions stops at 4.5 MB on Vercel; the write then names
+the upload, and Documents reads it once, seals it (AES-256-GCM) and stores it.
+Postgres holds the metadata and a SHA-256. Page count is read from PDFs. A
+file read back is a presigned link to a copy in `outgoing/`, watermarked when
+Confidential, that lasts ten minutes.
 
 New documents start **Private** (C3, MD4). One modal follows: keep it private or
 share it, with suggested people. People can switch the question off.

@@ -28,6 +28,9 @@ than quietly working around it.
   Atlas dev database) means a query or migration proven in one place behaves
   the same in the others.
 - **OpenFGA** for authorization. Org charts are graphs, not role tables.
+  Documents is the exception: per-document grants, decided by its domain over
+  its own rows (`docs/tech-stack.md`, "Documents"), as is the one place a
+  model may read content.
 - **Temporal** for long-running human-in-the-loop workflows. BullMQ for
   fire-and-forget jobs.
 - **Two names, and they are not interchangeable.** The product is **Kithena**

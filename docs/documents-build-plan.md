@@ -33,81 +33,86 @@ small group, and goes to `main` as **one pull request**.
 
 ## Phase 0 — unblock
 
-- [ ] **DOC-001** Schema bootstrap: `documents` schema, `svc_documents NOBYPASSRLS`,
+- [x] **DOC-001** Schema bootstrap: `documents` schema, `svc_documents NOBYPASSRLS`,
       `init-db.sql`, `atlas.sum`. Integration test: no tenant, no rows.
-- [ ] **DOC-002** Outbox and Debezium: `documents.outbox`, Debezium table list.
-- [ ] **DOC-003** `services/documents` boots like Time Off: `main.ts`, `/healthz`,
+- [x] **DOC-002** Outbox and Debezium: `documents.outbox`, Debezium table list.
+- [x] **DOC-003** `services/documents` boots like Time Off: `main.ts`, `/healthz`,
       `/graphql`, `DOCUMENTS_PORT` 4003, `module.manifest.ts` (`dependsOn: []`,
       `requiresPeopleSource: 'either'`).
-- [ ] **DOC-004** Dockerfile; `module.documents` offered (`OFFERED_MODULES`).
-- [ ] **DOC-005** Codegen walks `documentsEvents`.
+- [x] **DOC-004** Dockerfile; `module.documents` offered (`OFFERED_MODULES`).
+- [x] **DOC-005** Codegen walks `documentsEvents`.
 
 ## Phase 1 — boots alone, does the job
 
 ### Contracts
 
-- [ ] **DOC-006** Primitives and views: access level, grant, document, version,
+- [x] **DOC-006** Primitives and views: access level, grant, document, version,
       type, section, request, queue counts (`packages/contracts/src/documents`).
-- [ ] **DOC-007** Events (PRD §13), each payload classified.
+- [x] **DOC-007** Events (PRD §13), each payload classified.
 
 ### Domain (test first)
 
-- [ ] **DOC-008** Access rules (PRD §6.2): who opens, downloads, shares, lowers
+- [x] **DOC-008** Access rules (PRD §6.2): who opens, downloads, shares, lowers
       Confidential, deletes; about-me documents.
-- [ ] **DOC-009** Document aggregate: file, version, share, grants with end
+- [x] **DOC-009** Document aggregate: file, version, share, grants with end
       dates, Private ends grants, Confidential with its setter, delete, restore.
-- [ ] **DOC-010** Document types: the sentence parts, required-for, expiry,
+- [x] **DOC-010** Document types: the sentence parts, required-for, expiry,
       retention rule; the fourteen seeded types.
-- [ ] **DOC-011** Retention: deletion date from rule and member dates; holds win;
+- [x] **DOC-011** Retention: deletion date from rule and member dates; holds win;
       30-day trash.
-- [ ] **DOC-012** A person's checklist: required types, what they have, next action.
-- [ ] **DOC-013** Queues: to sign, expiring (60 days), missing, to delete.
-- [ ] **DOC-014** Sections: company and personal; entries never change access.
-- [ ] **DOC-015** Document requests and access requests.
+- [x] **DOC-012** A person's checklist: required types, what they have, next action.
+- [x] **DOC-013** Queues: to sign, expiring (60 days), missing, to delete.
+- [x] **DOC-014** Sections: company and personal; entries never change access.
+- [x] **DOC-015** Document requests and access requests.
 
 ### Storage and application
 
-- [ ] **DOC-016** Tables and RLS (PRD §17), Drizzle definitions, unit of work.
-- [ ] **DOC-017** Blob store: sealed S3 (copied from People), in-memory; SeaweedFS
+- [x] **DOC-016** Tables and RLS (PRD §17), Drizzle definitions, unit of work.
+- [x] **DOC-017** Blob store: sealed S3 (copied from People), in-memory; SeaweedFS
       locally.
-- [ ] **DOC-018** Members: projection from People events and an import; HR from
+      As built: sealed S3 (`infrastructure/blobs.ts`), memory without a bucket; presigned transfers (`transfers.ts`) carry files past the shell, `incoming/` and `outgoing/` kept a day.
+- [x] **DOC-018** Members: projection from People events and an import; HR from
       identity's administrator events.
-- [ ] **DOC-019** Use cases: upload, version, share, protect, view (with log),
+- [x] **DOC-019** Use cases: upload, version, share, protect, view (with log),
       download, delete, restore, sections, requests, access requests, settings.
-- [ ] **DOC-020** Confidential rendering: watermark PDFs and images per viewer.
-- [ ] **DOC-021** Screen reads: library, viewer, person file, settings pages.
+- [x] **DOC-020** Confidential rendering: watermark PDFs and images per viewer.
+- [x] **DOC-021** Screen reads: library, viewer, person file, settings pages.
 
 ### Transports
 
-- [ ] **DOC-022** REST and OpenAPI with idempotency keys; upload as a raw body.
-- [ ] **DOC-023** Subgraph generated from the routes; `just supergraph` composes.
-- [ ] **DOC-024** OpenFGA model: `owner`, `subject`, `viewer`, `editor`, `hr`.
-- [ ] **DOC-025** Inbox source: to sign, to acknowledge, requested, access requests.
-- [ ] **DOC-026** Composition root, seed for Acme (the design's documents).
-- [ ] **DOC-027** Standalone acceptance: People absent, AI keys unset; a member
+- [x] **DOC-022** REST and OpenAPI with idempotency keys; upload as a raw body.
+      As built: files are presigned uploads (`startDocumentUpload`) and links (`documentsFile`); base64 in the request only without a bucket.
+- [x] **DOC-023** Subgraph generated from the routes; `just supergraph` composes.
+- [x] **DOC-024** OpenFGA model: `owner`, `subject`, `viewer`, `editor`, `hr`.
+      As built: no OpenFGA — access is decided by the domain over Documents' own rows, agreed 2026-10-12 (`docs/tech-stack.md`, "Documents").
+- [x] **DOC-025** Inbox source: to sign, to acknowledge, requested, access requests.
+- [x] **DOC-026** Composition root, seed for Acme (the design's documents).
+- [x] **DOC-027** Standalone acceptance: People absent, AI keys unset; a member
       cannot open, list, download or find what they may not open.
-- [ ] **DOC-028** CI standalone matrix, deploy (compose, `deploy.sh`, router),
+- [x] **DOC-028** CI standalone matrix, deploy (compose, `deploy.sh`, router),
       `docs/environments.md` names for a person.
 
 ### Web
 
-- [ ] **DOC-029** Reach: `SignaturePad`, `PageStage`, `CodeInput`, document icon
+- [x] **DOC-029** Reach: `SignaturePad`, `PageStage`, `CodeInput`, document icon
       tones on `Avatar`.
-- [ ] **DOC-030** The shell loads a third remote; `apps/web/documents` (port 3004);
+      As built: nothing to add yet — Reach already has `SignaturePad`, `PinInput`, `Dropzone`, `Stepper`; the document icon is `Avatar shape="rounded"` with a tone. `PageStage` comes with K2 (DOC-045).
+- [x] **DOC-030** The shell loads a third remote; `apps/web/documents` (port 3004);
       sidebar item; persisted operations.
-- [ ] **DOC-031** Library B1, B2, B6, H1, H3 (queues and Deleted in place).
-- [ ] **DOC-032** Upload C1 (type, person) and the share question C3; new version C4.
-- [ ] **DOC-033** Viewer D1 without AI; confidential E2; access request E3.
-- [ ] **DOC-034** Share E1.
-- [ ] **DOC-035** Personal sections B5; a person's file B3; asking for a document H2.
-- [ ] **DOC-036** Settings S1, S2, S3, S5, S6.
+      As built: `/documents` opens `/documents/all`; the shell's area, `lib/documents-*.ts`, `components/documents-screen.tsx`, Inbox source and phone route all take `documents`.
+- [x] **DOC-031** Library B1, B2, B6, H1, H3 (queues and Deleted in place).
+- [x] **DOC-032** Upload C1 (type, person) and the share question C3; new version C4.
+- [x] **DOC-033** Viewer D1 without AI; confidential E2; access request E3.
+- [x] **DOC-034** Share E1.
+- [x] **DOC-035** Personal sections B5; a person's file B3; asking for a document H2.
+- [x] **DOC-036** Settings S1, S2, S3, S5, S6.
 
 ### Mobile
 
-- [ ] **DOC-037** Documents tab replaces Me (MD1); Me moves to the avatar on Home.
-- [ ] **DOC-038** MD2, MD4, MD5, MD6, MA1, MA2, MR1, MR4 without AI; scan to upload.
-- [ ] **DOC-039** HR: MH1, MH2, MH3, MH6; settings MS1–MS3, MS5, MS6.
-- [ ] **DOC-040** Coverage gate: every web operation in the app or `desktop-only.json`.
+- [x] **DOC-037** Documents tab replaces Me (MD1); Me moves to the avatar on Home.
+- [x] **DOC-038** MD2, MD4, MD5, MD6, MA1, MA2, MR1, MR4 without AI; scan to upload.
+- [x] **DOC-039** HR: MH1, MH2, MH3, MH6; settings MS1–MS3, MS5, MS6.
+- [x] **DOC-040** Coverage gate: every web operation in the app or `desktop-only.json`.
 
 ## Phase 2 — signatures and acknowledgements
 
