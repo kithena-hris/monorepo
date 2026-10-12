@@ -19,6 +19,7 @@ export default ModuleManifest.parse({
     'timeoff.request.counter_proposed',
     'timeoff.request.changed',
     'timeoff.request.cancelled',
+    'timeoff.request.note_attached',
     'timeoff.balance.adjusted',
     'timeoff.policy.published',
     'timeoff.attendance.punched',
