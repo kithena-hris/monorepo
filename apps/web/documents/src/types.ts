@@ -404,7 +404,11 @@ export interface Summary {
   readonly available: boolean;
   readonly reason: string | null;
   readonly summary: readonly Cited[];
-  readonly facts: readonly { readonly label: string; readonly value: string; readonly page: number }[];
+  readonly facts: readonly {
+    readonly label: string;
+    readonly value: string;
+    readonly page: number;
+  }[];
   readonly watch: Cited | null;
   readonly questions: readonly string[];
   readonly dates: readonly string[];

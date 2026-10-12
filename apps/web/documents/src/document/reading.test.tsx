@@ -28,7 +28,12 @@ describe('Kithena reading a document (D1, B4, S7)', () => {
         onAskDocument={() =>
           Promise.resolve({
             ok: true,
-            data: { available: false, reason: 'The document does not say.', answer: [], sources: [] },
+            data: {
+              available: false,
+              reason: 'The document does not say.',
+              answer: [],
+              sources: [],
+            },
           })
         }
       />,

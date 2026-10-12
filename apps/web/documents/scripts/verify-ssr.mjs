@@ -47,7 +47,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     {
       manifest: await read('manifest.json'),
       signature: await read('manifest.json.sig'),
-      files: { 'documents.cjs': await read('documents.cjs'), 'documents.css': await read('documents.css') },
+      files: {
+        'documents.cjs': await read('documents.cjs'),
+        'documents.css': await read('documents.css'),
+      },
     },
     process.env['DOCUMENTS_REMOTE_SSR_PUBLIC_KEY'],
   );

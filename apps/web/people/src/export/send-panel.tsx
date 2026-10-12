@@ -65,6 +65,8 @@ export function SendPanel({
   onExport,
   onShare,
   onSchedule,
+  keep,
+  onKeep,
 }: {
   readonly className?: string;
   readonly choice: ExportChoice;
@@ -75,6 +77,8 @@ export function SendPanel({
   readonly onExport: (choice: ExportChoice) => Promise<Outcome>;
   readonly onShare?: (choice: ExportChoice, recipient: string) => Promise<Outcome>;
   readonly onSchedule?: (choice: ExportChoice, recipient: string) => Promise<Outcome>;
+  readonly keep?: { readonly label: string; readonly description: string };
+  readonly onKeep?: (choice: ExportChoice) => Promise<Outcome>;
 }): JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -153,6 +157,23 @@ export function SendPanel({
               >
                 Download {FORMAT_LABEL[choice.format]}
               </Button>
+              {keep === undefined || onKeep === undefined ? null : (
+                <>
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    startIcon={<icons.folder aria-hidden />}
+                    disabled={choice.fields.length === 0 || !reasoned}
+                    loading={busy === 'keep'}
+                    onClick={() => {
+                      void act('keep', () => onKeep(choice));
+                    }}
+                  >
+                    {keep.label}
+                  </Button>
+                  <p className="text-sm text-fg-muted">{keep.description}</p>
+                </>
+              )}
             </>
           ) : mode === 'send' ? (
             them === null ? (

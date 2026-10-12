@@ -2,6 +2,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
 
+import { createContext } from 'react';
+
 import { ask, useRead, type Answer, type Load, type Signed } from '../people/api';
 import { blobOf } from '../people/media';
 
@@ -11,6 +13,9 @@ import { blobOf } from '../people/media';
  * the company host: the phone PUTs to the bucket and opens a link that lasts
  * minutes, as the web does (PRD §8.1).
  */
+
+/** Whether the company has Documents, as the tab bar learned it: other modules' screens offer it. */
+export const DocumentsOn = createContext(false);
 
 export const askDocuments = <T>(
   signed: Signed,

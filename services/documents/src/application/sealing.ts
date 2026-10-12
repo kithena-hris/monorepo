@@ -51,7 +51,13 @@ export async function seal(
       if (mark.kind === 'drawn') {
         // The pad's box is 400 × 120, y down, as an SVG path is drawn from its top left.
         const scale = Math.min((field.w * width) / 400, boxH / 120);
-        page.drawSvgPath(mark.path, { x, y: y + boxH, scale, borderColor: ink, borderWidth: 1.5 / scale });
+        page.drawSvgPath(mark.path, {
+          x,
+          y: y + boxH,
+          scale,
+          borderColor: ink,
+          borderWidth: 1.5 / scale,
+        });
       } else {
         const text = field.kind === 'initials' ? initials(mark.text) : mark.text;
         page.drawText(drawable(text), {
@@ -77,7 +83,13 @@ export async function seal(
   const page = pdf.addPage([595, 842]);
   let y = 780;
   const line = (text: string, size = 10, font = body) => {
-    page.drawText(drawable(text.slice(0, 110)), { x: 56, y, size, font, color: rgb(0.15, 0.15, 0.2) });
+    page.drawText(drawable(text.slice(0, 110)), {
+      x: 56,
+      y,
+      size,
+      font,
+      color: rgb(0.15, 0.15, 0.2),
+    });
     y -= size + 6;
   };
   line('Certificate of completion', 18, bold);

@@ -821,14 +821,26 @@ function Lift({
 
 const FEATURES: readonly { key: AiFeature; label: string; description: string }[] = [
   { key: 'summaries', label: 'Summaries', description: 'On every document a person opens' },
-  { key: 'questions', label: 'Questions about a document', description: 'Answered from its pages, citing them' },
+  {
+    key: 'questions',
+    label: 'Questions about a document',
+    description: 'Answered from its pages, citing them',
+  },
   {
     key: 'across',
     label: 'Questions across documents',
     description: 'From the search box, only from documents the person can open',
   },
-  { key: 'sorting', label: 'Sort uploads', description: 'Type, person and dates, for HR to confirm' },
-  { key: 'fields', label: 'Read fields into People', description: 'Always reviewed before anything is saved' },
+  {
+    key: 'sorting',
+    label: 'Sort uploads',
+    description: 'Type, person and dates, for HR to confirm',
+  },
+  {
+    key: 'fields',
+    label: 'Read fields into People',
+    description: 'Always reviewed before anything is saved',
+  },
 ];
 
 export function AiSettings({

@@ -13,12 +13,27 @@ export interface Cited {
 /** Claims whose cited pages are real; a claim citing none left is dropped. */
 export function keepCited<T extends Cited>(items: readonly T[], pageCount: number): T[] {
   return items.flatMap((item) => {
-    const pages = [...new Set(item.pages.filter((p) => Number.isInteger(p) && p >= 1 && p <= pageCount))];
+    const pages = [
+      ...new Set(item.pages.filter((p) => Number.isInteger(p) && p >= 1 && p <= pageCount)),
+    ];
     return pages.length === 0 || item.text.trim() === '' ? [] : [{ ...item, pages }];
   });
 }
 
-const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const MONTHS = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
 const pad = (n: number) => String(n).padStart(2, '0');
 const valid = (y: number, m: number, d: number) =>
   y >= 1900 && y <= 2200 && m >= 1 && m <= 12 && d >= 1 && d <= 31;
@@ -37,14 +52,16 @@ export function datesIn(text: string): string[] {
   for (const m of text.matchAll(/\b(\d{1,2}) ([A-Za-z]+) (\d{4})\b/gu)) {
     const mo = MONTHS.indexOf((m[2] ?? '').toLowerCase()) + 1;
     const [d, y] = [Number(m[1]), Number(m[3])];
-    if (mo > 0 && valid(y, mo, d)) found.push({ at: m.index ?? 0, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
+    if (mo > 0 && valid(y, mo, d))
+      found.push({ at: m.index ?? 0, iso: `${String(y)}-${pad(mo)}-${pad(d)}` });
   }
   return [...new Set(found.toSorted((a, b) => a.at - b.at).map((f) => f.iso))];
 }
 
 /** Lines in one version and not the other, blank space ignored. */
 export function changedLines(before: readonly string[], after: readonly string[]) {
-  const clean = (lines: readonly string[]) => lines.map((l) => l.replaceAll(/\s+/gu, ' ').trim()).filter(Boolean);
+  const clean = (lines: readonly string[]) =>
+    lines.map((l) => l.replaceAll(/\s+/gu, ' ').trim()).filter(Boolean);
   const a = clean(before);
   const b = clean(after);
   const inA = new Set(a);
@@ -52,7 +69,38 @@ export function changedLines(before: readonly string[], after: readonly string[]
   return { removed: a.filter((l) => !inB.has(l)), added: b.filter((l) => !inA.has(l)) };
 }
 
-const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'is', 'are', 'do', 'does', 'i', 'my', 'me', 'how', 'what', 'when', 'much', 'many', 'can', 'get', 'it', 'be', 'with', 'by', 'at', 'from']);
+const STOP = new Set([
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'of',
+  'to',
+  'in',
+  'on',
+  'for',
+  'is',
+  'are',
+  'do',
+  'does',
+  'i',
+  'my',
+  'me',
+  'how',
+  'what',
+  'when',
+  'much',
+  'many',
+  'can',
+  'get',
+  'it',
+  'be',
+  'with',
+  'by',
+  'at',
+  'from',
+]);
 const words = (text: string) =>
   text
     .toLowerCase()
@@ -85,7 +133,8 @@ export function passages(
     d.pages.forEach((text, i) => {
       const hits = new Set(words(text).filter((w) => asked.has(w))).size;
       const score = hits + titleHits * 2;
-      if (hits > 0) out.push({ documentId: d.documentId, title: d.title, page: i + 1, text, score });
+      if (hits > 0)
+        out.push({ documentId: d.documentId, title: d.title, page: i + 1, text, score });
     });
   }
   return out.toSorted((a, b) => b.score - a.score).slice(0, limit);

@@ -13,7 +13,9 @@ import type { Reader } from '../application/ports.js';
 const GROQ = 'https://api.groq.com/openai/v1';
 const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 
-export function readerFrom(env: Readonly<Record<string, string | undefined>> = process.env): Reader | undefined {
+export function readerFrom(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): Reader | undefined {
   const baseUrl = (env['ASSISTANT_BASE_URL'] ?? GROQ).replace(/\/$/u, '');
   const apiKey = env['ASSISTANT_API_KEY']?.trim() || null;
   const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/u.test(baseUrl);

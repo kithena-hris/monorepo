@@ -48,9 +48,19 @@ function Claim({ claim }: { readonly claim: Cited }): JSX.Element {
   );
 }
 
-export function Reading({ documentId, current, onSummarize, onAsk, onCompare }: ReadingProps): JSX.Element | null {
-  const [summary, setSummary] = useState<Summary | 'loading' | null>(onSummarize ? 'loading' : null);
-  const [asked, setAsked] = useState<readonly { q: string; a: Answer | null; error?: string }[]>([]);
+export function Reading({
+  documentId,
+  current,
+  onSummarize,
+  onAsk,
+  onCompare,
+}: ReadingProps): JSX.Element | null {
+  const [summary, setSummary] = useState<Summary | 'loading' | null>(
+    onSummarize ? 'loading' : null,
+  );
+  const [asked, setAsked] = useState<readonly { q: string; a: Answer | null; error?: string }[]>(
+    [],
+  );
   const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -218,7 +228,10 @@ function Compare({
   }
   if (answer === 'loading') return <Spinner size="sm" label="Comparing the versions" />;
   return (
-    <section className="flex flex-col gap-2" aria-label={`Changes from version ${String(current - 1)}`}>
+    <section
+      className="flex flex-col gap-2"
+      aria-label={`Changes from version ${String(current - 1)}`}
+    >
       {error === null ? null : <Alert tone="danger">{error}</Alert>}
       {answer.added.length === 0 && answer.removed.length === 0 ? (
         <p className="text-sm text-fg-muted">The words did not change.</p>

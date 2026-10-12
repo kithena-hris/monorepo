@@ -21,7 +21,9 @@ export async function pagesOf(
   try {
     const pdf = await getDocumentProxy(new Uint8Array(bytes));
     const { text } = await extractText(pdf, { mergePages: false });
-    const pages = (Array.isArray(text) ? text : [text]).map((t) => t.replaceAll(/[ \t]+/gu, ' ').trim());
+    const pages = (Array.isArray(text) ? text : [text]).map((t) =>
+      t.replaceAll(/[ \t]+/gu, ' ').trim(),
+    );
     if (kept.size >= 100) kept.delete(kept.keys().next().value ?? '');
     kept.set(checksum, pages);
     return pages;

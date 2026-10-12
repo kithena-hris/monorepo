@@ -941,6 +941,10 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             setMoving(null);
             navigation.navigate('Export');
           }}
+          onKept={(id, title) => {
+            setMoving(null);
+            navigation.navigate('DocumentDetail', { id, title });
+          }}
         />
       ) : null}
       <AddPersonDialog

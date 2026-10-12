@@ -285,7 +285,6 @@ export const GrantsBody = z.strictObject({
 
 const DocParams = z.object({ documentId: DocumentId });
 
-
 /** A link to the copy, for a few minutes; or, with no bucket, the bytes themselves. */
 const FileAnswer = z
   .object({
@@ -1030,7 +1029,8 @@ export const ROUTES: readonly Route[] = [
     params: DocParams,
     body: z.strictObject({ question: z.string().max(500) }),
     answer: AnswerView,
-    run: (deps, caller, { params, body }) => askAbout(deps, caller, params.documentId, body.question),
+    run: (deps, caller, { params, body }) =>
+      askAbout(deps, caller, params.documentId, body.question),
   }),
   route({
     name: 'askDocuments',
@@ -1046,7 +1046,11 @@ export const ROUTES: readonly Route[] = [
     method: 'GET',
     path: `${V1}/d/{documentId}/compare/{from}/{to}`,
     summary: 'What changed between two versions (D3)',
-    params: z.object({ documentId: DocumentId, from: z.coerce.number().int().positive(), to: z.coerce.number().int().positive() }),
+    params: z.object({
+      documentId: DocumentId,
+      from: z.coerce.number().int().positive(),
+      to: z.coerce.number().int().positive(),
+    }),
     answer: CompareView,
     run: (deps, caller, { params }) =>
       compareVersions(deps, caller, params.documentId, params.from, params.to),

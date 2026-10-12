@@ -370,3 +370,46 @@ export async function describeType(text: string): Promise<Read<unknown>> {
 export async function setAiSettings(input: Record<string, boolean>): Promise<Outcome> {
   return outcome(await documents('SetDocumentsAiSettings', { input }));
 }
+
+/* ------------------------------------------- with People (DOC-057 to 064) -- */
+
+const EXPORT_TYPES: Readonly<Record<string, string>> = {
+  csv: 'text/csv',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pdf: 'application/pdf',
+};
+
+/** Inside a request: the bytes Documents takes without a bucket, as tests do. */
+const MAX_INLINE = 25 * 1024 * 1024;
+
+/**
+ * G2: People's export kept as a document rather than a download: People
+ * builds it as the person, Documents files it as "Export from People",
+ * Confidential to HR and deleted after 90 days by its type.
+ */
+export async function keepExport(
+  exported:
+    { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string },
+): Promise<Created> {
+  if (!exported.ok) return exported;
+  const link = exported.links[0];
+  if (link === undefined) return { ok: false, message: 'People made no file' };
+  const response = await fetch(link.url).catch(() => null);
+  if (response === null || !response.ok)
+    return { ok: false, message: 'The export could not be read' };
+  const bytes = Buffer.from(await response.arrayBuffer());
+  // ponytail: inline up to 25 MB; a presigned PUT from here when exports grow past it.
+  if (bytes.length > MAX_INLINE) return { ok: false, message: 'Exports over 25 MB are downloaded' };
+  const a = await documents<{ id: string }>('UploadDocument', {
+    input: {
+      title: link.name.replace(/\.[^.]+$/u, ''),
+      typeKey: 'people_export',
+      file: {
+        name: link.name,
+        mediaType: EXPORT_TYPES[link.name.split('.').pop() ?? ''] ?? 'application/octet-stream',
+        base64: bytes.toString('base64'),
+      },
+    },
+  });
+  return a.ok ? { ok: true, id: a.data.id } : { ok: false, message: a.message };
+}

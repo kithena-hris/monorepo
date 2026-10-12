@@ -29,7 +29,10 @@ const sri = async (file) =>
     .update(await readFile(join(dir, file)))
     .digest('base64')}`;
 const manifest = JSON.stringify({
-  files: { 'documents.cjs': await sri('documents.cjs'), 'documents.css': await sri('documents.css') },
+  files: {
+    'documents.cjs': await sri('documents.cjs'),
+    'documents.css': await sri('documents.css'),
+  },
 });
 await writeFile(join(dir, 'manifest.json'), manifest);
 await writeFile(

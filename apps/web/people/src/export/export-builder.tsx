@@ -98,6 +98,12 @@ export interface ExportBuilderProps {
   readonly onDecide?: (requestId: string, approve: boolean, note: string) => Promise<Outcome>;
   /** Make it a monthly scheduled report, to the recipient (or the requester). */
   readonly onSchedule?: (choice: ExportChoice, recipient: string) => Promise<Outcome>;
+  /**
+   * Keep it somewhere the host offers instead of downloading it, worded by the
+   * host ("Save to Documents"). Absent: download only.
+   */
+  readonly keep?: { readonly label: string; readonly description: string };
+  readonly onKeep?: (choice: ExportChoice) => Promise<Outcome>;
 }
 
 /** What People made of an export described in words, once the host has applied it. */
@@ -201,6 +207,8 @@ export function ExportBuilder({
   onShare,
   onDecide,
   onSchedule,
+  keep,
+  onKeep,
 }: ExportBuilderProps): JSX.Element {
   return (
     <Stack gap={6}>
@@ -237,6 +245,7 @@ export function ExportBuilder({
               {...(onDescribe === undefined ? {} : { onDescribe })}
               {...(onShare === undefined ? {} : { onShare })}
               {...(onSchedule === undefined ? {} : { onSchedule })}
+              {...(keep === undefined || onKeep === undefined ? {} : { keep, onKeep })}
             />
           )
         }
@@ -270,6 +279,8 @@ function Builder({
   onDescribe,
   onShare,
   onSchedule,
+  keep,
+  onKeep,
 }: {
   readonly state: ExportState;
   readonly address: ExportAddress;
@@ -278,6 +289,8 @@ function Builder({
   readonly onDescribe?: NonNullable<ExportBuilderProps['onDescribe']>;
   readonly onShare?: NonNullable<ExportBuilderProps['onShare']>;
   readonly onSchedule?: NonNullable<ExportBuilderProps['onSchedule']>;
+  readonly keep?: NonNullable<ExportBuilderProps['keep']>;
+  readonly onKeep?: NonNullable<ExportBuilderProps['onKeep']>;
 }): JSX.Element {
   const choice = choiceOf(state, address);
   const preview = state.preview ?? null;
@@ -312,6 +325,7 @@ function Builder({
         onExport={onExport}
         {...(onShare === undefined ? {} : { onShare })}
         {...(onSchedule === undefined ? {} : { onSchedule })}
+        {...(keep === undefined || onKeep === undefined ? {} : { keep, onKeep })}
       />
     </div>
   );

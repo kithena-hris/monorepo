@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
+import { keepExport } from '../app/(app)/documents/actions';
 import * as inbox from '../app/(app)/inbox/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { useShellData } from './app-shell';
@@ -361,6 +362,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const { route, path, params, search, today, frame } = input;
   const { load } = input;
   const shell = useShellData();
+  // The company has the Document center: People's screens offer to keep files there.
+  const documents = shell.remotes?.['documents'] !== undefined;
   const router = useRouter();
   // The reads a screen asks for itself, kept for the tab (`lib/query.tsx`).
   const cached = useCachedRead();
@@ -1304,6 +1307,22 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             navigate({ export: made.id, share: null });
             return { ok: true };
           },
+          ...(documents
+            ? {
+                keep: {
+                  label: 'Save to Documents',
+                  description: 'Kept Confidential to HR in Documents, and deleted after 90 days.',
+                },
+                onKeep: async (choice: ExportBuilderChoice) => {
+                  const kept = await keepExport(
+                    await actions.requestExport({ ...choice, ...narrowed(choice.who) }),
+                  );
+                  if (!kept.ok) return kept;
+                  go(`/documents/d/${kept.id}`);
+                  return { ok: true };
+                },
+              }
+            : {}),
           onShare: async (choice: ExportBuilderChoice, recipient: string) => {
             const sent = await actions.shareExport(shareChoice(choice), recipient);
             if (!sent.ok) return sent;

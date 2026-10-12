@@ -55,7 +55,9 @@ const said = (c: Cited): string => `${c.text} (${pagesWord(c.pages)})`;
 export function Reading({ documentId }: { readonly documentId: string }): React.JSX.Element | null {
   const signed = useSigned();
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [asked, setAsked] = useState<readonly { q: string; a: Answer | null; error?: string }[]>([]);
+  const [asked, setAsked] = useState<readonly { q: string; a: Answer | null; error?: string }[]>(
+    [],
+  );
   const [question, setQuestion] = useState('');
   const busy = asked.at(-1)?.a === null && asked.at(-1)?.error === undefined;
 

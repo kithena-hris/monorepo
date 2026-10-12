@@ -166,7 +166,13 @@ small group, and goes to `main` as **one pull request**.
 
 ## Phase 4 — with People and Time Off
 
-- [ ] **DOC-057** People's ⋯ menu G1, MP1; export to Documents G2, MP2.
+- [x] **DOC-057** People's ⋯ menu G1, MP1; export to Documents G2, MP2. As
+      built: People's export, web and phone, offers Save to Documents beside
+      Download when the company has Documents; the shell (web) or the app runs
+      People's export as the person and files it as an Export from People,
+      Confidential to HR, deleted after 90 days by its type. People's screens
+      learn only a label (`keep`), never that Documents exists. Weekly refresh
+      as a new version is left.
 - [ ] **DOC-058** Import from Documents G4.
 - [ ] **DOC-059** Generate letters G3 (templates and merge).
 - [ ] **DOC-060** Fill a record from a document G5, MP3, K9.

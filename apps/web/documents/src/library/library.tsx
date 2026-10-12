@@ -137,7 +137,9 @@ function Ready({
   const [sharing, setSharing] = useState<{ id: string; title: string } | null>(null);
   const [newSection, setNewSection] = useState(false);
   const [query, type] = useTyped(data.q, (q) => props.onFilter?.({ q: q === '' ? null : q }));
-  const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(null);
+  const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(
+    null,
+  );
   // A search that reads as a question is offered to Kithena; a word or two stays a search.
   const question = query.trim().endsWith('?') || query.trim().split(/\s+/u).length >= 4;
   const askAcross = (): void => {
@@ -223,7 +225,10 @@ function Ready({
         }}
         className="max-w-xl"
       />
-      {question && props.onAskAcross !== undefined && !data.deleted && answer?.q !== query.trim() ? (
+      {question &&
+      props.onAskAcross !== undefined &&
+      !data.deleted &&
+      answer?.q !== query.trim() ? (
         <Button
           variant="secondary"
           className="self-start"

@@ -126,7 +126,8 @@ export function UploadDialog({
       if (onStartUpload === undefined || onUpload === undefined) {
         return { ok: false, message: 'Uploading is not available here' };
       }
-      const put = sent === null ? await putFile(file, onStartUpload) : { ok: true as const, ref: sent };
+      const put =
+        sent === null ? await putFile(file, onStartUpload) : { ok: true as const, ref: sent };
       if (!put.ok) return put;
       const name = title.trim() || file.name.replace(/\.[^.]+$/u, '');
       const created = await onUpload({

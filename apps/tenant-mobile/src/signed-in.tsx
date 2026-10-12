@@ -26,6 +26,7 @@ import { AccountActionsContext, AccountMenu, fullName, type AccountActions } fro
 import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
 import { DocumentDetail } from './documents/document';
 import { DocumentCampaign, DocumentEnvelope } from './documents/envelope';
+import { DocumentsOn } from './documents/api';
 import { DocumentsHome } from './documents/documents-tab';
 import { DocumentsPersonFile } from './documents/person-file';
 import { DocumentsSettings } from './documents/settings';
@@ -348,124 +349,126 @@ export function SignedIn({
 
   return (
     <SignedContext value={signed}>
-      <AccountActionsContext value={actions}>
-        <AccountSlot value={account}>
-          <TabBarHiding value={hide}>
-            <ToastProvider bottomInset={TAB_ROOM}>
-              <View className="flex-1 bg-canvas">
-                {person.viewing === null ? null : (
-                  // While an administrator views the app as somebody: whose it is, and the way back.
-                  <View style={{ paddingTop: insets.top }} className="bg-canvas">
-                    <Banner
-                      tone="warning"
-                      icon={Eye}
-                      title={`Viewing as ${fullName(person)}`}
-                      actions={
-                        <Button
-                          size="xs"
-                          loading={ending}
-                          onPress={() => {
-                            setEnding(true);
-                            void onEndViewing().finally(() => {
-                              setEnding(false);
-                            });
-                          }}
-                        >
-                          End viewing
-                        </Button>
-                      }
-                    >
-                      Read-only. It ends by itself after thirty minutes.
-                    </Banner>
-                  </View>
-                )}
-                <View className="flex-1" style={shown('home')}>
-                  <TabStack initial="Home" />
-                </View>
-                {timeOff ? (
-                  <View className="flex-1" style={shown('timeoff')}>
-                    <TabStack initial="TimeOff" container={timeOffStack} />
-                  </View>
-                ) : null}
-                <View className="flex-1" style={shown('people')}>
-                  <TabStack initial="People" container={people} />
-                </View>
-                <View className="flex-1" style={shown('inbox')}>
-                  <TabStack initial="Inbox" container={inboxStack} />
-                </View>
-                {documents ? (
-                  <View className="flex-1" style={shown('documents')}>
-                    <TabStack initial="Documents" />
-                  </View>
-                ) : null}
-                <View className="flex-1" style={shown('me')}>
-                  <TabStack initial="Profile" />
-                </View>
-                <View
-                  className="absolute inset-x-2.5"
-                  style={{ bottom: insets.bottom + 4, display: hiding > 0 ? 'none' : 'flex' }}
-                >
-                  <TabBar
-                    label="Kithena"
-                    items={[
-                      { key: 'home', label: 'Home', icon: House },
-                      ...(timeOff
-                        ? [{ key: 'timeoff', label: 'Time off', icon: CalendarDays }]
-                        : []),
-                      { key: 'people', label: 'People', icon: Users },
-                      {
-                        key: 'inbox',
-                        label: 'Inbox',
-                        icon: InboxIcon,
-                        ...(waiting > 0 ? { badge: waiting } : {}),
-                      },
-                      documents
-                        ? { key: 'documents', label: 'Documents', icon: FolderOpen }
-                        : { key: 'me', label: 'Me', icon: User },
-                    ]}
-                    value={tab}
-                    onValueChange={(key) => {
-                      setTab(
-                        key === 'timeoff' ||
-                          key === 'people' ||
-                          key === 'inbox' ||
-                          key === 'documents' ||
-                          key === 'me'
-                          ? key
-                          : 'home',
-                      );
-                    }}
-                  />
-                </View>
-                {hiding > 0 ? null : (
-                  <AskKithena
-                    bottomInset={TAB_ROOM}
-                    onInbox={tab === 'inbox'}
-                    onOpenItem={(id) => {
-                      setTab('inbox');
-                      if (inboxStack.isReady()) inboxStack.navigate('InboxItem', { id });
-                    }}
-                    {...(timeOff
-                      ? {
-                          onRequest: (asked: TimeOffAsk) => {
-                            setTab('timeoff');
-                            if (timeOffStack.isReady())
-                              timeOffStack.navigate('TimeOffRequest', asked);
-                          },
+      <DocumentsOn value={documents}>
+        <AccountActionsContext value={actions}>
+          <AccountSlot value={account}>
+            <TabBarHiding value={hide}>
+              <ToastProvider bottomInset={TAB_ROOM}>
+                <View className="flex-1 bg-canvas">
+                  {person.viewing === null ? null : (
+                    // While an administrator views the app as somebody: whose it is, and the way back.
+                    <View style={{ paddingTop: insets.top }} className="bg-canvas">
+                      <Banner
+                        tone="warning"
+                        icon={Eye}
+                        title={`Viewing as ${fullName(person)}`}
+                        actions={
+                          <Button
+                            size="xs"
+                            loading={ending}
+                            onPress={() => {
+                              setEnding(true);
+                              void onEndViewing().finally(() => {
+                                setEnding(false);
+                              });
+                            }}
+                          >
+                            End viewing
+                          </Button>
                         }
-                      : {})}
-                    onOpenPerson={(personId, name) => {
-                      setTab('people');
-                      if (people.isReady())
-                        people.navigate('Profile', { personId, name, back: 'People' });
-                    }}
-                  />
-                )}
-              </View>
-            </ToastProvider>
-          </TabBarHiding>
-        </AccountSlot>
-      </AccountActionsContext>
+                      >
+                        Read-only. It ends by itself after thirty minutes.
+                      </Banner>
+                    </View>
+                  )}
+                  <View className="flex-1" style={shown('home')}>
+                    <TabStack initial="Home" />
+                  </View>
+                  {timeOff ? (
+                    <View className="flex-1" style={shown('timeoff')}>
+                      <TabStack initial="TimeOff" container={timeOffStack} />
+                    </View>
+                  ) : null}
+                  <View className="flex-1" style={shown('people')}>
+                    <TabStack initial="People" container={people} />
+                  </View>
+                  <View className="flex-1" style={shown('inbox')}>
+                    <TabStack initial="Inbox" container={inboxStack} />
+                  </View>
+                  {documents ? (
+                    <View className="flex-1" style={shown('documents')}>
+                      <TabStack initial="Documents" />
+                    </View>
+                  ) : null}
+                  <View className="flex-1" style={shown('me')}>
+                    <TabStack initial="Profile" />
+                  </View>
+                  <View
+                    className="absolute inset-x-2.5"
+                    style={{ bottom: insets.bottom + 4, display: hiding > 0 ? 'none' : 'flex' }}
+                  >
+                    <TabBar
+                      label="Kithena"
+                      items={[
+                        { key: 'home', label: 'Home', icon: House },
+                        ...(timeOff
+                          ? [{ key: 'timeoff', label: 'Time off', icon: CalendarDays }]
+                          : []),
+                        { key: 'people', label: 'People', icon: Users },
+                        {
+                          key: 'inbox',
+                          label: 'Inbox',
+                          icon: InboxIcon,
+                          ...(waiting > 0 ? { badge: waiting } : {}),
+                        },
+                        documents
+                          ? { key: 'documents', label: 'Documents', icon: FolderOpen }
+                          : { key: 'me', label: 'Me', icon: User },
+                      ]}
+                      value={tab}
+                      onValueChange={(key) => {
+                        setTab(
+                          key === 'timeoff' ||
+                            key === 'people' ||
+                            key === 'inbox' ||
+                            key === 'documents' ||
+                            key === 'me'
+                            ? key
+                            : 'home',
+                        );
+                      }}
+                    />
+                  </View>
+                  {hiding > 0 ? null : (
+                    <AskKithena
+                      bottomInset={TAB_ROOM}
+                      onInbox={tab === 'inbox'}
+                      onOpenItem={(id) => {
+                        setTab('inbox');
+                        if (inboxStack.isReady()) inboxStack.navigate('InboxItem', { id });
+                      }}
+                      {...(timeOff
+                        ? {
+                            onRequest: (asked: TimeOffAsk) => {
+                              setTab('timeoff');
+                              if (timeOffStack.isReady())
+                                timeOffStack.navigate('TimeOffRequest', asked);
+                            },
+                          }
+                        : {})}
+                      onOpenPerson={(personId, name) => {
+                        setTab('people');
+                        if (people.isReady())
+                          people.navigate('Profile', { personId, name, back: 'People' });
+                      }}
+                    />
+                  )}
+                </View>
+              </ToastProvider>
+            </TabBarHiding>
+          </AccountSlot>
+        </AccountActionsContext>
+      </DocumentsOn>
     </SignedContext>
   );
 }

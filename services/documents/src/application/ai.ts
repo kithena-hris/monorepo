@@ -42,7 +42,9 @@ export const AnswerView = z
     available: z.boolean(),
     reason: z.string().nullable(),
     answer: z.array(CitedView),
-    sources: z.array(z.object({ documentId: z.string(), title: z.string(), pages: z.array(z.int()) })),
+    sources: z.array(
+      z.object({ documentId: z.string(), title: z.string(), pages: z.array(z.int()) }),
+    ),
   })
   .meta(Title('DocumentsAnswer'));
 
@@ -77,7 +79,12 @@ const none = (reason: string): Summary => ({
   dates: [],
 });
 
-const noAnswer = (reason: string): Answer => ({ available: false, reason, answer: [], sources: [] });
+const noAnswer = (reason: string): Answer => ({
+  available: false,
+  reason,
+  answer: [],
+  sources: [],
+});
 
 /** The document's current text, if this viewer may open it and Kithena may read it. */
 async function readable(
@@ -98,7 +105,8 @@ async function readable(
     const loaded = await load(ctx, id);
     if (!loaded.ok) return loaded;
     const { doc, type } = loaded.value;
-    if (!canOpen(factsOf(doc, type), ctx.viewer, ctx.today) || doc.deletedAt !== null) return err(notFound());
+    if (!canOpen(factsOf(doc, type), ctx.viewer, ctx.today) || doc.deletedAt !== null)
+      return err(notFound());
     const on = await featureOn(ctx, feature);
     const v = await tx.versions.get(id, version ?? doc.currentVersion);
     if (v === null) return err(failure('NOT_FOUND', 'No such version'));
@@ -107,12 +115,15 @@ async function readable(
   if (!found.ok) return found;
   const { doc, type, v, on } = found.value;
   if (!on) return ok({ kind: 'refused', reason: 'Your company has switched this off.' });
-  if (type !== null && !type.aiEnabled) return ok({ kind: 'refused', reason: 'Kithena does not read this kind of document.' });
-  if (v.mediaType !== 'application/pdf') return ok({ kind: 'refused', reason: 'Kithena reads PDFs.' });
+  if (type !== null && !type.aiEnabled)
+    return ok({ kind: 'refused', reason: 'Kithena does not read this kind of document.' });
+  if (v.mediaType !== 'application/pdf')
+    return ok({ kind: 'refused', reason: 'Kithena reads PDFs.' });
   const bytes = await deps.blobs.get(v.blobKey);
   if (bytes === null) return ok({ kind: 'refused', reason: 'The file is no longer stored.' });
   const pages = await pagesOf(bytes, v.mediaType, v.checksum);
-  if (pages === null || pages.every((p) => p === '')) return ok({ kind: 'refused', reason: 'There is no text in this file to read.' });
+  if (pages === null || pages.every((p) => p === ''))
+    return ok({ kind: 'refused', reason: 'There is no text in this file to read.' });
   // A medical document's text never leaves Documents (PRD §14.1).
   if (type?.medical === true) return ok({ kind: 'medical', pages });
   return ok({ kind: 'text', pages, title: doc.title, type });
@@ -122,7 +133,11 @@ const asCited = (value: unknown): { text: string; pages: number[] }[] =>
   Array.isArray(value)
     ? value.flatMap((v) => {
         const o = v as { text?: unknown; pages?: unknown; page?: unknown };
-        const pages = Array.isArray(o.pages) ? o.pages.map(Number) : o.page === undefined ? [] : [Number(o.page)];
+        const pages = Array.isArray(o.pages)
+          ? o.pages.map(Number)
+          : o.page === undefined
+            ? []
+            : [Number(o.page)];
         return typeof o.text === 'string' ? [{ text: o.text.slice(0, 600), pages }] : [];
       })
     : [];
@@ -131,12 +146,19 @@ const RULES =
   'Answer only from the document pages given. Every claim cites the page numbers it comes from. Never invent a page, a number or a name. Plain words, short sentences. Reply with JSON only.';
 
 /** D1, MR1, MR4: the document in plain words, each claim linked to its page. */
-export async function summarize(deps: Deps, caller: Caller, id: DocumentId): Promise<Result<Summary>> {
+export async function summarize(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+): Promise<Result<Summary>> {
   const got = await readable(deps, caller, id, 'summaries');
   if (!got.ok) return got;
   if (got.value.kind === 'refused') return ok(none(got.value.reason));
   if (got.value.kind === 'medical') {
-    return ok({ ...none('Kithena reads only the dates of a medical document.'), dates: datesIn(got.value.pages.join('\n')) });
+    return ok({
+      ...none('Kithena reads only the dates of a medical document.'),
+      dates: datesIn(got.value.pages.join('\n')),
+    });
   }
   if (deps.reader === undefined) return ok(none('Kithena’s reading is not set up here.'));
   const { pages, title } = got.value;
@@ -145,12 +167,16 @@ export async function summarize(deps: Deps, caller: Caller, id: DocumentId): Pro
     context: { title, pages: forModel(pages) },
   });
   if (answer === null) return ok(none('Kithena could not read it just now.'));
-  const watch = keepCited(asCited(answer['watch'] === null ? [] : [answer['watch']]), pages.length)[0] ?? null;
+  const watch =
+    keepCited(asCited(answer['watch'] === null ? [] : [answer['watch']]), pages.length)[0] ?? null;
   const facts = Array.isArray(answer['facts'])
     ? answer['facts'].flatMap((f) => {
         const o = f as { label?: unknown; value?: unknown; page?: unknown };
         const page = Number(o.page);
-        return typeof o.label === 'string' && typeof o.value === 'string' && page >= 1 && page <= pages.length
+        return typeof o.label === 'string' &&
+          typeof o.value === 'string' &&
+          page >= 1 &&
+          page <= pages.length
           ? [{ label: o.label.slice(0, 60), value: o.value.slice(0, 200), page }]
           : [];
       })
@@ -162,20 +188,30 @@ export async function summarize(deps: Deps, caller: Caller, id: DocumentId): Pro
     facts: facts.slice(0, 6),
     watch,
     questions: Array.isArray(answer['questions'])
-      ? answer['questions'].filter((q): q is string => typeof q === 'string').map((q) => q.slice(0, 120)).slice(0, 3)
+      ? answer['questions']
+          .filter((q): q is string => typeof q === 'string')
+          .map((q) => q.slice(0, 120))
+          .slice(0, 3)
       : [],
     dates: [],
   });
 }
 
 /** D2, MR2: a question about this document only, answered with its pages. */
-export async function askAbout(deps: Deps, caller: Caller, id: DocumentId, question: string): Promise<Result<Answer>> {
+export async function askAbout(
+  deps: Deps,
+  caller: Caller,
+  id: DocumentId,
+  question: string,
+): Promise<Result<Answer>> {
   const q = question.trim();
-  if (q.length === 0 || q.length > 500) return err(failure('QUESTION', 'Ask in up to 500 characters', ['question']));
+  if (q.length === 0 || q.length > 500)
+    return err(failure('QUESTION', 'Ask in up to 500 characters', ['question']));
   const got = await readable(deps, caller, id, 'questions');
   if (!got.ok) return got;
   if (got.value.kind === 'refused') return ok(noAnswer(got.value.reason));
-  if (got.value.kind === 'medical') return ok(noAnswer('Kithena reads only the dates of a medical document.'));
+  if (got.value.kind === 'medical')
+    return ok(noAnswer('Kithena reads only the dates of a medical document.'));
   if (deps.reader === undefined) return ok(noAnswer('Kithena’s reading is not set up here.'));
   const { pages, title } = got.value;
   const answer = await deps.reader.read({
@@ -197,9 +233,14 @@ export async function askAbout(deps: Deps, caller: Caller, id: DocumentId, quest
  * passages (`passages`) among their documents; the model answers from those
  * alone and cites them as "document page".
  */
-export async function askAcross(deps: Deps, caller: Caller, question: string): Promise<Result<Answer>> {
+export async function askAcross(
+  deps: Deps,
+  caller: Caller,
+  question: string,
+): Promise<Result<Answer>> {
   const q = question.trim();
-  if (q.length === 0 || q.length > 500) return err(failure('QUESTION', 'Ask in up to 500 characters', ['question']));
+  if (q.length === 0 || q.length > 500)
+    return err(failure('QUESTION', 'Ask in up to 500 characters', ['question']));
   const listed = await deps.uow.run(caller.tenantId, async (tx) => {
     const ctx = await contextOf(deps, tx, caller);
     if (!(await featureOn(ctx, 'across'))) return null;
@@ -207,7 +248,12 @@ export async function askAcross(deps: Deps, caller: Caller, question: string): P
     const docs = await tx.documents.candidates(ctx.viewer);
     const open = docs.filter((d) => {
       const type = d.typeKey === null ? null : (types.get(d.typeKey) ?? null);
-      return d.deletedAt === null && canOpen(factsOf(d, type), ctx.viewer, ctx.today) && type?.medical !== true && type?.aiEnabled !== false;
+      return (
+        d.deletedAt === null &&
+        canOpen(factsOf(d, type), ctx.viewer, ctx.today) &&
+        type?.medical !== true &&
+        type?.aiEnabled !== false
+      );
     });
     // ponytail: the 40 most recently changed; an index of every page when libraries grow.
     const recent = open.toSorted((a, b) => b.versionAt.localeCompare(a.versionAt)).slice(0, 40);
@@ -227,7 +273,12 @@ export async function askAcross(deps: Deps, caller: Caller, question: string): P
   }
   const top = passages(q, texts, 8);
   if (top.length === 0) return ok(noAnswer('Nothing you can open mentions that.'));
-  const numbered = top.map((p, i) => ({ source: i + 1, title: p.title, page: p.page, text: p.text.slice(0, 2500) }));
+  const numbered = top.map((p, i) => ({
+    source: i + 1,
+    title: p.title,
+    page: p.page,
+    text: p.text.slice(0, 2500),
+  }));
   const answer = await deps.reader.read({
     instruction: `${RULES} The pages come from several documents; cite each claim with the "source" numbers given. Shape: {"answer":[{"text":string,"sources":[number]}]} (1 to 3 sentences).`,
     context: { question: q, passages: numbered },
@@ -236,8 +287,12 @@ export async function askAcross(deps: Deps, caller: Caller, question: string): P
   const claims = Array.isArray(answer['answer'])
     ? answer['answer'].flatMap((a) => {
         const o = a as { text?: unknown; sources?: unknown };
-        const used = Array.isArray(o.sources) ? o.sources.map(Number).filter((n) => n >= 1 && n <= top.length) : [];
-        return typeof o.text === 'string' && used.length > 0 ? [{ text: o.text.slice(0, 600), used }] : [];
+        const used = Array.isArray(o.sources)
+          ? o.sources.map(Number).filter((n) => n >= 1 && n <= top.length)
+          : [];
+        return typeof o.text === 'string' && used.length > 0
+          ? [{ text: o.text.slice(0, 600), used }]
+          : [];
       })
     : [];
   const sources = new Map<string, { documentId: string; title: string; pages: Set<number> }>();
@@ -245,7 +300,11 @@ export async function askAcross(deps: Deps, caller: Caller, question: string): P
     for (const n of c.used) {
       const p = top[n - 1];
       if (p === undefined) continue;
-      const s = sources.get(p.documentId) ?? { documentId: p.documentId, title: p.title, pages: new Set<number>() };
+      const s = sources.get(p.documentId) ?? {
+        documentId: p.documentId,
+        title: p.title,
+        pages: new Set<number>(),
+      };
       s.pages.add(p.page);
       sources.set(p.documentId, s);
     }
@@ -253,8 +312,13 @@ export async function askAcross(deps: Deps, caller: Caller, question: string): P
   return ok({
     available: claims.length > 0,
     reason: claims.length > 0 ? null : 'The documents you can open do not say.',
-    answer: claims.slice(0, 3).map((c) => ({ text: c.text, pages: c.used.map((n) => top[n - 1]?.page ?? 0) })),
-    sources: [...sources.values()].map((s) => ({ ...s, pages: [...s.pages].toSorted((a, b) => a - b) })),
+    answer: claims
+      .slice(0, 3)
+      .map((c) => ({ text: c.text, pages: c.used.map((n) => top[n - 1]?.page ?? 0) })),
+    sources: [...sources.values()].map((s) => ({
+      ...s,
+      pages: [...s.pages].toSorted((a, b) => a - b),
+    })),
   });
 }
 
@@ -266,7 +330,10 @@ export async function compareVersions(
   from: number,
   to: number,
 ): Promise<Result<z.infer<typeof CompareView>>> {
-  const [a, b] = await Promise.all([readable(deps, caller, id, 'questions', from), readable(deps, caller, id, 'questions', to)]);
+  const [a, b] = await Promise.all([
+    readable(deps, caller, id, 'questions', from),
+    readable(deps, caller, id, 'questions', to),
+  ]);
   if (!a.ok) return a;
   if (!b.ok) return b;
   if (a.value.kind !== 'text' || b.value.kind !== 'text') {
@@ -283,7 +350,10 @@ export async function compareVersions(
       context: { title: a.value.title, removed, added },
     });
     sentences = Array.isArray(answer?.['changes'])
-      ? (answer['changes'] as unknown[]).filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 300)).slice(0, 5)
+      ? (answer['changes'] as unknown[])
+          .filter((c): c is string => typeof c === 'string')
+          .map((c) => c.slice(0, 300))
+          .slice(0, 5)
       : [];
   }
   return ok({ available: true, added, removed, sentences });
@@ -298,8 +368,22 @@ export async function suggestFiling(
   deps: Deps,
   caller: Caller,
   input: { readonly uploadId: string; readonly name: string },
-): Promise<Result<{ available: boolean; title: string | null; typeKey: string | null; subjectPersonId: string | null; expiresOn: string | null }>> {
-  const empty = { available: false, title: null, typeKey: null, subjectPersonId: null, expiresOn: null };
+): Promise<
+  Result<{
+    available: boolean;
+    title: string | null;
+    typeKey: string | null;
+    subjectPersonId: string | null;
+    expiresOn: string | null;
+  }>
+> {
+  const empty = {
+    available: false,
+    title: null,
+    typeKey: null,
+    subjectPersonId: null,
+    expiresOn: null,
+  };
   const setup = await deps.uow.run(caller.tenantId, async (tx) => {
     const ctx = await contextOf(deps, tx, caller);
     const hr = hrOnly(ctx);
@@ -311,10 +395,18 @@ export async function suggestFiling(
     });
   });
   if (!setup.ok) return setup;
-  if (!setup.value.on || deps.reader === undefined || deps.transfers === undefined) return ok(empty);
-  const bytes = await deps.transfers.readIncoming(`incoming/${caller.tenantId}/${input.uploadId}`, 100 * 1024 * 1024);
+  if (!setup.value.on || deps.reader === undefined || deps.transfers === undefined)
+    return ok(empty);
+  const bytes = await deps.transfers.readIncoming(
+    `incoming/${caller.tenantId}/${input.uploadId}`,
+    100 * 1024 * 1024,
+  );
   if (bytes === null || bytes === 'too_large') return ok(empty);
-  const pages = await pagesOf(bytes, input.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'other', `upload:${input.uploadId}`);
+  const pages = await pagesOf(
+    bytes,
+    input.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'other',
+    `upload:${input.uploadId}`,
+  );
   if (pages === null) return ok(empty);
   const answer = await deps.reader.read({
     instruction: `${RULES} Classify an uploaded document. Choose its type key from the list, the person it is about from the list (or null), a short name, and its expiry date (YYYY-MM-DD) if it states one. Shape: {"typeKey":string|null,"personId":string|null,"title":string,"expiresOn":string|null}.`,
@@ -326,9 +418,16 @@ export async function suggestFiling(
     },
   });
   if (answer === null) return ok(empty);
-  const typeKey = setup.value.types.some((t) => t.key === answer['typeKey']) ? String(answer['typeKey']) : null;
-  const person = setup.value.people.some((p) => p.personId === answer['personId']) ? String(answer['personId']) : null;
-  const expires = typeof answer['expiresOn'] === 'string' && /^\d{4}-\d{2}-\d{2}$/u.test(answer['expiresOn']) ? answer['expiresOn'] : null;
+  const typeKey = setup.value.types.some((t) => t.key === answer['typeKey'])
+    ? String(answer['typeKey'])
+    : null;
+  const person = setup.value.people.some((p) => p.personId === answer['personId'])
+    ? String(answer['personId'])
+    : null;
+  const expires =
+    typeof answer['expiresOn'] === 'string' && /^\d{4}-\d{2}-\d{2}$/u.test(answer['expiresOn'])
+      ? answer['expiresOn']
+      : null;
   return ok({
     available: true,
     title: typeof answer['title'] === 'string' ? answer['title'].slice(0, 200) : null,
@@ -345,8 +444,11 @@ export async function describeType(
   text: string,
 ): Promise<Result<{ available: boolean; type: DocumentType | null; question: string | null }>> {
   const words = text.trim();
-  if (words.length === 0 || words.length > 1000) return err(failure('DESCRIPTION', 'Describe it in up to 1,000 characters', ['text']));
-  const hr = await deps.uow.run(caller.tenantId, async (tx) => hrOnly(await contextOf(deps, tx, caller)));
+  if (words.length === 0 || words.length > 1000)
+    return err(failure('DESCRIPTION', 'Describe it in up to 1,000 characters', ['text']));
+  const hr = await deps.uow.run(caller.tenantId, async (tx) =>
+    hrOnly(await contextOf(deps, tx, caller)),
+  );
   if (!hr.ok) return hr;
   if (deps.reader === undefined) return ok({ available: false, type: null, question: null });
   const answer = await deps.reader.read({
@@ -368,10 +470,13 @@ export async function readFields(
   deps: Deps,
   caller: Caller,
   id: DocumentId,
-): Promise<Result<{ available: boolean; fields: { name: string; value: string; page: number }[] }>> {
+): Promise<
+  Result<{ available: boolean; fields: { name: string; value: string; page: number }[] }>
+> {
   const got = await readable(deps, caller, id, 'fields');
   if (!got.ok) return got;
-  if (got.value.kind !== 'text' || deps.reader === undefined) return ok({ available: false, fields: [] });
+  if (got.value.kind !== 'text' || deps.reader === undefined)
+    return ok({ available: false, fields: [] });
   const names = got.value.type?.aiReads ?? [];
   if (names.length === 0) return ok({ available: false, fields: [] });
   const { pages, title } = got.value;
@@ -383,7 +488,11 @@ export async function readFields(
     ? (answer['fields'] as unknown[]).flatMap((f) => {
         const o = f as { name?: unknown; value?: unknown; page?: unknown };
         const page = Number(o.page);
-        return typeof o.name === 'string' && names.includes(o.name) && typeof o.value === 'string' && page >= 1 && page <= pages.length
+        return typeof o.name === 'string' &&
+          names.includes(o.name) &&
+          typeof o.value === 'string' &&
+          page >= 1 &&
+          page <= pages.length
           ? [{ name: o.name, value: o.value.slice(0, 200), page }]
           : [];
       })

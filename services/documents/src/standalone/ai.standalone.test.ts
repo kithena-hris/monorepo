@@ -17,9 +17,18 @@ import { memoryWorld } from '../testing/memory.js';
 
 const TENANT = '00000000-0000-4000-8000-0000000000ac' as TenantId;
 const ids = {
-  adam: { account: '7ac0e000-0000-4000-8000-0000000000a1', person: '00000000-0000-4000-8000-0000000000ad' },
-  marco: { account: '7ac0e000-0000-4000-8000-0000000000a2', person: '00000000-0000-4000-8000-0000000000aa' },
-  ada: { account: '7ac0e000-0000-4000-8000-0000000000a3', person: '00000000-0000-4000-8000-0000000000a3' },
+  adam: {
+    account: '7ac0e000-0000-4000-8000-0000000000a1',
+    person: '00000000-0000-4000-8000-0000000000ad',
+  },
+  marco: {
+    account: '7ac0e000-0000-4000-8000-0000000000a2',
+    person: '00000000-0000-4000-8000-0000000000aa',
+  },
+  ada: {
+    account: '7ac0e000-0000-4000-8000-0000000000a3',
+    person: '00000000-0000-4000-8000-0000000000a3',
+  },
 };
 type Who = keyof typeof ids;
 
@@ -187,13 +196,18 @@ describe('a summary (D1)', () => {
 describe('asking (D2, B4)', () => {
   it('across documents, the model sees only what the asker may open', async () => {
     reply = { answer: [{ text: 'It expires soon.', sources: [1] }] };
-    await call('marco', 'POST', '/v1/documents/ask', { question: 'When does the mortgage offer expire?' });
+    await call('marco', 'POST', '/v1/documents/ask', {
+      question: 'When does the mortgage offer expire?',
+    });
     expect(JSON.stringify(seen.at(-1))).not.toContain('mortgage offer');
     const mine = await call('adam', 'POST', '/v1/documents/ask', {
       question: 'When does the mortgage offer expire?',
     });
     expect(JSON.stringify(seen.at(-1))).toContain('mortgage offer');
-    expect(mine.body).toMatchObject({ available: true, sources: [{ documentId: mortgage, pages: [1] }] });
+    expect(mine.body).toMatchObject({
+      available: true,
+      sources: [{ documentId: mortgage, pages: [1] }],
+    });
   });
 
   it('a medical document never reaches the model, even for HR', async () => {
@@ -205,15 +219,22 @@ describe('asking (D2, B4)', () => {
 
 describe('the company’s switches (S7)', () => {
   it('only HR changes them, and off means not available', async () => {
-    expect((await call('adam', 'PUT', '/v1/documents/settings/ai', { summaries: false })).status).toBe(403);
-    expect((await call('ada', 'PUT', '/v1/documents/settings/ai', { summaries: false })).status).toBe(200);
+    expect(
+      (await call('adam', 'PUT', '/v1/documents/settings/ai', { summaries: false })).status,
+    ).toBe(403);
+    expect(
+      (await call('ada', 'PUT', '/v1/documents/settings/ai', { summaries: false })).status,
+    ).toBe(200);
     expect((await call('ada', 'GET', '/v1/documents/settings')).body.ai).toMatchObject({
       summaries: false,
       questions: true,
     });
     const before = seen.length;
     const got = await call('adam', 'GET', `/v1/documents/d/${contract}/summary`);
-    expect(got.body).toMatchObject({ available: false, reason: 'Your company has switched this off.' });
+    expect(got.body).toMatchObject({
+      available: false,
+      reason: 'Your company has switched this off.',
+    });
     expect(seen.length).toBe(before);
   });
 });
