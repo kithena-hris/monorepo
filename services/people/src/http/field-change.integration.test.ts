@@ -57,6 +57,19 @@ const start = define({
   ownership: ['employee', 'hr'],
   visibility: ['self', 'hr'],
 });
+/** Two more text fields, both made lists in one draft by the second test. */
+const department = define({
+  key: 'department',
+  label: { default: 'Department' },
+  ownership: ['employee', 'hr'],
+  visibility: ['self', 'hr'],
+});
+const shift = define({
+  key: 'shift',
+  label: { default: 'Shift' },
+  ownership: ['employee', 'hr'],
+  visibility: ['self', 'hr'],
+});
 
 beforeAll(async () => {
   const pg = await startPostgres();
@@ -100,12 +113,12 @@ beforeAll(async () => {
   await seed(MARCO, 'Marco');
   await seed(GRACE, 'Grace');
   await seed(ALAN, 'Alan');
-  const version = versionOf(1, [start]);
+  const version = versionOf(1, [start, department, shift]);
   await inTenant(ACME, async ({ tx }) => {
     await drizzleSchemaRepository().appendVersion(tx, ACME, version, [], '2026-09-01');
     const draft = drizzleDraftWriter();
     for (const s of version.document.sections) await draft.saveSection(tx, ACME, s);
-    await draft.saveAttribute(tx, ACME, start);
+    for (const a of [start, department, shift]) await draft.saveAttribute(tx, ACME, a);
   });
 
   process.env['PEOPLE_DATABASE_URL'] = asService.toString();
@@ -296,18 +309,14 @@ describe('two fields changing type in one draft', () => {
   });
 
   it('reviews both on one page and publishes them together, each with its own choices', async () => {
-    // Two new text fields, published as they are: nothing to review.
-    for (const f of [field('department', 'Department', 'text'), field('shift', 'Shift', 'text')]) {
-      expect((await call('POST', '/v1/schema/draft/attributes', { input: f })).status).toBe(200);
-    }
-    const plain = await call('POST', '/v1/schema/draft/publish', { requiredFrom: '2026-01-01' });
-    expect(plain.status).toBeLessThan(300);
-    for (const [id, department, shift] of [
+    for (const [id, team, hours] of [
       [ADA, 'Sales', 'Day'],
       [MARCO, 'Sales', 'Nights, mostly'],
       [GRACE, 'Opertions', 'Day'],
     ] as const) {
-      const wrote = await call('PATCH', `/v1/people/${id}`, { attributes: { department, shift } });
+      const wrote = await call('PATCH', `/v1/people/${id}`, {
+        attributes: { department: team, shift: hours },
+      });
       expect(wrote.status).toBe(200);
     }
 
