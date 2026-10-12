@@ -62,6 +62,7 @@ import type {
   StartUpload,
 } from '../types';
 import { ShareQuestion, UploadDialog, type UploadInput, type UploadPreset } from '../upload';
+import { SplitDialog, type SplitProps } from './split';
 
 /**
  * The Documents screen (B1, B2, B6, H1, H3; MD1, MH1, MH6): one item, one
@@ -109,6 +110,9 @@ export interface LibraryProps {
   /** C1: what an upload looks like it is. */
   readonly onSuggest?:
     ((uploadId: string, name: string) => Promise<Read<FilingSuggestion>>) | undefined;
+  /** C2: a scanned stack split into its documents (HR). */
+  readonly onProposeSplit?: SplitProps['onProposeSplit'];
+  readonly onFileSplit?: SplitProps['onFileSplit'];
 }
 
 export function Library(props: LibraryProps): JSX.Element {
@@ -136,6 +140,7 @@ function Ready({
   const [asking, setAsking] = useState<{ id: string; title: string } | null>(null);
   const [sharing, setSharing] = useState<{ id: string; title: string } | null>(null);
   const [newSection, setNewSection] = useState(false);
+  const [splitting, setSplitting] = useState(false);
   const [query, type] = useTyped(data.q, (q) => props.onFilter?.({ q: q === '' ? null : q }));
   const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(
     null,
@@ -201,6 +206,15 @@ function Ready({
                 >
                   New section
                 </DropdownMenuItem>
+                {data.viewer.hr && props.onProposeSplit !== undefined ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setSplitting(true);
+                    }}
+                  >
+                    Split a scan
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() => {
@@ -426,6 +440,17 @@ function Ready({
           onShare={props.onShare}
         />
       )}
+      {splitting ? (
+        <SplitDialog
+          open
+          onOpenChange={setSplitting}
+          types={data.types}
+          people={data.people}
+          onStartUpload={props.onStartUpload}
+          onProposeSplit={props.onProposeSplit}
+          onFileSplit={props.onFileSplit}
+        />
+      ) : null}
       <NewSection
         open={newSection}
         onOpenChange={setNewSection}

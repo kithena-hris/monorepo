@@ -82,6 +82,8 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onRestore: actions.restoreDocument,
           onConfirmDeletion: actions.confirmDeletion,
           onAskAcross: actions.askDocuments,
+          onProposeSplit: actions.proposeSplit,
+          onFileSplit: actions.fileSplit,
           onSuggest: actions.suggestFiling,
         };
       case 'DocumentView':

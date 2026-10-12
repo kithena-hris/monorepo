@@ -109,6 +109,7 @@ const UNCHANGING = new Set([
   'SuggestDocumentFiling',
   'DescribeDocumentType',
   'ReadDocumentFields',
+  'ProposeDocumentSplit',
 ]);
 
 async function mint(key: string, sessionId: string, tenantId: string): Promise<string | null> {

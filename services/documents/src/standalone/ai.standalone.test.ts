@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/restrict-template-expressions --
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/restrict-template-expressions --
    A test reads the JSON a transport answered by its path, and every path it reads is asserted. */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
@@ -304,5 +304,61 @@ describe('a phone’s photo (MD3, OCR)', () => {
     const got = await call('ada', 'GET', `/v1/documents/d/${id}/summary`);
     expect(got.body).toMatchObject({ available: false });
     expect(looked.length).toBe(before);
+  });
+});
+
+describe('splitting a scanned stack (C2)', () => {
+  it('Kithena proposes the parts; HR files each as its own document', async () => {
+    const base64 = await pdf('Employment contract for Adam', 'Page two', 'Bank details form');
+    reply = {
+      parts: [
+        {
+          from: 1,
+          to: 2,
+          typeKey: 'employment_contract',
+          personId: ids.adam.person,
+          title: 'Contract',
+        },
+        {
+          from: 3,
+          to: 3,
+          typeKey: 'bank_details',
+          personId: ids.adam.person,
+          title: 'Bank details',
+        },
+      ],
+    };
+    const file = { name: 'stack.pdf', mediaType: 'application/pdf', base64 };
+    const proposed = await call('ada', 'POST', '/v1/documents/split', { file });
+    expect(proposed.body).toMatchObject({
+      available: true,
+      pages: 3,
+      parts: [
+        { from: 1, to: 2 },
+        { from: 3, to: 3 },
+      ],
+    });
+    expect((await call('adam', 'POST', '/v1/documents/split', { file })).status).toBe(403);
+    const filed = await call('ada', 'POST', '/v1/documents/split/file', {
+      file,
+      parts: proposed.body.parts,
+    });
+    expect(filed.status).toBe(201);
+    expect(filed.body.ids).toHaveLength(2);
+    const contract = await call('adam', 'GET', `/v1/documents/d/${filed.body.ids[0]}`);
+    expect(contract.body.document.row).toMatchObject({
+      title: 'Contract',
+      pages: 2,
+      aboutMe: true,
+    });
+  });
+
+  it('refuses parts that leave a page out', async () => {
+    const file = { name: 'stack.pdf', mediaType: 'application/pdf', base64: await pdf('a', 'b') };
+    const filed = await call('ada', 'POST', '/v1/documents/split/file', {
+      file,
+      parts: [{ from: 1, to: 1, title: 'A', typeKey: null, subjectPersonId: null }],
+    });
+    expect(filed.status).toBe(422);
   });
 });

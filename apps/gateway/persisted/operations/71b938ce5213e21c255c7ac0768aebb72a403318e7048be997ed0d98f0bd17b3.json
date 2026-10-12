@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation FileDocumentSplit($input: JSON!, $key: String!) {\n    fileDocumentSplit(input: $input, idempotencyKey: $key) { ids }\n  }"}

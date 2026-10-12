@@ -25,5 +25,7 @@
   "SealEnvelope": "Documents web K8: sealing again after a seal that did not finish is the sender's recovery on the web.",
   "SendForAcknowledgement": "Documents web F2: sending a policy out is the web's; the phone acknowledges it and tracks it (MH5).",
   "CompareDocumentVersions": "Documents web D3: comparing two versions shows the redline beside the page, which needs the desk's width; the phone opens each version.",
-  "DescribeDocumentType": "Documents Mobile MS2: the phone lists document types; drafting one from words is part of editing a type, which is the web's (S3, S4)."
+  "DescribeDocumentType": "Documents Mobile MS2: the phone lists document types; drafting one from words is part of editing a type, which is the web's (S3, S4).",
+  "ProposeDocumentSplit": "Documents web C2: splitting a scanned stack into its documents is a desk task, a table of page ranges, types and people; the phone scans one document at a time (MD2).",
+  "FileDocumentSplit": "Documents web C2: as ProposeDocumentSplit."
 }

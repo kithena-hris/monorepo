@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ProposeDocumentSplit($input: JSON!, $key: String!) {\n    proposeDocumentSplit(input: $input, idempotencyKey: $key) { available pages parts { from to title typeKey subjectPersonId } }\n  }"}

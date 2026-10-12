@@ -416,6 +416,24 @@ type DocumentsSigner {
   status: String!
 }
 
+type DocumentsSplitFiled {
+  ids: [String!]!
+}
+
+type DocumentsSplitPart {
+  from: Int!
+  subjectPersonId: String
+  title: String!
+  to: Int!
+  typeKey: String
+}
+
+type DocumentsSplitProposal {
+  available: Boolean!
+  pages: Int!
+  parts: [DocumentsSplitPart!]!
+}
+
 type DocumentsStatus {
   label: String!
   tone: String!
@@ -640,6 +658,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsTypeDraft!
+  """File each part of a scanned stack as a document of its own (C2)"""
+  fileDocumentSplit(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsSplitFiled!
   """Who works here, when People is absent"""
   importDocumentMembers(
     idempotencyKey: String!
@@ -654,6 +678,14 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """
+  Where each document in a scanned stack starts, what it is and whom it is about (C2)
+  """
+  proposeDocumentSplit(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsSplitProposal!
   """
   Values read from the document, each with its page: the names asked, or its type’s (G5)
   """

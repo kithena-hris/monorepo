@@ -643,3 +643,16 @@ export async function recordFromDocument(documentId: string): Promise<
     },
   };
 }
+
+/* ------------------------------------------------- splitting a scan (C2) -- */
+
+export async function proposeSplit(upload: FileRef): Promise<Read<unknown>> {
+  return read(await documents('ProposeDocumentSplit', { input: { upload } }));
+}
+
+export async function fileSplit(
+  upload: FileRef,
+  parts: readonly Record<string, unknown>[],
+): Promise<Outcome> {
+  return outcome(await documents('FileDocumentSplit', { input: { upload, parts } }));
+}

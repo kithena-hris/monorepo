@@ -160,7 +160,7 @@ const asCited = (value: unknown): { text: string; pages: number[] }[] =>
       })
     : [];
 
-const RULES =
+export const RULES =
   'Answer only from the document pages given. Every claim cites the page numbers it comes from. Never invent a page, a number or a name. Plain words, short sentences. Reply with JSON only.';
 
 /** D1, MR1, MR4: the document in plain words, each claim linked to its page. */
