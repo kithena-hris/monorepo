@@ -23,6 +23,14 @@ export async function pageCount(bytes: Uint8Array, mediaType: string): Promise<n
   }
 }
 
+/**
+ * What the standard fonts can draw: Latin-1 and the few WinAnsi extras.
+ * ponytail: anything else becomes "?"; embed a Unicode font (fontkit) when a
+ * customer's names are outside Latin-1.
+ */
+export const drawable = (text: string): string =>
+  [...text].map((c) => (c.charCodeAt(0) <= 0xff || '•–—‘’“”€…'.includes(c) ? c : '?')).join('');
+
 /** Media types a watermarked copy can be drawn for; the rest are not shown inline. */
 export const watermarkable = (mediaType: string): boolean =>
   mediaType === 'application/pdf' || mediaType === 'image/jpeg' || mediaType === 'image/png';
@@ -46,7 +54,7 @@ export async function watermark(
     page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
   }
   const font = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const text = `${line}  ·  ${line}`;
+  const text = drawable(`${line}  ·  ${line}`);
   for (const page of pdf.getPages()) {
     const { width, height } = page.getSize();
     const size = Math.max(10, Math.round(width * 0.03));

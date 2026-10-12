@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 import type { Envelope } from '../domain/signature/envelope.js';
+import { drawable } from './files.js';
 import type { EnvelopeEvent } from './ports.js';
 
 /**
@@ -55,7 +56,7 @@ export async function seal(
         page.drawImage(png, { x, y, width: png.width * scale, height: png.height * scale });
       } else {
         const text = field.kind === 'initials' ? initials(mark.text) : mark.text;
-        page.drawText(text, {
+        page.drawText(drawable(text), {
           x: x + 2,
           y: y + boxH * 0.2,
           size: Math.max(10, boxH * 0.7),
@@ -65,7 +66,7 @@ export async function seal(
       }
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
-      page.drawText(text, {
+      page.drawText(drawable(text), {
         x: x + 2,
         y: y + boxH * 0.2,
         size: Math.max(8, Math.min(12, boxH * 0.7)),
@@ -78,7 +79,7 @@ export async function seal(
   const page = pdf.addPage([595, 842]);
   let y = 780;
   const line = (text: string, size = 10, font = body) => {
-    page.drawText(text.slice(0, 110), { x: 56, y, size, font, color: rgb(0.15, 0.15, 0.2) });
+    page.drawText(drawable(text.slice(0, 110)), { x: 56, y, size, font, color: rgb(0.15, 0.15, 0.2) });
     y -= size + 6;
   };
   line('Certificate of completion', 18, bold);
