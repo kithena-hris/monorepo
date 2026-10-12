@@ -215,7 +215,7 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
     .filter((s) => s.archivedAt === null)
     .toSorted((a, b) => a.order - b.order)
     .map((s) => ({ key: s.key, label: s.label.default }));
-  const shapes = unmatched.map((c) => shapeOf(c.cells, c.header));
+  const shapes = unmatched.map((c) => shapeOf(c.cells));
   // A salary is money when the file says each row's currency.
   const hasCurrency =
     shapes.some((s) => s.dataType === 'currency') ||
@@ -226,7 +226,7 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
     return {
       column: c.index,
       header: c.header,
-      local: typeFor(c.header, shapes[i] ?? shapeOf(c.cells, c.header), { hasCurrency }),
+      local: typeFor(c.header, shapes[i] ?? shapeOf(c.cells), { hasCurrency }),
       single: distinct.length === 1 && values.length > 1 ? (distinct[0] ?? null) : null,
     };
   });
@@ -366,7 +366,9 @@ export async function proposeNewFields(
   const merged = heard.length === 0 ? local : withModel(local, heard, g.sections, g.seen).proposals;
   const keyed = checked(g.planning, withKeys(merged, taken));
   const owners = await whoFills(planner, asking.tenantId, unplaced(keyed, g.sections));
-  return ok(view(g, owned(keyed, g.sections, g.seen, owners), heard.length > 0 || owners.size > 0));
+  return ok(
+    view(g, owned(keyed, g.sections, g.seen, owners), heard.length > 0 || owners.size > 0),
+  );
 }
 
 /**
