@@ -158,7 +158,9 @@ small group, and goes to `main` as **one pull request**.
       and a sentence each by the model; the phone leaves it to the web.
 - [ ] **DOC-055** Sort uploads C1, MD3; bulk split C2. Built: C1, HR's PDF
       read as it is chosen, type, person, name and expiry filled for HR to check.
-      Left: MD3 (phone scans are images; needs OCR) and the bulk split C2.
+      MD3: a phone's scan is read by a model that sees (`Reader.see`, the
+      endpoint's `ASSISTANT_VISION_MODEL`, images up to 4 MB; never a medical
+      one) and HR's filing dialog fills in what it read. Left: the bulk split C2.
 - [x] **DOC-056** Describe a type S4, MS4; AI settings S7, MS7; field placement K2.
       Built: S4 (the draft opens the type editor), S7 and MS7 (switches in
       `documents.settings`, read with Settings › Documents); MS4 is the web's.

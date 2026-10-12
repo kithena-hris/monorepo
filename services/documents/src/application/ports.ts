@@ -345,6 +345,14 @@ export interface Reader {
     readonly instruction: string;
     readonly context: Readonly<Record<string, unknown>>;
   }): Promise<Readonly<Record<string, unknown>> | null>;
+  /**
+   * An image's text, as a model that sees transcribes it: a phone's scan or
+   * photo. Absent when the configured model cannot see; null when it failed.
+   */
+  see?(input: {
+    readonly instruction: string;
+    readonly image: { readonly mediaType: string; readonly bytes: Uint8Array };
+  }): Promise<string | null>;
 }
 
 export interface Deps {

@@ -36,10 +36,15 @@ type Who = keyof typeof ids;
 
 const seen: Readonly<Record<string, unknown>>[] = [];
 let reply: Record<string, unknown> | null = null;
+const looked: string[] = [];
 const reader: Reader = {
   read: ({ context }) => {
     seen.push(context);
     return Promise.resolve(reply);
+  },
+  see: ({ image }) => {
+    looked.push(image.mediaType);
+    return Promise.resolve('Residence permit. Valid until 2027-03-01.');
   },
 };
 
@@ -258,5 +263,46 @@ describe('reading fields for a host (G5)', () => {
       fields: [{ name: 'Notice period', value: 'Three months', page: 2 }],
     });
     expect(JSON.stringify(seen.at(-1))).toContain('Notice period');
+  });
+});
+
+describe('a phone’s photo (MD3, OCR)', () => {
+  const photo = async (title: string, who: 'ada' | 'adam', extra: object) =>
+    (
+      await call(who, 'POST', '/v1/documents/d', {
+        title,
+        ...extra,
+        file: {
+          name: `${title}.jpg`,
+          mediaType: 'image/jpeg',
+          base64: Buffer.from('jpeg').toString('base64'),
+        },
+      })
+    ).body.id as string;
+
+  it('is read by a model that sees, then summarised like any page', async () => {
+    await call('ada', 'PUT', '/v1/documents/settings/ai', { summaries: true });
+    const id = await photo('Permit photo', 'adam', {});
+    reply = {
+      summary: [{ text: 'A residence permit.', pages: [1] }],
+      facts: [],
+      watch: null,
+      questions: [],
+    };
+    const got = await call('adam', 'GET', `/v1/documents/d/${id}/summary`);
+    expect(got.body).toMatchObject({ available: true, summary: [{ text: 'A residence permit.' }] });
+    expect(looked).toContain('image/jpeg');
+    expect(JSON.stringify(seen.at(-1))).toContain('Valid until 2027-03-01');
+  });
+
+  it('a medical photo is never sent to be read', async () => {
+    const before = looked.length;
+    const id = await photo('Note photo', 'ada', {
+      typeKey: 'sick_note',
+      subjectPersonId: ids.adam.person,
+    });
+    const got = await call('ada', 'GET', `/v1/documents/d/${id}/summary`);
+    expect(got.body).toMatchObject({ available: false });
+    expect(looked.length).toBe(before);
   });
 });

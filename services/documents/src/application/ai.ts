@@ -117,17 +117,35 @@ async function readable(
   if (!on) return ok({ kind: 'refused', reason: 'Your company has switched this off.' });
   if (type !== null && !type.aiEnabled)
     return ok({ kind: 'refused', reason: 'Kithena does not read this kind of document.' });
-  if (v.mediaType !== 'application/pdf')
-    return ok({ kind: 'refused', reason: 'Kithena reads PDFs.' });
+  const image = v.mediaType.startsWith('image/');
+  if (v.mediaType !== 'application/pdf' && !image)
+    return ok({ kind: 'refused', reason: 'Kithena reads PDFs and images.' });
+  // A medical image could only be read by sending it: it is not (PRD §14.1).
+  if (image && type?.medical === true)
+    return ok({ kind: 'refused', reason: 'Kithena reads only the dates of a medical PDF.' });
   const bytes = await deps.blobs.get(v.blobKey);
   if (bytes === null) return ok({ kind: 'refused', reason: 'The file is no longer stored.' });
-  const pages = await pagesOf(bytes, v.mediaType, v.checksum);
+  const pages = await pagesOf(bytes, v.mediaType, v.checksum, deps.reader);
   if (pages === null || pages.every((p) => p === ''))
     return ok({ kind: 'refused', reason: 'There is no text in this file to read.' });
   // A medical document's text never leaves Documents (PRD §14.1).
   if (type?.medical === true) return ok({ kind: 'medical', pages });
   return ok({ kind: 'text', pages, title: doc.title, type });
 }
+
+/** An upload's kind, by its name: all `suggestFiling` is told. */
+const mediaTypeOf = (name: string): string => {
+  const ext = name.toLowerCase().split('.').pop() ?? '';
+  return ext === 'pdf'
+    ? 'application/pdf'
+    : ext === 'png'
+      ? 'image/png'
+      : ext === 'webp'
+        ? 'image/webp'
+        : ext === 'jpg' || ext === 'jpeg'
+          ? 'image/jpeg'
+          : 'other';
+};
 
 const asCited = (value: unknown): { text: string; pages: number[] }[] =>
   Array.isArray(value)
@@ -404,8 +422,9 @@ export async function suggestFiling(
   if (bytes === null || bytes === 'too_large') return ok(empty);
   const pages = await pagesOf(
     bytes,
-    input.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'other',
+    mediaTypeOf(input.name),
     `upload:${input.uploadId}`,
+    deps.reader,
   );
   if (pages === null) return ok(empty);
   const answer = await deps.reader.read({

@@ -25,6 +25,5 @@
   "SealEnvelope": "Documents web K8: sealing again after a seal that did not finish is the sender's recovery on the web.",
   "SendForAcknowledgement": "Documents web F2: sending a policy out is the web's; the phone acknowledges it and tracks it (MH5).",
   "CompareDocumentVersions": "Documents web D3: comparing two versions shows the redline beside the page, which needs the desk's width; the phone opens each version.",
-  "SuggestDocumentFiling": "Documents Mobile MD3: the phone files scans, which are images, and Kithena reads PDFs only until it can read images (OCR); the web's upload sorts PDFs (C1).",
   "DescribeDocumentType": "Documents Mobile MS2: the phone lists document types; drafting one from words is part of editing a type, which is the web's (S3, S4)."
 }
