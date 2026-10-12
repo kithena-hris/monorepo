@@ -116,19 +116,21 @@ small group, and goes to `main` as **one pull request**.
 
 ## Phase 2 — signatures and acknowledgements
 
-- [ ] **DOC-041** Envelope domain: signers in order, fields, states, correct,
+- [x] **DOC-041** Envelope domain: signers in order, fields, states, correct,
       void, reassign, decline, expiry (test first).
-- [ ] **DOC-042** Sealing: stamp fields on the PDF, certificate of completion,
+- [x] **DOC-042** Sealing: stamp fields on the PDF, certificate of completion,
       file the signed version.
-- [ ] **DOC-043** Identity check: Kithena login, or an emailed code through
+- [x] **DOC-043** Identity check: Kithena login, or an emailed code through
       messaging (hashed, 10 minutes, 5 attempts).
-- [ ] **DOC-044** Envelope storage, use cases, routes, events, Inbox items.
-- [ ] **DOC-045** Web K1–K3: signers, placing fields, review and send.
-- [ ] **DOC-046** Web K4–K7: the signer's page, adopt a signature, code, ⋯ menu;
+      As built: outside signers get a link (`<tenant>.<random>`, stored as its SHA-256) and a six-digit code, both emailed by messaging (`signature_requested`, `signing_code`); the shell's `/sign/<token>` page reaches Documents' public routes.
+- [x] **DOC-044** Envelope storage, use cases, routes, events, Inbox items.
+- [x] **DOC-045** Web K1–K3: signers, placing fields, review and send.
+      As built: placing fields is page and side per signer, plus initials on every page; Kithena's defaults otherwise. Dragging fields onto a rendered page (`PageStage`) is left for a follow-up.
+- [x] **DOC-046** Web K4–K7: the signer's page, adopt a signature, code, ⋯ menu;
       the public `/sign/<token>` page.
-- [ ] **DOC-047** Web K8–K11: tracking, sealed, every request, settings.
-- [ ] **DOC-048** Acknowledgement campaigns: domain, routes, Inbox, F2, F3.
-- [ ] **DOC-049** Mobile MX1–MX7, MH5.
+- [x] **DOC-047** Web K8–K11: tracking, sealed, every request, settings.
+- [x] **DOC-048** Acknowledgement campaigns: domain, routes, Inbox, F2, F3.
+- [x] **DOC-049** Mobile MX1–MX7, MH5.
 
 ## Phase 3 — AI
 

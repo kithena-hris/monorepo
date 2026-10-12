@@ -24,7 +24,7 @@ import {
   Text,
   Textarea,
 } from '@reach/ui-native';
-import { Download, Eye, Lock, Send, Share2, Trash2, Upload } from 'lucide-react-native';
+import { Download, Eye, Lock, PenLine, Send, Share2, Trash2, Upload } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -80,6 +80,21 @@ interface DocumentData {
     readonly accessRequests: readonly { id: string; who: string; reason: string }[];
     readonly held: boolean;
     readonly people: readonly PersonRef[];
+    readonly signing: {
+      id: string;
+      status: string;
+      signed: number;
+      of: number;
+      mine: boolean;
+    } | null;
+    readonly campaigns: readonly {
+      id: string;
+      done: number;
+      of: number;
+      asked: boolean;
+      acknowledged: boolean;
+    }[];
+    readonly pdf: boolean;
   } | null;
   readonly closed: { readonly owner: string; readonly requested: boolean } | null;
 }
@@ -94,11 +109,16 @@ export function DocumentDetail({
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [sending, setSending] = useState(false);
   const back = { label: 'Documents', onPress: navigation.goBack };
   const act = async (name: string, variables: Record<string, unknown>): Promise<boolean> => {
     setBusy(name);
     setProblem(null);
-    const done = await askDocuments(signed, name, { documentId: id, ...variables });
+    const done = await askDocuments(
+      signed,
+      name,
+      name === 'AcknowledgeDocument' ? variables : { documentId: id, ...variables },
+    );
     setBusy(null);
     if (!done.ok) setProblem(done.message);
     else reload();
@@ -184,6 +204,56 @@ export function DocumentDetail({
           </Button>
         ) : null}
       </View>
+      {doc.signing === null ? null : (
+        <Button
+          variant={doc.signing.mine && doc.signing.status === 'sent' ? 'primary' : 'secondary'}
+          onPress={() => {
+            if (doc.signing !== null)
+              navigation.navigate('DocumentEnvelope', { id: doc.signing.id });
+          }}
+        >
+          {doc.signing.mine && doc.signing.status === 'sent'
+            ? 'Review and sign'
+            : doc.signing.status === 'sent'
+              ? `Signature status · ${String(doc.signing.signed)} of ${String(doc.signing.of)}`
+              : 'Signature request'}
+        </Button>
+      )}
+      {doc.campaigns.map((c) =>
+        c.asked && !c.acknowledged ? (
+          <Button
+            key={c.id}
+            variant="primary"
+            loading={busy === c.id}
+            onPress={() => void act('AcknowledgeDocument', { campaignId: c.id })}
+          >
+            I’ve read it
+          </Button>
+        ) : c.asked ? (
+          <Badge key={c.id} tone="success">
+            You acknowledged it
+          </Badge>
+        ) : (
+          <Button
+            key={c.id}
+            onPress={() => {
+              navigation.navigate('DocumentCampaign', { id: c.id });
+            }}
+          >
+            {`Acknowledged by ${String(c.done)} of ${String(c.of)}`}
+          </Button>
+        ),
+      )}
+      {doc.may.share && doc.pdf && (doc.signing === null || doc.signing.status !== 'sent') ? (
+        <Button
+          startIcon={<Icon icon={PenLine} />}
+          onPress={() => {
+            setSending(true);
+          }}
+        >
+          Send for signature
+        </Button>
+      ) : null}
       <Heading title="Who can see it" />
       <List>
         <ListItem description={`Owner: ${doc.owner}`}>{row.who.label}</ListItem>
@@ -316,6 +386,18 @@ export function DocumentDetail({
         >
           Delete
         </Button>
+      ) : null}
+      {sending ? (
+        <SendDialog
+          documentId={id}
+          people={doc.people}
+          subject={row.subject}
+          onClose={(envelopeId) => {
+            setSending(false);
+            reload();
+            if (envelopeId !== null) navigation.navigate('DocumentEnvelope', { id: envelopeId });
+          }}
+        />
       ) : null}
       {sharing ? (
         <ShareDialog
@@ -517,6 +599,127 @@ function ShareDialog({
           </Button>
           <Button className="flex-1" variant="primary" loading={busy} onPress={save}>
             Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Sending from the phone (MX5): signers in order; Kithena places the fields. */
+function SendDialog({
+  documentId,
+  people,
+  subject,
+  onClose,
+}: {
+  readonly documentId: string;
+  readonly people: readonly PersonRef[];
+  readonly subject: PersonRef | null;
+  readonly onClose: (envelopeId: string | null) => void;
+}): React.JSX.Element {
+  const signed = useSigned();
+  const [chosen, setChosen] = useState<readonly PersonRef[]>(subject === null ? [] : [subject]);
+  const [adding, setAdding] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose(null);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Send for signature</DialogTitle>
+          <DialogDescription>
+            They sign in this order. Kithena places a signature and the date for each on the last
+            page; moving fields is the web’s.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <List>
+            {chosen.map((p, i) => (
+              <ListItem
+                key={p.personId}
+                description={`Signs ${String(i + 1)}`}
+                trailing={
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onPress={() => {
+                      setChosen(chosen.filter((x) => x !== p));
+                    }}
+                  >
+                    Remove
+                  </Button>
+                }
+              >
+                {p.name}
+              </ListItem>
+            ))}
+          </List>
+          <Field>
+            <FieldLabel>Add a signer</FieldLabel>
+            <Select
+              value={adding}
+              onValueChange={(personId) => {
+                const p = people.find((x) => x.personId === personId);
+                if (p !== undefined) setChosen([...chosen, p]);
+                setAdding('');
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose someone" />
+              </SelectTrigger>
+              <SelectContent title="Signer">
+                {people
+                  .filter((p) => !chosen.some((c) => c.personId === p.personId))
+                  .map((p) => (
+                    <SelectItem key={p.personId} value={p.personId}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            className="flex-1"
+            onPress={() => {
+              onClose(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="flex-1"
+            variant="primary"
+            loading={busy}
+            disabled={chosen.length === 0}
+            onPress={() => {
+              setBusy(true);
+              void askDocuments<{ id: string }>(signed, 'SendForSignature', {
+                documentId,
+                input: {
+                  signers: chosen.map((p, i) => ({ personId: p.personId, order: i + 1 })),
+                  fields: [],
+                  message: '',
+                  dueOn: null,
+                  origin: signed.company.origin,
+                  companyName: signed.company.displayName ?? signed.company.slug,
+                },
+              }).then((r) => {
+                setBusy(false);
+                if (r.ok) onClose(r.data.id);
+                else setProblem(r.message);
+              });
+            }}
+          >
+            Send
           </Button>
         </DialogFooter>
       </DialogContent>

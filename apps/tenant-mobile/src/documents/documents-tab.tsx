@@ -78,7 +78,7 @@ interface Library {
   }[];
   readonly needsYou: readonly {
     id: string;
-    kind: 'request' | 'access_request';
+    kind: 'request' | 'access_request' | 'sign' | 'acknowledge';
     title: string;
     detail: string;
     dueOn: string | null;
@@ -184,6 +184,9 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
             setAdding({ typeKey, requestId });
           }}
           onDecided={reload}
+          onSign={(envelopeId) => {
+            navigation.navigate('DocumentEnvelope', { id: envelopeId });
+          }}
         />
       )}
       <ActionSheet
@@ -267,6 +270,7 @@ function Body({
   onPerson,
   onAnswer,
   onDecided,
+  onSign,
 }: {
   readonly data: Library;
   readonly queue: string | null;
@@ -277,6 +281,7 @@ function Body({
   readonly onPerson: (personId: string, name: string) => void;
   readonly onAnswer: (typeKey: string | null, requestId: string) => void;
   readonly onDecided: () => void;
+  readonly onSign: (envelopeId: string) => void;
 }): React.JSX.Element {
   const signed = useSigned();
   const decide = (id: string, grant: boolean): void => {

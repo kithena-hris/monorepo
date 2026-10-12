@@ -143,6 +143,10 @@ export type PeopleRoutes = {
   DocumentDetail: { id: string; title: string };
   /** A person's file (MH2): what their types require, and what they have. */
   DocumentsPersonFile: { personId: string; name: string };
+  /** A signature request: signed full screen (MX1–MX4), or followed (MX6). */
+  DocumentEnvelope: { id: string };
+  /** Who has acknowledged a policy (MH5). */
+  DocumentCampaign: { id: string };
   /** Settings › Documents (MS1–MS6). */
   DocumentsSettings: undefined;
 };

@@ -20,5 +20,8 @@
   "CancelDocumentRequest": "Documents web H2: withdrawing a request HR made is on the web's person file; the phone reminds and asks (MH2, MH3).",
   "PlaceLegalHold": "Documents web H3: legal holds are placed from the web; the phone lists and lifts them (MS6).",
   "ConfirmDocumentDeletion": "Documents web H3: confirming deletion when retention ends is a desk task; the phone shows the To delete count (MH1).",
-  "SaveDocumentType": "Documents Mobile MS2: the phone lists document types; editing a type's sentence is the web's (S3)."
+  "SaveDocumentType": "Documents Mobile MS2: the phone lists document types; editing a type's sentence is the web's (S3).",
+  "DocumentsEnvelopes": "Documents Mobile MH6: on the phone HR's To sign tile filters the Documents tab in place; the list of every request is the web's (K10).",
+  "SealEnvelope": "Documents web K8: sealing again after a seal that did not finish is the sender's recovery on the web.",
+  "SendForAcknowledgement": "Documents web F2: sending a policy out is the web's; the phone acknowledges it and tracks it (MH5)."
 }

@@ -25,6 +25,7 @@ import type { Company, Person } from './account';
 import { AccountActionsContext, AccountMenu, fullName, type AccountActions } from './account-card';
 import { AccountSlot, TAB_ROOM, TabBarHiding } from './frame';
 import { DocumentDetail } from './documents/document';
+import { DocumentCampaign, DocumentEnvelope } from './documents/envelope';
 import { DocumentsHome } from './documents/documents-tab';
 import { DocumentsPersonFile } from './documents/person-file';
 import { DocumentsSettings } from './documents/settings';
@@ -174,6 +175,8 @@ const TabStack = memo(function TabStack({
           <Stack_.Screen name="DocumentDetail" component={DocumentDetail} />
           <Stack_.Screen name="DocumentsPersonFile" component={DocumentsPersonFile} />
           <Stack_.Screen name="DocumentsSettings" component={DocumentsSettings} />
+          <Stack_.Screen name="DocumentEnvelope" component={DocumentEnvelope} />
+          <Stack_.Screen name="DocumentCampaign" component={DocumentCampaign} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
