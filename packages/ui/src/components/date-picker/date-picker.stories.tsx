@@ -328,3 +328,28 @@ export const OpenOnMount: Story = {
     );
   },
 };
+
+/**
+ * A date decades away, a birthday or a first hire: the calendar's heading
+ * zooms out to months and then to twelve years a page, and the line at the
+ * top takes a typed date ("14/03/1996", "14 March 1996", "1996-03-14").
+ */
+export const FarBack: Story = {
+  args: { label: 'Date of birth', mode: 'single', today: TODAY, defaultOpen: true },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Press the month to choose a month, press the year to choose a year, twelve to a page. Or type the date at the top: day first, as written in the locale, or with the month in words.',
+      },
+    },
+  },
+  render: function FarBackStory(args) {
+    const [value, setValue] = useState<IsoDate | null>('1996-03-14');
+    return (
+      <div className="h-[30rem]">
+        <DatePicker {...args} mode="single" value={value} onChange={setValue} />
+      </div>
+    );
+  },
+};

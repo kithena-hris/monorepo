@@ -25,6 +25,19 @@ export const Playground: Story = {
   },
 };
 
+/**
+ * Decades away in a few presses: the title zooms out to the months, then to
+ * twelve years a page. It opens on the chosen date, not on today.
+ */
+export const FarBack: Story = {
+  render: function FarBackStory() {
+    const [day, setDay] = useState<IsoDate | null>('1996-03-14');
+    return (
+      <Calendar label="Date of birth" today={TODAY} max={TODAY} selected={day} onSelect={setDay} />
+    );
+  },
+};
+
 export const Range: Story = {
   render: function RangeStory() {
     const [range, setRange] = useState<DateRange>({ start: '2026-10-14', end: '2026-10-18' });

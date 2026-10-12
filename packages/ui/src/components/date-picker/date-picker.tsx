@@ -5,11 +5,14 @@ import { useMemo, useState, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { Field, FieldControl, FieldError, FieldLabel } from '../field/field';
 import { fieldShell, floatShell, floatValue } from '../field/field-styles';
+import { Input } from '../input/input';
 import {
   Calendar,
   formatIsoDate,
   parseIsoDate,
+  parseTypedDate,
   type CalendarProps,
   type DateRange,
   type IsoDate,
@@ -143,7 +146,63 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
   } = props;
   const mode = props.mode ?? 'single';
   const presets = props.mode === 'range' ? props.presets : undefined;
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpenState] = useState(defaultOpen);
+  // The month on show once typing or Today moved it; the calendar's own until then.
+  const [shown, setShown] = useState<IsoDate | undefined>(undefined);
+  const [typed, setTyped] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+  const setOpen = (next: boolean): void => {
+    setOpenState(next);
+    if (!next) {
+      // Opened again, it starts from what is chosen, not where it was left.
+      setShown(undefined);
+      setTyped('');
+      setProblem(null);
+    }
+  };
+  const today = calendarProps.today ?? formatIsoDate(Date.now());
+  const allowed = (iso: IsoDate): boolean =>
+    (calendarProps.min === undefined || iso >= calendarProps.min) &&
+    (calendarProps.max === undefined || iso <= calendarProps.max) &&
+    !(calendarProps.isDateDisabled?.(iso) ?? false);
+  /** A typed date: chosen at once, or for a range its next end; the grid moves to it either way. */
+  const commitTyped = (): void => {
+    if (typed.trim() === '') return;
+    const iso = parseTypedDate(typed, locale);
+    if (iso === null) {
+      setProblem(
+        `Type a date like ${locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996'}`,
+      );
+      return;
+    }
+    if (!allowed(iso)) {
+      setProblem(`${format(iso)} can’t be chosen here`);
+      setShown(iso);
+      return;
+    }
+    setProblem(null);
+    setTyped('');
+    setShown(iso);
+    if (props.mode !== 'range') {
+      props.onChange(iso);
+      setOpen(false);
+      return;
+    }
+    const range = props.value;
+    if (!range?.start || range.end) {
+      props.onChange({ start: iso, end: null });
+      return;
+    }
+    props.onChange(
+      iso < range.start ? { start: iso, end: range.start } : { start: range.start, end: iso },
+    );
+    setOpen(false);
+  };
+  const month = calendarProps.month ?? shown;
+  const onMonthChange = (next: IsoDate): void => {
+    setShown(next);
+    calendarProps.onMonthChange?.(next);
+  };
 
   const formatter = useMemo(
     () =>
@@ -194,6 +253,35 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
       </PopoverTrigger>
 
       <PopoverContent aria-label={label} className="w-auto p-3 touch:p-4">
+        {/* Typed, a date decades away is one line; the grid follows it. */}
+        <Field invalid={problem !== null} className="mb-3">
+          <FieldLabel className="sr-only">{`Type ${label.toLowerCase()}`}</FieldLabel>
+          <FieldControl>
+            <Input
+              size="sm"
+              value={typed}
+              placeholder={
+                props.mode === 'range' && props.value?.start && !props.value.end
+                  ? 'Type the end date'
+                  : `Type a date, like ${locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996'}`
+              }
+              inputMode="text"
+              autoComplete="off"
+              onChange={(e) => {
+                setTyped(e.target.value);
+                if (problem !== null) setProblem(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commitTyped();
+                }
+              }}
+              onBlur={commitTyped}
+            />
+          </FieldControl>
+          <FieldError>{problem}</FieldError>
+        </Field>
         {/* Presets sit beside the grid at a desk and under it on a phone,
             where the grid already takes the width. */}
         <div className="flex gap-3 touch:flex-col">
@@ -229,6 +317,8 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
           {props.mode === 'range' ? (
             <Calendar
               {...calendarProps}
+              {...(month === undefined ? {} : { month })}
+              onMonthChange={onMonthChange}
               locale={locale}
               label={label}
               mode="range"
@@ -243,6 +333,8 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
           ) : (
             <Calendar
               {...calendarProps}
+              {...(month === undefined ? {} : { month })}
+              onMonthChange={onMonthChange}
               locale={locale}
               label={label}
               mode="single"
@@ -254,6 +346,17 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
               }}
             />
           )}
+        </div>
+        <div className="mt-2 flex justify-end">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setShown(today);
+            }}
+          >
+            Go to today
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays, addMonths, formatIsoDate, parseIsoDate } from './calendar';
+import { addDays, addMonths, formatIsoDate, parseIsoDate, parseTypedDate } from './calendar';
 import { paginationRange } from '../pagination/pagination';
 
 /**
@@ -85,5 +85,26 @@ describe('paginationRange', () => {
     for (let page = 1; page <= 46; page += 1) {
       expect(paginationRange(page, 46, 1)).toContain(page);
     }
+  });
+});
+
+describe('a date typed in words or digits', () => {
+  it('reads day-first numbers, ISO and month names', () => {
+    expect(parseTypedDate('14/03/1996')).toBe('1996-03-14');
+    expect(parseTypedDate('14.3.1996')).toBe('1996-03-14');
+    expect(parseTypedDate('1996-03-14')).toBe('1996-03-14');
+    expect(parseTypedDate('14 March 1996')).toBe('1996-03-14');
+    expect(parseTypedDate('March 14, 1996')).toBe('1996-03-14');
+    expect(parseTypedDate('14 mar 96')).toBe('1996-03-14');
+  });
+
+  it('reads month-first numbers where the locale writes them so', () => {
+    expect(parseTypedDate('03/14/1996', 'en-US')).toBe('1996-03-14');
+  });
+
+  it('refuses what is not a day on the calendar', () => {
+    expect(parseTypedDate('31/02/1996')).toBeNull();
+    expect(parseTypedDate('hello')).toBeNull();
+    expect(parseTypedDate('')).toBeNull();
   });
 });
