@@ -48,3 +48,37 @@ export function forModel(
   }
   return out;
 }
+
+/** "Signature", "Signed by", "Sign here", and the same in the languages the packs ship. */
+const SIGN_HERE = /^(signature|signed|sign here|firma|unterschrift|signature du|assinatura)\b/iu;
+
+/**
+ * Where a PDF says to sign (K2): each line that starts like a signature
+ * label, in reading order, as fractions of its page from the top left. A
+ * file that is not a PDF, or one with no such line, has none.
+ */
+export async function signatureLines(
+  bytes: Uint8Array,
+): Promise<{ page: number; x: number; y: number }[]> {
+  try {
+    const pdf = await getDocumentProxy(new Uint8Array(bytes));
+    const out: { page: number; x: number; y: number }[] = [];
+    for (let n = 1; n <= pdf.numPages; n++) {
+      // eslint-disable-next-line no-await-in-loop -- pages in order, a few of them
+      const page = await pdf.getPage(n);
+      const { width, height } = page.getViewport({ scale: 1 });
+      // eslint-disable-next-line no-await-in-loop -- as above
+      const content = await page.getTextContent();
+      const found = content.items.flatMap((item) => {
+        if (!('str' in item) || !SIGN_HERE.test(item.str.trim())) return [];
+        const [, , , , tx = 0, ty = 0] = item.transform as number[];
+        // Beside the label, a little above its baseline: where a hand would sign.
+        return [{ page: n, x: (tx + item.width + 8) / width, y: 1 - (ty + 24) / height }];
+      });
+      out.push(...found.toSorted((a, b) => a.y - b.y || a.x - b.x));
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}

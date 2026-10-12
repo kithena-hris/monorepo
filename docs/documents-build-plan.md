@@ -159,10 +159,13 @@ small group, and goes to `main` as **one pull request**.
 - [ ] **DOC-055** Sort uploads C1, MD3; bulk split C2. Built: C1, HR's PDF
       read as it is chosen, type, person, name and expiry filled for HR to check.
       Left: MD3 (phone scans are images; needs OCR) and the bulk split C2.
-- [ ] **DOC-056** Describe a type S4, MS4; AI settings S7, MS7; field placement K2.
+- [x] **DOC-056** Describe a type S4, MS4; AI settings S7, MS7; field placement K2.
       Built: S4 (the draft opens the type editor), S7 and MS7 (switches in
       `documents.settings`, read with Settings › Documents); MS4 is the web's.
-      Left: K2, suggesting where signature fields go.
+      K2: with no fields drawn, each signer, in signing order, signs beside a
+      line the document has ("Signature", "Signed by", and the packs'
+      languages), found in the PDF's text positions (`signatureLines`); a
+      signer with no line left signs at the foot of the last page.
 
 ## Phase 4 — with People and Time Off
 
