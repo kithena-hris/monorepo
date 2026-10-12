@@ -362,3 +362,47 @@ describe('splitting a scanned stack (C2)', () => {
     expect(filed.status).toBe(422);
   });
 });
+
+describe('letters from a template (G3)', () => {
+  it('HR fills a template for a person, files it to them and sends it to sign', async () => {
+    const template = await file(
+      'Promotion letter',
+      'ada',
+      { typeKey: 'template' },
+      'Dear {{Preferred name}}, from {{Start date}} you are {{Job title}}.',
+    );
+    const read = await call('ada', 'GET', `/v1/documents/d/${template}/template`);
+    expect(read.body.fields).toEqual(['Preferred name', 'Start date', 'Job title']);
+    expect((await call('adam', 'GET', `/v1/documents/d/${template}/template`)).status).toBe(403);
+    const origin = { origin: 'https://acme.app.kithena.com', companyName: 'Acme' };
+    const short = await call('ada', 'POST', `/v1/documents/d/${template}/letters`, {
+      title: 'Promotion',
+      letters: [{ personId: ids.adam.person, values: { 'Preferred name': 'Adam' } }],
+      ...origin,
+    });
+    expect(short.status).toBe(422);
+    const made = await call('ada', 'POST', `/v1/documents/d/${template}/letters`, {
+      title: 'Promotion',
+      letters: [
+        {
+          personId: ids.adam.person,
+          values: {
+            'Preferred name': 'Adam',
+            'Start date': '1 November 2026',
+            'Job title': 'Senior engineer',
+          },
+        },
+      ],
+      sign: true,
+      ...origin,
+    });
+    expect(made.status).toBe(201);
+    const letter = await call('adam', 'GET', `/v1/documents/d/${made.body.ids[0]}`);
+    expect(letter.body.document.row).toMatchObject({
+      title: 'Promotion',
+      kind: 'Letter',
+      aboutMe: true,
+    });
+    expect(letter.body.document.signing).toMatchObject({ status: 'sent', mine: true });
+  });
+});

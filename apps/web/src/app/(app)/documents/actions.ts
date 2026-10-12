@@ -738,10 +738,9 @@ export async function lookFor(documentIds: readonly string[]): Promise<Read<read
   for (const documentId of documentIds.slice(0, 5)) {
     const left = waiting.filter((w) => !found.has(w.key));
     if (left.length === 0) break;
-    const read = await documents<{ fields: readonly { name: string; value: string; page: number }[] }>(
-      'ReadDocumentFields',
-      { documentId, input: { names: left.map((w) => w.label) } },
-    );
+    const read = await documents<{
+      fields: readonly { name: string; value: string; page: number }[];
+    }>('ReadDocumentFields', { documentId, input: { names: left.map((w) => w.label) } });
     if (!read.ok) continue;
     for (const f of read.data.fields) {
       const w = left.find((x) => x.label === f.name);
@@ -751,4 +750,94 @@ export async function lookFor(documentIds: readonly string[]): Promise<Read<read
     }
   }
   return { ok: true, data: [...found.values()] };
+}
+
+/* ------------------------------------------- letters from a template (G3) -- */
+
+/** Each of a person's record values by its label, as People shows them to the viewer. */
+async function valuesOf(personId: string): Promise<ReadonlyMap<string, string> | null> {
+  const profile = await people<{
+    sections: readonly { fields: readonly ProfileField[] }[];
+    values: readonly ProfileEntry[];
+  }>('Profile', { personId });
+  if (!profile.ok) return null;
+  const entries = new Map(profile.data.values.map((v) => [v.key, v]));
+  const out = new Map<string, string>();
+  for (const f of profile.data.sections.flatMap((s) => s.fields)) {
+    const value = shown(entries.get(f.key));
+    if (value !== null && value.trim() !== '') out.set(f.label.toLowerCase(), value);
+  }
+  return out;
+}
+
+/** One person's values for a template's fields, by the template's own spelling of each. */
+const fill = (fields: readonly string[], values: ReadonlyMap<string, string>) =>
+  Object.fromEntries(
+    fields.flatMap((f) => {
+      const v = values.get(f.toLowerCase());
+      return v === undefined ? [] : [[f, v]];
+    }),
+  );
+
+/**
+ * G3: one letter as it will read, for the first person chosen, and which
+ * fields each person's record cannot fill. Nothing is written.
+ */
+export async function previewLetters(
+  templateId: string,
+  personIds: readonly string[],
+): Promise<
+  Read<{
+    readonly preview: string;
+    readonly missing: readonly { readonly personId: string; readonly fields: readonly string[] }[];
+  }>
+> {
+  const template = await documents<{ text: string; fields: string[] }>('DocumentTemplate', {
+    documentId: templateId,
+  });
+  if (!template.ok) return template;
+  const { text, fields } = template.data;
+  const missing: { personId: string; fields: string[] }[] = [];
+  let preview = text;
+  for (const [i, personId] of personIds.slice(0, 100).entries()) {
+    const values = await valuesOf(personId);
+    const filled = values === null ? {} : fill(fields, values);
+    const lacking = fields.filter((f) => !(f in filled));
+    if (lacking.length > 0) missing.push({ personId, fields: lacking });
+    if (i === 0) {
+      preview = fields.reduce(
+        (t, f) =>
+          t.replaceAll(
+            new RegExp(`\\{\\{\\s*${f.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}\\s*\\}\\}`, 'gu'),
+            filled[f] ?? `{{${f}}}`,
+          ),
+        text,
+      );
+    }
+  }
+  return { ok: true, data: { preview, missing } };
+}
+
+/** G3: the letters made, filed to each person and, when asked, sent to them to sign. */
+export async function generateLetters(
+  templateId: string,
+  title: string,
+  personIds: readonly string[],
+  sign: boolean,
+): Promise<Read<{ readonly ids: readonly string[] }>> {
+  const template = await documents<{ fields: string[] }>('DocumentTemplate', {
+    documentId: templateId,
+  });
+  if (!template.ok) return template;
+  const letters = [];
+  for (const personId of personIds.slice(0, 100)) {
+    const values = await valuesOf(personId);
+    letters.push({ personId, values: values === null ? {} : fill(template.data.fields, values) });
+  }
+  return read(
+    await documents<{ readonly ids: readonly string[] }>('GenerateLetters', {
+      documentId: templateId,
+      input: { title, letters, sign, ...(await origin()) },
+    }),
+  );
 }

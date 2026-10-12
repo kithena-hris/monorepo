@@ -44,6 +44,7 @@ import {
 } from '../application/ai.js';
 import { documentsInbox } from '../application/inbox.js';
 import { fileSplit, proposeSplit } from '../application/split.js';
+import { generateLetters, readTemplate } from '../application/letters.js';
 import {
   askSender,
   declineAsMember,
@@ -1158,6 +1159,44 @@ export const ROUTES: readonly Route[] = [
     status: 201,
     run: (deps, caller, { body }) =>
       withFile(deps, caller, body, (file) => fileSplit(deps, caller, file, body.parts)),
+  }),
+  /* ------------------------------------------- letters from a template (G3) -- */
+  route({
+    name: 'documentTemplate',
+    method: 'GET',
+    path: `${V1}/d/{documentId}/template`,
+    summary: 'A Template document’s text and the fields it asks for (G3)',
+    params: DocParams,
+    answer: z
+      .object({ title: z.string(), text: z.string(), fields: z.array(z.string()) })
+      .meta({ title: 'DocumentsTemplate' }),
+    run: (deps, caller, { params }) => readTemplate(deps, caller, params.documentId),
+  }),
+  route({
+    name: 'generateLetters',
+    method: 'POST',
+    path: `${V1}/d/{documentId}/letters`,
+    summary:
+      'A letter per person from a template, filed to each and, when asked, sent to sign (G3)',
+    params: DocParams,
+    body: z.strictObject({
+      title: z.string().trim().min(1).max(200),
+      letters: z
+        .array(
+          z.strictObject({
+            personId: PersonId,
+            values: z.record(z.string().max(200), z.string().max(2000)),
+          }),
+        )
+        .min(1)
+        .max(100),
+      sign: z.boolean().default(false),
+      ...OriginBody,
+    }),
+    answer: z.object({ ids: z.array(z.string()) }).meta({ title: 'DocumentsLetters' }),
+    status: 201,
+    run: (deps, caller, { params, body }) =>
+      generateLetters(deps, caller, { templateId: params.documentId, ...body }),
   }),
 ];
 

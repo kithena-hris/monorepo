@@ -1,0 +1,1 @@
+{"version":1,"body":"query DocumentTemplate($documentId: String!) {\n    documentTemplate(documentId: $documentId) { title text fields }\n  }"}

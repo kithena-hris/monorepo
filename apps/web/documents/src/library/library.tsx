@@ -63,6 +63,7 @@ import type {
   StartUpload,
 } from '../types';
 import { ShareQuestion, UploadDialog, type UploadInput, type UploadPreset } from '../upload';
+import { LettersDialog, type LettersProps } from './letters';
 import { SplitDialog, type SplitProps } from './split';
 
 /**
@@ -115,6 +116,9 @@ export interface LibraryProps {
   readonly onWaitingFor?: AnswersProps['onWaitingFor'];
   readonly onLookFor?: AnswersProps['onLookFor'];
   readonly onAnswer?: AnswersProps['onAnswer'];
+  /** G3: letters from a template, one per person (HR). */
+  readonly onPreviewLetters?: LettersProps['onPreviewLetters'];
+  readonly onGenerateLetters?: LettersProps['onGenerateLetters'];
   /** C2: a scanned stack split into its documents (HR). */
   readonly onProposeSplit?: SplitProps['onProposeSplit'];
   readonly onFileSplit?: SplitProps['onFileSplit'];
@@ -146,6 +150,7 @@ function Ready({
   const [sharing, setSharing] = useState<{ id: string; title: string } | null>(null);
   const [newSection, setNewSection] = useState(false);
   const [splitting, setSplitting] = useState(false);
+  const [lettering, setLettering] = useState(false);
   const [query, type] = useTyped(data.q, (q) => props.onFilter?.({ q: q === '' ? null : q }));
   const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(
     null,
@@ -211,6 +216,15 @@ function Ready({
                 >
                   New section
                 </DropdownMenuItem>
+                {data.viewer.hr && props.onGenerateLetters !== undefined ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setLettering(true);
+                    }}
+                  >
+                    Generate letters
+                  </DropdownMenuItem>
+                ) : null}
                 {data.viewer.hr && props.onProposeSplit !== undefined ? (
                   <DropdownMenuItem
                     onSelect={() => {
@@ -457,6 +471,19 @@ function Ready({
           onShare={props.onShare}
         />
       )}
+      {lettering ? (
+        <LettersDialog
+          open
+          onOpenChange={setLettering}
+          templates={data.rows.filter((r) => r.kind === 'Template' && r.deletedAt === null)}
+          people={data.people}
+          onPreviewLetters={props.onPreviewLetters}
+          onGenerateLetters={props.onGenerateLetters}
+          onDone={() => {
+            props.onFilter?.({ q: null });
+          }}
+        />
+      ) : null}
       {splitting ? (
         <SplitDialog
           open

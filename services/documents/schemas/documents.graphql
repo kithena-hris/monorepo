@@ -264,6 +264,10 @@ type DocumentsHold {
   setBy: String!
 }
 
+type DocumentsLetters {
+  ids: [String!]!
+}
+
 type DocumentsLibrary {
   deleted: Boolean!
   needsYou: [DocumentsNeedsYou!]!
@@ -453,6 +457,12 @@ type DocumentsSummaryFacts {
   label: String!
   page: Int!
   value: String!
+}
+
+type DocumentsTemplate {
+  fields: [String!]!
+  text: String!
+  title: String!
 }
 
 type DocumentsTile {
@@ -664,6 +674,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsSplitFiled!
+  """
+  A letter per person from a template, filed to each and, when asked, sent to sign (G3)
+  """
+  generateLetters(
+    documentId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsLetters!
   """Who works here, when People is absent"""
   importDocumentMembers(
     idempotencyKey: String!
@@ -838,6 +857,8 @@ type Query {
   compareDocumentVersions(documentId: String!, from: Int!, to: Int!): DocumentsCompare!
   """The document in plain words, each claim cited to its page (D1)"""
   documentSummary(documentId: String!): DocumentsSummary!
+  """A Template document’s text and the fields it asks for (G3)"""
+  documentTemplate(documentId: String!): DocumentsTemplate!
   """Who has acknowledged a policy, and who is left (F3)"""
   documentsCampaign(campaignId: String!): DocumentsCampaign!
   """A document, or who owns it when you cannot open it"""

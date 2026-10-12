@@ -188,7 +188,12 @@ small group, and goes to `main` as **one pull request**.
       the bytes never reach a browser. People's screen learns a label and a
       list (`kept`), never that Documents exists. The AI match preview before
       mapping is People's import's own, unchanged.
-- [ ] **DOC-059** Generate letters G3 (templates and merge).
+- [x] **DOC-059** Generate letters G3 (templates and merge). As built: a
+      template is a Template document whose text holds `{{Field}}`
+      placeholders; HR picks people and a template from the ⋯ menu and checks
+      one preview; the shell fills each from that person's record as HR may
+      read it, and Documents draws each letter, files it to the person as a
+      Letter and, when asked, sends it to them to sign (`letters.ts`).
 - [x] **DOC-060** Fill a record from a document G5, MP3, K9. As built: on a
       document about somebody, whoever may share it is offered Fill the record
       from it (web and phone, and so on a sealed contract, K9). People says

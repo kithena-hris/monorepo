@@ -91,6 +91,12 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onRestore: actions.restoreDocument,
           onConfirmDeletion: actions.confirmDeletion,
           onAskAcross: actions.askDocuments,
+          ...(people
+            ? {
+                onPreviewLetters: actions.previewLetters,
+                onGenerateLetters: actions.generateLetters,
+              }
+            : {}),
           onProposeSplit: actions.proposeSplit,
           onFileSplit: actions.fileSplit,
           ...answers,
