@@ -22,6 +22,7 @@ import {
   type DecidedAs,
 } from '../../domain/approval/pending-change.js';
 import type { ReviewFinding } from '../../domain/person/identifier-review.js';
+import { lastFour } from '../../domain/person/last-four.js';
 import type { IdentifierReviews } from './identifier-review.js';
 import { flagChange, looking, readableBy, type FlagDeps } from './approval-flags.js';
 import { LIFECYCLE_KEYS } from './core.js';
@@ -362,7 +363,7 @@ export async function holdChange(
     supersedes: input.supersedes,
     sealed,
     value: sealed ? null : input.value,
-    last4: sealed && display.length > 0 ? display.slice(-4) : null,
+    last4: sealed ? lastFour(display) : null,
     decidedAs: null,
   };
   await deps.store.insert(tx, change, sealed ? JSON.stringify(input.value) : null);

@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
+import { lastFour } from '../domain/person/last-four.js';
 
 /**
  * Envelope encryption for the values that must never be readable from a dump.
@@ -167,7 +168,7 @@ export function seal(plaintext: string, ring: KeyRing): SealedSecret {
   return {
     ciphertext: envelope.toString('base64'),
     keyId: master.id,
-    last4: plaintext.length === 0 ? null : plaintext.slice(-4),
+    last4: lastFour(plaintext),
   };
 }
 
@@ -275,13 +276,9 @@ export function rewrap(
   dataKey.fill(0);
 
   return {
-    ciphertext: Buffer.concat([
-      Buffer.from([VERSION]),
-      newIv,
-      newTag,
-      newWrapped,
-      rest,
-    ]).toString('base64'),
+    ciphertext: Buffer.concat([Buffer.from([VERSION]), newIv, newTag, newWrapped, rest]).toString(
+      'base64',
+    ),
     keyId: target.id,
   };
 }

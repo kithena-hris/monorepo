@@ -306,7 +306,7 @@ export function AttributeControl({
       return (
         <div className="flex flex-col gap-2">
           {picker}
-          <Field orientation="horizontal">
+          <Field orientation="horizontal" className="justify-start">
             <FieldControl>
               <Checkbox
                 checked={indefinite}
