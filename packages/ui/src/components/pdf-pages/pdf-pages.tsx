@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
+import type * as PdfJsModule from 'pdfjs-dist';
+
 import { cn } from '../../lib/cn';
 import { Alert, Skeleton } from '../feedback/feedback';
 
@@ -47,7 +49,7 @@ export interface PdfPagesProps {
   readonly className?: string;
 }
 
-type PdfJs = typeof import('pdfjs-dist');
+type PdfJs = typeof PdfJsModule;
 type PdfDocument = Awaited<ReturnType<PdfJs['getDocument']>['promise']>;
 
 let pdfjs: Promise<PdfJs> | undefined;

@@ -8,7 +8,7 @@ import { PdfPages } from './pdf-pages';
 const sample = new URL('./sample.pdf', import.meta.url).href;
 
 const meta = {
-  title: 'Data display/PdfPages',
+  title: 'Components/PdfPages',
   component: PdfPages,
   parameters: {
     layout: 'padded',
