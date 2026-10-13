@@ -48,6 +48,21 @@ describe('sending (K1–K3)', () => {
     expect(screen.getByText('Adam Novak')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('places their boxes on the document, a signature and its date to start', async () => {
+    const data = adamDocument();
+    const { container } = render(
+      <screens.SendForSignature
+        load={ready(data)}
+        onFileLink={() => Promise.resolve({ ok: false, message: 'Not here' })}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'Add a box' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Signature' })).toBeTruthy();
+    expect(screen.getByText('Adam Novak · 2 boxes')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });
 
 describe('a policy’s acknowledgements (F3)', () => {
