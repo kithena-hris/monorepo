@@ -8,6 +8,14 @@
       "dependsOn": ["^build", "codegen"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "storybook-static/**"]
     },
+    // The shell's build also writes `.renderer/` (`scripts/build-renderer.mjs`),
+    // which the deployment serves remotes' server HTML from. Undeclared, a
+    // cache hit restored `.next/` without it and the Vercel build failed on
+    // `lstat .renderer/renderer.cjs` after a change that left the shell alone.
+    "@kithena/web#build": {
+      "dependsOn": ["^build", "codegen"],
+      "outputs": [".next/**", "!.next/cache/**", ".renderer/**"]
+    },
     "codegen": {
       // A module's codegen imports its own GraphQL schema, which imports the
       // shared kits. Those have to be built first — `^codegen` alone leaves the
