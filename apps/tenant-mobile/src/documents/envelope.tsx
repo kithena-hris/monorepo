@@ -3,7 +3,6 @@ import {
   Avatar,
   Badge,
   Button,
-  Checkbox,
   Dialog,
   DialogBody,
   DialogContent,
@@ -14,22 +13,18 @@ import {
   Field,
   FieldLabel,
   Icon,
-  Input,
   List,
   ListItem,
   Progress,
-  SegmentedControl,
-  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SignaturePad,
   Text,
   Textarea,
 } from '@reach/ui-native';
-import { Eye, PenLine } from 'lucide-react-native';
+import { Eye } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -38,12 +33,12 @@ import { Failed, Heading, Loading, Page } from '../frame';
 import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { askDocuments, useDocuments } from './api';
+import { SignDocument } from './signing';
 
 /**
- * Signing on the phone (MX1–MX4, MX6): full screen, field by field — the
- * document opens in the phone's viewer, what is yours is listed, the first
- * signature is drawn or typed once — and, for whoever sent it, each signer's
- * trail with Remind and Cancel.
+ * Signing on the phone (MX1–MX4, MX6): the document itself, full screen, with
+ * the signer's own boxes on it (`signing.tsx`) — and, for whoever sent it,
+ * each signer's trail with Remind and Cancel.
  */
 
 interface EnvelopeData {
@@ -67,8 +62,12 @@ interface EnvelopeData {
   readonly fields: readonly {
     id: string;
     signerId: string;
-    kind: string;
+    kind: 'signature' | 'initials' | 'date' | 'name' | 'title' | 'checkbox' | 'text';
     page: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
     label: string | null;
     required: boolean;
   }[];
@@ -93,11 +92,6 @@ export function DocumentEnvelope({
   const signed = useSigned();
   const { id } = route.params;
   const { load, reload } = useDocuments<EnvelopeData>('DocumentsEnvelope', { envelopeId: id });
-  const [adopting, setAdopting] = useState(false);
-  const [mark, setMark] = useState<
-    { kind: 'typed'; text: string } | { kind: 'drawn'; path: string } | null
-  >(null);
-  const [values, setValues] = useState<Readonly<Record<string, string>>>({});
   const [other, setOther] = useState<'ask' | 'decline' | 'void' | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -116,7 +110,6 @@ export function DocumentEnvelope({
     );
   }
   const env = load.data;
-  const mine = env.fields.filter((f) => f.signerId === env.me?.signerId);
   const act = async (
     name: string,
     variables: Record<string, unknown>,
@@ -140,47 +133,54 @@ export function DocumentEnvelope({
     if (link.ok && link.data.url !== null) await WebBrowser.openBrowserAsync(link.data.url);
     else setProblem(link.ok ? 'There is no file store here.' : link.message);
   };
-  const ready =
-    mark !== null &&
-    mine.every((f) => !f.required || f.kind !== 'checkbox' || values[f.id] === 'true');
   const total = env.signers.length;
   const signedCount = env.signers.filter((s) => s.status === 'signed').length;
-  const company = signed.company.displayName ?? signed.company.slug;
+  const otherDialog = (
+    <OtherDialog
+      other={other}
+      sender={env.sender}
+      text={text}
+      busy={busy !== null}
+      onText={setText}
+      onClose={() => {
+        setOther(null);
+      }}
+      onSend={() => {
+        if (other === 'ask')
+          void act('AskEnvelopeSender', { input: { question: text } }, 'Your question was sent.');
+        else if (other === 'decline')
+          void act('DeclineEnvelope', { input: { reason: text } }, 'Declined. The sender is told.');
+        else void act('VoidEnvelope', { input: { reason: text } }, 'Cancelled.');
+      }}
+    />
+  );
+  if (env.me?.turn === true && done === null) {
+    return (
+      <>
+        <SignDocument
+          env={env}
+          back={back}
+          onAsk={() => {
+            setOther('ask');
+          }}
+          onDecline={() => {
+            setOther('decline');
+          }}
+          onSigned={(completed) => {
+            setDone(
+              completed
+                ? 'Everybody has signed: the document is sealed and filed.'
+                : `${env.sender} and anyone after you sign next. The signed copy lands in your documents.`,
+            );
+            reload();
+          }}
+        />
+        {otherDialog}
+      </>
+    );
+  }
   return (
-    <Page
-      title={env.me?.turn === true ? 'Sign' : 'Signature status'}
-      back={back}
-      {...(env.me?.turn === true && done === null
-        ? {
-            foot: (
-              <Button
-                className="flex-1"
-                variant="primary"
-                startIcon={<Icon icon={PenLine} tone="on-accent" />}
-                disabled={!ready}
-                loading={busy === 'SignEnvelope'}
-                onPress={() => {
-                  if (mark === null) return;
-                  void act(
-                    'SignEnvelope',
-                    {
-                      input: {
-                        signature: mark,
-                        values,
-                        origin: signed.company.origin,
-                        companyName: company,
-                      },
-                    },
-                    'Signed. The signed copy lands in your documents.',
-                  );
-                }}
-              >
-                Sign
-              </Button>
-            ),
-          }
-        : {})}
-    >
+    <Page title="Signature status" back={back}>
       <Text variant="title2">{env.title}</Text>
       <View className="flex-row flex-wrap gap-1.5">
         <Badge
@@ -206,74 +206,6 @@ export function DocumentEnvelope({
       <Button startIcon={<Icon icon={Eye} />} onPress={() => void open()}>
         Read the document
       </Button>
-      {env.me?.turn === true && done === null ? (
-        <>
-          <Heading title="Your part" />
-          <List>
-            {mine.map((f) => (
-              <ListItem
-                key={f.id}
-                description={`Page ${String(f.page)}`}
-                trailing={
-                  f.kind === 'checkbox' ? (
-                    <Checkbox
-                      accessibilityLabel={f.label ?? 'Tick'}
-                      checked={values[f.id] === 'true'}
-                      onCheckedChange={(v) => {
-                        setValues({ ...values, [f.id]: v ? 'true' : 'false' });
-                      }}
-                    />
-                  ) : f.kind === 'date' ? (
-                    <Text variant="footnote" tone="muted">
-                      When you sign
-                    </Text>
-                  ) : (
-                    <Badge tone={mark === null ? 'accent' : 'success'}>
-                      {mark === null ? 'Sign here' : 'Ready'}
-                    </Badge>
-                  )
-                }
-              >
-                {f.label ??
-                  (f.kind === 'signature'
-                    ? 'Signature'
-                    : f.kind === 'initials'
-                      ? 'Initials'
-                      : f.kind === 'date'
-                        ? 'Date signed'
-                        : 'Field')}
-              </ListItem>
-            ))}
-          </List>
-          <Button
-            onPress={() => {
-              setAdopting(true);
-            }}
-          >
-            {mark === null ? 'Adopt your signature' : 'Change your signature'}
-          </Button>
-          <View className="flex-row gap-2.5">
-            <Button
-              className="flex-1"
-              variant="ghost"
-              onPress={() => {
-                setOther('ask');
-              }}
-            >
-              Ask a question
-            </Button>
-            <Button
-              className="flex-1"
-              variant="ghost"
-              onPress={() => {
-                setOther('decline');
-              }}
-            >
-              Decline
-            </Button>
-          </View>
-        </>
-      ) : null}
       <Heading title="Signers" />
       <Progress
         value={total === 0 ? 0 : (signedCount / total) * 100}
@@ -357,149 +289,75 @@ export function DocumentEnvelope({
           </List>
         </>
       ) : null}
-      <Dialog open={adopting} onOpenChange={setAdopting}>
-        <AdoptContent
-          onAdopt={(m) => {
-            setMark(m);
-            setAdopting(false);
-          }}
-          onCancel={() => {
-            setAdopting(false);
-          }}
-        />
-      </Dialog>
-      <Dialog
-        open={other !== null}
-        onOpenChange={(o) => {
-          if (!o) setOther(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {other === 'ask'
-                ? `Ask ${env.sender}`
-                : other === 'decline'
-                  ? 'Decline to sign'
-                  : 'Cancel this request'}
-            </DialogTitle>
-            <DialogDescription>
-              {other === 'ask'
-                ? 'The request waits for you.'
-                : other === 'decline'
-                  ? `${env.sender} is told; say why.`
-                  : 'Nobody can sign it afterwards. Say why.'}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            <Field>
-              <FieldLabel>{other === 'ask' ? 'Your question' : 'Why'}</FieldLabel>
-              <Textarea value={text} onChange={setText} />
-            </Field>
-          </DialogBody>
-          <DialogFooter>
-            <Button
-              className="flex-1"
-              onPress={() => {
-                setOther(null);
-              }}
-            >
-              Back
-            </Button>
-            <Button
-              className="flex-1"
-              variant={other === 'ask' ? 'primary' : 'danger'}
-              disabled={text.trim() === ''}
-              loading={busy !== null}
-              onPress={() => {
-                if (other === 'ask')
-                  void act(
-                    'AskEnvelopeSender',
-                    { input: { question: text } },
-                    'Your question was sent.',
-                  );
-                else if (other === 'decline')
-                  void act(
-                    'DeclineEnvelope',
-                    { input: { reason: text } },
-                    'Declined. The sender is told.',
-                  );
-                else void act('VoidEnvelope', { input: { reason: text } }, 'Cancelled.');
-              }}
-            >
-              Send
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {otherDialog}
     </Page>
   );
 }
 
-/** MX2: draw with a finger, or type; adopting it signs every field of yours. */
-function AdoptContent({
-  onAdopt,
-  onCancel,
+/** Asking the sender, declining, or cancelling the request: each says why. */
+function OtherDialog({
+  other,
+  sender,
+  text,
+  busy,
+  onText,
+  onClose,
+  onSend,
 }: {
-  readonly onAdopt: (
-    mark: { kind: 'typed'; text: string } | { kind: 'drawn'; path: string },
-  ) => void;
-  readonly onCancel: () => void;
+  readonly other: 'ask' | 'decline' | 'void' | null;
+  readonly sender: string;
+  readonly text: string;
+  readonly busy: boolean;
+  readonly onText: (text: string) => void;
+  readonly onClose: () => void;
+  readonly onSend: () => void;
 }): React.JSX.Element {
-  const [how, setHow] = useState<'draw' | 'type'>('draw');
-  const [path, setPath] = useState('');
-  const [typed, setTyped] = useState('');
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Your signature</DialogTitle>
-        <DialogDescription>Draw it, or type it.</DialogDescription>
-      </DialogHeader>
-      <DialogBody>
-        <SegmentedControl
-          fullWidth
-          value={how}
-          accessibilityLabel="How you sign"
-          onValueChange={(v) => {
-            setHow(v === 'type' ? 'type' : 'draw');
-          }}
-        >
-          <SegmentedControlItem value="draw">Draw</SegmentedControlItem>
-          <SegmentedControlItem value="type">Type</SegmentedControlItem>
-        </SegmentedControl>
-        {how === 'draw' ? (
-          <SignaturePad label="Draw your signature" value={path} onValueChange={setPath} />
-        ) : (
+    <Dialog
+      open={other !== null}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {other === 'ask'
+              ? `Ask ${sender}`
+              : other === 'decline'
+                ? 'Decline to sign'
+                : 'Cancel this request'}
+          </DialogTitle>
+          <DialogDescription>
+            {other === 'ask'
+              ? 'The request waits for you.'
+              : other === 'decline'
+                ? `${sender} is told; say why.`
+                : 'Nobody can sign it afterwards. Say why.'}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
           <Field>
-            <FieldLabel>Your name</FieldLabel>
-            <Input value={typed} onChange={setTyped} />
+            <FieldLabel>{other === 'ask' ? 'Your question' : 'Why'}</FieldLabel>
+            <Textarea value={text} onChange={onText} />
           </Field>
-        )}
-        <Text variant="footnote" tone="muted">
-          By adopting it, you agree this electronic signature is the legal equivalent of your
-          handwritten one.
-        </Text>
-      </DialogBody>
-      <DialogFooter>
-        <Button className="flex-1" onPress={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          className="flex-1"
-          variant="primary"
-          disabled={how === 'draw' ? path.trim() === '' : typed.trim() === ''}
-          onPress={() => {
-            onAdopt(
-              how === 'draw'
-                ? { kind: 'drawn', path: path.trim() }
-                : { kind: 'typed', text: typed.trim() },
-            );
-          }}
-        >
-          Adopt and sign
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        </DialogBody>
+        <DialogFooter>
+          <Button className="flex-1" onPress={onClose}>
+            Back
+          </Button>
+          <Button
+            className="flex-1"
+            variant={other === 'ask' ? 'primary' : 'danger'}
+            disabled={text.trim() === ''}
+            loading={busy}
+            onPress={onSend}
+          >
+            Send
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

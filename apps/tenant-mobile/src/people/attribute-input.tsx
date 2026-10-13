@@ -12,7 +12,7 @@ import {
   Input,
   Select,
   SelectContent,
-  SignaturePad,
+  SignatureInput,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -24,10 +24,14 @@ import {
   useToast,
   type InputType,
 } from '@reach/ui-native';
+import { useFonts } from 'expo-font';
 import { ScanLine, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { fullName } from '../account-card';
+import { SIGNATURE_FACES } from '../signature-faces';
+import { markOf } from '../signature-mark';
 import { ask, useSigned, type RecordField, type Value } from './api';
 import { ibanCheck, nifSuggestion } from './checks';
 import { scanIdCard } from './readers';
@@ -128,14 +132,10 @@ const SEARCHED_FROM = 15;
 
 const text = (value: Value | undefined): string => (typeof value === 'string' ? value : '');
 
-/** A drawn signature's strokes from its JSON text; empty for none, or for a typed one. */
-function drawnOf(json: string): string {
-  try {
-    const mark = JSON.parse(json) as { kind?: string; path?: string };
-    return mark.kind === 'drawn' && typeof mark.path === 'string' ? mark.path : '';
-  } catch {
-    return '';
-  }
+/** Reach's `SignatureInput`, drawn in the handwriting faces once they are in. */
+function SignatureField(props: React.ComponentProps<typeof SignatureInput>): React.JSX.Element {
+  useFonts(SIGNATURE_FACES);
+  return <SignatureInput {...props} />;
 }
 
 /**
@@ -211,6 +211,7 @@ function Control({
   disabled: boolean;
   personId: string | null;
 }): React.JSX.Element {
+  const signed = useSigned();
   if (FILE_TYPES.has(field.dataType)) {
     return (
       <FilePicker
@@ -224,15 +225,14 @@ function Control({
   }
   switch (field.dataType) {
     case 'signature':
-      // Drawn with a finger; typing one in a handwriting style is on the web.
       return (
-        <SignaturePad
+        <SignatureField
           label={field.label}
-          value={drawnOf(text(value))}
-          onValueChange={(path) => {
-            onChange(
-              path.trim() === '' ? null : JSON.stringify({ kind: 'drawn', path: path.trim() }),
-            );
+          name={personId === null ? fullName(signed.person) : ''}
+          value={markOf(text(value))}
+          disabled={disabled}
+          onChange={(mark) => {
+            onChange(mark === null ? null : JSON.stringify(mark));
           }}
         />
       );

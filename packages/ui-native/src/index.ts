@@ -552,6 +552,26 @@ export { PinInput, type PinInputProps } from './components/pin-input/pin-input.t
 export { Rating, ratingSymbols, type RatingProps } from './components/rating/rating.tsx';
 export { SignaturePad, type SignaturePadProps } from './components/signature-pad/signature-pad.tsx';
 export {
+  SIGNATURE_FONTS,
+  SIGNATURE_STYLE_LABEL,
+  Signature,
+  type SignatureProps,
+  type SignatureStyle,
+  type SignatureValue,
+} from './components/signature/signature.tsx';
+export { AdoptSignatureDialog, SignatureInput } from './components/signature/adopt-signature.tsx';
+export {
+  PdfPages,
+  usePdfPage,
+  type PdfPage,
+  type PdfPagesProps,
+} from './components/pdf-pages/pdf-pages.tsx';
+export {
+  PlacementLayer,
+  type PlacedBox,
+  type PlacementLayerProps,
+} from './components/placement-layer/placement-layer.tsx';
+export {
   RadioCard,
   RadioDot,
   RadioGroup,
