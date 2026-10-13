@@ -1,0 +1,73 @@
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { adamToSign } from '../test/acme.fixture';
+import type { EnvelopeData } from '../types';
+import { useSigning } from './sign-view';
+
+const box = (
+  id: string,
+  kind: EnvelopeData['fields'][number]['kind'],
+  page: number,
+  y: number,
+  signerId = 's1',
+): EnvelopeData['fields'][number] => ({
+  id,
+  signerId,
+  kind,
+  page,
+  x: 0.1,
+  y,
+  w: 0.3,
+  h: 0.05,
+  required: kind !== 'checkbox',
+  label: null,
+  value: null,
+});
+
+const env = (): EnvelopeData =>
+  adamToSign({
+    me: { signerId: 's1', status: 'verified', turn: true },
+    fields: [
+      box('later', 'date', 2, 0.5),
+      box('first', 'signature', 1, 0.8),
+      box('second', 'initials', 2, 0.1),
+      box('theirs', 'signature', 1, 0.2, 's2'),
+    ],
+  });
+
+describe('signing as DocuSign does it', () => {
+  it('goes through only my boxes, in page order', () => {
+    const { result } = renderHook(() => useSigning(env(), 'Adam Novak'));
+    expect(result.current.mine.map((f) => f.id)).toEqual(['first', 'second', 'later']);
+    act(() => {
+      result.current.goNext();
+    });
+    expect(result.current.focus).toBe('first');
+  });
+
+  it('asks for a signature the first time, then applies it to the box that asked', () => {
+    const { result } = renderHook(() => useSigning(env(), 'Adam Novak'));
+    act(() => {
+      result.current.apply('first');
+    });
+    expect(result.current.adopting).toBe(true);
+    expect(result.current.filled['first']).toBeUndefined();
+    act(() => {
+      result.current.adopt({ kind: 'typed', text: 'Adam Novak', style: 'flowing' });
+    });
+    expect(result.current.filled['first']).toBe('signed');
+    // Every signature box after it takes the same one, at a press.
+    act(() => {
+      result.current.apply('second');
+    });
+    expect(result.current.filled['second']).toBe('signed');
+    expect(result.current.ready).toBe(false);
+    act(() => {
+      result.current.apply('later');
+    });
+    expect(result.current.filled['later']).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
+    expect(result.current.ready).toBe(true);
+    expect(result.current.next).toBeNull();
+  });
+});

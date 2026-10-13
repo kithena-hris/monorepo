@@ -2,58 +2,34 @@
 
 import {
   Alert,
-  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  Checkbox,
   EmptyState,
   Field,
   FieldControl,
-  FieldDescription,
   FieldLabel,
   Input,
-  List,
-  ListItem,
   PageHeader,
   PinInput,
-  SegmentedControl,
-  SegmentedControlItem,
-  SignaturePad,
+  Signature,
   icons,
 } from '@reach/ui';
 import { useState, useTransition, type JSX } from 'react';
 
+import {
+  AdoptDialog,
+  DocumentToSign,
+  useSigning,
+  type EnvelopeData,
+} from '@kithena/web-documents/sign';
+
 import { declineLink, requestCode, signLink, verifyCode } from './actions';
 
-/** What a link's request looks like to its signer: Documents' `EnvelopeView`, the parts used here. */
-export interface LinkEnvelope {
-  readonly id: string;
-  readonly title: string;
-  readonly status: 'sent' | 'completed' | 'declined' | 'voided';
-  readonly message: string;
-  readonly sender: string;
-  readonly signers: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly status: string;
-  }[];
-  readonly fields: readonly {
-    readonly id: string;
-    readonly signerId: string;
-    readonly kind: 'signature' | 'initials' | 'date' | 'name' | 'title' | 'checkbox' | 'text';
-    readonly page: number;
-    readonly label: string | null;
-    readonly required: boolean;
-  }[];
-  readonly me: {
-    readonly signerId: string;
-    readonly status: string;
-    readonly turn: boolean;
-  } | null;
-}
+/** What a link's request looks like to its signer: Documents' `EnvelopeView`. */
+export type LinkEnvelope = EnvelopeData;
 
 /**
  * K6 then K4–K5 for somebody outside: a code by email, then their fields,
@@ -77,12 +53,6 @@ export function SignByLink({
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [how, setHow] = useState<'type' | 'draw'>('type');
-  const [typed, setTyped] = useState('');
-  const [path, setPath] = useState('');
-  const [values, setValues] = useState<Readonly<Record<string, string>>>({});
-  const [declining, setDeclining] = useState(false);
-  const [reason, setReason] = useState('');
 
   if (envelope === null) {
     return (
@@ -115,8 +85,6 @@ export function SignByLink({
       </main>
     );
   }
-  const me = envelope.me.signerId;
-  const mine = envelope.fields.filter((f) => f.signerId === me);
   const act = (run: () => Promise<void>) => {
     setProblem(null);
     start(run);
@@ -180,15 +148,42 @@ export function SignByLink({
     );
   }
 
-  const ready =
-    (how === 'type' ? typed.trim() !== '' : path.trim() !== '') &&
-    mine.every((f) => !f.required || f.kind !== 'checkbox' || values[f.id] === 'true') &&
-    mine.every(
-      (f) =>
-        !f.required ||
-        (f.kind !== 'text' && f.kind !== 'title') ||
-        (values[f.id] ?? '').trim() !== '',
-    );
+  return (
+    <SignNow
+      token={token}
+      company={company}
+      envelope={envelope}
+      fileUrl={fileUrl}
+      onDone={setDone}
+    />
+  );
+}
+
+/** Verified: their boxes on the document, Start and Next to each, Finish. */
+function SignNow({
+  token,
+  company,
+  envelope,
+  fileUrl,
+  onDone,
+}: {
+  readonly token: string;
+  readonly company: string;
+  readonly envelope: LinkEnvelope;
+  readonly fileUrl: string | null;
+  readonly onDone: (done: string) => void;
+}): JSX.Element {
+  const name = envelope.signers.find((s) => s.id === envelope.me?.signerId)?.name ?? '';
+  const signing = useSigning(envelope, name);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const [declining, setDeclining] = useState(false);
+  const [reason, setReason] = useState('');
+  const needsMark = signing.mine.some((f) => f.kind === 'signature' || f.kind === 'initials');
+  const act = (run: () => Promise<void>) => {
+    setProblem(null);
+    start(run);
+  };
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-8">
@@ -198,111 +193,55 @@ export function SignByLink({
           {envelope.message}
         </Alert>
       )}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <Card variant="fill" className="overflow-hidden">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <Card variant="fill" padded>
           {fileUrl === null ? (
             <Alert tone="danger">The document could not be opened.</Alert>
           ) : (
-            <iframe title={envelope.title} src={fileUrl} className="h-[48rem] w-full" />
+            <DocumentToSign env={envelope} url={fileUrl} signing={signing} name={name} />
           )}
         </Card>
-        <Card variant="assistant">
+        <Card variant="assistant" className="lg:sticky lg:top-4 lg:self-start">
           <CardHeader>
             <CardTitle level={2}>Your part</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <List>
-              {mine.map((f) => (
-                <ListItem
-                  key={f.id}
-                  description={`Page ${String(f.page)}`}
-                  trailing={
-                    f.kind === 'checkbox' ? (
-                      <Checkbox
-                        aria-label={f.label ?? 'Tick'}
-                        checked={values[f.id] === 'true'}
-                        onCheckedChange={(v) => {
-                          setValues({ ...values, [f.id]: v === true ? 'true' : 'false' });
-                        }}
-                      />
-                    ) : f.kind === 'text' || f.kind === 'title' ? (
-                      <Input
-                        aria-label={f.label ?? 'Text'}
-                        value={values[f.id] ?? ''}
-                        onChange={(e) => {
-                          setValues({ ...values, [f.id]: e.target.value });
-                        }}
-                      />
-                    ) : f.kind === 'date' ? (
-                      <span className="text-sm text-fg-muted">Fills in when you sign</span>
-                    ) : (
-                      <Badge tone="accent" size="sm">
-                        Sign here
-                      </Badge>
-                    )
-                  }
-                >
-                  {f.label ??
-                    (f.kind === 'signature'
-                      ? 'Signature'
-                      : f.kind === 'initials'
-                        ? 'Initials'
-                        : f.kind === 'date'
-                          ? 'Date signed'
-                          : f.kind === 'name'
-                            ? 'Full name'
-                            : 'Field')}
-                </ListItem>
-              ))}
-            </List>
-            <SegmentedControl
-              aria-label="How you sign"
-              fullWidth
-              value={how}
-              onValueChange={(v) => {
-                setHow(v === 'draw' ? 'draw' : 'type');
-              }}
-            >
-              <SegmentedControlItem value="type">Type</SegmentedControlItem>
-              <SegmentedControlItem value="draw">Draw</SegmentedControlItem>
-            </SegmentedControl>
-            {how === 'type' ? (
-              <Field>
-                <FieldLabel>Your name</FieldLabel>
-                <FieldControl>
-                  <Input
-                    value={typed}
-                    maxLength={120}
-                    onChange={(e) => {
-                      setTyped(e.target.value);
-                    }}
-                  />
-                </FieldControl>
-                <FieldDescription>
-                  Adopting it, you agree this electronic signature is the legal equivalent of your
-                  handwritten one.
-                </FieldDescription>
-              </Field>
-            ) : (
-              <SignaturePad label="Draw your signature" value={path} onValueChange={setPath} />
+            <p className="text-sm">
+              {signing.ready
+                ? 'Every box of yours is filled.'
+                : 'Start takes you to each box of yours; press it, or Apply, to fill it.'}
+            </p>
+            {signing.mark === null ? null : (
+              <div className="h-16 rounded-md bg-surface-sunken">
+                <Signature value={signing.mark} label={`${name}’s signature`} />
+              </div>
             )}
+            {needsMark ? (
+              <Button
+                variant="secondary"
+                startIcon={<icons.edit aria-hidden />}
+                onClick={() => {
+                  signing.setAdopting(true);
+                }}
+              >
+                {signing.mark === null ? 'Adopt your signature' : 'Change your signature'}
+              </Button>
+            ) : null}
             {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
             <Button
               variant="primary"
-              disabled={!ready}
+              disabled={!signing.ready || (needsMark && signing.mark === null)}
               loading={pending}
               onClick={() => {
                 act(async () => {
                   const r = await signLink(
                     token,
-                    how === 'type'
-                      ? { kind: 'typed', text: typed.trim() }
-                      : { kind: 'drawn', path: path.trim() },
-                    values,
+                    signing.mark ?? { kind: 'typed', text: name },
+                    signing.values,
                   );
                   if (!r.ok) setProblem(r.message);
                   else
-                    setDone(
+                    onDone(
                       r.data.completed
                         ? 'Signed. Everybody has signed; the sealed copy is with the sender.'
                         : 'Signed. The others sign next.',
@@ -310,8 +249,11 @@ export function SignByLink({
                 });
               }}
             >
-              Sign
+              Finish
             </Button>
+            <p className="text-xs text-fg-muted">
+              Adopting a signature, you agree it is the legal equivalent of your handwritten one.
+            </p>
             {declining ? (
               <>
                 <Field required>
@@ -332,7 +274,7 @@ export function SignByLink({
                   onClick={() => {
                     act(async () => {
                       const r = await declineLink(token, reason);
-                      if (r.ok) setDone('Declined. The sender is told.');
+                      if (r.ok) onDone('Declined. The sender is told.');
                       else setProblem(r.message);
                     });
                   }}
@@ -355,6 +297,12 @@ export function SignByLink({
           </CardContent>
         </Card>
       </div>
+      <AdoptDialog
+        open={signing.adopting}
+        name={name}
+        onOpenChange={signing.setAdopting}
+        onAdopt={signing.adopt}
+      />
     </main>
   );
 }

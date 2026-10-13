@@ -54,8 +54,10 @@ let pdfjs: Promise<PdfJs> | undefined;
 /** pdf.js and its worker, once per page load: the worker's own origin is pdf.js's to handle. */
 const loadPdfJs = (): Promise<PdfJs> =>
   (pdfjs ??= import('pdfjs-dist').then((lib) => {
+    // A relative path, which every bundler here (Turbopack, webpack, Vite)
+    // turns into an asset URL; a bare package name is not resolved by all.
     lib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.min.mjs',
+      '../../../node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
       import.meta.url,
     ).href;
     return lib;

@@ -24,20 +24,12 @@ import {
   EmptyState,
   Field,
   FieldControl,
-  FieldDescription,
   FieldLabel,
   Input,
   List,
   ListItem,
   PageHeader,
-  SegmentedControl,
-  SegmentedControlItem,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  SignaturePad,
+  Signature,
   Skeleton,
   Spinner,
   Stepper,
@@ -46,6 +38,8 @@ import {
 import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
+import { WhereTheySign, startingFields, type PlacedField } from './prepare';
+import { AdoptDialog, DocumentToSign, useSigning, type Signing } from './sign-view';
 import { shortDate, useWrite } from '../shared';
 import type {
   Created,
@@ -53,6 +47,7 @@ import type {
   EnvelopeData,
   EnvelopesData,
   FieldKind,
+  FileLink,
   Mark,
   Outcome,
 } from '../types';
@@ -145,13 +140,12 @@ interface DraftSigner {
   readonly email: string;
   readonly name: string;
   readonly allowDelegate: boolean;
-  readonly page: number;
-  readonly spot: 'left' | 'right';
-  readonly initials: boolean;
 }
 
 export interface SendProps {
   readonly load: Loadable<DocumentData>;
+  /** The document's file, to place boxes on it. */
+  readonly onFileLink?: FileLink | undefined;
   readonly onNavigate?: ((href: string) => void) | undefined;
   readonly onSend?:
     | ((
@@ -206,64 +200,11 @@ export function SendForSignature(props: SendProps): JSX.Element {
   );
 }
 
-/** Kithena's placements, as fractions of the page: a signature and its date. */
-const SPOTS = { left: 0.08, right: 0.54 } as const;
-
-function fieldsOf(signers: readonly DraftSigner[], pages: number) {
-  return signers.flatMap((s, i) => {
-    const signerId = `s${String(i + 1)}`;
-    const row = Math.floor(i / 2);
-    const x = SPOTS[s.spot];
-    const y = 0.78 - row * 0.12;
-    return [
-      {
-        id: `${signerId}-signature`,
-        signerId,
-        kind: 'signature' as const,
-        page: s.page,
-        x,
-        y,
-        w: 0.38,
-        h: 0.06,
-        required: true,
-        label: null,
-      },
-      {
-        id: `${signerId}-date`,
-        signerId,
-        kind: 'date' as const,
-        page: s.page,
-        x,
-        y: y + 0.065,
-        w: 0.2,
-        h: 0.03,
-        required: true,
-        label: null,
-      },
-      ...(s.initials
-        ? Array.from({ length: pages }, (_, p) => p + 1)
-            .filter((p) => p !== s.page)
-            .map((p) => ({
-              id: `${signerId}-initials-${String(p)}`,
-              signerId,
-              kind: 'initials' as const,
-              page: p,
-              x: s.spot === 'left' ? 0.08 : 0.82,
-              y: 0.93,
-              w: 0.1,
-              h: 0.035,
-              required: true,
-              label: null,
-            }))
-        : []),
-    ];
-  });
-}
-
 function SendSteps({
   doc,
   onNavigate,
   onSend,
+  onFileLink,
 }: { readonly doc: NonNullable<DocumentData['document']> } & Omit<SendProps, 'load'>): JSX.Element {
   const pages = doc.current.pages ?? 1;
   const [step, setStep] = useState(0);
@@ -277,11 +218,23 @@ function SendSteps({
             email: '',
             name: doc.row.subject.name,
             allowDelegate: false,
-            page: pages,
-            spot: 'left',
-            initials: false,
           },
         ],
+  );
+  const [fields, setFields] = useState<readonly PlacedField[]>([]);
+  /** Each signer starts with a signature and its date; a signer removed takes their boxes. */
+  const toPlacing = () => {
+    const kept = fields.filter((f) => signers.some((s) => s.key === f.signer));
+    setFields([
+      ...kept,
+      ...signers.flatMap((s, i) =>
+        kept.some((f) => f.signer === s.key) ? [] : startingFields(s.key, i, pages),
+      ),
+    ]);
+    setStep(1);
+  };
+  const unplaced = signers.some(
+    (s) => !fields.some((f) => f.signer === s.key && f.kind === 'signature'),
   );
   const [outside, setOutside] = useState({ email: '', name: '' });
   const [message, setMessage] = useState('');
@@ -290,18 +243,8 @@ function SendSteps({
   const update = (key: string, patch: Partial<DraftSigner>) => {
     setSigners(signers.map((s) => (s.key === key ? { ...s, ...patch } : s)));
   };
-  const add = (s: Omit<DraftSigner, 'key' | 'page' | 'spot' | 'initials' | 'allowDelegate'>) => {
-    setSigners([
-      ...signers,
-      {
-        ...s,
-        key: String(Date.now()),
-        page: pages,
-        spot: signers.length % 2 === 0 ? 'left' : 'right',
-        initials: false,
-        allowDelegate: false,
-      },
-    ]);
+  const add = (s: Omit<DraftSigner, 'key' | 'allowDelegate'>) => {
+    setSigners([...signers, { ...s, key: String(Date.now()), allowDelegate: false }]);
   };
   const named = new Set(signers.map((s) => s.personId ?? s.email));
   return (
@@ -319,7 +262,8 @@ function SendSteps({
           { id: 'review', label: 'Review and send' },
         ]}
         onStepChange={(i) => {
-          setStep(i);
+          if (i === 1) toPlacing();
+          else if (i < 2 || !unplaced) setStep(i);
         }}
       />
       {step === 0 ? (
@@ -428,108 +372,63 @@ function SendSteps({
               variant="primary"
               className="self-end"
               disabled={signers.length === 0}
-              onClick={() => {
-                setStep(1);
-              }}
+              onClick={toPlacing}
             >
               Next
             </Button>
           </CardContent>
         </Card>
       ) : step === 1 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle level={2}>Where they sign</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <p className="text-sm text-fg-muted">
-              Kithena places a signature and the date for each signer on the last page. Move them,
-              or add initials to every page.
-            </p>
-            {signers.map((s) => (
-              <div key={s.key} className="grid gap-3 sm:grid-cols-[1fr_8rem_10rem] sm:items-end">
-                <span className="font-semibold">{s.name}</span>
-                <Field>
-                  <FieldLabel>Page</FieldLabel>
-                  <Select
-                    value={String(s.page)}
-                    onValueChange={(v) => {
-                      update(s.key, { page: Number(v) });
-                    }}
-                  >
-                    <FieldControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FieldControl>
-                    <SelectContent>
-                      {Array.from({ length: pages }, (_, p) => (
-                        <SelectItem key={p} value={String(p + 1)}>
-                          {`Page ${String(p + 1)}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel>Where</FieldLabel>
-                  <SegmentedControl
-                    aria-label={`Where ${s.name} signs`}
-                    value={s.spot}
-                    onValueChange={(v) => {
-                      update(s.key, { spot: v === 'right' ? 'right' : 'left' });
-                    }}
-                  >
-                    <SegmentedControlItem value="left">Left</SegmentedControlItem>
-                    <SegmentedControlItem value="right">Right</SegmentedControlItem>
-                  </SegmentedControl>
-                </Field>
-                <Field orientation="horizontal" className="sm:col-span-3">
-                  <FieldLabel>Initials on every other page</FieldLabel>
-                  <FieldControl>
-                    <Checkbox
-                      checked={s.initials}
-                      onCheckedChange={(v) => {
-                        update(s.key, { initials: v === true });
-                      }}
-                    />
-                  </FieldControl>
-                </Field>
-                {s.personId === null ? null : (
-                  <Field orientation="horizontal" className="sm:col-span-3">
-                    <FieldLabel>May pass it to a colleague</FieldLabel>
-                    <FieldControl>
-                      <Checkbox
-                        checked={s.allowDelegate}
-                        onCheckedChange={(v) => {
-                          update(s.key, { allowDelegate: v === true });
-                        }}
-                      />
-                    </FieldControl>
-                  </Field>
+        <div className="flex flex-col gap-4">
+          <WhereTheySign
+            documentId={doc.row.id}
+            title={doc.row.title}
+            signers={signers.map((s) => ({ key: s.key, name: s.name }))}
+            fields={fields}
+            onFields={setFields}
+            onFileLink={onFileLink}
+          />
+          {signers.some((s) => s.personId !== null) ? (
+            <Card>
+              <CardContent className="flex flex-col gap-2 pt-4">
+                {signers.map((s) =>
+                  s.personId === null ? null : (
+                    <Field key={s.key} orientation="horizontal">
+                      <FieldControl>
+                        <Checkbox
+                          checked={s.allowDelegate}
+                          onCheckedChange={(v) => {
+                            update(s.key, { allowDelegate: v === true });
+                          }}
+                        />
+                      </FieldControl>
+                      <FieldLabel>{`${s.name} may pass it to a colleague`}</FieldLabel>
+                    </Field>
+                  ),
                 )}
-              </div>
-            ))}
-            <div className="flex justify-between">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setStep(0);
-                }}
-              >
-                Back
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setStep(2);
-                }}
-              >
-                Next
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          ) : null}
+          <div className="flex justify-between">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStep(0);
+              }}
+            >
+              Back
+            </Button>
+            <Button
+              variant="primary"
+              disabled={unplaced}
+              onClick={() => {
+                setStep(2);
+              }}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       ) : (
         <Card>
           <CardHeader>
@@ -541,7 +440,7 @@ function SendSteps({
                 <ListItem
                   key={s.key}
                   leading={<Avatar name={s.name} size="md" />}
-                  description={`Signs ${String(i + 1)} of ${String(signers.length)} · page ${String(s.page)}${s.initials ? ' · initials on every page' : ''}`}
+                  description={`Signs ${String(i + 1)} of ${String(signers.length)} · ${String(fields.filter((f) => f.signer === s.key).length)} boxes`}
                 >
                   {s.name}
                 </ListItem>
@@ -594,7 +493,21 @@ function SendSteps({
                         order: i + 1,
                         allowDelegate: s.allowDelegate,
                       })),
-                      fields: fieldsOf(signers, pages),
+                      fields: fields.map((f) => {
+                        const n = signers.findIndex((s) => s.key === f.signer) + 1;
+                        return {
+                          id: f.id,
+                          signerId: `s${String(n)}`,
+                          kind: f.kind,
+                          page: f.page,
+                          x: f.x,
+                          y: f.y,
+                          w: f.w,
+                          h: f.h,
+                          required: f.required,
+                          label: null,
+                        };
+                      }),
                       message,
                       dueOn,
                     }) ?? Promise.resolve({ ok: false as const, message: 'Not available here' }));
@@ -664,7 +577,9 @@ function EnvelopePage({
       live = false;
     };
   }, [env.id, env.status, props.onFileLink]);
-  const signing = env.me?.turn === true;
+  const signingNow = env.me?.turn === true && env.status === 'sent';
+  const myName = env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
+  const signing = useSigning(env, myName);
   return (
     <>
       <PageHeader
@@ -696,11 +611,18 @@ function EnvelopePage({
               <Spinner label="Opening the document" />
             </div>
           ) : (
-            <iframe title={env.title} src={link} className="h-[48rem] w-full" />
+            <div className="p-3">
+              <DocumentToSign
+                env={env}
+                url={link}
+                signing={signingNow ? signing : null}
+                name={myName}
+              />
+            </div>
           )}
         </Card>
         <div className="flex flex-col gap-4">
-          {signing ? <SignPanel env={env} {...props} /> : null}
+          {signingNow ? <SignPanel env={env} signing={signing} name={myName} {...props} /> : null}
           <Card>
             <CardHeader>
               <CardTitle level={2}>Signers</CardTitle>
@@ -781,32 +703,19 @@ function EnvelopePage({
   );
 }
 
-const LABELS: Record<FieldKind, string> = {
-  signature: 'Signature',
-  initials: 'Initials',
-  date: 'Date signed',
-  name: 'Full name',
-  title: 'Job title',
-  checkbox: 'Tick',
-  text: 'Text',
-};
-
-/** K4–K7: the signer's own fields, one panel, and everything other than signing. */
+/** K4–K7: the signer's part beside the document: what is left, Finish, and everything else. */
 export function SignPanel({
   env,
+  signing,
+  name,
   onSign,
   onDecline,
   onAsk,
   onNavigate,
-}: { readonly env: EnvelopeData } & Pick<
+}: { readonly env: EnvelopeData; readonly signing: Signing; readonly name: string } & Pick<
   EnvelopeProps,
   'onSign' | 'onDecline' | 'onAsk' | 'onNavigate'
 >): JSX.Element {
-  const me = env.me?.signerId ?? '';
-  const mine = env.fields.filter((f) => f.signerId === me);
-  const [values, setValues] = useState<Readonly<Record<string, string>>>({});
-  const [adopting, setAdopting] = useState(false);
-  const [mark, setMark] = useState<Mark | null>(null);
   const [other, setOther] = useState<'ask' | 'decline' | null>(null);
   const [text, setText] = useState('');
   const [done, setDone] = useState<string | null>(null);
@@ -817,77 +726,39 @@ export function SignPanel({
         {done}
       </Alert>
     );
-  const signed = mark !== null;
-  const ready =
-    signed &&
-    mine.every(
-      (f) =>
-        !f.required ||
-        f.kind === 'signature' ||
-        f.kind === 'initials' ||
-        f.kind === 'date' ||
-        f.kind === 'name' ||
-        (f.kind === 'checkbox' ? values[f.id] === 'true' : (values[f.id] ?? '').trim() !== ''),
-    );
+  const { mine, mark } = signing;
+  const needsMark = mine.some((f) => f.kind === 'signature' || f.kind === 'initials');
+  const left = mine.filter((f) => {
+    const v = signing.filled[f.id];
+    return f.required && (v === undefined || v === '' || v === 'false');
+  });
   return (
     <Card variant="assistant">
       <CardHeader>
         <CardTitle level={2}>Your part</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <List>
-          {mine.map((f) => (
-            <ListItem
-              key={f.id}
-              icon={
-                f.kind === 'signature' || f.kind === 'initials' ? (
-                  <icons.edit />
-                ) : f.kind === 'date' ? (
-                  <icons.calendar />
-                ) : (
-                  <icons.document />
-                )
-              }
-              description={`Page ${String(f.page)}`}
-              trailing={
-                f.kind === 'checkbox' ? (
-                  <Checkbox
-                    aria-label={f.label ?? 'Tick'}
-                    checked={values[f.id] === 'true'}
-                    onCheckedChange={(v) => {
-                      setValues({ ...values, [f.id]: v === true ? 'true' : 'false' });
-                    }}
-                  />
-                ) : f.kind === 'text' || f.kind === 'title' ? (
-                  <Input
-                    aria-label={f.label ?? LABELS[f.kind]}
-                    value={values[f.id] ?? ''}
-                    onChange={(e) => {
-                      setValues({ ...values, [f.id]: e.target.value });
-                    }}
-                  />
-                ) : f.kind === 'date' ? (
-                  <span className="text-sm text-fg-muted">Fills in when you sign</span>
-                ) : f.kind === 'name' ? null : (
-                  <Badge tone={signed ? 'success' : 'accent'} size="sm">
-                    {signed ? 'Ready' : 'Sign here'}
-                  </Badge>
-                )
-              }
-            >
-              {f.label ?? LABELS[f.kind]}
-            </ListItem>
-          ))}
-        </List>
-        <Button
-          variant={signed ? 'secondary' : 'primary'}
-          startIcon={<icons.edit aria-hidden />}
-          onClick={() => {
-            setAdopting(true);
-          }}
-        >
-          {signed ? 'Change your signature' : 'Adopt your signature'}
-        </Button>
+        <p className="text-sm">
+          {left.length === 0
+            ? 'Every box of yours is filled.'
+            : `${String(left.length)} ${left.length === 1 ? 'box' : 'boxes'} to fill. Start takes you to each one.`}
+        </p>
+        {mark === null ? null : (
+          <div className="h-16 rounded-md bg-surface-sunken">
+            <Signature value={mark} label={`${name}’s signature`} />
+          </div>
+        )}
+        {needsMark ? (
+          <Button
+            variant="secondary"
+            startIcon={<icons.edit aria-hidden />}
+            onClick={() => {
+              signing.setAdopting(true);
+            }}
+          >
+            {mark === null ? 'Adopt your signature' : 'Change your signature'}
+          </Button>
+        ) : null}
         {write.error === null ? null : (
           <Alert tone="danger" title="Not signed">
             {write.error}
@@ -895,12 +766,12 @@ export function SignPanel({
         )}
         <Button
           variant="primary"
-          disabled={!ready}
+          disabled={!signing.ready || (needsMark && mark === null)}
           loading={write.pending}
           onClick={() => {
-            if (mark === null) return;
             write.run(async () => {
-              const r = await (onSign?.(env.id, mark, values) ??
+              const signature = mark ?? { kind: 'typed' as const, text: name };
+              const r = await (onSign?.(env.id, signature, signing.values) ??
                 Promise.resolve({ ok: false as const, message: 'Not available here' }));
               if (!r.ok) return r;
               setDone(
@@ -912,7 +783,7 @@ export function SignPanel({
             });
           }}
         >
-          Sign
+          Finish
         </Button>
         <p className="text-xs text-fg-muted">
           Signed with your Kithena login. The time and your device are recorded.
@@ -939,12 +810,10 @@ export function SignPanel({
         </div>
       </CardContent>
       <AdoptDialog
-        open={adopting}
-        onOpenChange={setAdopting}
-        onAdopt={(m) => {
-          setMark(m);
-          setAdopting(false);
-        }}
+        open={signing.adopting}
+        name={name}
+        onOpenChange={signing.setAdopting}
+        onAdopt={signing.adopt}
       />
       <Dialog
         open={other !== null}
@@ -1007,89 +876,6 @@ export function SignPanel({
         </DialogContent>
       </Dialog>
     </Card>
-  );
-}
-
-/** K5: type or draw, once; every field of yours then fills with it. */
-export function AdoptDialog({
-  open,
-  onOpenChange,
-  onAdopt,
-}: {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-  readonly onAdopt: (mark: Mark) => void;
-}): JSX.Element {
-  const [how, setHow] = useState<'type' | 'draw'>('type');
-  const [typed, setTyped] = useState('');
-  const [path, setPath] = useState('');
-  const ready = how === 'type' ? typed.trim() !== '' : path.trim() !== '';
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Your signature</DialogTitle>
-          <DialogDescription>Type it, or draw it.</DialogDescription>
-        </DialogHeader>
-        <DialogBody className="flex flex-col gap-4">
-          <SegmentedControl
-            aria-label="How you sign"
-            fullWidth
-            value={how}
-            onValueChange={(v) => {
-              setHow(v === 'draw' ? 'draw' : 'type');
-            }}
-          >
-            <SegmentedControlItem value="type">Type</SegmentedControlItem>
-            <SegmentedControlItem value="draw">Draw</SegmentedControlItem>
-          </SegmentedControl>
-          {how === 'type' ? (
-            <Field>
-              <FieldLabel>Your name</FieldLabel>
-              <FieldControl>
-                <Input
-                  value={typed}
-                  maxLength={120}
-                  onChange={(e) => {
-                    setTyped(e.target.value);
-                  }}
-                />
-              </FieldControl>
-              <FieldDescription>Drawn in a handwriting face where you sign.</FieldDescription>
-            </Field>
-          ) : (
-            <SignaturePad label="Draw your signature" value={path} onValueChange={setPath} />
-          )}
-          <p className="text-xs text-fg-muted">
-            By adopting it, you agree this electronic signature is the legal equivalent of your
-            handwritten one.
-          </p>
-        </DialogBody>
-        <DialogFooter>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              onOpenChange(false);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            disabled={!ready}
-            onClick={() => {
-              onAdopt(
-                how === 'type'
-                  ? { kind: 'typed', text: typed.trim() }
-                  : { kind: 'drawn', path: path.trim() },
-              );
-            }}
-          >
-            Adopt
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
