@@ -1,9 +1,9 @@
 import {
+  AdoptSignatureDialog,
   Button,
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -13,15 +13,8 @@ import {
   Input,
   PdfPages,
   PlacementLayer,
-  RadioCard,
-  RadioGroup,
-  SIGNATURE_STYLE_LABEL,
-  SegmentedControl,
-  SegmentedControlItem,
   Signature,
-  SignaturePad,
   icons,
-  type SignatureStyle,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -68,10 +61,16 @@ const inPageOrder = (a: EnvelopeField, b: EnvelopeField) =>
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function useSigning(env: EnvelopeData, name: string): Signing {
+export function useSigning(
+  env: EnvelopeData,
+  name: string,
+  /** Told of a signature adopted here, to keep it where People keeps one. */
+  onAdopted?: (mark: Mark) => void,
+): Signing {
   const me = env.me?.signerId ?? '';
   const mine = env.fields.filter((f) => f.signerId === me).toSorted(inPageOrder);
-  const [mark, setMark] = useState<Mark | null>(null);
+  // The one on file signs at once; adopting is for whoever has none.
+  const [mark, setMark] = useState<Mark | null>(env.signature?.mark ?? null);
   const [filled, setFilled] = useState<Readonly<Record<string, string>>>({});
   const [focus, setFocus] = useState<string | null>(null);
   const [adopting, setAdopting] = useState(false);
@@ -131,6 +130,7 @@ export function useSigning(env: EnvelopeData, name: string): Signing {
     adopt: (m) => {
       setMark(m);
       setAdopting(false);
+      if (env.signature?.canKeep === true) onAdopted?.(m);
       // The box that asked for it gets it at once.
       const asked = mine.find((f) => f.id === waiting);
       if (asked !== undefined) setFilled((was) => ({ ...was, [asked.id]: 'signed' }));
@@ -322,11 +322,7 @@ const HINT: Readonly<Record<FieldKind, string>> = {
   checkbox: '',
 };
 
-/**
- * K5, as DocuSign does it: your name, already typed, shown in three
- * handwriting faces to choose from; or drawn. "Adopt and sign" fills the box
- * that asked, and every signature box after it takes the same one.
- */
+/** K5: Reach's adopt dialog, where adopting also signs the box that asked. */
 export function AdoptDialog({
   open,
   name,
@@ -334,107 +330,17 @@ export function AdoptDialog({
   onAdopt,
 }: {
   readonly open: boolean;
-  /** Their name, to start from. */
   readonly name: string;
   readonly onOpenChange: (open: boolean) => void;
   readonly onAdopt: (mark: Mark) => void;
 }): JSX.Element {
-  const [how, setHow] = useState<'type' | 'draw'>('type');
-  const [typed, setTyped] = useState(name);
-  const [style, setStyle] = useState<SignatureStyle>('flowing');
-  const [path, setPath] = useState('');
-  const ready = how === 'type' ? typed.trim() !== '' : path.trim() !== '';
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Adopt your signature</DialogTitle>
-          <DialogDescription>Choose how it looks, or draw it.</DialogDescription>
-        </DialogHeader>
-        <DialogBody className="flex flex-col gap-4">
-          <SegmentedControl
-            aria-label="How you sign"
-            fullWidth
-            value={how}
-            onValueChange={(v) => {
-              setHow(v === 'draw' ? 'draw' : 'type');
-            }}
-          >
-            <SegmentedControlItem value="type">Choose a style</SegmentedControlItem>
-            <SegmentedControlItem value="draw">Draw</SegmentedControlItem>
-          </SegmentedControl>
-          {how === 'type' ? (
-            <>
-              <Field>
-                <FieldLabel>Your name</FieldLabel>
-                <FieldControl>
-                  <Input
-                    value={typed}
-                    maxLength={120}
-                    onChange={(e) => {
-                      setTyped(e.target.value);
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-              <RadioGroup
-                aria-label="Style"
-                value={style}
-                onValueChange={(v) => {
-                  setStyle(v as SignatureStyle);
-                }}
-                className="grid gap-2"
-              >
-                {(Object.keys(SIGNATURE_STYLE_LABEL) as SignatureStyle[]).map((k) => (
-                  <RadioCard
-                    key={k}
-                    value={k}
-                    description={
-                      <span className="block h-14 w-full">
-                        <Signature
-                          value={{ kind: 'typed', text: typed.trim() || name, style: k }}
-                          label={`${typed.trim() || name}, in the ${SIGNATURE_STYLE_LABEL[k].toLowerCase()} style`}
-                        />
-                      </span>
-                    }
-                  >
-                    {SIGNATURE_STYLE_LABEL[k]}
-                  </RadioCard>
-                ))}
-              </RadioGroup>
-            </>
-          ) : (
-            <SignaturePad label="Draw your signature" value={path} onValueChange={setPath} />
-          )}
-          <p className="text-xs text-fg-muted">
-            By adopting it, you agree this electronic signature is the legal equivalent of your
-            handwritten one.
-          </p>
-        </DialogBody>
-        <DialogFooter>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              onOpenChange(false);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            disabled={!ready}
-            onClick={() => {
-              onAdopt(
-                how === 'type'
-                  ? { kind: 'typed', text: typed.trim(), style }
-                  : { kind: 'drawn', path: path.trim() },
-              );
-            }}
-          >
-            Adopt and sign
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <AdoptSignatureDialog
+      open={open}
+      name={name}
+      action="Adopt and sign"
+      onOpenChange={onOpenChange}
+      onAdopt={onAdopt}
+    />
   );
 }

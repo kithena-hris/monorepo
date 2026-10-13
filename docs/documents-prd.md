@@ -244,10 +244,22 @@ reassigning hands a signer's turn to someone else when the sender allowed it.
 
 ### 10.2 Signing (K4–K7, MX1–MX4)
 
-One field at a time; "Sign here" points at the next one. The first signature
-field opens Adopt a signature: type, draw or upload, with initials. Date fields
-fill when you sign. Fields of other signers are greyed. The ⋯ menu: ask the
-sender, pass it on (if allowed), decline with a reason.
+The sender places every box on the document itself (K2): a signature,
+initials, the date, a name, a title, text or a tick, each for one signer, in
+that signer's colour; Kithena starts each signer with a signature and its date
+on the last page. A signer sees the document with their own boxes only. Start,
+then Next, goes to each box in page order; pressing a box, or Apply, fills it.
+The first signature box opens Adopt a signature: their name, already typed, in
+three handwriting faces (Great Vibes, Sacramento, Mr Dafoe), or drawn. A
+signature is stamped centred in its box, as large as the box allows. The ⋯
+menu: ask the sender, pass it on (if allowed), decline with a reason.
+
+**A signature on file.** Where People is present and the company has a field
+of type `signature` (Settings › Employee fields: who fills it in, when it is
+asked, sign-up included, and whether a change waits for HR's approval), the
+shell reads the signer's own and signs with it, with no Adopt step. A signer
+with none adopts one while signing and it is kept on their record; from then
+on it is changed only in Settings › Documents › Your signature.
 
 ### 10.3 Sealing (K9, MX3)
 

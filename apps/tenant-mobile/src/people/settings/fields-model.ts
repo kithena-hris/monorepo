@@ -143,6 +143,7 @@ export const DATA_TYPE_LABEL: Readonly<Record<string, string>> = {
   location_ref: 'A work location',
   document_ref: 'A document',
   image: 'An image',
+  signature: 'A signature',
 };
 
 export const DATA_TYPE_GROUPS: readonly { label: string; types: readonly string[] }[] = [
@@ -158,6 +159,7 @@ export const DATA_TYPE_GROUPS: readonly { label: string; types: readonly string[
   },
   { label: 'Protected', types: ['national_id', 'bank_account'] },
   { label: 'Files', types: ['document_ref', 'image'] },
+  { label: 'Signing', types: ['signature'] },
 ];
 
 /** When a field is asked for, in the order a person meets each moment. */

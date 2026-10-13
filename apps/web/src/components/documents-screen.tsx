@@ -153,6 +153,7 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onNavigate: go,
           onFileLink: actions.envelopeFileLink,
           onSign: actions.signEnvelope,
+          onKeepSignature: actions.keepSignature,
           onDecline: actions.declineEnvelope,
           onAsk: actions.askEnvelopeSender,
           onVoid: actions.voidEnvelope,

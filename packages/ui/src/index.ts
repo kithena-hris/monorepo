@@ -243,6 +243,7 @@ export type {
   SignatureStyle,
   SignatureValue,
 } from './components/signature/signature';
+export { AdoptSignatureDialog, SignatureInput } from './components/signature/adopt-signature';
 export { PdfPages } from './components/pdf-pages/pdf-pages';
 export type { PdfPage, PdfPagesProps } from './components/pdf-pages/pdf-pages';
 export { PlacementLayer } from './components/placement-layer/placement-layer';

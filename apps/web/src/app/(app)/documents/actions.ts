@@ -2,7 +2,10 @@
 
 import { headers } from 'next/headers';
 
+import type { SignatureMark } from '@kithena/contracts';
+
 import { currentTenant } from '../../../lib/branding';
+import { keepMySignature } from '../../../lib/my-signature';
 import { documents, people, timeOff } from '../../../lib/people';
 import { requestExport } from '../people/actions';
 
@@ -249,7 +252,11 @@ export async function sendForSignature(
 }
 
 export type Mark =
-  | { readonly kind: 'typed'; readonly text: string }
+  | {
+      readonly kind: 'typed';
+      readonly text: string;
+      readonly style?: 'flowing' | 'light' | 'bold';
+    }
   | { readonly kind: 'drawn'; readonly path: string };
 
 export async function signEnvelope(
@@ -909,4 +916,12 @@ export async function certificateLeave(documentId: string): Promise<
       leaveType: leaveType === undefined ? null : { key: leaveType.key, name: leaveType.name },
     },
   };
+}
+
+/** K5: a signature adopted while signing, kept on the signer's record where there is none. */
+export async function keepSignature(
+  mark: Mark,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const kept = await keepMySignature(mark as SignatureMark, true);
+  return kept.ok ? { ok: true } : kept;
 }

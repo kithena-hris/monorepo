@@ -1,5 +1,11 @@
 import * as z from 'zod';
-import { INDEFINITE, Money, PostalAddress, type AttributeDefinition } from '@kithena/contracts';
+import {
+  INDEFINITE,
+  Money,
+  PostalAddress,
+  SignatureMark,
+  type AttributeDefinition,
+} from '@kithena/contracts';
 
 import { isCountry } from './standard-lists.js';
 
@@ -140,6 +146,19 @@ function scalarFor(definition: AttributeDefinition, today: string): z.ZodType {
     case 'legal_entity_ref':
     case 'location_ref':
       return z.uuid();
+    case 'signature':
+      // The mark's JSON text, checked against the one definition Documents
+      // signs with: typed in a face, or drawn.
+      return z
+        .string()
+        .max(50_000)
+        .refine((text) => {
+          try {
+            return SignatureMark.safeParse(JSON.parse(text)).success;
+          } catch {
+            return false;
+          }
+        }, 'not a signature');
     case 'document_ref':
     case 'image':
       return z.string().min(1).max(512);

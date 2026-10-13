@@ -1,3 +1,5 @@
+import type { SignatureValue } from '@reach/ui';
+
 import type { DataType, ViewerScope } from '../settings/model';
 
 /**
@@ -20,6 +22,31 @@ export type AttributeValue =
   | null;
 
 export type Values = Readonly<Record<string, AttributeValue>>;
+
+/**
+ * A signature field's value, read: the mark's JSON text as People keeps it
+ * (`@kithena/contracts`, `SignatureMark`), or null for none or one unreadable.
+ */
+export function signatureOf(value: AttributeValue | undefined): SignatureValue | null {
+  if (typeof value !== 'string' || value === '') return null;
+  try {
+    const mark = JSON.parse(value) as Partial<{
+      kind: string;
+      text: string;
+      path: string;
+      style: string;
+    }>;
+    if (mark.kind === 'drawn' && typeof mark.path === 'string')
+      return { kind: 'drawn', path: mark.path };
+    if (mark.kind === 'typed' && typeof mark.text === 'string') {
+      const style = mark.style === 'light' || mark.style === 'bold' ? mark.style : 'flowing';
+      return { kind: 'typed', text: mark.text, style };
+    }
+  } catch {
+    // Not a signature: shown as none.
+  }
+  return null;
+}
 
 /** An open-ended date's answer when there is none: People's `INDEFINITE`. */
 export const INDEFINITE = 'indefinite';

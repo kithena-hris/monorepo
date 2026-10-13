@@ -10,9 +10,11 @@ import {
   FieldLabel,
   Input,
   PhoneField,
+  SignatureInput,
   Spinner,
   Stepper,
   Switch,
+  type SignatureValue,
   Textarea,
 } from '@reach/ui';
 import { useNavigate } from '@modern-js/runtime/router';
@@ -1085,6 +1087,16 @@ function Question({
         );
       case 'phone':
         return <PhoneField label={question.label} value={text} onValueChange={onChange} />;
+      case 'signature':
+        return (
+          <SignatureInput
+            name=""
+            value={signatureOf(text)}
+            onChange={(next) => {
+              onChange(next === null ? '' : JSON.stringify(next));
+            }}
+          />
+        );
       default:
         return (
           <Input
@@ -1126,6 +1138,7 @@ function describeAnswer(question: SignupQuestion, value: Answer | undefined): st
   if (question.dataType === 'boolean') return value === true ? 'Yes' : 'No';
   const text = typeof value === 'string' ? value.trim() : '';
   if (text === '') return 'Not given';
+  if (question.dataType === 'signature') return 'Adopted';
   if (question.dataType === 'select') {
     return question.options.find((o) => o.value === text)?.label ?? text;
   }
@@ -1296,4 +1309,15 @@ function formatStartDate(date: string): string {
   const name = months[Number(month) - 1];
   if (year === undefined || day === undefined || name === undefined) return date;
   return `${String(Number(day))} ${name} ${year}`;
+}
+
+/** A signature answer's JSON text, read for the input; null for none. */
+function signatureOf(text: string): SignatureValue | null {
+  if (text === '') return null;
+  try {
+    const mark = JSON.parse(text) as Partial<SignatureValue>;
+    return mark.kind === 'typed' || mark.kind === 'drawn' ? (mark as SignatureValue) : null;
+  } catch {
+    return null;
+  }
 }

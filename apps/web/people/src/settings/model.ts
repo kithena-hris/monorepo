@@ -81,6 +81,7 @@ export const DATA_TYPES = [
   'location_ref',
   'document_ref',
   'image',
+  'signature',
 ] as const;
 export type DataType = (typeof DATA_TYPES)[number];
 
