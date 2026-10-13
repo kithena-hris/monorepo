@@ -640,9 +640,9 @@ export function FieldEditor({
     }
   };
 
-  /** A new field moves on only once the step it leaves is complete. */
+  /** A new field moves on only once the step it leaves is complete; a saved one moves freely. */
   const next = (): void => {
-    if (Object.keys(stepProblems[step] ?? {}).length > 0) {
+    if (!editing && Object.keys(stepProblems[step] ?? {}).length > 0) {
       setShown(true);
       return;
     }
@@ -1257,10 +1257,7 @@ export function FieldEditor({
             </Button>
           )}
           {last ? null : (
-            <Button
-              variant={editing ? 'secondary' : 'primary'}
-              onClick={editing ? () => goTo(step + 1) : next}
-            >
+            <Button variant={editing ? 'secondary' : 'primary'} onClick={next}>
               {`Next: ${STEPS[step + 1]?.label ?? ''}`}
             </Button>
           )}
