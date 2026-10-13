@@ -107,7 +107,12 @@ export function PdfPages({
         />
       )}
       {pages.length === 0 ? (
-        <View accessibilityLabel={`Opening ${label}`} className="gap-3">
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel={`Opening ${label}`}
+          className="gap-3"
+        >
           <Skeleton className="aspect-[0.77] w-full rounded-sm" />
         </View>
       ) : (
