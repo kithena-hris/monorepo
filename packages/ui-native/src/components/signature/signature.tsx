@@ -90,8 +90,9 @@ export function Signature({
   const text = value.kind === 'typed' ? (initials ? initialsOf(value.text) : value.text) : '';
   const letters = Math.max(Array.from(text).length, 2);
   // At most about half the box's height (a handwriting face's capitals and
-  // tails run well above and below it), and never wider than it.
-  const size = Math.min(box.height * 0.56, (box.width * 0.9) / (letters * EM_PER_LETTER));
+  // tails run well above and below it),
+  // and never wider than it, the swashes' padding (0.3 em a side) included.
+  const size = Math.min(box.height * 0.56, (box.width * 0.9) / (letters * EM_PER_LETTER + 0.6));
   return (
     <View
       accessible
@@ -106,14 +107,17 @@ export function Signature({
       {value.kind === 'drawn' ? (
         drawing
       ) : box.width === 0 ? null : (
+        // No `numberOfLines`: it clips the text to its own box, and a
+        // handwriting face's swashes run past its letters' edges. The padding
+        // is their room; the size already keeps the name inside the box.
         <CssText
           aria-hidden
-          numberOfLines={1}
           className={cn('text-fg', className)}
           style={{
             fontFamily: SIGNATURE_FONTS[value.style ?? 'flowing'],
             fontSize: size,
             lineHeight: size * 1.6,
+            paddingHorizontal: size * 0.3,
           }}
         >
           {text}
