@@ -231,7 +231,6 @@ describe('conditional requiredness (PEO-065)', () => {
   });
 
   it('keeps an existing predicate through an edit rather than collapsing it to optional', async () => {
-    const user = fast();
     const when = {
       combine: 'all' as const,
       clauses: [{ operand: 'status' as const, in: ['active'] }],
@@ -346,7 +345,6 @@ describe('custom visibility rules (PEO-066)', () => {
   });
 
   it('is refused for special-category data before it reaches the server', async () => {
-    const user = fast();
     const onSave = editor(
       field({
         key: 'health_note',
@@ -369,7 +367,6 @@ describe('custom visibility rules (PEO-066)', () => {
   it('shows the server’s refusal of a rule that would disclose what it reads', async () => {
     // Whether a scope may read a placement fact is the server's to judge
     // (VISIBILITY_RULE_DISCLOSES); the editor keeps the sheet open and says so.
-    const user = fast();
     const message =
       'Cost centre is shown by a rule on employment status, which not everybody it is shown to may read';
     const onSave = vi.fn((_input: FieldInput) => Promise.resolve({ ok: false as const, message }));
