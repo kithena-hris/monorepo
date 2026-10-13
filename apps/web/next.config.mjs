@@ -10,7 +10,7 @@ const config = {
   // `@reach/ui` ships TypeScript source rather than build output, so Next
   // compiles it with the app. One compiler, one set of settings, and no
   // watch-and-rebuild step between editing a component and seeing it here.
-  transpilePackages: ['@reach/ui'],
+  transpilePackages: ['@reach/ui', '@kithena/web-documents'],
   // Tesseract finds its worker script and WebAssembly by path at run time, so
   // the phone's ID-card reader (`app/api/mobile/read`) loads it from
   // node_modules rather than from a bundle.

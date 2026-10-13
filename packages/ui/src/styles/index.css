@@ -11,6 +11,7 @@
 @import './preset.css';
 @import './base.css';
 @import './prose.css';
+@import './signature.css';
 
 @source '../components';
 /* Stories live in the package too, and Foundations pages are written in

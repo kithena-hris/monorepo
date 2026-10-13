@@ -71,7 +71,9 @@ export async function verifyCode(
 
 export async function signLink(
   token: string,
-  signature: { kind: 'typed'; text: string } | { kind: 'drawn'; path: string },
+  signature:
+    | { kind: 'typed'; text: string; style?: 'flowing' | 'light' | 'bold' }
+    | { kind: 'drawn'; path: string },
   values: Readonly<Record<string, string>>,
 ): Promise<Answer<{ completed: boolean }>> {
   return call<{ completed: boolean }>(token, '/sign', { signature, values });

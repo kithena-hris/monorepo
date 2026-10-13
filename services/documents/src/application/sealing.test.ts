@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDict, PDFDocument, PDFName } from 'pdf-lib';
 import type { DocumentId, Instant } from '@kithena/contracts';
 
 import { send, sign, markOpened, type Envelope } from '../domain/signature/envelope.js';
@@ -68,5 +68,27 @@ describe('sealing (K9)', () => {
     const japanese = signedEnvelope('佐藤 由紀', { kind: 'typed', text: '佐藤 由紀' });
     const out = await PDFDocument.load(await seal(await twoPages(), japanese, [], 'Acme'));
     expect(out.getPageCount()).toBe(3);
+  });
+
+  it('writes a typed signature in the handwriting face its signer chose', async () => {
+    const faces = async (env: Envelope) => {
+      const pdf = await PDFDocument.load(await seal(await twoPages(), env, [], 'Acme'));
+      return pdf.context
+        .enumerateIndirectObjects()
+        .flatMap(([, o]) => (o instanceof PDFDict ? [o.get(PDFName.of('BaseFont'))] : []))
+        .filter((f) => f !== undefined)
+        .map(String)
+        .join(' ');
+    };
+    const bold = signedEnvelope('Ada Lovelace', {
+      kind: 'typed',
+      text: 'Ada Lovelace',
+      style: 'bold',
+    });
+    expect(await faces(bold)).toMatch(/MrDafoe/u);
+    expect(await faces(bold)).not.toMatch(/GreatVibes/u);
+    // A typed one from before styles is drawn in the flowing face.
+    const old = signedEnvelope('Ada Lovelace', { kind: 'typed', text: 'Ada Lovelace' });
+    expect(await faces(old)).toMatch(/GreatVibes/u);
   });
 });

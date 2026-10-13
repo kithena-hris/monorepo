@@ -1,5 +1,12 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { CalendarDate, DocumentId, Instant, PersonId } from '@kithena/contracts';
+import type * as z from 'zod';
+import {
+  SignatureMark as MarkSchema,
+  type CalendarDate,
+  type DocumentId,
+  type Instant,
+  type PersonId,
+} from '@kithena/contracts';
 
 /**
  * A signature request (PRD §10): one document version, signers in order,
@@ -14,10 +21,11 @@ export type SignerStatus = 'waiting' | 'sent' | 'opened' | 'verified' | 'signed'
 export type EnvelopeStatus = 'sent' | 'completed' | 'declined' | 'voided';
 export type FieldKind = 'signature' | 'initials' | 'date' | 'name' | 'title' | 'checkbox' | 'text';
 
-export type SignatureMark =
-  | { readonly kind: 'typed'; readonly text: string }
-  /** Reach's `SignaturePad`: an SVG path in a 400 × 120 box. */
-  | { readonly kind: 'drawn'; readonly path: string };
+/**
+ * A signature as kept: the contract's, where a typed one from before styles
+ * existed has none and is drawn in the flowing face.
+ */
+export type SignatureMark = z.input<typeof MarkSchema>;
 
 export interface Signer {
   readonly id: string;
@@ -342,16 +350,17 @@ export function sign(
   const s = turn(env, signerId);
   if (!s.ok) return s;
   if (s.value.status !== 'verified') return err(failure('NOT_VERIFIED', 'Confirm it is you first'));
-  const mark = input.signature;
-  if (mark.kind === 'typed' && (mark.text.trim().length === 0 || mark.text.length > 120)) {
-    return err(failure('SIGNATURE', 'Type your name to sign', ['signature']));
+  const parsed = MarkSchema.safeParse(input.signature);
+  if (!parsed.success) {
+    return err(
+      failure(
+        'SIGNATURE',
+        input.signature.kind === 'drawn' ? 'Draw your signature again' : 'Type your name to sign',
+        ['signature'],
+      ),
+    );
   }
-  if (
-    mark.kind === 'drawn' &&
-    (!/^[ML][\d.\sML-]*$/u.test(mark.path.trim()) || mark.path.length > 40_000)
-  ) {
-    return err(failure('SIGNATURE', 'Draw your signature again', ['signature']));
-  }
+  const mark = parsed.data;
   const day = at.slice(0, 10);
   const mine = env.fields.filter((f) => f.signerId === signerId);
   const filled = new Map<string, string | null>();

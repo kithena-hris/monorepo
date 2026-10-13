@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
 import fontkit from '@pdf-lib/fontkit';
+import type { SignatureStyle } from '@kithena/contracts';
 import type { PDFDocument, PDFFont } from 'pdf-lib';
 
 /**
@@ -27,38 +28,66 @@ const FONTS = (() => {
   return new URL('../../assets/fonts/', import.meta.url);
 })();
 
-let files: Promise<{ body: Uint8Array; bold: Uint8Array; script: Uint8Array }> | undefined;
+let files: Promise<{ body: Uint8Array; bold: Uint8Array }> | undefined;
+const read = async (name: string) => new Uint8Array(await readFile(new URL(name, FONTS)));
 const load = () =>
-  (files ??= Promise.all(
-    ['NotoSans-Regular.ttf', 'NotoSans-Bold.ttf', 'NotoSans-Italic.ttf'].map(
-      async (name) => new Uint8Array(await readFile(new URL(name, FONTS))),
-    ),
-  ).then(([body, bold, script]) => {
-    if (body === undefined || bold === undefined || script === undefined) {
-      throw new Error('The fonts are missing');
-    }
-    return { body, bold, script };
-  }));
+  (files ??= Promise.all(['NotoSans-Regular.ttf', 'NotoSans-Bold.ttf'].map(read)).then(
+    ([body, bold]) => {
+      if (body === undefined || bold === undefined) throw new Error('The fonts are missing');
+      return { body, bold };
+    },
+  ));
 
 export interface Faces {
   readonly body: PDFFont;
   readonly bold: PDFFont;
-  readonly script: PDFFont;
   /** The text as these faces can draw it. */
   readonly drawable: (text: string) => string;
 }
 
 export async function facesFor(pdf: PDFDocument): Promise<Faces> {
-  const { body, bold, script } = await load();
+  const { body, bold } = await load();
   pdf.registerFontkit(fontkit);
   const glyphs = fontkit.create(body);
   return {
     body: await pdf.embedFont(body, { subset: true }),
     bold: await pdf.embedFont(bold, { subset: true }),
-    script: await pdf.embedFont(script, { subset: true }),
     drawable: (text) =>
       Array.from(text, (c) =>
         glyphs.hasGlyphForCodePoint(c.codePointAt(0) ?? 0) || /\s/u.test(c) ? c : '?',
       ).join(''),
   };
+}
+
+/** The handwriting face of each signature style (`@kithena/contracts`, `SIGNATURE_STYLES`). */
+const SCRIPTS: Readonly<Record<SignatureStyle, string>> = {
+  flowing: 'GreatVibes-Regular.ttf',
+  light: 'Sacramento-Regular.ttf',
+  bold: 'MrDafoe-Regular.ttf',
+};
+const scripts = new Map<SignatureStyle, Promise<Uint8Array>>();
+
+/**
+ * A typed signature's face, embedded once per sealed copy and only for the
+ * styles its signers chose; null when the face cannot write the name (a
+ * script it has no letters for), so the caller falls back to Noto Sans.
+ */
+export async function scriptFor(
+  pdf: PDFDocument,
+  style: SignatureStyle,
+  text: string,
+): Promise<PDFFont | null> {
+  let bytes = scripts.get(style);
+  if (bytes === undefined) {
+    bytes = read(SCRIPTS[style]);
+    scripts.set(style, bytes);
+  }
+  const file = await bytes;
+  const glyphs = fontkit.create(file);
+  const writes = Array.from(text).every(
+    (c) => /\s/u.test(c) || glyphs.hasGlyphForCodePoint(c.codePointAt(0) ?? 0),
+  );
+  if (!writes) return null;
+  pdf.registerFontkit(fontkit);
+  return pdf.embedFont(file, { subset: true });
 }

@@ -386,8 +386,13 @@ export interface CampaignData {
   readonly left: readonly PersonRef[];
 }
 
+/** A signature: typed in one of three handwriting faces, or drawn (`@kithena/contracts`). */
 export type Mark =
-  | { readonly kind: 'typed'; readonly text: string }
+  | {
+      readonly kind: 'typed';
+      readonly text: string;
+      readonly style?: 'flowing' | 'light' | 'bold';
+    }
   | { readonly kind: 'drawn'; readonly path: string };
 
 /* -------------------------------------------------- Kithena reading -- */

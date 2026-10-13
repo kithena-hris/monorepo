@@ -10,6 +10,7 @@ import {
   InboxAnswer,
   Permission,
   PersonId,
+  SignatureMark,
 } from '@kithena/contracts';
 
 import {
@@ -324,10 +325,8 @@ const OriginBody = {
   companyName: z.string().trim().min(1).max(120),
 };
 
-const Mark = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('typed'), text: z.string().max(120) }),
-  z.strictObject({ kind: z.literal('drawn'), path: z.string().max(40_000) }),
-]);
+/** The contract's signature: typed in a face, or drawn. */
+const Mark = SignatureMark;
 
 const SignBody = z.strictObject({
   signature: Mark,
