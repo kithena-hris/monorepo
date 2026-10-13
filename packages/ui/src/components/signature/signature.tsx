@@ -1,4 +1,4 @@
-import type { CSSProperties, JSX } from 'react';
+import type { JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -82,18 +82,20 @@ export function Signature({
     <span
       role="img"
       aria-label={label}
-      className={cn('grid size-full place-items-center overflow-hidden [container-type:size]', className)}
+      className={cn(
+        'grid size-full place-items-center overflow-hidden [container-type:size]',
+        className,
+      )}
     >
       <span
         aria-hidden
         className="leading-none whitespace-nowrap text-fg"
-        style={
-          {
-            fontFamily: signatureFont(value.style),
-            // At most about half the box's height (a handwriting face's capitals and tails run well above and below it), and never wider than the box.
-            fontSize: `min(56cqh, calc(90cqw / ${String(letters * EM_PER_LETTER)}))`,
-          } as CSSProperties
-        }
+        style={{
+          fontFamily: signatureFont(value.style),
+          // At most about half the box's height (a handwriting face's capitals
+          // and tails run well above and below it), and never wider than it.
+          fontSize: `min(56cqh, calc(90cqw / ${String(letters * EM_PER_LETTER)}))`,
+        }}
       >
         {text}
       </span>
