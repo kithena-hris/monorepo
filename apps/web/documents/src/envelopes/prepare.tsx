@@ -9,7 +9,6 @@ import {
   Checkbox,
   Field,
   FieldControl,
-  FieldDescription,
   FieldLabel,
   PdfPages,
   PlacementLayer,
@@ -167,7 +166,7 @@ export function WhereTheySign({
       <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
         <Card>
           <CardHeader>
-            <CardTitle level={3}>Add a box</CardTitle>
+            <CardTitle level={2}>Add a box</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Field>
@@ -203,15 +202,15 @@ export function WhereTheySign({
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-            <FieldDescription>
+            <p className="text-sm text-fg-muted">
               Press the page where it goes. Drag a box to move it, its corner to resize it; Delete
               removes it.
-            </FieldDescription>
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle level={3}>Who signs</CardTitle>
+            <CardTitle level={2}>Who signs</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartLegend
