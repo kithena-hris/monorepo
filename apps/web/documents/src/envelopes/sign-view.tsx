@@ -16,7 +16,6 @@ import {
   Signature,
   icons,
   allRequiredFilled,
-  isFilled,
   nextToFill,
   readingOrder,
 } from '@reach/ui';
@@ -88,7 +87,6 @@ export function useSigning(
   const [waiting, setWaiting] = useState<string | null>(null);
 
   // Reach's model of which box is due, the phone's too: an optional tick box is never a step.
-  const done = (f: EnvelopeField) => isFilled(filled[f.id]);
   const next = nextToFill(mine, filled, (f) => f.kind === 'checkbox');
   const ready = allRequiredFilled(mine, filled);
 
