@@ -468,6 +468,11 @@ function xlsxCell(cell: ExcelJS.Cell, d: AttributeDefinition, value: unknown): v
     cell.numFmt = `[$${value.currency}] #,##0${decimals > 0 ? `.${'0'.repeat(decimals)}` : ''}`;
     return;
   }
+  // A signature is somebody's mark, not something a spreadsheet can show.
+  if (d.typeConfig.kind === 'signature') {
+    cell.value = 'Signature on file';
+    return;
+  }
   if (value === INDEFINITE && d.typeConfig.kind === 'date') {
     cell.value = 'Indefinite';
     return;

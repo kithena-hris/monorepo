@@ -16,6 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SignatureInput,
   Switch,
   TagsInput,
   Textarea,
@@ -34,7 +35,7 @@ import {
 } from 'react';
 
 import { FileInput, isFileField } from './files';
-import { INDEFINITE, isMissing, type AttributeValue, type RecordField } from './model';
+import { INDEFINITE, isMissing, signatureOf, type AttributeValue, type RecordField } from './model';
 import { SensitiveMark } from './pending';
 
 /** The `type` a line of text takes for each data type that is one. */
@@ -268,6 +269,18 @@ export function AttributeControl({
   if (describedBy !== undefined) control['aria-describedby'] = describedBy;
   if (invalid !== undefined) control['aria-invalid'] = invalid;
   switch (field.dataType) {
+    case 'signature':
+      return (
+        <SignatureInput
+          {...control}
+          name=""
+          value={signatureOf(value)}
+          disabled={disabled}
+          onChange={(next) => {
+            onChange(next === null ? null : JSON.stringify(next));
+          }}
+        />
+      );
     case 'date': {
       const indefinite = value === INDEFINITE;
       const picker = (

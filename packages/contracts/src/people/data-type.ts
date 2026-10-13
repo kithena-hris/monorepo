@@ -44,6 +44,9 @@ export const AttributeDataType = z
     'location_ref',
     'document_ref',
     'image',
+    // A person's own signature (`SignatureMark`, kept as its JSON text),
+    // adopted once and used wherever they sign.
+    'signature',
     // Registered as a policy-bearing leaf because an event carries this enum
     // directly, and the codegen walk classifies leaves rather than guessing.
   ])
@@ -269,6 +272,12 @@ export const AttributeTypeConfig = z.discriminatedUnion('kind', [
       .default(10 * 1024 * 1024)
       .register(policy, asInternal()),
   }),
+  /**
+   * A signature: typed in one of the handwriting faces, or drawn
+   * (`SignatureMark` in `signature.ts`). Kept as that mark's JSON text, so it
+   * travels as any text does and is checked against the one definition.
+   */
+  plain('signature'),
   z.object({
     kind: z.literal('image'),
     maxBytes: z

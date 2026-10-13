@@ -1,8 +1,8 @@
-import { MaskedValue, Money } from '@reach/ui';
+import { MaskedValue, Money, Signature } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { FileValue, isFileField } from './files';
-import { INDEFINITE, isMissing, type AttributeValue, type RecordField } from './model';
+import { INDEFINITE, isMissing, signatureOf, type AttributeValue, type RecordField } from './model';
 
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' });
 
@@ -31,6 +31,16 @@ export function DisplayValue({
   if (typeof value === 'boolean') return <>{value ? 'Yes' : 'No'}</>;
   if (typeof value === 'string' && isFileField(field))
     return <FileValue field={field} id={value} />;
+  if (field.dataType === 'signature') {
+    const mark = signatureOf(value);
+    return mark === null ? (
+      <span className="text-fg-muted">Not provided</span>
+    ) : (
+      <span className="block h-12 w-48">
+        <Signature value={mark} label={`${field.label}: signed`} />
+      </span>
+    );
+  }
   if (typeof value === 'string') {
     const option = field.options.find((o) => o.value === value);
     if (option !== undefined) return <>{option.label}</>;

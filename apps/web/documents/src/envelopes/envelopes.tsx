@@ -549,6 +549,8 @@ export interface EnvelopeProps {
   readonly onReassign?:
     ((envelopeId: string, signerId: string, personId: string) => Promise<Outcome>) | undefined;
   readonly onSeal?: ((envelopeId: string) => Promise<Outcome>) | undefined;
+  /** Keep a signature adopted while signing on the signer's record, where there is none. */
+  readonly onKeepSignature?: ((mark: Mark) => Promise<Outcome>) | undefined;
 }
 
 export function Envelope(props: EnvelopeProps): JSX.Element {
@@ -579,7 +581,9 @@ function EnvelopePage({
   }, [env.id, env.status, props.onFileLink]);
   const signingNow = env.me?.turn === true && env.status === 'sent';
   const myName = env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
-  const signing = useSigning(env, myName);
+  const signing = useSigning(env, myName, (mark) => {
+    void props.onKeepSignature?.(mark);
+  });
   return (
     <>
       <PageHeader
@@ -727,6 +731,8 @@ export function SignPanel({
       </Alert>
     );
   const { mine, mark } = signing;
+  /** Signed with the one on file: adopted in Settings, never changed here. */
+  const onFile = env.signature?.mark != null;
   const needsMark = mine.some((f) => f.kind === 'signature' || f.kind === 'initials');
   const left = mine.filter((f) => {
     const v = signing.filled[f.id];
@@ -748,7 +754,19 @@ export function SignPanel({
             <Signature value={mark} label={`${name}’s signature`} />
           </div>
         )}
-        {needsMark ? (
+        {onFile ? (
+          <p className="text-sm text-fg-muted">
+            Your signature on file.{' '}
+            <a href="/settings/documents/signature" className="text-accent-fg underline">
+              Change it in Settings
+            </a>
+          </p>
+        ) : env.signature?.canKeep === true ? (
+          <p className="text-xs text-fg-muted">
+            The one you adopt is kept for next time; change it later in Settings.
+          </p>
+        ) : null}
+        {needsMark && !onFile ? (
           <Button
             variant="secondary"
             startIcon={<icons.edit aria-hidden />}

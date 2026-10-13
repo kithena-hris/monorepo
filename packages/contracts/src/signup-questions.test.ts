@@ -103,3 +103,29 @@ describe('checkSignupAnswers', () => {
     });
   });
 });
+
+describe('a signature asked at sign-up', () => {
+  const signature = question({
+    key: 'signature',
+    label: 'Signature',
+    dataType: 'signature',
+    options: [],
+  });
+
+  it('takes one adopted, typed in a face or drawn', () => {
+    const typed = JSON.stringify({ kind: 'typed', text: 'Ada Lovelace', style: 'bold' });
+    expect(checkSignupAnswers([signature], { signature: typed })).toEqual({
+      ok: true,
+      value: { signature: typed },
+    });
+    const drawn = JSON.stringify({ kind: 'drawn', path: 'M 1 2 L 3 4' });
+    expect(checkSignupAnswers([signature], { signature: drawn }).ok).toBe(true);
+  });
+
+  it('refuses anything that is not one', () => {
+    expect(checkSignupAnswers([signature], { signature: 'Ada' })).toEqual({
+      ok: false,
+      problem: { field: 'signature', message: 'Adopt a signature' },
+    });
+  });
+});

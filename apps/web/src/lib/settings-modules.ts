@@ -54,21 +54,32 @@ export function settingsModules(
     });
   }
 
-  // Documents' settings, from its own manifest.
+  // Documents' settings, from its own manifest, and everybody's own signature.
+  const documentsHere = shell.remotes?.['documents'] !== undefined;
   const docs = shell.remotes?.['documents']?.settings ?? [];
-  if (docs.length > 0) {
+  if (documentsHere) {
     modules.push({
       key: 'documents',
       title: 'Documents',
-      description: 'Document types, who sees what, and how long it is kept.',
-      settings: docs.map((place) => ({
-        path: place.path,
-        label: place.label,
-        description: place.description,
-        icon: place.icon,
-        now: null,
-        attention: null,
-      })),
+      description: 'Your signature, document types, who sees what, and how long it is kept.',
+      settings: [
+        {
+          path: '/settings/documents/signature',
+          label: 'Your signature',
+          description: 'The signature your documents are signed with: typed or drawn, kept here.',
+          icon: 'edit',
+          now: null,
+          attention: null,
+        },
+        ...docs.map((place) => ({
+          path: place.path,
+          label: place.label,
+          description: place.description,
+          icon: place.icon,
+          now: null,
+          attention: null,
+        })),
+      ],
     });
   }
 

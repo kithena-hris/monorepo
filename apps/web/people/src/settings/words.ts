@@ -41,6 +41,7 @@ export const DATA_TYPE_LABEL: Record<DataType, string> = {
   location_ref: 'A work location',
   document_ref: 'A document',
   image: 'An image',
+  signature: 'A signature',
 };
 
 /** What each type holds, in one line with an example. */
@@ -75,9 +76,11 @@ export const DATA_TYPE_HINT: Record<DataType, string> = {
   location_ref: 'One of your work locations.',
   document_ref: 'A PDF or a scan, uploaded: a signed contract, a certificate.',
   image: 'A picture, uploaded: a PNG or a JPEG, shown on the profile.',
+  signature:
+    'Their own signature, typed in a handwriting style or drawn. Documents uses it wherever they sign.',
 };
 
-/** The type picker's groups, so 29 types read as eight short lists. */
+/** The type picker's groups, so 30 types read as nine short lists. */
 export const DATA_TYPE_GROUPS: readonly { label: string; types: readonly DataType[] }[] = [
   { label: 'Text', types: ['text', 'long_text'] },
   { label: 'Choices', types: ['select', 'multi_select', 'tags', 'boolean'] },
@@ -91,6 +94,7 @@ export const DATA_TYPE_GROUPS: readonly { label: string; types: readonly DataTyp
   },
   { label: 'Protected', types: ['national_id', 'bank_account'] },
   { label: 'Files', types: ['document_ref', 'image'] },
+  { label: 'Signing', types: ['signature'] },
 ];
 
 export const WRITER_LABEL: Record<WriterRole, string> = {

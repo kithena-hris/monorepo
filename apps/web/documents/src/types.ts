@@ -357,6 +357,15 @@ export interface EnvelopeData {
     readonly note: string | null;
   }[];
   readonly people: readonly { readonly personId: string; readonly name: string }[];
+  /**
+   * The signer's own signature, where People keeps one (the shell joins it):
+   * signed with when on file, and kept from this signing when there is none.
+   */
+  readonly signature?: {
+    readonly mark: Mark | null;
+    readonly canKeep: boolean;
+    readonly pending: boolean;
+  } | null;
 }
 
 export interface EnvelopesData {

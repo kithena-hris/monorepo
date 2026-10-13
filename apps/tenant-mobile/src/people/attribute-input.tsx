@@ -12,6 +12,7 @@ import {
   Input,
   Select,
   SelectContent,
+  SignaturePad,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -127,6 +128,16 @@ const SEARCHED_FROM = 15;
 
 const text = (value: Value | undefined): string => (typeof value === 'string' ? value : '');
 
+/** A drawn signature's strokes from its JSON text; empty for none, or for a typed one. */
+function drawnOf(json: string): string {
+  try {
+    const mark = JSON.parse(json) as { kind?: string; path?: string };
+    return mark.kind === 'drawn' && typeof mark.path === 'string' ? mark.path : '';
+  } catch {
+    return '';
+  }
+}
+
 /**
  * A person, picked by typing their name: People searches everybody it lets
  * this viewer read (`PeoplePicker`), so the 50,000th person is as reachable as
@@ -212,6 +223,19 @@ function Control({
     );
   }
   switch (field.dataType) {
+    case 'signature':
+      // Drawn with a finger; typing one in a handwriting style is on the web.
+      return (
+        <SignaturePad
+          label={field.label}
+          value={drawnOf(text(value))}
+          onValueChange={(path) => {
+            onChange(
+              path.trim() === '' ? null : JSON.stringify({ kind: 'drawn', path: path.trim() }),
+            );
+          }}
+        />
+      );
     case 'date': {
       // An open-ended date's answer when there is none: People's `INDEFINITE`.
       const indefinite = value === 'indefinite';

@@ -35,6 +35,14 @@ export function DisplayValue({
         {value ? 'Yes' : 'No'}
       </Text>
     );
+  // A signature is drawn where it is signed; here, only whether there is one.
+  if (field.dataType === 'signature' && typeof value === 'string' && value !== '') {
+    return (
+      <Text weight="medium" className={className}>
+        On file
+      </Text>
+    );
+  }
   if (typeof value === 'string') {
     const option = field.options.find((o) => o.value === value);
     const shown =

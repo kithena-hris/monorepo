@@ -2,6 +2,7 @@ import * as z from 'zod';
 
 import { asInternal, asPublic, policy } from './classification.js';
 import { AttributeKey } from './people/primitives.js';
+import { SignatureMark } from './signature.js';
 
 /**
  * The tenant's own questions for the sign-up page:
@@ -35,6 +36,8 @@ export const SignupDataType = z
     'email',
     'phone',
     'url',
+    // Adopted on the page: typed in a handwriting face, or drawn.
+    'signature',
   ])
   .register(policy, asPublic());
 export type SignupDataType = z.infer<typeof SignupDataType>;
@@ -73,8 +76,8 @@ export const SignupQuestionSet = z.object({
 });
 export type SignupQuestionSet = z.infer<typeof SignupQuestionSet>;
 
-/** One answer as it travels: never an object, never a list. */
-export const SignupAnswerValue = z.union([z.string().max(20_000), z.number(), z.boolean()]);
+/** One answer as it travels: never an object, never a list. A signature is its JSON text. */
+export const SignupAnswerValue = z.union([z.string().max(50_000), z.number(), z.boolean()]);
 export type SignupAnswerValue = z.infer<typeof SignupAnswerValue>;
 
 export interface SignupAnswerProblem {
@@ -147,6 +150,16 @@ function checkOne(q: SignupQuestion, given: unknown): { value: SignupAnswerValue
       if (q.min !== null && n < q.min) return `The smallest allowed is ${String(q.min)}`;
       if (q.max !== null && n > q.max) return `The largest allowed is ${String(q.max)}`;
       return { value: n };
+    }
+    case 'signature': {
+      if (typeof given !== 'string') return 'Adopt a signature';
+      try {
+        return SignatureMark.safeParse(JSON.parse(given)).success
+          ? { value: given }
+          : 'Adopt a signature';
+      } catch {
+        return 'Adopt a signature';
+      }
     }
     default: {
       if (typeof given !== 'string') return 'Enter some text';

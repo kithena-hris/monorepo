@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 
-import { Signature, SIGNATURE_STYLE_LABEL, type SignatureStyle } from './signature';
+import { SignatureInput } from './adopt-signature';
+
+import {
+  Signature,
+  SIGNATURE_STYLE_LABEL,
+  type SignatureStyle,
+  type SignatureValue,
+} from './signature';
 
 const meta = {
   title: 'Forms/Signature',
@@ -74,4 +82,16 @@ export const Drawn: Story = {
       />
     </div>
   ),
+};
+
+/** A signature kept as a field's value: adopted once, changed from here. */
+export const AsAField: Story = {
+  render: function AsAField() {
+    const [value, setValue] = useState<SignatureValue | null>(null);
+    return (
+      <div className="max-w-sm">
+        <SignatureInput name="Ada Lovelace" value={value} onChange={setValue} />
+      </div>
+    );
+  },
 };
