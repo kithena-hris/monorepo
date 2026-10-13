@@ -20,6 +20,10 @@ import {
   Signature,
   Text,
   type SignatureValue,
+  allRequiredFilled,
+  isFilled,
+  nextToFill,
+  readingOrder,
 } from '@reach/ui-native';
 import { File, Paths } from 'expo-file-system';
 import { ArrowRight, Ellipsis, MessageCircle, PenLine, X } from 'lucide-react-native';
@@ -85,9 +89,6 @@ const HINT: Readonly<Record<Kind, string>> = {
   checkbox: '',
 };
 
-const inPageOrder = (a: EnvelopeField, b: EnvelopeField) =>
-  a.page - b.page || a.y - b.y || a.x - b.x;
-
 /**
  * Today on the signer's own calendar, as the phone has it: what a date box
  * shows and what the server records, within a day of its clock.
@@ -97,19 +98,20 @@ const today = (): string =>
     new Date(),
   );
 
-/** The web's `useSigning`, the same rules. */
+/** The web's `useSigning`: which box is due comes from Reach's placement model, as there. */
 function useSigning(env: SigningEnvelope, name: string, onFile: SignatureValue | null) {
   const me = env.me?.signerId ?? '';
-  const mine = env.fields.filter((f) => f.signerId === me).sort(inPageOrder);
+  const mine = env.fields.filter((f) => f.signerId === me).toSorted(readingOrder);
   const [mark, setMark] = useState<SignatureValue | null>(onFile);
   const [filled, setFilled] = useState<Readonly<Record<string, string>>>({});
   const [focus, setFocus] = useState<string | null>(null);
   const [adopting, setAdopting] = useState(false);
   const [waiting, setWaiting] = useState<string | null>(null);
 
-  const done = (f: EnvelopeField) => (filled[f.id] ?? '') !== '' && filled[f.id] !== 'false';
-  const next = mine.find((f) => !done(f) && (f.required || f.kind !== 'checkbox')) ?? null;
-  const ready = mine.every((f) => !f.required || done(f));
+  // Reach's model of which box is due, the web's too: an optional tick box is never a step.
+  const done = (f: EnvelopeField) => isFilled(filled[f.id]);
+  const next = nextToFill(mine, filled, (f) => f.kind === 'checkbox');
+  const ready = allRequiredFilled(mine, filled);
 
   const apply = (id: string) => {
     const f = mine.find((x) => x.id === id);

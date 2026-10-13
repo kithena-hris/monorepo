@@ -15,6 +15,10 @@ import {
   PlacementLayer,
   Signature,
   icons,
+  allRequiredFilled,
+  isFilled,
+  nextToFill,
+  readingOrder,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -58,9 +62,6 @@ export interface Signing {
   readonly day: string;
 }
 
-const inPageOrder = (a: EnvelopeField, b: EnvelopeField) =>
-  a.page - b.page || a.y - b.y || a.x - b.x;
-
 /**
  * Today on the signer's own calendar, as their device has it: what a date box
  * shows and what the server records, within a day of its clock. Not UTC, which
@@ -78,7 +79,7 @@ export function useSigning(
   onAdopted?: (mark: Mark) => void,
 ): Signing {
   const me = env.me?.signerId ?? '';
-  const mine = env.fields.filter((f) => f.signerId === me).toSorted(inPageOrder);
+  const mine = env.fields.filter((f) => f.signerId === me).toSorted(readingOrder);
   // The one on file signs at once; adopting is for whoever has none.
   const [mark, setMark] = useState<Mark | null>(env.signature?.mark ?? null);
   const [filled, setFilled] = useState<Readonly<Record<string, string>>>({});
@@ -86,9 +87,10 @@ export function useSigning(
   const [adopting, setAdopting] = useState(false);
   const [waiting, setWaiting] = useState<string | null>(null);
 
-  const done = (f: EnvelopeField) => (filled[f.id] ?? '') !== '' && filled[f.id] !== 'false';
-  const next = mine.find((f) => !done(f) && (f.required || f.kind !== 'checkbox')) ?? null;
-  const ready = mine.every((f) => !f.required || done(f));
+  // Reach's model of which box is due, the phone's too: an optional tick box is never a step.
+  const done = (f: EnvelopeField) => isFilled(filled[f.id]);
+  const next = nextToFill(mine, filled, (f) => f.kind === 'checkbox');
+  const ready = allRequiredFilled(mine, filled);
 
   const fill = (f: EnvelopeField, m: Mark | null) => {
     switch (f.kind) {

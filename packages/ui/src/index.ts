@@ -247,6 +247,13 @@ export { AdoptSignatureDialog, SignatureInput } from './components/signature/ado
 export { PdfPages } from './components/pdf-pages/pdf-pages';
 export type { PdfPage, PdfPagesProps } from './components/pdf-pages/pdf-pages';
 export { PlacementLayer } from './components/placement-layer/placement-layer';
+export {
+  allRequiredFilled,
+  isFilled,
+  nextToFill,
+  readingOrder,
+  type Placed,
+} from './lib/placement';
 export type { PlacedBox, PlacementLayerProps } from './components/placement-layer/placement-layer';
 export type { StepStatus, StepperProps, StepperStep } from './components/stepper/stepper';
 
