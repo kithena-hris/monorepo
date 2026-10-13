@@ -71,6 +71,12 @@ export interface StepperProps extends Omit<ComponentPropsWithoutRef<'nav'>, 'onS
    * jumping forward skips the validation the steps between are there to do.
    */
   onStepChange?: (index: number, step: StepperStep) => void;
+  /**
+   * Every step is reachable, ahead as well as behind: for a sequence whose
+   * steps are each already valid, such as editing something saved, where
+   * nothing between is skipped by jumping.
+   */
+  free?: boolean;
   /** Names the sequence for assistive tech. */
   label: string;
 }
@@ -165,6 +171,7 @@ export function Stepper({
   orientation = 'horizontal',
   size = 'md',
   onStepChange,
+  free = false,
   label,
   className,
   ...props
@@ -207,7 +214,11 @@ export function Stepper({
           const status = statusOf(step, index, current);
           const last = index === steps.length - 1;
           // Behind the current step and not explicitly barred.
-          const reachable = onStepChange !== undefined && index < current && step.disabled !== true;
+          const reachable =
+            onStepChange !== undefined &&
+            (free || index < current) &&
+            index !== current &&
+            step.disabled !== true;
 
           const marker = (
             <span

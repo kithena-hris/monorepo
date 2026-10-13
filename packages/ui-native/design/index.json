@@ -1178,6 +1178,23 @@
           "anchor": "form-sections-validation-summary"
         }
       ]
+    },
+    {
+      "id": "access-matrix",
+      "name": "Access matrix",
+      "title": "Forms/Access matrix",
+      "group": "Forms",
+      "desc": "Who can see a value and who can change it, as one table of checkboxes. Changing always includes seeing, and Everyone ticks every See box.",
+      "stories": [
+        {
+          "name": "Playground",
+          "anchor": "access-matrix-playground"
+        },
+        {
+          "name": "Everyone can see it",
+          "anchor": "access-matrix-everyone-can-see-it"
+        }
+      ]
     }
   ],
   "Components": [

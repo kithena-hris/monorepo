@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   accessFor,
+  accessOf,
   draftFrom,
+  fromAccess,
+  seenByEveryone,
+  withEveryone,
   keyFromLabel,
   problemsIn,
   withAccess,
@@ -32,6 +36,30 @@ describe('the access rows', () => {
     expect(withAccess('hr', 'none', was)).toEqual({
       visibility: ['self', 'admin'],
       ownership: ['system'],
+    });
+  });
+});
+
+describe('the access table', () => {
+  const was = {
+    visibility: ['self', 'hr', 'admin'] as const,
+    ownership: ['hr', 'system'] as const,
+  };
+
+  it('keeps Everyone apart from the groups, so turning it off leaves them as ticked', () => {
+    const on = withEveryone(true, was.visibility);
+    expect(seenByEveryone(on)).toBe(true);
+    expect(accessOf(on, was.ownership)).toEqual({ see: ['self', 'hr'], change: ['hr'] });
+    expect(withEveryone(false, on)).toEqual(['self', 'hr', 'admin']);
+  });
+
+  it('writes the groups back, keeping the directory, an administrator and a system', () => {
+    const visibility = withEveryone(true, was.visibility);
+    expect(
+      fromAccess({ see: ['self', 'hr'], change: ['hr', 'finance'] }, { ...was, visibility }),
+    ).toEqual({
+      visibility: ['self', 'hr', 'finance', 'admin', 'directory'],
+      ownership: ['hr', 'finance', 'system'],
     });
   });
 });

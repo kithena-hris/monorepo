@@ -9,6 +9,7 @@ import {
   eventually,
   inView,
   keyboardUp,
+  live,
   person,
   sections,
   signedIn,
@@ -97,6 +98,7 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       SELECT version FROM people.schema_version WHERE tenant_id = ${TENANT}`;
     expect(versions.map((v) => v.version)).toEqual([1]);
 
+    await live(page);
     await personal.getByRole('textbox', { name: /Legal first name/ }).focus();
     await keyboardUp(page);
     await personal.getByRole('textbox', { name: /Legal first name/ }).fill('Priya');
@@ -125,6 +127,7 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       'Priya',
     );
     await page.setViewportSize({ width: 390, height: 844 });
+    await live(page);
     await identification.getByRole('textbox', { name: /NIF \/ NIE/ }).focus();
     await keyboardUp(page);
     await identification.getByRole('textbox', { name: /NIF \/ NIE/ }).fill('12345678Z');
@@ -997,7 +1000,7 @@ describe('PEO-121: the webhook delivery log', () => {
 });
 
 describe('Employee fields: a field from a template, explained, then published', () => {
-  it('adds T-shirt size on one page, says when it is asked, and publishes it', async () => {
+  it('adds T-shirt size step by step, says when it is asked, and publishes it', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await page.goto(`${stack.shell}/settings/people/fields`);
@@ -1007,8 +1010,10 @@ describe('Employee fields: a field from a template, explained, then published', 
     await page.getByRole('button', { name: 'Add field' }).filter({ visible: true }).first().click();
     const sheet = page.getByRole('dialog', { name: 'New field' });
     await sheet.getByRole('button', { name: 'T-shirt size' }).click();
-    // Every part is on the page, with the list of parts beside it.
+    // Five steps, a new field walked through them in order.
     await sheet.getByRole('navigation', { name: 'Parts of the field' }).waitFor();
+    await sheet.getByRole('button', { name: 'Next: Access' }).click();
+    await sheet.getByRole('button', { name: /^Next: When/ }).click();
     // Each moment it can be asked, with what it does.
     const onboarding = sheet.getByRole('radio', { name: 'During onboarding' });
     expect(await onboarding.isChecked()).toBe(true);
@@ -1016,6 +1021,7 @@ describe('Employee fields: a field from a template, explained, then published', 
     await sheet
       .getByText(/The employee is asked for their T-shirt size during onboarding\./)
       .waitFor({ timeout: 30_000 });
+    await sheet.getByRole('button', { name: 'Next: Sensitivity' }).click();
     // The least protection offered: whatever the suggestion, never below its floor.
     const least = sheet
       .getByRole('group', { name: 'What kind of data is this?' })
@@ -1023,6 +1029,7 @@ describe('Employee fields: a field from a template, explained, then published', 
       .last();
     await least.waitFor({ timeout: 30_000 });
     await least.click();
+    await sheet.getByRole('button', { name: 'Next: Review' }).click();
     await sheet.getByRole('button', { name: 'Add field' }).click();
     await sheet.waitFor({ state: 'detached', timeout: 30_000 });
 
@@ -1093,7 +1100,8 @@ describe('Employee fields: a text field becomes a date, its values reviewed', ()
     const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await page.goto(`${stack.shell}/settings/people/fields?q=First%20day`);
-    await page.getByRole('button', { name: 'Edit First day' }).click({ timeout: 30_000 });
+    // The whole row opens the editor: its name is the button.
+    await page.getByRole('button', { name: 'First day', exact: true }).click({ timeout: 30_000 });
     const sheet = page.getByRole('dialog', { name: 'Edit First day' });
     await sheet.getByRole('combobox', { name: /Type of answer/ }).click();
     await page.getByRole('option', { name: 'Date', exact: true }).click();

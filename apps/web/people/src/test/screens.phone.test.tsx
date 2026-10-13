@@ -265,11 +265,15 @@ describe('at 390×844, with a finger', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Permit' });
-    await settled();
-    expect(await violations(document.body)).toEqual([]);
-    // Every part is on one page: the conditions and the rules; the section
-    // list and the access matrix are Reach's, and measured where Reach is.
-    for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
+    // Under a finger the stepper is a bar; Next walks a saved field's steps.
+    // The rules on Access, the conditions on When it's asked; the stepper and
+    // the access matrix are Reach's, and measured where Reach is.
+    for (const next of ['Next: Access', 'Next: When it’s asked']) {
+      await userEvent.click(within(sheet).getByRole('button', { name: next }));
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
+    }
   });
 
   it('publishing, as a dialog centred over the page', async () => {
@@ -483,7 +487,13 @@ describe('at 390×844, with a finger', () => {
               },
             ],
             orgUnits: [
-              { id: 'u1', name: 'Engineering', parentId: null, path: 'Engineering', archived: false },
+              {
+                id: 'u1',
+                name: 'Engineering',
+                parentId: null,
+                path: 'Engineering',
+                archived: false,
+              },
             ],
             numberings: [{ legalEntityId: 'e1', prefix: 'ES-', digits: 5, nextValue: 42 }],
             countries: [{ code: 'ES', name: 'Spain' }],
@@ -521,7 +531,13 @@ describe('at 390×844, with a finger', () => {
   it('the org units, as a tree, and moving one', async () => {
     const units = [
       { id: 'u1', name: 'Engineering', parentId: null, path: 'Engineering', archived: false },
-      { id: 'u2', name: 'Platform', parentId: 'u1', path: 'Engineering › Platform', archived: false },
+      {
+        id: 'u2',
+        name: 'Platform',
+        parentId: 'u1',
+        path: 'Engineering › Platform',
+        archived: false,
+      },
     ];
     await checked(
       <Organisation

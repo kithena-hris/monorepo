@@ -29,5 +29,8 @@
   "ProposeDocumentSplit": "Documents web C2: splitting a scanned stack into its documents is a desk task, a table of page ranges, types and people; the phone scans one document at a time (MD2).",
   "FileDocumentSplit": "Documents web C2: as ProposeDocumentSplit.",
   "DocumentTemplate": "Documents web G3: generating letters picks people, a template and checks a preview, a desk task; the phone signs and reads the letters made (MX1).",
-  "GenerateLetters": "Documents web G3: as DocumentTemplate."
+  "GenerateLetters": "Documents web G3: as DocumentTemplate.",
+  "ReorderDraftSections": "Kithena Employee Fields Mobile M2: \"Reordering happens on the web.\"",
+  "ReorderDraftFields": "Kithena Employee Fields Mobile M2: \"Reordering happens on the web.\"",
+  "SetFieldSignup": "Kithena Employee Fields Mobile M1: a row opens the editor, whose When it’s asked step sets sign-up; the quick menu is the web’s."
 }

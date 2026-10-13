@@ -155,15 +155,22 @@ export async function keyboardUp(page: Page): Promise<void> {
   });
 }
 
-export async function upload(page: Page, name: string, text: string): Promise<void> {
-  // Into the live screen. A file chosen on the server's HTML before the
-  // screen hydrates is lost when the browser draws the screen afresh instead,
-  // and the import then never moves on.
+/**
+ * Until every remote screen has hydrated. Focus, a typed value or a chosen
+ * file given to the server's HTML before then is lost when the browser draws
+ * the screen afresh, and how long that takes depends on the bundle's size.
+ */
+export async function live(page: Page): Promise<void> {
   await page.waitForFunction(
     () => document.querySelector('[data-remote][data-hydrating]') === null,
     undefined,
     { timeout: 30_000 },
   );
+}
+
+export async function upload(page: Page, name: string, text: string): Promise<void> {
+  // Into the live screen, or the import never moves on.
+  await live(page);
   await page.locator('input[type=file]').setInputFiles({
     name,
     mimeType: 'text/csv',

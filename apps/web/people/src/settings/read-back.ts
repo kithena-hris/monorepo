@@ -72,6 +72,17 @@ const SENSITIVITY: Record<Classification, string> = {
  * HR can see it. Not sensitive."
  */
 export function summary(field: Summarised): string {
+  return summaryParts(field)
+    .map((p) => p.text)
+    .join(' ');
+}
+
+/**
+ * The same sentences, each tagged with the editor step that decides it
+ * (1 access, 2 when it is asked, 3 sensitivity), so the step being edited
+ * can be picked out in the summary beside it.
+ */
+export function summaryParts(field: Summarised): { text: string; step: 1 | 2 | 3 }[] {
   const label = field.label.trim() === '' ? 'this field' : field.label.trim();
   const others = field.ownership
     .filter((w) => w !== 'employee')
@@ -108,10 +119,10 @@ export function summary(field: Summarised): string {
     field.encrypted ? 'it is stored encrypted' : null,
   ].filter((x) => x !== null);
   return [
-    asked,
-    required,
-    change,
-    see,
-    `${kind}${extras.length > 0 ? `; ${extras.join('; ')}` : ''}.`,
-  ].join(' ');
+    { text: asked, step: 2 },
+    { text: required, step: 2 },
+    { text: change, step: 1 },
+    { text: see, step: 1 },
+    { text: `${kind}${extras.length > 0 ? `; ${extras.join('; ')}` : ''}.`, step: 3 },
+  ];
 }
