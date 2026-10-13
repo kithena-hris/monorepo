@@ -263,10 +263,12 @@ export async function signEnvelope(
   envelopeId: string,
   signature: Mark,
   values: Readonly<Record<string, string>>,
+  /** The signer's own day, from their browser: this runs on the server, whose day may differ. */
+  day: string,
 ): Promise<{ ok: true; completed: boolean } | { ok: false; message: string }> {
   const a = await documents<{ completed: boolean }>('SignEnvelope', {
     envelopeId,
-    input: { signature, values, ...(await origin()) },
+    input: { signature, values, day, ...(await origin()) },
   });
   return a.ok ? { ok: true, completed: a.data.completed } : { ok: false, message: a.message };
 }

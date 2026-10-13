@@ -540,6 +540,7 @@ export interface EnvelopeProps {
         envelopeId: string,
         signature: Mark,
         values: Readonly<Record<string, string>>,
+        day: string,
       ) => Promise<{ ok: true; completed: boolean } | { ok: false; message: string }>)
     | undefined;
   readonly onDecline?: ((envelopeId: string, reason: string) => Promise<Outcome>) | undefined;
@@ -789,7 +790,7 @@ export function SignPanel({
           onClick={() => {
             write.run(async () => {
               const signature = mark ?? { kind: 'typed' as const, text: name };
-              const r = await (onSign?.(env.id, signature, signing.values) ??
+              const r = await (onSign?.(env.id, signature, signing.values, signing.day) ??
                 Promise.resolve({ ok: false as const, message: 'Not available here' }));
               if (!r.ok) return r;
               setDone(

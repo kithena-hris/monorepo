@@ -571,6 +571,14 @@ export {
   type PlacedBox,
   type PlacementLayerProps,
 } from './components/placement-layer/placement-layer.tsx';
+// The web's own model of which box is due next, shared like the filter model.
+export {
+  allRequiredFilled,
+  isFilled,
+  nextToFill,
+  readingOrder,
+  type Placed,
+} from '@reach/ui/placement';
 export {
   RadioCard,
   RadioDot,

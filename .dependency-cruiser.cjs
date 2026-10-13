@@ -94,14 +94,15 @@ module.exports = {
       comment:
         'packages/ui-native is Reach on a phone, under the same wall as packages/ui: ' +
         'no contract, no module, no app. It may reach packages/ui only for the ' +
-        'pure modules both libraries read: motion and spring (`@reach/ui/motion`) ' +
-        'and the filter model (`@reach/ui/filter-model`). Never for a component, ' +
+        'pure modules both libraries read: motion and spring (`@reach/ui/motion`), ' +
+        'the filter model (`@reach/ui/filter-model`) and the order boxes on a page ' +
+        'are filled in (`@reach/ui/placement`). Never for a component, ' +
         'which is DOM code, and never for anything that imports one.',
       from: { path: '^packages/ui-native/' },
       to: {
         path: '^(packages/(?!ui-native/)|services/|platform/|apps/)',
         pathNot:
-          '^packages/ui/src/(lib/(motion|spring)|components/filter-builder/filter-model)\\.ts$',
+          '^packages/ui/src/(lib/(motion|spring|placement)|components/filter-builder/filter-model)\\.ts$',
       },
     },
     {

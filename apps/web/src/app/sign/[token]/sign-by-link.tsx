@@ -238,6 +238,7 @@ function SignNow({
                     token,
                     signing.mark ?? { kind: 'typed', text: name },
                     signing.values,
+                    signing.day,
                   );
                   if (!r.ok) setProblem(r.message);
                   else

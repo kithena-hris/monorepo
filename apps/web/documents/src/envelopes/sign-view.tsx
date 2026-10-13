@@ -15,6 +15,9 @@ import {
   PlacementLayer,
   Signature,
   icons,
+  allRequiredFilled,
+  nextToFill,
+  readingOrder,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -54,12 +57,19 @@ export interface Signing {
   readonly values: Readonly<Record<string, string>>;
   /** The box asking for something: a signature to adopt, or text to type. */
   readonly waiting: string | null;
+  /** The signer's own day, sent with the signature for the date boxes. */
+  readonly day: string;
 }
 
-const inPageOrder = (a: EnvelopeField, b: EnvelopeField) =>
-  a.page - b.page || a.y - b.y || a.x - b.x;
-
-const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * Today on the signer's own calendar, as their device has it: what a date box
+ * shows and what the server records, within a day of its clock. Not UTC, which
+ * is yesterday or tomorrow for much of the world around midnight.
+ */
+const today = (): string =>
+  new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(),
+  );
 
 export function useSigning(
   env: EnvelopeData,
@@ -68,7 +78,7 @@ export function useSigning(
   onAdopted?: (mark: Mark) => void,
 ): Signing {
   const me = env.me?.signerId ?? '';
-  const mine = env.fields.filter((f) => f.signerId === me).toSorted(inPageOrder);
+  const mine = env.fields.filter((f) => f.signerId === me).toSorted(readingOrder);
   // The one on file signs at once; adopting is for whoever has none.
   const [mark, setMark] = useState<Mark | null>(env.signature?.mark ?? null);
   const [filled, setFilled] = useState<Readonly<Record<string, string>>>({});
@@ -76,9 +86,9 @@ export function useSigning(
   const [adopting, setAdopting] = useState(false);
   const [waiting, setWaiting] = useState<string | null>(null);
 
-  const done = (f: EnvelopeField) => (filled[f.id] ?? '') !== '' && filled[f.id] !== 'false';
-  const next = mine.find((f) => !done(f) && (f.required || f.kind !== 'checkbox')) ?? null;
-  const ready = mine.every((f) => !f.required || done(f));
+  // Reach's model of which box is due, the phone's too: an optional tick box is never a step.
+  const next = nextToFill(mine, filled, (f) => f.kind === 'checkbox');
+  const ready = allRequiredFilled(mine, filled);
 
   const fill = (f: EnvelopeField, m: Mark | null) => {
     switch (f.kind) {
@@ -151,6 +161,7 @@ export function useSigning(
     },
     values,
     waiting,
+    day: today(),
   };
 }
 
