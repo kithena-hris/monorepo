@@ -254,6 +254,12 @@ three handwriting faces (Great Vibes, Sacramento, Mr Dafoe), or drawn. A
 signature is stamped centred in its box, as large as the box allows. The ⋯
 menu: ask the sender, pass it on (if allowed), decline with a reason.
 
+On the phone it is the same screen: the document full screen with the
+signer's boxes on it, Start, Next, Apply and Finish in the bar at the bottom,
+and the same Adopt dialog. The phone has no PDF view that can be drawn on, so
+pdf.js turns each page into a picture in a web view nobody sees, and the
+pages and boxes are native (Reach Native's `PdfPages` and `PlacementLayer`).
+
 **A signature on file.** Where People is present and the company has a field
 of type `signature` (Settings › Employee fields: who fills it in, when it is
 asked, sign-up included, and whether a change waits for HR's approval), the
