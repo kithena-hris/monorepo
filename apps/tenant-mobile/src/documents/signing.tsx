@@ -101,7 +101,8 @@ const today = (): string =>
 /** The web's `useSigning`: which box is due comes from Reach's placement model, as there. */
 function useSigning(env: SigningEnvelope, name: string, onFile: SignatureValue | null) {
   const me = env.me?.signerId ?? '';
-  const mine = env.fields.filter((f) => f.signerId === me).toSorted(readingOrder);
+  // A fresh array from filter(), so sorting it in place is safe; Hermes has no toSorted.
+  const mine = env.fields.filter((f) => f.signerId === me).sort(readingOrder);
   const [mark, setMark] = useState<SignatureValue | null>(onFile);
   const [filled, setFilled] = useState<Readonly<Record<string, string>>>({});
   const [focus, setFocus] = useState<string | null>(null);

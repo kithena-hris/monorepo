@@ -5,6 +5,8 @@
  * next. `PlacementLayer` draws the boxes; this says which one is due.
  *
  * A box holds a string. Empty, or `'false'` (a tick taken back), is unfilled.
+ *
+ * Hermes runs it on a phone: no ES2023 array methods (`toSorted`, `findLast`).
  */
 export interface Placed {
   readonly id: string;
@@ -33,9 +35,10 @@ export function nextToFill<T extends Placed>(
   values: Readonly<Record<string, string>>,
   optional: (box: T) => boolean = () => false,
 ): T | null {
+  // Copied, then sorted: this runs on the phone too, and Hermes has no toSorted.
   return (
-    boxes
-      .toSorted(readingOrder)
+    [...boxes]
+      .sort(readingOrder)
       .find((b) => !isFilled(values[b.id]) && (b.required || !optional(b))) ?? null
   );
 }
