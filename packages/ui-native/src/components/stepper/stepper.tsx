@@ -211,11 +211,17 @@ export function Stepper({
   );
 }
 
-/** The phone's stepper above a form: a bar and "2 of 3". */
+/**
+ * The phone's stepper above a form: a bar and "2 of 3". With `segments`, one
+ * bar per step, filled behind you and empty ahead; a segment whose step takes
+ * `onPress` can be tapped to jump there, which is how a saved record's editor
+ * opens any step.
+ */
 export function StepperProgress({
   step,
   count,
   label,
+  segments,
   className,
 }: {
   /** The step you are on, from 1. */
@@ -223,19 +229,62 @@ export function StepperProgress({
   count: number;
   /** What is in progress, read before the count: "Request time off". */
   label?: string;
+  /** One bar per step, each with its status and, to jump to it, `onPress`. */
+  segments?: readonly StepperStep[];
   className?: string | undefined;
 }): React.JSX.Element {
   const reading = `${String(step)} of ${String(count)}`;
   return (
     <View className={cn('flex-row items-center gap-2.5', className)}>
       <View className="flex-1">
-        <Progress
-          value={step}
-          max={count}
-          hideLabel
-          label={label ? `${label}, step ${reading}` : `Step ${reading}`}
-          valueLabel={reading}
-        />
+        {segments === undefined ? (
+          <Progress
+            value={step}
+            max={count}
+            hideLabel
+            label={label ? `${label}, step ${reading}` : `Step ${reading}`}
+            valueLabel={reading}
+          />
+        ) : (
+          <View className="flex-row gap-1.5">
+            {segments.map((s, index) => {
+              const status =
+                s.status ?? (index + 1 < step ? 'done' : index + 1 === step ? 'current' : 'todo');
+              const bar = (
+                <View
+                  className={cn(
+                    'h-1.5 rounded-full',
+                    status === 'current' && 'bg-accent',
+                    status === 'done' && 'bg-accent opacity-40',
+                    status === 'failed' && 'bg-danger-solid',
+                    status === 'todo' && 'bg-surface-active',
+                  )}
+                />
+              );
+              return s.onPress === undefined || status === 'current' ? (
+                <View
+                  key={s.label}
+                  className="flex-1"
+                  accessible
+                  accessibilityLabel={`${s.label}, ${spoken[status]}`}
+                >
+                  {bar}
+                </View>
+              ) : (
+                <Pressable
+                  key={s.label}
+                  className="flex-1 py-2"
+                  hitSlop={{ top: 12, bottom: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${s.label}, ${spoken[status]}`}
+                  onPress={s.onPress}
+                >
+                  {bar}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </View>
       <Text variant="footnote" weight="semibold" tabular aria-hidden>
         {reading}

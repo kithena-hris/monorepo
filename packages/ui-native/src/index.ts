@@ -320,6 +320,14 @@ export {
   type UseClipboardResult,
 } from './components/clipboard/clipboard.tsx';
 export {
+  AccessMatrix,
+  toggleAccess,
+  type AccessAudience,
+  type AccessColumn,
+  type AccessMatrixProps,
+  type AccessValue,
+} from './components/access-matrix/access-matrix.tsx';
+export {
   Checkbox,
   CheckboxBox,
   type CheckboxProps,

@@ -300,6 +300,68 @@ export function withAccess(
   };
 }
 
+/**
+ * The groups of the access table (design M4), from the person out to
+ * Finance. Everyone at the company (the directory) is the switch above them.
+ */
+export const GROUPS: readonly {
+  id: ViewerScope;
+  label: string;
+  description?: string;
+  canChange: boolean;
+}[] = [
+  { id: 'self', label: 'The employee', canChange: true },
+  { id: 'manager', label: 'Manager', description: 'Their direct manager', canChange: true },
+  { id: 'manager_chain', label: 'Line managers', description: 'Managers above', canChange: false },
+  { id: 'hr', label: 'HR', canChange: true },
+  { id: 'finance', label: 'Finance', description: 'For payroll', canChange: true },
+];
+
+/** Everyone at the company can see it: it shows in the directory. */
+export const seenByEveryone = (visibility: readonly ViewerScope[]): boolean =>
+  visibility.includes('directory');
+
+/** The Everyone switch: the directory on or off, every other reader kept as ticked. */
+export function withEveryone(on: boolean, visibility: readonly ViewerScope[]): ViewerScope[] {
+  const rest = visibility.filter((s) => s !== 'directory');
+  return on ? [...rest, 'directory'] : rest;
+}
+
+/** A field's readers and writers as the access table's value: group ids that see, and that change. */
+export function accessOf(
+  visibility: readonly ViewerScope[],
+  ownership: readonly WriterRole[],
+): { see: string[]; change: string[] } {
+  return {
+    see: visibility.filter((s) => GROUPS.some((g) => g.id === s)),
+    change: GROUPS.flatMap((g) => {
+      const writer = WRITER[g.id];
+      return writer !== undefined && ownership.includes(writer) ? [g.id] : [];
+    }),
+  };
+}
+
+/** The table's value back as readers and writers; the directory, an administrator and a system keep what they had. */
+export function fromAccess(
+  value: { readonly see: readonly string[]; readonly change: readonly string[] },
+  was: { visibility: readonly ViewerScope[]; ownership: readonly WriterRole[] },
+): { visibility: ViewerScope[]; ownership: WriterRole[] } {
+  const seen = new Set([...value.see, ...value.change]);
+  return {
+    visibility: [
+      ...GROUPS.map((g) => g.id).filter((id) => seen.has(id)),
+      ...was.visibility.filter((s) => s === 'admin' || s === 'directory'),
+    ],
+    ownership: [
+      ...GROUPS.flatMap((g) => {
+        const writer = WRITER[g.id];
+        return writer !== undefined && value.change.includes(g.id) ? [writer] : [];
+      }),
+      ...was.ownership.filter((w) => w === 'system' || w === 'external'),
+    ],
+  };
+}
+
 /** `hire_date` from "Hire date". */
 export function keyFromLabel(label: string): string {
   return label
@@ -435,7 +497,7 @@ export function draftFrom(section: RegistrySection, field: RegistryField | null)
 }
 
 /** The editor's four parts, each with what stops it being saved. */
-export const PARTS = ['The field', 'Access', 'When asked', 'Sensitivity'] as const;
+export const PARTS = ['The field', 'Access', 'When it’s asked', 'Sensitivity', 'Review'] as const;
 
 export function problemsIn(
   part: number,
@@ -460,7 +522,7 @@ export function problemsIn(
   }
   if (part === 1) {
     if (draft.ownership.length === 0)
-      problems['ownership'] = 'Somebody has to be able to fill it in.';
+      problems['ownership'] = 'Somebody has to be able to change it.';
     if (
       draft.visibility.length === 0 &&
       (draft.visibilityRules.length === 0 || draft.requiredness !== 'never')

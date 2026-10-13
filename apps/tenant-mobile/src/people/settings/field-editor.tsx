@@ -1,11 +1,17 @@
 import {
+  AccessMatrix,
   Alert,
   Button,
   Card,
   Checkbox,
-  ChipGroup,
-  ChipGroupItem,
   Combobox,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Field,
   FieldDescription,
   FieldError,
@@ -24,37 +30,35 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
   Spinner,
   Stack,
+  StepperProgress,
   Switch,
   TagsInput,
   Text,
   Textarea,
 } from '@reach/ui-native';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Plus, Sparkles, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { useAct } from '../act';
-import { ask, useSigned } from '../api';
+import { ask, useSigned, type Value } from '../api';
+import { AttributeInput } from '../attribute-input';
+import { describedField, fieldSentence } from './sentences';
 import {
   approvalByDefault,
   atLeast,
   AUDIENCES,
-  accessFor,
+  accessOf,
   CLASSIFICATION,
   COLLECT,
   DATA_TYPE_GROUPS,
   DATA_TYPE_LABEL,
   draftFrom,
   EMPTY_PREDICATE,
+  fromAccess,
+  GROUPS,
   keyFromLabel,
   OPERAND_LABEL,
   optionKey,
@@ -63,11 +67,11 @@ import {
   reformatted,
   REQUIREDNESS,
   SEALABLE,
+  seenByEveryone,
   STATUS_VALUES,
   WITH_DECIMALS,
   WITH_OPTIONS,
-  withAccess,
-  type Access,
+  withEveryone,
   type ClassificationAdvice,
   type Draft,
   type ListOperand,
@@ -272,12 +276,6 @@ function PredicateEditor({
   );
 }
 
-/**
- * One field, added or changed (design H3): the one place a sheet stays on a
- * phone, a long editor in four parts as pills — the field, who sees and
- * changes it (one row per audience, None / See / Change), when it is asked,
- * and how sensitive it is, judged from its description and never a value.
- */
 /** A draft as People's `DraftFieldInput`: the field editor's and the sentence editor's save. */
 export function draftInput(
   draft: Draft,
@@ -313,16 +311,27 @@ export function draftInput(
   };
 }
 
+/**
+ * One field, added or changed (design M3–M8): a centred dialog, one step per
+ * screen — the field, who sees and changes it (a See and Change table, with
+ * Everyone as the switch that ticks every See box), when it is asked, how
+ * sensitive it is, judged from its description and never a value, and a
+ * review. Editing, tap any bar to jump and save from any step; a new field
+ * steps through to the review, and may be drafted from a sentence.
+ */
 export function FieldEditor({
   registry,
   section,
   field,
+  described,
   onClose,
   onSaved,
 }: {
   registry: Registry;
   section: RegistrySection;
   field: RegistryField | null;
+  /** A new field described in the search, read into the draft as it opens. */
+  described?: string;
   onClose: () => void;
   /** Saved; the type or a format of a published field changed when `review` is set. */
   onSaved: (review: { key: string; to: string } | null) => void;
@@ -335,6 +344,10 @@ export function FieldEditor({
   const [part, setPart] = useState(0);
   const [shown, setShown] = useState(false);
   const [advice, setAdvice] = useState<ClassificationAdvice | 'asking' | 'failed' | null>(null);
+  const [description, setDescription] = useState('');
+  // Steps a description filled in, marked until they are looked at.
+  const [drafted, setDrafted] = useState<ReadonlySet<number>>(new Set());
+  const [sharing, setSharing] = useState<boolean | null>(null);
   const asked = useRef(0);
   const editing = field !== null;
   const builtIn = field !== null && field.origin !== 'tenant';
@@ -344,6 +357,10 @@ export function FieldEditor({
   );
   const set = (patch: Partial<Draft>): void => {
     setDraft((d) => ({ ...d, ...patch }));
+  };
+  const goTo = (next: number): void => {
+    setPart(next);
+    setDrafted((d) => new Set([...d].filter((i) => i !== next)));
   };
 
   // The judgment, asked again as the field is described; an answer nobody waits for is dropped.
@@ -379,6 +396,29 @@ export function FieldEditor({
     };
   }, [draft.label, draft.description, draft.dataType, draft.options.join('\u0000')]);
 
+  /** A sentence read into the draft (M8): name, type, options, and steps 2 to 4 marked to check. */
+  const describe = (text: string): void => {
+    setDescription(text);
+    const d = describedField(text);
+    if (!d.understood) return;
+    setKeyEdited(false);
+    set({
+      label: d.label,
+      key: d.key,
+      dataType: d.dataType,
+      options: d.options,
+      collectAt: d.collectAt,
+      ownership: d.ownership,
+      visibility: d.visibility,
+    });
+    setDrafted(new Set([1, 2, 3]));
+  };
+
+  // Opened from a description in the search: read it in once.
+  useEffect(() => {
+    if (described !== undefined && field === null) describe(described);
+  }, []);
+
   const judged = typeof advice === 'object' && advice !== null ? advice : null;
   const piiKind = judged?.piiKind ?? 'none';
   const forced = approvalByDefault(draft.dataType, piiKind);
@@ -398,12 +438,19 @@ export function FieldEditor({
   const approval = draft.requiresApproval ?? sealed;
   const floor = judged !== null && judged.kind !== 'protect' ? judged.floor : null;
   const show = shown ? (problems[part] ?? {}) : {};
+  // People shares a field with the assistant only where it could: public or internal, never sealed.
+  const shareable =
+    !sealed && (draft.classification === 'public' || draft.classification === 'internal');
+  const sharedBefore = field === null ? shareable : field.aiEligible === true;
+  const shared = shareable && (sharing ?? sharedBefore);
+  const last = part === PARTS.length - 1;
+  const everyone = seenByEveryone(draft.visibility);
 
   const save = (): void => {
     setShown(true);
     const first = problems.findIndex((p) => Object.keys(p).length > 0);
     if (first !== -1) {
-      setPart(first);
+      goTo(first);
       return;
     }
     if (draft.classification === null) return;
@@ -425,8 +472,11 @@ export function FieldEditor({
         editing: field?.key ?? null,
       },
       editing ? 'Saved to the draft' : 'Added to the draft',
-    ).then((done) => {
+    ).then(async (done) => {
       if (done === null) return;
+      if (shareable && shared !== sharedBefore) {
+        await act('SetFieldAssistant', { field: draft.key, share: shared });
+      }
       onSaved(
         field !== null && field.pending !== 'added' && reformatted(field, draft)
           ? { key: field.key, to: draft.dataType }
@@ -435,35 +485,51 @@ export function FieldEditor({
     });
   };
 
+  /** A new field moves on only once the step it leaves is complete. */
+  const next = (): void => {
+    if (!editing && Object.keys(problems[part] ?? {}).length > 0) {
+      setShown(true);
+      return;
+    }
+    goTo(part + 1);
+  };
+
   return (
-    <Sheet
+    <Dialog
       open
       onOpenChange={(o) => {
         if (!o) onClose();
       }}
     >
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{editing ? `Edit ${field.label}` : 'New field'}</SheetTitle>
-          <SheetDescription>{`${section.label}${builtIn ? ' · built in: type and key are fixed' : ''}`}</SheetDescription>
-        </SheetHeader>
-        <SheetBody>
-          <View>
-            <ChipGroup
-              type="single"
-              scroll
-              value={String(part)}
-              onValueChange={(v) => {
-                if (v !== '') setPart(Number(v));
-              }}
-              accessibilityLabel="Parts of the field"
-            >
-              {PARTS.map((label, i) => (
-                <ChipGroupItem key={label} value={String(i)} variant="view">
-                  {shown && Object.keys(problems[i] ?? {}).length > 0 ? `${label} !` : label}
-                </ChipGroupItem>
-              ))}
-            </ChipGroup>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? field.label : 'New field'}</DialogTitle>
+          <DialogDescription>{`${section.label}${builtIn ? ' · built in: type and key are fixed' : ''}`}</DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <View className="gap-2.5">
+            <StepperProgress
+              step={part + 1}
+              count={PARTS.length}
+              label="Parts of the field"
+              segments={PARTS.map((label, i) => ({
+                label,
+                ...(shown && Object.keys(problems[i] ?? {}).length > 0
+                  ? { status: 'failed' as const }
+                  : drafted.has(i) && i !== part
+                    ? { status: 'todo' as const, description: 'Drafted for you to check' }
+                    : {}),
+                // Editing, any step opens; a new field goes back only.
+                ...(editing || i < part
+                  ? {
+                      onPress: () => {
+                        goTo(i);
+                      },
+                    }
+                  : {}),
+              }))}
+            />
+            <Text variant="headline">{PARTS[part]}</Text>
           </View>
           <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerClassName="gap-4 pb-2">
             {part === 0 ? (
@@ -474,8 +540,30 @@ export function FieldEditor({
                     protection can only be increased.
                   </Alert>
                 ) : null}
+                {editing ? null : (
+                  <Card variant="assistant" className="gap-2">
+                    <View className="flex-row items-center gap-2">
+                      <Icon icon={Sparkles} size={16} tone="accent" />
+                      <Text weight="semibold" tone="accent">
+                        Describe it
+                      </Text>
+                    </View>
+                    <Textarea
+                      value={description}
+                      maxLength={500}
+                      placeholder="T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it."
+                      accessibilityLabel="Describe the field"
+                      onChange={describe}
+                    />
+                    <Text variant="footnote" tone="muted">
+                      {drafted.size > 0
+                        ? 'Filled in the name, options and steps 2 to 4. Check each one.'
+                        : 'Kithena fills in the rest from it. A rule, not a model.'}
+                    </Text>
+                  </Card>
+                )}
                 <Field required invalid={show['label'] !== undefined}>
-                  <FieldLabel>Name</FieldLabel>
+                  <FieldLabel>Field name</FieldLabel>
                   <Input
                     size="sm"
                     value={draft.label}
@@ -486,38 +574,32 @@ export function FieldEditor({
                   />
                   <FieldError>{show['label'] ?? ''}</FieldError>
                 </Field>
-                <Field required invalid={show['key'] !== undefined}>
-                  <FieldLabel>Key</FieldLabel>
-                  <Input
-                    size="sm"
-                    value={draft.key}
-                    readOnly={editing}
-                    autoCapitalize="none"
-                    onChange={(key) => {
-                      setKeyEdited(true);
-                      set({ key });
-                    }}
-                  />
-                  <FieldDescription>
-                    How integrations and imports name it. Fixed once saved.
-                  </FieldDescription>
-                  <FieldError>{show['key'] ?? ''}</FieldError>
-                </Field>
+                {registry.sections.length > 1 ? (
+                  <Field>
+                    <FieldLabel>Section</FieldLabel>
+                    <Select
+                      value={draft.sectionKey}
+                      onValueChange={(sectionKey) => {
+                        set({ sectionKey });
+                      }}
+                    >
+                      <SelectTrigger size="sm" accessibilityLabel="Section">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {registry.sections
+                          .filter((s) => !s.fixed)
+                          .map((s) => (
+                            <SelectItem key={s.key} value={s.key}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                ) : null}
                 <Field>
-                  <FieldLabel>Description</FieldLabel>
-                  <Textarea
-                    value={draft.description}
-                    maxLength={500}
-                    onChange={(description) => {
-                      set({ description });
-                    }}
-                  />
-                  <FieldDescription>
-                    Shown under the field, and read to judge how sensitive it is.
-                  </FieldDescription>
-                </Field>
-                <Field>
-                  <FieldLabel>Type</FieldLabel>
+                  <FieldLabel>Type of answer</FieldLabel>
                   <Select
                     value={draft.dataType}
                     disabled={builtIn}
@@ -525,7 +607,7 @@ export function FieldEditor({
                       set({ dataType });
                     }}
                   >
-                    <SelectTrigger size="sm" accessibilityLabel="Type">
+                    <SelectTrigger size="sm" accessibilityLabel="Type of answer">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -598,59 +680,65 @@ export function FieldEditor({
                     </ListItem>
                   </List>
                 ) : null}
-                {registry.sections.length > 1 ? (
-                  <Field>
-                    <FieldLabel>Section</FieldLabel>
-                    <Select
-                      value={draft.sectionKey}
-                      onValueChange={(sectionKey) => {
-                        set({ sectionKey });
-                      }}
-                    >
-                      <SelectTrigger size="sm" accessibilityLabel="Section">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {registry.sections
-                          .filter((s) => !s.fixed)
-                          .map((s) => (
-                            <SelectItem key={s.key} value={s.key}>
-                              {s.label}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                ) : null}
+                <Field>
+                  <FieldLabel>Help text</FieldLabel>
+                  <Textarea
+                    value={draft.description}
+                    maxLength={500}
+                    placeholder="Optional. What to enter, and why."
+                    onChange={(text) => {
+                      set({ description: text });
+                    }}
+                  />
+                </Field>
+                <Field required invalid={show['key'] !== undefined}>
+                  <FieldLabel>Key for integrations</FieldLabel>
+                  <Input
+                    size="sm"
+                    value={draft.key}
+                    readOnly={editing}
+                    autoCapitalize="none"
+                    onChange={(key) => {
+                      setKeyEdited(true);
+                      set({ key });
+                    }}
+                  />
+                  <FieldDescription>
+                    How integrations and imports name it. Fixed once saved.
+                  </FieldDescription>
+                  <FieldError>{show['key'] ?? ''}</FieldError>
+                </Field>
               </>
             ) : null}
 
             {part === 1 ? (
               <>
-                <Card>
-                  {AUDIENCES.map((a) => (
-                    <View
-                      key={a.id}
-                      className="min-h-12 flex-row items-center gap-3 border-b border-border"
-                    >
-                      <Text className="flex-1">{a.label}</Text>
-                      <SegmentedControl
-                        size="sm"
-                        value={accessFor(a.id, draft.visibility, draft.ownership)}
-                        accessibilityLabel={`${a.label}: access`}
-                        onValueChange={(v) => {
-                          set(withAccess(a.id, v as Access, draft));
-                        }}
-                      >
-                        <SegmentedControlItem value="none">None</SegmentedControlItem>
-                        <SegmentedControlItem value="see">See</SegmentedControlItem>
-                        {a.canChange ? (
-                          <SegmentedControlItem value="change">Change</SegmentedControlItem>
-                        ) : null}
-                      </SegmentedControl>
-                    </View>
-                  ))}
-                </Card>
+                <ListItem
+                  listitem={false}
+                  description="Ticks every See box"
+                  trailing={
+                    <Switch
+                      checked={everyone}
+                      accessibilityLabel="Everyone at the company can see it"
+                      onCheckedChange={(on) => {
+                        set({ visibility: withEveryone(on, draft.visibility) });
+                      }}
+                    />
+                  }
+                >
+                  Everyone at the company can see it
+                </ListItem>
+                <AccessMatrix
+                  audiences={GROUPS}
+                  value={accessOf(draft.visibility, draft.ownership)}
+                  allSee={everyone}
+                  onChange={(value) => {
+                    set(fromAccess(value, draft));
+                  }}
+                />
+                <Text variant="footnote" tone="muted">
+                  Anyone ticked under Change can also see it.
+                </Text>
                 {show['ownership'] === undefined ? null : (
                   <Alert tone="danger">{show['ownership']}</Alert>
                 )}
@@ -671,8 +759,10 @@ export function FieldEditor({
                         placeholder="Who also sees it"
                         options={AUDIENCES.map((a) => ({ value: a.id, label: a.label }))}
                         value={rule.scopes}
-                        onChange={(next) => {
-                          const scopes = (Array.isArray(next) ? next : []) as ViewerScope[];
+                        onChange={(nextScopes) => {
+                          const scopes = (
+                            Array.isArray(nextScopes) ? nextScopes : []
+                          ) as ViewerScope[];
                           set({
                             visibilityRules: draft.visibilityRules.map((r, j) =>
                               j === i ? { ...r, scopes } : r,
@@ -736,16 +826,22 @@ export function FieldEditor({
                   }}
                 >
                   {COLLECT.map((c) => (
-                    <RadioCard key={c.value} value={c.value} description={c.description}>
+                    <RadioCard
+                      key={c.value}
+                      value={c.value}
+                      // Only the chosen timing explains itself, to keep the step on one screen (M5).
+                      {...(c.value === draft.collectAt ? { description: c.description } : {})}
+                    >
                       {c.label}
                     </RadioCard>
                   ))}
                 </RadioGroup>
+                <Text weight="semibold">Is it required?</Text>
                 <SegmentedControl
                   fullWidth
                   size="sm"
                   value={draft.requiredness}
-                  accessibilityLabel="Required"
+                  accessibilityLabel="Is it required?"
                   onValueChange={(v) => {
                     set({ requiredness: v as Draft['requiredness'] });
                   }}
@@ -788,7 +884,7 @@ export function FieldEditor({
                       ? judged.options.map((o) => o.reason).join(' ')
                       : judged.kind === 'fallback'
                         ? 'The section’s default, as no judgment was available.'
-                        : judged.reason}
+                        : `${judged.reason} A Kithena rule, not a model.`}
                   </Alert>
                 )}
                 <RadioGroup
@@ -839,48 +935,187 @@ export function FieldEditor({
                       <Switch
                         checked={sealed}
                         disabled={sealLocked}
-                        accessibilityLabel="Encrypted"
+                        accessibilityLabel="Store it encrypted"
                         onCheckedChange={(encrypted) => {
                           set({ encrypted });
                         }}
                       />
                     }
                   >
-                    Encrypted
+                    Store it encrypted
                   </ListItem>
                   <ListItem
-                    description="A change waits for HR to approve it."
+                    description="The old value stays until someone else approves."
                     trailing={
                       <Switch
                         checked={approval}
-                        accessibilityLabel="Changes need approval"
+                        accessibilityLabel="Second HR approval"
                         onCheckedChange={(requiresApproval) => {
                           set({ requiresApproval });
                         }}
                       />
                     }
                   >
-                    Changes need approval
+                    Second HR approval
+                  </ListItem>
+                  <ListItem
+                    description={
+                      shareable
+                        ? 'Its name, never values'
+                        : 'Never, for confidential or encrypted data'
+                    }
+                    trailing={
+                      <Switch
+                        checked={shared}
+                        disabled={!shareable}
+                        accessibilityLabel="Shared with the assistant"
+                        onCheckedChange={setSharing}
+                      />
+                    }
+                  >
+                    Shared with the assistant
                   </ListItem>
                 </List>
               </>
             ) : null}
+
+            {part === 4 ? (
+              <>
+                <Card variant="fill" className="gap-2">
+                  <Text variant="caption" tone="muted">
+                    How it looks on a form
+                  </Text>
+                  <Preview draft={draft} approval={approval} />
+                </Card>
+                <List>
+                  {[
+                    {
+                      step: 0,
+                      label: 'The field',
+                      value: `${DATA_TYPE_LABEL[draft.dataType] ?? draft.dataType} · ${registry.sections.find((s) => s.key === draft.sectionKey)?.label ?? section.label}`,
+                    },
+                    {
+                      step: 1,
+                      label: 'Access',
+                      value: `${fieldSentence(draft).who} change it; ${everyone ? 'everyone sees it' : `${fieldSentence(draft).see.charAt(0).toLowerCase()}${fieldSentence(draft).see.slice(1)} see it`}.`,
+                    },
+                    {
+                      step: 2,
+                      label: 'When it’s asked',
+                      value: `${COLLECT.find((c) => c.value === draft.collectAt)?.label ?? ''} · ${REQUIREDNESS.find((r) => r.value === draft.requiredness)?.label.toLowerCase() ?? ''}`,
+                    },
+                    {
+                      step: 3,
+                      label: 'Sensitivity',
+                      value: [
+                        CLASSIFICATION.find((c) => c.value === draft.classification)?.label ??
+                          'Still to choose',
+                        sealed ? 'encrypted' : null,
+                        approval ? 'second approval' : null,
+                        shared ? 'shared with the assistant' : null,
+                      ]
+                        .filter((x) => x !== null)
+                        .join(' · '),
+                    },
+                  ].map((row) => (
+                    <ListItem
+                      key={row.label}
+                      description={row.value}
+                      wrap
+                      trailing={
+                        <Button
+                          size="sm"
+                          variant="link"
+                          accessibilityLabel={`Change ${row.label.toLowerCase()}`}
+                          onPress={() => {
+                            goTo(row.step);
+                          }}
+                        >
+                          Change
+                        </Button>
+                      }
+                    >
+                      {row.label}
+                    </ListItem>
+                  ))}
+                </List>
+                <Text variant="footnote" tone="muted">
+                  Nothing changes for anybody until you publish.
+                </Text>
+              </>
+            ) : null}
           </ScrollView>
-        </SheetBody>
-        <SheetFooter>
-          <Button className="flex-1" onPress={onClose}>
-            Discard
-          </Button>
-          <Button
-            className="flex-1"
-            variant="primary"
-            loading={busy === 'SaveDraftField'}
-            onPress={save}
-          >
-            Save field
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogBody>
+        <DialogFooter>
+          {part > 0 ? (
+            <Button
+              className="flex-1"
+              onPress={() => {
+                goTo(part - 1);
+              }}
+            >
+              Back
+            </Button>
+          ) : (
+            <Button className="flex-1" onPress={onClose}>
+              Cancel
+            </Button>
+          )}
+          {last ? null : (
+            <Button className="flex-1" variant={editing ? 'secondary' : 'primary'} onPress={next}>
+              {editing ? 'Next' : `Next: ${PARTS[part + 1] ?? ''}`}
+            </Button>
+          )}
+          {editing || last ? (
+            <Button
+              className="flex-1"
+              variant="primary"
+              disabled={advice === 'asking' || (advice === null && draft.label.trim() !== '')}
+              loading={busy === 'SaveDraftField' || busy === 'SetFieldAssistant'}
+              onPress={save}
+            >
+              {editing ? 'Save' : 'Add field'}
+            </Button>
+          ) : null}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The field as a form draws it, from the profile's own control. Typing saves nothing. */
+function Preview({ draft, approval }: { draft: Draft; approval: boolean }): React.JSX.Element {
+  const [value, setValue] = useState<Value | undefined>(undefined);
+  useEffect(() => {
+    setValue(undefined);
+  }, [draft.dataType]);
+  if (draft.dataType === 'document_ref' || draft.dataType === 'image') {
+    return (
+      <Text variant="footnote" tone="muted">
+        Uploaded on the profile rather than typed into a form.
+      </Text>
+    );
+  }
+  return (
+    <AttributeInput
+      field={{
+        key: 'preview',
+        label: draft.label.trim() === '' ? 'Your new field' : draft.label.trim(),
+        description: draft.description.trim() === '' ? null : draft.description.trim(),
+        dataType: draft.dataType,
+        options: draft.options.map((o) => ({ value: o, label: o })),
+        required: draft.requiredness === 'always',
+        missing: null,
+        readOnly: false,
+        currency: draft.currency === '' ? null : draft.currency,
+        openEnded: draft.openEnded,
+        ownedBy: null,
+        keptIn: null,
+        sensitive: approval,
+        askable: null,
+      }}
+      value={value}
+      onChange={setValue}
+    />
   );
 }
