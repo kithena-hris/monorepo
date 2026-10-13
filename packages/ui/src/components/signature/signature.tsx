@@ -62,7 +62,7 @@ export function Signature({
             : `${String(ink.x - pad)} ${String(ink.y - pad)} ${String(ink.width + pad * 2)} ${String(ink.height + pad * 2)}`
         }
         preserveAspectRatio="xMidYMid meet"
-        className={cn('block size-full text-fg', className)}
+        className={cn('block size-full', className)}
       >
         <path
           d={value.path}
@@ -89,7 +89,7 @@ export function Signature({
     >
       <span
         aria-hidden
-        className="leading-none whitespace-nowrap text-fg"
+        className="leading-none whitespace-nowrap"
         style={{
           fontFamily: signatureFont(value.style),
           // At most about half the box's height (a handwriting face's capitals

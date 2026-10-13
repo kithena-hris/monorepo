@@ -206,12 +206,14 @@ export function PlacementLayer({
             height: `${String(box.h * 100)}%`,
           },
           className: cn(
-            'absolute grid place-items-center rounded-sm border-2 text-2xs font-semibold text-fg',
-            'outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1',
+            'absolute grid place-items-center rounded-sm border-2 text-2xs font-semibold text-[var(--reach-neutral-900)]',
+            // The page is paper, white in either theme: the ring and the ink are the
+            // light theme's, so both read against it in the dark one too.
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--reach-brand-600)]',
             box.done === true
               ? 'border-transparent bg-transparent'
               : cn('border-dashed', TONE[box.tone]),
-            chosen && 'border-solid ring-2 ring-border-focus',
+            chosen && 'border-solid outline-2 outline-offset-2 outline-[var(--reach-brand-600)]',
             editable ? 'cursor-move touch-none select-none' : 'cursor-pointer',
           ),
         } as const;
@@ -258,7 +260,7 @@ export function PlacementLayer({
             {chosen ? (
               <span
                 aria-hidden
-                className="absolute -right-1.5 -bottom-1.5 size-3 cursor-nwse-resize rounded-full border-2 border-white bg-border-focus touch-none"
+                className="absolute -right-1.5 -bottom-1.5 size-3 cursor-nwse-resize rounded-full border-2 border-white bg-[var(--reach-brand-600)] touch-none"
                 onPointerDown={(event) => {
                   begin(event, box, 'resize');
                 }}

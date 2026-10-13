@@ -120,7 +120,7 @@ export function PdfPages({ src, label, overlay, onLoad, className }: PdfPagesPro
       {pages.map((p) => (
         <div
           key={p.number}
-          className="relative w-full overflow-hidden rounded-sm bg-white shadow-sm ring-1 ring-border"
+          className="relative w-full overflow-hidden rounded-sm bg-white text-[var(--reach-neutral-900)] shadow-sm ring-1 ring-border"
           style={{ aspectRatio: `${String(p.width)} / ${String(p.height)}` }}
         >
           <PageCanvas
