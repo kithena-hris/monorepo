@@ -11,6 +11,7 @@ export * from './payroll.js';
 export * from './address.js';
 export * from './branding.js';
 export * from './person-name.js';
+export * from './signature.js';
 export * from './person-profile.js';
 export * from './people/primitives.js';
 export * from './people/data-type.js';

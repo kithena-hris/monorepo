@@ -1,7 +1,8 @@
-import { PDFDocument, rgb } from 'pdf-lib';
+import { inkBounds } from '@kithena/contracts';
+import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 
 import type { Envelope } from '../domain/signature/envelope.js';
-import { facesFor } from './fonts.js';
+import { facesFor, scriptFor } from './fonts.js';
 import type { EnvelopeEvent } from './ports.js';
 
 /**
@@ -32,49 +33,34 @@ export async function seal(
   company: string,
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(original, { ignoreEncryption: true });
-  const { body, bold, script, drawable } = await facesFor(pdf);
+  const { body, bold, drawable } = await facesFor(pdf);
   const ink = rgb(0.12, 0.16, 0.36);
   const pages = pdf.getPages();
   for (const field of envelope.fields) {
     const page = pages[field.page - 1];
     if (page === undefined || field.value === null || field.value === undefined) continue;
     const { width, height } = page.getSize();
-    const x = field.x * width;
-    const boxH = field.h * height;
-    // PDF's origin is the bottom left; a field's is the top left.
-    const y = height - field.y * height - boxH;
+    const box = {
+      x: field.x * width,
+      w: field.w * width,
+      h: field.h * height,
+      // PDF's origin is the bottom left; a field's is the top left.
+      y: height - field.y * height - field.h * height,
+    };
     const signer = envelope.signers.find((s) => s.id === field.signerId);
-    if ((field.kind === 'signature' || field.kind === 'initials') && signer?.signature != null) {
-      const mark = signer.signature;
+    const mark = signer?.signature ?? null;
+    if ((field.kind === 'signature' || field.kind === 'initials') && mark !== null) {
       if (mark.kind === 'drawn') {
-        // The pad's box is 400 × 120, y down, as an SVG path is drawn from its top left.
-        const scale = Math.min((field.w * width) / 400, boxH / 120);
-        page.drawSvgPath(mark.path, {
-          x,
-          y: y + boxH,
-          scale,
-          borderColor: ink,
-          borderWidth: 1.5 / scale,
-        });
+        drawCentred(page, mark.path, box, ink);
       } else {
         const text = field.kind === 'initials' ? initials(mark.text) : mark.text;
-        page.drawText(drawable(text), {
-          x: x + 2,
-          y: y + boxH * 0.2,
-          size: Math.max(10, boxH * 0.7),
-          font: script,
-          color: ink,
-        });
+        const style = mark.style ?? 'flowing';
+        const font = (await scriptFor(pdf, style, text)) ?? body;
+        writeCentred(page, font === body ? drawable(text) : text, font, box, ink, 0.8);
       }
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
-      page.drawText(drawable(text), {
-        x: x + 2,
-        y: y + boxH * 0.2,
-        size: Math.max(8, Math.min(12, boxH * 0.7)),
-        font: body,
-        color: ink,
-      });
+      writeCentred(page, drawable(text), body, box, ink, 0.6, 12);
     }
   }
 
@@ -122,3 +108,62 @@ const initials = (name: string): string =>
     .filter(Boolean)
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/**
+ * Text in the middle of its box, as large as fits: at most `fill` of the
+ * box's height, and never wider than nine tenths of it.
+ */
+function writeCentred(
+  page: PDFPage,
+  text: string,
+  font: PDFFont,
+  box: Box,
+  color: RGB,
+  fill: number,
+  most = Infinity,
+): void {
+  if (text === '') return;
+  const unit = font.widthOfTextAtSize(text, 1);
+  const size = Math.max(
+    6,
+    Math.min(most, box.h * fill, unit === 0 ? Infinity : (box.w * 0.9) / unit),
+  );
+  const full = font.heightAtSize(size);
+  const descent = full - font.heightAtSize(size, { descender: false });
+  page.drawText(text, {
+    x: box.x + (box.w - font.widthOfTextAtSize(text, size)) / 2,
+    y: box.y + (box.h - full) / 2 + descent,
+    size,
+    font,
+    color,
+  });
+}
+
+/**
+ * A drawn signature's ink in the middle of its box, scaled to fit with a
+ * margin: the pad's own 400 × 120 frame and the blank around the strokes
+ * are not part of the signature.
+ */
+function drawCentred(page: PDFPage, path: string, box: Box, color: RGB): void {
+  const ink = inkBounds(path);
+  if (ink === null) return;
+  const scale = Math.min(
+    (box.w * 0.9) / Math.max(ink.width, 1),
+    (box.h * 0.85) / Math.max(ink.height, 1),
+  );
+  const top = box.y + box.h - (box.h - ink.height * scale) / 2;
+  page.drawSvgPath(path, {
+    x: box.x + (box.w - ink.width * scale) / 2 - ink.x * scale,
+    y: top + ink.y * scale,
+    scale,
+    borderColor: color,
+    borderWidth: 1.5 / scale,
+  });
+}

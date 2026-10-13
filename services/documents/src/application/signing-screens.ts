@@ -100,7 +100,7 @@ export const EnvelopesView = z
   .object({ rows: z.array(EnvelopeRow) })
   .meta(Title('DocumentsEnvelopes'));
 
-function viewOf(
+export function viewOf(
   env: Envelope,
   title: string,
   pages: number,
@@ -136,20 +136,23 @@ function viewOf(
       signedAt: s.signedAt,
       allowDelegate: s.allowDelegate,
     })),
-    // Another signer's typed values are theirs until the file is sealed.
-    fields: env.fields.map((f) => ({
-      id: f.id,
-      signerId: f.signerId,
-      kind: f.kind,
-      page: f.page,
-      x: f.x,
-      y: f.y,
-      w: f.w,
-      h: f.h,
-      required: f.required,
-      label: f.label,
-      value: follows || f.signerId === me ? (f.value ?? null) : null,
-    })),
+    // A signer sees only their own boxes: where somebody else signs, and what
+    // they typed, is the sender's to see until the file is sealed.
+    fields: env.fields
+      .filter((f) => follows || f.signerId === me)
+      .map((f) => ({
+        id: f.id,
+        signerId: f.signerId,
+        kind: f.kind,
+        page: f.page,
+        x: f.x,
+        y: f.y,
+        w: f.w,
+        h: f.h,
+        required: f.required,
+        label: f.label,
+        value: f.value ?? null,
+      })),
     me:
       mine === undefined
         ? null
