@@ -393,7 +393,7 @@ function SendSteps({
               <CardContent className="flex flex-col gap-2 pt-4">
                 {signers.map((s) =>
                   s.personId === null ? null : (
-                    <Field key={s.key} orientation="horizontal">
+                    <Field key={s.key} orientation="horizontal" className="justify-start">
                       <FieldControl>
                         <Checkbox
                           checked={s.allowDelegate}

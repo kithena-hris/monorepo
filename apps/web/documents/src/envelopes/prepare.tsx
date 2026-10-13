@@ -252,7 +252,7 @@ export function WhereTheySign({
                 </Select>
               </Field>
               {chosen.kind === 'signature' || chosen.kind === 'date' ? null : (
-                <Field orientation="horizontal">
+                <Field orientation="horizontal" className="justify-start">
                   <FieldControl>
                     <Checkbox
                       checked={chosen.required}

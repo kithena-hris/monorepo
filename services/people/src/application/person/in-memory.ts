@@ -16,6 +16,7 @@ import type { PersonAccessDeps } from './person-access.js';
 import { LEAVERS, type PersonRecord, type PersonSearch, type Refine } from './ports.js';
 import type { IdentifierReviews } from './identifier-review.js';
 import type { IdentifierReview } from '../../domain/person/identifier-review.js';
+import { lastFour } from '../../domain/person/last-four.js';
 import { utcCalendars } from '../org/org.js';
 import { factsOf } from './subject.js';
 import { after, newestFirst } from './keyset.js';
@@ -288,13 +289,13 @@ export function inMemoryPeople(
     secrets: {
       put(_tx, where, plaintext) {
         secrets.set(`${where.personId}:${where.attributeKey}`, plaintext);
-        return Promise.resolve({ last4: plaintext.slice(-4) });
+        return Promise.resolve({ last4: lastFour(plaintext) });
       },
       list: (_tx, _tenant, personId) =>
         Promise.resolve(
           [...secrets.entries()]
             .filter(([k]) => k.startsWith(`${personId}:`))
-            .map(([k, v]) => ({ attributeKey: k.slice(personId.length + 1), last4: v.slice(-4) })),
+            .map(([k, v]) => ({ attributeKey: k.slice(personId.length + 1), last4: lastFour(v) })),
         ),
       listMany: (_tx, _tenant, personIds) =>
         Promise.resolve(
@@ -305,7 +306,7 @@ export function inMemoryPeople(
                 .filter(([k]) => k.startsWith(`${personId}:`))
                 .map(([k, v]) => ({
                   attributeKey: k.slice(personId.length + 1),
-                  last4: v.slice(-4),
+                  last4: lastFour(v),
                 })),
             ]),
           ),
