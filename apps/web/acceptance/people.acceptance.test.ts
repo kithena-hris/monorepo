@@ -924,6 +924,10 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     await asks.reload();
     const link = asks.getByRole('link', { name: 'Download, once' });
     await link.waitFor({ timeout: 30_000 });
+    // Nothing of this page still asking People: a read on its way when the
+    // file is claimed would be shared with the reload after it (`alongside` in
+    // `people.ts`) and answer "Ready to download" for a file already taken.
+    await asks.waitForLoadState('networkidle');
     const href = (await link.getAttribute('href')) ?? '';
     expect((await fetch(href)).status).toBe(200);
     expect((await fetch(href)).status).toBe(410);

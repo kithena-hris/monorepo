@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, inject } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, inject } from 'vitest';
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
 
 import { startStack, type Stack } from './stack';
@@ -22,6 +22,31 @@ export function useStack(setup?: () => Promise<void>): void {
     await setup?.();
   }, 900_000);
 
+  beforeEach(() => {
+    complaints.length = 0;
+  });
+
+  // A failed wait says only what it waited for. What the browser said, and
+  // what each page left open was showing, is what a flaky one needs to be
+  // understood from a CI log alone.
+  afterEach(async ({ task }) => {
+    if (task.result?.state !== 'fail') return;
+    const pages = await Promise.all(
+      (browser as Browser | undefined)
+        ?.contexts()
+        .flatMap((c) => c.pages())
+        .map(describePage) ?? [],
+    );
+    console.log(
+      [
+        `--- ${task.name}: what the browser said`,
+        ...complaints.slice(-40),
+        '--- and what each open page showed',
+        ...pages,
+      ].join('\n'),
+    );
+  });
+
   afterAll(async () => {
     // Either may be missing when `beforeAll` failed part way.
     await (browser as Browser | undefined)?.close();
@@ -29,11 +54,38 @@ export function useStack(setup?: () => Promise<void>): void {
   }, 60_000);
 }
 
+/** Console errors and uncaught errors from every page of every context, for a failure's log. */
+const complaints: string[] = [];
+
+async function describePage(page: Page): Promise<string> {
+  try {
+    const shown = await page.evaluate(() => {
+      const remote = document.querySelector('[data-remote]');
+      return {
+        remote: remote === null ? null : remote.getAttribute('data-remote'),
+        waiting: document.querySelector('[data-remote][data-hydrating]') !== null,
+        remoteText: remote instanceof HTMLElement ? remote.innerText.slice(0, 120) : null,
+        hiddenParts: document.querySelectorAll('div[hidden][id^="S:"]').length,
+        text: document.body.innerText.replaceAll('\n', ' | ').slice(0, 300),
+      };
+    });
+    return `${page.url()} ${JSON.stringify(shown)}`;
+  } catch (e) {
+    return `${page.url()} (unreadable: ${e instanceof Error ? e.message : String(e)})`;
+  }
+}
+
 export async function signedIn(
   session: string,
   options: Parameters<Browser['newContext']>[0] = {},
 ): Promise<BrowserContext> {
   const context = await browser.newContext({ acceptDownloads: true, ...options });
+  context.on('page', (page) => {
+    page.on('pageerror', (e) => complaints.push(`[pageerror ${page.url()}] ${e.message}`));
+    page.on('console', (m) => {
+      if (m.type() === 'error') complaints.push(`[console ${page.url()}] ${m.text()}`);
+    });
+  });
   await context.addCookies([
     {
       name: '__Host-ksession',
