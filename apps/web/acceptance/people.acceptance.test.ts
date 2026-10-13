@@ -9,6 +9,7 @@ import {
   eventually,
   inView,
   keyboardUp,
+  live,
   person,
   sections,
   signedIn,
@@ -97,6 +98,7 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       SELECT version FROM people.schema_version WHERE tenant_id = ${TENANT}`;
     expect(versions.map((v) => v.version)).toEqual([1]);
 
+    await live(page);
     await personal.getByRole('textbox', { name: /Legal first name/ }).focus();
     await keyboardUp(page);
     await personal.getByRole('textbox', { name: /Legal first name/ }).fill('Priya');
@@ -125,6 +127,7 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       'Priya',
     );
     await page.setViewportSize({ width: 390, height: 844 });
+    await live(page);
     await identification.getByRole('textbox', { name: /NIF \/ NIE/ }).focus();
     await keyboardUp(page);
     await identification.getByRole('textbox', { name: /NIF \/ NIE/ }).fill('12345678Z');
