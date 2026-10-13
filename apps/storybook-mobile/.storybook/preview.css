@@ -256,3 +256,25 @@ html,
     overflow-x: auto;
   }
 }
+
+/*
+ * The handwriting faces `Signature` names (`SIGNATURE_FONTS`), as the app
+ * loads them with `expo-font`: the web's own copies, never a font service.
+ */
+@font-face {
+  font-family: 'ReachSignatureFlowing';
+  src: url('../../../packages/ui/src/assets/fonts/GreatVibes-Regular.woff2') format('woff2');
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'ReachSignatureLight';
+  src: url('../../../packages/ui/src/assets/fonts/Sacramento-Regular.woff2') format('woff2');
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'ReachSignatureBold';
+  src: url('../../../packages/ui/src/assets/fonts/MrDafoe-Regular.woff2') format('woff2');
+  font-display: block;
+}
