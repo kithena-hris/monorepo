@@ -88,7 +88,14 @@ const HINT: Readonly<Record<Kind, string>> = {
 const inPageOrder = (a: EnvelopeField, b: EnvelopeField) =>
   a.page - b.page || a.y - b.y || a.x - b.x;
 
-const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * Today on the signer's own calendar, as the phone has it: what a date box
+ * shows and what the server records, within a day of its clock.
+ */
+const today = (): string =>
+  new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(),
+  );
 
 /** The web's `useSigning`, the same rules. */
 function useSigning(env: SigningEnvelope, name: string, onFile: SignatureValue | null) {
@@ -336,6 +343,7 @@ function Signing({
       input: {
         signature: signing.mark ?? { kind: 'typed', text: name },
         values: signing.values,
+        day: today(),
         origin: signed.company.origin,
         companyName: company,
       },

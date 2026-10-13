@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./signature": {
+      "types": "./dist/signature.d.ts",
+      "default": "./dist/signature.js"
     }
   },
   "scripts": {

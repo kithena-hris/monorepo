@@ -29,4 +29,10 @@ describe('markOf', () => {
     expect(markOf('Ada')).toBeNull();
     expect(markOf('{"kind":"typed"}')).toBeNull();
   });
+
+  it('refuses what the server would: a path that is not strokes, or a blank name', () => {
+    expect(markOf('{"kind":"drawn","path":"<script>"}')).toBeNull();
+    expect(markOf('{"kind":"typed","text":"   "}')).toBeNull();
+    expect(markOf('{"kind":"typed","text":"Ada","style":"cursive"}')).toBeNull();
+  });
 });

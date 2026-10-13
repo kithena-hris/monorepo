@@ -257,6 +257,8 @@ async function passTurn(ctx: Ctx, before: Envelope, after: Envelope, origin: Ori
 export interface SignInput {
   readonly signature: SignatureMark;
   readonly values: Readonly<Record<string, string>>;
+  /** The signer's own calendar day, for the date box; the domain bounds it by the clock. */
+  readonly day?: string | undefined;
 }
 
 /** The signing transaction, shared by a member and an outside signer. */

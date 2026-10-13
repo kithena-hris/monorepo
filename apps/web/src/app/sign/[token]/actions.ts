@@ -75,8 +75,10 @@ export async function signLink(
     | { kind: 'typed'; text: string; style?: 'flowing' | 'light' | 'bold' }
     | { kind: 'drawn'; path: string },
   values: Readonly<Record<string, string>>,
+  /** The signer's own day, from their browser: this runs on the server, whose day may differ. */
+  day: string,
 ): Promise<Answer<{ completed: boolean }>> {
-  return call<{ completed: boolean }>(token, '/sign', { signature, values });
+  return call<{ completed: boolean }>(token, '/sign', { signature, values, day });
 }
 
 export async function declineLink(

@@ -54,12 +54,22 @@ export interface Signing {
   readonly values: Readonly<Record<string, string>>;
   /** The box asking for something: a signature to adopt, or text to type. */
   readonly waiting: string | null;
+  /** The signer's own day, sent with the signature for the date boxes. */
+  readonly day: string;
 }
 
 const inPageOrder = (a: EnvelopeField, b: EnvelopeField) =>
   a.page - b.page || a.y - b.y || a.x - b.x;
 
-const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * Today on the signer's own calendar, as their device has it: what a date box
+ * shows and what the server records, within a day of its clock. Not UTC, which
+ * is yesterday or tomorrow for much of the world around midnight.
+ */
+const today = (): string =>
+  new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(),
+  );
 
 export function useSigning(
   env: EnvelopeData,
@@ -151,6 +161,7 @@ export function useSigning(
     },
     values,
     waiting,
+    day: today(),
   };
 }
 

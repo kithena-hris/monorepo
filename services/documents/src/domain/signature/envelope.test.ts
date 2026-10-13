@@ -162,6 +162,34 @@ describe('signing (K4–K6)', () => {
     expect(env.completedAt).toBe(at(5));
   });
 
+  it('dates the box with the signer’s own day, never more than a day from the clock', () => {
+    const verified = (): Envelope => {
+      const env = ok(issueCode(ok(markOpened(sent(), 's-yuki', at(1))), 's-yuki', 'h', at(1)));
+      return ok(checkCode(env, 's-yuki', 'h', at(2))).envelope;
+    };
+    const dated = (day: string | undefined): string | null | undefined => {
+      const signature = { kind: 'typed' as const, text: 'Yuki Sato' };
+      const env = ok(
+        sign(
+          verified(),
+          's-yuki',
+          { signature, values: {}, ...(day === undefined ? {} : { day }) },
+          at(3),
+        ),
+      );
+      return env.fields.find((f) => f.signerId === 's-yuki' && f.kind === 'date')?.value;
+    };
+    // Just after midnight in Tokyo, the day before in UTC: Tokyo's day.
+    expect(dated('2026-10-10')).toBe('2026-10-10');
+    // Late evening in Honolulu, already tomorrow in UTC.
+    expect(dated('2026-10-08')).toBe('2026-10-08');
+    // No zone is two days off, and nothing that is not a day is one.
+    expect(dated('2026-10-12')).toBe('2026-10-09');
+    expect(dated('10/10/2026')).toBe('2026-10-09');
+    // Not said: the clock's own day, as before.
+    expect(dated(undefined)).toBe('2026-10-09');
+  });
+
   it('refuses a required field left empty', () => {
     const fields = [
       ...defaultFields(['s-yuki', 's-nora'], 6),

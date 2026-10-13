@@ -336,6 +336,20 @@ export function checkCode(
   });
 }
 
+const DAY_MS = 86_400_000;
+
+/**
+ * The day a date box shows: the signer's own, as their device gave it, where
+ * it is a real day within one of the clock's (every time zone is), else the
+ * clock's day in UTC. The signing instant itself is always the server's.
+ */
+function signersDay(given: string | undefined, at: Instant): string {
+  const utc = at.slice(0, 10);
+  if (given === undefined || !/^\d{4}-\d{2}-\d{2}$/u.test(given)) return utc;
+  const apart = Math.abs(Date.parse(`${given}T00:00:00Z`) - Date.parse(`${utc}T00:00:00Z`));
+  return Number.isNaN(apart) || apart > DAY_MS ? utc : given;
+}
+
 /**
  * Sign: every required field of theirs filled (the date fills itself), the
  * signature adopted, and the turn passes on — to the next in order, or the
@@ -344,7 +358,12 @@ export function checkCode(
 export function sign(
   env: Envelope,
   signerId: string,
-  input: { readonly signature: SignatureMark; readonly values: Readonly<Record<string, string>> },
+  input: {
+    readonly signature: SignatureMark;
+    readonly values: Readonly<Record<string, string>>;
+    /** The signer's own calendar day, as their device has it: what the date box says. */
+    readonly day?: string | undefined;
+  },
   at: Instant,
 ): Result<Envelope> {
   const s = turn(env, signerId);
@@ -361,7 +380,7 @@ export function sign(
     );
   }
   const mark = parsed.data;
-  const day = at.slice(0, 10);
+  const day = signersDay(input.day, at);
   const mine = env.fields.filter((f) => f.signerId === signerId);
   const filled = new Map<string, string | null>();
   for (const f of mine) {

@@ -331,6 +331,8 @@ const Mark = SignatureMark;
 const SignBody = z.strictObject({
   signature: Mark,
   values: z.record(z.string().max(80), z.string().max(200)).default({}),
+  // The signer's own calendar day, for the date box: within a day of the server's, or ignored.
+  day: z.iso.date().optional(),
   ...OriginBody,
 });
 
