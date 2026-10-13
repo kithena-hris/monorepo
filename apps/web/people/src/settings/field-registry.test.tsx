@@ -94,6 +94,23 @@ const buttonNamed = (text: string): HTMLElement => {
 
 const ok = () => Promise.resolve({ ok: true as const });
 
+/** Saved from wherever the editor is, once the judgment is in: Save waits for it. */
+async function saveWhenReady(sheet: HTMLElement): Promise<void> {
+  const save = within(sheet).getByRole('button', { name: 'Save field' });
+  await waitFor(() => {
+    expect(save).toBeEnabled();
+  });
+  await fast().click(save);
+}
+
+/** A step of the editor's stepper, by its label. */
+const step = (dialog: HTMLElement, label: string): HTMLElement => {
+  const parts = within(dialog).getByRole('navigation', { name: 'Parts of the field' });
+  const button = within(parts).getByText(label).closest('button');
+  if (button === null) throw new Error(`the step ${label} cannot be opened`);
+  return button;
+};
+
 function props(over: Partial<FieldRegistryProps> = {}): FieldRegistryProps {
   return {
     load: { status: 'ready', data: draft },
@@ -119,7 +136,7 @@ describe('FieldRegistry', () => {
   it('shows the published version and the pending changes', async () => {
     const { container } = render(<FieldRegistry {...props()} />);
     expect(
-      screen.getByText('Version 3 published 12 Sep · 4 unpublished changes'),
+      screen.getByText('Version 3 · published 12 Sep · 4 unpublished changes'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publish version 4' })).toBeEnabled();
     expect(await axeViolations(container)).toEqual([]);
@@ -129,8 +146,10 @@ describe('FieldRegistry', () => {
     const user = fast();
     const { container } = render(<FieldRegistry {...props()} />);
     expect(screen.getByText('4 changes are waiting to be published')).toBeInTheDocument();
-    // Each row says when it is asked and who sees it, not only its type.
-    expect(screen.getByText(/One of a list · 2 options · HR only · Seen by/)).toBeInTheDocument();
+    // Each row says its type, then when it is asked and who sees it, in words.
+    expect(screen.getByText('One of a list · 2 options')).toBeInTheDocument();
+    expect(screen.getAllByText('HR only').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Employee, manager and HR').length).toBeGreaterThan(0);
     // A field whose changes wait for a second person says so in those words;
     // its classification is a badge of its own.
     expect(screen.getByText('Needs approval')).toBeInTheDocument();
@@ -138,8 +157,8 @@ describe('FieldRegistry', () => {
 
     await user.click(screen.getByRole('searchbox', { name: 'Search fields' }));
     await user.paste('ethni');
-    const found = screen.getByRole('table', { name: 'Matching fields' });
-    expect(within(found).getByRole('rowheader', { name: 'Diversity' })).toBeInTheDocument();
+    expect(screen.getByText('1 field matches, in 1 section')).toBeInTheDocument();
+    const found = screen.getByRole('region', { name: 'Diversity' });
     expect(within(found).getByText('Ethnicity')).toBeInTheDocument();
     expect(within(found).getByText('Special category')).toBeInTheDocument();
     expect(screen.queryByText('Cost centre')).toBeNull();
@@ -233,8 +252,9 @@ describe('FieldRegistry', () => {
   it('offers edit on every field, the built-in ones too, and no new ones in a fixed section', async () => {
     const user = fast();
     render(<FieldRegistry {...props()} />);
-    expect(screen.getByRole('button', { name: 'Edit Employee number' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Edit Cost centre' })).toBeInTheDocument();
+    // The whole row opens the editor: its name is the button.
+    expect(screen.getByRole('button', { name: 'Employee number' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cost centre' })).toBeInTheDocument();
     expect(screen.getByText('+ Added')).toBeInTheDocument();
 
     await user.click(
@@ -245,7 +265,7 @@ describe('FieldRegistry', () => {
     expect(screen.getByText('These rules are fixed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add field' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Move Ethnicity up' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Edit Ethnicity' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ethnicity' })).toBeInTheDocument();
   });
 
   it('opens the editor for the section chosen', async () => {
@@ -292,10 +312,11 @@ describe('FieldRegistry', () => {
     );
 
     const sheet = await screen.findByRole('dialog', { name: 'New field' });
-    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+    // A new field moves on only once its step is complete.
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Access' }));
     expect(within(sheet).getByText('Give the field a name.')).toBeInTheDocument();
 
-    // Pasted, not typed: nineteen keystrokes re-render the whole sheet nineteen
+    // Pasted, not typed: nineteen keystrokes re-render the whole dialog nineteen
     // times and prove nothing one change does not.
     await user.click(within(sheet).getByLabelText(/^Field name/));
     await user.paste('Accommodation notes');
@@ -304,18 +325,26 @@ describe('FieldRegistry', () => {
     expect(within(sheet).getByLabelText('Key')).toHaveValue('accommodation_notes');
     // The preview draws the field with the name as it is typed.
     expect(within(sheet).getByRole('textbox', { name: 'Accommodation notes' })).toBeInTheDocument();
+    // The plain words beside it follow every step.
+    expect(
+      within(sheet).getByText(
+        'The employee is asked for their Accommodation notes during onboarding.',
+      ),
+    ).toBeInTheDocument();
 
-    // Step 2: owners default from the section, and visibility is read back.
-    expect(within(sheet).getByRole('button', { name: 'HR changes it' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(within(sheet).getByText(/HR can see and edit this\./)).toBeInTheDocument();
+    // Step 2: owners default from the section.
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Access' }));
+    expect(within(sheet).getByRole('checkbox', { name: 'HR can change' })).toBeChecked();
+    expect(
+      within(sheet).getByRole('checkbox', { name: 'HR can see, because they can change it' }),
+    ).toBeDisabled();
 
     // Step 3: when it is asked. The section is filled in by the employee, so onboarding.
+    await user.click(within(sheet).getByRole('button', { name: /^Next: When/ }));
     expect(within(sheet).getByRole('radio', { name: /During onboarding/ })).toBeChecked();
 
     // Sensitivity: the judgment is asked for from metadata, never a value.
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Sensitivity' }));
     expect(await within(sheet).findByText('This looks like health data.')).toBeInTheDocument();
     expect(advise).toHaveBeenLastCalledWith({
       label: 'Accommodation notes',
@@ -327,20 +356,17 @@ describe('FieldRegistry', () => {
     // Forced up to special category: nothing below the floor is offered.
     const kind = within(sheet).getByRole('group', { name: 'What kind of data is this?' });
     expect(within(kind).getAllByRole('radio')).toHaveLength(1);
-    // And the review reads it all back in plain words.
-    expect(
-      within(sheet).getByText(
-        /^The employee is asked for their Accommodation notes during onboarding\. It is optional\./,
-      ),
-    ).toBeInTheDocument();
-
-    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Review' }));
     expect(
       within(sheet).getByText('Special-category data needs your explicit confirmation.'),
     ).toBeInTheDocument();
-    expect(onSaveField).not.toHaveBeenCalled();
+    expect(within(sheet).queryByRole('button', { name: 'Add field' })).toBeNull();
 
     await user.click(within(sheet).getByRole('checkbox', { name: /I confirm/ }));
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Review' }));
+    expect(
+      within(sheet).getByText('Accommodation notes · Short text · Health & safety'),
+    ).toBeInTheDocument();
     await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
     await waitFor(() => {
       expect(onSaveField).toHaveBeenCalledOnce();
@@ -357,7 +383,65 @@ describe('FieldRegistry', () => {
     );
   });
 
-  it('is axe-clean with the field editor open, every part on one page', async () => {
+  it('ticks every See box when everyone can see a field, and keeps the groups as ticked', async () => {
+    const user = fast();
+    const [hr] = draft.sections;
+    const costCentre = draft.fields.find((f) => f.key === 'cost_centre');
+    if (hr === undefined || costCentre === undefined) throw new Error('fixture changed');
+    const onSave = vi.fn(ok);
+    render(
+      <FieldEditor
+        open
+        onOpenChange={vi.fn()}
+        section={hr}
+        field={costCentre}
+        takenKeys={[]}
+        choices={draft.choices}
+        fields={draft.fields}
+        advise={() =>
+          Promise.resolve({
+            kind: 'suggest',
+            classification: 'internal',
+            piiKind: 'none',
+            reason: 'Ordinary job data.',
+            floor: 'public',
+          })
+        }
+        onSave={onSave}
+      />,
+    );
+    const sheet = await screen.findByRole('dialog', { name: 'Edit Cost centre' });
+    await user.click(step(sheet, 'Access'));
+    const finance = within(sheet).getByRole('checkbox', { name: 'Finance can see' });
+    expect(finance).not.toBeChecked();
+
+    await user.click(within(sheet).getByRole('switch', { name: /Everyone at the company/ }));
+    for (const who of ['The employee', 'Manager', 'Line managers', 'HR', 'Finance']) {
+      const see = within(sheet).getByRole('checkbox', {
+        name: `${who} can see, because everyone can see it`,
+      });
+      expect(see).toBeChecked();
+      expect(see).toBeDisabled();
+    }
+    // Who changes it is still each group's own.
+    expect(within(sheet).getByRole('checkbox', { name: 'Finance can change' })).not.toBeChecked();
+    expect(await axeViolations(sheet)).toEqual([]);
+
+    // Off again, each group is as it was ticked.
+    await user.click(within(sheet).getByRole('switch', { name: /Everyone at the company/ }));
+    expect(within(sheet).getByRole('checkbox', { name: 'Finance can see' })).not.toBeChecked();
+    expect(within(sheet).getByRole('checkbox', { name: 'The employee can see' })).toBeChecked();
+
+    await user.click(within(sheet).getByRole('switch', { name: /Everyone at the company/ }));
+    await saveWhenReady(sheet);
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ visibility: ['self', 'manager', 'hr', 'directory'] }),
+      );
+    });
+  });
+
+  it('is axe-clean with the field editor open on its sensitivity step', async () => {
     const [hr] = draft.sections;
     const costCentre = draft.fields.find((f) => f.key === 'cost_centre');
     if (hr === undefined || costCentre === undefined) throw new Error('fixture changed');
@@ -385,6 +469,8 @@ describe('FieldRegistry', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Cost centre' });
+    // A saved field opens any step, ahead as well as behind.
+    await fast().click(step(sheet, 'Sensitivity'));
     await within(sheet).findByText('Two answers are close');
     // `choose` offers what is at or above the floor and pre-selects nothing new.
     const kind = within(sheet).getByRole('group', { name: 'What kind of data is this?' });
@@ -416,7 +502,15 @@ describe('FieldRegistry', () => {
     await user.click(within(sheet).getByRole('button', { name: /^Key for integrations/ }));
     expect(within(sheet).getByLabelText('Key')).toHaveValue('pronouns');
 
+    // Pronouns are in the directory: everyone can see them, so every See box is ticked.
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Access' }));
+    expect(within(sheet).getByRole('switch', { name: /Everyone at the company/ })).toBeChecked();
+    expect(
+      within(sheet).getByRole('checkbox', { name: 'Finance can see, because everyone can see it' }),
+    ).toBeChecked();
+
     // Every stage is a radio with a name and a sentence saying what it does.
+    await user.click(within(sheet).getByRole('button', { name: /^Next: When/ }));
     const stages = within(
       within(sheet).getByRole('group', { name: 'When is it asked?' }),
     ).getAllByRole('radio');
@@ -437,7 +531,7 @@ describe('FieldRegistry', () => {
     expect(within(sheet).getByText('The employee is never shown this field')).toBeInTheDocument();
   });
 
-  it('goes back through the steps from the keyboard', async () => {
+  it('opens any step of a saved field, and saves from any of them', async () => {
     const user = fast();
     const [hr] = draft.sections;
     const costCentre = draft.fields.find((f) => f.key === 'cost_centre');
@@ -456,14 +550,10 @@ describe('FieldRegistry', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Cost centre' });
-    // Every part is on the page, each a link away in the list beside it.
+    await user.click(step(sheet, 'When it’s asked'));
     expect(within(sheet).getByRole('group', { name: 'When is it asked?' })).toBeInTheDocument();
-    const parts = within(sheet).getByRole('navigation', { name: 'Parts of the field' });
-    expect(within(parts).getByRole('link', { name: /When it’s asked/ })).toHaveAttribute(
-      'href',
-      '#editor-when',
-    );
-    await user.click(within(parts).getByRole('link', { name: /The field/ }));
+    expect(within(sheet).getByRole('button', { name: 'Save field' })).toBeInTheDocument();
+    await user.click(step(sheet, 'The field'));
     expect(within(sheet).getByLabelText(/^Field name/)).toHaveValue('Cost centre');
   });
 
@@ -494,8 +584,9 @@ describe('FieldRegistry', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Cost centre' });
+    await user.click(step(sheet, 'When it’s asked'));
     await user.click(within(sheet).getByRole('radio', { name: /Any time, on their profile/ }));
-    await within(sheet).findByText('Ordinary job data.');
+    await user.click(step(sheet, 'Review'));
     expect(within(sheet).getByText('What changes when you publish')).toBeInTheDocument();
     expect(
       within(sheet).getByText('When it is asked: Only HR fills it in → Any time, on their profile'),
@@ -535,9 +626,9 @@ describe('FieldRegistry', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Edit Start day' });
     await user.click(within(sheet).getByRole('combobox', { name: /Type of answer/ }));
     await user.click(await screen.findByRole('option', { name: 'Date' }));
-    expect(within(sheet).getByText(/Short text → Date/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Changed from Short text/)).toBeInTheDocument();
     expect(await axeViolations(sheet)).toEqual([]);
-    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await saveWhenReady(sheet);
     await waitFor(() => {
       expect(onReview).toHaveBeenCalledWith('start_day', 'date');
     });
@@ -591,7 +682,7 @@ describe('FieldRegistry', () => {
     const { container } = render(
       <FieldRegistry {...props({ load: { status: 'ready', data: onSignupDraft }, onSignup })} />,
     );
-    await user.click(screen.getByRole('button', { name: /Cost centre: Sign-up: required/ }));
+    await user.click(screen.getByRole('button', { name: /^Cost centre: asked at sign-up/ }));
     await user.click(screen.getByRole('menuitemradio', { name: 'Optional' }));
     expect(onSignup).toHaveBeenCalledWith('cost_centre', 'optional');
 
@@ -622,7 +713,7 @@ describe('FieldRegistry', () => {
       <FieldRegistry {...props({ load: { status: 'ready', data: shareable }, onAssistant })} />,
     );
     await user.click(
-      screen.getByRole('button', { name: /Employee number: Assistant: not shared/ }),
+      screen.getByRole('button', { name: /^Employee number: assistant not shared/ }),
     );
     await user.click(screen.getByRole('menuitemradio', { name: 'Shared' }));
     expect(onAssistant).toHaveBeenCalledWith('employee_number', true);
@@ -642,7 +733,7 @@ describe('the field list’s filters, in the address', () => {
       />,
     );
     expect(screen.getByRole('searchbox', { name: 'Search fields' })).toHaveValue('ethni');
-    expect(screen.getByRole('table', { name: 'Matching fields' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Diversity' })).toBeInTheDocument();
   });
 
   it('treats a filter or a section it does not know as none', () => {
@@ -656,7 +747,7 @@ describe('the field list’s filters, in the address', () => {
         })}
       />,
     );
-    expect(screen.queryByRole('table', { name: 'Matching fields' })).toBeNull();
+    expect(screen.queryByText(/fields? match/)).toBeNull();
     expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('All fields');
   });
 });

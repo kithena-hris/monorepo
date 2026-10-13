@@ -11,6 +11,8 @@ import {
 import { useState } from 'react';
 
 import { Alert } from '../feedback/feedback';
+import { Field, FieldControl, FieldLabel } from '../field/field';
+import { Switch } from '../switch/switch';
 import { AccessMatrix, AccessStrip, type AccessAudience, type AccessValue } from './access-matrix';
 
 const audiences: readonly AccessAudience[] = [
@@ -24,6 +26,11 @@ const audiences: readonly AccessAudience[] = [
   { id: 'above', label: 'Managers above', description: 'Up to the top', icon: <Network /> },
   { id: 'hr', label: 'HR', description: 'Your HR team', icon: <Users /> },
   { id: 'finance', label: 'Finance', description: 'For payroll', icon: <Wallet /> },
+];
+
+/** The strip also shows the directory: one more glyph, which nobody changes. */
+const withEveryone: readonly AccessAudience[] = [
+  ...audiences,
   {
     id: 'everyone',
     label: 'Everyone',
@@ -36,19 +43,30 @@ const audiences: readonly AccessAudience[] = [
 function Live({
   initial,
   highlight,
+  everyone = false,
 }: {
   readonly initial: AccessValue;
   readonly highlight?: string;
+  readonly everyone?: boolean;
 }) {
   const [value, setValue] = useState(initial);
+  const [all, setAll] = useState(everyone);
   return (
-    <AccessMatrix
-      audiences={audiences}
-      value={value}
-      onChange={setValue}
-      {...(highlight === undefined ? {} : { highlight })}
-      className="max-w-xl"
-    />
+    <div className="flex max-w-xl flex-col gap-3">
+      <Field orientation="horizontal" className="justify-between gap-3">
+        <FieldLabel>Everyone can see it</FieldLabel>
+        <FieldControl>
+          <Switch checked={all} onCheckedChange={setAll} />
+        </FieldControl>
+      </Field>
+      <AccessMatrix
+        audiences={audiences}
+        value={value}
+        allSee={all}
+        onChange={setValue}
+        {...(highlight === undefined ? {} : { highlight })}
+      />
+    </div>
   );
 }
 
@@ -60,9 +78,9 @@ const meta = {
     docs: {
       description: {
         component: [
-          'Who can see a value and who can change it, as one grid. It replaces two lists of checkboxes, and changing always includes seeing: turning on a change turns on the see beside it and locks it.',
+          'Who can see a value and who can change it, as one grid of checkboxes. What is ticked follows from the value alone: changing always includes seeing, so a Can change tick ticks and locks the Can see box beside it, and `allSee` ticks and locks every Can see box. Implied ticks are paler and say why.',
           '',
-          'A `<table>` of toggle buttons, so each cell is announced with its row and column. `AccessStrip` is the same rule, read-only, for a list row: light for sees, solid for changes.',
+          'A `<table>` of Reach checkboxes, so each box is announced with its row and column. `AccessStrip` is the same rule, read-only, for a list row: light for sees, solid for changes.',
         ].join('\n'),
       },
     },
@@ -82,9 +100,10 @@ export const EveryoneCanSeeIt: Story = {
   render: () => (
     <Live
       initial={{
-        see: ['self', 'manager', 'above', 'hr', 'finance', 'everyone'],
+        see: ['self'],
         change: ['self', 'hr'],
       }}
+      everyone
     />
   ),
 };
@@ -125,7 +144,7 @@ export const CompactInAList: Story = {
       ).map(([name, value]) => (
         <li key={name} className="flex items-center gap-3">
           <span className="text-sm font-semibold">{name}</span>
-          <AccessStrip audiences={audiences} value={value} className="ms-auto" />
+          <AccessStrip audiences={withEveryone} value={value} className="ms-auto" />
         </li>
       ))}
       <li className="text-sm text-fg-muted">Light = sees. Solid = changes.</li>

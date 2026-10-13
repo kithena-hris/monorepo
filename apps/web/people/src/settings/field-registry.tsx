@@ -1,13 +1,9 @@
 import {
-  AccessStrip,
   FieldRow as ReachFieldRow,
   Alert,
   Badge,
   Button,
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Dialog,
   DialogBody,
   DialogContent,
@@ -30,19 +26,15 @@ import {
   SelectValue,
   SortableList,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   icons,
   type IsoDate,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Popover,
   PopoverContent,
@@ -50,7 +42,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { AUDIENCES, TypeIcon, accessOf } from './access';
+import { TypeIcon } from './access';
 import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type {
@@ -62,19 +54,13 @@ import type {
   RegistryDraft,
   RegistryField,
   RegistrySection,
+  ViewerScope,
+  WriterRole,
 } from './model';
 import { FieldEditor } from './field-editor';
 import { PublishDialog } from './publish';
 import { SignupPreview } from './signup-preview';
-import {
-  COLLECT_LABEL,
-  DATA_TYPE_LABEL,
-  REQUIREDNESS_LABEL,
-  SCOPE_LABEL,
-  WRITER_LABEL,
-  inSentence,
-  listed,
-} from './words';
+import { COLLECT_LABEL, DATA_TYPE_LABEL, listed } from './words';
 
 const { add: Plus, locked: Lock } = icons;
 
@@ -208,11 +194,15 @@ function Registry({
   const status =
     draft.published === null
       ? 'Nothing published yet'
-      : `Version ${String(draft.published.version)} published ${day(draft.published.publishedAt)}`;
+      : `Version ${String(draft.published.version)} · published ${day(draft.published.publishedAt)}`;
   const pending =
     draft.unpublishedChanges === 0
-      ? 'no unpublished changes'
+      ? 'nothing to publish'
       : `${String(draft.unpublishedChanges)} unpublished ${draft.unpublishedChanges === 1 ? 'change' : 'changes'}`;
+  const clear = (): void => {
+    setQuery('');
+    setOnly('all');
+  };
   const next = (draft.published?.version ?? 0) + 1;
 
   return (
@@ -224,6 +214,7 @@ function Registry({
           <>
             <Legend />
             <Button
+              variant="secondary"
               startIcon={<icons.visible aria-hidden />}
               onClick={() => {
                 setOpen('preview');
@@ -344,6 +335,9 @@ function Registry({
           onEdit={(field) => {
             setEditing({ field });
           }}
+          onClear={clear}
+          {...(onSignup === undefined ? {} : { onSignup })}
+          {...(onAssistant === undefined ? {} : { onAssistant })}
         />
       ) : (
         <Card>
@@ -357,9 +351,7 @@ function Registry({
             backLabel="All sections"
             list={
               <div className="p-3">
-                <h2 className="px-1 pb-2 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-                  Sections
-                </h2>
+                <h2 className="px-1 pb-2 text-sm font-semibold text-fg-muted">Sections</h2>
                 <SortableList
                   moveButtons="on-focus"
                   label="Sections"
@@ -380,12 +372,19 @@ function Registry({
                       fullWidth
                       className="justify-start"
                       aria-current={s.key === section.key ? 'true' : undefined}
-                      endIcon={s.fixed ? <Lock aria-label="Fixed rules" /> : undefined}
+                      endIcon={
+                        <span className="flex items-center gap-2 text-fg-subtle">
+                          {s.fixed ? <Lock aria-label="Fixed rules" /> : null}
+                          <span className="text-xs tabular-nums">
+                            {draft.fields.filter((f) => f.sectionKey === s.key).length}
+                          </span>
+                        </span>
+                      }
                       onClick={() => {
                         setChosen(s.key);
                       }}
                     >
-                      {s.label}
+                      <span className="min-w-0 flex-1 truncate text-start">{s.label}</span>
                     </Button>
                   )}
                 </SortableList>
@@ -443,6 +442,7 @@ function Registry({
           advise={advise}
           onSave={(input) => onSaveField(input, editing?.field?.key ?? null)}
           {...(onReview === undefined ? {} : { onReview })}
+          {...(onAssistant === undefined ? {} : { onAssistant })}
         />
       )}
       <AddSection {...dialog('section')} onAdd={onAddSection} />
@@ -474,32 +474,44 @@ function SectionFields({
   readonly onAdd: () => void;
   readonly onReorder: (order: readonly string[]) => void;
 }): JSX.Element {
-  const readers = listed(section.visibility.map((s) => inSentence(SCOPE_LABEL[s])));
-  const filledBy = listed(section.ownership.map((w) => inSentence(WRITER_LABEL[w])));
-
+  const count = `${String(fields.length)} ${fields.length === 1 ? 'field' : 'fields'}`;
   return (
-    <Stack gap={4} className="p-4">
-      <CardHeader className="p-0">
-        <CardTitle>{section.label}</CardTitle>
-        <p className="text-sm text-fg-muted">
-          Seen by {readers} · Filled in by {filledBy}
-        </p>
-      </CardHeader>
+    <Stack gap={0}>
+      <div className="flex items-center gap-3 p-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-lg font-bold">{section.label}</h2>
+          <p className="mt-1 text-sm text-fg-muted">
+            {section.fixed
+              ? `${count} · these rules are fixed`
+              : `${count} · drag a row to reorder · click Asked or Assistant to change it here`}
+          </p>
+        </div>
+        {section.fixed ? null : (
+          <Button variant="secondary" size="sm" startIcon={<Plus />} onClick={onAdd}>
+            Add field
+          </Button>
+        )}
+      </div>
 
       {section.fixed ? (
-        <Alert tone="info" title="These rules are fixed">
-          Answers here are voluntary and only ever reported in aggregate. The fields can be read;
-          they cannot be edited or moved.
-        </Alert>
+        <div className="px-4 pb-4">
+          <Alert tone="info" title="These rules are fixed">
+            Answers here are voluntary and only ever reported in aggregate. The fields can be read;
+            they cannot be edited or moved.
+          </Alert>
+        </div>
       ) : null}
 
-      <CardContent className="p-0">
-        {fields.length === 0 ? (
+      {fields.length === 0 ? (
+        <div className="p-4">
           <EmptyState
             title="No fields in this section"
             description="Add the first one. Nothing changes for anybody until you publish."
           />
-        ) : (
+        </div>
+      ) : (
+        <>
+          <Columns />
           <SortableList
             moveButtons="on-focus"
             label={`Fields in ${section.label}`}
@@ -525,19 +537,34 @@ function SectionFields({
               />
             )}
           </SortableList>
-        )}
-      </CardContent>
-
-      {section.fixed ? null : (
-        <div>
-          <Button startIcon={<Plus />} onClick={onAdd}>
-            Add field
-          </Button>
-        </div>
+        </>
       )}
     </Stack>
   );
 }
+
+/** The columns' names, over the rows they head (F1). Hidden under a finger, where the row is the sentence. */
+function Columns(): JSX.Element {
+  return (
+    <div
+      aria-hidden
+      className="flex items-center gap-3 border-y border-border px-4 py-2.5 text-xs font-semibold text-fg-muted touch:hidden"
+    >
+      <span className="min-w-0 flex-1 ps-11">Field</span>
+      <span className={COLUMN.asked}>Asked</span>
+      <span className={COLUMN.seen}>Seen by</span>
+      <span className={COLUMN.assistant}>Assistant</span>
+      <span className="w-4" />
+    </div>
+  );
+}
+
+/** One width per column, shared by the header and every row. */
+const COLUMN = {
+  asked: 'w-40 shrink-0',
+  seen: 'w-44 shrink-0 touch:hidden',
+  assistant: 'w-28 shrink-0',
+} as const;
 
 const PENDING = {
   added: { tone: 'success', text: '+ Added' },
@@ -572,18 +599,23 @@ function day(at: string): string {
 }
 
 /**
- * Search or filter results, every section at once, as one table with a row
- * naming each section above its fields: scanned down a column, not read
- * card by card.
+ * Search or filter results (F3): every section at once, one list grouped by
+ * section, with the same columns and the same rows as a section's.
  */
 function Found({
   sections,
   fields,
   onEdit,
+  onClear,
+  onSignup,
+  onAssistant,
 }: {
   readonly sections: readonly RegistrySection[];
   readonly fields: readonly RegistryField[];
   readonly onEdit: (field: RegistryField) => void;
+  readonly onClear: () => void;
+  readonly onSignup?: FieldRegistryProps['onSignup'];
+  readonly onAssistant?: FieldRegistryProps['onAssistant'];
 }): JSX.Element {
   const groups = sections.flatMap((section) => {
     const mine = fields.filter((f) => f.sectionKey === section.key);
@@ -594,54 +626,43 @@ function Found({
       <EmptyState
         title="No fields match"
         description="Clear the search, or show All fields, to see every field."
+        action={<Button onClick={onClear}>Clear search</Button>}
       />
     );
   }
+  const total = groups.reduce((n, g) => n + g.fields.length, 0);
   return (
-    <Table aria-label="Matching fields" className="min-w-3xl">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Field</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>When asked</TableHead>
-          <TableHead>Seen by</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>
-            <span className="sr-only">Actions</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
+    <Card>
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <p className="flex-1 text-base font-semibold" aria-live="polite">
+          {`${String(total)} ${total === 1 ? 'field matches' : 'fields match'}, in ${String(groups.length)} ${groups.length === 1 ? 'section' : 'sections'}`}
+        </p>
+        <Button variant="ghost" size="sm" onClick={onClear}>
+          Clear search
+        </Button>
+      </div>
+      <Columns />
       {groups.map(({ section, fields: mine }) => (
-        <TableBody key={section.key}>
-          <TableRow>
-            <TableHead scope="rowgroup" colSpan={6} className="bg-surface-sunken">
-              {section.label}
-            </TableHead>
-          </TableRow>
-          {mine.map((f) => (
-            <TableRow key={f.key}>
-              <TableCell sticky>
-                <p className="font-medium">{f.label}</p>
-                <p className="font-mono text-xs text-fg-muted">{f.key}</p>
-              </TableCell>
-              <TableCell>{typeOf(f)}</TableCell>
-              <TableCell className="whitespace-nowrap">
-                {COLLECT_LABEL[f.collectAt].short}
-              </TableCell>
-              <TableCell className="first-letter:uppercase">{seenBy(f)}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1.5">
-                  <Badges field={f} />
-                </div>
-              </TableCell>
-              <TableCell>
-                <EditField field={f} onEdit={onEdit} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
+        <section key={section.key} aria-label={section.label}>
+          <h2 className="flex gap-2 border-b border-border bg-surface-sunken px-4 py-2.5 text-xs font-semibold text-fg-muted">
+            {section.label}
+            <span className="font-medium text-fg-subtle">{mine.length}</span>
+          </h2>
+          <ul>
+            {mine.map((f) => (
+              <li key={f.key}>
+                <FieldRow
+                  field={f}
+                  onEdit={onEdit}
+                  {...(onSignup === undefined ? {} : { onSignup })}
+                  {...(onAssistant === undefined ? {} : { onAssistant })}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-    </Table>
+    </Card>
   );
 }
 
@@ -651,30 +672,59 @@ function typeOf(field: RegistryField): string {
     : DATA_TYPE_LABEL[field.dataType];
 }
 
-/** Who reads it, shortest first: the directory makes it everyone's. */
-function seenBy(field: RegistryField): string {
-  if (field.visibility.includes('directory')) return 'everyone at the company';
-  return listed(field.visibility.map((s) => inSentence(SCOPE_LABEL[s]))) || 'nobody by default';
+/** A group as a column says it, after the first word: "Employee, manager and HR". */
+const SHORT_SCOPE: Record<ViewerScope, string> = {
+  self: 'employee',
+  manager: 'manager',
+  manager_chain: 'line managers',
+  hr: 'HR',
+  finance: 'Finance',
+  admin: 'administrators',
+  directory: 'everyone',
+};
+const SHORT_WRITER: Record<WriterRole, string> = {
+  employee: 'employee',
+  manager: 'manager',
+  hr: 'HR',
+  finance: 'Finance',
+  system: 'a connected system',
+  external: 'an external HR system',
+};
+const opening = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Who reads it (F1's Seen by): the directory makes it everyone's. */
+function seenBy(field: RegistryField): { who: string; changes: string; icon: JSX.Element } {
+  const writers = listed(field.ownership.map((w) => SHORT_WRITER[w]));
+  const changes = writers === '' ? 'Nobody changes it' : `${opening(writers)} change it`;
+  if (field.visibility.includes('directory')) {
+    return { who: 'Everyone', changes, icon: <icons.visible aria-hidden /> };
+  }
+  const who = listed(field.visibility.map((s) => SHORT_SCOPE[s]));
+  const wide = field.visibility.some((s) => s !== 'self' && s !== 'hr' && s !== 'admin');
+  return {
+    who: who === '' ? 'Nobody by default' : opening(who),
+    changes,
+    icon: wide ? <icons.people aria-hidden /> : <icons.locked aria-hidden />,
+  };
 }
 
-/** Draft status, requiredness and protection, each in words as well as tone. */
-/** What each label on a field means: a key, one click away. */
+/** What each label on a field means (F10): a key, one press away. */
 const LEGEND: readonly { readonly badge: JSX.Element; readonly means: string }[] = [
-  {
-    badge: (
-      <Badge tone="accent" size="sm">
-        Required
-      </Badge>
-    ),
-    means: 'Everyone it applies to must fill it in.',
-  },
   {
     badge: (
       <Badge tone="sensitive" size="sm">
         Needs approval
       </Badge>
     ),
-    means: 'A change waits for a second person in HR to approve it before it counts.',
+    means: 'A second HR member approves each change.',
+  },
+  {
+    badge: (
+      <Badge tone="warning" size="sm">
+        Confidential
+      </Badge>
+    ),
+    means: 'Would harm someone if it leaked. Never shared with the assistant.',
   },
   {
     badge: (
@@ -683,20 +733,15 @@ const LEGEND: readonly { readonly badge: JSX.Element; readonly means: string }[]
         Encrypted
       </Badge>
     ),
-    means:
-      'Stored sealed. Screens show only its last four characters, and it never reaches the assistant, a chat app or a webhook.',
-  },
-  {
-    badge: <Badge size="sm">Confidential</Badge>,
-    means: 'Shown only to the people chosen for it, and never to the assistant.',
+    means: 'Only the last four characters show. Never searchable, sent to chat or webhooks.',
   },
   {
     badge: (
-      <Badge tone="warning" size="sm">
+      <Badge tone="danger" size="sm">
         Special category
       </Badge>
     ),
-    means: 'Health, beliefs and the like: the strictest protection, never sent outside Kithena.',
+    means: 'Health, beliefs or similar. Kept out of AI, events and exports.',
   },
   {
     badge: (
@@ -704,7 +749,7 @@ const LEGEND: readonly { readonly badge: JSX.Element; readonly means: string }[]
         ~ Changed
       </Badge>
     ),
-    means: 'Added, changed or archived in the draft: nobody sees it until you publish.',
+    means: 'A draft change, applied when you publish. Also + Added and − Archived.',
   },
 ];
 
@@ -712,24 +757,34 @@ function Legend(): JSX.Element {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" startIcon={<icons.help aria-hidden />}>
-          What the labels mean
-        </Button>
+        <Button
+          variant="ghost"
+          aria-label="What the labels mean"
+          startIcon={<icons.help aria-hidden />}
+        />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)]">
-        <dl className="flex flex-col gap-3">
-          {LEGEND.map((l) => (
-            <div key={l.means} className="grid grid-cols-[8.5rem_1fr] items-start gap-3">
-              <dt>{l.badge}</dt>
-              <dd className="text-sm text-fg-muted">{l.means}</dd>
-            </div>
-          ))}
-        </dl>
+      <PopoverContent align="end" className="w-86 max-w-[calc(100vw-2rem)]">
+        <Stack gap={3}>
+          <p className="text-base font-semibold">What the labels mean</p>
+          <p className="text-sm text-fg-muted">
+            <b className="text-fg">Asked</b> is when someone is asked, and whether it’s required.{' '}
+            <b className="text-fg">Seen by</b> is who can see it.
+          </p>
+          <dl className="flex flex-col gap-3">
+            {LEGEND.map((l) => (
+              <div key={l.means} className="flex flex-col items-start gap-1.5">
+                <dt>{l.badge}</dt>
+                <dd className="text-sm text-fg-muted">{l.means}</dd>
+              </div>
+            ))}
+          </dl>
+        </Stack>
       </PopoverContent>
     </Popover>
   );
 }
 
+/** Only what is unusual about a field: draft status and protection, each in words. */
 function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
   const pending = field.pending === null ? null : PENDING[field.pending];
   return (
@@ -744,11 +799,6 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
           Values to review
         </Badge>
       ) : null}
-      {field.requiredness === 'never' ? null : (
-        <Badge tone="accent" size="sm">
-          {REQUIREDNESS_LABEL[field.requiredness]}
-        </Badge>
-      )}
       {field.requiresApproval === true ? (
         <Badge tone="sensitive" size="sm">
           Needs approval
@@ -761,9 +811,11 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
         </Badge>
       ) : null}
       {field.classification === 'confidential' ? (
-        <Badge size="sm">Confidential</Badge>
-      ) : field.classification === 'special-category' ? (
         <Badge tone="warning" size="sm">
+          Confidential
+        </Badge>
+      ) : field.classification === 'special-category' ? (
+        <Badge tone="danger" size="sm">
           Special category
         </Badge>
       ) : null}
@@ -771,60 +823,72 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
   );
 }
 
-/*
- * Every field can be edited. A built-in one keeps a floor — its type, and
- * protection that can be tightened but never loosened — which the editor
- * says, and People enforces.
- */
-function EditField({
-  field,
-  onEdit,
+/** A cell's two lines: what, and a word under it. */
+function Cell({
+  main,
+  sub,
+  icon,
 }: {
-  readonly field: RegistryField;
-  readonly onEdit: (field: RegistryField) => void;
+  readonly main: string;
+  readonly sub?: string;
+  readonly icon?: JSX.Element;
 }): JSX.Element {
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      aria-label={`Edit ${field.label}`}
-      onClick={() => {
-        onEdit(field);
-      }}
-    >
-      Edit
-    </Button>
+    <span className="flex min-w-0 items-center gap-2 text-start">
+      {icon === undefined ? null : (
+        <span className="shrink-0 text-fg-subtle [&_svg]:size-[0.9375rem]">{icon}</span>
+      )}
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm font-medium text-fg">{main}</span>
+        {sub === undefined ? null : (
+          <span className="truncate text-xs font-normal text-fg-subtle">{sub}</span>
+        )}
+      </span>
+    </span>
   );
 }
 
 /**
- * Whether the assistant may name this field: its label and its options, so a
- * question like "who is in Scranton" can be read. Never a value from a
- * record; People runs the query. Offered on every field, the built-in ones
- * too, and refused where the field is confidential or sealed.
+ * Whether the assistant may name this field (F1's Assistant column): its
+ * label and its options, so a question like "who is in Scranton" can be read.
+ * Never a value from a record; People runs the query. Offered on every field,
+ * the built-in ones too, and refused where the field is confidential or sealed.
  */
 function AssistantShare({
   field,
   onAssistant,
 }: {
   readonly field: RegistryField;
-  readonly onAssistant: NonNullable<FieldRegistryProps['onAssistant']>;
+  readonly onAssistant?: FieldRegistryProps['onAssistant'];
 }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const shared = field.aiEligible === true;
-  const label = shared ? 'Assistant: shared' : 'Assistant: not shared';
+  const never = !shared && field.aiShareable !== true;
+  const cell = shared ? (
+    <Cell main="Shared" icon={<icons.assistant aria-hidden />} />
+  ) : never ? (
+    <Cell
+      main="Never"
+      sub={field.encrypted === true ? 'Encrypted' : 'Confidential'}
+      icon={<icons.locked aria-hidden />}
+    />
+  ) : (
+    <Cell main="Not shared" icon={<icons.hidden aria-hidden />} />
+  );
+  if (onAssistant === undefined) return cell;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           size="sm"
           variant="ghost"
+          fullWidth
+          className="justify-start"
           loading={busy}
           loadingLabel="Saving"
-          endIcon={<icons.expand aria-hidden />}
-          aria-label={`${field.label}: ${label}. Change whether the assistant may use it`}
+          aria-label={`${field.label}: assistant ${shared ? 'shared' : never ? 'never' : 'not shared'}. Change whether the assistant may use it`}
         >
-          {label}
+          {cell}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -838,15 +902,15 @@ function AssistantShare({
             });
           }}
         >
-          <DropdownMenuRadioItem value="shared" disabled={field.aiShareable !== true && !shared}>
+          <DropdownMenuRadioItem value="shared" disabled={never}>
             Shared
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="not">Not shared</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <p className="max-w-64 px-2 py-1.5 text-xs text-fg-muted">
-          {field.aiShareable === true || shared
-            ? 'Shared, the assistant can answer questions about this field. It learns its name and options, never anybody’s value.'
-            : 'Confidential or encrypted: never shared with the assistant.'}
+          {never
+            ? 'Confidential or encrypted: never shared with the assistant.'
+            : 'Shared, the assistant can answer questions about this field. It learns its name and options, never anybody’s value.'}
         </p>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -854,46 +918,56 @@ function AssistantShare({
 }
 
 /**
- * Whether the sign-up flow asks for this field, and whether it must be
- * answered: a menu on the row, a draft change like any other edit.
+ * When a field is asked and whether it must be answered (F1's Asked column,
+ * F2): sign-up's three answers change in place, a draft change like any
+ * other edit; every other timing is the editor's.
  */
-function SignupAsk({
+function Asked({
   field,
   onSignup,
+  onEdit,
 }: {
   readonly field: RegistryField;
-  readonly onSignup: NonNullable<FieldRegistryProps['onSignup']>;
-}): JSX.Element | null {
+  readonly onSignup?: FieldRegistryProps['onSignup'];
+  readonly onEdit: (field: RegistryField) => void;
+}): JSX.Element {
   const [busy, setBusy] = useState(false);
-  if (field.signupAskable !== true && (field.signup ?? null) === null) return null;
-  const now: 'off' | 'optional' | 'required' =
-    (field.signup ?? null) === null
-      ? 'off'
-      : field.requiredness === 'never'
-        ? 'optional'
-        : 'required';
-  const label =
-    now === 'off'
-      ? 'Not at sign-up'
-      : now === 'required'
-        ? 'Sign-up: required'
-        : 'Sign-up: optional';
+  const atSignup = (field.signup ?? null) !== null;
+  const cell = (
+    <Cell
+      main={atSignup ? 'At sign-up' : COLLECT_LABEL[field.collectAt].short}
+      sub={
+        field.requiredness === 'always'
+          ? 'Required'
+          : field.requiredness === 'conditional'
+            ? 'Required sometimes'
+            : 'Optional'
+      }
+    />
+  );
+  if (onSignup === undefined || (field.signupAskable !== true && !atSignup)) return cell;
+  const now: 'off' | 'optional' | 'required' = !atSignup
+    ? 'off'
+    : field.requiredness === 'never'
+      ? 'optional'
+      : 'required';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           size="sm"
           variant="ghost"
+          fullWidth
+          className="justify-start"
           loading={busy}
           loadingLabel="Saving"
-          startIcon={<icons.hire aria-hidden />}
           endIcon={<icons.expand aria-hidden />}
-          aria-label={`${field.label}: ${label}. Change whether sign-up asks for it`}
+          aria-label={`${field.label}: asked ${atSignup ? 'at sign-up' : COLLECT_LABEL[field.collectAt].short.toLowerCase()}. Change whether sign-up asks for it`}
         >
-          {label}
+          {cell}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>Asked at sign-up</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={now}
@@ -918,15 +992,24 @@ function SignupAsk({
             confidential data.
           </p>
         ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            onEdit(field);
+          }}
+        >
+          Other timings in the editor
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
 /**
- * One field (S2), as Reach's field row: its type, name and labels, when it is
- * asked and its key, who sees and changes it, and the two quick switches
- * (assistant, sign-up) beside the way into the editor.
+ * One field (F1), as Reach's field row: its type, name and only the unusual
+ * labels, its type and key, then when it is asked, who sees it and whether
+ * the assistant may use it, in words. The whole row opens the editor; Asked
+ * and Assistant open their quick menus in place.
  */
 function FieldRow({
   field,
@@ -939,25 +1022,34 @@ function FieldRow({
   readonly onSignup?: FieldRegistryProps['onSignup'];
   readonly onAssistant?: FieldRegistryProps['onAssistant'];
 }): JSX.Element {
+  const seen = seenBy(field);
   return (
     <ReachFieldRow
-      className="flex-1 shadow-none"
+      className="flex-1 rounded-none shadow-none touch:rounded-none"
       icon={<TypeIcon dataType={field.dataType} />}
       title={field.label}
       badges={<Badges field={field} />}
-      description={`${typeOf(field)} · ${COLLECT_LABEL[field.collectAt].short} · Seen by ${seenBy(field)}`}
+      description={typeOf(field)}
       code={field.key}
       changed={field.pending !== null}
-      access={
-        <AccessStrip audiences={AUDIENCES} value={accessOf(field.visibility, field.ownership)} />
-      }
+      onOpen={() => {
+        onEdit(field);
+      }}
       trailing={
         <>
-          {onAssistant === undefined ? null : (
-            <AssistantShare field={field} onAssistant={onAssistant} />
-          )}
-          {onSignup === undefined ? null : <SignupAsk field={field} onSignup={onSignup} />}
-          <EditField field={field} onEdit={onEdit} />
+          <span className={COLUMN.asked}>
+            <Asked
+              field={field}
+              onEdit={onEdit}
+              {...(onSignup === undefined ? {} : { onSignup })}
+            />
+          </span>
+          <span className={COLUMN.seen}>
+            <Cell main={seen.who} sub={seen.changes} icon={seen.icon} />
+          </span>
+          <span className={COLUMN.assistant}>
+            <AssistantShare field={field} {...(onAssistant === undefined ? {} : { onAssistant })} />
+          </span>
         </>
       }
     />

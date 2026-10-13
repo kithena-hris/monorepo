@@ -8,7 +8,7 @@ import type { ClassificationAdvice, FieldInput, RegistryDraft, RegistryField } f
 
 /**
  * The full predicate editor for conditional requiredness (PEO-065) and custom
- * visibility rules (PEO-066), in the field editor's four steps. The grammar is
+ * visibility rules (PEO-066), in the field editor's five steps. The grammar is
  * the contract's and the server refuses anything outside it; these prove the
  * editor can say everything the grammar can, and hands it back unchanged.
  */
@@ -99,17 +99,52 @@ async function sheetNamed(name: string) {
   return screen.findByRole('dialog', { name });
 }
 
+/** A saved field's step, opened from the stepper. */
+const step = (dialog: HTMLElement, label: string): HTMLElement => {
+  const parts = within(dialog).getByRole('navigation', { name: 'Parts of the field' });
+  const button = within(parts).getByText(label).closest('button');
+  if (button === null) throw new Error(`the step ${label} cannot be opened`);
+  return button;
+};
+
+/** A new field, named, on its When it's asked step. */
+async function newFieldAsked(name: string): Promise<HTMLElement> {
+  const user = fast();
+  const sheet = await sheetNamed('New field');
+  await user.click(within(sheet).getByLabelText(/^Field name/));
+  await user.paste(name);
+  await user.click(within(sheet).getByRole('button', { name: 'Next: Access' }));
+  await user.click(within(sheet).getByRole('button', { name: /^Next: When/ }));
+  return sheet;
+}
+
+/** On from When it's asked to the review, once the judgment is in, and added. */
+async function addFromAsked(sheet: HTMLElement): Promise<void> {
+  const user = fast();
+  await user.click(within(sheet).getByRole('button', { name: 'Next: Sensitivity' }));
+  await within(sheet).findByText('Ordinary job data.');
+  await user.click(within(sheet).getByRole('button', { name: 'Next: Review' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+}
+
+/** Saved from wherever the editor is, once the judgment is in. */
+async function saveWhenReady(sheet: HTMLElement): Promise<void> {
+  const save = within(sheet).getByRole('button', { name: 'Save field' });
+  await waitFor(() => {
+    expect(save).toBeEnabled();
+  });
+  await fast().click(save);
+}
+
 describe('conditional requiredness (PEO-065)', () => {
   it('is required only where the predicate holds, and the editor says what is missing', async () => {
     const user = fast();
     const onSave = editor();
-    const sheet = await sheetNamed('New field');
-    await user.click(within(sheet).getByLabelText(/^Field name/));
-    await user.paste('Work permit number');
+    const sheet = await newFieldAsked('Work permit number');
 
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
-    // Saving too early says what is missing, beside it.
-    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+    // Moving on too early says what is missing, beside it.
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Sensitivity' }));
     expect(
       within(sheet).getByText('Every condition needs at least one value.'),
     ).toBeInTheDocument();
@@ -119,8 +154,7 @@ describe('conditional requiredness (PEO-065)', () => {
     );
     await user.click(screen.getByRole('option', { name: 'Spain' }));
     await user.keyboard('{Escape}');
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+    await addFromAsked(sheet);
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledOnce();
@@ -135,9 +169,7 @@ describe('conditional requiredness (PEO-065)', () => {
   it("offers the company's own employment types, an import's Full-time among them", async () => {
     const user = fast();
     const onSave = editor();
-    const sheet = await sheetNamed('New field');
-    await user.click(within(sheet).getByLabelText(/^Field name/));
-    await user.paste('Pension scheme');
+    const sheet = await newFieldAsked('Pension scheme');
 
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
     const n = 'Required when, condition 1';
@@ -147,8 +179,7 @@ describe('conditional requiredness (PEO-065)', () => {
     expect(screen.queryByRole('option', { name: 'Permanent' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'Full-time' }));
     await user.keyboard('{Escape}');
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+    await addFromAsked(sheet);
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledOnce();
@@ -162,9 +193,7 @@ describe('conditional requiredness (PEO-065)', () => {
   it('can read another field, compared against the option key rather than its label', async () => {
     const user = fast();
     const onSave = editor();
-    const sheet = await sheetNamed('New field');
-    await user.click(within(sheet).getByLabelText(/^Field name/));
-    await user.paste('Lab badge');
+    const sheet = await newFieldAsked('Lab badge');
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
 
     const n = 'Required when, condition 1';
@@ -188,8 +217,7 @@ describe('conditional requiredness (PEO-065)', () => {
     await user.click(screen.getByRole('option', { name: 'Germany' }));
     await user.keyboard('{Escape}');
 
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+    await addFromAsked(sheet);
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledOnce();
     });
@@ -212,8 +240,7 @@ describe('conditional requiredness (PEO-065)', () => {
       field({ key: 'permit', label: 'Permit', requiredness: 'conditional', requiredWhen: when }),
     );
     const sheet = await sheetNamed('Edit Permit');
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await saveWhenReady(sheet);
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledOnce();
     });
@@ -241,9 +268,7 @@ describe('conditional requiredness (PEO-065)', () => {
         onSave={onSave}
       />,
     );
-    const sheet = await sheetNamed('New field');
-    await user.click(within(sheet).getByLabelText(/^Field name/));
-    await user.paste('Workplace adjustment');
+    const sheet = await newFieldAsked('Workplace adjustment');
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
 
     const n = 'Required when, condition 1';
@@ -251,7 +276,7 @@ describe('conditional requiredness (PEO-065)', () => {
     await user.click(screen.getByRole('option', { name: 'Another field' }));
     await user.click(within(sheet).getByRole('combobox', { name: `${n}: which field` }));
     await user.click(screen.getByRole('option', { name: 'Disability' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Next: Sensitivity' }));
 
     expect(within(sheet).getByText(/Disability is special-category data/)).toBeInTheDocument();
     expect(within(sheet).getByRole('radio', { name: /Required when/ })).toBeInTheDocument();
@@ -265,6 +290,7 @@ describe('custom visibility rules (PEO-066)', () => {
     const onSave = editor(costCentre);
     const sheet = await sheetNamed('Edit Cost centre');
 
+    await user.click(step(sheet, 'Access'));
     await user.click(
       within(sheet).getByRole('button', { name: /^Let more people see it, on some records only/ }),
     );
@@ -277,8 +303,7 @@ describe('custom visibility rules (PEO-066)', () => {
     await user.keyboard('{Escape}');
     expect(await axeViolations(sheet)).toEqual([]);
 
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await saveWhenReady(sheet);
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledOnce();
     });
@@ -295,6 +320,7 @@ describe('custom visibility rules (PEO-066)', () => {
     const onSave = editor(costCentre);
     const sheet = await sheetNamed('Edit Cost centre');
 
+    await user.click(step(sheet, 'Access'));
     await user.click(
       within(sheet).getByRole('button', { name: /^Let more people see it, on some records only/ }),
     );
@@ -307,8 +333,7 @@ describe('custom visibility rules (PEO-066)', () => {
     await user.click(screen.getByRole('option', { name: 'Full-time' }));
     await user.keyboard('{Escape}');
 
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await saveWhenReady(sheet);
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledOnce();
     });
@@ -336,8 +361,7 @@ describe('custom visibility rules (PEO-066)', () => {
       }),
     );
     const sheet = await sheetNamed('Edit Health note');
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await saveWhenReady(sheet);
     expect(within(sheet).getByText(/never shown by a rule/)).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });
@@ -363,8 +387,7 @@ describe('custom visibility rules (PEO-066)', () => {
       />,
     );
     const sheet = await sheetNamed('Edit Cost centre');
-    await within(sheet).findByText('Ordinary job data.');
-    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await saveWhenReady(sheet);
     const alert = await within(sheet).findByText(message);
     expect(alert.closest('[role="alert"]') ?? alert).toBeInTheDocument();
     expect(within(sheet).getByText('Not saved')).toBeInTheDocument();

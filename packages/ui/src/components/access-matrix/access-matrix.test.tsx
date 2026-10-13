@@ -52,17 +52,39 @@ describe('one level per audience', () => {
   });
 });
 
-function Live() {
+function Live({ allSee = false }: { readonly allSee?: boolean }) {
   const [value, setValue] = useState<AccessValue>({ see: [], change: [] });
-  return <AccessMatrix audiences={[{ id: 'hr', label: 'HR' }]} value={value} onChange={setValue} />;
+  return (
+    <AccessMatrix
+      audiences={[
+        { id: 'self', label: 'The employee' },
+        { id: 'hr', label: 'HR' },
+      ]}
+      value={value}
+      allSee={allSee}
+      onChange={setValue}
+    />
+  );
 }
 
 describe('<AccessMatrix>', () => {
-  it('locks the see cell of an audience that can change it', async () => {
+  it('ticks and locks the See box of an audience that can change it', async () => {
     render(<Live />);
-    await userEvent.click(screen.getByRole('button', { name: 'HR changes it' }));
-    const see = screen.getByRole('button', { name: 'HR sees it, because they can change it' });
-    expect(see).toHaveAttribute('aria-pressed', 'true');
-    expect(see).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'HR can change' }));
+    const see = screen.getByRole('checkbox', { name: 'HR can see, because they can change it' });
+    expect(see).toBeChecked();
+    expect(see).toBeDisabled();
+  });
+
+  it('ticks every See box when everyone can see it, whatever was ticked', () => {
+    render(<Live allSee />);
+    for (const who of ['The employee', 'HR']) {
+      const see = screen.getByRole('checkbox', {
+        name: `${who} can see, because everyone can see it`,
+      });
+      expect(see).toBeChecked();
+      expect(see).toBeDisabled();
+    }
+    expect(screen.getByRole('checkbox', { name: 'HR can change' })).not.toBeChecked();
   });
 });

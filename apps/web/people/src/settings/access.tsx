@@ -5,33 +5,38 @@ import type { DataType, ViewerScope, WriterRole } from './model';
 
 /**
  * Who may see and change a field, as Reach's access matrix draws it: one row
- * per audience People knows, in the order a reader thinks of them, from the
- * person themselves out to everybody in the directory.
+ * per group People knows, in the order a reader thinks of them, from the
+ * person themselves out to Finance. Everyone at the company (the directory)
+ * is not a row but the switch above them: it ticks every See box at once.
  */
 export const AUDIENCES: readonly AccessAudience[] = [
   {
     id: 'self',
     label: 'The employee',
-    description: 'The person it’s about',
+    description: 'The person the record is about',
     icon: <icons.person />,
   },
-  { id: 'manager', label: 'Their manager', description: 'Direct manager', icon: <icons.team /> },
+  { id: 'manager', label: 'Manager', description: 'Their direct manager', icon: <icons.team /> },
   {
     id: 'manager_chain',
-    label: 'Managers above',
-    description: 'Up to the top',
+    label: 'Line managers',
+    description: 'Managers above their manager',
     icon: <icons.organisation />,
+    canChange: false,
   },
   { id: 'hr', label: 'HR', description: 'Your HR team', icon: <icons.people /> },
   { id: 'finance', label: 'Finance', description: 'For payroll', icon: <icons.payroll /> },
-  {
-    id: 'directory',
-    label: 'Everyone',
-    description: 'In the directory',
-    icon: <icons.visible />,
-    canChange: false,
-  },
 ];
+
+/** Everyone at the company can see it: it shows in the directory. */
+export const seenByEveryone = (visibility: readonly ViewerScope[]): boolean =>
+  visibility.includes('directory');
+
+/** The Everyone switch: the directory on or off, every other reader kept as ticked. */
+export function withEveryone(on: boolean, visibility: readonly ViewerScope[]): ViewerScope[] {
+  const rest = visibility.filter((s) => s !== 'directory');
+  return on ? [...rest, 'directory'] : rest;
+}
 
 const WRITER_AUDIENCE: Partial<Record<WriterRole, string>> = {
   employee: 'self',
@@ -61,7 +66,7 @@ export function accessOf(
   };
 }
 
-/** The matrix's value back as scopes and writers; an admin keeps what it had. */
+/** The matrix's value back as scopes and writers; the directory and an admin keep what they had. */
 export function fromAccess(
   value: AccessValue,
   was: { readonly visibility: readonly ViewerScope[]; readonly ownership: readonly WriterRole[] },
@@ -70,7 +75,7 @@ export function fromAccess(
   return {
     visibility: [
       ...AUDIENCES.map((a) => a.id as ViewerScope).filter((s) => seen.has(s)),
-      ...was.visibility.filter((s) => s === 'admin'),
+      ...was.visibility.filter((s) => s === 'admin' || s === 'directory'),
     ],
     ownership: [
       ...value.change.flatMap((id) => {

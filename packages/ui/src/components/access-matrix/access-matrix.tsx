@@ -1,10 +1,10 @@
 'use client';
 
-import { Eye, Info, Minus, Pencil } from 'lucide-react';
+import { Info } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
-import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control';
+import { Checkbox } from '../checkbox/checkbox';
 
 /**
  * Who can see a value and who can change it, as one grid.
@@ -12,12 +12,12 @@ import { SegmentedControl, SegmentedControlItem } from '../segmented-control/seg
  * Two lists of checkboxes ("who can see", "who can change") let a reader build
  * a rule nobody means: somebody who may change a value they cannot see. Here
  * each audience is one row with two cells, and changing always includes
- * seeing, so turning on a change turns on the see beside it and locks it. The
- * lock is said in words (`aria-disabled` and the cell's name), not only by
- * the dimmed cell.
+ * seeing, so turning on a change ticks the See box beside it and locks it.
+ * `allSee` does the same for every See box at once. A locked box is ticked,
+ * paler, and says why in its name, not only by its colour.
  *
- * A real `<table>`, so a screen reader announces "Their manager, Sees,
- * pressed" with the row and column headers, and each cell is a toggle button.
+ * A real `<table>` of Reach checkboxes, so a screen reader announces "Their
+ * manager can see, checked" with the row and column headers.
  *
  * `AccessStrip` is the same rule, read-only and small enough for a list row:
  * one glyph per audience, light for sees and solid for changes.
@@ -80,74 +80,50 @@ export interface AccessMatrixProps extends Omit<ComponentPropsWithoutRef<'div'>,
   readonly value: AccessValue;
   /** Leave out for a read-only grid. */
   readonly onChange?: (next: AccessValue) => void;
+  /**
+   * Everybody can see it, whoever is ticked: every See box is ticked and
+   * locked, so the grid never says somebody cannot see what everybody can.
+   * `value.see` is kept as it is, and shows again once this is off.
+   */
+  readonly allSee?: boolean;
+  /** Why a See box is locked while `allSee` holds, read after its name. */
+  readonly allSeeReason?: string;
   /** Washes one row: the one that just changed, or the one being explained. */
   readonly highlight?: string;
   /** The line under the grid. `false` hides it. */
   readonly footer?: ReactNode;
   readonly seeLabel?: string;
   readonly changeLabel?: string;
-  /** The levels' names in the one-choice-per-audience control under a finger. */
-  readonly seeShort?: string;
-  readonly changeShort?: string;
   /** Names the table. */
   readonly label?: string;
 }
 
+/**
+ * One box. An implied tick (`locked`) is ticked and cannot be pressed, drawn
+ * paler than one somebody chose, and says why in its name.
+ */
 function Cell({
   on,
   locked,
-  kind,
   name,
   onPress,
 }: {
   readonly on: boolean;
   readonly locked: boolean;
-  readonly kind: AccessColumn;
   readonly name: string;
   readonly onPress?: (() => void) | undefined;
 }): JSX.Element {
-  const glyph = on ? (
-    kind === 'change' ? (
-      <Pencil aria-hidden />
-    ) : (
-      <Eye aria-hidden />
-    )
-  ) : (
-    <Minus aria-hidden />
-  );
-  const look = cn(
-    'relative inline-grid h-8 w-16 place-items-center rounded-sm [&_svg]:size-[0.9375rem] touch:h-9 touch:w-13',
-    on
-      ? kind === 'change'
-        ? 'bg-accent-solid text-fg-on-accent'
-        : 'bg-accent-subtle text-accent-fg'
-      : 'bg-surface-sunken text-fg-subtle',
-    locked && 'opacity-60',
-  );
-  if (onPress === undefined) {
-    return (
-      <span className={look} role="img" aria-label={`${name}: ${on ? 'yes' : 'no'}`}>
-        {glyph}
-      </span>
-    );
-  }
   return (
-    <button
-      type="button"
-      aria-pressed={on}
-      aria-disabled={locked || undefined}
-      aria-label={locked ? `${name}, because they can change it` : name}
-      onClick={locked ? undefined : onPress}
+    <Checkbox
+      checked={on}
+      disabled={onPress === undefined || locked}
+      aria-label={name}
+      {...(onPress === undefined ? {} : { onCheckedChange: onPress })}
       className={cn(
-        look,
-        'tap-target transition-colors duration-(--animate-duration-fast)',
-        !locked && (on ? 'hover:opacity-90' : 'hover:bg-surface-hover hover:text-fg-muted'),
-        locked ? 'cursor-not-allowed' : 'cursor-pointer',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+        locked &&
+          'disabled:opacity-100 disabled:data-[state=checked]:border-transparent disabled:data-[state=checked]:bg-accent-solid/35',
       )}
-    >
-      {glyph}
-    </button>
+    />
   );
 }
 
@@ -155,17 +131,16 @@ export function AccessMatrix({
   audiences,
   value,
   onChange,
+  allSee = false,
+  allSeeReason = 'because everyone can see it',
   highlight,
   footer,
-  seeLabel = 'Sees',
-  changeLabel = 'Changes',
-  seeShort = 'See',
-  changeShort = 'Change',
+  seeLabel = 'Can see',
+  changeLabel = 'Can change',
   label = 'Who can see and change it',
   className,
   ...props
 }: AccessMatrixProps): JSX.Element {
-  const editable = onChange !== undefined;
   const press = (id: string, column: AccessColumn) =>
     onChange === undefined
       ? undefined
@@ -175,7 +150,7 @@ export function AccessMatrix({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-md shadow-[inset_0_0_0_1px_var(--reach-color-border)] touch:rounded-[1.125rem]',
+        'overflow-hidden rounded-md shadow-[inset_0_0_0_1px_var(--reach-color-border)] touch:rounded-[1rem]',
         className,
       )}
       {...props}
@@ -186,39 +161,23 @@ export function AccessMatrix({
             <th scope="col" className="px-3.5 py-2.5 text-start font-semibold">
               Who
             </th>
-            <th
-              scope="col"
-              className={cn(
-                'w-20 px-2 py-2.5 text-center font-semibold touch:w-16',
-                editable && 'touch:hidden',
-              )}
-            >
+            <th scope="col" className="w-24 px-2 py-2.5 text-center font-semibold touch:w-14">
               {seeLabel}
             </th>
             <th
               scope="col"
-              className={cn(
-                'w-20 py-2.5 ps-2 pe-3.5 text-center font-semibold touch:w-18',
-                editable && 'touch:hidden',
-              )}
+              className="w-24 py-2.5 ps-2 pe-3.5 text-center font-semibold touch:w-16"
             >
               {changeLabel}
             </th>
-            {/* Under a finger, an editable grid is one choice per audience. */}
-            {editable ? (
-              <th
-                scope="col"
-                className="hidden py-2.5 pe-3.5 text-end font-semibold touch:table-cell"
-              >
-                Access
-              </th>
-            ) : null}
           </tr>
         </thead>
         <tbody>
           {audiences.map((a) => {
             const change = value.change.includes(a.id);
-            const see = change || value.see.includes(a.id);
+            const see = allSee || change || value.see.includes(a.id);
+            // Deterministic: a See box is ticked by `allSee`, by a change, or by itself.
+            const why = allSee ? allSeeReason : change ? 'because they can change it' : null;
             return (
               <tr
                 key={a.id}
@@ -227,7 +186,7 @@ export function AccessMatrix({
                   highlight === a.id && 'bg-accent-subtle/45',
                 )}
               >
-                <th scope="row" className="px-3.5 py-2 text-start font-normal">
+                <th scope="row" className="px-3.5 py-2.5 text-start font-normal">
                   <span className="flex min-w-0 items-center gap-2.5">
                     {a.icon ? (
                       <span aria-hidden className="shrink-0 text-fg-muted [&_svg]:size-4">
@@ -235,55 +194,37 @@ export function AccessMatrix({
                       </span>
                     ) : null}
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium text-fg touch:text-base">
+                      <span className="block text-sm font-semibold text-fg touch:text-base">
                         {a.label}
                       </span>
                       {a.description ? (
-                        <span className="block text-xs text-fg-subtle touch:hidden">
-                          {a.description}
-                        </span>
+                        <span className="block text-xs text-fg-subtle">{a.description}</span>
                       ) : null}
                     </span>
                   </span>
                 </th>
-                <td className={cn('px-2 py-2 text-center', editable && 'touch:hidden')}>
-                  <Cell
-                    on={see}
-                    locked={change}
-                    kind="see"
-                    name={`${a.label} ${seeLabel.toLowerCase()} it`}
-                    onPress={press(a.id, 'see')}
-                  />
-                </td>
-                <td className={cn('py-2 ps-2 pe-3.5 text-center', editable && 'touch:hidden')}>
-                  {a.canChange === false ? null : (
+                <td className="px-2 py-2.5 text-center">
+                  <span className="inline-grid place-items-center">
                     <Cell
-                      on={change}
-                      locked={false}
-                      kind="change"
-                      name={`${a.label} ${changeLabel.toLowerCase()} it`}
-                      onPress={press(a.id, 'change')}
+                      on={see}
+                      locked={why !== null}
+                      name={`${a.label} ${seeLabel.toLowerCase()}${why === null ? '' : `, ${why}`}`}
+                      onPress={press(a.id, 'see')}
                     />
+                  </span>
+                </td>
+                <td className="py-2.5 ps-2 pe-3.5 text-center">
+                  {a.canChange === false ? null : (
+                    <span className="inline-grid place-items-center">
+                      <Cell
+                        on={change}
+                        locked={false}
+                        name={`${a.label} ${changeLabel.toLowerCase()}`}
+                        onPress={press(a.id, 'change')}
+                      />
+                    </span>
                   )}
                 </td>
-                {editable ? (
-                  <td className="hidden py-2 pe-3.5 text-end touch:table-cell">
-                    <SegmentedControl
-                      size="sm"
-                      aria-label={`What ${a.label} can do`}
-                      value={accessLevel(value, a.id)}
-                      onValueChange={(level) => {
-                        onChange(withAccessLevel(value, a.id, level as AccessLevel));
-                      }}
-                    >
-                      <SegmentedControlItem value="none">None</SegmentedControlItem>
-                      <SegmentedControlItem value="see">{seeShort}</SegmentedControlItem>
-                      {a.canChange === false ? null : (
-                        <SegmentedControlItem value="change">{changeShort}</SegmentedControlItem>
-                      )}
-                    </SegmentedControl>
-                  </td>
-                ) : null}
               </tr>
             );
           })}
@@ -292,7 +233,7 @@ export function AccessMatrix({
       {footer === false ? null : (
         <p className="flex items-center gap-1.5 border-t border-border px-3.5 py-2.5 text-xs text-fg-muted">
           <Info aria-hidden className="size-3.5 shrink-0" />
-          {footer ?? 'Anyone who can change it can also see it.'}
+          {footer ?? `Ticking ${changeLabel} ticks ${seeLabel} too.`}
         </p>
       )}
     </div>
