@@ -1,0 +1,31 @@
+/*
+ * The handwriting faces a typed signature is drawn in (`Signature`): Great
+ * Vibes, Sacramento and Mr Dafoe, OFL (`assets/fonts`). Self-hosted, never a
+ * font service: a signature is somebody's name, and a third party need not
+ * see who signs what. `font-display: block` for a short moment, so a name
+ * never flashes in the fallback face where it will be signed.
+ */
+
+@font-face {
+  font-family: 'Reach Signature Flowing';
+  src: url('../assets/fonts/GreatVibes-Regular.woff2') format('woff2');
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Reach Signature Light';
+  src: url('../assets/fonts/Sacramento-Regular.woff2') format('woff2');
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Reach Signature Bold';
+  src: url('../assets/fonts/MrDafoe-Regular.woff2') format('woff2');
+  font-display: block;
+}
+
+:root {
+  --font-signature-flowing: 'Reach Signature Flowing', cursive;
+  --font-signature-light: 'Reach Signature Light', cursive;
+  --font-signature-bold: 'Reach Signature Bold', cursive;
+}

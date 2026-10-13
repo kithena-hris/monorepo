@@ -237,6 +237,16 @@ export type {
 export { Stepper } from './components/stepper/stepper';
 export { SignaturePad } from './components/signature-pad/signature-pad';
 export type { SignaturePadProps } from './components/signature-pad/signature-pad';
+export { SIGNATURE_STYLE_LABEL, Signature, signatureFont } from './components/signature/signature';
+export type {
+  SignatureProps,
+  SignatureStyle,
+  SignatureValue,
+} from './components/signature/signature';
+export { PdfPages } from './components/pdf-pages/pdf-pages';
+export type { PdfPage, PdfPagesProps } from './components/pdf-pages/pdf-pages';
+export { PlacementLayer } from './components/placement-layer/placement-layer';
+export type { PlacedBox, PlacementLayerProps } from './components/placement-layer/placement-layer';
 export type { StepStatus, StepperProps, StepperStep } from './components/stepper/stepper';
 
 export { CopyButton, CopyField, useClipboard } from './components/clipboard/clipboard';

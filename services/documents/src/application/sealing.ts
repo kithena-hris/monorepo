@@ -56,11 +56,11 @@ export async function seal(
         const text = field.kind === 'initials' ? initials(mark.text) : mark.text;
         const style = mark.style ?? 'flowing';
         const font = (await scriptFor(pdf, style, text)) ?? body;
-        writeCentred(page, font === body ? drawable(text) : text, font, box, ink, 0.8);
+        writeCentred(page, font === body ? drawable(text) : text, font, box, ink, 0.95);
       }
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
-      writeCentred(page, drawable(text), body, box, ink, 0.6, 12);
+      writeCentred(page, drawable(text), body, box, ink, 0.8, 12);
     }
   }
 
@@ -131,9 +131,12 @@ function writeCentred(
 ): void {
   if (text === '') return;
   const unit = font.widthOfTextAtSize(text, 1);
+  // By the face's whole height, tails and capitals included: a handwriting
+  // face runs far above and below its size.
+  const tall = font.heightAtSize(1);
   const size = Math.max(
     6,
-    Math.min(most, box.h * fill, unit === 0 ? Infinity : (box.w * 0.9) / unit),
+    Math.min(most, (box.h * fill) / tall, unit === 0 ? Infinity : (box.w * 0.9) / unit),
   );
   const full = font.heightAtSize(size);
   const descent = full - font.heightAtSize(size, { descender: false });
