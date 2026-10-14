@@ -18,6 +18,7 @@ import {
   PdfPages,
   PlacementLayer,
   Signature,
+  Progress,
   Text,
   type SignatureValue,
   allRequiredFilled,
@@ -372,11 +373,13 @@ function Signing({
     (f) => f.kind !== 'name' && (f.required || f.kind !== 'checkbox'),
   );
   const at = steps.findIndex((f) => f.id === signing.focus);
+  // How far through they are, as the web's bar says it: "1 of 4 done".
+  const doneCount = steps.filter((f) => signing.done(f)).length;
   const where = signing.ready
-    ? 'Everything is filled in. Finish to sign.'
+    ? `All ${String(steps.length)} done. Finish to sign.`
     : at === -1
       ? `${String(steps.length)} ${steps.length === 1 ? 'place' : 'places'} for you to fill in. Start takes you to each one.`
-      : `Step ${String(at + 1)} of ${String(steps.length)} · ${steps[at]?.label ?? KIND_LABEL[steps[at]?.kind ?? 'signature']}`;
+      : `Step ${String(at + 1)} of ${String(steps.length)} · ${steps[at]?.label ?? KIND_LABEL[steps[at]?.kind ?? 'signature']} · ${String(doneCount)} of ${String(steps.length)} done`;
   // The signer's colour on the sender's screen: one of six, by their place in the order.
   const tone = ((Math.max(
     0,
@@ -483,6 +486,10 @@ function Signing({
         <Text variant="footnote" weight="semibold">
           {where}
         </Text>
+        <Progress
+          value={steps.length === 0 ? 0 : (doneCount / steps.length) * 100}
+          label={`${String(doneCount)} of ${String(steps.length)} done`}
+        />
       </View>
       {problem === null ? null : (
         <Alert tone="danger" title="Not signed">

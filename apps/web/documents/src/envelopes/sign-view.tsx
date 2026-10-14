@@ -448,9 +448,13 @@ function StepBar({
   const focused = at === -1 ? undefined : steps[at];
   const total = steps.length;
   const place = `${String(total)} ${total === 1 ? 'place' : 'places'}`;
+  // How far through they are, said and drawn on the bar: "1 of 4 done".
+  const doneCount = steps.filter((f) => isFilled(filled[f.id])).length;
+  const progress = { value: doneCount, max: total };
+  const count = `${String(doneCount)} of ${String(total)} done`;
   if (ready && onFinish !== undefined) {
     return (
-      <PinnedBar message="Everything is filled in. Finish to sign.">
+      <PinnedBar message={`All ${String(total)} done. Finish to sign.`} progress={progress}>
         <Button
           size="sm"
           variant="primary"
@@ -465,7 +469,10 @@ function StepBar({
   }
   if (focused === undefined) {
     return (
-      <PinnedBar message={`${place} for you to fill in. Start takes you to each one.`}>
+      <PinnedBar
+        message={`${place} for you to fill in. Start takes you to each one.`}
+        progress={progress}
+      >
         <Button
           size="sm"
           variant="primary"
@@ -480,7 +487,7 @@ function StepBar({
   const step = `Step ${String(at + 1)} of ${String(total)} · ${focused.label ?? KIND_LABEL[focused.kind]}`;
   if (!isFilled(filled[focused.id])) {
     return (
-      <PinnedBar message={step}>
+      <PinnedBar message={`${step} · ${count}`} progress={progress}>
         {focused.required ? null : (
           <Button size="sm" variant="on-invert" onClick={signing.goNext}>
             Skip
@@ -500,7 +507,7 @@ function StepBar({
     );
   }
   return (
-    <PinnedBar message={`${step} · done`}>
+    <PinnedBar message={`${step} · ${count}`} progress={progress}>
       <Button
         size="sm"
         variant="primary"
