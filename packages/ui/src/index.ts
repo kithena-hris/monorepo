@@ -410,8 +410,17 @@ export type {
   UploadStatus,
 } from './components/file-uploader/file-uploader';
 
-export { FormSaveBar, FormSection, FormSections } from './components/form-sections/form-sections';
-export type { FormSaveBarProps, FormSectionProps } from './components/form-sections/form-sections';
+export {
+  FormSaveBar,
+  FormSection,
+  FormSections,
+  PinnedBar,
+} from './components/form-sections/form-sections';
+export type {
+  FormSaveBarProps,
+  FormSectionProps,
+  PinnedBarProps,
+} from './components/form-sections/form-sections';
 
 export { AvatarUploader, ImageUploader } from './components/image-uploader/image-uploader';
 export type {

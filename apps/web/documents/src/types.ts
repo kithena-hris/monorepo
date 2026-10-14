@@ -361,6 +361,8 @@ export interface EnvelopeData {
    * The signer's own signature, where People keeps one (the shell joins it):
    * signed with when on file, and kept from this signing when there is none.
    */
+  /** The signer's legal first and last name, from People: what a typed signature says. */
+  readonly legalName?: string | null;
   readonly signature?: {
     readonly mark: Mark | null;
     readonly canKeep: boolean;

@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../dialog/dialog';
-import { Field, FieldControl, FieldLabel } from '../field/field';
+import { Field, FieldControl, FieldDescription, FieldLabel } from '../field/field';
 import { Input } from '../input/input';
 import { RadioCard, RadioGroup } from '../radio-group/radio-group';
 import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control';
@@ -29,6 +29,10 @@ import {
  * Adopting a signature, as DocuSign asks for one: the person's name already
  * typed and shown in each handwriting face to choose from, or drawn.
  *
+ * A signature is the legal name, never a nickname: given a `name`, the field
+ * shows it and cannot be changed, so only the style is chosen. Without one
+ * (a name nobody knows yet), it is typed.
+ *
  * The same dialog wherever a signature is adopted — signing a document, or
  * keeping one on a profile — so a person meets one way of doing it.
  */
@@ -43,7 +47,7 @@ export function AdoptSignatureDialog({
   note = 'By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.',
 }: {
   readonly open: boolean;
-  /** Their name, to start from. */
+  /** Their legal name: what a typed signature says. Empty when nobody knows it yet. */
   readonly name: string;
   /** The one they have, to start from when they change it. */
   readonly value?: SignatureValue | null;
@@ -54,8 +58,10 @@ export function AdoptSignatureDialog({
   readonly action?: string;
   readonly note?: string;
 }): JSX.Element {
+  const locked = name.trim() !== '';
+  const start = (): string => (locked || value?.kind !== 'typed' ? name : value.text);
   const [how, setHow] = useState<'type' | 'draw'>(value?.kind === 'drawn' ? 'draw' : 'type');
-  const [typed, setTyped] = useState(value?.kind === 'typed' ? value.text : name);
+  const [typed, setTyped] = useState(start);
   const [style, setStyle] = useState<SignatureStyle>(
     value?.kind === 'typed' ? (value.style ?? 'flowing') : 'flowing',
   );
@@ -63,7 +69,7 @@ export function AdoptSignatureDialog({
   useEffect(() => {
     if (!open) return;
     setHow(value?.kind === 'drawn' ? 'draw' : 'type');
-    setTyped(value?.kind === 'typed' ? value.text : name);
+    setTyped(locked || value?.kind !== 'typed' ? name : value.text);
     setStyle(value?.kind === 'typed' ? (value.style ?? 'flowing') : 'flowing');
     setPath(value?.kind === 'drawn' ? value.path : '');
   }, [open, name, value]);
@@ -90,17 +96,23 @@ export function AdoptSignatureDialog({
           </SegmentedControl>
           {how === 'type' ? (
             <>
-              <Field>
-                <FieldLabel>Your name</FieldLabel>
+              <Field disabled={locked}>
+                <FieldLabel>Your legal name</FieldLabel>
                 <FieldControl>
                   <Input
                     value={typed}
                     maxLength={120}
+                    readOnly={locked}
                     onChange={(e) => {
                       setTyped(e.target.value);
                     }}
                   />
                 </FieldControl>
+                {locked ? (
+                  <FieldDescription>
+                    A signature is your legal first and last name, as your company keeps them.
+                  </FieldDescription>
+                ) : null}
               </Field>
               <RadioGroup
                 aria-label="Style"

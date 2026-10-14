@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { mySignature } from './my-signature';
+import { myLegalName, mySignature } from './my-signature';
 import { documents } from './people';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
 import type { OperationName } from './documents-operations';
@@ -43,24 +43,29 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Envelopes':
       return read('DocumentsEnvelopes');
     case 'Envelope': {
-      // The signature on file, from People, read beside the request rather than after it.
-      const [envelope, signature] = await Promise.all([
+      // The signature on file and the legal name, from People, read beside the request.
+      const [envelope, signature, legalName] = await Promise.all([
         read('DocumentsEnvelope', { envelopeId: query.params['id'] ?? '' }),
         mySignature().catch(() => null),
+        myLegalName().catch(() => null),
       ]);
-      return envelope.status === 'ready' && signature !== null
-        ? {
-            status: 'ready',
-            data: {
-              ...(envelope.data as object),
-              signature: {
-                mark: signature.mark,
-                canKeep: signature.canKeep,
-                pending: signature.pending,
-              },
-            },
-          }
-        : envelope;
+      if (envelope.status !== 'ready') return envelope;
+      return {
+        status: 'ready',
+        data: {
+          ...(envelope.data as object),
+          legalName,
+          ...(signature === null
+            ? {}
+            : {
+                signature: {
+                  mark: signature.mark,
+                  canKeep: signature.canKeep,
+                  pending: signature.pending,
+                },
+              }),
+        },
+      };
     }
     case 'SendForSignature':
       return read('DocumentsDocument', { documentId: query.params['id'] ?? '' });

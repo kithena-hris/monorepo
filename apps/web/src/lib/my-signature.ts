@@ -14,7 +14,7 @@ import { people } from './people';
  * Null when People is not here, or the company has no signature field.
  */
 export interface MySignature {
-  /** Their name, typed in for them when they adopt one. */
+  /** Their legal first and last name: what a typed signature says, never a preferred name. */
   readonly name: string;
   /** The field it is kept in. */
   readonly key: string;
@@ -46,13 +46,31 @@ const markOf = (text: string | undefined): SignatureMark | null => {
   }
 };
 
+interface Profile {
+  person: { name: string };
+  sections: readonly { fields: readonly ProfileField[] }[];
+  values: readonly { key: string; text?: string }[];
+  pending: readonly { key: string }[];
+}
+
+/** "Ada Lovelace" from the legal names People keeps; their display name if those are empty. */
+const legalOf = (profile: Profile): string => {
+  const said = (key: string) => profile.values.find((v) => v.key === key)?.text?.trim() ?? '';
+  return `${said('given_name')} ${said('family_name')}`.trim() || profile.person.name;
+};
+
+/**
+ * The signer's legal first and last name, for the adopt dialog: a document is
+ * signed with it, never with a preferred name. Null when People is not here.
+ * The same read as `mySignature`, answered once per request.
+ */
+export async function myLegalName(): Promise<string | null> {
+  const profile = await people<Profile>('Profile', { personId: null });
+  return profile.ok ? legalOf(profile.data) : null;
+}
+
 export async function mySignature(): Promise<MySignature | null> {
-  const profile = await people<{
-    person: { name: string };
-    sections: readonly { fields: readonly ProfileField[] }[];
-    values: readonly { key: string; text?: string }[];
-    pending: readonly { key: string }[];
-  }>('Profile', { personId: null });
+  const profile = await people<Profile>('Profile', { personId: null });
   if (!profile.ok) return null;
   const field = profile.data.sections
     .flatMap((s) => s.fields)
@@ -61,7 +79,7 @@ export async function mySignature(): Promise<MySignature | null> {
   const mark = markOf(profile.data.values.find((v) => v.key === field.key)?.text);
   const pending = profile.data.pending.some((p) => p.key === field.key);
   return {
-    name: profile.data.person.name,
+    name: legalOf(profile.data),
     key: field.key,
     label: field.label,
     mark,

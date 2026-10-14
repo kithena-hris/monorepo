@@ -344,7 +344,7 @@ const COPY: {
   signature_requested: (_notice, company) => ({
     subject: `${company} sent you a document to sign`,
     heading: 'A document to sign',
-    lede: `${company} asked you to sign a document with Kithena. Open it to read it, confirm it is you with a code we email you, and sign.`,
+    lede: `${company} asked you to sign a document with Kithena. It opens ready to sign: press Start, sign where it asks, and Finish. We email you a code at Finish to confirm it is you.`,
     action: 'Review and sign',
     footer: `Sent by Kithena on behalf of ${company}. If you were not expecting this, you can ignore it.`,
   }),

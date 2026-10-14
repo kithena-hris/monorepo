@@ -8,15 +8,20 @@ import { axeViolations } from '../test/axe';
 const ready = <T,>(data: T) => ({ status: 'ready' as const, data });
 
 describe('signing (K4, K5)', () => {
-  it('shows Adam his part, and signs only once a signature is adopted', async () => {
-    const { container } = render(<screens.Envelope load={ready(adamToSign())} />);
+  it('shows Adam his part, and adopts a signature in his legal name only', async () => {
+    const { container } = render(
+      <screens.Envelope load={ready(adamToSign({ legalName: 'Adam Novak' }))} />,
+    );
     expect(screen.getByRole('heading', { level: 2, name: 'Your part' })).toBeTruthy();
-    const finish = screen.getByRole<HTMLButtonElement>('button', { name: 'Finish' });
-    expect(finish.disabled).toBe(true);
+    // Finish is on the step bar under the document, once every box is filled.
+    expect(screen.getByText(/Start, under the document/u)).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Adopt your signature' }));
     expect(screen.getByRole('dialog', { name: 'Adopt your signature' })).toBeTruthy();
-    // Their name is there already, in three handwriting faces to choose from.
+    // His legal name is there already and cannot be changed; only the face is chosen.
+    const legal = screen.getByRole<HTMLInputElement>('textbox', { name: 'Your legal name' });
+    expect(legal.value).toBe('Adam Novak');
+    expect(legal.readOnly).toBe(true);
     expect(screen.getByRole('radio', { name: 'Flowing' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Bold' })).toBeTruthy();
   });
@@ -49,7 +54,7 @@ describe('sending (K1–K3)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('places their boxes on the document, a signature and its date to start', async () => {
+  it('places their boxes on the document, a dated signature to start', async () => {
     const data = adamDocument();
     const { container } = render(
       <screens.SendForSignature
@@ -60,7 +65,8 @@ describe('sending (K1–K3)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('heading', { name: 'Add a box' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Signature' })).toBeTruthy();
-    expect(screen.getByText('Adam Novak · 2 boxes')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Dated signature' })).toBeTruthy();
+    expect(screen.getByText('Adam Novak · 1 box')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
 });

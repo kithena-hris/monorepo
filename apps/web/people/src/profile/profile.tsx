@@ -56,7 +56,12 @@ import {
   type ProfileDocument,
   type SendInput,
 } from './inbox-asks';
-import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
+import {
+  AttributeInput,
+  LegalName,
+  PeopleSearch,
+  type SearchPeople,
+} from '../record/attribute-input';
 import { DisplayValue, localTime, longDate, zoneCity } from '../record/display';
 import { FieldFiles, isFileField, type FileInfo, type UploadOutcome } from '../record/files';
 import {
@@ -431,483 +436,489 @@ function Record({
   const history =
     historyHref === undefined ? null : { id: 'history', label: 'History', href: historyHref };
 
+  // A signature field is adopted in the legal name, never a preferred one.
+  const legalName = [values['given_name'], values['family_name']]
+    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+    .join(' ');
   return (
-    <Stack gap={6}>
-      <div className="flex flex-col gap-4">
-        {frame.breadcrumb}
-        <div className="flex flex-wrap items-center gap-5 touch:flex-col touch:text-center">
-          {onPhoto !== undefined && person.canChangePhoto === true ? (
-            <PhotoPicker name={person.name} src={person.avatarUrl} onPhoto={onPhoto} />
-          ) : (
-            <Avatar
-              size="3xl"
-              name={person.name}
-              src={person.avatarUrl ?? undefined}
-              {...(status === 'active'
-                ? { status: 'success' as const, statusLabel: 'Active' }
-                : {})}
-            />
-          )}
-          <div className="flex min-w-0 flex-1 flex-col gap-3 touch:w-full touch:items-center">
-            <PageHeader
-              className="touch:items-center"
-              // The trail is drawn above the photo; the header has none of its own.
-              breadcrumb={false}
-              title={person.name}
-              description={person.summary ?? undefined}
-              meta={
-                status === null && person.missing === null && !state.calendar ? undefined : (
-                  <span className="flex flex-wrap items-center gap-2 touch:justify-center">
-                    {status === null ? null : (
-                      <Badge dot tone={status === 'active' ? 'success' : 'neutral'}>
-                        {statusLabel(status)}
-                      </Badge>
-                    )}
-                    {person.missing === null ? null : gaps.length === 0 ? (
-                      <Badge tone="success">Complete</Badge>
-                    ) : (
-                      <MissingJump
-                        labels={gaps.map((g) => g.label)}
-                        onJump={() => {
-                          const first = gaps[0];
-                          if (first !== undefined) openOne(first.key);
-                        }}
-                      />
-                    )}
-                    {/* HR's: what day it is for them, on their own clock (PEO-119). */}
-                    {state.calendar ? (
-                      <Badge>
-                        <icons.scheduled aria-hidden />
-                        Their day:{' '}
-                        <span data-testid="their-day">
-                          {state.calendar.now === undefined
-                            ? `${longDate(state.calendar.today)}, ${state.calendar.timeZone}`
-                            : `${localTime(state.calendar.now, state.calendar.timeZone)}, ${zoneCity(state.calendar.timeZone)}`}
-                        </span>
-                      </Badge>
-                    ) : null}
-                  </span>
-                )
-              }
-              actions={
-                <span className="flex items-center gap-2">
-                  {askAll === null ? null : (
-                    <Button
-                      startIcon={<icons.send aria-hidden />}
-                      className="touch:hidden"
-                      onClick={askAll.run}
-                    >
-                      Ask {firstName}
-                    </Button>
-                  )}
-                  <RecordActions
-                    moves={moves}
-                    onMove={(kind) => {
-                      setOpened(`move:${kind}`);
-                    }}
-                    {...(state.placement && onPlace
-                      ? {
-                          onPlacement: () => {
-                            setOpened('placement');
-                          },
-                        }
-                      : {})}
-                    firstMissing={gaps[0] ?? null}
-                    onFirstMissing={(key) => {
-                      openOne(key);
-                    }}
-                    askFor={askAll}
-                    historyHref={historyHref}
-                    onDownload={
-                      onDownloadRecord === undefined
-                        ? undefined
-                        : () => {
-                            setOpened('pdf');
-                          }
-                    }
-                    {...(onSendDocument === undefined
-                      ? {}
-                      : {
-                          onSendDocument: () => {
-                            setOpened('send-document');
-                          },
-                        })}
-                    viewAsLabel={viewAs === undefined ? null : `View as ${firstName}`}
-                    onViewAs={() => {
-                      setOpened('view-as');
-                    }}
-                  />
-                  {firstWritable === undefined ? null : (
-                    <Button
-                      variant="primary"
-                      startIcon={<icons.edit aria-hidden />}
-                      onClick={() => {
-                        setEditing(firstWritable.key);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </span>
-              }
-            />
-            {notice === null ? null : (
-              <p role="status" className="text-sm text-fg-muted">
-                {notice}
-              </p>
+    <LegalName value={legalName}>
+      <Stack gap={6}>
+        <div className="flex flex-col gap-4">
+          {frame.breadcrumb}
+          <div className="flex flex-wrap items-center gap-5 touch:flex-col touch:text-center">
+            {onPhoto !== undefined && person.canChangePhoto === true ? (
+              <PhotoPicker name={person.name} src={person.avatarUrl} onPhoto={onPhoto} />
+            ) : (
+              <Avatar
+                size="3xl"
+                name={person.name}
+                src={person.avatarUrl ?? undefined}
+                {...(status === 'active'
+                  ? { status: 'success' as const, statusLabel: 'Active' }
+                  : {})}
+              />
             )}
+            <div className="flex min-w-0 flex-1 flex-col gap-3 touch:w-full touch:items-center">
+              <PageHeader
+                className="touch:items-center"
+                // The trail is drawn above the photo; the header has none of its own.
+                breadcrumb={false}
+                title={person.name}
+                description={person.summary ?? undefined}
+                meta={
+                  status === null && person.missing === null && !state.calendar ? undefined : (
+                    <span className="flex flex-wrap items-center gap-2 touch:justify-center">
+                      {status === null ? null : (
+                        <Badge dot tone={status === 'active' ? 'success' : 'neutral'}>
+                          {statusLabel(status)}
+                        </Badge>
+                      )}
+                      {person.missing === null ? null : gaps.length === 0 ? (
+                        <Badge tone="success">Complete</Badge>
+                      ) : (
+                        <MissingJump
+                          labels={gaps.map((g) => g.label)}
+                          onJump={() => {
+                            const first = gaps[0];
+                            if (first !== undefined) openOne(first.key);
+                          }}
+                        />
+                      )}
+                      {/* HR's: what day it is for them, on their own clock (PEO-119). */}
+                      {state.calendar ? (
+                        <Badge>
+                          <icons.scheduled aria-hidden />
+                          Their day:{' '}
+                          <span data-testid="their-day">
+                            {state.calendar.now === undefined
+                              ? `${longDate(state.calendar.today)}, ${state.calendar.timeZone}`
+                              : `${localTime(state.calendar.now, state.calendar.timeZone)}, ${zoneCity(state.calendar.timeZone)}`}
+                          </span>
+                        </Badge>
+                      ) : null}
+                    </span>
+                  )
+                }
+                actions={
+                  <span className="flex items-center gap-2">
+                    {askAll === null ? null : (
+                      <Button
+                        startIcon={<icons.send aria-hidden />}
+                        className="touch:hidden"
+                        onClick={askAll.run}
+                      >
+                        Ask {firstName}
+                      </Button>
+                    )}
+                    <RecordActions
+                      moves={moves}
+                      onMove={(kind) => {
+                        setOpened(`move:${kind}`);
+                      }}
+                      {...(state.placement && onPlace
+                        ? {
+                            onPlacement: () => {
+                              setOpened('placement');
+                            },
+                          }
+                        : {})}
+                      firstMissing={gaps[0] ?? null}
+                      onFirstMissing={(key) => {
+                        openOne(key);
+                      }}
+                      askFor={askAll}
+                      historyHref={historyHref}
+                      onDownload={
+                        onDownloadRecord === undefined
+                          ? undefined
+                          : () => {
+                              setOpened('pdf');
+                            }
+                      }
+                      {...(onSendDocument === undefined
+                        ? {}
+                        : {
+                            onSendDocument: () => {
+                              setOpened('send-document');
+                            },
+                          })}
+                      viewAsLabel={viewAs === undefined ? null : `View as ${firstName}`}
+                      onViewAs={() => {
+                        setOpened('view-as');
+                      }}
+                    />
+                    {firstWritable === undefined ? null : (
+                      <Button
+                        variant="primary"
+                        startIcon={<icons.edit aria-hidden />}
+                        onClick={() => {
+                          setEditing(firstWritable.key);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </span>
+                }
+              />
+              {notice === null ? null : (
+                <p role="status" className="text-sm text-fg-muted">
+                  {notice}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-        {/*
+          {/*
           Under a finger, the ways to reach them, as a phone's contact card
           has them: only those their record holds for this viewer.
         */}
-        <div className="hidden gap-2 touch:grid touch:grid-cols-3">
-          {typeof values['work_email'] === 'string' && values['work_email'] !== '' ? (
-            <Button asChild startIcon={<icons.email aria-hidden />}>
-              <a href={`mailto:${values['work_email']}`}>Email</a>
+          <div className="hidden gap-2 touch:grid touch:grid-cols-3">
+            {typeof values['work_email'] === 'string' && values['work_email'] !== '' ? (
+              <Button asChild startIcon={<icons.email aria-hidden />}>
+                <a href={`mailto:${values['work_email']}`}>Email</a>
+              </Button>
+            ) : null}
+            {typeof values['work_phone'] === 'string' && values['work_phone'] !== '' ? (
+              <Button asChild startIcon={<icons.phone aria-hidden />}>
+                <a href={`tel:${values['work_phone']}`}>Call</a>
+              </Button>
+            ) : null}
+            <Button asChild startIcon={<icons.organisation aria-hidden />}>
+              <a href="/people/directory/org-chart">Org chart</a>
             </Button>
-          ) : null}
-          {typeof values['work_phone'] === 'string' && values['work_phone'] !== '' ? (
-            <Button asChild startIcon={<icons.phone aria-hidden />}>
-              <a href={`tel:${values['work_phone']}`}>Call</a>
-            </Button>
-          ) : null}
-          <Button asChild startIcon={<icons.organisation aria-hidden />}>
-            <a href="/people/directory/org-chart">Org chart</a>
-          </Button>
+          </div>
         </div>
-      </div>
-      {moving === null || onMove === undefined || !state.calendar ? null : (
-        <EmploymentMove
-          kind={moving}
-          state={{ calendar: state.calendar, employment: state.employment ?? null }}
-          onMove={onMove}
-          name={person.name}
-          placement={state.placement}
-          onClose={close}
-        />
-      )}
-      {onDownloadRecord === undefined ? null : (
-        <RecordPdf
-          name={firstName}
-          open={opened === 'pdf'}
-          onOpenChange={(next) => {
-            setOpened(next ? 'pdf' : null);
-          }}
-          onDownload={onDownloadRecord}
-        />
-      )}
-      {viewAs === undefined ? null : (
-        <ViewAsDialog
-          name={person.name}
-          open={opened === 'view-as'}
-          onOpenChange={(next) => {
-            setOpened(next ? 'view-as' : null);
-          }}
-          onViewAs={viewAs}
-        />
-      )}
-      {dating === null || onChangeDated === undefined ? null : (
-        <DatedChange
-          field={dating}
-          name={person.name}
-          current={values[dating.key]}
-          today={state.calendar?.today ?? null}
-          onChange={onChangeDated}
-          onClose={close}
-        />
-      )}
-      {opened === 'ask' && onAsk !== undefined ? (
-        <AskDialog
-          name={person.name}
-          fields={askable.map((f) => ({ key: f.key, label: f.label }))}
-          onAsk={async (input) => {
-            const done = await onAsk(input);
-            if (done.ok) setNotice(`${firstName} has a task in their Inbox.`);
-            return done;
-          }}
-          onClose={close}
-        />
-      ) : null}
-      {opened === 'send-document' && onSendDocument !== undefined ? (
-        <SendDocumentDialog
-          name={person.name}
-          onSend={async (file, input) => {
-            const done = await onSendDocument(file, input);
-            if (done.ok) setNotice(`Sent to ${firstName}.`);
-            return done;
-          }}
-          onClose={close}
-        />
-      ) : null}
-      {/* Where they work (PEO-123): changed from Actions, dated, in a dialog. */}
-      {state.placement && onPlace && opened === 'placement' ? (
-        <PlacementDialog placement={state.placement} onPlace={onPlace} onClose={close} />
-      ) : null}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 @5xl/page:grid-cols-[18rem_minmax(0,1fr)] @5xl/page:items-start">
-        {/* The record card and the reporting line, the same for every viewer (D1). */}
-        <Stack gap={6} className="@5xl/page:sticky @5xl/page:top-6">
-          {parts.length + (history === null ? 0 : 1) < 2 && person.missing === null ? null : (
-            <Card padded className="flex flex-col gap-4 touch:hidden">
-              {person.missing === null ? null : (
-                <div className="flex items-center gap-3">
-                  <CircularProgress
-                    value={percent}
-                    size={52}
-                    label={own ? 'Your record' : 'Complete'}
-                    tone={percent === 100 ? 'success' : 'accent'}
-                  />
-                  <div className="min-w-0">
-                    <p className="font-display text-md font-bold">
-                      {own ? 'Your record' : `${String(percent)}% complete`}
-                    </p>
-                    <p className="text-sm text-fg-muted">
-                      {gaps.length === 0
-                        ? 'Nothing left to fill in'
-                        : own
-                          ? `${String(percent)}% complete · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`
-                          : `${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left${forOthers === 0 ? '' : `, ${String(forOthers)} for ${gaps.find((g) => g.readOnly)?.ownedBy ?? 'HR'}`}`}
-                    </p>
-                  </div>
-                </div>
-              )}
-              <TertiaryNav label="Parts of the record" variant="fill" items={parts} />
-              {history === null ? null : (
-                <>
-                  <Separator />
-                  <TertiaryNav label="The record’s history" variant="fill" items={[history]} />
-                </>
-              )}
-            </Card>
-          )}
-          {state.reportingLine === undefined ? null : (
-            <div className="touch:hidden">
-              <ReportingLine
-                line={state.reportingLine}
-                person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
-              />
-            </div>
-          )}
-        </Stack>
-        <Stack gap={6} className="min-w-0">
-          {/* Under a finger: how far along their own record is, first (MD2). */}
-          {own ? (
-            <Card padded className="hidden items-center gap-3 touch:flex">
-              <CircularProgress
-                value={percent}
-                size={52}
-                label="Your record"
-                tone={percent === 100 ? 'success' : 'accent'}
-              />
-              <div className="min-w-0">
-                <p className="font-display text-md font-bold">Your record</p>
-                <p className="text-sm text-fg-muted">
-                  {percent}% complete
-                  {gaps.length === 0
-                    ? ''
-                    : ` · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`}
-                </p>
-              </div>
-            </Card>
-          ) : null}
-          <ReviewNotices
-            reviews={state.reviews}
-            onCorrect={(key) => {
-              // The section that asks for it, open to edit.
-              const at = sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly));
-              if (at) setEditing(at.key);
-            }}
+        {moving === null || onMove === undefined || !state.calendar ? null : (
+          <EmploymentMove
+            kind={moving}
+            state={{ calendar: state.calendar, employment: state.employment ?? null }}
+            onMove={onMove}
+            name={person.name}
+            placement={state.placement}
+            onClose={close}
           />
-          {decidable === 0 ? null : (
-            <Alert
-              tone="warning"
-              title={`${String(decidable)} ${decidable === 1 ? 'change waits' : 'changes wait'} for your approval`}
-              action={
-                onApprovals === undefined ? undefined : (
-                  <Button size="sm" onClick={onApprovals}>
-                    Open in Review
-                  </Button>
-                )
-              }
-            >
-              Pending values are shown under their fields and are not applied until approved.
-            </Alert>
-          )}
-          {/* Asked of them, on their own profile: what, and by whom. */}
-          {onRequest !== undefined || requests.size === 0 ? null : (
-            <Alert
-              tone="info"
-              icon={<icons.send aria-hidden />}
-              title={`${[...requests.values()][0]?.by ?? 'HR'} asked you to add ${
-                requests.size === 1 ? 'a detail' : `${String(requests.size)} details`
-              }: ${[...requests.values()].map((r) => r.label).join(' and ')}.`}
-              action={
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const first = [...requests.keys()][0];
-                    if (first !== undefined) openOne(first);
-                  }}
-                >
-                  {requests.size === 1 ? 'Add it' : 'Add them'}
-                </Button>
-              }
-            />
-          )}
-          {/* Under a finger, the sections as pills, History last (MD1). */}
-          {parts.length + (history === null ? 0 : 1) < 2 ? null : (
-            <TertiaryNav
-              label="Sections of the record"
-              orientation="horizontal"
-              className="hidden touch:block"
-              items={history === null ? parts : [...parts, history]}
-            />
-          )}
-          {sections.length === 0 ? (
-            <EmptyState title="Nothing else to show" />
-          ) : (
-            sections.map((section) => {
-              const writable = section.fields.some((f) => !f.readOnly);
-              const isEditing = editing === section.key;
-              return (
-                <PageSection
-                  key={section.key}
-                  id={`section-${section.key}`}
-                  surface
-                  className="@container scroll-mt-4"
-                  title={section.label}
-                  actions={
-                    <span className="flex items-center gap-2">
-                      {gapsIn(section).length === 0 || isEditing ? null : (
-                        <MissingMark count={gapsIn(section).length} />
-                      )}
-                      {section.readsLogged && !isEditing ? (
-                        <Badge size="sm">
-                          <icons.visible aria-hidden />
-                          Reads are logged
-                        </Badge>
-                      ) : null}
-                      {isEditing ? (
-                        <Badge size="sm" tone="accent">
-                          Editing
-                        </Badge>
-                      ) : writable ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          startIcon={<icons.edit aria-hidden />}
-                          aria-label={`Edit ${section.label}`}
-                          onClick={() => {
-                            setEditing(section.key);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      ) : null}
-                    </span>
-                  }
-                >
-                  {(held[section.key] ?? []).length === 0 || isEditing ? null : (
-                    <Alert tone="info" title="Sent to HR for approval">
-                      {(held[section.key] ?? []).join(' and ')}{' '}
-                      {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
-                      approves; the record keeps what it had until then.
-                    </Alert>
-                  )}
-                  {isEditing ? (
-                    <SectionForm
-                      section={section}
-                      values={values}
-                      pending={pending}
-                      columns={2}
-                      wide={(f) => WIDE.has(f.dataType) || isFileField(f)}
-                      hint="Only changed fields are sent."
-                      {...(onWithdraw === undefined ? {} : { onWithdraw })}
-                      {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
-                      {...(onCheck === undefined ? {} : { onCheck })}
-                      {...(focus === undefined ? {} : { focusKey: focus })}
-                      footer={
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            setEditing(null);
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      }
-                      onSave={async (key, changed) => {
-                        const outcome = await onSave(key, changed);
-                        if (outcome.ok) {
-                          // A value sent for approval is not the record's yet (PEO-077).
-                          const waiting = new Set(outcome.held ?? []);
-                          const applied = Object.fromEntries(
-                            Object.entries(changed).filter(
-                              ([k]) =>
-                                !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
-                            ),
-                          );
-                          setValues((v) => ({ ...v, ...applied }));
-                          setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
-                          setEditing(null);
-                        }
-                        return outcome;
-                      }}
+        )}
+        {onDownloadRecord === undefined ? null : (
+          <RecordPdf
+            name={firstName}
+            open={opened === 'pdf'}
+            onOpenChange={(next) => {
+              setOpened(next ? 'pdf' : null);
+            }}
+            onDownload={onDownloadRecord}
+          />
+        )}
+        {viewAs === undefined ? null : (
+          <ViewAsDialog
+            name={person.name}
+            open={opened === 'view-as'}
+            onOpenChange={(next) => {
+              setOpened(next ? 'view-as' : null);
+            }}
+            onViewAs={viewAs}
+          />
+        )}
+        {dating === null || onChangeDated === undefined ? null : (
+          <DatedChange
+            field={dating}
+            name={person.name}
+            current={values[dating.key]}
+            today={state.calendar?.today ?? null}
+            onChange={onChangeDated}
+            onClose={close}
+          />
+        )}
+        {opened === 'ask' && onAsk !== undefined ? (
+          <AskDialog
+            name={person.name}
+            fields={askable.map((f) => ({ key: f.key, label: f.label }))}
+            onAsk={async (input) => {
+              const done = await onAsk(input);
+              if (done.ok) setNotice(`${firstName} has a task in their Inbox.`);
+              return done;
+            }}
+            onClose={close}
+          />
+        ) : null}
+        {opened === 'send-document' && onSendDocument !== undefined ? (
+          <SendDocumentDialog
+            name={person.name}
+            onSend={async (file, input) => {
+              const done = await onSendDocument(file, input);
+              if (done.ok) setNotice(`Sent to ${firstName}.`);
+              return done;
+            }}
+            onClose={close}
+          />
+        ) : null}
+        {/* Where they work (PEO-123): changed from Actions, dated, in a dialog. */}
+        {state.placement && onPlace && opened === 'placement' ? (
+          <PlacementDialog placement={state.placement} onPlace={onPlace} onClose={close} />
+        ) : null}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 @5xl/page:grid-cols-[18rem_minmax(0,1fr)] @5xl/page:items-start">
+          {/* The record card and the reporting line, the same for every viewer (D1). */}
+          <Stack gap={6} className="@5xl/page:sticky @5xl/page:top-6">
+            {parts.length + (history === null ? 0 : 1) < 2 && person.missing === null ? null : (
+              <Card padded className="flex flex-col gap-4 touch:hidden">
+                {person.missing === null ? null : (
+                  <div className="flex items-center gap-3">
+                    <CircularProgress
+                      value={percent}
+                      size={52}
+                      label={own ? 'Your record' : 'Complete'}
+                      tone={percent === 100 ? 'success' : 'accent'}
                     />
-                  ) : (
-                    <dl className="-mt-1 flex flex-col">
-                      {section.fields.map((field) => (
-                        <FieldRow
-                          key={field.key}
-                          field={field}
-                          value={values[field.key]}
-                          pending={pending.filter((p) => p.key === field.key)}
-                          firstName={firstName}
-                          asked={requests.get(field.key) ?? null}
-                          onAdd={
-                            field.readOnly
-                              ? undefined
-                              : () => {
-                                  openOne(field.key);
-                                }
-                          }
-                          onRequest={field.askable === true ? onRequest : undefined}
-                          onDated={
-                            onChangeDated === undefined ||
-                            !state.calendar ||
-                            field.readOnly ||
-                            isFileField(field)
-                              ? undefined
-                              : () => {
-                                  setOpened(`change:${field.key}`);
-                                }
-                          }
-                          onWithdraw={onWithdraw}
-                          onSelfApprove={onSelfApprove}
-                        />
-                      ))}
-                    </dl>
-                  )}
-                </PageSection>
-              );
-            })
-          )}
-          <EmploymentPeriods periods={state.employment?.periods ?? []} />
-          {onDocuments === undefined || onOpenDocument === undefined ? null : (
-            <Documents load={onDocuments} onOpen={onOpenDocument} />
-          )}
-          {state.reportingLine === undefined ? null : (
-            <div className="hidden touch:block">
-              <ReportingLine
-                line={state.reportingLine}
-                person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
+                    <div className="min-w-0">
+                      <p className="font-display text-md font-bold">
+                        {own ? 'Your record' : `${String(percent)}% complete`}
+                      </p>
+                      <p className="text-sm text-fg-muted">
+                        {gaps.length === 0
+                          ? 'Nothing left to fill in'
+                          : own
+                            ? `${String(percent)}% complete · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`
+                            : `${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left${forOthers === 0 ? '' : `, ${String(forOthers)} for ${gaps.find((g) => g.readOnly)?.ownedBy ?? 'HR'}`}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <TertiaryNav label="Parts of the record" variant="fill" items={parts} />
+                {history === null ? null : (
+                  <>
+                    <Separator />
+                    <TertiaryNav label="The record’s history" variant="fill" items={[history]} />
+                  </>
+                )}
+              </Card>
+            )}
+            {state.reportingLine === undefined ? null : (
+              <div className="touch:hidden">
+                <ReportingLine
+                  line={state.reportingLine}
+                  person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
+                />
+              </div>
+            )}
+          </Stack>
+          <Stack gap={6} className="min-w-0">
+            {/* Under a finger: how far along their own record is, first (MD2). */}
+            {own ? (
+              <Card padded className="hidden items-center gap-3 touch:flex">
+                <CircularProgress
+                  value={percent}
+                  size={52}
+                  label="Your record"
+                  tone={percent === 100 ? 'success' : 'accent'}
+                />
+                <div className="min-w-0">
+                  <p className="font-display text-md font-bold">Your record</p>
+                  <p className="text-sm text-fg-muted">
+                    {percent}% complete
+                    {gaps.length === 0
+                      ? ''
+                      : ` · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`}
+                  </p>
+                </div>
+              </Card>
+            ) : null}
+            <ReviewNotices
+              reviews={state.reviews}
+              onCorrect={(key) => {
+                // The section that asks for it, open to edit.
+                const at = sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly));
+                if (at) setEditing(at.key);
+              }}
+            />
+            {decidable === 0 ? null : (
+              <Alert
+                tone="warning"
+                title={`${String(decidable)} ${decidable === 1 ? 'change waits' : 'changes wait'} for your approval`}
+                action={
+                  onApprovals === undefined ? undefined : (
+                    <Button size="sm" onClick={onApprovals}>
+                      Open in Review
+                    </Button>
+                  )
+                }
+              >
+                Pending values are shown under their fields and are not applied until approved.
+              </Alert>
+            )}
+            {/* Asked of them, on their own profile: what, and by whom. */}
+            {onRequest !== undefined || requests.size === 0 ? null : (
+              <Alert
+                tone="info"
+                icon={<icons.send aria-hidden />}
+                title={`${[...requests.values()][0]?.by ?? 'HR'} asked you to add ${
+                  requests.size === 1 ? 'a detail' : `${String(requests.size)} details`
+                }: ${[...requests.values()].map((r) => r.label).join(' and ')}.`}
+                action={
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const first = [...requests.keys()][0];
+                      if (first !== undefined) openOne(first);
+                    }}
+                  >
+                    {requests.size === 1 ? 'Add it' : 'Add them'}
+                  </Button>
+                }
               />
-            </div>
-          )}
-        </Stack>
-      </div>
-    </Stack>
+            )}
+            {/* Under a finger, the sections as pills, History last (MD1). */}
+            {parts.length + (history === null ? 0 : 1) < 2 ? null : (
+              <TertiaryNav
+                label="Sections of the record"
+                orientation="horizontal"
+                className="hidden touch:block"
+                items={history === null ? parts : [...parts, history]}
+              />
+            )}
+            {sections.length === 0 ? (
+              <EmptyState title="Nothing else to show" />
+            ) : (
+              sections.map((section) => {
+                const writable = section.fields.some((f) => !f.readOnly);
+                const isEditing = editing === section.key;
+                return (
+                  <PageSection
+                    key={section.key}
+                    id={`section-${section.key}`}
+                    surface
+                    className="@container scroll-mt-4"
+                    title={section.label}
+                    actions={
+                      <span className="flex items-center gap-2">
+                        {gapsIn(section).length === 0 || isEditing ? null : (
+                          <MissingMark count={gapsIn(section).length} />
+                        )}
+                        {section.readsLogged && !isEditing ? (
+                          <Badge size="sm">
+                            <icons.visible aria-hidden />
+                            Reads are logged
+                          </Badge>
+                        ) : null}
+                        {isEditing ? (
+                          <Badge size="sm" tone="accent">
+                            Editing
+                          </Badge>
+                        ) : writable ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            startIcon={<icons.edit aria-hidden />}
+                            aria-label={`Edit ${section.label}`}
+                            onClick={() => {
+                              setEditing(section.key);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        ) : null}
+                      </span>
+                    }
+                  >
+                    {(held[section.key] ?? []).length === 0 || isEditing ? null : (
+                      <Alert tone="info" title="Sent to HR for approval">
+                        {(held[section.key] ?? []).join(' and ')}{' '}
+                        {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
+                        approves; the record keeps what it had until then.
+                      </Alert>
+                    )}
+                    {isEditing ? (
+                      <SectionForm
+                        section={section}
+                        values={values}
+                        pending={pending}
+                        columns={2}
+                        wide={(f) => WIDE.has(f.dataType) || isFileField(f)}
+                        hint="Only changed fields are sent."
+                        {...(onWithdraw === undefined ? {} : { onWithdraw })}
+                        {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
+                        {...(onCheck === undefined ? {} : { onCheck })}
+                        {...(focus === undefined ? {} : { focusKey: focus })}
+                        footer={
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setEditing(null);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        }
+                        onSave={async (key, changed) => {
+                          const outcome = await onSave(key, changed);
+                          if (outcome.ok) {
+                            // A value sent for approval is not the record's yet (PEO-077).
+                            const waiting = new Set(outcome.held ?? []);
+                            const applied = Object.fromEntries(
+                              Object.entries(changed).filter(
+                                ([k]) =>
+                                  !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
+                              ),
+                            );
+                            setValues((v) => ({ ...v, ...applied }));
+                            setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
+                            setEditing(null);
+                          }
+                          return outcome;
+                        }}
+                      />
+                    ) : (
+                      <dl className="-mt-1 flex flex-col">
+                        {section.fields.map((field) => (
+                          <FieldRow
+                            key={field.key}
+                            field={field}
+                            value={values[field.key]}
+                            pending={pending.filter((p) => p.key === field.key)}
+                            firstName={firstName}
+                            asked={requests.get(field.key) ?? null}
+                            onAdd={
+                              field.readOnly
+                                ? undefined
+                                : () => {
+                                    openOne(field.key);
+                                  }
+                            }
+                            onRequest={field.askable === true ? onRequest : undefined}
+                            onDated={
+                              onChangeDated === undefined ||
+                              !state.calendar ||
+                              field.readOnly ||
+                              isFileField(field)
+                                ? undefined
+                                : () => {
+                                    setOpened(`change:${field.key}`);
+                                  }
+                            }
+                            onWithdraw={onWithdraw}
+                            onSelfApprove={onSelfApprove}
+                          />
+                        ))}
+                      </dl>
+                    )}
+                  </PageSection>
+                );
+              })
+            )}
+            <EmploymentPeriods periods={state.employment?.periods ?? []} />
+            {onDocuments === undefined || onOpenDocument === undefined ? null : (
+              <Documents load={onDocuments} onOpen={onOpenDocument} />
+            )}
+            {state.reportingLine === undefined ? null : (
+              <div className="hidden touch:block">
+                <ReportingLine
+                  line={state.reportingLine}
+                  person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
+                />
+              </div>
+            )}
+          </Stack>
+        </div>
+      </Stack>
+    </LegalName>
   );
 }
 

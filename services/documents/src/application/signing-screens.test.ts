@@ -34,7 +34,7 @@ describe('who sees which boxes', () => {
 
   it('shows a signer only their own boxes', () => {
     const view = viewOf(env, 'Offer', 2, 'Ada', [], 's2', false);
-    expect(view.fields.map((f) => f.signerId)).toEqual(['s2', 's2']);
+    expect(view.fields.map((f) => f.signerId)).toEqual(['s2']);
   });
 
   it('shows whoever follows the request every box', () => {

@@ -71,3 +71,30 @@ describe('signing as DocuSign does it', () => {
     expect(result.current.next).toBeNull();
   });
 });
+
+describe('a dated signature, and a name that fills itself', () => {
+  const dated = (): EnvelopeData =>
+    adamToSign({
+      me: { signerId: 's1', status: 'verified', turn: true },
+      fields: [box('when', 'date', 1, 0.8), box('who', 'name', 1, 0.9)],
+    });
+
+  it('asks for the signature, then holds it with the day', () => {
+    const { result } = renderHook(() => useSigning(dated(), 'Adam Novak'));
+    act(() => {
+      result.current.apply('when');
+    });
+    expect(result.current.adopting).toBe(true);
+    act(() => {
+      result.current.adopt({ kind: 'typed', text: 'Adam Novak', style: 'flowing' });
+    });
+    expect(result.current.filled['when']).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
+    expect(result.current.ready).toBe(true);
+  });
+
+  it('fills a name box with the legal name before anything is pressed, and never makes it a step', () => {
+    const { result } = renderHook(() => useSigning(dated(), 'Adam Novak'));
+    expect(result.current.filled['who']).toBe('Adam Novak');
+    expect(result.current.steps.map((f) => f.id)).toEqual(['when']);
+  });
+});

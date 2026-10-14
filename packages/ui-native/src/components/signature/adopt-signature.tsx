@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../dialog/dialog.tsx';
-import { Field, FieldLabel } from '../field/field.tsx';
+import { Field, FieldDescription, FieldLabel } from '../field/field.tsx';
 import { Input } from '../input/input.tsx';
 import { RadioCard, RadioGroup } from '../radio-group/radio-group.tsx';
 import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control.tsx';
@@ -40,7 +40,7 @@ export function AdoptSignatureDialog({
   note = 'By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.',
 }: {
   readonly open: boolean;
-  /** Their name, to start from. */
+  /** Their legal name: what a typed signature says. Empty when nobody knows it yet. */
   readonly name: string;
   /** The one they have, to start from when they change it. */
   readonly value?: SignatureValue | null;
@@ -51,8 +51,10 @@ export function AdoptSignatureDialog({
   readonly action?: string;
   readonly note?: string;
 }): React.JSX.Element {
+  // A signature is the legal name: given one, it is shown and cannot be changed.
+  const locked = name.trim() !== '';
   const [how, setHow] = useState<'type' | 'draw'>(value?.kind === 'drawn' ? 'draw' : 'type');
-  const [typed, setTyped] = useState(value?.kind === 'typed' ? value.text : name);
+  const [typed, setTyped] = useState(locked || value?.kind !== 'typed' ? name : value.text);
   const [style, setStyle] = useState<SignatureStyle>(
     value?.kind === 'typed' ? (value.style ?? 'flowing') : 'flowing',
   );
@@ -60,7 +62,7 @@ export function AdoptSignatureDialog({
   useEffect(() => {
     if (!open) return;
     setHow(value?.kind === 'drawn' ? 'draw' : 'type');
-    setTyped(value?.kind === 'typed' ? value.text : name);
+    setTyped(locked || value?.kind !== 'typed' ? name : value.text);
     setStyle(value?.kind === 'typed' ? (value.style ?? 'flowing') : 'flowing');
     setPath(value?.kind === 'drawn' ? value.path : '');
   }, [open, name, value]);
@@ -87,9 +89,14 @@ export function AdoptSignatureDialog({
           </SegmentedControl>
           {how === 'type' ? (
             <>
-              <Field>
-                <FieldLabel>Your name</FieldLabel>
-                <Input value={typed} maxLength={120} onChange={setTyped} />
+              <Field disabled={locked}>
+                <FieldLabel>Your legal name</FieldLabel>
+                <Input value={typed} maxLength={120} readOnly={locked} onChange={setTyped} />
+                {locked ? (
+                  <FieldDescription>
+                    A signature is your legal first and last name, as your company keeps them.
+                  </FieldDescription>
+                ) : null}
               </Field>
               <RadioGroup
                 accessibilityLabel="Style"
