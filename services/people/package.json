@@ -35,7 +35,7 @@
     "drizzle-orm": "^0.45.3",
     "exceljs": "4.4.0",
     "graphql": "^16.11.0",
-    "graphql-yoga": "^5.24.1",
+    "graphql-yoga": "^5.24.2",
     "ioredis": "^6.0.0",
     "kafkajs": "^2.2.4",
     "pdfkit": "0.20.2",
