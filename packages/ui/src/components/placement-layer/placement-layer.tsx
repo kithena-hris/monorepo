@@ -118,25 +118,15 @@ export function PlacementLayer({
     if (host === null || captions.current.size === 0 || typeof ResizeObserver === 'undefined') {
       return;
     }
-    const hug = () => {
-      const r = host.getBoundingClientRect();
-      for (const [id, caption] of captions.current) {
-        const box = refs.current.get(id);
-        const bottom = box === undefined ? null : inkBottom(box);
-        if (bottom !== null)
-          caption.style.top = `${String(bottom - r.top + (r.width * 6) / 595)}px`;
-      }
-    };
-    hug();
-    const resized = new ResizeObserver(hug);
-    resized.observe(host);
-    let live = true;
-    void document.fonts.ready.then(() => {
-      if (live) hug();
+    // Its own chunk: only a page with a signed box needs it, and every page loads this layer.
+    let stop: (() => void) | undefined;
+    let gone = false;
+    void import('./hug').then(({ hug }) => {
+      if (!gone) stop = hug(host, captions.current, refs.current);
     });
     return () => {
-      live = false;
-      resized.disconnect();
+      gone = true;
+      stop?.();
     };
   });
   const drag = useRef<{
@@ -338,38 +328,4 @@ export function PlacementLayer({
       })}
     </div>
   );
-}
-
-/**
- * Where what a box draws really ends, in the viewport's pixels: a drawing's
- * strokes, and each text's glyphs, which a handwriting face draws well above
- * the foot of its line. Null when it draws nothing.
- */
-function inkBottom(box: HTMLElement): number | null {
-  let bottom: number | null = null;
-  const lower = (y: number) => {
-    bottom = bottom === null ? y : Math.max(bottom, y);
-  };
-  for (const shape of box.querySelectorAll('path, polyline, line')) {
-    lower(shape.getBoundingClientRect().bottom);
-  }
-  const ctx = document.createElement('canvas').getContext('2d');
-  const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
-  for (let node = walk.nextNode(); node !== null; node = walk.nextNode()) {
-    const text = node.textContent?.trim() ?? '';
-    if (text === '' || node.parentElement === null) continue;
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    const line = range.getBoundingClientRect();
-    if (ctx === null) {
-      lower(line.bottom);
-      continue;
-    }
-    const face = getComputedStyle(node.parentElement);
-    ctx.font = `${face.fontStyle} ${face.fontWeight} ${face.fontSize} ${face.fontFamily}`;
-    const m = ctx.measureText(text);
-    // The line's foot less the face's descender is the baseline; the glyphs end below it by their own.
-    lower(line.bottom - m.fontBoundingBoxDescent + m.actualBoundingBoxDescent);
-  }
-  return bottom;
 }
