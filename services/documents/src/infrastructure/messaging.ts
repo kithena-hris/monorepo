@@ -12,13 +12,28 @@ export function httpMailer(config: { readonly baseUrl: string; readonly token: s
   const endpoint = new URL('/api/internal/messaging/notice', config.baseUrl).toString();
   return {
     async notice(input) {
+      // Never the address, the link or a code: which notice, and why it did not go.
+      const said = { module: 'documents', kind: input.notice.kind, dedupeKey: input.dedupeKey };
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-internal-token': config.token },
         body: JSON.stringify(input),
         signal: AbortSignal.timeout(5000),
+      }).catch((e: unknown) => {
+        logger.error(
+          { ...said, err: e },
+          'messaging could not be reached; the notice was not sent',
+        );
+        throw e;
       });
-      if (!response.ok) throw new Error(`messaging refused the notice: ${String(response.status)}`);
+      if (!response.ok) {
+        const answer = await response.text().catch(() => '');
+        logger.error(
+          { ...said, status: response.status, answer: answer.slice(0, 300) },
+          'messaging refused the notice',
+        );
+        throw new Error(`messaging refused the notice: ${String(response.status)}`);
+      }
     },
   };
 }
