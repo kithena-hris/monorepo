@@ -493,7 +493,18 @@ describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
         entitlements: ['module.people'],
       }),
     };
-    const counted = async (as = headers) => {
+    // Boss holds HR alone: an administrator reads all pay (decided 2026-10-14),
+    // so the line is what decides only for somebody who is not one.
+    const boss = {
+      ...headers,
+      'x-kithena-principal': JSON.stringify({
+        userId: HR,
+        tenantId: ACME,
+        roles: ['hr'],
+        entitlements: ['module.people'],
+      }),
+    };
+    const counted = async (as = boss) => {
       const read = (await get('/v1/views/waiting', as)) as Read<{ flagged: number | null }>;
       return { count: read.body.flagged, ms: read.ms };
     };
@@ -504,6 +515,7 @@ describe(`Review's queues at ${String(N)} waiting of each kind`, () => {
       do {
         const page: Read<{ items: { id: string }[]; itemsNext: string | null }> = await get(
           `/v1/views/approvals?flagged=1${after === null ? '' : `&after=${encodeURIComponent(after)}`}`,
+          boss,
         );
         ids.push(...page.body.items.map((i) => i.id));
         after = page.body.itemsNext;
