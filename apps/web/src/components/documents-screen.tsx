@@ -161,6 +161,9 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onAsk: actions.askEnvelopeSender,
           onVoid: actions.voidEnvelope,
           onRemind: actions.remindEnvelope,
+          onRefresh: () => {
+            router.refresh();
+          },
           onReassign: actions.reassignSigner,
           onSeal: actions.sealEnvelope,
         };

@@ -48,6 +48,7 @@ type Who = keyof typeof ids;
 const world = memoryWorld();
 let counter = 0;
 /** Every email asked for: messaging is down here, and signing must not care. */
+const ADAM_TRACE = '6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b';
 const mailed: string[] = [];
 /** The same, whole: where each link points and what it carries. */
 const letters: { kind: string; url: string; attached: string | null }[] = [];
@@ -485,6 +486,8 @@ describe('signatures (K1–K9)', () => {
     ).toEqual(['date']);
     const signed = await call('adam', 'POST', `/v1/documents/envelopes/${envelope}/sign`, {
       signature: { kind: 'typed', text: 'Adam Novak' },
+      // The Signature ID his screen showed under each box as he filled it.
+      traceId: ADAM_TRACE,
       ...origin,
     });
     // Signed, though the email to Nora, whose turn it now is, did not go.
@@ -516,7 +519,8 @@ describe('signatures (K1–K9)', () => {
       { mergePages: true },
     );
     expect(text.text).toContain('Electronically signed via Kithena');
-    expect(text.text).toMatch(/Signature ID: [0-9a-f-]{36}/u);
+    // The very ID Adam was shown while signing.
+    expect(text.text).toContain(`Signature ID: ${ADAM_TRACE}`);
 
     // The list says so: one of two signed, waiting on Nora, and HR may remind.
     const lib = await call('ada', 'GET', '/v1/documents/library');

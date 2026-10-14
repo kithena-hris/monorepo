@@ -25,6 +25,7 @@ import {
   nextToFill,
   readingOrder,
 } from '@reach/ui-native';
+import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
 import { ArrowRight, Ellipsis, MessageCircle, PenLine, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -224,6 +225,15 @@ async function onFileFor(
   };
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** The print under a signed box, as the sealed file prints it (and the web's `traceCaption`). */
+function traceCaption(id: string, at: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const when = `${String(at.getUTCDate())} ${MONTHS.at(at.getUTCMonth()) ?? ''} ${String(at.getUTCFullYear())}, ${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())} UTC`;
+  return `Electronically signed via Kithena on ${when}\nSignature ID: ${id}`;
+}
+
 /** The file being signed, as a `data:` URL for `PdfPages`: fetched by the phone, never through the company's host. */
 async function fileFor(signed: Signed, envelopeId: string): Promise<string> {
   const link = await askDocuments<{ url: string | null; base64: string | null }>(
@@ -344,6 +354,9 @@ function Signing({
   const signed = useSigned();
   const name = legalName ?? env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
   const signing = useSigning(env, name, onFile?.mark ?? null);
+  // This signing's Signature ID (K7): printed under each box as it is filled,
+  // and kept by Kithena as the signed event's id, so the screen and the file agree.
+  const [traceId] = useState(() => Crypto.randomUUID());
   const [menu, setMenu] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -384,6 +397,7 @@ function Signing({
           signature: signing.mark ?? { kind: 'typed', text: name },
           values: signing.values,
           day: today(),
+          traceId,
           origin: signed.company.origin,
           companyName: company,
         },
@@ -498,6 +512,8 @@ function Signing({
                     : `${f.label ?? KIND_LABEL[f.kind]}${f.required ? '' : ', optional'}`,
                   hint: HINT[f.kind],
                   done,
+                  // Printed the moment it is filled, as the sealed file prints it.
+                  ...(done ? { caption: traceCaption(traceId, new Date()) } : {}),
                 };
               })}
             render={(box) => {

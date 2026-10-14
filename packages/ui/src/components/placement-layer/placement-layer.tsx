@@ -43,6 +43,11 @@ export interface PlacedBox {
   readonly hint?: string;
   /** Filled: drawn without its tint, as what it holds. */
   readonly done?: boolean;
+  /**
+   * Small print under the box, as a document prints it under what fills it:
+   * who signed, how and when. Each line on its own (`\n`); never pressed.
+   */
+  readonly caption?: string;
 }
 
 export interface PlacementLayerProps {
@@ -185,7 +190,7 @@ export function PlacementLayer({
     <div
       ref={layer}
       className={cn(
-        'relative size-full',
+        '@container relative size-full',
         editable && onPlace !== undefined && 'cursor-copy',
         className,
       )}
@@ -234,8 +239,23 @@ export function PlacementLayer({
             )}
           </>
         );
+        // Under the box, its own width at least, as small as print under a signature is.
+        const caption =
+          box.caption === undefined ? null : (
+            <span
+              key={`${box.id}-caption`}
+              aria-hidden
+              className="pointer-events-none absolute whitespace-pre text-[max(7px,0.95cqw)] leading-[1.25] text-[var(--reach-neutral-600)]"
+              style={{
+                left: `${String(box.x * 100)}%`,
+                top: `calc(${String((box.y + box.h) * 100)}% + 2px)`,
+              }}
+            >
+              {box.caption}
+            </span>
+          );
         if (!editable) {
-          return (
+          return [
             <button
               key={box.id}
               type="button"
@@ -245,8 +265,9 @@ export function PlacementLayer({
               }}
             >
               {inside}
-            </button>
-          );
+            </button>,
+            caption,
+          ];
         }
         return (
           <div

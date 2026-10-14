@@ -28,6 +28,11 @@ export interface PlacedBox {
   readonly hint?: string;
   /** Filled: drawn without its tint, as what it holds. */
   readonly done?: boolean;
+  /**
+   * Small print under the box, as a document prints it under what fills it:
+   * who signed, how and when. Each line on its own (`\n`); never pressed.
+   */
+  readonly caption?: string;
 }
 
 export interface PlacementLayerProps {
@@ -76,7 +81,24 @@ export function PlacementLayer({
     <View className={cn('relative h-full w-full', className)} pointerEvents="box-none">
       {boxes.map((box) => {
         const content = render?.(box);
-        return (
+        // Beside the box, not in it: the box clips what it holds.
+        const caption =
+          box.caption === undefined ? null : (
+            <CssText
+              key={`${box.id}-caption`}
+              aria-hidden
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: `${String(box.x * 100)}%` as `${number}%`,
+                top: `${String((box.y + box.h) * 100)}%` as `${number}%`,
+              }}
+              className="mt-0.5 text-[7px] leading-[9px] text-[var(--reach-neutral-600)]"
+            >
+              {box.caption}
+            </CssText>
+          );
+        return [
           <Pressable
             key={box.id}
             ref={(el: NativeView | null) => {
@@ -112,8 +134,9 @@ export function PlacementLayer({
                 {box.hint ?? box.label}
               </CssText>
             )}
-          </Pressable>
-        );
+          </Pressable>,
+          caption,
+        ];
       })}
     </View>
   );

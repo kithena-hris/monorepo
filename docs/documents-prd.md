@@ -288,7 +288,13 @@ on it is changed only in Settings › Documents › Your signature.
 - **Every signed field carries its trace**, as e-signature services print it:
   "Electronically signed via Kithena on 14 Oct 2026, 21:54 UTC" and "Signature
   ID: <uuid>" under it. The ID is the signer's `signed` event, the same ID the
-  certificate of completion lists.
+  certificate of completion lists. It shows on screen the moment a box is
+  filled: the signer's device makes the ID when signing starts and sends it
+  with the signature, and Kithena keeps it as that event's id.
+- **Finish is drawn at once.** The signer's boxes stay filled with their
+  signature and its print the moment Finish succeeds, while the copy Kithena
+  drew and the request are fetched again; the drawn copy takes over once it
+  has loaded.
 - **Finish says where it went**: "Sent to Lahari Rao for their signature", or
   that everybody has signed.
 - **Each signer gets their copy by email**: the document as signed so far,

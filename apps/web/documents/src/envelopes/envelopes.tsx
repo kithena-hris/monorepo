@@ -47,6 +47,7 @@ import {
   doneMessage,
   useSigning,
   type Signing,
+  type Stamped,
 } from './sign-view';
 import { shortDate, useWrite } from '../shared';
 import type {
@@ -549,6 +550,8 @@ export interface EnvelopeProps {
         signature: Mark,
         values: Readonly<Record<string, string>>,
         day: string,
+        /** The Signature ID shown under each box as it was filled. */
+        traceId?: string,
       ) => Promise<
         { ok: true; completed: boolean; next?: readonly string[] } | { ok: false; message: string }
       >)
@@ -557,6 +560,8 @@ export interface EnvelopeProps {
   readonly onAsk?: ((envelopeId: string, question: string) => Promise<Outcome>) | undefined;
   readonly onVoid?: ((envelopeId: string, reason: string) => Promise<Outcome>) | undefined;
   readonly onRemind?: ((envelopeId: string) => Promise<Outcome>) | undefined;
+  /** Read the request again from the server: who has signed, whose turn it is. */
+  readonly onRefresh?: (() => void) | undefined;
   readonly onReassign?:
     ((envelopeId: string, signerId: string, personId: string) => Promise<Outcome>) | undefined;
   readonly onSeal?: ((envelopeId: string) => Promise<Outcome>) | undefined;
@@ -581,6 +586,8 @@ function EnvelopePage({
   ...props
 }: { readonly env: EnvelopeData } & Omit<EnvelopeProps, 'load'>): JSX.Element {
   const [link, setLink] = useState<string | null>(null);
+  // What was just signed, drawn over the copy on screen until the new copy has loaded.
+  const [stamped, setStamped] = useState<Stamped | null>(null);
   useEffect(() => {
     let live = true;
     void props.onFileLink?.(env.id).then((got) => {
@@ -603,10 +610,28 @@ function EnvelopePage({
   const onFinish = () => {
     finish.run(async () => {
       const signature = signing.mark ?? { kind: 'typed' as const, text: myName };
-      const r = await (props.onSign?.(env.id, signature, signing.values, signing.day) ??
-        Promise.resolve({ ok: false as const, message: 'Not available here' }));
+      const r = await (props.onSign?.(
+        env.id,
+        signature,
+        signing.values,
+        signing.day,
+        signing.traceId,
+      ) ?? Promise.resolve({ ok: false as const, message: 'Not available here' }));
       if (!r.ok) return r;
       setDone(doneMessage(r.completed, r.next ?? []));
+      // At once: every box of theirs holds their signature, its print under it.
+      setStamped({
+        signerId: env.me?.signerId ?? '',
+        mark: signature,
+        filled: signing.filled,
+        traceId: signing.traceId,
+        at: new Date(),
+      });
+      // Then the copy Kithena drew, and the request as it stands now.
+      void props.onFileLink?.(env.id).then((got) => {
+        if (got.ok) setLink(got.url);
+      });
+      props.onRefresh?.();
       return { ok: true };
     });
   };
@@ -655,6 +680,7 @@ function EnvelopePage({
                 name={myName}
                 onFinish={onFinish}
                 finishing={finish.pending}
+                stamped={stamped}
               />
             </div>
           )}

@@ -77,11 +77,14 @@ export async function signLink(
   values: Readonly<Record<string, string>>,
   /** The signer's own day, from their browser: this runs on the server, whose day may differ. */
   day: string,
+  /** The Signature ID their screen printed under each box as it was filled. */
+  traceId: string,
 ): Promise<Answer<{ completed: boolean; next: readonly string[] }>> {
   return call<{ completed: boolean; next: readonly string[] }>(token, '/sign', {
     signature,
     values,
     day,
+    traceId,
   });
 }
 
