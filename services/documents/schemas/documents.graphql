@@ -380,6 +380,11 @@ type DocumentsQueueRow {
   typeKey: String
 }
 
+type DocumentsReminded {
+  id: String!
+  reminded: [String!]!
+}
+
 type DocumentsRetentionConfirmed {
   deleted: Int!
 }
@@ -397,6 +402,7 @@ type DocumentsRow {
   mine: Boolean!
   pages: Int
   sectionIds: [String!]!
+  signing: DocumentsRowSigning
   status: DocumentsStatus
   subject: DocumentsPerson
   title: String!
@@ -404,6 +410,15 @@ type DocumentsRow {
   typeName: String
   updatedAt: String!
   who: DocumentsWho!
+}
+
+type DocumentsRowSigning {
+  canRemind: Boolean!
+  envelopeId: String!
+  of: Int!
+  signed: Int!
+  status: String!
+  waitingOn: [String!]!
 }
 
 type DocumentsSealed {
@@ -439,6 +454,7 @@ type DocumentsSettingsAccess {
 
 type DocumentsSigned {
   completed: Boolean!
+  next: [String!]!
 }
 
 type DocumentsSigner {
@@ -769,8 +785,13 @@ type Mutation {
   ): DocumentsCreated!
   """Remind a person of a document HR asked for"""
   remindDocumentRequest(idempotencyKey: String!, requestId: String!): DocumentsCreated!
-  """Remind whoever it waits on"""
-  remindEnvelope(envelopeId: String!, idempotencyKey: String!): DocumentsCreated!
+  """Email whoever it waits on now, and nobody else (K8)"""
+  remindEnvelope(
+    envelopeId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsReminded!
   """Rename a document"""
   renameDocument(
     documentId: String!

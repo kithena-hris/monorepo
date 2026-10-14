@@ -54,6 +54,24 @@ describe('sendNotice', () => {
     ]);
   });
 
+  it('carries a signer’s copy as an attachment, and records none of it', async () => {
+    const h = harness();
+    const copy = {
+      fileName: 'Offer letter (signed).pdf',
+      base64: Buffer.from('%PDF-1.7').toString('base64'),
+    };
+    const sent = await h.send({
+      ...request,
+      url: 'https://acme.app.kithena.com/sign/token',
+      notice: { kind: 'document_signed' },
+      attachment: copy,
+    });
+    expect(sent.ok).toBe(true);
+    expect(h.sent[0]?.subject).toBe('Acme Corp: you signed a document');
+    expect(h.sent[0]?.attachments).toEqual([{ filename: copy.fileName, base64: copy.base64 }]);
+    expect(JSON.stringify(h.recorded)).not.toContain(copy.base64);
+  });
+
   it('records no body, subject or link', async () => {
     const h = harness();
     await h.send(request);

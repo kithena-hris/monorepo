@@ -35,7 +35,7 @@ import {
 } from './context.js';
 import { sha256 } from './files.js';
 import type { Caller, Deps, Tx } from './ports.js';
-import { seal } from './sealing.js';
+import { seal, stampSoFar } from './sealing.js';
 
 /**
  * Signatures (PRD §10, DOC-041 to DOC-047): sending, signing as a member or
@@ -324,9 +324,9 @@ export function signAsMember(
   caller: Caller,
   envelopeId: string,
   input: SignInput & Origin,
-): Promise<Result<{ completed: boolean }>> {
+): Promise<Result<Signed>> {
   const mail: Mail[] = [];
-  return withSeal(deps, caller.tenantId, input.companyName, async () => {
+  return withSeal(deps, caller.tenantId, input, async () => {
     const signed = await deps.uow.run(caller.tenantId, async (tx) => {
       const ctx = await contextOf(deps, tx, caller, mail);
       const found = await asMember(ctx, envelopeId);
@@ -337,7 +337,7 @@ export function signAsMember(
       if (!opened.ok) return opened;
       const done = await signIn(ctx, opened.value, signer.id, input, input);
       if (!done.ok) return done;
-      return ok({ envelope: done.value });
+      return ok({ envelope: done.value, signerId: signer.id, link: null });
     });
     // The next signer's email, once the signature is safely in.
     if (signed.ok) await deliver(deps, mail);
@@ -345,24 +345,188 @@ export function signAsMember(
   });
 }
 
+/** What a signer is told at Finish: whether it is done, and whose turn it is now. */
+export interface Signed {
+  readonly completed: boolean;
+  /** Who signs next, by name: "Sent to Lahari Rao for their signature". */
+  readonly next: readonly string[];
+}
+
+/** Whose turn it is: asked, and not yet signed or declined. */
+const onTurn = (env: Envelope) =>
+  env.signers.filter(
+    (s) => s.status === 'sent' || s.status === 'opened' || s.status === 'verified',
+  );
+
+/** A copy attached to an email: within what one request to messaging carries, else only a link. */
+const MAX_ATTACHED = 3_000_000;
+
 /**
- * Seal after the signing transaction commits (bytes cannot join a
- * transaction): read the version, draw it, store it, file it as the next
- * version. A failure leaves the envelope completed and unsealed, and the
- * tracking page offers to seal it again.
+ * After the signing transaction commits (bytes cannot join a transaction):
+ * the document as signed so far is drawn and kept for the next signer (K7),
+ * and the signer is emailed their copy; once everybody has signed, it is
+ * sealed and every signer is emailed the sealed one. A failure here never
+ * undoes the signature: a seal that did not finish is offered again on the
+ * tracking page, and a copy that was not drawn is drawn by the next one.
  */
 async function withSeal(
   deps: Deps,
   tenantId: TenantId,
-  company: string,
-  signed: () => Promise<Result<{ envelope: Envelope }>>,
-): Promise<Result<{ completed: boolean }>> {
+  origin: Origin,
+  signed: () => Promise<Result<{ envelope: Envelope; signerId: string; link: string | null }>>,
+): Promise<Result<Signed>> {
   const done = await signed();
   if (!done.ok) return done;
-  const env = done.value.envelope;
-  if (env.status !== 'completed') return ok({ completed: false });
-  const sealedNow = await sealEnvelope(deps, tenantId, env.id, company);
-  return sealedNow.ok ? ok({ completed: true }) : sealedNow;
+  const { envelope: env, signerId, link } = done.value;
+  if (env.status !== 'completed') {
+    const copy = await workingCopy(deps, tenantId, env.id).catch(() => null);
+    if (copy !== null) {
+      await emailCopies(deps, tenantId, origin, env.id, [signerId], 'document_signed', copy, link);
+    }
+    return ok({ completed: false, next: onTurn(env).map((s) => s.name) });
+  }
+  const sealedNow = await sealEnvelope(deps, tenantId, env.id, origin.companyName);
+  if (!sealedNow.ok) return sealedNow;
+  const copy = await signedCopy(deps, tenantId, env.id).catch(() => null);
+  if (copy !== null) {
+    await emailCopies(
+      deps,
+      tenantId,
+      origin,
+      env.id,
+      env.signers.map((s) => s.id),
+      'document_completed',
+      copy,
+      link === null ? null : { signerId, token: link },
+    );
+  }
+  return ok({ completed: true, next: [] });
+}
+
+interface Copy {
+  readonly bytes: Uint8Array;
+  readonly fileName: string;
+}
+
+/**
+ * The document as signed so far, drawn and kept on the request (K7). Kept
+ * only if nobody signed meanwhile; whoever did draws the newer one.
+ */
+async function workingCopy(
+  deps: Deps,
+  tenantId: TenantId,
+  envelopeId: string,
+): Promise<Copy | null> {
+  const got = await deps.uow.run(tenantId, async (tx) => {
+    const env = await tx.envelopes.get(envelopeId);
+    if (env === null || env.status !== 'sent') return null;
+    const version = await tx.versions.get(env.documentId, env.version);
+    return version === null ? null : { env, version, trail: await tx.envelopes.trail(env.id) };
+  });
+  if (got === null) return null;
+  const original = await deps.blobs.get(got.version.blobKey);
+  if (original === null) return null;
+  const bytes = await stampSoFar(original, got.env, got.trail);
+  const key = `${tenantId}/${got.env.documentId}/${deps.newId()}`;
+  await deps.blobs.put(key, bytes, 'application/pdf');
+  const signedIds = (e: Envelope) =>
+    e.signers
+      .filter((x) => x.status === 'signed')
+      .map((x) => x.id)
+      .join(',');
+  const previous = await deps.uow.run(tenantId, async (tx) => {
+    const fresh = await tx.envelopes.get(envelopeId);
+    if (fresh === null || signedIds(fresh) !== signedIds(got.env)) return undefined;
+    await tx.envelopes.save({ ...fresh, workingBlobKey: key });
+    return fresh.workingBlobKey ?? null;
+  });
+  // The copy it replaces is nobody's now.
+  if (previous !== undefined && previous !== null)
+    await deps.blobs.delete(previous).catch(() => undefined);
+  return { bytes, fileName: got.version.fileName.replace(/\.pdf$/iu, '') + ' (signed so far).pdf' };
+}
+
+/** The sealed version's bytes, to send to every signer. */
+async function signedCopy(
+  deps: Deps,
+  tenantId: TenantId,
+  envelopeId: string,
+): Promise<Copy | null> {
+  const version = await deps.uow.run(tenantId, async (tx) => {
+    const env = await tx.envelopes.get(envelopeId);
+    if (env?.signedVersion == null) return null;
+    return tx.versions.get(env.documentId, env.signedVersion);
+  });
+  if (version === null) return null;
+  const bytes = await deps.blobs.get(version.blobKey);
+  return bytes === null ? null : { bytes, fileName: version.fileName };
+}
+
+/**
+ * Each signer's copy by email (K7): a colleague's to their work address,
+ * opening the request; somebody outside's to the address they signed with,
+ * opening their signing page. An outside signer whose link this request does
+ * not hold gets a fresh one, which replaces the one they had.
+ */
+async function emailCopies(
+  deps: Deps,
+  tenantId: TenantId,
+  origin: Origin,
+  envelopeId: string,
+  signerIds: readonly string[],
+  kind: 'document_signed' | 'document_completed',
+  copy: Copy,
+  link: string | { signerId: string; token: string } | null,
+): Promise<void> {
+  const base = origin.origin.replace(/\/$/u, '');
+  const mail = await deps.uow.run(tenantId, async (tx) => {
+    const env = await tx.envelopes.get(envelopeId);
+    if (env === null) return [];
+    const out: Mail[] = [];
+    let signers = env.signers;
+    for (const id of signerIds) {
+      const s = signers.find((x) => x.id === id);
+      if (s === undefined) continue;
+      let email: string | null = s.email;
+      let url = `${base}/documents/envelopes/${env.id}`;
+      if (s.personId !== null) {
+        // oxlint-disable-next-line no-await-in-loop -- a request's few signers, in one transaction
+        email = (await tx.members.get(s.personId))?.workEmail ?? null;
+      } else {
+        const held =
+          typeof link === 'string' && signerIds.length === 1
+            ? link
+            : typeof link === 'object' && link?.signerId === id
+              ? link.token
+              : null;
+        const token = held ?? newToken(tenantId);
+        if (held === null) {
+          signers = signers.map((x) => (x.id === id ? { ...x, tokenHash: hash(token) } : x));
+        }
+        url = `${base}/sign/${token}`;
+      }
+      if (email === null) continue;
+      out.push({
+        tenantId,
+        email,
+        url,
+        companyName: origin.companyName,
+        dedupeKey: `${kind}:${env.id}:${id}`,
+        notice: { kind },
+        ...(copy.bytes.byteLength > MAX_ATTACHED
+          ? {}
+          : {
+              attachment: {
+                fileName: copy.fileName,
+                base64: Buffer.from(copy.bytes).toString('base64'),
+              },
+            }),
+      });
+    }
+    if (signers !== env.signers) await tx.envelopes.save({ ...env, signers });
+    return out;
+  });
+  await deliver(deps, mail);
 }
 
 export async function sealEnvelope(
@@ -530,14 +694,14 @@ export function signByLink(
   deps: Deps,
   token: string,
   input: SignInput & Origin,
-): Promise<Result<{ completed: boolean }>> {
+): Promise<Result<Signed>> {
   const tenant = tenantOfToken(token);
   if (tenant === null)
     return Promise.resolve(err(failure('NOT_FOUND', 'This link does not open anything')));
-  return withSeal(deps, tenant as TenantId, input.companyName, () =>
+  return withSeal(deps, tenant as TenantId, input, () =>
     byLink(deps, token, async (ctx, env, signerId) => {
       const done = await signIn(ctx, env, signerId, input, input);
-      return done.ok ? ok({ envelope: done.value }) : done;
+      return done.ok ? ok({ envelope: done.value, signerId, link: token }) : done;
     }),
   );
 }
@@ -652,20 +816,56 @@ export function voidRequest(
   });
 }
 
-export function remindSigners(
+/**
+ * A reminder (K8): an email to whoever's turn it is, and nobody else. Five
+ * signing one after another, the third's turn: only the third hears. Somebody
+ * outside gets a fresh link, which replaces the one they had: their first is
+ * kept only as a hash, so it cannot be sent again.
+ */
+export async function remindSigners(
   deps: Deps,
   caller: Caller,
   envelopeId: string,
-): Promise<Result<{ id: string }>> {
-  return deps.uow.run(caller.tenantId, async (tx) => {
-    const ctx = await contextOf(deps, tx, caller);
+  origin: Origin | null = null,
+): Promise<Result<{ id: string; reminded: readonly string[] }>> {
+  const mail: Mail[] = [];
+  const base = origin?.origin.replace(/\/$/u, '') ?? null;
+  const done = await deps.uow.run(caller.tenantId, async (tx) => {
+    const ctx = await contextOf(deps, tx, caller, mail);
     const env = await asFollower(ctx, envelopeId);
     if (!env.ok) return env;
     if (env.value.status !== 'sent')
       return err(failure('CLOSED', `This request is ${env.value.status}`));
-    await trail(ctx, envelopeId, null, 'reminded');
-    return ok({ id: envelopeId });
+    const turn = onTurn(env.value);
+    let signers = env.value.signers;
+    for (const s of turn) {
+      if (base === null || origin === null) break;
+      let email = s.email;
+      let url = `${base}/documents/envelopes/${envelopeId}`;
+      if (s.personId !== null) {
+        // oxlint-disable-next-line no-await-in-loop -- a request's few signers, in one transaction
+        email = (await tx.members.get(s.personId))?.workEmail ?? null;
+      } else {
+        const token = newToken(caller.tenantId);
+        signers = signers.map((x) => (x.id === s.id ? { ...x, tokenHash: hash(token) } : x));
+        url = `${base}/sign/${token}`;
+      }
+      if (email === null) continue;
+      mail.push({
+        tenantId: caller.tenantId,
+        email,
+        url,
+        companyName: origin.companyName,
+        dedupeKey: `remind:${envelopeId}:${s.id}:${ctx.at}`,
+        notice: { kind: 'signature_reminder' },
+      });
+    }
+    if (signers !== env.value.signers) await tx.envelopes.save({ ...env.value, signers });
+    await trail(ctx, envelopeId, null, 'reminded', { to: turn.map((s) => s.name) });
+    return ok({ id: envelopeId, reminded: turn.map((s) => s.name) });
   });
+  if (done.ok) await deliver(deps, mail);
+  return done;
 }
 
 export function reassignSigner(

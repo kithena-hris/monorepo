@@ -76,6 +76,15 @@ export function smtpTransport(config: SmtpTransportConfig): EmailTransport {
           subject: email.subject,
           text: email.text,
           html: email.html,
+          ...(email.attachments === undefined
+            ? {}
+            : {
+                attachments: email.attachments.map((a) => ({
+                  filename: a.filename,
+                  content: a.base64,
+                  encoding: 'base64',
+                })),
+              }),
           /*
            * The idempotency key as a header, because SMTP has no concept of
            * one. Mailpit shows it, which is enough to see that a retry carried

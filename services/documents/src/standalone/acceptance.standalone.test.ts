@@ -2,6 +2,7 @@
    A test reads the JSON a transport answered by its path, and every path it reads is asserted. */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
+import { extractText, getDocumentProxy } from 'unpdf';
 import { ok } from '@kithena/domain-kit';
 import { fixedClock } from '@kithena/domain-kit';
 import type { PersonId, TenantId } from '@kithena/contracts';
@@ -48,11 +49,14 @@ const world = memoryWorld();
 let counter = 0;
 /** Every email asked for: messaging is down here, and signing must not care. */
 const mailed: string[] = [];
+/** The same, whole: where each link points and what it carries. */
+const letters: { kind: string; url: string; attached: string | null }[] = [];
 const server = documentsServer({
   uow: world.uow,
   mailer: {
     notice: (m) => {
       mailed.push(`${m.notice.kind} ${m.email}`);
+      letters.push({ kind: m.notice.kind, url: m.url, attached: m.attachment?.fileName ?? null });
       return Promise.reject(new Error('messaging is down'));
     },
   },
@@ -484,8 +488,9 @@ describe('signatures (K1–K9)', () => {
       ...origin,
     });
     // Signed, though the email to Nora, whose turn it now is, did not go.
-    expect(signed.body).toEqual({ completed: false });
-    expect(mailed).toEqual(['signature_requested nora@board.example']);
+    expect(signed.body).toEqual({ completed: false, next: ['Nora Becker'] });
+    // Nora's turn, and Adam's own copy as signed so far (K7).
+    expect(mailed).toEqual(['signature_requested nora@board.example', 'document_signed adam@acme.example']);
     const followed = await call('ada', 'GET', `/v1/documents/envelopes/${envelope}`);
     expect(followed.body.signers.map((s: { status: string }) => s.status)).toEqual([
       'signed',
@@ -495,6 +500,41 @@ describe('signatures (K1–K9)', () => {
       'sent',
       'signed',
     ]);
+  });
+
+  it('Nora reads Adam’s signature with its Signature ID; a reminder reaches only her (K7, K8)', async () => {
+    // Adam's own copy went with his email, as signed so far.
+    expect(letters.find((l) => l.kind === 'document_signed')?.attached).toMatch(/signed so far/u);
+    const link = letters.filter((l) => l.kind === 'signature_requested').at(-1)?.url ?? '';
+    const token = link.split('/sign/')[1] ?? '';
+    const open = (t: string, path = '') =>
+      server.rest({ method: 'GET', url: `/v1/documents/sign/${t}${path}`, headers: {}, body: '' });
+    const file = (await open(token, '/file')) as { status: number; body: { base64: string } };
+    expect(file.status).toBe(200);
+    const text = await extractText(
+      await getDocumentProxy(new Uint8Array(Buffer.from(file.body.base64, 'base64'))),
+      { mergePages: true },
+    );
+    expect(text.text).toContain('Electronically signed via Kithena');
+    expect(text.text).toMatch(/Signature ID: [0-9a-f-]{36}/u);
+
+    // The list says so: one of two signed, waiting on Nora, and HR may remind.
+    const lib = await call('ada', 'GET', '/v1/documents/library');
+    expect(lib.body.rows.find((r: { id: string }) => r.id === contract).signing).toMatchObject({
+      signed: 1,
+      of: 2,
+      waitingOn: ['Nora Becker'],
+      canRemind: true,
+    });
+
+    // Reminded: Nora alone, with a link that replaces her first.
+    const before = mailed.length;
+    const reminded = await call('ada', 'POST', `/v1/documents/envelopes/${envelope}/remind`, origin);
+    expect(reminded.body.reminded).toEqual(['Nora Becker']);
+    expect(mailed.slice(before)).toEqual(['signature_reminder nora@board.example']);
+    expect((await open(token))?.status).toBe(404);
+    const fresh = letters.at(-1)?.url.split('/sign/')[1] ?? '';
+    expect((await open(fresh))?.status).toBe(200);
   });
 
   it('Marco, who neither signs nor sends, cannot see it', async () => {
@@ -532,7 +572,7 @@ describe('signatures (K1–K9)', () => {
       signature: { kind: 'typed', text: 'Adam Novak' },
       ...origin,
     });
-    expect(done.body).toEqual({ completed: true });
+    expect(done.body).toEqual({ completed: true, next: [] });
     const doc = await call('adam', 'GET', `/v1/documents/d/${contract}`);
     expect(doc.body.document.current).toMatchObject({ n: 2, note: 'Signed and sealed', pages: 4 });
     const file = await call('adam', 'GET', `/v1/documents/d/${contract}/file?mode=download`);

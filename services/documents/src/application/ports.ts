@@ -219,6 +219,8 @@ export interface EnvelopeStore {
   get(id: string): Promise<Envelope | null>;
   save(envelope: Envelope): Promise<void>;
   forDocument(documentId: DocumentId): Promise<readonly Envelope[]>;
+  /** Each document's newest request, by document id, for a list of them in one read. */
+  latestFor(documentIds: readonly DocumentId[]): Promise<ReadonlyMap<string, Envelope>>;
   /** Envelopes with a signer who is this person. */
   forPerson(personId: PersonId): Promise<readonly Envelope[]>;
   /** The envelope and signer a link's token opens. */
@@ -331,7 +333,12 @@ export interface Mailer {
     readonly dedupeKey: string;
     readonly notice:
       | { readonly kind: 'signature_requested' }
-      | { readonly kind: 'signing_code'; readonly code: string };
+      | { readonly kind: 'signing_code'; readonly code: string }
+      | { readonly kind: 'signature_reminder' }
+      | { readonly kind: 'document_signed' }
+      | { readonly kind: 'document_completed' };
+    /** A signer's copy of what they signed, as base64 (K7). */
+    readonly attachment?: { readonly fileName: string; readonly base64: string };
   }): Promise<void>;
 }
 

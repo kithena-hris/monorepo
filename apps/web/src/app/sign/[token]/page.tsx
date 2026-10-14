@@ -28,6 +28,7 @@ export default async function SignPage({
       token={token}
       company={company}
       envelope={envelope.ok ? envelope.data : null}
+      problem={envelope.ok ? null : envelope.message}
       fileUrl={url}
     />
   );

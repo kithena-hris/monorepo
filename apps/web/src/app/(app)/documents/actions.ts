@@ -265,12 +265,16 @@ export async function signEnvelope(
   values: Readonly<Record<string, string>>,
   /** The signer's own day, from their browser: this runs on the server, whose day may differ. */
   day: string,
-): Promise<{ ok: true; completed: boolean } | { ok: false; message: string }> {
-  const a = await documents<{ completed: boolean }>('SignEnvelope', {
+): Promise<
+  { ok: true; completed: boolean; next: readonly string[] } | { ok: false; message: string }
+> {
+  const a = await documents<{ completed: boolean; next: readonly string[] }>('SignEnvelope', {
     envelopeId,
     input: { signature, values, day, ...(await origin()) },
   });
-  return a.ok ? { ok: true, completed: a.data.completed } : { ok: false, message: a.message };
+  return a.ok
+    ? { ok: true, completed: a.data.completed, next: a.data.next }
+    : { ok: false, message: a.message };
 }
 
 export async function declineEnvelope(envelopeId: string, reason: string): Promise<Outcome> {
@@ -285,8 +289,9 @@ export async function voidEnvelope(envelopeId: string, reason: string): Promise<
   return outcome(await documents('VoidEnvelope', { envelopeId, input: { reason } }));
 }
 
+/** K8: an email to whoever it waits on now, and nobody else. */
 export async function remindEnvelope(envelopeId: string): Promise<Outcome> {
-  return outcome(await documents('RemindEnvelope', { envelopeId }));
+  return outcome(await documents('RemindEnvelope', { envelopeId, input: { ...(await origin()) } }));
 }
 
 export async function reassignSigner(

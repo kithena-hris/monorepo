@@ -136,8 +136,8 @@ export function viewOf(
       signedAt: s.signedAt,
       allowDelegate: s.allowDelegate,
     })),
-    // A signer sees only their own boxes: where somebody else signs, and what
-    // they typed, is the sender's to see until the file is sealed.
+    // A signer's boxes are their own: what the others filled in is drawn into
+    // the working copy they read (K7), not handed out field by field.
     fields: env.fields
       .filter((f) => follows || f.signerId === me)
       .map((f) => ({
@@ -337,7 +337,10 @@ export function envelopeFile(
       }
       if (env === null) return err(failure('NOT_FOUND', 'No such request'));
       const version = await tx.versions.get(env.documentId, env.signedVersion ?? env.version);
-      return version === null ? err(failure('NOT_FOUND', 'No such version')) : ok(version);
+      if (version === null) return err(failure('NOT_FOUND', 'No such version'));
+      // Mid-way, the copy with every signature so far drawn in (K7).
+      const working = env.signedVersion === null ? (env.workingBlobKey ?? null) : null;
+      return ok(working === null ? version : { ...version, blobKey: working });
     })
     .then(async (v) => {
       if (!v.ok) return v;

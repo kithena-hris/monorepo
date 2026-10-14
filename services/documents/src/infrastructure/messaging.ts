@@ -18,7 +18,8 @@ export function httpMailer(config: { readonly baseUrl: string; readonly token: s
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-internal-token': config.token },
         body: JSON.stringify(input),
-        signal: AbortSignal.timeout(5000),
+        // A signed copy is a few megabytes on the way: longer than a notice alone.
+        signal: AbortSignal.timeout(input.attachment === undefined ? 5000 : 30_000),
       }).catch((e: unknown) => {
         logger.error(
           { ...said, err: e },

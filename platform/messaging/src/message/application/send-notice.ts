@@ -29,6 +29,8 @@ export interface SendNoticeRequest {
    * reaches the provider, because it names a record.
    */
   readonly dedupeKey: string;
+  /** A signer's copy, attached (`document_signed`, `document_completed`). */
+  readonly attachment?: { readonly fileName: string; readonly base64: string } | undefined;
 }
 
 export type SendNotice = (
@@ -68,6 +70,13 @@ export function sendNotice(deps: SendNoticeDeps): SendNotice {
       html: message.value.html,
       text: message.value.text,
       idempotencyKey: `${kind}/${digest}`,
+      ...(request.attachment === undefined
+        ? {}
+        : {
+            attachments: [
+              { filename: request.attachment.fileName, base64: request.attachment.base64 },
+            ],
+          }),
     });
 
     // The outcome, never the message: no subject, no body, no link.

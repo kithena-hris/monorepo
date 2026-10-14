@@ -585,6 +585,16 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
             sql`SELECT body FROM documents.envelope WHERE tenant_id = ${T} AND document_id = ${id}::uuid ORDER BY created_at DESC`,
           )
         ).map((r) => r['body'] as Envelope),
+      async latestFor(ids) {
+        if (ids.length === 0) return new Map();
+        const found = await rows(
+          tx,
+          sql`SELECT DISTINCT ON (document_id) document_id::text AS d, body FROM documents.envelope
+            WHERE tenant_id = ${T} AND document_id = ANY(${`{${ids.join(',')}}`}::uuid[])
+            ORDER BY document_id, created_at DESC`,
+        );
+        return new Map(found.map((r) => [String(r['d']), r['body'] as Envelope]));
+      },
       forPerson: async (p) =>
         (
           await rows(

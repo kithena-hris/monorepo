@@ -279,6 +279,28 @@ shell reads the signer's own and signs with it, with no Adopt step. A signer
 with none adopts one while signing and it is kept on their record; from then
 on it is changed only in Settings › Documents › Your signature.
 
+### 10.2a As it is signed (K7, K8, decided 2026-10-15)
+
+- **Everyone sees the signatures before theirs.** Once somebody signs, Kithena
+  draws every signature and filled field so far into a working copy of the
+  document. That copy is what the next signer reads and signs on, and what a
+  signer sees in place of their boxes once they press Finish.
+- **Every signed field carries its trace**, as e-signature services print it:
+  "Electronically signed via Kithena on 14 Oct 2026, 21:54 UTC" and "Signature
+  ID: <uuid>" under it. The ID is the signer's `signed` event, the same ID the
+  certificate of completion lists.
+- **Finish says where it went**: "Sent to Lahari Rao for their signature", or
+  that everybody has signed.
+- **Each signer gets their copy by email**: the document as signed so far,
+  attached, when they sign; the sealed one, with its certificate, to every
+  signer once everyone has. Past 3 MB it is a link instead of an attachment.
+- **A reminder goes to whoever it waits on now, and nobody else.** Five sign
+  one after another and it is the third's turn: only the third is emailed.
+  Somebody outside gets a fresh link, which replaces their earlier one.
+- **The list shows it**: "2 of 5 signed · 3 pending" on the document's row,
+  "All 5 signed" once sealed, and the sender or HR can send the reminder from
+  the row's menu.
+
 ### 10.3 Sealing (K9, MX3)
 
 When the last signer signs, the server stamps each field's value onto the PDF,

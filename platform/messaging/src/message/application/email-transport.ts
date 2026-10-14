@@ -31,6 +31,8 @@ export interface OutgoingEmail {
    * against: the key has to change when the message changes and not otherwise.
    */
   readonly idempotencyKey: string;
+  /** A file the message carries: a signer's copy of what they signed, and nothing else so far. */
+  readonly attachments?: readonly { readonly filename: string; readonly base64: string }[];
 }
 
 /**
