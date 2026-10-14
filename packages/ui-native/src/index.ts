@@ -571,6 +571,7 @@ export {
   type PlacedBox,
   type PlacementLayerProps,
 } from './components/placement-layer/placement-layer.tsx';
+export { useInkReport, type InkReport } from './components/placement-layer/ink.ts';
 // The web's own model of which box is due next, shared like the filter model.
 export {
   allRequiredFilled,

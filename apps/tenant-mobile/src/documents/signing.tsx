@@ -25,6 +25,7 @@ import {
   isFilled,
   nextToFill,
   readingOrder,
+  useInkReport,
 } from '@reach/ui-native';
 import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
@@ -227,6 +228,33 @@ async function onFileFor(
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** A filled box's value, in paper ink, saying where it ends so the box's caption sits under it. */
+function Filled({ children, className }: { children: string; className: string }) {
+  const report = useInkReport();
+  useEffect(
+    () => () => {
+      report?.('value', null);
+    },
+    [report],
+  );
+  return (
+    <View
+      onLayout={(e) => {
+        const { y, height } = e.nativeEvent.layout;
+        report?.('value', y + height);
+      }}
+    >
+      <Text
+        variant="caption"
+        numberOfLines={1}
+        className={`${className} text-[var(--reach-neutral-900)]`}
+      >
+        {children}
+      </Text>
+    </View>
+  );
+}
 
 /** The print under a signed box, as the sealed file prints it (and the web's `traceCaption`). */
 function traceCaption(id: string, at: Date): string {
@@ -541,24 +569,14 @@ function Signing({
                 return (
                   <View className="h-full w-full">
                     <View className="flex-1">{mark}</View>
-                    <Text
-                      variant="caption"
-                      numberOfLines={1}
-                      className="text-center text-[var(--reach-neutral-900)]"
-                    >
-                      {signing.filled[f.id] ?? ''}
-                    </Text>
+                    <Filled className="text-center">{signing.filled[f.id] ?? ''}</Filled>
                   </View>
                 );
               }
               return (
-                <Text
-                  variant="caption"
-                  numberOfLines={1}
-                  className="px-1 text-[var(--reach-neutral-900)]"
-                >
+                <Filled className="px-1">
                   {f.kind === 'checkbox' ? '✓' : (signing.filled[f.id] ?? '')}
-                </Text>
+                </Filled>
               );
             }}
           />

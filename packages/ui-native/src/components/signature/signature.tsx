@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import type { LayoutChangeEvent } from 'react-native';
+import { useEffect, useState } from 'react';
+import type { LayoutChangeEvent, TextLayoutEvent } from 'react-native';
 import { useCssElement } from 'react-native-css';
 import { Text as CssText, View } from 'react-native-css/components';
 import Svg, { Path } from 'react-native-svg';
 
 import { cn } from '../../lib/cn.ts';
+import { useInkReport } from '../placement-layer/ink.ts';
 
 /**
  * A signature as it is shown, the web's `Signature`: typed in one of three
@@ -59,7 +60,14 @@ export function Signature({
   label,
   className,
 }: SignatureProps): React.JSX.Element {
-  const [box, setBox] = useState({ width: 0, height: 0 });
+  const [box, setBox] = useState({ y: 0, width: 0, height: 0 });
+  // The typed line's top in the box, and its face's metrics once laid out.
+  const [lineTop, setLineTop] = useState(0);
+  const [line, setLine] = useState<{
+    height: number;
+    ascender: number;
+    descender: number;
+  } | null>(null);
   const ink = value.kind === 'drawn' ? inkOf(value.path) : null;
   const pad = ink === null ? 0 : Math.max(ink.width, ink.height) * 0.06;
   const drawing = useCssElement(
@@ -93,6 +101,33 @@ export function Signature({
   // tails run well above and below it),
   // and never wider than it, the swashes' padding (0.3 em a side) included.
   const size = Math.min(box.height * 0.56, (box.width * 0.9) / (letters * EM_PER_LETTER + 0.6));
+
+  // Inside a placed box, say where the ink ends, so its caption sits close under it.
+  const report = useInkReport();
+  let bottom: number | null = null;
+  if (box.width > 0 && ink !== null) {
+    // `meet` centres the padded ink at the largest scale that fits.
+    const w = ink.width + pad * 2;
+    const h = ink.height + pad * 2;
+    const scale = Math.min(box.width / w, box.height / h);
+    const stroke = Math.max(ink.width, ink.height) / 110;
+    bottom = box.y + box.height / 2 + (h / 2 - pad + stroke / 2) * scale;
+  } else if (box.width > 0 && line !== null && text !== '') {
+    // The line's extra height is shared above and below the face, so the
+    // baseline sits half of it under the ascender. A handwriting face's
+    // letters stand on the baseline; only a descending letter goes under it.
+    // ponytail: guessed from the letters, not measured: no glyph bounds on a phone.
+    const baseline = lineTop + (line.height - line.ascender - line.descender) / 2 + line.ascender;
+    const under = /[fgjpqyzß]/u.test(text) ? line.descender * 0.75 : size * 0.08;
+    bottom = box.y + baseline + under;
+  }
+  useEffect(() => {
+    if (report === null) return;
+    report('signature', bottom);
+    return () => {
+      report('signature', null);
+    };
+  }, [report, bottom]);
   return (
     <View
       accessible
@@ -100,8 +135,8 @@ export function Signature({
       accessibilityLabel={label}
       className="h-full w-full items-center justify-center overflow-hidden"
       onLayout={(e: LayoutChangeEvent) => {
-        const { width, height } = e.nativeEvent.layout;
-        setBox({ width, height });
+        const { y, width, height } = e.nativeEvent.layout;
+        setBox({ y, width, height });
       }}
     >
       {value.kind === 'drawn' ? (
@@ -113,6 +148,18 @@ export function Signature({
         <CssText
           aria-hidden
           className={cn('text-fg', className)}
+          onLayout={(e: LayoutChangeEvent) => {
+            setLineTop(e.nativeEvent.layout.y);
+          }}
+          onTextLayout={(e: TextLayoutEvent) => {
+            const first = e.nativeEvent.lines[0];
+            if (first === undefined) return;
+            setLine({
+              height: first.height,
+              ascender: Math.abs(first.ascender),
+              descender: Math.abs(first.descender),
+            });
+          }}
           style={{
             fontFamily: SIGNATURE_FONTS[value.style ?? 'flowing'],
             fontSize: size,
