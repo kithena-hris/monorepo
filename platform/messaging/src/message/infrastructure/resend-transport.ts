@@ -36,6 +36,15 @@ export interface ResendConfig {
 const ProviderRefused = (detail: string): ReturnType<typeof failure> =>
   failure('PROVIDER_REFUSED', 'The email provider did not accept the message', [detail]);
 
+/**
+ * Domains that can never receive mail (RFC 2606, RFC 6761): the demo
+ * company's seeded people live at `meridianfreight.example`, and every one of
+ * them is a hard bounce that spends the daily quota and the sending domain's
+ * reputation. Refused here, before the provider is called, because this is
+ * the one place every module's email passes through on its way out.
+ */
+const RESERVED = /(\.(example|test|invalid|localhost)|@example\.(com|net|org))$/;
+
 export function resendTransport(config: ResendConfig): EmailTransport {
   const resend = new Resend(config.apiKey);
 
@@ -43,6 +52,8 @@ export function resendTransport(config: ResendConfig): EmailTransport {
     name: 'resend',
 
     async send(email: OutgoingEmail): Promise<Result<SentMessage>> {
+      if (RESERVED.test(email.to)) return err(ProviderRefused('reserved_domain'));
+
       /*
        * The SDK does not throw on an API error — it returns `{ data, error }`,
        * and a `try`/`catch` around it therefore catches nothing and reports
