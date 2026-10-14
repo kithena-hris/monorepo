@@ -59,16 +59,16 @@ const complaints: string[] = [];
 
 async function describePage(page: Page): Promise<string> {
   try {
-    const shown = await page.evaluate(() => {
-      const remote = document.querySelector('[data-remote]');
-      return {
-        remote: remote === null ? null : remote.getAttribute('data-remote'),
-        waiting: document.querySelector('[data-remote][data-hydrating]') !== null,
-        remoteText: remote instanceof HTMLElement ? remote.innerText.slice(0, 120) : null,
-        hiddenParts: document.querySelectorAll('div[hidden][id^="S:"]').length,
-        text: document.body.innerText.replaceAll('\n', ' | ').slice(0, 300),
-      };
-    });
+    const shown = await page.evaluate(() => ({
+      // Every remote on the page, the chrome's slots too: which one is still waiting.
+      remotes: [...document.querySelectorAll('[data-remote]')].map((el) => ({
+        name: el.getAttribute('data-remote'),
+        waiting: el.hasAttribute('data-hydrating'),
+        text: el instanceof HTMLElement ? el.innerText.replaceAll('\n', ' | ').slice(0, 160) : '',
+      })),
+      hiddenParts: document.querySelectorAll('div[hidden][id^="S:"]').length,
+      main: (document.querySelector('main')?.innerText ?? '').replaceAll('\n', ' | ').slice(0, 400),
+    }));
     return `${page.url()} ${JSON.stringify(shown)}`;
   } catch (e) {
     return `${page.url()} (unreadable: ${e instanceof Error ? e.message : String(e)})`;
@@ -84,6 +84,10 @@ export async function signedIn(
     page.on('pageerror', (e) => complaints.push(`[pageerror ${page.url()}] ${e.message}`));
     page.on('console', (m) => {
       if (m.type() === 'error') complaints.push(`[console ${page.url()}] ${m.text()}`);
+    });
+    // A console 404 does not say what was missing; the response does.
+    page.on('response', (r) => {
+      if (r.status() >= 400) complaints.push(`[${String(r.status())}] ${r.url()}`);
     });
   });
   await context.addCookies([
