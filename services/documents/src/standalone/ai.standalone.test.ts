@@ -433,7 +433,12 @@ describe('a document drafted with Kithena (§14.2)', () => {
       action: null,
       draft: null,
     });
-    expect(seen.at(-1)).toMatchObject({ you: 'Ada Test', messages: said });
+    // The model is shown stand-ins, never a name (PRD §14.1).
+    expect(seen.at(-1)).toMatchObject({
+      you: '[[Person 3]]',
+      messages: [{ role: 'user', text: 'An offer for [[Person 1]] at 60,000 a year. [[Person 2]] signs, then me.' }],
+    });
+    expect(JSON.stringify(seen.at(-1))).not.toMatch(/Ada|Adam|Marco/u);
 
     reply = {
       reply: 'Here is the offer.',
@@ -485,6 +490,21 @@ describe('a document drafted with Kithena (§14.2)', () => {
       companyName: 'Acme',
     });
     expect(sent.body).toMatchObject({ action: 'send', draft: { ready: true } });
+
+    // What the model answers with stand-ins comes back as the people they stand for.
+    reply = {
+      reply: 'Drafted for [[Person 1]].',
+      draft: { ...(reply['draft'] as object), about: '[[Person 1]]', signers: [{ name: '[[Person 2]]', email: null, order: 1 }] },
+    };
+    const back = await call('ada', 'POST', '/v1/documents/drafts/turn', {
+      messages: said,
+      draft: null,
+      companyName: 'Acme',
+    });
+    expect(back.body).toMatchObject({
+      reply: 'Drafted for Adam.',
+      draft: { aboutPersonId: ids.adam.person, signers: [{ name: 'Marco Test', personId: ids.marco.person }] },
+    });
     expect((await call('adam', 'POST', '/v1/documents/drafts/turn', { messages: said, draft: null, companyName: 'Acme' })).status).toBe(403);
   });
 
@@ -510,6 +530,25 @@ describe('a document drafted with Kithena (§14.2)', () => {
     // Marco's line comes first on the page, Grace's under it: not the default foot of the page.
     expect(marco?.y).toBeLessThan(grace?.y ?? 0);
     expect(marco?.y).toBeLessThan(0.7);
+  });
+});
+
+describe('what a model answers is never stored (PRD §14.1)', () => {
+  it('asks the model again on a retry, rather than replaying a kept answer', async () => {
+    reply = { answer: [{ text: 'Three months.', pages: [2] }] };
+    const ask = () =>
+      server.rest({
+        method: 'POST',
+        url: `/v1/documents/d/${contract}/ask`,
+        headers: { 'x-test': 'ada', 'idempotency-key': 'same-key' },
+        body: JSON.stringify({ question: 'What is the notice period?' }),
+      });
+    const before = seen.length;
+    expect((await ask())?.status).toBe(200);
+    expect((await ask())?.status).toBe(200);
+    expect(seen.length).toBe(before + 2);
+    const kept = await world.uow.run(TENANT, (tx) => tx.idempotency.find('same-key'));
+    expect(kept).toBeNull();
   });
 });
 

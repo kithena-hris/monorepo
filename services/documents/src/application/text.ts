@@ -1,6 +1,7 @@
 import { extractText, getDocumentProxy } from 'unpdf';
 
-import type { Reader } from './ports.js';
+import { pseudonymise, STAND_INS } from '../domain/assist/private.js';
+import type { Reader, UnitOfWork } from './ports.js';
 
 /**
  * A file's text, page by page, for Kithena to read (PRD §14): a PDF's by
@@ -103,4 +104,32 @@ export async function signatureLines(
   } catch {
     return [];
   }
+}
+
+/**
+ * The model as every feature reaches it (PRD §14.1): each request's people,
+ * emails, phone and identity numbers, accounts and document numbers become
+ * stand-ins before it leaves, and come back as themselves only here, in this
+ * process, for this request. What a provider sees is about nobody.
+ *
+ * ponytail: an image read by a model that sees goes as it is, since pixels
+ * cannot be masked; what it transcribes is masked like any page from then on.
+ * Text recognition run here is the upgrade.
+ */
+export function privately(reader: Reader, uow: UnitOfWork): Reader {
+  return {
+    async read(input) {
+      const names = await uow.run(input.tenantId, async (tx) =>
+        (await tx.members.list()).map((m) => m.displayName),
+      );
+      const p = pseudonymise(names);
+      const answer = await reader.read({
+        ...input,
+        instruction: `${input.instruction}\n${STAND_INS}`,
+        context: p.mask(input.context) as Readonly<Record<string, unknown>>,
+      });
+      return answer === null ? null : (p.unmask(answer) as Readonly<Record<string, unknown>>);
+    },
+    ...(reader.see === undefined ? {} : { see: reader.see.bind(reader) }),
+  };
 }

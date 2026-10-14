@@ -181,6 +181,7 @@ export async function summarize(
   if (deps.reader === undefined) return ok(none('Kithena’s reading is not set up here.'));
   const { pages, title } = got.value;
   const answer = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction: `${RULES} Shape: {"summary":[{"text":string,"pages":[number]}] (2 to 4 sentences), "facts":[{"label":string,"value":string,"page":number}] (up to 6), "watch":{"text":string,"pages":[number]} or null (the one clause worth knowing), "questions":[string] (3 short follow-up questions)}.`,
     context: { title, pages: forModel(pages) },
   });
@@ -233,6 +234,7 @@ export async function askAbout(
   if (deps.reader === undefined) return ok(noAnswer('Kithena’s reading is not set up here.'));
   const { pages, title } = got.value;
   const answer = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction: `${RULES} If the pages do not answer the question, say so in one sentence citing the page you looked at. Shape: {"answer":[{"text":string,"pages":[number]}]} (1 to 3 sentences).`,
     context: { title, question: q, pages: forModel(pages) },
   });
@@ -298,6 +300,7 @@ export async function askAcross(
     text: p.text.slice(0, 2500),
   }));
   const answer = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction: `${RULES} The pages come from several documents; cite each claim with the "source" numbers given. Shape: {"answer":[{"text":string,"sources":[number]}]} (1 to 3 sentences).`,
     context: { question: q, passages: numbered },
   });
@@ -364,6 +367,7 @@ export async function compareVersions(
   let sentences: string[] = [];
   if (deps.reader !== undefined && (added.length > 0 || removed.length > 0)) {
     const answer = await deps.reader.read({
+      tenantId: caller.tenantId,
       instruction: `${RULES} Say what changed between two versions of a document, one plain sentence per change, from the lines removed and added only. Shape: {"changes":[string]} (up to 5).`,
       context: { title: a.value.title, removed, added },
     });
@@ -428,6 +432,7 @@ export async function suggestFiling(
   );
   if (pages === null) return ok(empty);
   const answer = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction: `${RULES} Classify an uploaded document. Choose its type key from the list, the person it is about from the list (or null), a short name, and its expiry date (YYYY-MM-DD) if it states one. Shape: {"typeKey":string|null,"personId":string|null,"title":string,"expiresOn":string|null}.`,
     context: {
       fileName: input.name,
@@ -471,6 +476,7 @@ export async function describeType(
   if (!hr.ok) return hr;
   if (deps.reader === undefined) return ok({ available: false, type: null, question: null });
   const answer = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction:
       'Turn an HR description of a kind of document into its settings. Reply with JSON only: {"type":{"key":snake_case,"name":string,"kind":"Contract"|"Policy"|"Payslip"|"Letter"|"ID"|"Medical"|"Sheet"|"Template"|"Permit"|"Form","filedTo":"person"|"company","audience":"subject"|"everyone"|"hr","confidential":boolean,"medical":boolean,"signers":["subject"|"hr"],"acknowledge":boolean,"requiredFor":"new_starters"|"everyone"|null,"requiredBy":0,"expiryReminders":[number],"retention":{"kind":"after_leaving","years":number}|{"kind":"until_leaving","plusYears":number}|{"kind":"years","years":number}|{"kind":"days","days":number}|{"kind":"forever"},"aiReads":[string],"aiEnabled":true},"question":string|null} where question is the one thing the description leaves open.',
     context: { description: words },
@@ -502,6 +508,7 @@ export async function readFields(
   if (names.length === 0) return ok({ available: false, fields: [] });
   const { pages, title } = got.value;
   const answer = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction: `${RULES} Read these fields from the document, each with the page it is on, exactly as written but dates as YYYY-MM-DD; leave out any the document does not state. Shape: {"fields":[{"name":string,"value":string,"page":number}]}.`,
     context: { title, fields: names, pages: forModel(pages) },
   });

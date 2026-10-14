@@ -342,6 +342,8 @@ export interface Mailer {
  */
 export interface Reader {
   read(input: {
+    /** Whose request: its people's names are what `privately` hides from the model. */
+    readonly tenantId: TenantId;
     readonly instruction: string;
     readonly context: Readonly<Record<string, unknown>>;
     /** How long the answer may be; a drafted document needs more than a summary. */

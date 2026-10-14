@@ -62,6 +62,7 @@ export async function proposeSplit(
   if (deps.reader === undefined || pages === null)
     return ok({ available: false, pages: count, parts: whole });
   const answer = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction: `${RULES} These pages are several documents scanned together. Say where each document starts and ends, its type key from the list (or null), the person it is about from the list (or null), and a short name. Shape: {"parts":[{"from":number,"to":number,"typeKey":string|null,"personId":string|null,"title":string}]}, covering every page once, in order.`,
     context: {
       types: setup.value.types.map((t) => ({ key: t.key, name: t.name })),

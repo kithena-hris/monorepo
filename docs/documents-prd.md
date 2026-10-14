@@ -369,7 +369,22 @@ People's and the assistant's rule is that a model sees names, never values.
 document is the feature. Recorded in `docs/tech-stack.md`:
 
 - A model reads a document's text only for someone who may open it, and only
-  for that request. Nothing is stored except the answer, keyed to the version.
+  for that request.
+- **The model is shown about nobody** (decided 2026-10-14). Before anything
+  leaves Documents, every name of the company's people, email, phone or
+  identity number, bank account and document number becomes a stand-in
+  (`[[Person 1]]`, `[[Email 1]]`); the answer comes back with the stand-ins
+  and only then, in Documents, are the values put back. The map lives for one
+  request and is never stored. Amounts and dates stay, since a contract's
+  summary needs them and says nothing about whose it is without the names. An
+  image read by a model that sees goes as it is, because pixels cannot be
+  masked; what it transcribes is masked from then on.
+- **Nothing a model reads or writes is stored**: not its answer, not the text
+  it was sent, not against a write's idempotency key (a retry asks again).
+  Nothing about it is logged.
+- The provider keeps nothing either: Groq retains no inference inputs or
+  outputs by default, and its Data Controls switch off the features (batch,
+  fine-tuning) that would.
 - Medical documents (a type flagged medical): dates only. The text never leaves
   Documents; a date parser runs locally.
 - Types may switch AI off entirely (S7: "Off for investigation notes").

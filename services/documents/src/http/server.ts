@@ -8,6 +8,7 @@ import { uuidv7 } from '../infrastructure/ids.js';
 import { CAPABILITIES_PREFIX, capabilitiesHandler } from './capabilities.js';
 import { callerFromHeaders, type CallerFrom } from './caller.js';
 import { openApiDocument } from './openapi.js';
+import { privately } from '../application/text.js';
 import { restHandler, type RestRequest, type RestResponse } from './rest.js';
 
 type Listener = (request: IncomingMessage, response: ServerResponse) => void;
@@ -113,7 +114,8 @@ export function documentsServer(options: DocumentsServerOptions): {
     newId: options.newId ?? uuidv7,
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.transfers === undefined ? {} : { transfers: options.transfers }),
-    ...(options.reader === undefined ? {} : { reader: options.reader }),
+    // Every model request goes masked (PRD §14.1): no feature reaches the model otherwise.
+    ...(options.reader === undefined ? {} : { reader: privately(options.reader, options.uow) }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   const capabilities = capabilitiesHandler({
