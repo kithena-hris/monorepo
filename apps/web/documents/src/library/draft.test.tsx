@@ -24,7 +24,7 @@ describe('a document drafted with Kithena (§14.2)', () => {
     const onDraftDocument = vi.fn(() =>
       Promise.resolve({
         ok: true as const,
-        data: { available: true, reply: 'Here it is.', draft },
+        data: { available: true, reply: 'Here it is.', action: null, draft },
       }),
     );
     const onFileDraft = vi.fn(() =>
@@ -59,6 +59,37 @@ describe('a document drafted with Kithena (§14.2)', () => {
     });
     expect(onFileDraft).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Offer letter', aboutPersonId: 'p-omar' }),
+      true,
+    );
+  });
+
+  it('sends it when told to in words, as the button would', async () => {
+    const onFileDraft = vi.fn(() =>
+      Promise.resolve({ ok: true as const, data: { id: 'd-1', envelopeId: 'e-1' } }),
+    );
+    const onDone = vi.fn();
+    render(
+      <DraftDialog
+        open
+        onOpenChange={vi.fn()}
+        onDraftDocument={() =>
+          Promise.resolve({
+            ok: true as const,
+            data: { available: true, reply: 'Sending it now.', action: 'send' as const, draft },
+          })
+        }
+        onFileDraft={onFileDraft}
+        onDone={onDone}
+      />,
+    );
+    const box = screen.getByRole('textbox', { name: 'Message Kithena' });
+    fireEvent.change(box, { target: { value: 'Send it' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    await vi.waitFor(() => {
+      expect(onDone).toHaveBeenCalledWith('/documents/envelopes/e-1');
+    });
+    expect(onFileDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Offer letter' }),
       true,
     );
   });

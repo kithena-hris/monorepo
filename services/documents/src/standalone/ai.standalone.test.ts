@@ -427,7 +427,12 @@ describe('a document drafted with Kithena (§14.2)', () => {
       draft: null,
       companyName: 'Acme',
     });
-    expect(asked.body).toEqual({ available: true, reply: 'From when does it start?', draft: null });
+    expect(asked.body).toEqual({
+      available: true,
+      reply: 'From when does it start?',
+      action: null,
+      draft: null,
+    });
     expect(seen.at(-1)).toMatchObject({ you: 'Ada Test', messages: said });
 
     reply = {
@@ -460,6 +465,26 @@ describe('a document drafted with Kithena (§14.2)', () => {
       ],
     });
     expect(turn.body.reply).toMatch(/can’t find Grace Hopper/);
+
+    // "Send it" while Grace is unknown: not sent, and said why.
+    reply = { ...reply, action: 'send' };
+    const early = await call('ada', 'POST', '/v1/documents/drafts/turn', {
+      messages: [...said, { role: 'user', text: 'Send it' }],
+      draft: null,
+      companyName: 'Acme',
+    });
+    expect(early.body.action).toBeNull();
+    expect(early.body.reply).toMatch(/^It is not ready yet\. I can’t find Grace Hopper/);
+
+    // Once everybody is known, the words are the button.
+    const draft = (reply as { draft: { signers: unknown[] } }).draft;
+    reply = { ...reply, draft: { ...draft, signers: draft.signers.slice(0, 2) } };
+    const sent = await call('ada', 'POST', '/v1/documents/drafts/turn', {
+      messages: [...said, { role: 'user', text: 'Send it' }],
+      draft: null,
+      companyName: 'Acme',
+    });
+    expect(sent.body).toMatchObject({ action: 'send', draft: { ready: true } });
     expect((await call('adam', 'POST', '/v1/documents/drafts/turn', { messages: said, draft: null, companyName: 'Acme' })).status).toBe(403);
   });
 

@@ -403,7 +403,8 @@ Signers are matched by name among the company's people, an email for anyone
 outside, and a name that could mean two people is asked, never guessed. The
 signing lines are Kithena's, not the model's, so every signer's box lands on
 their own line in their order, and a figure in the draft that HR never gave
-is shown to check before it is sent.
+is shown to check before it is sent. Saying so ("send it", "just file
+it") does what the buttons do, and only once the draft is ready.
 
 Every feature degrades to a working screen without the key. CI runs the
 standalone suite with and without it.

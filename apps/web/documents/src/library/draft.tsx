@@ -24,8 +24,8 @@ import type { Read } from '../types';
 /**
  * A document drafted with Kithena (PRD §14.2): HR says what they need, Kithena
  * asks for what is missing and writes it, and the draft beside the
- * conversation is filed and sent to sign in one press, each signer's box
- * already on their own line. Nothing is kept until then: the conversation and
+ * conversation is filed and sent to sign in one press, or by saying so ("send
+ * it"), each signer's box already on their own line. Nothing is kept until then: the conversation and
  * the draft travel with each turn.
  */
 
@@ -51,6 +51,8 @@ export interface Draft {
 export interface DraftReply {
   readonly available: boolean;
   readonly reply: string;
+  /** "Send it" or "just file it", said in words once the draft is ready. */
+  readonly action: 'send' | 'file' | null;
   readonly draft: Draft | null;
 }
 
@@ -119,38 +121,45 @@ export function DraftDialog({
       }
       setSaid([...messages, { role: 'assistant', text: r.data.reply }]);
       if (r.data.draft !== null) setDraft(r.data.draft);
+      if (r.data.action !== null && r.data.draft !== null) {
+        await filing(r.data.draft, r.data.action === 'send');
+      }
     });
   };
 
+  /** Filed as it stands, and sent to its signers when `andSend`. */
+  const filing = async (doc: Draft, andSend: boolean): Promise<void> => {
+    if (onFileDraft === undefined) return;
+    const r = await onFileDraft(
+      {
+        title: doc.title,
+        typeKey: doc.typeKey,
+        aboutPersonId: doc.aboutPersonId,
+        body: doc.body,
+        signers: doc.signers.map(({ name, email, order, personId }) => ({
+          name,
+          email,
+          order,
+          personId,
+        })),
+      },
+      andSend,
+    );
+    if (!r.ok) {
+      setError(r.message);
+      return;
+    }
+    onDone(
+      r.data.envelopeId === null
+        ? `/documents/d/${r.data.id}`
+        : `/documents/envelopes/${r.data.envelopeId}`,
+    );
+  };
+
   const file = (andSend: boolean): void => {
-    if (onFileDraft === undefined || draft === null) return;
+    if (draft === null) return;
     setError(null);
-    start(async () => {
-      const r = await onFileDraft(
-        {
-          title: draft.title,
-          typeKey: draft.typeKey,
-          aboutPersonId: draft.aboutPersonId,
-          body: draft.body,
-          signers: draft.signers.map(({ name, email, order, personId }) => ({
-            name,
-            email,
-            order,
-            personId,
-          })),
-        },
-        andSend,
-      );
-      if (!r.ok) {
-        setError(r.message);
-        return;
-      }
-      onDone(
-        r.data.envelopeId === null
-          ? `/documents/d/${r.data.id}`
-          : `/documents/envelopes/${r.data.envelopeId}`,
-      );
-    });
+    start(() => filing(draft, andSend));
   };
 
   const signs = draft !== null && draft.signers.length > 0;
@@ -162,7 +171,7 @@ export function DraftDialog({
           <DialogTitle>Draft with Kithena</DialogTitle>
           <DialogDescription>
             Say what you need. Kithena asks for anything missing, writes it, and places a box for
-            each signer in the order you give.
+            each signer in the order you give. Say “send it” when it is right.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="grid gap-4 md:grid-cols-2">

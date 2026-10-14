@@ -173,6 +173,7 @@ export const DraftSigner = z.strictObject({
 /** What the model answers: a reply, and the draft once there is one. */
 const Answer = z.object({
   reply: z.string().trim().min(1).max(2000),
+  action: z.enum(['send', 'file']).nullable().catch(null),
   draft: z
     .object({
       title: z.string().trim().min(1).max(200),
@@ -213,6 +214,12 @@ export const DraftView = z
   .object({
     available: z.boolean(),
     reply: z.string(),
+    /**
+     * What the sender asked for in words ("send it", "just file it"), once
+     * the draft is ready: the screen then files it, and sends it for `send`,
+     * as the buttons would.
+     */
+    action: z.enum(['send', 'file']).nullable(),
     draft: z
       .object({
         title: z.string(),
@@ -244,7 +251,7 @@ const DRAFTING = [
   'The JSON you get has: "messages", the conversation so far, oldest first; "draft", your last draft or null;',
   '"you", the name of the person you talk with ("me" and "I" in their messages); "company"; "today";',
   'and "types", the company\'s document types, each {key, name, filedTo}.',
-  'Answer with JSON only: {"reply": string, "draft": null | {"title": string, "typeKey": string | null,',
+  'Answer with JSON only: {"reply": string, "action": "send" | "file" | null, "draft": null | {"title": string, "typeKey": string | null,',
   '"about": string | null, "body": string, "signers": [{"name": string, "email": string | null, "order": number}]}}.',
   'Rules:',
   '- When something essential is missing (whom it is for, who signs, the terms that matter), ask for it in "reply",',
@@ -259,9 +266,17 @@ const DRAFTING = [
   '  that fits best, or null when none does.',
   '- When asked for a change, return the whole revised draft. "reply" is one or two sentences: what you drafted',
   '  or changed, or your question. Write in the language of the conversation.',
+  '- "action" is "send" when the last message asks to send the draft for signature now ("send it", "go ahead"),',
+  '  "file" when it asks to save or file it without sending, and null otherwise. With an action, return the draft',
+  '  unchanged and say in "reply" that it is being sent or filed.',
 ].join('\n');
 
-const noDraft = (reply: string): DraftView => ({ available: false, reply, draft: null });
+const noDraft = (reply: string): DraftView => ({
+  available: false,
+  reply,
+  action: null,
+  draft: null,
+});
 
 export async function draftDocument(
   deps: Deps,
@@ -296,8 +311,15 @@ export async function draftDocument(
   });
   const answer = Answer.safeParse(read);
   if (!answer.success) return ok(noDraft('Kithena could not draft that just now. Try again.'));
-  const { reply, draft } = answer.data;
-  if (draft === null) return ok({ available: true, reply, draft: null });
+  const { reply, draft, action } = answer.data;
+  if (draft === null) {
+    return ok({
+      available: true,
+      reply: action === null ? reply : 'There is nothing to send yet. What do you need?',
+      action: null,
+      draft: null,
+    });
+  }
 
   // Who each name is: the person talking, somebody here, or somebody outside by email.
   const asks: string[] = [];
@@ -336,9 +358,23 @@ export async function draftDocument(
     .filter((m) => m.role === 'user')
     .map((m) => m.text)
     .join('\n');
+  const ready =
+    asks.length === 0 &&
+    signers.every((s) => s.personId !== null || s.email !== null) &&
+    (type === null || type.filedTo === 'company' || subject !== null);
+  // Asked in words, done only when the buttons could: ready, and somebody to send it to.
+  const done = !ready || (action === 'send' && signers.length === 0) ? null : action;
+  if (action !== null && done === null) {
+    asks.unshift(
+      signers.length === 0
+        ? 'Nobody signs it yet, so there is nobody to send it to.'
+        : 'It is not ready yet.',
+    );
+  }
   return ok({
     available: true,
-    reply: [reply, ...asks].join(' '),
+    reply: [action !== null && done === null ? '' : reply, ...asks].filter(Boolean).join(' '),
+    action: done,
     draft: {
       title: draft.title,
       typeKey: type?.key ?? null,
@@ -348,10 +384,7 @@ export async function draftDocument(
       body: draft.body,
       signers,
       figures: figuresToCheck(`${draft.title}\n${draft.body}`, said),
-      ready:
-        asks.length === 0 &&
-        signers.every((s) => s.personId !== null || s.email !== null) &&
-        (type === null || type.filedTo === 'company' || subject !== null),
+      ready,
     },
   });
 }
