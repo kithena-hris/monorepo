@@ -216,6 +216,8 @@ export function DocumentToSign({
     (f) => f.id === waiting && (f.kind === 'text' || f.kind === 'title'),
   );
   const [text, setText] = useState('');
+  // The bar waits for the pages: Start before them would have nowhere to go.
+  const [shown, setShown] = useState(false);
   // A sealed copy carries its stamps: nothing is laid over it.
   const boxes = env.status === 'completed' ? [] : signing === null ? env.fields : signing.mine;
 
@@ -224,6 +226,9 @@ export function DocumentToSign({
       <PdfPages
         src={url}
         label={env.title}
+        onLoad={() => {
+          setShown(true);
+        }}
         overlay={(page) => (
           <PlacementLayer
             focus={signing?.focus ?? null}
@@ -281,7 +286,7 @@ export function DocumentToSign({
           />
         )}
       />
-      {signing === null ? null : (
+      {signing === null || !shown ? null : (
         <StepBar signing={signing} onFinish={onFinish} finishing={finishing} />
       )}
       <Dialog
