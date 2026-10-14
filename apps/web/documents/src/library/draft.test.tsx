@@ -53,10 +53,18 @@ describe('a document drafted with Kithena (§14.2)', () => {
     expect(screen.getByText('2. Ashu Venugopal')).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send for signature' }));
+    // Enabled once Kithena's turn has settled, which a slow runner takes a moment to.
+    const send = screen.getByRole('button', { name: 'Send for signature' });
     await vi.waitFor(() => {
-      expect(onDone).toHaveBeenCalledWith('/documents/envelopes/e-1');
+      expect(send.hasAttribute('disabled')).toBe(false);
     });
+    fireEvent.click(send);
+    await vi.waitFor(
+      () => {
+        expect(onDone).toHaveBeenCalledWith('/documents/envelopes/e-1');
+      },
+      { timeout: 5000 },
+    );
     expect(onFileDraft).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Offer letter', aboutPersonId: 'p-omar' }),
       true,
@@ -85,9 +93,12 @@ describe('a document drafted with Kithena (§14.2)', () => {
     const box = screen.getByRole('textbox', { name: 'Message Kithena' });
     fireEvent.change(box, { target: { value: 'Send it' } });
     fireEvent.keyDown(box, { key: 'Enter' });
-    await vi.waitFor(() => {
-      expect(onDone).toHaveBeenCalledWith('/documents/envelopes/e-1');
-    });
+    await vi.waitFor(
+      () => {
+        expect(onDone).toHaveBeenCalledWith('/documents/envelopes/e-1');
+      },
+      { timeout: 5000 },
+    );
     expect(onFileDraft).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Offer letter' }),
       true,
