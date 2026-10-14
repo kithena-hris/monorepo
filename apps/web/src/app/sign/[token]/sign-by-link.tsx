@@ -123,7 +123,8 @@ export function SignByLink({
       fileUrl={fileUrl}
       verified={envelope.me.status === 'verified'}
       onDone={(message, signed) => {
-        setStamped(signed);
+        // A decline has nothing to draw.
+        setStamped(signed ?? null);
         setDone(message);
       }}
     />
@@ -146,7 +147,7 @@ function SignNow({
   /** They confirmed the code already, on an earlier visit. */
   readonly verified: boolean;
   /** Signed: what to say, and what they signed, to draw until the new copy loads. */
-  readonly onDone: (done: string, stamped: Stamped) => void;
+  readonly onDone: (done: string, stamped?: Stamped) => void;
 }): JSX.Element {
   // The name the sender gave them: what a typed signature says.
   const name = envelope.signers.find((s) => s.id === envelope.me?.signerId)?.name ?? '';
