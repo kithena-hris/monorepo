@@ -234,6 +234,13 @@ export interface CellPlace {
  * screen remembering it (§8.3). Null for a type with no control of its own
  * here (a file, which `AttributeInput` uploads).
  */
+/**
+ * The legal first and last name of the person whose record this is: a
+ * signature field is adopted in it, never in a preferred name. Empty where
+ * the screen does not know it, and then the name is typed.
+ */
+export const LegalName = createContext('');
+
 export function AttributeControl({
   field,
   value,
@@ -258,6 +265,7 @@ export function AttributeControl({
   readonly 'aria-invalid'?: boolean;
   readonly 'aria-required'?: boolean;
 }): JSX.Element | null {
+  const legalName = useContext(LegalName);
   const size = cell === undefined ? 'md' : 'sm';
   const opened = cell?.open === true ? { defaultOpen: true } : {};
   const named = cell === undefined ? {} : { 'aria-label': label };
@@ -273,7 +281,7 @@ export function AttributeControl({
       return (
         <SignatureInput
           {...control}
-          name=""
+          name={legalName}
           value={signatureOf(value)}
           disabled={disabled}
           onChange={(next) => {

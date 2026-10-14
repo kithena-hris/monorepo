@@ -29,7 +29,6 @@ import { ScanLine, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { fullName } from '../account-card';
 import { SIGNATURE_FACES } from '../signature-faces';
 import { markOf } from '../signature-mark';
 import { ask, useSigned, type RecordField, type Value } from './api';
@@ -228,7 +227,12 @@ function Control({
       return (
         <SignatureField
           label={field.label}
-          name={personId === null ? fullName(signed.person) : ''}
+          // The legal name, never a preferred one: a signature is a legal mark.
+          name={
+            personId === null && signed.person.name !== null
+              ? `${signed.person.name.given} ${signed.person.name.family}`.trim()
+              : ''
+          }
           value={markOf(text(value))}
           disabled={disabled}
           onChange={(mark) => {

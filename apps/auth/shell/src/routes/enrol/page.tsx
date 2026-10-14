@@ -849,6 +849,7 @@ export default function Enrol(): JSX.Element {
                 <Question
                   key={question.key}
                   question={question}
+                  legalName={asStored(draft).legal.trim()}
                   value={answers[question.key] ?? (question.dataType === 'boolean' ? false : '')}
                   problem={problem?.field === question.key ? problem.message : null}
                   onChange={(value) => {
@@ -1043,11 +1044,14 @@ export default function Enrol(): JSX.Element {
  */
 function Question({
   question,
+  legalName,
   value,
   problem,
   onChange,
 }: {
   question: SignupQuestion;
+  /** Theirs, as given above: a signature is adopted in it, never in a preferred name. */
+  legalName: string;
   value: Answer;
   problem: string | null;
   onChange: (value: Answer) => void;
@@ -1090,7 +1094,7 @@ function Question({
       case 'signature':
         return (
           <SignatureInput
-            name=""
+            name={legalName}
             value={signatureOf(text)}
             onChange={(next) => {
               onChange(next === null ? '' : JSON.stringify(next));

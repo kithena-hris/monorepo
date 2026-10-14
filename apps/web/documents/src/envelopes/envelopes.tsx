@@ -34,12 +34,13 @@ import {
   Spinner,
   Stepper,
   icons,
+  isFilled,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { WhereTheySign, startingFields, type PlacedField } from './prepare';
-import { AdoptDialog, DocumentToSign, useSigning, type Signing } from './sign-view';
+import { AdoptDialog, DocumentToSign, SIGNED, useSigning, type Signing } from './sign-view';
 import { shortDate, useWrite } from '../shared';
 import type {
   Created,
@@ -234,7 +235,7 @@ function SendSteps({
     setStep(1);
   };
   const unplaced = signers.some(
-    (s) => !fields.some((f) => f.signer === s.key && f.kind === 'signature'),
+    (s) => !fields.some((f) => f.signer === s.key && (f.kind === 'signature' || f.kind === 'date')),
   );
   const [outside, setOutside] = useState({ email: '', name: '' });
   const [message, setMessage] = useState('');
@@ -580,11 +581,29 @@ function EnvelopePage({
       live = false;
     };
   }, [env.id, env.status, props.onFileLink]);
-  const signingNow = env.me?.turn === true && env.status === 'sent';
-  const myName = env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
+  // Kept through the refresh the signing causes, when this signer's part has gone.
+  const [done, setDone] = useState<string | null>(null);
+  const finish = useWrite();
+  const signingNow = env.me?.turn === true && env.status === 'sent' && done === null;
+  // A document is signed with the legal name People keeps, never a preferred one.
+  const myName = env.legalName ?? env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
   const signing = useSigning(env, myName, (mark) => {
     void props.onKeepSignature?.(mark);
   });
+  const onFinish = () => {
+    finish.run(async () => {
+      const signature = signing.mark ?? { kind: 'typed' as const, text: myName };
+      const r = await (props.onSign?.(env.id, signature, signing.values, signing.day) ??
+        Promise.resolve({ ok: false as const, message: 'Not available here' }));
+      if (!r.ok) return r;
+      setDone(
+        r.completed
+          ? 'Everybody has signed: the document is sealed and filed.'
+          : `${env.sender} and anyone after you sign next. The signed copy lands in your documents.`,
+      );
+      return { ok: true };
+    });
+  };
   return (
     <>
       <PageHeader
@@ -604,13 +623,19 @@ function EnvelopePage({
           {env.message}
         </Alert>
       )}
+      {done === null ? null : (
+        <Alert tone="success" title="Signed">
+          {done}
+        </Alert>
+      )}
       {env.voidReason === null ? null : (
         <Alert tone="neutral" title="Cancelled">
           {env.voidReason}
         </Alert>
       )}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <Card variant="fill" className="overflow-hidden">
+        {/* No overflow clipping: the step bar sticks to the bottom of the page through it. */}
+        <Card variant="fill">
           {link === null ? (
             <div className="grid min-h-[36rem] place-items-center">
               <Spinner label="Opening the document" />
@@ -622,12 +647,22 @@ function EnvelopePage({
                 url={link}
                 signing={signingNow ? signing : null}
                 name={myName}
+                onFinish={onFinish}
+                finishing={finish.pending}
               />
             </div>
           )}
         </Card>
         <div className="flex flex-col gap-4">
-          {signingNow ? <SignPanel env={env} signing={signing} name={myName} {...props} /> : null}
+          {signingNow ? (
+            <SignPanel
+              env={env}
+              signing={signing}
+              name={myName}
+              problem={finish.error}
+              {...props}
+            />
+          ) : null}
           <Card>
             <CardHeader>
               <CardTitle level={2}>Signers</CardTitle>
@@ -708,37 +743,35 @@ function EnvelopePage({
   );
 }
 
-/** K4–K7: the signer's part beside the document: what is left, Finish, and everything else. */
+/**
+ * K4–K7: the signer's part beside the document: what is left, the signature
+ * they sign with, and asking or declining. Finish is on the step bar, under
+ * the document, where the boxes are.
+ */
 export function SignPanel({
   env,
   signing,
   name,
-  onSign,
+  problem,
   onDecline,
   onAsk,
   onNavigate,
-}: { readonly env: EnvelopeData; readonly signing: Signing; readonly name: string } & Pick<
-  EnvelopeProps,
-  'onSign' | 'onDecline' | 'onAsk' | 'onNavigate'
->): JSX.Element {
+}: {
+  readonly env: EnvelopeData;
+  readonly signing: Signing;
+  readonly name: string;
+  /** Why Finish did not sign, from the bar. */
+  readonly problem: string | null;
+} & Pick<EnvelopeProps, 'onDecline' | 'onAsk' | 'onNavigate'>): JSX.Element {
   const [other, setOther] = useState<'ask' | 'decline' | null>(null);
   const [text, setText] = useState('');
-  const [done, setDone] = useState<string | null>(null);
+  const [asked, setAsked] = useState(false);
   const write = useWrite();
-  if (done !== null)
-    return (
-      <Alert tone="success" title="Signed">
-        {done}
-      </Alert>
-    );
-  const { mine, mark } = signing;
+  const { mine, mark, steps } = signing;
   /** Signed with the one on file: adopted in Settings, never changed here. */
   const onFile = env.signature?.mark != null;
-  const needsMark = mine.some((f) => f.kind === 'signature' || f.kind === 'initials');
-  const left = mine.filter((f) => {
-    const v = signing.filled[f.id];
-    return f.required && (v === undefined || v === '' || v === 'false');
-  });
+  const needsMark = mine.some((f) => SIGNED.has(f.kind));
+  const left = steps.filter((f) => f.required && !isFilled(signing.filled[f.id]));
   return (
     <Card variant="assistant">
       <CardHeader>
@@ -747,8 +780,8 @@ export function SignPanel({
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm">
           {left.length === 0
-            ? 'Every box of yours is filled.'
-            : `${String(left.length)} ${left.length === 1 ? 'box' : 'boxes'} to fill. Start takes you to each one.`}
+            ? 'Everything is filled in. Finish, under the document, signs it.'
+            : `${String(left.length)} ${left.length === 1 ? 'place' : 'places'} to fill in. Start, under the document, takes you to each one.`}
         </p>
         {mark === null ? null : (
           <div className="h-16 rounded-md bg-surface-sunken">
@@ -778,32 +811,14 @@ export function SignPanel({
             {mark === null ? 'Adopt your signature' : 'Change your signature'}
           </Button>
         ) : null}
-        {write.error === null ? null : (
+        {problem === null ? null : (
           <Alert tone="danger" title="Not signed">
-            {write.error}
+            {problem}
           </Alert>
         )}
-        <Button
-          variant="primary"
-          disabled={!signing.ready || (needsMark && mark === null)}
-          loading={write.pending}
-          onClick={() => {
-            write.run(async () => {
-              const signature = mark ?? { kind: 'typed' as const, text: name };
-              const r = await (onSign?.(env.id, signature, signing.values, signing.day) ??
-                Promise.resolve({ ok: false as const, message: 'Not available here' }));
-              if (!r.ok) return r;
-              setDone(
-                r.completed
-                  ? 'Everybody has signed: the document is sealed and filed.'
-                  : `${env.sender} and anyone after you sign next. The signed copy lands in your documents.`,
-              );
-              return { ok: true };
-            });
-          }}
-        >
-          Finish
-        </Button>
+        {asked ? (
+          <Alert tone="success">Your question was sent. The request waits for you.</Alert>
+        ) : null}
         <p className="text-xs text-fg-muted">
           Signed with your Kithena login. The time and your device are recorded.
         </p>
@@ -884,7 +899,7 @@ export function SignPanel({
                   () => {
                     setOther(null);
                     if (what === 'decline') onNavigate?.('/documents/all');
-                    else setDone('Your question was sent. The request waits for you.');
+                    else setAsked(true);
                   },
                 );
               }}

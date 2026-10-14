@@ -72,7 +72,7 @@ interface EnvelopeField {
 const KIND_LABEL: Readonly<Record<Kind, string>> = {
   signature: 'Signature',
   initials: 'Initials',
-  date: 'Date signed',
+  date: 'Dated signature',
   name: 'Name',
   title: 'Job title',
   text: 'Text',
@@ -82,7 +82,7 @@ const KIND_LABEL: Readonly<Record<Kind, string>> = {
 const HINT: Readonly<Record<Kind, string>> = {
   signature: 'Sign',
   initials: 'Initial',
-  date: 'Date',
+  date: 'Sign and date',
   name: 'Name',
   title: 'Title',
   text: 'Text',
@@ -98,13 +98,22 @@ const today = (): string =>
     new Date(),
   );
 
+/** The boxes a signature fills: a dated signature is one, with the day under it. */
+const SIGNED: ReadonlySet<Kind> = new Set(['signature', 'initials', 'date']);
+
+/** What a box holds once a signature is applied: a dated one holds the day. */
+const signedValue = (f: EnvelopeField): string => (f.kind === 'date' ? today() : 'signed');
+
 /** The web's `useSigning`: which box is due comes from Reach's placement model, as there. */
 function useSigning(env: SigningEnvelope, name: string, onFile: SignatureValue | null) {
   const me = env.me?.signerId ?? '';
   // A fresh array from filter(), so sorting it in place is safe; Hermes has no toSorted.
   const mine = env.fields.filter((f) => f.signerId === me).sort(readingOrder);
   const [mark, setMark] = useState<SignatureValue | null>(onFile);
-  const [filled, setFilled] = useState<Readonly<Record<string, string>>>({});
+  // A name box is theirs already: filled with their legal name, never a step.
+  const [filled, setFilled] = useState<Readonly<Record<string, string>>>(() =>
+    Object.fromEntries(mine.filter((f) => f.kind === 'name').map((f) => [f.id, name])),
+  );
   const [focus, setFocus] = useState<string | null>(null);
   const [adopting, setAdopting] = useState(false);
   const [waiting, setWaiting] = useState<string | null>(null);
@@ -121,13 +130,11 @@ function useSigning(env: SigningEnvelope, name: string, onFile: SignatureValue |
     switch (f.kind) {
       case 'signature':
       case 'initials':
+      case 'date':
         if (mark === null) {
           setWaiting(f.id);
           setAdopting(true);
-        } else setFilled((was) => ({ ...was, [f.id]: 'signed' }));
-        return;
-      case 'date':
-        setFilled((was) => ({ ...was, [f.id]: today() }));
+        } else setFilled((was) => ({ ...was, [f.id]: signedValue(f) }));
         return;
       case 'name':
         setFilled((was) => ({ ...was, [f.id]: name }));
@@ -161,7 +168,8 @@ function useSigning(env: SigningEnvelope, name: string, onFile: SignatureValue |
       setMark(m);
       setAdopting(false);
       // The box that asked for it gets it at once.
-      if (waiting !== null) setFilled((was) => ({ ...was, [waiting]: 'signed' }));
+      const asked = mine.find((f) => f.id === waiting);
+      if (asked !== undefined) setFilled((was) => ({ ...was, [asked.id]: signedValue(asked) }));
       setWaiting(null);
     },
     setText: (id: string, text: string) => {
@@ -190,7 +198,10 @@ interface OnFile {
   readonly canKeep: boolean;
 }
 
-async function onFileFor(signed: Signed): Promise<OnFile | null> {
+/** The signature on file, if People keeps one, and the legal name a signature says. */
+async function onFileFor(
+  signed: Signed,
+): Promise<{ readonly onFile: OnFile | null; readonly legalName: string | null }> {
   const profile = await ask<{
     sections: readonly {
       fields: readonly { key: string; dataType: string; readOnly: boolean }[];
@@ -198,14 +209,19 @@ async function onFileFor(signed: Signed): Promise<OnFile | null> {
     values: readonly { key: string; text?: string }[];
     pending: readonly { key: string }[];
   }>(signed, 'Profile', { personId: null });
-  if (!profile.ok) return null;
+  if (!profile.ok) return { onFile: null, legalName: null };
+  const said = (key: string) => profile.data.values.find((v) => v.key === key)?.text?.trim() ?? '';
+  const legalName = `${said('given_name')} ${said('family_name')}`.trim() || null;
   const field = profile.data.sections
     .flatMap((s) => s.fields)
     .find((f) => f.dataType === 'signature');
-  if (field === undefined) return null;
+  if (field === undefined) return { onFile: null, legalName };
   const mark = markOf(profile.data.values.find((v) => v.key === field.key)?.text);
   const pending = profile.data.pending.some((p) => p.key === field.key);
-  return { key: field.key, mark, canKeep: !field.readOnly && mark === null && !pending };
+  return {
+    onFile: { key: field.key, mark, canKeep: !field.readOnly && mark === null && !pending },
+    legalName,
+  };
 }
 
 /** The file being signed, as a `data:` URL for `PdfPages`: fetched by the phone, never through the company's host. */
@@ -231,7 +247,12 @@ async function fileFor(signed: Signed, envelopeId: string): Promise<string> {
 type Ready =
   | { readonly status: 'loading' }
   | { readonly status: 'error'; readonly message: string }
-  | { readonly status: 'ready'; readonly src: string; readonly onFile: OnFile | null };
+  | {
+      readonly status: 'ready';
+      readonly src: string;
+      readonly onFile: OnFile | null;
+      readonly legalName: string | null;
+    };
 
 export function SignDocument({
   env,
@@ -254,8 +275,8 @@ export function SignDocument({
     setLoad({ status: 'loading' });
     // All at once: the faces and the signature on file are ready long before the file is.
     void Promise.all([fileFor(signed, env.id), onFileFor(signed), signatureFaces()]).then(
-      ([src, onFile]) => {
-        if (live) setLoad({ status: 'ready', src, onFile });
+      ([src, { onFile, legalName }]) => {
+        if (live) setLoad({ status: 'ready', src, onFile, legalName });
       },
       (e: unknown) => {
         if (live)
@@ -291,6 +312,7 @@ export function SignDocument({
       env={env}
       src={load.src}
       onFile={load.onFile}
+      legalName={load.legalName}
       back={back}
       onAsk={onAsk}
       onDecline={onDecline}
@@ -303,6 +325,7 @@ function Signing({
   env,
   src,
   onFile,
+  legalName,
   back,
   onAsk,
   onDecline,
@@ -311,13 +334,15 @@ function Signing({
   readonly env: SigningEnvelope;
   readonly src: string;
   readonly onFile: OnFile | null;
+  /** From People: what a name box and a typed signature say, never a preferred name. */
+  readonly legalName: string | null;
   readonly back: { label: string; onPress: () => void };
   readonly onAsk: () => void;
   readonly onDecline: () => void;
   readonly onSigned: (completed: boolean) => void;
 }): React.JSX.Element {
   const signed = useSigned();
-  const name = env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
+  const name = legalName ?? env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
   const signing = useSigning(env, name, onFile?.mark ?? null);
   const [menu, setMenu] = useState(false);
   const [text, setText] = useState('');
@@ -327,9 +352,18 @@ function Signing({
     (f) => f.id === signing.waiting && (f.kind === 'text' || f.kind === 'title'),
   );
   const focused = signing.mine.find((f) => f.id === signing.focus);
-  const filledCount = signing.mine.filter(signing.done).length;
   const company = signed.company.displayName ?? signed.company.slug;
-  const needsMark = signing.mine.some((f) => f.kind === 'signature' || f.kind === 'initials');
+  const needsMark = signing.mine.some((f) => SIGNED.has(f.kind));
+  // The steps walked through: every box but a name, which fills itself.
+  const steps = signing.mine.filter(
+    (f) => f.kind !== 'name' && (f.required || f.kind !== 'checkbox'),
+  );
+  const at = steps.findIndex((f) => f.id === signing.focus);
+  const where = signing.ready
+    ? 'Everything is filled in. Finish to sign.'
+    : at === -1
+      ? `${String(steps.length)} ${steps.length === 1 ? 'place' : 'places'} for you to fill in. Start takes you to each one.`
+      : `Step ${String(at + 1)} of ${String(steps.length)} · ${steps[at]?.label ?? KIND_LABEL[steps[at]?.kind ?? 'signature']}`;
   // The signer's colour on the sender's screen: one of six, by their place in the order.
   const tone = ((Math.max(
     0,
@@ -394,9 +428,7 @@ function Signing({
           </Button>
         ) : (
           <>
-            {focused !== undefined &&
-            (focused.kind === 'signature' || focused.kind === 'initials') &&
-            !signing.done(focused) ? (
+            {focused !== undefined && SIGNED.has(focused.kind) && !signing.done(focused) ? (
               <Button
                 className="flex-1"
                 variant="primary"
@@ -405,7 +437,11 @@ function Signing({
                   signing.apply(focused.id);
                 }}
               >
-                {signing.mark === null ? 'Adopt and apply' : 'Apply'}
+                {signing.mark === null
+                  ? 'Adopt and sign'
+                  : focused.kind === 'date'
+                    ? 'Sign and date'
+                    : 'Sign'}
               </Button>
             ) : null}
             <Button
@@ -426,10 +462,8 @@ function Signing({
         <Text variant="headline" numberOfLines={1}>
           {env.title}
         </Text>
-        <Text variant="footnote" tone="muted">
-          {signing.ready
-            ? 'Every box is filled. Finish to sign.'
-            : `${String(filledCount)} of ${String(signing.mine.length)} boxes filled`}
+        <Text variant="footnote" weight="semibold">
+          {where}
         </Text>
       </View>
       {problem === null ? null : (
@@ -466,8 +500,8 @@ function Signing({
               if (box.done !== true) return null;
               const f = signing.mine.find((x) => x.id === box.id);
               if (f === undefined) return null;
-              if ((f.kind === 'signature' || f.kind === 'initials') && signing.mark !== null)
-                return (
+              if (SIGNED.has(f.kind) && signing.mark !== null) {
+                const mark = (
                   <Signature
                     value={signing.mark}
                     initials={f.kind === 'initials'}
@@ -475,6 +509,21 @@ function Signing({
                     className="text-[var(--reach-neutral-900)]"
                   />
                 );
+                if (f.kind !== 'date') return mark;
+                // A dated signature: the signature, the day under it.
+                return (
+                  <View className="h-full w-full">
+                    <View className="flex-1">{mark}</View>
+                    <Text
+                      variant="caption"
+                      numberOfLines={1}
+                      className="text-center text-[var(--reach-neutral-900)]"
+                    >
+                      {signing.filled[f.id] ?? ''}
+                    </Text>
+                  </View>
+                );
+              }
               return (
                 <Text
                   variant="caption"

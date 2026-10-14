@@ -107,6 +107,34 @@ export function FormSaveBar({
   if (!open) return null;
 
   return (
+    <PinnedBar message={message} className={className}>
+      <Button size="sm" variant="on-invert" disabled={saving} onClick={onDiscard}>
+        {discardLabel}
+      </Button>
+      <Button size="sm" variant="primary" loading={saving} onClick={onSave}>
+        {saveLabel}
+      </Button>
+    </PinnedBar>
+  );
+}
+
+export interface PinnedBarProps {
+  /** What the page is in the middle of, announced as it changes: "Step 2 of 3 · Signature". */
+  message: ReactNode;
+  /** Its actions, the main one last. */
+  children: ReactNode;
+  className?: string | undefined;
+}
+
+/**
+ * The bar a page keeps in reach while something is under way: unsaved
+ * changes (`FormSaveBar`), a document being signed. Inverted, so it reads as
+ * a mode the page is in; sticky to the bottom of whatever scrolls, so put it
+ * last in the content it belongs to, with no `overflow` clipping between it
+ * and the scroller.
+ */
+export function PinnedBar({ message, children, className }: PinnedBarProps): JSX.Element {
+  return (
     <div
       {...PINNED_BAR}
       className={cn(
@@ -117,16 +145,11 @@ export function FormSaveBar({
         className,
       )}
     >
-      {/* Announced as it appears, so the change is audible as well as visible. */}
+      {/* Announced as it changes, so the step is audible as well as visible. */}
       <p role="status" className="min-w-0 flex-1 truncate text-sm font-semibold">
         {message}
       </p>
-      <Button size="sm" variant="on-invert" disabled={saving} onClick={onDiscard}>
-        {discardLabel}
-      </Button>
-      <Button size="sm" variant="primary" loading={saving} onClick={onSave}>
-        {saveLabel}
-      </Button>
+      {children}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { Card } from '../card/card';
 import { Alert } from '../feedback/feedback';
 import { Field, FieldControl, FieldError, FieldLabel } from '../field/field';
 import { Input } from '../input/input';
-import { FormSaveBar, FormSection, FormSections } from './form-sections';
+import { FormSaveBar, FormSection, FormSections, PinnedBar } from './form-sections';
 
 const meta = {
   title: 'Forms/Form sections',
@@ -178,4 +178,41 @@ export const ValidationSummary: Story = {
       </Field>
     </div>
   ),
+};
+
+/** A pinned bar of its own: the steps of something under way, the next one on the right. */
+export const PinnedSteps: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`PinnedBar` is the bar `FormSaveBar` is built on: a status that is announced as it changes, and the actions for the next step. Put it last in what it belongs to; it sticks to the bottom of whatever scrolls.',
+      },
+    },
+  },
+  render: function Steps() {
+    const [step, setStep] = useState(0);
+    return (
+      <div className="flex max-w-md flex-col gap-3">
+        <Card padded>Three boxes to fill, one after another.</Card>
+        <PinnedBar message={step === 3 ? 'Every box is filled' : `Step ${String(step + 1)} of 3`}>
+          {step === 3 ? (
+            <Button size="sm" variant="primary">
+              Finish
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                setStep((n) => n + 1);
+              }}
+            >
+              {step === 0 ? 'Start' : 'Next'}
+            </Button>
+          )}
+        </PinnedBar>
+      </div>
+    );
+  },
 };

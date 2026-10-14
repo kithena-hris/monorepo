@@ -7,6 +7,13 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   Field,
   FieldControl,
@@ -22,6 +29,7 @@ import { useState, useTransition, type JSX } from 'react';
 import {
   AdoptDialog,
   DocumentToSign,
+  SIGNED,
   useSigning,
   type EnvelopeData,
 } from '@kithena/web-documents/sign';
@@ -32,9 +40,10 @@ import { declineLink, requestCode, signLink, verifyCode } from './actions';
 export type LinkEnvelope = EnvelopeData;
 
 /**
- * K6 then K4–K5 for somebody outside: a code by email, then their fields,
- * a signature typed or drawn, and Sign. The document is shown beside it,
- * from a link that lasts minutes.
+ * K4–K6 for somebody outside the company, from the link in their email: the
+ * document opens at once with their boxes on it and the step bar under it,
+ * as a colleague sees it. Finish asks for the code we email them — proof the
+ * mailbox is theirs — once, and then signs.
  */
 export function SignByLink({
   token,
@@ -47,12 +56,7 @@ export function SignByLink({
   readonly envelope: LinkEnvelope | null;
   readonly fileUrl: string | null;
 }): JSX.Element {
-  const [verified, setVerified] = useState(envelope?.me?.status === 'verified');
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [code, setCode] = useState('');
-  const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const [pending, start] = useTransition();
 
   if (envelope === null) {
     return (
@@ -85,104 +89,81 @@ export function SignByLink({
       </main>
     );
   }
-  const act = (run: () => Promise<void>) => {
-    setProblem(null);
-    start(run);
-  };
-
-  if (!verified) {
-    return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
-        <PageHeader
-          title="Check it’s you"
-          description={`${company} sent you ${envelope.title} to sign.`}
-        />
-        {sentTo === null ? (
-          <Button
-            variant="primary"
-            loading={pending}
-            onClick={() => {
-              act(async () => {
-                const r = await requestCode(token);
-                if (r.ok) setSentTo(r.data.sentTo);
-                else setProblem(r.message);
-              });
-            }}
-          >
-            Email me a code
-          </Button>
-        ) : (
-          <>
-            <PinInput
-              label={`The code we emailed to ${sentTo}`}
-              value={code}
-              onChange={setCode}
-              length={6}
-              type="numeric"
-              autoFocus
-              onComplete={(full) => {
-                act(async () => {
-                  const r = await verifyCode(token, full);
-                  if (!r.ok) setProblem(r.message);
-                  else if (r.verified) setVerified(true);
-                  else {
-                    setProblem('That code is not right. Try again.');
-                    setCode('');
-                  }
-                });
-              }}
-            />
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSentTo(null);
-                setCode('');
-              }}
-            >
-              Send a new code
-            </Button>
-          </>
-        )}
-        {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
-      </main>
-    );
-  }
-
   return (
     <SignNow
       token={token}
       company={company}
       envelope={envelope}
       fileUrl={fileUrl}
+      verified={envelope.me.status === 'verified'}
       onDone={setDone}
     />
   );
 }
 
-/** Verified: their boxes on the document, Start and Next to each, Finish. */
+/** Their boxes on the document, the step bar under it, and the code at Finish. */
 function SignNow({
   token,
   company,
   envelope,
   fileUrl,
+  verified: verifiedAlready,
   onDone,
 }: {
   readonly token: string;
   readonly company: string;
   readonly envelope: LinkEnvelope;
   readonly fileUrl: string | null;
+  /** They confirmed the code already, on an earlier visit. */
+  readonly verified: boolean;
   readonly onDone: (done: string) => void;
 }): JSX.Element {
+  // The name the sender gave them: what a typed signature says.
   const name = envelope.signers.find((s) => s.id === envelope.me?.signerId)?.name ?? '';
   const signing = useSigning(envelope, name);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [verified, setVerified] = useState(verifiedAlready);
+  const [checking, setChecking] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState('');
-  const needsMark = signing.mine.some((f) => f.kind === 'signature' || f.kind === 'initials');
+  const needsMark = signing.mine.some((f) => SIGNED.has(f.kind));
   const act = (run: () => Promise<void>) => {
     setProblem(null);
     start(run);
+  };
+
+  const submit = async () => {
+    const r = await signLink(
+      token,
+      signing.mark ?? { kind: 'typed', text: name },
+      signing.values,
+      signing.day,
+    );
+    if (!r.ok) setProblem(r.message);
+    else
+      onDone(
+        r.data.completed
+          ? 'Signed. Everybody has signed; the sealed copy is with the sender.'
+          : 'Signed. The others sign next.',
+      );
+  };
+
+  // Finish: the code first, the one time, then the signature.
+  const finish = () => {
+    if (verified) {
+      act(submit);
+      return;
+    }
+    setChecking(true);
+    if (sentTo === null)
+      act(async () => {
+        const r = await requestCode(token);
+        if (r.ok) setSentTo(r.data.sentTo);
+        else setProblem(r.message);
+      });
   };
 
   return (
@@ -198,7 +179,14 @@ function SignNow({
           {fileUrl === null ? (
             <Alert tone="danger">The document could not be opened.</Alert>
           ) : (
-            <DocumentToSign env={envelope} url={fileUrl} signing={signing} name={name} />
+            <DocumentToSign
+              env={envelope}
+              url={fileUrl}
+              signing={signing}
+              name={name}
+              onFinish={finish}
+              finishing={pending}
+            />
           )}
         </Card>
         <Card variant="assistant" className="lg:sticky lg:top-4 lg:self-start">
@@ -208,8 +196,8 @@ function SignNow({
           <CardContent className="flex flex-col gap-4">
             <p className="text-sm">
               {signing.ready
-                ? 'Every box of yours is filled.'
-                : 'Start takes you to each box of yours; press it, or Apply, to fill it.'}
+                ? 'Everything is filled in. Finish, under the document, signs it.'
+                : 'Start, under the document, takes you to each place to sign.'}
             </p>
             {signing.mark === null ? null : (
               <div className="h-16 rounded-md bg-surface-sunken">
@@ -227,33 +215,10 @@ function SignNow({
                 {signing.mark === null ? 'Adopt your signature' : 'Change your signature'}
               </Button>
             ) : null}
-            {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
-            <Button
-              variant="primary"
-              disabled={!signing.ready || (needsMark && signing.mark === null)}
-              loading={pending}
-              onClick={() => {
-                act(async () => {
-                  const r = await signLink(
-                    token,
-                    signing.mark ?? { kind: 'typed', text: name },
-                    signing.values,
-                    signing.day,
-                  );
-                  if (!r.ok) setProblem(r.message);
-                  else
-                    onDone(
-                      r.data.completed
-                        ? 'Signed. Everybody has signed; the sealed copy is with the sender.'
-                        : 'Signed. The others sign next.',
-                    );
-                });
-              }}
-            >
-              Finish
-            </Button>
+            {problem === null || checking ? null : <Alert tone="danger">{problem}</Alert>}
             <p className="text-xs text-fg-muted">
-              Adopting a signature, you agree it is the legal equivalent of your handwritten one.
+              Adopting a signature, you agree it is the legal equivalent of your handwritten one. At
+              Finish we email you a code to confirm it is you.
             </p>
             {declining ? (
               <>
@@ -304,6 +269,66 @@ function SignNow({
         onOpenChange={signing.setAdopting}
         onAdopt={signing.adopt}
       />
+      <Dialog
+        open={checking}
+        onOpenChange={(open) => {
+          if (!open) setChecking(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm it’s you</DialogTitle>
+            <DialogDescription>
+              {sentTo === null
+                ? 'We are emailing you a six-digit code.'
+                : `We emailed a six-digit code to ${sentTo}. It works for ten minutes.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="flex flex-col gap-4">
+            <PinInput
+              label="Your code"
+              value={code}
+              onChange={setCode}
+              length={6}
+              type="numeric"
+              autoFocus
+              disabled={sentTo === null || pending}
+              onComplete={(full) => {
+                act(async () => {
+                  const r = await verifyCode(token, full);
+                  if (!r.ok) setProblem(r.message);
+                  else if (!r.verified) {
+                    setProblem('That code is not right. Try again.');
+                    setCode('');
+                  } else {
+                    setVerified(true);
+                    setChecking(false);
+                    await submit();
+                  }
+                });
+              }}
+            />
+            {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              disabled={pending}
+              onClick={() => {
+                setCode('');
+                setSentTo(null);
+                act(async () => {
+                  const r = await requestCode(token);
+                  if (r.ok) setSentTo(r.data.sentTo);
+                  else setProblem(r.message);
+                });
+              }}
+            >
+              Send a new code
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

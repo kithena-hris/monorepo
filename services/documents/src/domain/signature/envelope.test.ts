@@ -63,15 +63,33 @@ const ok = <T>(r: { ok: true; value: T } | { ok: false; error: { message: string
 };
 
 describe('sending (K1–K3)', () => {
-  it('places a signature and a date for each signer on the last page when none are given', () => {
+  it('places a dated signature for each signer on the last page when none are given', () => {
     const env = sent();
     expect(env.fields.map((f) => [f.signerId, f.kind, f.page])).toEqual([
-      ['s-yuki', 'signature', 6],
       ['s-yuki', 'date', 6],
-      ['s-nora', 'signature', 6],
       ['s-nora', 'date', 6],
     ]);
     expect(defaultFields(['a', 'b'], 1).every((f) => f.x >= 0 && f.x + f.w <= 1)).toBe(true);
+  });
+
+  it('takes a dated signature as a place to sign, and nothing that is not a signature', () => {
+    const box = (signerId: string, kind: 'date' | 'name') => ({
+      id: `${signerId}-${kind}`,
+      signerId,
+      kind,
+      page: 1,
+      x: 0.1,
+      y: 0.8,
+      w: 0.3,
+      h: 0.08,
+      required: true,
+      label: null,
+    });
+    expect(send({ ...input, fields: [box('s-yuki', 'date'), box('s-nora', 'date')] }).ok).toBe(
+      true,
+    );
+    const refused = send({ ...input, fields: [box('s-yuki', 'date'), box('s-nora', 'name')] });
+    expect(refused.ok).toBe(false);
   });
 
   it('sends to the first in order; the rest wait their turn', () => {
@@ -278,7 +296,7 @@ describe('fields beside the signature lines (K2)', () => {
       ],
       4,
     );
-    const sig = (id: string) => fields.find((f) => f.signerId === id && f.kind === 'signature');
+    const sig = (id: string) => fields.find((f) => f.signerId === id && f.kind === 'date');
     expect(sig('a')).toMatchObject({ page: 3, x: 0.1, y: 0.7 });
     expect(sig('b')).toMatchObject({ page: 4, x: 0.55, y: 0.2 });
     expect(sig('c')).toMatchObject({ page: 4 });
@@ -286,8 +304,8 @@ describe('fields beside the signature lines (K2)', () => {
   });
 
   it('keeps a field on its page near an edge', () => {
-    const [sig, date] = fieldsAt(['a'], [{ page: 1, x: 0.9, y: 0.97 }], 1);
-    expect((sig?.x ?? 0) + (sig?.w ?? 0)).toBeLessThanOrEqual(1);
-    expect((date?.y ?? 0) + (date?.h ?? 0)).toBeLessThanOrEqual(1);
+    const [dated] = fieldsAt(['a'], [{ page: 1, x: 0.9, y: 0.97 }], 1);
+    expect((dated?.x ?? 0) + (dated?.w ?? 0)).toBeLessThanOrEqual(1);
+    expect((dated?.y ?? 0) + (dated?.h ?? 0)).toBeLessThanOrEqual(1);
   });
 });

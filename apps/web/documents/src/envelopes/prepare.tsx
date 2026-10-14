@@ -57,7 +57,7 @@ export interface Placing {
 export const KIND_LABEL: Readonly<Record<FieldKind, string>> = {
   signature: 'Signature',
   initials: 'Initials',
-  date: 'Date signed',
+  date: 'Dated signature',
   name: 'Full name',
   title: 'Job title',
   text: 'Text',
@@ -68,7 +68,7 @@ export const KIND_LABEL: Readonly<Record<FieldKind, string>> = {
 const SIZE: Readonly<Record<FieldKind, { readonly w: number; readonly h: number }>> = {
   signature: { w: 0.3, h: 0.055 },
   initials: { w: 0.1, h: 0.045 },
-  date: { w: 0.18, h: 0.028 },
+  date: { w: 0.3, h: 0.08 },
   name: { w: 0.26, h: 0.028 },
   title: { w: 0.26, h: 0.028 },
   text: { w: 0.26, h: 0.028 },
@@ -90,28 +90,16 @@ export const toneOf = (index: number): PlacedBox['tone'] => ((index % 6) + 1) as
 let counter = 0;
 const nextId = () => `f${String(Date.now())}-${String(++counter)}`;
 
-/** Kithena's start for a signer: a signature and its date on the last page, two to a row. */
+/** Kithena's start for a signer: a dated signature on the last page, two to a row. */
 export function startingFields(signer: string, index: number, pages: number): PlacedField[] {
-  const x = index % 2 === 0 ? 0.08 : 0.54;
-  const y = Math.max(0.05, 0.78 - Math.floor(index / 2) * 0.12);
   return [
-    {
-      id: nextId(),
-      signer,
-      kind: 'signature',
-      page: pages,
-      x,
-      y,
-      ...SIZE.signature,
-      required: true,
-    },
     {
       id: nextId(),
       signer,
       kind: 'date',
       page: pages,
-      x,
-      y: y + SIZE.signature.h + 0.008,
+      x: index % 2 === 0 ? 0.08 : 0.54,
+      y: Math.max(0.05, 0.78 - Math.floor(index / 2) * 0.12),
       ...SIZE.date,
       required: true,
     },
@@ -155,7 +143,7 @@ export function WhereTheySign({
   const nameOf = (key: string) => signers.find((s) => s.key === key)?.name ?? 'Nobody';
   const chosen = fields.find((f) => f.id === selected) ?? null;
   const unplaced = signers.filter(
-    (s) => !fields.some((f) => f.signer === s.key && f.kind === 'signature'),
+    (s) => !fields.some((f) => f.signer === s.key && (f.kind === 'signature' || f.kind === 'date')),
   );
   const change = (id: string, patch: Partial<PlacedField>) => {
     onFields(fields.map((f) => (f.id === id ? { ...f, ...patch } : f)));

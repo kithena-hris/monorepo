@@ -49,15 +49,23 @@ export async function seal(
     };
     const signer = envelope.signers.find((s) => s.id === field.signerId);
     const mark = signer?.signature ?? null;
-    if ((field.kind === 'signature' || field.kind === 'initials') && mark !== null) {
+    const stamp = async (b: Box, initialsOnly: boolean) => {
+      if (mark === null) return;
       if (mark.kind === 'drawn') {
-        drawCentred(page, mark.path, box, ink);
-      } else {
-        const text = field.kind === 'initials' ? initials(mark.text) : mark.text;
-        const style = mark.style ?? 'flowing';
-        const font = (await scriptFor(pdf, style, text)) ?? body;
-        writeCentred(page, font === body ? drawable(text) : text, font, box, ink, 0.95);
+        drawCentred(page, mark.path, b, ink);
+        return;
       }
+      const text = initialsOnly ? initials(mark.text) : mark.text;
+      const font = (await scriptFor(pdf, mark.style ?? 'flowing', text)) ?? body;
+      writeCentred(page, font === body ? drawable(text) : text, font, b, ink, 0.95);
+    };
+    if ((field.kind === 'signature' || field.kind === 'initials') && mark !== null) {
+      await stamp(box, field.kind === 'initials');
+    } else if (field.kind === 'date' && mark !== null) {
+      // A dated signature: the signature over its upper part, the day under it.
+      const under = box.h * 0.3;
+      await stamp({ ...box, y: box.y + under, h: box.h - under }, false);
+      writeCentred(page, drawable(field.value), body, { ...box, h: under }, ink, 0.8, 10);
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
       writeCentred(page, drawable(text), body, box, ink, 0.8, 12);

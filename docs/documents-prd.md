@@ -244,15 +244,27 @@ reassigning hands a signer's turn to someone else when the sender allowed it.
 
 ### 10.2 Signing (K4–K7, MX1–MX4)
 
-The sender places every box on the document itself (K2): a signature,
-initials, the date, a name, a title, text or a tick, each for one signer, in
-that signer's colour; Kithena starts each signer with a signature and its date
-on the last page. A signer sees the document with their own boxes only. Start,
-then Next, goes to each box in page order; pressing a box, or Apply, fills it.
-The first signature box opens Adopt a signature: their name, already typed, in
-three handwriting faces (Great Vibes, Sacramento, Mr Dafoe), or drawn. A
-signature is stamped centred in its box, as large as the box allows. The ⋯
-menu: ask the sender, pass it on (if allowed), decline with a reason.
+The sender places every box on the document itself (K2): a signature, a
+dated signature (the signature with the day it was signed under it), initials,
+a name, a title, text or a tick, each for one signer, in that signer's colour.
+A signature or a dated signature is a place to sign; every signer needs one.
+Kithena starts each signer with a dated signature on the last page.
+
+A signer sees the document with their own boxes only, and a bar pinned under
+it that says where they are ("Step 2 of 3 · Dated signature") and holds the one
+thing to do next: Start, Sign (or Sign and date), Next, and Finish in Next's
+place once everything is filled in. Pressing a box fills it too. A name box is
+filled already. The first signature opens Adopt a signature: their legal first
+and last name (People's, never a preferred name; the name the sender gave for
+somebody outside), which cannot be changed, in three handwriting faces (Great
+Vibes, Sacramento, Mr Dafoe), or drawn. A signature is stamped centred in its
+box, as large as the box allows. The ⋯ menu: ask the sender, pass it on (if
+allowed), decline with a reason.
+
+Somebody outside the company gets an email from the company, with a link that
+opens the document at the company's address (`/sign/<token>`), their boxes on
+it, ready to sign. At Finish a six-digit code is emailed to them and asked for
+once, proof the mailbox is theirs, and then the document is signed.
 
 On the phone it is the same screen: the document full screen with the
 signer's boxes on it, Start, Next, Apply and Finish in the bar at the bottom,
