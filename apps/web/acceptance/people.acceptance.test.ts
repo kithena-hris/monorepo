@@ -12,6 +12,7 @@ import {
   live,
   person,
   sections,
+  serverRendering,
   signedIn,
   stack,
   upload,
@@ -228,6 +229,7 @@ describe('PEO-094: the remote, rendered on the server', () => {
     // server drew. React's own inline script reveals the streamed screen; no
     // bundle of the remote's is involved.
     // Held, not refused: a remote that fails to load is said to be unavailable.
+    await serverRendering(ADMIN.session);
     const bare = await signedIn(ADMIN.session);
     await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, () => undefined);
     const page = await bare.newPage();
@@ -302,6 +304,8 @@ describe('PEO-094: the remote, rendered on the server', () => {
       await context.close();
     } finally {
       await writeFile(file, genuine);
+      // The genuine build verified again before anything after relies on it.
+      await serverRendering(ADMIN.session);
     }
   });
 });
@@ -318,6 +322,8 @@ describe('A press on a People screen before its code has loaded', () => {
     release: () => void;
     close: () => Promise<void>;
   }> {
+    // The server's HTML is what these press on before the code arrives.
+    await serverRendering(session);
     const context = await signedIn(session);
     // Held until the test has pressed (`release`), not for a fixed time: a
     // slow runner once spent all of a 2 s hold before the button was on

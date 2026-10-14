@@ -228,7 +228,26 @@ export async function prepareRemoteSsr(
     // slow answer is not a reason to draw the page in the browser: the build
     // last verified here, under this key, still renders. Only bytes already
     // checked are kept this way; anything new is fetched and checked as ever.
-    if (kept === undefined || kept.pinned !== pinned) return undefined;
+    if (kept === undefined || kept.pinned !== pinned) {
+      // Said, once a quiet spell: nothing verified to fall back on, so this
+      // page is drawn in the browser, which nothing else would show.
+      if (!told.has(`unread ${url}`)) {
+        told.add(`unread ${url}`);
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            msg: 'remote server build not read in time; rendering in the browser',
+            build: url,
+            read: {
+              build: fetched !== undefined,
+              manifest: manifest !== undefined,
+              signature: signature !== undefined,
+            },
+          }),
+        );
+      }
+      return undefined;
+    }
     ready = kept;
   } else {
     const same =
@@ -262,6 +281,8 @@ export async function prepareRemoteSsr(
     checked.set(url, ready);
   }
   const build = ready;
+  // Read again: the next time it cannot be is worth saying again.
+  told.delete(`unread ${url}`);
   verified.set(url, { code: build.code, sha: build.sha });
   // The remote's own renderer, under the id prefix its screens render with.
   warmRenderer(build.code, build.sha, `${name}-`);
@@ -271,4 +292,3 @@ export async function prepareRemoteSsr(
     stylesheet: { href: `${remotePath(area)}/ssr/${name}.css`, integrity: build.stylesheet },
   };
 }
-
