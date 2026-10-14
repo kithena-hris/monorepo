@@ -54,6 +54,14 @@ updates:
         update-types: [version-update:semver-major]
       - dependency-name: '@typescript/typescript6'
         update-types: [version-update:semver-major]
+      # Expo pins these native modules per SDK (`expo/bundledNativeModules.json`):
+      # SDK 57 ships react-native 0.86.3 and react-native-webview 13.16.1, and a
+      # newer one breaks the build the app runs in. They move with the Expo SDK
+      # upgrade, never on their own.
+      - dependency-name: react-native
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: react-native-webview
+        update-types: [version-update:semver-major, version-update:semver-minor]
 
   - package-ecosystem: github-actions
     directory: /

@@ -20,7 +20,7 @@
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
     "drizzle-orm": "^0.45.3",
-    "nodemailer": "^10.0.10",
+    "nodemailer": "^10.1.1",
     "postgres": "^3.4.5",
     "resend": "^6.29.0",
     "zod": "^4.6.5"
