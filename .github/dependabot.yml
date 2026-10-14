@@ -16,6 +16,11 @@ updates:
       day: monday
       time: '07:00'
     open-pull-requests-limit: 8
+    # A release is proposed only once it is a week old. A hijacked package is
+    # usually caught and pulled within days; waiting keeps it out of the
+    # lockfile. Security updates are exempt and still arrive at once.
+    cooldown:
+      default-days: 7
     # A dependency change touches the lockfile for the whole workspace, so the
     # commit should say so.
     commit-message:
@@ -71,6 +76,9 @@ updates:
       time: '07:00'
     commit-message:
       prefix: ci
+    # A week old before proposed, as for npm.
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ['*']
