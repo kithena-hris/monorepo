@@ -21,7 +21,7 @@ import {
   nextToFill,
   readingOrder,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
 import type { EnvelopeData, FieldKind, Mark } from '../types';
 
@@ -103,6 +103,23 @@ export interface Stamped {
   readonly filled: Readonly<Record<string, string>>;
   readonly traceId: string;
   readonly at: Date;
+}
+
+/**
+ * The page at the screen's own width, never left zoomed: iOS keeps a zoom
+ * across loads (the reload after Finish among them), so a document opened
+ * from a link could arrive magnified. Snapped back by pinning the scale for
+ * a frame, then the viewport as it was, so pinching to read stays possible.
+ */
+function fitToScreen(): void {
+  if (typeof window === 'undefined') return;
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  if (meta === null || (window.visualViewport?.scale ?? 1) === 1) return;
+  const was = meta.content;
+  meta.content = 'width=device-width, initial-scale=1, maximum-scale=1';
+  requestAnimationFrame(() => {
+    meta.content = was;
+  });
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -313,8 +330,14 @@ export function DocumentToSign({
         ? (live?.fields ?? [])
         : [...others, ...(live?.fields ?? [])];
 
+  // Every document, the first and each one drawn after Finish, opens fitted to the screen.
+  useEffect(() => {
+    fitToScreen();
+  }, [url]);
+
   return (
-    <div className="flex flex-col gap-3">
+    // A double tap on the page fills a box; it never zooms the page.
+    <div className="flex touch-manipulation flex-col gap-3">
       <PdfPages
         src={url}
         label={env.title}
