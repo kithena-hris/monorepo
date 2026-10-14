@@ -240,6 +240,17 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
           <ActionSheetItem icon={FileUp} onSelect={() => void pick('file')}>
             Choose a file
           </ActionSheetItem>
+          {load.status === 'ready' && load.data.viewer.hr ? (
+            <ActionSheetItem
+              icon={Sparkles}
+              onSelect={() => {
+                setAdding(null);
+                navigation.navigate('DocumentDraft');
+              }}
+            >
+              Draft with Kithena
+            </ActionSheetItem>
+          ) : null}
           <ActionSheetItem
             icon={FolderPlus}
             onSelect={() => {
