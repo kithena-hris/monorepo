@@ -231,6 +231,9 @@ describe('PEO-094: the remote, rendered on the server', () => {
     const bare = await signedIn(ADMIN.session);
     await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, () => undefined);
     const page = await bare.newPage();
+    // A slow phone's CPU: the shell hydrates while the screen is still
+    // streaming in, which is when the server's HTML was being thrown away.
+    await (await bare.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: 6 });
     // Not `load`, which the preloaded remote entry would hold back for ever.
     const response = await page.goto(`${stack.shell}/people/me`, { waitUntil: 'domcontentloaded' });
     const sent = (await response?.text()) ?? '';
