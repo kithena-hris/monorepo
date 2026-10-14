@@ -273,8 +273,7 @@ describe('the booted service', () => {
     });
 
     const self = await post('grants', { ...finance, accountId: HR_ACCOUNT }, 'self-1');
-    expect(self.status).toBe(403);
-    expect(await self.json()).toMatchObject({ error: { code: 'SELF_GRANT' } });
+    expect(self.status).toBe(200);
     const byMarco = await post('grants', { ...finance, role: 'hr' }, 'marco-1', MARCO_ACCOUNT);
     expect(byMarco.status).toBe(403);
     const last = await post(
@@ -296,14 +295,17 @@ describe('the booted service', () => {
       data: { revokeRole: { accountId: MARCO_ACCOUNT, roles: [] } },
     });
     const listed = await fetch(`${base}/v1/roles`, { headers: headers(HR_ACCOUNT) });
-    expect(await listed.json()).toEqual({
-      items: [{ accountId: HR_ACCOUNT, roles: ['people_admin'] }],
-    });
+    const items = ((await listed.json()) as { items: { accountId: string; roles: string[] }[] })
+      .items;
+    expect(items.map((i) => [i.accountId, [...i.roles].sort()])).toEqual([
+      [HR_ACCOUNT, ['finance', 'people_admin']],
+    ]);
     const events = await clients[0]?.unsafe<{ event_name: string; reason: string }[]>(
       `SELECT event_name, envelope -> 'payload' ->> 'reason' AS reason FROM people.outbox
         WHERE event_name LIKE 'people.role.%' ORDER BY created_at, event_id`,
     );
     expect(events?.map((e) => [e.event_name, e.reason])).toEqual([
+      ['people.role.granted', 'Runs payroll'],
       ['people.role.granted', 'Runs payroll'],
       ['people.role.revoked', 'Moved team'],
     ]);

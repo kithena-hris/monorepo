@@ -161,11 +161,11 @@ describe('tenant roles in People', () => {
     ]);
   });
 
-  it('refuses a grant by somebody who is not an administrator, or to oneself', async () => {
+  it('refuses a grant by somebody who is not an administrator, not one to themselves', async () => {
     const byMarco = await grant(MARCO.account, ADAM.account, 'hr');
     expect(byMarco.ok ? null : byMarco.error.code).toBe('FORBIDDEN');
     const self = await grant(PRIYA.account, PRIYA.account, 'finance');
-    expect(self.ok ? null : self.error.code).toBe('SELF_GRANT');
+    expect(self.ok).toBe(true);
   });
 
   it('grants only to somebody who signs in here and has not left', async () => {

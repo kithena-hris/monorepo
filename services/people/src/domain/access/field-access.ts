@@ -83,6 +83,15 @@ export const SUPPORT_RELATIONS: ViewerRelations = {
   isAdmin: true,
 };
 
+/**
+ * What an administrator reaches beyond HR and finance (decided 2026-10-14: a
+ * People administrator may do anything): every field somebody may read or
+ * write, the employee's own included — except a special-category one, which
+ * stays the employee's alone and answerable only in aggregate (§6.7).
+ */
+const administers = (definition: AttributeDefinition, viewer: ViewerRelations): boolean =>
+  viewer.isAdmin && definition.classification.classification !== 'special-category';
+
 /** Which scopes this viewer satisfies. `directory` is everyone in the tenant. */
 function scopesOf(viewer: ViewerRelations): ReadonlySet<ViewerScope> {
   const scopes = new Set<ViewerScope>(['directory']);
@@ -112,8 +121,8 @@ function rolesOf(viewer: ViewerRelations): ReadonlySet<WriterRole> {
  * An empty `visibility` means nobody, and that is a real configuration rather
  * than an oversight — §6.7 requires it for voluntary self-identification,
  * which is answerable only in aggregate. Not even an administrator reads it:
- * an administrator reads what HR and finance read (through `isHr` and
- * `isFinance`, which their relations carry), and nothing past that.
+ * an administrator reads every field somebody may read (`administers`), and
+ * never a special-category one.
  */
 export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelations): boolean {
   // An integration reads back what it is the source of, and never a sealed
@@ -126,6 +135,7 @@ export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelatio
       definition.classification.classification !== 'special-category'
     );
   }
+  if (administers(definition, viewer) && definition.visibility.length > 0) return true;
   const scopes = scopesOf(viewer);
   if (definition.visibility.some((scope) => scopes.has(scope))) return true;
 
@@ -243,6 +253,7 @@ export function canWrite(definition: AttributeDefinition, viewer: ViewerRelation
     );
   }
 
+  if (administers(definition, viewer)) return ok(undefined);
   const roles = rolesOf(viewer);
   if (definition.ownership.some((role) => roles.has(role))) return ok(undefined);
 

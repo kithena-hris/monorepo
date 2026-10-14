@@ -480,6 +480,7 @@ export async function decidePendingChange(
     flagged: flagged.reasons.length > 0,
     by: asking.viewer.accountId,
     isHr: relations.isHr,
+    isAdmin: relations.isAdmin,
     subjectAccountId: person.snapshot.identityAccountId,
     approve: asking.approve,
     at: deps.clock.instant(),

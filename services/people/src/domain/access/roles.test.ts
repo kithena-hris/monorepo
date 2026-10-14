@@ -35,9 +35,9 @@ describe('granting a tenant role (PEO-112)', () => {
     expect(byHr.ok ? null : byHr.error.code).toBe('FORBIDDEN');
   });
 
-  it('is never one’s own to grant, even for an administrator', () => {
+  it('is an administrator’s to grant to themselves, finance included', () => {
     const self = decideGrant(held, change({ target: PRIYA, role: 'finance' }));
-    expect(self.ok ? null : self.error.code).toBe('SELF_GRANT');
+    expect(self).toEqual({ ok: true, value: 'grant' });
   });
 
   it('changes nothing when the role is already held', () => {

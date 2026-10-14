@@ -1089,6 +1089,9 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // the upstream system is authoritative there, and nobody here could
     // approve or reject it — People would only hold the truth back.
     if (integrationOf(asking) !== undefined) return ok('write');
+    // A People administrator's change is never held, their own record's
+    // included (decided 2026-10-14): recorded as applied without approval.
+    if (relations.isAdmin) return ok('bypass');
     return ok(asking.applySensitiveWithoutApproval === true ? 'bypass' : 'hold');
   }
 
@@ -1903,7 +1906,9 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const refused = mergeRefusal(survivor.snapshot, absorbed.snapshot);
     if (refused !== null) return refused;
     const own = await deps.reader.personOf(tx, asking.tenantId, asking.viewer.accountId);
-    if (own === survivor.snapshot.id || own === absorbed.snapshot.id) {
+    const mine = own === survivor.snapshot.id || own === absorbed.snapshot.id;
+    // An administrator may merge their own record too (decided 2026-10-14).
+    if (mine && !asking.viewer.roles.has('people_admin')) {
       return failure('FORBIDDEN', 'Nobody merges their own record; another HR colleague has to');
     }
     const reports =
