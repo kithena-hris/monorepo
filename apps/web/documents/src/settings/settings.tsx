@@ -841,6 +841,12 @@ const FEATURES: readonly { key: AiFeature; label: string; description: string }[
     label: 'Read fields into People',
     description: 'Always reviewed before anything is saved',
   },
+  {
+    key: 'photos',
+    label: 'Read photos and scans',
+    description:
+      'Off by default: a picture is sent as it is, since names in it cannot be hidden first',
+  },
 ];
 
 export function AiSettings({

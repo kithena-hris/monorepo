@@ -1,4 +1,5 @@
 import { extractText, getDocumentProxy } from 'unpdf';
+import type { TenantId } from '@kithena/contracts';
 
 import { pseudonymise, STAND_INS } from '../domain/assist/private.js';
 import type { Reader, UnitOfWork } from './ports.js';
@@ -21,13 +22,16 @@ export async function pagesOf(
   bytes: Uint8Array,
   mediaType: string,
   checksum: string,
-  reader?: Reader,
+  /** The model that sees, for a photo, and whose photo it is. */
+  reading?: { readonly reader: Reader | undefined; readonly tenantId: TenantId },
 ): Promise<readonly string[] | null> {
   const known = kept.get(checksum);
   if (known !== undefined) return known;
   if (IMAGES.has(mediaType)) {
-    if (reader?.see === undefined || bytes.length > MAX_IMAGE) return null;
+    const reader = reading?.reader;
+    if (reader?.see === undefined || reading === undefined || bytes.length > MAX_IMAGE) return null;
     const text = await reader.see({
+      tenantId: reading.tenantId,
       instruction:
         'Transcribe every word in this image exactly as written, line by line, keeping numbers and dates as they appear. Reply with the text only.',
       image: { mediaType, bytes },
@@ -35,6 +39,16 @@ export async function pagesOf(
     if (text === null) return null;
     remember(checksum, [text.trim()]);
     return [text.trim()];
+  }
+  // A sheet exported as CSV, read as text: fifty rows a page, its header on each.
+  if (mediaType === 'text/csv') {
+    const [header = '', ...rows] = new TextDecoder().decode(bytes).split(/\r?\n/u).filter(Boolean);
+    const pages: string[] = [];
+    for (let i = 0; i < Math.max(rows.length, 1); i += 50) {
+      pages.push([header, ...rows.slice(i, i + 50)].join('\n'));
+    }
+    remember(checksum, pages);
+    return pages;
   }
   if (mediaType !== 'application/pdf') return null;
   try {
@@ -116,13 +130,18 @@ export async function signatureLines(
  * cannot be masked; what it transcribes is masked like any page from then on.
  * Text recognition run here is the upgrade.
  */
-export function privately(reader: Reader, uow: UnitOfWork): Reader {
+export function privately(
+  reader: Reader,
+  uow: UnitOfWork,
+  /** Names the company does not know, found on this server (`infrastructure/names.ts`). */
+  findNames?: (text: string) => readonly string[],
+): Reader {
   return {
     async read(input) {
       const names = await uow.run(input.tenantId, async (tx) =>
         (await tx.members.list()).map((m) => m.displayName),
       );
-      const p = pseudonymise(names);
+      const p = pseudonymise(names, findNames);
       const answer = await reader.read({
         ...input,
         instruction: `${input.instruction}\n${STAND_INS}`,
@@ -130,6 +149,15 @@ export function privately(reader: Reader, uow: UnitOfWork): Reader {
       });
       return answer === null ? null : (p.unmask(answer) as Readonly<Record<string, unknown>>);
     },
-    ...(reader.see === undefined ? {} : { see: reader.see.bind(reader) }),
+    // A photo cannot be masked, so it goes only where the company said it may.
+    ...(reader.see === undefined
+      ? {}
+      : {
+          see: async (input) => {
+            const ai = await uow.run(input.tenantId, (tx) => tx.settings.get('ai'));
+            const on = (ai as { photos?: boolean } | null)?.photos === true;
+            return on ? (reader.see?.(input) ?? null) : null;
+          },
+        }),
   };
 }

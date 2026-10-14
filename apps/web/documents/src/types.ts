@@ -464,5 +464,5 @@ export interface TypeDraft {
   readonly question: string | null;
 }
 
-export type AiFeature = 'summaries' | 'questions' | 'across' | 'sorting' | 'fields';
+export type AiFeature = 'summaries' | 'questions' | 'across' | 'sorting' | 'fields' | 'photos';
 export type AiSettings = Readonly<Record<AiFeature, boolean>>;

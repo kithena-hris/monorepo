@@ -354,6 +354,8 @@ export interface Reader {
    * photo. Absent when the configured model cannot see; null when it failed.
    */
   see?(input: {
+    /** Whose photo: read only where the company has switched photos on. */
+    readonly tenantId: TenantId;
     readonly instruction: string;
     readonly image: { readonly mediaType: string; readonly bytes: Uint8Array };
   }): Promise<string | null>;

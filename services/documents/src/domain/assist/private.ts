@@ -11,12 +11,16 @@
  * without its salary or its start date is no summary, and neither says whose
  * contract it is once the names are gone.
  *
- * ponytail: a name is recognised only when it is one of the company's people;
- * an outsider named in a letter reaches the model as written. A model-free
- * name finder is the upgrade if that matters.
+ * A name is the company's people's, or one `findNames` recognises in the
+ * text: somebody outside, a witness, a candidate, found on this server.
+ * Street addresses go too.
+ *
+ * ponytail: a name finder misses an unusual name, and a postcode stays (it
+ * cannot be told from an amount); a stand-in for every capitalised word is
+ * the upgrade, at the cost of the model reading less.
  */
 
-type Kind = 'Person' | 'Email' | 'Number' | 'Account' | 'ID';
+type Kind = 'Person' | 'Email' | 'Number' | 'Account' | 'ID' | 'Address';
 
 const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gu;
 const IBAN = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/gu;
@@ -24,7 +28,10 @@ const IBAN = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/gu;
 const CODE = /\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{6,}\b/gu;
 /** A phone or identity number: nine digits or more, spaced, dashed or bracketed; never an amount or a date. */
 const NUMBER = /(?<![\w/]|\d[.,])\+?\(?\d[\d ()-]{7,}\d(?![\w/]|[.,]\d)/gu;
-const STAND_IN = /\[\[(Person|Email|Number|Account|ID) (\d+)\]\]/gu;
+/** A street address: a number, a few words, and the kind of street; or the street first, as in Spain. */
+const ADDRESS =
+  /\b\d{1,5}\s+(?:[A-Z0-9][\w'.-]*\s+){0,3}(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Ln|Lane|Dr|Drive|Way|Ct|Court|Pl|Place|Plaza|Sq|Square|Terrace|Hwy|Highway)\b\.?|\b(?:Calle|Carrer|Avenida|Plaza|Rua|Via|Rue|Straße|Strasse)\s+(?:[\p{Lu}][\p{L}'-]*\s*){1,4},?\s*\d{1,4}\b/gu;
+const STAND_IN = /\[\[(Person|Email|Number|Account|ID|Address) (\d+)\]\]/gu;
 
 /** Words that are a name and something else, which a model needs to read as the other. */
 const COMMON = new Set([
@@ -58,17 +65,26 @@ export interface Pseudonyms {
   unmask(value: unknown): unknown;
 }
 
-export function pseudonymise(names: readonly string[]): Pseudonyms {
+/** Whole names, longest first, then each of their words that is not also a month or a day. */
+function namePatterns(names: readonly string[]): readonly RegExp[] {
   const full = [...new Set(names.map((n) => n.trim()).filter((n) => n.includes(' ')))].toSorted(
     (a, b) => b.length - a.length,
   );
   const words = [...new Set(names.flatMap((n) => n.trim().split(/\s+/u)))].filter(
     (w) => w.length >= 3 && !COMMON.has(w.toLowerCase()),
   );
-  const fullNames =
-    full.length === 0 ? null : new RegExp(`\\b(?:${full.map(escape).join('|')})\\b`, 'giu');
-  const nameWords =
-    words.length === 0 ? null : new RegExp(`\\b(?:${words.map(escape).join('|')})\\b`, 'gu');
+  return [
+    ...(full.length === 0 ? [] : [new RegExp(`\\b(?:${full.map(escape).join('|')})\\b`, 'giu')]),
+    ...(words.length === 0 ? [] : [new RegExp(`\\b(?:${words.map(escape).join('|')})\\b`, 'gu')]),
+  ];
+}
+
+export function pseudonymise(
+  names: readonly string[],
+  /** Names in a text the company does not know: found on this server, never by a model. */
+  findNames: (text: string) => readonly string[] = () => [],
+): Pseudonyms {
+  const known = namePatterns(names);
 
   const byValue = new Map<string, string>();
   const byStandIn = new Map<string, string>();
@@ -90,9 +106,12 @@ export function pseudonymise(names: readonly string[]): Pseudonyms {
       .replaceAll(EMAIL, standIn('Email'))
       .replaceAll(IBAN, standIn('Account'))
       .replaceAll(CODE, standIn('ID'))
-      .replaceAll(NUMBER, (m) => (digits(m) >= 9 ? standIn('Number')(m) : m));
-    if (fullNames !== null) out = out.replaceAll(fullNames, standIn('Person'));
-    if (nameWords !== null) out = out.replaceAll(nameWords, standIn('Person'));
+      .replaceAll(NUMBER, (m) => (digits(m) >= 9 ? standIn('Number')(m) : m))
+      .replaceAll(ADDRESS, standIn('Address'));
+    const found = findNames(out).filter((n) => !n.includes('[['));
+    for (const pattern of [...namePatterns(found), ...known]) {
+      out = out.replaceAll(pattern, standIn('Person'));
+    }
     return out;
   };
   const unmaskText = (text: string): string =>

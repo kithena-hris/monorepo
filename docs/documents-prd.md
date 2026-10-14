@@ -371,14 +371,20 @@ document is the feature. Recorded in `docs/tech-stack.md`:
 - A model reads a document's text only for someone who may open it, and only
   for that request.
 - **The model is shown about nobody** (decided 2026-10-14). Before anything
-  leaves Documents, every name of the company's people, email, phone or
-  identity number, bank account and document number becomes a stand-in
-  (`[[Person 1]]`, `[[Email 1]]`); the answer comes back with the stand-ins
-  and only then, in Documents, are the values put back. The map lives for one
-  request and is never stored. Amounts and dates stay, since a contract's
-  summary needs them and says nothing about whose it is without the names. An
-  image read by a model that sees goes as it is, because pixels cannot be
-  masked; what it transcribes is masked from then on.
+  leaves Documents, every name becomes a stand-in (`[[Person 1]]`): the
+  company's people, and anybody else a name finder recognises on this server
+  (somebody outside named in a letter, a witness, a candidate). So do emails,
+  phone and identity numbers, bank accounts, document numbers and street
+  addresses. The answer comes back with the stand-ins and only then, in
+  Documents, are the values put back. The map lives for one request and is
+  never stored. Amounts and dates stay: a contract's summary needs them, and
+  without the names they say nothing about whose it is.
+- **Everything is readable by default** except health: every type, People
+  exports (PDF and CSV) included. A medical type is read for its dates on this
+  server and never sent.
+- **Photos and scans stay off until the company switches them on** (S7, "Read
+  photos and scans"): a picture is sent as it is, since nothing in it can be
+  masked first.
 - **Nothing a model reads or writes is stored**: not its answer, not the text
   it was sent, not against a write's idempotency key (a retry asks again).
   Nothing about it is logged.

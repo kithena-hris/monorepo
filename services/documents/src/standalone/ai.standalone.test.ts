@@ -289,8 +289,20 @@ describe('a phone’s photo (MD3, OCR)', () => {
       })
     ).body.id as string;
 
-  it('is read by a model that sees, then summarised like any page', async () => {
+  it('is never sent until the company switches photos on (PRD §14.1)', async () => {
     await call('ada', 'PUT', '/v1/documents/settings/ai', { summaries: true });
+    const before = looked.length;
+    const id = await photo('Passport photo', 'adam', {});
+    const got = await call('adam', 'GET', `/v1/documents/d/${id}/summary`);
+    expect(got.body).toMatchObject({
+      available: false,
+      reason: 'Your company keeps photos and scans away from AI.',
+    });
+    expect(looked.length).toBe(before);
+  });
+
+  it('is read by a model that sees, then summarised like any page', async () => {
+    await call('ada', 'PUT', '/v1/documents/settings/ai', { summaries: true, photos: true });
     const id = await photo('Permit photo', 'adam', {});
     reply = {
       summary: [{ text: 'A residence permit.', pages: [1] }],
@@ -439,6 +451,14 @@ describe('a document drafted with Kithena (§14.2)', () => {
       messages: [{ role: 'user', text: 'An offer for [[Person 1]] at 60,000 a year. [[Person 2]] signs, then me.' }],
     });
     expect(JSON.stringify(seen.at(-1))).not.toMatch(/Ada|Adam|Marco/u);
+
+    // Somebody outside the company, found on this server, never reaches the model either.
+    await call('ada', 'POST', '/v1/documents/drafts/turn', {
+      messages: [{ role: 'user', text: 'An NDA with Grace Hopper of Navy Labs, grace@navy.example.' }],
+      draft: null,
+      companyName: 'Acme',
+    });
+    expect(JSON.stringify(seen.at(-1))).not.toMatch(/Grace|Hopper|navy\.example/u);
 
     reply = {
       reply: 'Here is the offer.',
