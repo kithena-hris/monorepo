@@ -135,49 +135,16 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     await inView(page, 'Save', 'Identification & right to work');
     await identification.getByRole('button', { name: 'Save' }).click();
 
-    // A NIF requires approval (PEO-077): held, and the form says so.
-    await identification
-      .getByText(/NIF \/ NIE is not changed until HR approves/)
-      .waitFor({ timeout: 30_000 });
-    const [held] = await eventually(
-      'the held NIF',
-      () => stack.sql<{ id: string }[]>`
-        SELECT id::text FROM people.pending_change
-         WHERE person_id = ${ADMIN.person} AND attribute_key = 'es_nif' AND state = 'pending'`,
-      (rows) => rows.length === 1,
-    );
-    const decision = `/v1/pending-changes/${held?.id ?? ''}/decision`;
-    // Nobody approves a change to their own record without saying so, HR or not.
-    expect((await stack.writeAsPeople(ADMIN.account, decision, { approve: true })).status).toBe(
-      403,
-    );
-    // She is the only member of HR, so nobody else can: she approves it
-    // herself, once the dialog says there is no other approver and that the
-    // audit trail records it as hers alone.
-    await page.setViewportSize({ width: 390, height: 844 });
-    await identification
-      .getByRole('button', { name: 'Approve the change to NIF / NIE yourself' })
-      .click();
-    const alone = page.getByRole('dialog');
-    await alone
-      .getByText(/No other HR member can approve this change/)
-      .waitFor({ timeout: 30_000 });
-    await alone.getByText(/audit log will show you approved your own change/).waitFor();
-    await alone.getByRole('button', { name: 'Approve it myself' }).click();
+    // A NIF requires approval (PEO-077), but never a People administrator's
+    // (decided 2026-10-14): written at once, recorded as applied without it.
     await eventually(
       'the NIF',
       () => stack.sql`SELECT 1 FROM people.person_secret WHERE person_id = ${ADMIN.person}`,
       (rows) => rows.length === 1,
     );
-    const [decided] = await stack.sql<{ decided_by: string; decided_as: string }[]>`
-      SELECT decided_by::text, decided_as FROM people.pending_change WHERE id = ${held?.id ?? ''}`;
-    expect(decided).toEqual({ decided_by: ADMIN.account, decided_as: 'sole_hr' });
-    const [audit] = await stack.sql<{ envelope: { payload: unknown; actor: unknown } }[]>`
-      SELECT envelope FROM people.outbox
-       WHERE event_name = 'people.person.change_decided'
-         AND envelope -> 'payload' ->> 'changeId' = ${held?.id ?? ''}`;
-    expect(audit?.envelope.payload).toMatchObject({ decision: 'approved', decidedAs: 'sole_hr' });
-    expect(audit?.envelope.actor).toEqual({ kind: 'user', userId: ADMIN.account });
+    const heldNif = await stack.sql`
+      SELECT 1 FROM people.pending_change WHERE person_id = ${ADMIN.person} AND attribute_key = 'es_nif'`;
+    expect(heldNif).toHaveLength(0);
     await page.reload();
     // The one on screen: React's streamed copy can linger hidden after a load.
     await page
