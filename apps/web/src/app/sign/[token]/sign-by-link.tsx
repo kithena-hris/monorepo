@@ -24,12 +24,14 @@ import {
   Signature,
   icons,
 } from '@reach/ui';
+import { useRouter } from 'next/navigation';
 import { useState, useTransition, type JSX } from 'react';
 
 import {
   AdoptDialog,
   DocumentToSign,
   SIGNED,
+  doneMessage,
   useSigning,
   type EnvelopeData,
 } from '@kithena/web-documents/sign';
@@ -50,42 +52,63 @@ export function SignByLink({
   company,
   envelope,
   fileUrl,
+  problem = null,
 }: {
   readonly token: string;
   readonly company: string;
   readonly envelope: LinkEnvelope | null;
   readonly fileUrl: string | null;
+  /** Why the request could not be read: a link that opens nothing, or Kithena out of reach. */
+  readonly problem?: string | null;
 }): JSX.Element {
   const [done, setDone] = useState<string | null>(null);
 
   if (envelope === null) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
-        <EmptyState
-          icon={<icons.locked />}
-          title="This link does not open anything"
-          description="It may have been replaced, cancelled or signed already."
-        />
+        {problem == null || /does not open|another company/u.test(problem) ? (
+          <EmptyState
+            icon={<icons.locked />}
+            title="This link does not open anything"
+            description="It may have been replaced by a newer email, cancelled or signed already."
+          />
+        ) : (
+          <EmptyState
+            icon={<icons.warning />}
+            title="Kithena could not open this just now"
+            description={`${problem} Reload the page in a moment.`}
+          />
+        )}
       </main>
     );
   }
   if (envelope.status !== 'sent' || envelope.me?.turn !== true || done !== null) {
+    // The document as it stands under the message: every signature so far
+    // drawn in with its trace (K7), theirs too once they have signed.
+    const signedNow = done !== null || envelope.me?.status === 'signed';
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
-        <EmptyState
-          icon={<icons.success />}
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6">
+        <PageHeader title={envelope.title} description={`From ${envelope.sender} at ${company}`} />
+        <Alert
+          tone={signedNow || envelope.status === 'completed' ? 'success' : 'info'}
           title={
-            done ??
-            (envelope.status === 'completed'
+            signedNow
               ? 'Signed'
-              : envelope.status === 'sent'
-                ? 'Not your turn yet'
-                : `This request was ${envelope.status}`)
+              : envelope.status === 'completed'
+                ? 'Everybody has signed'
+                : envelope.status === 'sent'
+                  ? 'Not your turn yet'
+                  : `This request was ${envelope.status}`
           }
-          description={
-            done === null ? `${envelope.sender} at ${company} sent it.` : 'You can close this page.'
-          }
-        />
+        >
+          {done ??
+            (envelope.status === 'sent' && !signedNow
+              ? 'You get an email when it is your turn to sign.'
+              : 'You can close this page.')}
+        </Alert>
+        {fileUrl === null ? null : (
+          <DocumentToSign env={envelope} url={fileUrl} signing={null} name="" />
+        )}
       </main>
     );
   }
@@ -128,6 +151,7 @@ function SignNow({
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [declining, setDeclining] = useState(false);
+  const router = useRouter();
   const [reason, setReason] = useState('');
   const needsMark = signing.mine.some((f) => SIGNED.has(f.kind));
   const act = (run: () => Promise<void>) => {
@@ -143,12 +167,11 @@ function SignNow({
       signing.day,
     );
     if (!r.ok) setProblem(r.message);
-    else
-      onDone(
-        r.data.completed
-          ? 'Signed. Everybody has signed; the sealed copy is with the sender.'
-          : 'Signed. The others sign next.',
-      );
+    else {
+      onDone(doneMessage(r.data.completed, r.data.next));
+      // Read again: the copy shown now has this signature drawn in.
+      router.refresh();
+    }
   };
 
   // Finish: the code first, the one time, then the signature.

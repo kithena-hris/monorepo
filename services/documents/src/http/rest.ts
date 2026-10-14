@@ -368,7 +368,13 @@ const FieldBody = z.strictObject({
 
 const EnvelopeParams = z.object({ envelopeId: z.uuid() });
 const TokenParams = z.object({ token: z.string().min(40).max(120) });
-const Completed = z.object({ completed: z.boolean() }).meta({ title: 'DocumentsSigned' });
+const Completed = z
+  .object({
+    completed: z.boolean(),
+    /** Who signs next, by name, for "Sent to … for their signature". */
+    next: z.array(z.string()),
+  })
+  .meta({ title: 'DocumentsSigned' });
 
 /** A file as a link to a copy that lasts minutes, or the bytes without a bucket. */
 async function handOut(
@@ -885,10 +891,13 @@ export const ROUTES: readonly Route[] = [
     name: 'remindEnvelope',
     method: 'POST',
     path: `${V1}/envelopes/{envelopeId}/remind`,
-    summary: 'Remind whoever it waits on',
+    summary: 'Email whoever it waits on now, and nobody else (K8)',
     params: EnvelopeParams,
-    answer: Created,
-    run: (deps, caller, { params }) => remindSigners(deps, caller, params.envelopeId),
+    body: z.strictObject(OriginBody),
+    answer: z
+      .object({ id: z.string(), reminded: z.array(z.string()) })
+      .meta({ title: 'DocumentsReminded' }),
+    run: (deps, caller, { params, body }) => remindSigners(deps, caller, params.envelopeId, body),
   }),
   route({
     name: 'reassignEnvelopeSigner',

@@ -106,6 +106,8 @@ export interface LibraryProps {
       }) => Promise<Outcome>)
     | undefined;
   readonly onRemind?: ((requestId: string) => Promise<Outcome>) | undefined;
+  /** K8: an email to whoever a signature request waits on now, and nobody else. */
+  readonly onRemindSigners?: ((envelopeId: string) => Promise<Outcome>) | undefined;
   readonly onRestore?: ((documentId: string) => Promise<Outcome>) | undefined;
   readonly onConfirmDeletion?: ((documentIds: readonly string[]) => Promise<Outcome>) | undefined;
   /** B4: a question across what this person may open. */
@@ -427,6 +429,7 @@ function Ready({
                     onRestore={props.onRestore}
                     sections={data.sections}
                     onChangeSection={props.onChangeSection}
+                    onRemindSigners={props.onRemindSigners}
                   />
                 ))}
               </TableBody>
@@ -937,6 +940,7 @@ function DocumentRow({
   onRestore,
   sections,
   onChangeSection,
+  onRemindSigners,
 }: {
   readonly row: Row;
   readonly deleted: boolean;
@@ -945,8 +949,11 @@ function DocumentRow({
   readonly onRestore: LibraryProps['onRestore'];
   readonly sections: LibraryData['sections'];
   readonly onChangeSection: LibraryProps['onChangeSection'];
+  readonly onRemindSigners: LibraryProps['onRemindSigners'];
 }): JSX.Element {
   const write = useWrite();
+  const [reminded, setReminded] = useState(false);
+  const signing = row.signing ?? null;
   const mine = sections.filter((s) => s.kind === 'personal');
   return (
     <TableRow>
@@ -975,7 +982,15 @@ function DocumentRow({
         <span className="text-sm text-fg-muted">{shortDate(row.updatedAt)}</span>
       </TableCell>
       <TableCell>
-        <StatusBadge status={row.status} />
+        <div className="flex flex-col items-start gap-1">
+          <StatusBadge status={row.status} />
+          {signing === null ? null : <SigningBadge signing={signing} />}
+          {reminded && signing !== null ? (
+            <span className="text-xs text-fg-muted">
+              {`Reminder sent to ${signing.waitingOn.join(', ')}`}
+            </span>
+          ) : null}
+        </div>
       </TableCell>
       <TableCell>
         {deleted ? (
@@ -1008,6 +1023,20 @@ function DocumentRow({
               {row.mine && !row.aboutMe ? (
                 <DropdownMenuItem onSelect={onShare}>Share…</DropdownMenuItem>
               ) : null}
+              {signing?.canRemind === true && onRemindSigners !== undefined ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    write.run(
+                      () => onRemindSigners(signing.envelopeId),
+                      () => {
+                        setReminded(true);
+                      },
+                    );
+                  }}
+                >
+                  {`Send reminder email to ${signing.waitingOn.join(', ') || 'the next signer'}`}
+                </DropdownMenuItem>
+              ) : null}
               {mine.length === 0 ? null : <DropdownMenuSeparator />}
               {mine.map((s) => {
                 const inIt = row.sectionIds.includes(s.id);
@@ -1033,6 +1062,33 @@ function DocumentRow({
         )}
       </TableCell>
     </TableRow>
+  );
+}
+
+/**
+ * A row's signatures at a glance (K10): "2 of 5 signed · 3 pending" while it
+ * is out, "All 5 signed" once sealed.
+ */
+function SigningBadge({ signing }: { readonly signing: NonNullable<Row['signing']> }): JSX.Element {
+  const pending = signing.of - signing.signed;
+  if (signing.status === 'completed') {
+    return (
+      <Badge tone="success" size="sm">
+        {`All ${String(signing.of)} signed`}
+      </Badge>
+    );
+  }
+  if (signing.status !== 'sent') {
+    return (
+      <Badge tone="neutral" size="sm">
+        {signing.status === 'voided' ? 'Signing cancelled' : 'Signing declined'}
+      </Badge>
+    );
+  }
+  return (
+    <Badge tone="warning" size="sm">
+      {`${String(signing.signed)} of ${String(signing.of)} signed · ${String(pending)} pending`}
+    </Badge>
   );
 }
 

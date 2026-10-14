@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SignEnvelope($envelopeId: String!, $input: JSON!, $key: String!) {\n    signEnvelope(envelopeId: $envelopeId, input: $input, idempotencyKey: $key) { completed next }\n  }"}

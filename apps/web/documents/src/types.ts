@@ -46,6 +46,15 @@ export interface Row {
   readonly aboutMe: boolean;
   readonly deletedAt: string | null;
   readonly sectionIds: readonly string[];
+  /** Its newest signature request: how many signed of how many, and whose turn it is. */
+  readonly signing?: {
+    readonly envelopeId: string;
+    readonly status: 'sent' | 'completed' | 'declined' | 'voided';
+    readonly signed: number;
+    readonly of: number;
+    readonly waitingOn: readonly string[];
+    readonly canRemind: boolean;
+  } | null;
 }
 
 export interface Section {

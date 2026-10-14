@@ -265,7 +265,7 @@ export function SignDocument({
   readonly back: { label: string; onPress: () => void };
   readonly onAsk: () => void;
   readonly onDecline: () => void;
-  readonly onSigned: (completed: boolean) => void;
+  readonly onSigned: (completed: boolean, next: readonly string[]) => void;
 }): React.JSX.Element {
   const signed = useSigned();
   const [load, setLoad] = useState<Ready>({ status: 'loading' });
@@ -339,7 +339,7 @@ function Signing({
   readonly back: { label: string; onPress: () => void };
   readonly onAsk: () => void;
   readonly onDecline: () => void;
-  readonly onSigned: (completed: boolean) => void;
+  readonly onSigned: (completed: boolean, next: readonly string[]) => void;
 }): React.JSX.Element {
   const signed = useSigned();
   const name = legalName ?? env.signers.find((s) => s.id === env.me?.signerId)?.name ?? '';
@@ -375,18 +375,22 @@ function Signing({
   const finish = async () => {
     setBusy(true);
     setProblem(null);
-    const r = await askDocuments<{ completed: boolean }>(signed, 'SignEnvelope', {
-      envelopeId: env.id,
-      input: {
-        signature: signing.mark ?? { kind: 'typed', text: name },
-        values: signing.values,
-        day: today(),
-        origin: signed.company.origin,
-        companyName: company,
+    const r = await askDocuments<{ completed: boolean; next?: readonly string[] }>(
+      signed,
+      'SignEnvelope',
+      {
+        envelopeId: env.id,
+        input: {
+          signature: signing.mark ?? { kind: 'typed', text: name },
+          values: signing.values,
+          day: today(),
+          origin: signed.company.origin,
+          companyName: company,
+        },
       },
-    });
+    );
     setBusy(false);
-    if (r.ok) onSigned(r.data.completed);
+    if (r.ok) onSigned(r.data.completed, r.data.next ?? []);
     else setProblem(r.message);
   };
 

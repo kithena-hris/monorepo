@@ -15,6 +15,7 @@ import { checklist, progress } from '../domain/checklist/checklist.js';
 import { daysUntil } from '../domain/dates.js';
 import type { Document } from '../domain/document/document.js';
 import { expiring } from '../domain/queues/queues.js';
+import type { Envelope } from '../domain/signature/envelope.js';
 import { retentionWords, type DocumentType } from '../domain/type/document-type.js';
 import { aiSwitches } from './ai.js';
 import { contextOf, factsOf, notFound, type Ctx } from './context.js';
@@ -114,6 +115,7 @@ function rowOf(
   dir: Directory,
   sections: ReadonlyMap<string, readonly string[]>,
   current: Current | null,
+  envelope: Envelope | null = null,
 ): DocumentRow {
   const type = doc.typeKey === null ? null : (types.get(doc.typeKey) ?? null);
   const who = whoCanSee(ctx, doc, type, dir);
@@ -137,6 +139,25 @@ function rowOf(
     aboutMe: who.aboutMe,
     deletedAt: doc.deletedAt,
     sectionIds: [...(sections.get(doc.id) ?? [])],
+    signing:
+      envelope === null
+        ? null
+        : {
+            envelopeId: envelope.id,
+            status: envelope.status,
+            signed: envelope.signers.filter((s) => s.status === 'signed').length,
+            of: envelope.signers.length,
+            waitingOn: envelope.signers
+              .filter(
+                (s) => s.status === 'sent' || s.status === 'opened' || s.status === 'verified',
+              )
+              .map((s) => s.name),
+            canRemind:
+              envelope.status === 'sent' &&
+              (envelope.senderAccount === ctx.caller.accountId ||
+                ctx.viewer.hr ||
+                doc.ownerAccount === ctx.caller.accountId),
+          },
   };
 }
 
@@ -239,7 +260,10 @@ export async function library(
     }
     list = list.toSorted((a, b) => b.versionAt.localeCompare(a.versionAt));
     const pages = await pagesOf(ctx, list);
-    const rows = list.map((d) => rowOf(ctx, d, types, dir, inSection, pages.get(d.id) ?? null));
+    const signings = await ctx.tx.envelopes.latestFor(list.map((d) => d.id));
+    const rows = list.map((d) =>
+      rowOf(ctx, d, types, dir, inSection, pages.get(d.id) ?? null, signings.get(d.id) ?? null),
+    );
 
     const counts = new Map<string, number>();
     for (const d of live)
@@ -568,7 +592,15 @@ export async function documentScreen(
     const controls = canShare(facts, ctx.viewer).ok;
     const accountName = (a: string) => dir.byAccount.get(a)?.displayName ?? 'Someone';
     const view: DocumentView = {
-      row: rowOf(ctx, doc, types, dir, inSection, current),
+      row: rowOf(
+        ctx,
+        doc,
+        types,
+        dir,
+        inSection,
+        current,
+        (await tx.envelopes.latestFor([doc.id])).get(doc.id) ?? null,
+      ),
       owner: ownerName,
       versions: versionViews,
       current,
@@ -707,6 +739,7 @@ export async function personFile(
     );
     const pages = await pagesOf(ctx, live);
     const p = progress(rows);
+    const fileSignings = await tx.envelopes.latestFor(live.map((d) => d.id));
     return ok({
       person: personRef(member),
       jobLine: [member.teamName, member.hireDate ? `starts ${member.hireDate}` : null]
@@ -737,7 +770,17 @@ export async function personFile(
       of: p.of,
       rows: live
         .toSorted((a, b) => b.versionAt.localeCompare(a.versionAt))
-        .map((d) => rowOf(ctx, d, types, dir, new Map(), pages.get(d.id) ?? null)),
+        .map((d) =>
+          rowOf(
+            ctx,
+            d,
+            types,
+            dir,
+            new Map(),
+            pages.get(d.id) ?? null,
+            fileSignings.get(d.id) ?? null,
+          ),
+        ),
       hr: ctx.viewer.hr,
       types: typeOptions(types),
     });

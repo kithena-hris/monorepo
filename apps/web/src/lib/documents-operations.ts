@@ -12,7 +12,7 @@
  */
 
 const PERSON = 'personId name teamName';
-const ROW = `id title kind typeKey typeName level confidential everyone who { label people { ${PERSON} } } subject { ${PERSON} } pages mediaType updatedAt expiresOn status { label tone } mine aboutMe deletedAt sectionIds`;
+const ROW = `id title kind typeKey typeName level confidential everyone who { label people { ${PERSON} } } subject { ${PERSON} } pages mediaType updatedAt expiresOn status { label tone } mine aboutMe deletedAt sectionIds signing { envelopeId status signed of waitingOn canRemind }`;
 const TYPE = 'key name kind filedTo confidential';
 
 const write = (name: string, field: string, params: string, args: string, answer: string) =>
@@ -281,7 +281,7 @@ export const OPERATIONS = {
     'signEnvelope',
     '$envelopeId: String!, $input: JSON!, ',
     'envelopeId: $envelopeId, input: $input, ',
-    'completed',
+    'completed next',
   ),
   DeclineEnvelope: write(
     'DeclineEnvelope',
@@ -307,9 +307,9 @@ export const OPERATIONS = {
   RemindEnvelope: write(
     'RemindEnvelope',
     'remindEnvelope',
-    '$envelopeId: String!, ',
-    'envelopeId: $envelopeId, ',
-    'id',
+    '$envelopeId: String!, $input: JSON!, ',
+    'envelopeId: $envelopeId, input: $input, ',
+    'id reminded',
   ),
   ReassignEnvelopeSigner: write(
     'ReassignEnvelopeSigner',

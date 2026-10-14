@@ -4,7 +4,9 @@ import type { DocumentId, Instant } from '@kithena/contracts';
 
 import { send, sign, markOpened, type Envelope } from '../domain/signature/envelope.js';
 import { facesFor } from './fonts.js';
-import { seal } from './sealing.js';
+import { extractText, getDocumentProxy } from 'unpdf';
+
+import { seal, stampSoFar, traceLines } from './sealing.js';
 
 const at = '2026-10-09T10:00:00.000Z' as Instant;
 
@@ -90,5 +92,30 @@ describe('sealing (K9)', () => {
     // A typed one from before styles is drawn in the flowing face.
     const old = signedEnvelope('Ada Lovelace', { kind: 'typed', text: 'Ada Lovelace' });
     expect(await faces(old)).toMatch(/GreatVibes/u);
+  });
+
+  it('prints each signature’s trace under it, so far and sealed, and lists it on the certificate', async () => {
+    const env = signedEnvelope('Adam Novak', { kind: 'typed', text: 'Adam Novak' });
+    const signedEvent = {
+      id: '01a13c68-0000-7000-8000-00000000abcd',
+      envelopeId: 'env',
+      signerId: 's1',
+      action: 'signed',
+      detail: {},
+      at: '2026-10-14T21:54:15.000Z' as Instant,
+    };
+    const trail = [signedEvent];
+    expect(traceLines(signedEvent)).toEqual([
+      'Electronically signed via Kithena on 14 Oct 2026, 21:54 UTC',
+      'Signature ID: 01a13c68-0000-7000-8000-00000000abcd',
+    ]);
+    const textOf = async (bytes: Uint8Array) =>
+      (await extractText(await getDocumentProxy(bytes), { mergePages: true })).text;
+    const soFar = await stampSoFar(await twoPages(), env, trail);
+    expect((await PDFDocument.load(soFar)).getPageCount()).toBe(2);
+    expect(await textOf(soFar)).toContain('00000000abcd');
+    const sealed = await textOf(await seal(await twoPages(), env, trail, 'Acme'));
+    expect(sealed).toContain('Electronically signed via Kithena');
+    expect(sealed).toContain('Signature ID: 01a13c68-0000-7000-8000-00000000abcd');
   });
 });

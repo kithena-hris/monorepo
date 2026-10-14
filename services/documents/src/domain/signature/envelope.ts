@@ -79,6 +79,12 @@ export interface Envelope {
   readonly voidReason: string | null;
   /** The sealed version, once completed. */
   readonly signedVersion: number | null;
+  /**
+   * The document as signed so far (K7): every signature in, drawn where it
+   * goes, each with its trace. What the next signer reads; absent until
+   * somebody signs, and on a request older than it.
+   */
+  readonly workingBlobKey?: string | null;
 }
 
 export const CODE_MINUTES = 10;

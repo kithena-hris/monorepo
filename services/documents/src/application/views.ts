@@ -54,6 +54,20 @@ export const DocumentRow = z
     aboutMe: z.boolean(),
     deletedAt: z.string().nullable(),
     sectionIds: z.array(z.string()),
+    /**
+     * Its newest signature request (K10 in the list): how many have signed of
+     * how many, whose turn it is, and whether this viewer may send a reminder.
+     */
+    signing: z
+      .object({
+        envelopeId: z.string(),
+        status: z.enum(['sent', 'completed', 'declined', 'voided']),
+        signed: z.int(),
+        of: z.int(),
+        waitingOn: z.array(z.string()),
+        canRemind: z.boolean(),
+      })
+      .nullable(),
   })
   .meta(Title('DocumentsRow'));
 export type DocumentRow = z.infer<typeof DocumentRow>;

@@ -166,11 +166,18 @@ export function DocumentEnvelope({
           onDecline={() => {
             setOther('decline');
           }}
-          onSigned={(completed) => {
+          onSigned={(completed, next) => {
+            // As the web says it (K7): where it went next, and that their copy is on its way.
+            const names =
+              next.length <= 1
+                ? (next[0] ?? '')
+                : `${next.slice(0, -1).join(', ')} and ${next.at(-1) ?? ''}`;
             setDone(
               completed
-                ? 'Everybody has signed: the document is sealed and filed.'
-                : `${env.sender} and anyone after you sign next. The signed copy lands in your documents.`,
+                ? 'Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.'
+                : names === ''
+                  ? 'Your signature is in. Your copy is on its way to your email.'
+                  : `Sent to ${names} for their signature. Your copy, as signed so far, is on its way to your email.`,
             );
             reload();
           }}
@@ -257,7 +264,18 @@ export function DocumentEnvelope({
           <Button
             className="flex-1"
             loading={busy === 'RemindEnvelope'}
-            onPress={() => void act('RemindEnvelope', {}, 'Reminded.')}
+            onPress={() =>
+              void act(
+                'RemindEnvelope',
+                {
+                  input: {
+                    origin: signed.company.origin,
+                    companyName: signed.company.displayName ?? signed.company.slug,
+                  },
+                },
+                'Reminded whoever it waits on now.',
+              )
+            }
           >
             Remind
           </Button>

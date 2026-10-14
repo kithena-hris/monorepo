@@ -26,13 +26,64 @@ const ACTIONS: Readonly<Record<string, string>> = {
   completed: 'Completed',
 };
 
-export async function seal(
-  original: Uint8Array,
+/**
+ * Where each signer's signing is traced (K9): the id of their `signed`
+ * event, and when it was, as the footer under every field they filled and
+ * their line on the certificate. The id is the trail's own, so a footer on
+ * paper leads to the one row that says who, how and when.
+ */
+export interface Trace {
+  readonly id: string;
+  readonly at: string;
+}
+
+export function tracesOf(trail: readonly EnvelopeEvent[]): ReadonlyMap<string, Trace> {
+  const out = new Map<string, Trace>();
+  for (const e of trail) {
+    if (e.action === 'signed' && e.signerId !== null) out.set(e.signerId, { id: e.id, at: e.at });
+  }
+  return out;
+}
+
+/**
+ * What is printed under a signed field, as e-signature services print it:
+ * that it was signed electronically, through whom and when, then the
+ * Signature ID that the certificate and the audit trail carry too.
+ */
+export function traceLines(trace: Trace): readonly [string, string] {
+  const d = new Date(trace.at);
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const when = Number.isNaN(d.getTime())
+    ? trace.at
+    : `${String(d.getUTCDate())} ${months.at(d.getUTCMonth()) ?? ''} ${String(d.getUTCFullYear())}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+  return [`Electronically signed via Kithena on ${when}`, `Signature ID: ${trace.id}`];
+}
+
+/**
+ * Every field a signer has filled, drawn where it was placed, each with its
+ * trace under it. A field of somebody who has not signed has no value yet
+ * and is left as it is, so the same drawing is the copy a later signer sees
+ * mid-way and the sealed one at the end.
+ */
+async function stampFields(
+  pdf: PDFDocument,
   envelope: Envelope,
-  trail: readonly EnvelopeEvent[],
-  company: string,
-): Promise<Uint8Array> {
-  const pdf = await PDFDocument.load(original, { ignoreEncryption: true });
+  traces: ReadonlyMap<string, Trace>,
+): Promise<{ body: PDFFont; bold: PDFFont; drawable: (text: string) => string }> {
   const { body, bold, drawable } = await facesFor(pdf);
   const ink = rgb(0.12, 0.16, 0.36);
   const pages = pdf.getPages();
@@ -70,7 +121,50 @@ export async function seal(
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
       writeCentred(page, drawable(text), body, box, ink, 0.8, 12);
     }
+    const trace = traces.get(field.signerId);
+    if (trace !== undefined) {
+      // Two lines under the box, or inside its foot when it sits at the page's edge.
+      const size = 5.5;
+      const lead = size + 1.5;
+      const top = box.y - lead - 1 >= lead + 2 ? box.y - lead - 1 : box.y + lead + 2;
+      for (const [i, text] of traceLines(trace).entries()) {
+        page.drawText(drawable(text), {
+          x: box.x,
+          y: top - i * lead,
+          size,
+          font: body,
+          color: rgb(0.42, 0.44, 0.5),
+        });
+      }
+    }
   }
+  return { body, bold, drawable };
+}
+
+/**
+ * The document as signed so far (K7): every signature in, with its trace,
+ * and no certificate yet. What the next signer reads, and the copy each
+ * signer is emailed when they sign.
+ */
+export async function stampSoFar(
+  original: Uint8Array,
+  envelope: Envelope,
+  trail: readonly EnvelopeEvent[],
+): Promise<Uint8Array> {
+  const pdf = await PDFDocument.load(original, { ignoreEncryption: true });
+  await stampFields(pdf, envelope, tracesOf(trail));
+  return pdf.save();
+}
+
+export async function seal(
+  original: Uint8Array,
+  envelope: Envelope,
+  trail: readonly EnvelopeEvent[],
+  company: string,
+): Promise<Uint8Array> {
+  const pdf = await PDFDocument.load(original, { ignoreEncryption: true });
+  const traces = tracesOf(trail);
+  const { body, bold, drawable } = await stampFields(pdf, envelope, traces);
 
   const page = pdf.addPage([595, 842]);
   let y = 780;
@@ -99,6 +193,8 @@ export async function seal(
       `${String(s.order)}. ${s.name} · ${s.check === 'login' ? 'their Kithena login' : `a code emailed to ${s.email ?? ''}`} · signed ${s.signedAt ?? ''}`,
       9,
     );
+    const trace = traces.get(s.id);
+    if (trace !== undefined) line(`    Signature ID: ${trace.id}`, 8);
   }
   y -= 10;
   line('What happened', 12, bold);

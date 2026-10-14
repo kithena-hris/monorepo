@@ -84,6 +84,19 @@ export type Notice =
    */
   | { readonly kind: 'signing_code'; readonly code: string }
   /*
+   * A signer's own copy (Documents K7): sent to whoever just signed, the
+   * document as signed so far attached, and once everybody has, the sealed
+   * one to every signer. As the request, never the document's name nor who
+   * sent it: the attachment is the document, for the person who signed it.
+   */
+  /*
+   * A reminder (Documents K8), to whoever a request waits on now and nobody
+   * else. As the request itself: no document name, no sender.
+   */
+  | { readonly kind: 'signature_reminder' }
+  | { readonly kind: 'document_signed' }
+  | { readonly kind: 'document_completed' }
+  /*
    * A nudge to take a break (Time Off, T28): the one notice whose words the
    * module writes, because they are the recipient's own — their days left,
    * a day that suits them — and nobody else's. Time Off guarantees that; this
@@ -347,6 +360,27 @@ const COPY: {
     lede: `${company} asked you to sign a document with Kithena. It opens ready to sign: press Start, sign where it asks, and Finish. We email you a code at Finish to confirm it is you.`,
     action: 'Review and sign',
     footer: `Sent by Kithena on behalf of ${company}. If you were not expecting this, you can ignore it.`,
+  }),
+  signature_reminder: (_notice, company) => ({
+    subject: `Reminder: ${company} is waiting for your signature`,
+    heading: 'Your signature is next',
+    lede: `A document from ${company} is waiting for you to sign. Any signatures before yours are already on it. This link replaces any earlier one we sent you.`,
+    action: 'Review and sign',
+    footer: `Sent by Kithena on behalf of ${company}. If you were not expecting this, you can ignore it.`,
+  }),
+  document_signed: (_notice, company) => ({
+    subject: `${company}: you signed a document`,
+    heading: 'Your signature is in',
+    lede: `Thank you for signing with ${company}. A copy as signed so far is attached. Anyone still to sign is asked in turn, and you get the finished copy once everyone has signed.`,
+    action: 'Open the document',
+    footer: `Sent by Kithena on behalf of ${company}, because you signed a document.`,
+  }),
+  document_completed: (_notice, company) => ({
+    subject: `${company}: everyone has signed`,
+    heading: 'Signed by everyone',
+    lede: `Every signature is in. The signed document is attached, with a certificate of completion as its last page saying who signed, how and when.`,
+    action: 'Open the document',
+    footer: `Sent by Kithena on behalf of ${company}, because you signed this document.`,
   }),
   signing_code: ({ code }, company) => {
     if (!/^\d{6}$/u.test(code)) return null;

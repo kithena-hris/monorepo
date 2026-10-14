@@ -42,6 +42,22 @@ type EnvelopeField = EnvelopeData['fields'][number];
 /** The boxes a signature fills: a dated signature is one, with the day under it. */
 export const SIGNED: ReadonlySet<FieldKind> = new Set(['signature', 'initials', 'date']);
 
+/** "Lahari", "Lahari and Omar", "Lahari, Omar and Ada". */
+const andList = (names: readonly string[]): string =>
+  names.length <= 1
+    ? (names[0] ?? '')
+    : `${names.slice(0, -1).join(', ')} and ${names.at(-1) ?? ''}`;
+
+/** What a signer is told at Finish (K7): where it went next, and that their copy is on its way. */
+export function doneMessage(completed: boolean, next: readonly string[]): string {
+  if (completed) {
+    return 'Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.';
+  }
+  return next.length === 0
+    ? 'Your signature is in. Your copy is on its way to your email.'
+    : `Sent to ${andList(next)} for their signature. Your copy, as signed so far, is on its way to your email.`;
+}
+
 export interface Signing {
   readonly mine: readonly EnvelopeField[];
   /** The boxes walked through, in reading order: every box but a name, which fills itself. */
@@ -218,8 +234,15 @@ export function DocumentToSign({
   const [text, setText] = useState('');
   // The bar waits for the pages: Start before them would have nowhere to go.
   const [shown, setShown] = useState(false);
-  // A sealed copy carries its stamps: nothing is laid over it.
-  const boxes = env.status === 'completed' ? [] : signing === null ? env.fields : signing.mine;
+  // A signed field is drawn into the copy shown (K7), its trace under it:
+  // nothing is laid over it. A sealed copy carries every stamp.
+  const signedBy = new Set(env.signers.filter((s) => s.status === 'signed').map((s) => s.id));
+  const boxes =
+    env.status === 'completed'
+      ? []
+      : signing === null
+        ? env.fields.filter((f) => !signedBy.has(f.signerId))
+        : signing.mine;
 
   return (
     <div className="flex flex-col gap-3">

@@ -40,7 +40,14 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { WhereTheySign, startingFields, type PlacedField } from './prepare';
-import { AdoptDialog, DocumentToSign, SIGNED, useSigning, type Signing } from './sign-view';
+import {
+  AdoptDialog,
+  DocumentToSign,
+  SIGNED,
+  doneMessage,
+  useSigning,
+  type Signing,
+} from './sign-view';
 import { shortDate, useWrite } from '../shared';
 import type {
   Created,
@@ -542,7 +549,9 @@ export interface EnvelopeProps {
         signature: Mark,
         values: Readonly<Record<string, string>>,
         day: string,
-      ) => Promise<{ ok: true; completed: boolean } | { ok: false; message: string }>)
+      ) => Promise<
+        { ok: true; completed: boolean; next?: readonly string[] } | { ok: false; message: string }
+      >)
     | undefined;
   readonly onDecline?: ((envelopeId: string, reason: string) => Promise<Outcome>) | undefined;
   readonly onAsk?: ((envelopeId: string, question: string) => Promise<Outcome>) | undefined;
@@ -580,7 +589,8 @@ function EnvelopePage({
     return () => {
       live = false;
     };
-  }, [env.id, env.status, props.onFileLink]);
+    // Signed, the copy shown is the one with this signature drawn in (K7).
+  }, [env.id, env.status, env.me?.status, props.onFileLink]);
   // Kept through the refresh the signing causes, when this signer's part has gone.
   const [done, setDone] = useState<string | null>(null);
   const finish = useWrite();
@@ -596,11 +606,7 @@ function EnvelopePage({
       const r = await (props.onSign?.(env.id, signature, signing.values, signing.day) ??
         Promise.resolve({ ok: false as const, message: 'Not available here' }));
       if (!r.ok) return r;
-      setDone(
-        r.completed
-          ? 'Everybody has signed: the document is sealed and filed.'
-          : `${env.sender} and anyone after you sign next. The signed copy lands in your documents.`,
-      );
+      setDone(doneMessage(r.completed, r.next ?? []));
       return { ok: true };
     });
   };

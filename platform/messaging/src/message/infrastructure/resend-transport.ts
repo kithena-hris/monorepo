@@ -74,6 +74,14 @@ export function resendTransport(config: ResendConfig): EmailTransport {
             // optional.
             text: email.text,
             ...(config.replyTo === undefined ? {} : { replyTo: config.replyTo }),
+            ...(email.attachments === undefined
+              ? {}
+              : {
+                  attachments: email.attachments.map((a) => ({
+                    filename: a.filename,
+                    content: a.base64,
+                  })),
+                }),
           },
           { idempotencyKey: email.idempotencyKey },
         );

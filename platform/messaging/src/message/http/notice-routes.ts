@@ -47,6 +47,9 @@ const NoticeRequest = z.object({
     z.object({ kind: z.literal('summary_shared') }),
     z.object({ kind: z.literal('signature_requested') }),
     z.object({ kind: z.literal('signing_code'), code: z.string().regex(/^\d{6}$/u) }),
+    z.object({ kind: z.literal('signature_reminder') }),
+    z.object({ kind: z.literal('document_signed') }),
+    z.object({ kind: z.literal('document_completed') }),
     z.object({
       kind: z.literal('rest_nudge'),
       heading: z.string().min(1).max(NUDGE_HEADING_MAX),
@@ -58,6 +61,17 @@ const NoticeRequest = z.object({
       format: z.enum(REPORT_FORMATS),
     }),
   ]),
+  /**
+   * A signer's copy of what they signed (Documents K7), as base64: only on
+   * `document_signed` and `document_completed`, and small enough for one
+   * request (Vercel takes 4.5 MB; Documents sends a link instead past 3 MB).
+   */
+  attachment: z
+    .object({
+      fileName: z.string().min(1).max(200),
+      base64: z.string().min(1).max(4_200_000),
+    })
+    .optional(),
 });
 
 export interface NoticeRoutesDeps {
@@ -88,7 +102,8 @@ export function noticeRoutes({ sendNotice, deliverInbox, internalToken }: Notice
       return true;
     }
 
-    const body = await readJsonBody(request);
+    // A signed copy rides along as base64, so more than a notice's usual 64 KB.
+    const body = await readJsonBody(request, 4_400_000);
     if (body === null) return json(400, { code: 'MALFORMED_BODY' });
 
     const parsed = NoticeRequest.safeParse(body);
@@ -101,6 +116,13 @@ export function noticeRoutes({ sendNotice, deliverInbox, internalToken }: Notice
 
     const { accountId, ...asked } = parsed.data;
     const notice = asked.notice;
+    if (
+      asked.attachment !== undefined &&
+      notice.kind !== 'document_signed' &&
+      notice.kind !== 'document_completed'
+    ) {
+      return json(422, { code: 'MALFORMED_REQUEST', fields: ['attachment'] });
+    }
     if (
       (notice.kind === 'inbox_task' || notice.kind === 'inbox_update') &&
       deliverInbox !== undefined

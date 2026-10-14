@@ -91,6 +91,7 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
           onDecideAccess: actions.decideAccess,
           onAsk: actions.askForDocument,
           onRemind: actions.remindRequest,
+          onRemindSigners: actions.remindEnvelope,
           onRestore: actions.restoreDocument,
           onConfirmDeletion: actions.confirmDeletion,
           onAskAcross: actions.askDocuments,

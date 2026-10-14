@@ -221,6 +221,15 @@ export function memoryWorld(): MemoryWorld {
         get: (id) => s.envelopes.get(id) ?? null,
         save: (e) => void s.envelopes.set(e.id, e),
         forDocument: (id) => [...s.envelopes.values()].filter((e) => e.documentId === id),
+        latestFor: (ids) => {
+          const out = new Map<string, Envelope>();
+          for (const e of s.envelopes.values()) {
+            if (!ids.includes(e.documentId)) continue;
+            const had = out.get(e.documentId);
+            if (had === undefined || had.createdAt < e.createdAt) out.set(e.documentId, e);
+          }
+          return out;
+        },
         forPerson: (p) =>
           [...s.envelopes.values()].filter((e) => e.signers.some((x) => x.personId === p)),
         byToken: (hash) => {
