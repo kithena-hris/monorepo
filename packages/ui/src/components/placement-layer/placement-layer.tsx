@@ -111,8 +111,16 @@ export function PlacementLayer({
     if (focus === null) return;
     const el = refs.current.get(focus);
     if (el === undefined) return;
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    el.focus({ preventScroll: true });
+    // After the frame, and straight there: the button that asked (Start, Next)
+    // is usually redrawn by the same press, and a smooth scroll begun under it
+    // was cut short a few pixels in, leaving the box off screen.
+    const frame = requestAnimationFrame(() => {
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: 'center' });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
   }, [focus]);
 
   const fraction = (event: PointerEvent): { x: number; y: number } => {
