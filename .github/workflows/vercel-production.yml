@@ -766,6 +766,9 @@ jobs:
           # Time Off's settings, `TIMEOFF_FEED_SECRET` among them.
           TIMEOFF_API_TOKEN: ${{ secrets.TIMEOFF_API_TOKEN }}
           TIMEOFF_ENV: ${{ secrets.TIMEOFF_ENV }}
+          # The Time Off–messaging pair's secret, also in messaging's Vercel
+          # settings: its notices (a nudge to rest). Unset, none is sent.
+          MESSAGING_TIMEOFF_TOKEN: ${{ secrets.MESSAGING_TIMEOFF_TOKEN }}
           # The router–Documents pair's secret, written into both ends, and the
           # rest of Documents' settings (`DOCUMENTS_BUCKET`, the sealing key).
           # Unset, the router is given a throwaway it needs to start and
@@ -835,6 +838,9 @@ jobs:
                         ASSISTANT_TIMEOFF_TOKEN; do
               if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
             done
+            if [ -n "$MESSAGING_TIMEOFF_TOKEN" ]; then
+              printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_TIMEOFF_TOKEN=%s\n' "$MESSAGING_TIMEOFF_TOKEN"
+            fi
           } | put timeoff.env
           # Documents reads with the assistant's model key (PRD §14), and answers
           # the assistant over the pair token; each optional, as Time Off's are.

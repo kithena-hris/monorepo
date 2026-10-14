@@ -1285,7 +1285,10 @@ module can merge first and switch on later. In this order:
    host to `http://documents:4003`, the shell's Vercel project gets
    `DOCUMENTS_PUBLIC_URL` (that host), and `MESSAGING_DOCUMENTS_TOKEN` goes into
    both `DOCUMENTS_ENV` and messaging's settings so the link and its code are
-   emailed. Without it, colleagues still sign with their login.
+   emailed. Without it, colleagues still sign with their login. Time Off's
+   notices work the same way with their own pair: the environment secret
+   `MESSAGING_TIMEOFF_TOKEN`, which the deploy writes into Time Off's settings
+   with `MESSAGING_URL`, and the same value in messaging's settings.
 5. **Selling it**: `module.documents` in `KITHENA_ENTITLEMENTS_PRODUCTION`, or
    switched on per company in the back office, which names its administrator.
 6. **The assistant** (DOC-052): the environment secret
