@@ -401,15 +401,15 @@ describe('an administrator, and Kithena support (decided 2026-09-29)', () => {
       expect(statusVisibleTo(viewer)).toBe(true);
     });
 
-    it(`still shows ${who} nothing nobody may read, and none of what only the employee sees`, () => {
+    it(`still shows ${who} nothing nobody may read, but what only the employee sees`, () => {
       expect(visibleTo(ethnicity, viewer)).toBe(false);
       expect(readable([ethnicity], { ethnicity: 'x' }, viewer)).toEqual({});
-      expect(visibleTo(bankAccount, viewer)).toBe(false);
+      expect(visibleTo(bankAccount, viewer)).toBe(true);
     });
 
-    it(`does not let ${who} write what the employee owns`, () => {
+    it(`lets ${who} write what the employee owns, never a special-category answer`, () => {
       expect(canWrite(ethnicity, viewer).ok).toBe(false);
-      expect(canWrite(bankAccount, viewer).ok).toBe(false);
+      expect(canWrite(bankAccount, viewer).ok).toBe(true);
     });
   }
 

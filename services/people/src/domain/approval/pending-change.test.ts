@@ -66,6 +66,32 @@ describe('deciding a pending change (PEO-077)', () => {
     });
   });
 
+  it('is a People administrator’s to approve, their own request on their own record included', () => {
+    const own = decideChange(asked(HR), {
+      by: HR,
+      isHr: true,
+      isAdmin: true,
+      subjectAccountId: HR,
+      approve: true,
+      at: AT,
+      hr: [HR, OTHER_HR],
+    });
+    expect(own.ok && own.value).toMatchObject({
+      approval: { state: 'approved', decidedBy: HR },
+      decidedAs: 'sole_hr',
+    });
+    const theirs = decideChange(asked(OTHER_HR), {
+      by: HR,
+      isHr: true,
+      isAdmin: true,
+      subjectAccountId: HR,
+      approve: true,
+      at: AT,
+      hr: [HR, OTHER_HR],
+    });
+    expect(theirs.ok && theirs.value.decidedAs).toBe('approver');
+  });
+
   it('is never the subject’s, even when somebody else asked', () => {
     const mine = decideChange(asked(OTHER_HR), {
       by: HR,

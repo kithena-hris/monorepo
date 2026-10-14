@@ -15,8 +15,9 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
  *
  * - only a `people_admin` grants or revokes (or Kithena support, which is
  *   one by its session rather than by a grant);
- * - nobody grants a role to themselves — an administrator who wants to be
- *   finance asks another administrator, so every grant has two people in it;
+ * - an administrator may grant a role to themselves (decided 2026-10-14: a
+ *   People administrator may do anything, finance for themselves included);
+ *   only Kithena support, which is nobody's employee, never grants itself one;
  * - the last `people_admin` is never revoked, not even by themselves, or the
  *   tenant is left with nobody who can grant anything and only the back
  *   office can recover it.
@@ -49,11 +50,9 @@ export const NotAnAdministrator = failure(
   'FORBIDDEN',
   'Only a People administrator may grant or revoke a role',
 );
-export const SelfGrant = failure(
-  'SELF_GRANT',
-  'Nobody may grant a role to themselves; ask another People administrator',
-  ['accountId'],
-);
+export const SelfGrant = failure('SELF_GRANT', 'Kithena support never grants a role to itself', [
+  'accountId',
+]);
 export const LastAdministrator = failure(
   'LAST_ADMIN',
   'This is the last People administrator. Make somebody else one first',
@@ -80,7 +79,9 @@ export function effectiveRoles(granted: Iterable<string>): ReadonlySet<string> {
 
 /** Every account whose rights include `role`: HR's holders include every administrator. */
 export function holdersOf(held: Holdings, role: TenantRole): string[] {
-  return [...held].flatMap(([account, roles]) => (effectiveRoles(roles).has(role) ? [account] : []));
+  return [...held].flatMap(([account, roles]) =>
+    effectiveRoles(roles).has(role) ? [account] : [],
+  );
 }
 
 /**
@@ -102,7 +103,7 @@ function checked(held: Holdings, change: RoleChange): Result<void> {
 export function decideGrant(held: Holdings, change: RoleChange): Result<'grant' | 'unchanged'> {
   const allowed = checked(held, change);
   if (!allowed.ok) return allowed;
-  if (change.actor === change.target) return err(SelfGrant);
+  if (change.bySupport === true && change.actor === change.target) return err(SelfGrant);
   return ok(holds(held, change.target, change.role) ? 'unchanged' : 'grant');
 }
 

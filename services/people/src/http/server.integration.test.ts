@@ -272,9 +272,6 @@ describe('the booted service', () => {
       roles: ['finance'],
     });
 
-    const self = await post('grants', { ...finance, accountId: HR_ACCOUNT }, 'self-1');
-    expect(self.status).toBe(403);
-    expect(await self.json()).toMatchObject({ error: { code: 'SELF_GRANT' } });
     const byMarco = await post('grants', { ...finance, role: 'hr' }, 'marco-1', MARCO_ACCOUNT);
     expect(byMarco.status).toBe(403);
     const last = await post(

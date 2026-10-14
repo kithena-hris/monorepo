@@ -13,6 +13,10 @@ import { decide, withdraw, type Approval } from './approval.js';
  *   asked for: an HR member does not approve their own pay rise because a
  *   colleague typed it.
  *
+ * A People administrator is exempt from both (decided 2026-10-14): they
+ * approve anything, their own request and their own record included, recorded
+ * as `sole_hr` — the requester approved it alone.
+ *
  * And the one exception to both: **when nobody but the requester could
  * approve, they approve it alone, once they confirm it** (`soleApprover`).
  * The tenant's only HR member — its first administrator entering their own
@@ -69,6 +73,8 @@ export function decideChange(
     readonly awaitingReview?: boolean;
     /** People's checks flag it (`unusual.ts`): approving it then needs a note. */
     readonly flagged?: boolean;
+    /** The decider is a People administrator, who may approve anything, their own included. */
+    readonly isAdmin?: boolean;
   },
 ): Result<Decided> {
   if (!decision.isHr) {
@@ -76,18 +82,20 @@ export function decideChange(
   }
   const requester = decision.by === approval.requestedBy;
   const subject = decision.subjectAccountId !== null && decision.by === decision.subjectAccountId;
-  if (subject && !requester) {
+  const admin = decision.isAdmin === true;
+  if (subject && !requester && !admin) {
     return err(failure('FORBIDDEN', 'Nobody decides a change to their own record'));
   }
   const alone =
     requester &&
-    decision.soleApprover === true &&
     decision.approve &&
-    mayApproveAlone(
-      decision.hr,
-      { requestedBy: approval.requestedBy, subjectAccountId: decision.subjectAccountId },
-      decision.by,
-    );
+    (admin ||
+      (decision.soleApprover === true &&
+        mayApproveAlone(
+          decision.hr,
+          { requestedBy: approval.requestedBy, subjectAccountId: decision.subjectAccountId },
+          decision.by,
+        )));
   if (requester && !alone) {
     return err(
       failure(
@@ -105,9 +113,11 @@ export function decideChange(
   }
   if (decision.approve && decision.flagged === true && (decision.note?.trim() ?? '') === '') {
     return err(
-      failure('NOTE_REQUIRED', 'Say why it is fine; a note is needed to approve something flagged', [
-        'note',
-      ]),
+      failure(
+        'NOTE_REQUIRED',
+        'Say why it is fine; a note is needed to approve something flagged',
+        ['note'],
+      ),
     );
   }
   const decided = decide(approval, { ...decision, ownAllowed: alone });

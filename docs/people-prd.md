@@ -602,7 +602,8 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
   account `people_admin` and `hr`. Every other grant and revocation is a
   People administrator's, through `TenantRoles` in the application layer:
   - only a `people_admin` grants or revokes;
-  - nobody grants a role to themselves;
+  - an administrator may grant a role to themselves (the owner's decision,
+    2026-10-14); Kithena support never grants itself one;
   - the last `people_admin` is never revoked — not even by themselves — and
     a trigger on `people.role_grant` refuses it for any path that skips the
     application; the one exception is a leaver, whose roles all end with
@@ -644,11 +645,15 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
   requester may approve alone, whether the back office's removal leaves the
   company without HR — counts every administrator.
 
-  Three things are not permissions and do not change, because they are
-  separation of duties: nobody decides their own request or a change to
-  their own record while another approver can; granting still needs a
-  granted `people_admin`, never to oneself; and a field whose `visibility` is
-  empty (§6.7) is readable by nobody, an administrator included.
+  A People administrator may do anything (the owner's decision,
+  2026-10-14): grant themselves a role, change their own record without it
+  being held for approval, approve any pending change including their own,
+  merge their own record, and read and write every field somebody may,
+  the employee's own included. Two things still hold for them: granting
+  needs a granted `people_admin`, and a special-category field (§6.7) is
+  read and written by nobody but the employee, an administrator included.
+  For everybody else, nobody decides their own request or a change to their
+  own record while another approver can.
 - **Kithena support** (the owner's decision, 2026-09-29;
   `docs/auth-administration.md`, "Support access"). An operator signs in from
   the back office as the company's support account, with a reason; the
@@ -1490,8 +1495,10 @@ either way on any field.
   closes.
 - **Who decides.** Anyone holding `hr`, except the requester and except the
   person the change is about: HR's own change needs a second HR member, and
-  nobody approves a change to their own record, whoever asked. The database
-  refuses a requester's decision as well as the domain.
+  nobody approves a change to their own record, whoever asked — except a
+  People administrator, who approves anything (recorded as `sole_hr`) and
+  whose own changes are never held. The database refuses a requester's
+  decision as well as the domain, unless it is recorded as `sole_hr`.
 - **With no other eligible approver, the requester approves alone.** When
   no `hr` holder but the requester may decide — they are the tenant's only
   one (the first administrator entering their own NIF in the setup wizard,
@@ -2360,7 +2367,8 @@ only when HR may read every attribute it is read from, and names the reason,
 never the value. The `Noul` judgment is not wired yet; code ranks by signal
 strength (a unique value, then an email, then a name with a birth date).
 
-The merge is HR's alone, and nobody merges their own record. HR picks the
+The merge is HR's alone, and nobody but a People administrator merges their
+own record. HR picks the
 survivor and ticks, per field, the values to take from the other record.
 The rules, all in the application and domain layers:
 
