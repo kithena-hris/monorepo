@@ -41,4 +41,12 @@ describe('what a model is shown of a private value (PRD §14.1)', () => {
     expect(p.mask('Liz Okafor and Liz Okafor')).toBe('[[Person 1]] and [[Person 1]]');
     expect(p.unmask('[[Person 1]] met [[Person 9]]')).toBe('Liz Okafor met [[Person 9]]');
   });
+
+  it('hides a name the company does not know when the finder finds it, and a street address', () => {
+    const p = pseudonymise(people, (text) => (text.includes('Grace Hopper') ? ['Grace Hopper'] : []));
+    const shown = p.mask('Witness: Grace Hopper, 7372 2nd St, Chicago. Grace signed.') as string;
+    expect(shown).toBe('Witness: [[Person 1]], [[Address 1]], Chicago. [[Person 2]] signed.');
+    expect(p.unmask(shown)).toBe('Witness: Grace Hopper, 7372 2nd St, Chicago. Grace signed.');
+  });
 });
+

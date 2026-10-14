@@ -111,7 +111,7 @@ export const OPERATIONS = {
       sections { id kind name count }
       access { askAfterUpload peopleMayTurnOffQuestion everyoneShare companyLinks outsideSharing watermark blockDownload personalSections }
       holds { id name setBy setAt count } hr
-      ai { summaries questions across sorting fields }
+      ai { summaries questions across sorting fields photos }
     }
   }`,
 

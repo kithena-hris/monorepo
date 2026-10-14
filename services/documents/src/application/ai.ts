@@ -60,13 +60,24 @@ export const CompareView = z
 type Summary = z.infer<typeof SummaryView>;
 type Answer = z.infer<typeof AnswerView>;
 
-/** The company's AI switches (S7): each on unless HR turned it off. */
-export const AI_FEATURES = ['summaries', 'questions', 'across', 'sorting', 'fields'] as const;
+/**
+ * The company's AI switches (S7): each on unless HR turned it off, except
+ * `photos`, off until HR turns it on. A photo or a scan is sent to a model as
+ * it is, since pixels cannot be masked (PRD §14.1).
+ */
+export const AI_FEATURES = [
+  'summaries',
+  'questions',
+  'across',
+  'sorting',
+  'fields',
+  'photos',
+] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
 async function featureOn(ctx: Ctx, feature: AiFeature): Promise<boolean> {
   const ai = (await ctx.tx.settings.get('ai')) as Partial<Record<AiFeature, boolean>> | null;
-  return ai?.[feature] !== false;
+  return feature === 'photos' ? ai?.photos === true : ai?.[feature] !== false;
 }
 
 const none = (reason: string): Summary => ({
@@ -108,24 +119,30 @@ async function readable(
     if (!canOpen(factsOf(doc, type), ctx.viewer, ctx.today) || doc.deletedAt !== null)
       return err(notFound());
     const on = await featureOn(ctx, feature);
+    const photos = await featureOn(ctx, 'photos');
     const v = await tx.versions.get(id, version ?? doc.currentVersion);
     if (v === null) return err(failure('NOT_FOUND', 'No such version'));
-    return ok({ doc, type, v, on });
+    return ok({ doc, type, v, on, photos });
   });
   if (!found.ok) return found;
-  const { doc, type, v, on } = found.value;
+  const { doc, type, v, on, photos } = found.value;
   if (!on) return ok({ kind: 'refused', reason: 'Your company has switched this off.' });
   if (type !== null && !type.aiEnabled)
     return ok({ kind: 'refused', reason: 'Kithena does not read this kind of document.' });
   const image = v.mediaType.startsWith('image/');
-  if (v.mediaType !== 'application/pdf' && !image)
-    return ok({ kind: 'refused', reason: 'Kithena reads PDFs and images.' });
+  if (v.mediaType !== 'application/pdf' && v.mediaType !== 'text/csv' && !image)
+    return ok({ kind: 'refused', reason: 'Kithena reads PDFs, CSV sheets and images.' });
   // A medical image could only be read by sending it: it is not (PRD §14.1).
   if (image && type?.medical === true)
     return ok({ kind: 'refused', reason: 'Kithena reads only the dates of a medical PDF.' });
+  if (image && !photos)
+    return ok({ kind: 'refused', reason: 'Your company keeps photos and scans away from AI.' });
   const bytes = await deps.blobs.get(v.blobKey);
   if (bytes === null) return ok({ kind: 'refused', reason: 'The file is no longer stored.' });
-  const pages = await pagesOf(bytes, v.mediaType, v.checksum, deps.reader);
+  const pages = await pagesOf(bytes, v.mediaType, v.checksum, {
+    reader: deps.reader,
+    tenantId: caller.tenantId,
+  });
   if (pages === null || pages.every((p) => p === ''))
     return ok({ kind: 'refused', reason: 'There is no text in this file to read.' });
   // A medical document's text never leaves Documents (PRD §14.1).
@@ -424,12 +441,10 @@ export async function suggestFiling(
     100 * 1024 * 1024,
   );
   if (bytes === null || bytes === 'too_large') return ok(empty);
-  const pages = await pagesOf(
-    bytes,
-    mediaTypeOf(input.name),
-    `upload:${input.uploadId}`,
-    deps.reader,
-  );
+  const pages = await pagesOf(bytes, mediaTypeOf(input.name), `upload:${input.uploadId}`, {
+    reader: deps.reader,
+    tenantId: caller.tenantId,
+  });
   if (pages === null) return ok(empty);
   const answer = await deps.reader.read({
     tenantId: caller.tenantId,

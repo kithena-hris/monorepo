@@ -308,7 +308,9 @@ export const SEEDED_TYPES: readonly DocumentType[] = [
     expiryReminders: [],
     retention: { kind: 'days', days: 90 },
     aiReads: [],
-    aiEnabled: false,
+    // Read like any other (decided 2026-10-14): every name, email, number and
+    // address in it is a stand-in before a model sees it (PRD §14.1).
+    aiEnabled: true,
   },
   {
     key: key('template'),

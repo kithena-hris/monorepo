@@ -51,7 +51,12 @@ export async function readTemplate(
   const { doc, version } = found.value;
   const bytes = await deps.blobs.get(version.blobKey);
   const pages =
-    bytes === null ? null : await pagesOf(bytes, version.mediaType, version.checksum, deps.reader);
+    bytes === null
+      ? null
+      : await pagesOf(bytes, version.mediaType, version.checksum, {
+          reader: deps.reader,
+          tenantId: caller.tenantId,
+        });
   if (pages === null)
     return err(failure('NO_TEXT', 'This template has no text to fill', ['templateId']));
   const text = pages.join('\n\n');

@@ -40,6 +40,7 @@ const READING: readonly (readonly [string, string])[] = [
   ['across', 'Questions across documents'],
   ['sorting', 'Sort uploads'],
   ['fields', 'Read fields into People'],
+  ['photos', 'Read photos and scans'],
 ];
 
 const SWITCHES: readonly (readonly [string, string])[] = [

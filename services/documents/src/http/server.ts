@@ -5,6 +5,7 @@ import { systemClock } from '@kithena/domain-kit';
 import type { Deps } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import { uuidv7 } from '../infrastructure/ids.js';
+import { namesIn } from '../infrastructure/names.js';
 import { CAPABILITIES_PREFIX, capabilitiesHandler } from './capabilities.js';
 import { callerFromHeaders, type CallerFrom } from './caller.js';
 import { openApiDocument } from './openapi.js';
@@ -115,7 +116,9 @@ export function documentsServer(options: DocumentsServerOptions): {
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.transfers === undefined ? {} : { transfers: options.transfers }),
     // Every model request goes masked (PRD §14.1): no feature reaches the model otherwise.
-    ...(options.reader === undefined ? {} : { reader: privately(options.reader, options.uow) }),
+    ...(options.reader === undefined
+      ? {}
+      : { reader: privately(options.reader, options.uow, namesIn) }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   const capabilities = capabilitiesHandler({

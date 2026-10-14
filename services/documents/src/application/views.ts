@@ -282,7 +282,7 @@ export const SettingsView = z
       personalSections: z.boolean(),
     }),
     holds: z.array(HoldView),
-    /** S7: Kithena's reading features, each on unless HR switched it off. */
+    /** S7: Kithena's reading features, each on unless HR switched it off; photos off until switched on. */
     ai: z
       .object({
         summaries: z.boolean(),
@@ -290,6 +290,7 @@ export const SettingsView = z
         across: z.boolean(),
         sorting: z.boolean(),
         fields: z.boolean(),
+        photos: z.boolean(),
       })
       .meta(Title('DocumentsAiSettings')),
     hr: z.boolean(),

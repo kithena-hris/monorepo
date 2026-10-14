@@ -26,6 +26,7 @@ type DocumentTypeDefinition {
 type DocumentsAiSettings {
   across: Boolean!
   fields: Boolean!
+  photos: Boolean!
   questions: Boolean!
   sorting: Boolean!
   summaries: Boolean!
