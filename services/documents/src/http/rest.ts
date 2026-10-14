@@ -45,7 +45,15 @@ import {
 } from '../application/ai.js';
 import { documentsInbox } from '../application/inbox.js';
 import { fileSplit, proposeSplit } from '../application/split.js';
-import { generateLetters, readTemplate } from '../application/letters.js';
+import {
+  DraftSigner,
+  DraftTurn,
+  DraftView,
+  draftDocument,
+  fileDraft,
+  generateLetters,
+  readTemplate,
+} from '../application/letters.js';
 import {
   askSender,
   declineAsMember,
@@ -1198,6 +1206,43 @@ export const ROUTES: readonly Route[] = [
     status: 201,
     run: (deps, caller, { params, body }) =>
       generateLetters(deps, caller, { templateId: params.documentId, ...body }),
+  }),
+  /* -------------------------------------- drafted with Kithena (§14.2) -- */
+  route({
+    name: 'draftDocument',
+    method: 'POST',
+    path: `${V1}/drafts/turn`,
+    summary: 'One turn of drafting a document with Kithena: its reply, and the draft so far',
+    body: DraftTurn.extend({ companyName: OriginBody.companyName }),
+    answer: DraftView,
+    run: (deps, caller, { body }) => draftDocument(deps, caller, body),
+  }),
+  route({
+    name: 'fileDraft',
+    method: 'POST',
+    path: `${V1}/drafts`,
+    summary: 'A drafted document drawn as a PDF, filed and, when asked, sent to sign',
+    body: z.strictObject({
+      title: z.string().trim().min(1).max(200),
+      typeKey: z.string().max(80).nullable(),
+      aboutPersonId: PersonId.nullable(),
+      body: z.string().trim().min(1).max(20_000),
+      signers: z
+        .array(
+          DraftSigner.omit({ email: true }).extend({
+            personId: PersonId.nullable(),
+            email: z.string().trim().max(254).nullable(),
+          }),
+        )
+        .max(10),
+      send: z.boolean(),
+      ...OriginBody,
+    }),
+    answer: z
+      .object({ id: z.string(), envelopeId: z.string().nullable() })
+      .meta({ title: 'DocumentsDraftFiled' }),
+    status: 201,
+    run: (deps, caller, { body }) => fileDraft(deps, caller, body),
   }),
 ];
 

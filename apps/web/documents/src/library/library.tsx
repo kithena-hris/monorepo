@@ -63,6 +63,7 @@ import type {
   StartUpload,
 } from '../types';
 import { ShareQuestion, UploadDialog, type UploadInput, type UploadPreset } from '../upload';
+import { DraftDialog, type DraftProps } from './draft';
 import { LettersDialog, type LettersProps } from './letters';
 import { SplitDialog, type SplitProps } from './split';
 
@@ -119,6 +120,9 @@ export interface LibraryProps {
   /** G3: letters from a template, one per person (HR). */
   readonly onPreviewLetters?: LettersProps['onPreviewLetters'];
   readonly onGenerateLetters?: LettersProps['onGenerateLetters'];
+  /** §14.2: a document drafted with Kithena, filed and sent to sign (HR). */
+  readonly onDraftDocument?: DraftProps['onDraftDocument'];
+  readonly onFileDraft?: DraftProps['onFileDraft'];
   /** C2: a scanned stack split into its documents (HR). */
   readonly onProposeSplit?: SplitProps['onProposeSplit'];
   readonly onFileSplit?: SplitProps['onFileSplit'];
@@ -151,6 +155,7 @@ function Ready({
   const [newSection, setNewSection] = useState(false);
   const [splitting, setSplitting] = useState(false);
   const [lettering, setLettering] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [query, type] = useTyped(data.q, (q) => props.onFilter?.({ q: q === '' ? null : q }));
   const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(
     null,
@@ -191,6 +196,17 @@ function Ready({
         }
         actions={
           <>
+            {data.viewer.hr && props.onDraftDocument !== undefined ? (
+              <Button
+                variant="secondary"
+                startIcon={<icons.assistant aria-hidden />}
+                onClick={() => {
+                  setDrafting(true);
+                }}
+              >
+                Draft with Kithena
+              </Button>
+            ) : null}
             <Button
               variant="primary"
               startIcon={<icons.upload aria-hidden />}
@@ -471,6 +487,18 @@ function Ready({
           onShare={props.onShare}
         />
       )}
+      {drafting ? (
+        <DraftDialog
+          open
+          onOpenChange={setDrafting}
+          onDraftDocument={props.onDraftDocument}
+          onFileDraft={props.onFileDraft}
+          onDone={(to) => {
+            setDrafting(false);
+            props.onNavigate?.(to);
+          }}
+        />
+      ) : null}
       {lettering ? (
         <LettersDialog
           open

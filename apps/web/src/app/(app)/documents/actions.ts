@@ -860,6 +860,29 @@ export async function generateLetters(
   );
 }
 
+/* ------------------------------------------- drafted with Kithena (§14.2) -- */
+
+/** One turn of the conversation: what was said, and the draft so far; Kithena keeps neither. */
+export async function draftDocument(turn: {
+  readonly messages: readonly { readonly role: 'user' | 'assistant'; readonly text: string }[];
+  readonly draft: Readonly<Record<string, unknown>> | null;
+}): Promise<Read<unknown>> {
+  const { companyName } = await origin();
+  return read(await documents('DraftDocument', { input: { ...turn, companyName } }));
+}
+
+/** The draft drawn as a PDF and filed; sent to its signers when asked. */
+export async function fileDraft(
+  draft: Readonly<Record<string, unknown>>,
+  send: boolean,
+): Promise<Read<{ readonly id: string; readonly envelopeId: string | null }>> {
+  return read(
+    await documents<{ readonly id: string; readonly envelopeId: string | null }>('FileDraft', {
+      input: { ...draft, send, ...(await origin()) },
+    }),
+  );
+}
+
 /* ------------------------------------- a certificate that unlocks leave (J4) -- */
 
 /** Which of a person's leave types an event entitles them to: by its category, else its name. */

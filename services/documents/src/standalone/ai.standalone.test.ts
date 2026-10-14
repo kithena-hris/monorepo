@@ -3,7 +3,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import { fixedClock, ok } from '@kithena/domain-kit';
-import type { PersonId, TenantId } from '@kithena/contracts';
+import type { DocumentId, PersonId, TenantId } from '@kithena/contracts';
 
 import { seedTypes } from '../application/organise.js';
 import type { Caller, Reader } from '../application/ports.js';
@@ -413,6 +413,78 @@ describe('letters from a template (G3)', () => {
       aboutMe: true,
     });
     expect(letter.body.document.signing).toMatchObject({ status: 'sent', mine: true });
+  });
+});
+
+describe('a document drafted with Kithena (§14.2)', () => {
+  const origin = { origin: 'https://acme.app.kithena.com', companyName: 'Acme' };
+  const said = [{ role: 'user', text: 'An offer for Adam at 60,000 a year. Marco signs, then me.' }];
+
+  it('asks, then drafts: signers found in order, figures nobody gave pointed out', async () => {
+    reply = { reply: 'From when does it start?', draft: null };
+    const asked = await call('ada', 'POST', '/v1/documents/drafts/turn', {
+      messages: said,
+      draft: null,
+      companyName: 'Acme',
+    });
+    expect(asked.body).toEqual({ available: true, reply: 'From when does it start?', draft: null });
+    expect(seen.at(-1)).toMatchObject({ you: 'Ada Test', messages: said });
+
+    reply = {
+      reply: 'Here is the offer.',
+      draft: {
+        title: 'Offer letter',
+        typeKey: 'employment_contract',
+        about: 'Adam',
+        body: 'Dear Adam,\n\nYour salary is 60000 a year, with a 10% bonus.',
+        signers: [
+          { name: 'Marco Test', email: null, order: 1 },
+          { name: 'Ada Test', email: null, order: 2 },
+          { name: 'Grace Hopper', email: null, order: 3 },
+        ],
+      },
+    };
+    const turn = await call('ada', 'POST', '/v1/documents/drafts/turn', {
+      messages: said,
+      draft: null,
+      companyName: 'Acme',
+    });
+    expect(turn.body.draft).toMatchObject({
+      aboutPersonId: ids.adam.person,
+      figures: ['10'],
+      ready: false,
+      signers: [
+        { name: 'Marco Test', personId: ids.marco.person },
+        { name: 'Ada Test', personId: ids.ada.person },
+        { name: 'Grace Hopper', personId: null, email: null },
+      ],
+    });
+    expect(turn.body.reply).toMatch(/can’t find Grace Hopper/);
+    expect((await call('adam', 'POST', '/v1/documents/drafts/turn', { messages: said, draft: null, companyName: 'Acme' })).status).toBe(403);
+  });
+
+  it('is filed and sent with each signer’s box on their own line, in order', async () => {
+    const made = await call('ada', 'POST', '/v1/documents/drafts', {
+      title: 'Offer letter',
+      typeKey: 'employment_contract',
+      aboutPersonId: ids.adam.person,
+      body: 'Dear Adam,\n\nYour salary is 60000 a year.',
+      signers: [
+        { name: 'Marco Test', personId: ids.marco.person, email: null, order: 1 },
+        { name: 'Grace Hopper', personId: null, email: 'grace@outside.example', order: 2 },
+      ],
+      send: true,
+      ...origin,
+    });
+    expect(made.status).toBe(201);
+    const documentId = made.body.id as DocumentId;
+    const [envelope] = await world.uow.run(TENANT, (tx) => tx.envelopes.forDocument(documentId));
+    expect(envelope?.id).toBe(made.body.envelopeId);
+    const [marco, grace] = envelope?.fields ?? [];
+    expect([marco?.signerId, grace?.signerId]).toEqual(['s1', 's2']);
+    // Marco's line comes first on the page, Grace's under it: not the default foot of the page.
+    expect(marco?.y).toBeLessThan(grace?.y ?? 0);
+    expect(marco?.y).toBeLessThan(0.7);
   });
 });
 

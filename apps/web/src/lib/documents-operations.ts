@@ -415,6 +415,15 @@ export const OPERATIONS = {
     'documentId: $documentId, input: $input, ',
     'ids',
   ),
+  /** §14.2: a document drafted with Kithena, one turn at a time, then filed */
+  DraftDocument: write(
+    'DraftDocument',
+    'draftDocument',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'available reply draft { title typeKey typeName about aboutPersonId body figures ready signers { name email order personId } }',
+  ),
+  FileDraft: write('FileDraft', 'fileDraft', '$input: JSON!, ', 'input: $input, ', 'id envelopeId'),
   /** S7: the company's switches */
   SetDocumentsAiSettings: write(
     'SetDocumentsAiSettings',
