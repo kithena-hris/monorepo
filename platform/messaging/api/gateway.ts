@@ -70,6 +70,9 @@ function routes(): RequestHandler {
     webhookSecret: process.env['RESEND_WEBHOOK_SECRET'],
     // Time Off's notices: a pair's secret, as People's.
     timeOffNoticeToken: process.env['MESSAGING_TIMEOFF_TOKEN'],
+    // Documents' notices: a signing link for somebody outside, and their code.
+    // Read by `main.ts` and not here, every one was refused with a 401.
+    documentsNoticeToken: process.env['MESSAGING_DOCUMENTS_TOKEN'],
     // The Inbox's email follows each person's settings, read from identity
     // where `INTERNAL_API_URL` says it answers; the daily digest starts on
     // Vercel's cron, which presents `CRON_SECRET`.
