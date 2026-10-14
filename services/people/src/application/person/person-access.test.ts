@@ -947,14 +947,14 @@ describe('an administrator (decided 2026-09-29)', () => {
     expect(seen.ok && seen.value.attributes['base_salary']).toEqual(money);
   });
 
-  it('still writes nothing only the employee owns', async () => {
+  it('writes what only the employee owns too (decided 2026-10-14)', async () => {
     const { people } = setup();
-    const refused = await people.update(tx, {
+    const wrote = await people.update(tx, {
       ...asking(admin),
       personId: ADA,
       changes: { mobile: '+34600000000' },
     });
-    expect(refused.ok).toBe(false);
+    expect(wrote.ok).toBe(true);
   });
 });
 
@@ -997,14 +997,14 @@ describe('Kithena support (decided 2026-09-29)', () => {
     );
   });
 
-  it('is nobody’s self: it writes nothing the employee owns', async () => {
+  it('writes what the employee owns, as any administrator does (decided 2026-10-14)', async () => {
     const { people } = supported();
-    const refused = await people.update(tx, {
+    const wrote = await people.update(tx, {
       ...asking(support),
       personId: ADA,
       changes: { mobile: '+34600000000' },
     });
-    expect(refused.ok).toBe(false);
+    expect(wrote.ok).toBe(true);
   });
 
   it('is nobody’s self or manager, even where the resolver underneath would say so', async () => {
