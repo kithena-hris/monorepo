@@ -49,7 +49,15 @@ window.render = async (src, width) => {
     const source = src.startsWith('data:')
       ? { data: Uint8Array.from(atob(src.slice(src.indexOf(',') + 1)), (c) => c.charCodeAt(0)) }
       : { url: src };
-    const task = pdfjs.getDocument({ ...source, disableRange: true, disableStream: true });
+    // Glyphs drawn from the file's own fonts, never handed to the browser as web
+    // fonts: a subset it refuses (a signature's handwriting face) is otherwise
+    // not drawn at all. As Reach's web PdfPages.
+    const task = pdfjs.getDocument({
+      ...source,
+      disableRange: true,
+      disableStream: true,
+      disableFontFace: true,
+    });
     const doc = await task.promise;
     const sizes = [];
     for (let n = 1; n <= doc.numPages; n++) {

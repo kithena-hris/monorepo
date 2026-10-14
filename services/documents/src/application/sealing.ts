@@ -100,38 +100,38 @@ async function stampFields(
     };
     const signer = envelope.signers.find((s) => s.id === field.signerId);
     const mark = signer?.signature ?? null;
-    const stamp = async (b: Box, initialsOnly: boolean) => {
-      if (mark === null) return;
-      if (mark.kind === 'drawn') {
-        drawCentred(page, mark.path, b, ink);
-        return;
-      }
+    // Each draw says where its ink ends, so the print goes under what was
+    // drawn rather than under the box, however much of the box it fills.
+    const stamp = async (b: Box, initialsOnly: boolean): Promise<number> => {
+      if (mark === null) return b.y + b.h / 2;
+      if (mark.kind === 'drawn') return drawCentred(page, mark.path, b, ink);
       const text = initialsOnly ? initials(mark.text) : mark.text;
       const font = (await scriptFor(pdf, mark.style ?? 'flowing', text)) ?? body;
-      writeCentred(page, font === body ? drawable(text) : text, font, b, ink, 0.95);
+      return writeCentred(page, font === body ? drawable(text) : text, font, b, ink, 0.95);
     };
+    let bottom: number;
     if ((field.kind === 'signature' || field.kind === 'initials') && mark !== null) {
-      await stamp(box, field.kind === 'initials');
+      bottom = await stamp(box, field.kind === 'initials');
     } else if (field.kind === 'date' && mark !== null) {
-      // A dated signature: the signature over its upper part, the day under it.
+      // A dated signature: the signature over the box, the day right under it.
       const under = box.h * 0.3;
-      await stamp({ ...box, y: box.y + under, h: box.h - under }, false);
-      writeCentred(page, drawable(field.value), body, { ...box, h: under }, ink, 0.8, 10);
+      const signed = await stamp({ ...box, y: box.y + under, h: box.h - under }, false);
+      bottom = writeUnder(page, drawable(field.value), body, box, signed - DAY_GAP, ink, 9);
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
-      writeCentred(page, drawable(text), body, box, ink, 0.8, 12);
+      bottom = writeCentred(page, drawable(text), body, box, ink, 0.8, 12);
     }
     const trace = traces.get(field.signerId);
     if (trace !== undefined) {
-      // Two lines under the box, or inside its foot when it sits at the page's edge.
-      const size = 5.5;
-      const lead = size + 1.5;
-      const top = box.y - lead - 1 >= lead + 2 ? box.y - lead - 1 : box.y + lead + 2;
+      // TRACE_GAP under the ink: tight, as e-signature services print it.
+      const cap = body.heightAtSize(TRACE_SIZE, { descender: false });
+      const lead = TRACE_SIZE * 1.3;
+      const first = Math.max(bottom - TRACE_GAP - cap, lead + 2);
       for (const [i, text] of traceLines(trace).entries()) {
         page.drawText(drawable(text), {
           x: box.x,
-          y: top - i * lead,
-          size,
+          y: first - i * lead,
+          size: TRACE_SIZE,
           font: body,
           color: rgb(0.42, 0.44, 0.5),
         });
@@ -220,9 +220,16 @@ interface Box {
   readonly h: number;
 }
 
+/** The print under a signed field: its size, and the gap above it (6pt, 8px on screen). */
+const TRACE_SIZE = 5.5;
+const TRACE_GAP = 6;
+/** Between a dated signature and its day. */
+const DAY_GAP = 2;
+
 /**
  * Text in the middle of its box, as large as fits: at most `fill` of the
- * box's height, and never wider than nine tenths of it.
+ * box's height, and never wider than nine tenths of it. Answers where its
+ * ink ends.
  */
 function writeCentred(
   page: PDFPage,
@@ -232,8 +239,8 @@ function writeCentred(
   color: RGB,
   fill: number,
   most = Infinity,
-): void {
-  if (text === '') return;
+): number {
+  if (text === '') return box.y + box.h / 2;
   const unit = font.widthOfTextAtSize(text, 1);
   // By the face's whole height, tails and capitals included: a handwriting
   // face runs far above and below its size.
@@ -244,13 +251,60 @@ function writeCentred(
   );
   const full = font.heightAtSize(size);
   const descent = full - font.heightAtSize(size, { descender: false });
+  const baseline = box.y + (box.h - full) / 2 + descent;
   page.drawText(text, {
     x: box.x + (box.w - font.widthOfTextAtSize(text, size)) / 2,
-    y: box.y + (box.h - full) / 2 + descent,
+    y: baseline,
     size,
     font,
     color,
   });
+  return inkBottom(font, text, size, baseline);
+}
+
+/**
+ * Where the glyphs' ink really ends. A script face's descender is sized for
+ * its deepest swash, so measuring by it leaves a gap under most names; the
+ * fontkit face pdf-lib embedded lays the text out and knows.
+ */
+function inkBottom(font: PDFFont, text: string, size: number, baseline: number): number {
+  const face = (font as unknown as { embedder?: { font?: Face } }).embedder?.font;
+  const low = face?.layout(text).bbox.minY;
+  if (face === undefined || low === undefined || !Number.isFinite(low)) {
+    return baseline - (font.heightAtSize(size) - font.heightAtSize(size, { descender: false }));
+  }
+  return baseline + (low * size) / face.unitsPerEm;
+}
+
+interface Face {
+  readonly unitsPerEm: number;
+  layout(text: string): { readonly bbox: { readonly minY: number } };
+}
+
+/**
+ * A line centred across the box with its top at `top`: the day under a
+ * dated signature, close under its ink. Answers where its ink ends.
+ */
+function writeUnder(
+  page: PDFPage,
+  text: string,
+  font: PDFFont,
+  box: Box,
+  top: number,
+  color: RGB,
+  size: number,
+): number {
+  if (text === '') return top;
+  const ascent = font.heightAtSize(size, { descender: false });
+  const baseline = top - ascent;
+  page.drawText(text, {
+    x: box.x + (box.w - font.widthOfTextAtSize(text, size)) / 2,
+    y: baseline,
+    size,
+    font,
+    color,
+  });
+  return inkBottom(font, text, size, baseline);
 }
 
 /**
@@ -258,9 +312,9 @@ function writeCentred(
  * margin: the pad's own 400 × 120 frame and the blank around the strokes
  * are not part of the signature.
  */
-function drawCentred(page: PDFPage, path: string, box: Box, color: RGB): void {
+function drawCentred(page: PDFPage, path: string, box: Box, color: RGB): number {
   const ink = inkBounds(path);
-  if (ink === null) return;
+  if (ink === null) return box.y + box.h / 2;
   const scale = Math.min(
     (box.w * 0.9) / Math.max(ink.width, 1),
     (box.h * 0.85) / Math.max(ink.height, 1),
@@ -273,4 +327,6 @@ function drawCentred(page: PDFPage, path: string, box: Box, color: RGB): void {
     borderColor: color,
     borderWidth: 1.5 / scale,
   });
+  // The strokes' foot, as drawn.
+  return top - ink.height * scale;
 }

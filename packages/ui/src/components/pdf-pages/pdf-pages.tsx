@@ -84,6 +84,11 @@ export function PdfPages({ src, label, overlay, onLoad, className }: PdfPagesPro
           // request only where its bucket allows it, and documents are small.
           disableRange: true,
           disableStream: true,
+          // Each glyph drawn from the file's own font program rather than handed
+          // to the browser as a web font: a subset the browser refuses (a
+          // signature's handwriting face, embedded by the signing service) is
+          // otherwise not drawn at all, and the page shows no signature.
+          disableFontFace: true,
         });
         loading = task;
         const opened = await task.promise;
