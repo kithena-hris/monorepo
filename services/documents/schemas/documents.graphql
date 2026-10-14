@@ -150,6 +150,36 @@ type DocumentsDone {
   ok: Boolean!
 }
 
+type DocumentsDraft {
+  available: Boolean!
+  draft: DocumentsDraftDraft
+  reply: String!
+}
+
+type DocumentsDraftDraft {
+  about: String
+  aboutPersonId: String
+  body: String!
+  figures: [String!]!
+  ready: Boolean!
+  signers: [DocumentsDraftDraftSigners!]!
+  title: String!
+  typeKey: String
+  typeName: String
+}
+
+type DocumentsDraftDraftSigners {
+  email: String
+  name: String!
+  order: Int!
+  personId: String
+}
+
+type DocumentsDraftFiled {
+  envelopeId: String
+  id: String!
+}
+
 type DocumentsEnvelope {
   completedAt: String
   createdAt: String!
@@ -668,12 +698,26 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsTypeDraft!
+  """
+  One turn of drafting a document with Kithena: its reply, and the draft so far
+  """
+  draftDocument(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsDraft!
   """File each part of a scanned stack as a document of its own (C2)"""
   fileDocumentSplit(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
   ): DocumentsSplitFiled!
+  """A drafted document drawn as a PDF, filed and, when asked, sent to sign"""
+  fileDraft(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsDraftFiled!
   """
   A letter per person from a template, filed to each and, when asked, sent to sign (G3)
   """

@@ -344,6 +344,8 @@ export interface Reader {
   read(input: {
     readonly instruction: string;
     readonly context: Readonly<Record<string, unknown>>;
+    /** How long the answer may be; a drafted document needs more than a summary. */
+    readonly maxTokens?: number;
   }): Promise<Readonly<Record<string, unknown>> | null>;
   /**
    * An image's text, as a model that sees transcribes it: a phone's scan or

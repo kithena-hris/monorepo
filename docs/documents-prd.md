@@ -381,17 +381,29 @@ document is the feature. Recorded in `docs/tech-stack.md`:
 
 ### 14.2 The features
 
-| Feature                | Screens       | Domain does                                            | AI does                                            |
-| ---------------------- | ------------- | ------------------------------------------------------ | -------------------------------------------------- |
-| Summary with citations | D1, MR1       | Extracts text per page; checks every cited page exists | Writes the summary, key facts, the clause to know  |
-| Follow-up questions    | D2, MR2       | Restricts to this document                             | Answers with page citations                        |
-| Ask across documents   | B4, MR5       | Searches only what the asker can open                  | Answers from the top passages, cited               |
-| What changed           | C4, D3        | Diffs the two versions' text                           | Writes one sentence per change                     |
-| Sort uploads           | C1, MD3       | Validates type, person, dates against the tenant's own | Suggests type, person, dates, sensitivity          |
-| Split a bulk PDF       | C2            | Splits pages, matches by employee number or name       | Suggests a member for ambiguous pages              |
-| Read fields            | G5, K9, J1–J7 | Compares extracted values with what the shell passes   | Extracts typed values with their page              |
-| Describe a type        | S4, MS4       | Validates the structured type                          | Parses prose into the type; asks the open question |
-| Place signature fields | K2            | Places default fields on the last page                 | Suggests positions from the text                   |
+| Feature                | Screens       | Domain does                                                                                                                                                                     | AI does                                                                  |
+| ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Summary with citations | D1, MR1       | Extracts text per page; checks every cited page exists                                                                                                                          | Writes the summary, key facts, the clause to know                        |
+| Follow-up questions    | D2, MR2       | Restricts to this document                                                                                                                                                      | Answers with page citations                                              |
+| Ask across documents   | B4, MR5       | Searches only what the asker can open                                                                                                                                           | Answers from the top passages, cited                                     |
+| What changed           | C4, D3        | Diffs the two versions' text                                                                                                                                                    | Writes one sentence per change                                           |
+| Sort uploads           | C1, MD3       | Validates type, person, dates against the tenant's own                                                                                                                          | Suggests type, person, dates, sensitivity                                |
+| Split a bulk PDF       | C2            | Splits pages, matches by employee number or name                                                                                                                                | Suggests a member for ambiguous pages                                    |
+| Read fields            | G5, K9, J1–J7 | Compares extracted values with what the shell passes                                                                                                                            | Extracts typed values with their page                                    |
+| Describe a type        | S4, MS4       | Validates the structured type                                                                                                                                                   | Parses prose into the type; asks the open question                       |
+| Place signature fields | K2            | Places default fields on the last page                                                                                                                                          | Suggests positions from the text                                         |
+| Draft a document       | B1            | Finds each signer and the subject among the company's people, points out every figure nobody gave, writes a line to sign per signer in order, draws the PDF, files and sends it | Asks for what is missing, writes the text, names who signs in what order |
+
+**Drafting** (HR only, decided 2026-10-14): HR tells Kithena what they need in
+a conversation (B1's Draft with Kithena). The model sees that conversation,
+the names of the company's document types and the sender's name, never a
+record: what it writes comes from what HR typed. Nothing is kept until the
+draft is filed; each turn carries the conversation and the draft so far.
+Signers are matched by name among the company's people, an email for anyone
+outside, and a name that could mean two people is asked, never guessed. The
+signing lines are Kithena's, not the model's, so every signer's box lands on
+their own line in their order, and a figure in the draft that HR never gave
+is shown to check before it is sent.
 
 Every feature degrades to a working screen without the key. CI runs the
 standalone suite with and without it.

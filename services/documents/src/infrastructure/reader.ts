@@ -66,7 +66,7 @@ export function readerFrom(
         return null;
       }
     },
-    async read({ instruction, context }) {
+    async read({ instruction, context, maxTokens = 1500 }) {
       try {
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
@@ -74,7 +74,7 @@ export function readerFrom(
           body: JSON.stringify({
             model,
             temperature: 0,
-            max_tokens: 1500,
+            max_tokens: maxTokens,
             ...(model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
             response_format: { type: 'json_object' },
             messages: [
@@ -82,7 +82,7 @@ export function readerFrom(
               { role: 'user', content: JSON.stringify(context) },
             ],
           }),
-          signal: AbortSignal.timeout(20_000),
+          signal: AbortSignal.timeout(maxTokens > 1500 ? 45_000 : 20_000),
         });
         if (!response.ok) return null;
         const body = (await response.json()) as { choices?: { message?: { content?: string } }[] };

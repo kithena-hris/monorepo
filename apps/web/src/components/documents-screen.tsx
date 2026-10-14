@@ -100,6 +100,8 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
                 onGenerateLetters: actions.generateLetters,
               }
             : {}),
+          onDraftDocument: actions.draftDocument,
+          onFileDraft: actions.fileDraft,
           onProposeSplit: actions.proposeSplit,
           onFileSplit: actions.fileSplit,
           ...answers,
