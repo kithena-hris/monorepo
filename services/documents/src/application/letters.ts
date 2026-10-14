@@ -298,6 +298,7 @@ export async function draftDocument(
   if (deps.reader === undefined) return ok(noDraft('Kithena cannot draft without its AI key.'));
 
   const read = await deps.reader.read({
+    tenantId: caller.tenantId,
     instruction: DRAFTING,
     context: {
       messages: input.messages,

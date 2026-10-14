@@ -145,6 +145,12 @@ export interface Route {
   readonly graphql: boolean;
   /** Reached by a signing link's token, not through the router: no caller, no key. */
   readonly public: boolean;
+  /**
+   * Whether the answer is kept against its idempotency key. Never for what a
+   * model wrote (PRD §14.1): nothing it reads or writes is stored, so a
+   * retry asks again rather than replaying a stored answer.
+   */
+  readonly keep: boolean;
   readonly run: (
     deps: Deps,
     caller: Caller,
@@ -165,6 +171,8 @@ function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.Zo
   readonly answer: A;
   readonly status?: number;
   readonly public?: true;
+  /** A model's answer: never stored (`Route['keep']`). */
+  readonly model?: true;
   readonly run: (
     deps: Deps,
     caller: Caller,
@@ -186,6 +194,7 @@ function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.Zo
     status: def.status ?? 200,
     graphql: def.public !== true,
     public: def.public === true,
+    keep: def.model !== true,
     run: def.run as Route['run'],
     shape: (def.shape ?? ((v: V) => v)) as Route['shape'],
   };
@@ -1045,6 +1054,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'askDocument',
     method: 'POST',
+    model: true,
     path: `${V1}/d/{documentId}/ask`,
     summary: 'A question about this document, answered from its pages (D2)',
     params: DocParams,
@@ -1056,6 +1066,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'askDocuments',
     method: 'POST',
+    model: true,
     path: `${V1}/ask`,
     summary: 'A question across the documents you can open (B4)',
     body: z.strictObject({ question: z.string().max(500) }),
@@ -1079,6 +1090,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'suggestDocumentFiling',
     method: 'POST',
+    model: true,
     path: `${V1}/uploads/{uploadId}/suggest`,
     summary: 'What an upload looks like it is: a type, a person, a name and an expiry (C1)',
     params: z.object({ uploadId: z.uuid() }),
@@ -1098,6 +1110,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'describeDocumentType',
     method: 'POST',
+    model: true,
     path: `${V1}/types/describe`,
     summary: 'A type described in words, drafted as its settings for HR to save (S4)',
     body: z.strictObject({ text: z.string().max(1000) }),
@@ -1113,6 +1126,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'readDocumentFields',
     method: 'POST',
+    model: true,
     path: `${V1}/d/{documentId}/fields`,
     summary:
       'Values read from the document, each with its page: the names asked, or its type’s (G5)',
@@ -1142,6 +1156,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'proposeDocumentSplit',
     method: 'POST',
+    model: true,
     path: `${V1}/split`,
     summary: 'Where each document in a scanned stack starts, what it is and whom it is about (C2)',
     body: z.strictObject({ ...OneFile }),
@@ -1211,6 +1226,7 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'draftDocument',
     method: 'POST',
+    model: true,
     path: `${V1}/drafts/turn`,
     summary: 'One turn of drafting a document with Kithena: its reply, and the draft so far',
     body: DraftTurn.extend({ companyName: OriginBody.companyName }),
@@ -1445,7 +1461,7 @@ export function restHandler(
       body = parsed.value;
     }
     const input = { params: params.value, body };
-    if (!writes || typeof key !== 'string')
+    if (!writes || typeof key !== 'string' || !r.keep)
       return answer(r, await r.run(deps, caller.value, input));
 
     const tenantId = caller.value.tenantId;
