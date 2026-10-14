@@ -46,8 +46,16 @@ type Who = keyof typeof ids;
 
 const world = memoryWorld();
 let counter = 0;
+/** Every email asked for: messaging is down here, and signing must not care. */
+const mailed: string[] = [];
 const server = documentsServer({
   uow: world.uow,
+  mailer: {
+    notice: (m) => {
+      mailed.push(`${m.notice.kind} ${m.email}`);
+      return Promise.reject(new Error('messaging is down'));
+    },
+  },
   blobs: world.blobs,
   clock: fixedClock('2026-10-12T09:00:00.000Z'),
   newId: () => `01890000-0000-7000-8000-${String(++counter).padStart(12, '0')}`,
@@ -475,7 +483,9 @@ describe('signatures (K1–K9)', () => {
       signature: { kind: 'typed', text: 'Adam Novak' },
       ...origin,
     });
+    // Signed, though the email to Nora, whose turn it now is, did not go.
     expect(signed.body).toEqual({ completed: false });
+    expect(mailed).toEqual(['signature_requested nora@board.example']);
     const followed = await call('ada', 'GET', `/v1/documents/envelopes/${envelope}`);
     expect(followed.body.signers.map((s: { status: string }) => s.status)).toEqual([
       'signed',

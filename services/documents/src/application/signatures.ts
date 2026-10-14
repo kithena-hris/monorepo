@@ -23,7 +23,16 @@ import {
   type SignatureMark,
 } from '../domain/signature/envelope.js';
 import { signatureLines } from './text.js';
-import { contextOf, event, factsOf, load, notFound, record, type Ctx } from './context.js';
+import {
+  contextOf,
+  event,
+  factsOf,
+  load,
+  notFound,
+  record,
+  type Ctx,
+  type Mail,
+} from './context.js';
 import { sha256 } from './files.js';
 import type { Caller, Deps, Tx } from './ports.js';
 import { seal } from './sealing.js';
@@ -87,7 +96,25 @@ async function controlling(ctx: Ctx, documentId: DocumentId) {
   return ok(found.value);
 }
 
-export function sendForSignature(
+/**
+ * Send the emails a committed transaction asked for. After the commit, so an
+ * email that fails never undoes a signature or a request: the mailer logs why
+ * (`infrastructure/messaging.ts`). The kinds that did not go, for a caller to
+ * whom one matters (a code the signer is waiting for).
+ */
+async function deliver(deps: Deps, mail: readonly Mail[]): Promise<Mail['notice']['kind'][]> {
+  const failed: Mail['notice']['kind'][] = [];
+  for (const m of mail) {
+    try {
+      await deps.mailer?.notice(m);
+    } catch {
+      failed.push(m.notice.kind);
+    }
+  }
+  return failed;
+}
+
+export async function sendForSignature(
   deps: Deps,
   caller: Caller,
   input: {
@@ -98,8 +125,9 @@ export function sendForSignature(
     readonly dueOn: CalendarDate | null;
   } & Origin,
 ): Promise<Result<{ id: string }>> {
-  return deps.uow.run(caller.tenantId, async (tx) => {
-    const ctx = await contextOf(deps, tx, caller);
+  const mail: Mail[] = [];
+  const sent = await deps.uow.run(caller.tenantId, async (tx) => {
+    const ctx = await contextOf(deps, tx, caller, mail);
     const found = await controlling(ctx, input.documentId);
     if (!found.ok) return found;
     const { doc } = found.value;
@@ -196,7 +224,7 @@ export function sendForSignature(
     for (const o of outside) {
       const signer = env.value.signers.find((s) => s.email === o.email);
       if (signer?.order !== first) continue;
-      await deps.mailer?.notice({
+      ctx.mail.push({
         tenantId: caller.tenantId,
         email: o.email,
         url: `${input.origin.replace(/\/$/u, '')}/sign/${o.token}`,
@@ -207,6 +235,8 @@ export function sendForSignature(
     }
     return ok({ id: env.value.id });
   });
+  if (sent.ok) await deliver(deps, mail);
+  return sent;
 }
 
 /** The envelope and the signer this caller is, a member signing with their login. */
@@ -242,7 +272,7 @@ async function passTurn(ctx: Ctx, before: Envelope, after: Envelope, origin: Ori
         signers: after.signers.map((x) => (x.id === s.id ? { ...x, tokenHash: hash(token) } : x)),
       };
       await ctx.tx.envelopes.save(next);
-      await ctx.deps.mailer?.notice({
+      ctx.mail.push({
         tenantId: ctx.caller.tenantId,
         email: s.email,
         url: `${origin.origin.replace(/\/$/u, '')}/sign/${token}`,
@@ -295,9 +325,10 @@ export function signAsMember(
   envelopeId: string,
   input: SignInput & Origin,
 ): Promise<Result<{ completed: boolean }>> {
-  return withSeal(deps, caller.tenantId, input.companyName, () =>
-    deps.uow.run(caller.tenantId, async (tx) => {
-      const ctx = await contextOf(deps, tx, caller);
+  const mail: Mail[] = [];
+  return withSeal(deps, caller.tenantId, input.companyName, async () => {
+    const signed = await deps.uow.run(caller.tenantId, async (tx) => {
+      const ctx = await contextOf(deps, tx, caller, mail);
       const found = await asMember(ctx, envelopeId);
       if (!found.ok) return found;
       const { env, signer } = found.value;
@@ -307,8 +338,11 @@ export function signAsMember(
       const done = await signIn(ctx, opened.value, signer.id, input, input);
       if (!done.ok) return done;
       return ok({ envelope: done.value });
-    }),
-  );
+    });
+    // The next signer's email, once the signature is safely in.
+    if (signed.ok) await deliver(deps, mail);
+    return signed;
+  });
 }
 
 /**
@@ -433,12 +467,19 @@ async function byLink<T>(
     personId: null,
     correlationId: deps.newId(),
   };
-  return deps.uow.run(tenantId, async (tx) => {
-    const ctx = await contextOf(deps, tx, caller);
+  const mail: Mail[] = [];
+  const done = await deps.uow.run(tenantId, async (tx) => {
+    const ctx = await contextOf(deps, tx, caller, mail);
     const found = await tx.envelopes.byToken(hash(token));
     if (found === null) return err(failure('NOT_FOUND', 'This link does not open anything'));
     return run(ctx, found.envelope, found.signerId);
   });
+  if (!done.ok) return done;
+  const failed = await deliver(deps, mail);
+  // The signer is waiting on this one: said, so they can ask again.
+  if (failed.includes('signing_code'))
+    return err(failure('CODE_NOT_SENT', 'We could not email your code. Try again in a moment.'));
+  return done;
 }
 
 export function requestCode(
@@ -456,7 +497,7 @@ export function requestCode(
     await trail(ctx, env.id, signerId, 'code_sent');
     const signer = next.value.signers.find((s) => s.id === signerId);
     if (signer?.email == null) return err(failure('NO_CODE', 'This signer signs in'));
-    await ctx.deps.mailer?.notice({
+    ctx.mail.push({
       tenantId: ctx.caller.tenantId,
       email: signer.email,
       url: `${origin.origin.replace(/\/$/u, '')}/sign/${token}`,

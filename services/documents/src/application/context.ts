@@ -21,9 +21,14 @@ import type { Caller, Deps, Member, Tx } from './ports.js';
  * a few hours off at the far zones; take the member's location zone when a
  * customer notices.
  */
+/** An email a transaction asks for: sent once it has committed (`deliver`), never inside it. */
+export type Mail = Parameters<NonNullable<Deps['mailer']>['notice']>[0];
+
 export interface Ctx {
   readonly deps: Deps;
   readonly tx: Tx;
+  /** Emails to send after the commit: a failed one never undoes what was signed. */
+  readonly mail: Mail[];
   readonly caller: Caller;
   readonly viewer: Viewer;
   readonly member: Member | null;
@@ -31,11 +36,18 @@ export interface Ctx {
   readonly at: Instant;
 }
 
-export async function contextOf(deps: Deps, tx: Tx, caller: Caller): Promise<Ctx> {
+export async function contextOf(
+  deps: Deps,
+  tx: Tx,
+  caller: Caller,
+  /** Where the transaction's emails collect, for its caller to send after the commit. */
+  mail: Mail[] = [],
+): Promise<Ctx> {
   const member = caller.personId === null ? null : await tx.members.get(caller.personId);
   return {
     deps,
     tx,
+    mail,
     caller,
     member,
     viewer: {
