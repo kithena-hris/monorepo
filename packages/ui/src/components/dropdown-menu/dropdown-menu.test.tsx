@@ -35,16 +35,15 @@ function menu(
   /*
    * `modal: boolean | undefined`, and the `undefined` is not an oversight.
    *
-   * `exactOptionalPropertyTypes` means a caller cannot *type* `modal:
-   * undefined` against `DropdownMenuProps` — but it is what a caller spreading
-   * an args object produces at runtime, which is precisely the case that used
-   * to put Radix back on its modal default. The cast below is the test, so it
-   * is here rather than hidden behind a helper that types the problem away.
+   * It is what a caller spreading an args object produces at runtime, which
+   * is precisely the case that used to put Radix back on its modal default.
+   * `DropdownMenuProps` now accepts it as typed (Radix 2.1.25 widened it), so
+   * the props pass straight through and the test still covers `undefined`.
    */
   props: { openOnHover?: boolean; modal?: boolean | undefined } = {},
 ) {
   return (
-    <DropdownMenu defaultOpen {...(props as { openOnHover?: boolean; modal?: boolean })}>
+    <DropdownMenu defaultOpen {...props}>
       <DropdownMenuTrigger>Grace Hopper</DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuItem>Sign out</DropdownMenuItem>
