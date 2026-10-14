@@ -1,1 +1,0 @@
-{"version":1,"body":"mutation DraftDocument($input: JSON!, $key: String!) {\n    draftDocument(input: $input, idempotencyKey: $key) { available reply draft { title typeKey typeName about aboutPersonId body figures ready signers { name email order personId } } }\n  }"}

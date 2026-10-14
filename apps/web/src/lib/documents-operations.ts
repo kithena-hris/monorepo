@@ -421,7 +421,7 @@ export const OPERATIONS = {
     'draftDocument',
     '$input: JSON!, ',
     'input: $input, ',
-    'available reply draft { title typeKey typeName about aboutPersonId body figures ready signers { name email order personId } }',
+    'available reply action draft { title typeKey typeName about aboutPersonId body figures ready signers { name email order personId } }',
   ),
   FileDraft: write('FileDraft', 'fileDraft', '$input: JSON!, ', 'input: $input, ', 'id envelopeId'),
   /** S7: the company's switches */
