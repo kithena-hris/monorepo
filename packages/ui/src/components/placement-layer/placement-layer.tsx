@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   type JSX,
   type KeyboardEvent,
@@ -105,6 +106,39 @@ export function PlacementLayer({
 }: PlacementLayerProps): JSX.Element {
   const layer = useRef<HTMLDivElement>(null);
   const refs = useRef(new Map<string, HTMLElement>());
+  const captions = useRef(new Map<string, HTMLElement>());
+
+  // Each caption a page's 6pt under the ink it captions, not under its box:
+  // a name is drawn smaller than its box, and the print sits close under the
+  // name, as the sealed file prints it. Again when the page is redrawn at
+  // another size, and when the handwriting face arrives.
+  useLayoutEffect(() => {
+    const host = layer.current;
+    // Nothing to measure with outside a browser (a test's document).
+    if (host === null || captions.current.size === 0 || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const hug = () => {
+      const r = host.getBoundingClientRect();
+      for (const [id, caption] of captions.current) {
+        const box = refs.current.get(id);
+        const bottom = box === undefined ? null : inkBottom(box);
+        if (bottom !== null)
+          caption.style.top = `${String(bottom - r.top + (r.width * 6) / 595)}px`;
+      }
+    };
+    hug();
+    const resized = new ResizeObserver(hug);
+    resized.observe(host);
+    let live = true;
+    void document.fonts.ready.then(() => {
+      if (live) hug();
+    });
+    return () => {
+      live = false;
+      resized.disconnect();
+    };
+  });
   const drag = useRef<{
     id: string;
     mode: 'move' | 'resize';
@@ -244,6 +278,10 @@ export function PlacementLayer({
           box.caption === undefined ? null : (
             <span
               key={`${box.id}-caption`}
+              ref={(el) => {
+                if (el === null) captions.current.delete(box.id);
+                else captions.current.set(box.id, el);
+              }}
               aria-hidden
               className="pointer-events-none absolute whitespace-pre text-[max(7px,0.95cqw)] leading-[1.25] text-[var(--reach-neutral-600)]"
               style={{
@@ -300,4 +338,38 @@ export function PlacementLayer({
       })}
     </div>
   );
+}
+
+/**
+ * Where what a box draws really ends, in the viewport's pixels: a drawing's
+ * strokes, and each text's glyphs, which a handwriting face draws well above
+ * the foot of its line. Null when it draws nothing.
+ */
+function inkBottom(box: HTMLElement): number | null {
+  let bottom: number | null = null;
+  const lower = (y: number) => {
+    bottom = bottom === null ? y : Math.max(bottom, y);
+  };
+  for (const shape of box.querySelectorAll('path, polyline, line')) {
+    lower(shape.getBoundingClientRect().bottom);
+  }
+  const ctx = document.createElement('canvas').getContext('2d');
+  const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+  for (let node = walk.nextNode(); node !== null; node = walk.nextNode()) {
+    const text = node.textContent?.trim() ?? '';
+    if (text === '' || node.parentElement === null) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const line = range.getBoundingClientRect();
+    if (ctx === null) {
+      lower(line.bottom);
+      continue;
+    }
+    const face = getComputedStyle(node.parentElement);
+    ctx.font = `${face.fontStyle} ${face.fontWeight} ${face.fontSize} ${face.fontFamily}`;
+    const m = ctx.measureText(text);
+    // The line's foot less the face's descender is the baseline; the glyphs end below it by their own.
+    lower(line.bottom - m.fontBoundingBoxDescent + m.actualBoundingBoxDescent);
+  }
+  return bottom;
 }
