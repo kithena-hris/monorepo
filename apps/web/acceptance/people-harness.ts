@@ -106,6 +106,31 @@ export async function signedIn(
   return context;
 }
 
+/**
+ * Until the shell draws People's screen on the server: it does once it has read
+ * and verified the remote's server build, and a read that takes more than its
+ * two seconds on a busy runner means the next page is drawn in the browser.
+ * After a start, or after a test swapped the build, a test that relies on the
+ * server's HTML waits for this first rather than for its own page.
+ */
+export async function serverRendering(session: string): Promise<void> {
+  const context = await signedIn(session);
+  try {
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      const html = await context.request
+        .get(`${stack.shell}/people/me`)
+        .then((r) => r.text())
+        .catch(() => '');
+      if (html.includes('data-remote="people"')) return;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new Error('the shell never drew People on the server');
+  } finally {
+    await context.close();
+  }
+}
+
 /** Wait for a query to hold, bounded: the database is the record of what a screen did. */
 export async function eventually<T>(
   what: string,
