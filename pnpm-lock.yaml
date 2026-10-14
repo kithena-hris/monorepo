@@ -1636,8 +1636,8 @@ importers:
         specifier: ^1.24.0
         version: 1.24.0
       bullmq:
-        specifier: ^6.3.8
-        version: 6.3.8(ioredis@6.0.0)
+        specifier: ^6.3.11
+        version: 6.3.11(ioredis@6.0.0)
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0
@@ -1721,8 +1721,8 @@ importers:
         specifier: ^1.24.0
         version: 1.24.0
       bullmq:
-        specifier: ^6.3.8
-        version: 6.3.8(ioredis@6.0.0)
+        specifier: ^6.3.11
+        version: 6.3.11(ioredis@6.0.0)
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0
@@ -8538,8 +8538,8 @@ packages:
     resolution: {integrity: sha512-lHblz4ahamxpTmnsk+MNTRWsjYKv965MwOrSJyeD588rR3Jcu7swE+0wN5F+PbL5cjgu/9ObkhfzEPuofEMwLA==}
     engines: {node: '>=10.0.0'}
 
-  bullmq@6.3.8:
-    resolution: {integrity: sha512-09zcOQ1uycyCK2C9iY2Pm+/JPa/gIXiZqGBUiIlO1v3VshwBgarmAgWRTWDL/IAvI8NFE1zqrkdKFgRfXHHM5A==}
+  bullmq@6.3.11:
+    resolution: {integrity: sha512-ylSY3FYil6E9IjqVtT+WHcZvS1rgTZ0L3Aev62u45NXQFe+H37a1AuC3WDATR7ScNDet1Ah8MnP3lf8XaUbPUw==}
     engines: {node: '>=14.17.0'}
     peerDependencies:
       bullmq-otel: '>=2.0.0'
@@ -19969,7 +19969,9 @@ snapshots:
       metro-runtime: 0.84.6
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
@@ -23028,7 +23030,7 @@ snapshots:
   buildcheck@0.0.7:
     optional: true
 
-  bullmq@6.3.8(ioredis@6.0.0):
+  bullmq@6.3.11(ioredis@6.0.0):
     dependencies:
       cron-parser: 5.10.1
       msgpackr: 2.1.0
