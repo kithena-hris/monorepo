@@ -416,7 +416,7 @@ document is the feature. Recorded in `docs/tech-stack.md`:
 | Draft a document       | B1            | Finds each signer and the subject among the company's people, points out every figure nobody gave, writes a line to sign per signer in order, draws the PDF, files and sends it | Asks for what is missing, writes the text, names who signs in what order |
 
 **Drafting** (HR only, decided 2026-10-14): HR tells Kithena what they need in
-a conversation (B1's Draft with Kithena). The model sees that conversation,
+a conversation (B1's Draft with Kithena on the web, the Add menu's on the phone). The model sees that conversation,
 the names of the company's document types and the sender's name, never a
 record: what it writes comes from what HR typed. Nothing is kept until the
 draft is filed; each turn carries the conversation and the draft so far.

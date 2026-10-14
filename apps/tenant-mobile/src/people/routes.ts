@@ -147,6 +147,8 @@ export type PeopleRoutes = {
   DocumentEnvelope: { id: string };
   /** Who has acknowledged a policy (MH5). */
   DocumentCampaign: { id: string };
+  /** A document drafted with Kithena, in a conversation, then filed and sent to sign (HR). */
+  DocumentDraft: undefined;
   /** Settings › Documents (MS1–MS6). */
   DocumentsSettings: undefined;
 };
