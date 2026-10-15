@@ -45,7 +45,6 @@ import {
   Building2,
   BuildingComplex,
   Calendar,
-  CalendarClock,
   CalendarDays,
   ChartColumn,
   Check,
@@ -59,7 +58,6 @@ import {
   CircleQuestionMark,
   CircleSlash,
   CircleX,
-  ClipboardPen,
   Clock,
   Coffee,
   Copy,
@@ -73,7 +71,6 @@ import {
   File,
   FileChartColumn,
   FileClock,
-  FileSignature,
   FileSpreadsheet,
   FileText,
   Flag,
@@ -319,12 +316,16 @@ export const iconGroups = {
     overtime: Timer,
     /** A role somebody is hired into: a job, an opening, a requisition. */
     work: Briefcase,
-    /** A conversation booked for a time: an interview, a check-in. */
-    meeting: CalendarClock,
+    /**
+     * A conversation booked for a time: an interview, a check-in. The
+     * calendar's glyph: every icon here ships with the shell, so a meaning
+     * reuses a drawing before it adds one.
+     */
+    meeting: Calendar,
     /** A form somebody fills in about somebody else: a scorecard, a review. */
-    assessment: ClipboardPen,
+    assessment: ScanSearch,
     /** An agreement to be signed. */
-    agreement: FileSignature,
+    agreement: FileText,
     /** Getting somebody started: the first days and weeks. */
     start: Rocket,
   },
