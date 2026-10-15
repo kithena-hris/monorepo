@@ -367,7 +367,12 @@ export interface CandidateData {
     readonly references: readonly {
       readonly id: string;
       readonly refereeName: string;
+      readonly refereeEmail: string;
+      readonly relationship: string | null;
       readonly state: string;
+      readonly answers: Readonly<Record<string, string>> | null;
+      readonly requestedAt: string | null;
+      readonly completedAt: string | null;
     }[];
     readonly may: readonly string[];
   }[];

@@ -37,8 +37,73 @@ import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './ty
  * address.
  */
 
-const TABS = ['profile', 'answers', 'interviews', 'messages', 'activity', 'offers'] as const;
+const TABS = [
+  'profile',
+  'answers',
+  'interviews',
+  'references',
+  'messages',
+  'activity',
+  'offers',
+] as const;
 type Tab = (typeof TABS)[number];
+
+/** R18: the referees the candidate named; each is asked only when someone here says so. */
+function References({
+  application,
+  props,
+}: {
+  readonly application: CandidateData['applications'][number];
+  readonly props: ScreenProps<CandidateData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const can = application.may.includes('candidate.message');
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4">
+        {application.references.length === 0 ? (
+          <EmptyState
+            icon={<icons.people aria-hidden />}
+            title="No referees named"
+            description="The candidate names referees on their page; nobody is contacted before that."
+          />
+        ) : null}
+        {application.references.map((r) => (
+          <div key={r.id} className="flex flex-col gap-2 border-b border-[var(--reach-line)] pb-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-semibold">{r.refereeName}</span>
+              <span className="text-sm text-fg-muted">
+                {[r.relationship, r.refereeEmail].filter(Boolean).join(' · ')}
+              </span>
+              <StateBadge state={r.state} />
+              {can && r.state === 'named' ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run('RequestReference', {
+                      applicationId: application.applicationId,
+                      referenceId: r.id,
+                    });
+                  }}
+                >
+                  Ask for the reference
+                </Button>
+              ) : null}
+            </div>
+            {r.answers === null ? null : (
+              <KeyValues
+                items={Object.entries(r.answers).map(([k, v]) => ({ label: words(k), value: v }))}
+              />
+            )}
+          </div>
+        ))}
+        <Refusal error={act.error} />
+      </CardContent>
+    </Card>
+  );
+}
 
 function Messages({
   data,
@@ -375,6 +440,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       <TabsTrigger value="profile">Profile</TabsTrigger>
                       <TabsTrigger value="answers">Answers</TabsTrigger>
                       <TabsTrigger value="interviews">{`Interviews${chosen.interviews.length > 0 ? ` (${String(chosen.interviews.length)})` : ''}`}</TabsTrigger>
+                      <TabsTrigger value="references">{`References${chosen.references.length > 0 ? ` (${String(chosen.references.length)})` : ''}`}</TabsTrigger>
                       <TabsTrigger value="messages">{`Messages${data.messages.length > 0 ? ` (${String(data.messages.length)})` : ''}`}</TabsTrigger>
                       <TabsTrigger value="activity">Activity</TabsTrigger>
                       <TabsTrigger value="offers">Offers</TabsTrigger>
@@ -477,6 +543,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           })}
                         </CardContent>
                       </Card>
+                    </TabsContent>
+                    <TabsContent value="references">
+                      <References application={chosen} props={props} />
                     </TabsContent>
                     <TabsContent value="messages">
                       <Messages data={data} application={chosen} props={props} />

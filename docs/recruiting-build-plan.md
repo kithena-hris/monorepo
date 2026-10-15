@@ -169,7 +169,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-080** R11, R12 candidate profile and messages.
 - [x] **REC-081** R13 talent pools.
 - [x] **REC-082** R14–R16 interview plan, kit and scorecard, scheduling.
-- [ ] **REC-083** R17 debrief, R18 references.
+- [x] **REC-083** R17 debrief, R18 references.
 - [x] **REC-084** R19–R22 offer, approval, terms composer, contract and
       pre-hire.
 - [ ] **REC-085** R23, R24 analytics dashboards with Reach charts and data

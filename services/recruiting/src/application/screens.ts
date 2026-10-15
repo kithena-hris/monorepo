@@ -345,7 +345,10 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
         currency: latest(o).pay.currency,
       })),
       prehire: await ctx.tx.prehires.get(app.id),
-      references: await ctx.tx.references.forApplication(app.id),
+      // The hiring team reads the answers; the token's hash never leaves Recruiting.
+      references: team
+        ? (await ctx.tx.references.forApplication(app.id)).map(({ tokenHash: _hash, ...r }) => r)
+        : [],
       may: [...jobPermissions(ctx.viewer, facts)],
     });
   }
