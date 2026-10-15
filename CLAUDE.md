@@ -304,7 +304,9 @@ specifies the Onboarding module, which is a separate module (`onboarding` in
 are in `docs/recruiting-build-plan.md`, which is the record of progress. The
 public job site is a new app, `apps/jobs`. Its AI phase waits on a proposed
 decision (PRD §22.2): that a model may read an application, as it may read a
-document.
+document. Building starts once its screens are designed. Read-only copies:
+the requirements at https://claude.ai/artifact/CcpXLphRFuacM5NCed2BD6 and the
+tickets at https://claude.ai/artifact/RPvxsmE6skmpEaiAn7nhKa.
 
 ## Adding a module
 

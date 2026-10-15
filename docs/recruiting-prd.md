@@ -8,7 +8,8 @@ takes the hire from there to the end of probation.
 
 ## How to read this
 
-- **The build plan** is [`recruiting-build-plan.md`](./recruiting-build-plan.md).
+- **The build plan** is [`recruiting-build-plan.md`](./recruiting-build-plan.md)
+  ([published](https://claude.ai/artifact/RPvxsmE6skmpEaiAn7nhKa)).
   It is the only record of progress for both modules (`REC-` and `ONB-`
   tickets).
 - **Screens are not designed yet.** §29 lists every screen with an id (`R1`–,
