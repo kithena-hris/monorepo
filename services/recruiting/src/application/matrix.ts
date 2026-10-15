@@ -6,7 +6,10 @@ import { may } from '../domain/access/access.js';
 import { maskedText, readApplication, readMasked, type PromptSpec } from './ai.js';
 import { asPerson, forbidden, jobFacts, notFound, type Ctx } from './context.js';
 import { loadApplication } from './moves.js';
-import type { Assessment } from './ports.js';
+import { generalSettings } from './setup.js';
+import { inNewYorkCity, nycGate, type Place } from '../domain/ai/nyc.js';
+import { publicJob } from './intake.js';
+import type { Assessment, JobRecord } from './ports.js';
 
 /**
  * The evidence matrix (PRD §14.3, REC-114): the model reads the masked
@@ -43,6 +46,35 @@ export const MATRIX: PromptSpec<Answer> = {
   answer: Answer,
 };
 
+/** Where a job is, for NYC Local Law 144 (§22.8). */
+export async function jobPlaces(ctx: Ctx, job: JobRecord): Promise<Place[]> {
+  const out: Place[] = [];
+  for (const id of job.locationIds) {
+    const l = await ctx.tx.locations.get(id);
+    if (l !== null) out.push({ country: l.country, region: l.region, city: l.city });
+  }
+  return out;
+}
+
+/** The matrix in New York City: an audit within the year, and ten business days' notice (§22.8). */
+async function nycAllows(ctx: Ctx, job: JobRecord, appliedAt: string): Promise<Result<true>> {
+  const gate = nycGate(
+    await jobPlaces(ctx, job),
+    (await generalSettings(ctx)).ai.nycAuditOn,
+    appliedAt,
+    ctx.today,
+  );
+  if (gate.ok) return ok(true);
+  return err(
+    failure(
+      'NYC_AEDT',
+      gate.reason === 'audit'
+        ? 'A New York City job needs a bias audit from the last year before the matrix is used'
+        : 'In New York City the matrix waits ten business days after the candidate was told',
+    ),
+  );
+}
+
 export interface Matrix {
   readonly assessmentId: string;
   readonly findings: readonly Finding[];
@@ -53,6 +85,10 @@ export interface Matrix {
 export async function assessMatrix(ctx: Ctx, applicationId: string): Promise<Result<Matrix>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
+  const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
+  if (job === null) return err(notFound('job'));
+  const nyc = await nycAllows(ctx, job, loaded.value.app.createdAt);
+  if (!nyc.ok) return nyc;
   const criteria = await ctx.tx.jobs.criteria(loaded.value.app.jobId);
   if (criteria.length === 0)
     return err(failure('NO_CRITERIA', 'Write the job’s criteria first (R4)'));
@@ -221,6 +257,8 @@ export async function rediscover(
       if (candidate === null || candidate.anonymisedAt !== null || !live || last === undefined)
         continue;
       if (apps.some((a) => a.jobId === jobId)) continue;
+      // The notice was given when they applied before; the audit is this job's (§22.8).
+      if (!(await nycAllows(ctx, job, last.createdAt)).ok) continue;
       let scored = { scoreBp: 0, band: 'weak' as Band };
       const read = await readMasked(
         ctx,
@@ -249,4 +287,22 @@ export async function rediscover(
       });
     }
   return ok(found.toSorted((a, b) => b.scoreBp - a.scoreBp));
+}
+
+/**
+ * The apply form's notice (§22.8, J4): shown on a New York City job when the
+ * company uses the matrix, naming what it reads, so the ten business days
+ * start when the candidate applies.
+ */
+export async function jobNotices(
+  ctx: Ctx,
+  slug: string,
+): Promise<Result<{ readonly automatedTool: boolean; readonly criteria: readonly string[] }>> {
+  const job = await publicJob(ctx, slug);
+  if (job === null) return err(notFound('job'));
+  const on = (await generalSettings(ctx)).ai.matrix && inNewYorkCity(await jobPlaces(ctx, job));
+  return ok({
+    automatedTool: on,
+    criteria: on ? (await ctx.tx.jobs.criteria(job.id)).map((c) => c.text) : [],
+  });
 }

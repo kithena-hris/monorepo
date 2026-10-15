@@ -26,7 +26,7 @@ import {
   icons,
 } from '@reach/ui';
 import Link from 'next/link';
-import { useState, useTransition, type JSX } from 'react';
+import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { asUpload, publicApi } from '../../../../lib/browser-api';
 
@@ -178,6 +178,16 @@ export function ApplyForm({
   const [adjustments, setAdjustments] = useState('');
   const [consent, setConsent] = useState(false);
   const [pool, setPool] = useState(false);
+  // NYC Local Law 144 (PRD §22.8): the notice is given here, when they apply.
+  const [aedt, setAedt] = useState<readonly string[] | null>(null);
+  useEffect(() => {
+    void publicApi<{ automatedTool: boolean; criteria: string[] }>(
+      company,
+      `/jobs/${job.slug}/notices`,
+    ).then((answer) => {
+      if (answer.ok && answer.data.automatedTool) setAedt(answer.data.criteria);
+    });
+  }, [company, job.slug]);
   const [nyc, setNyc] = useState(false);
   const [code, setCode] = useState('');
   const [website, setWebsite] = useState('');
@@ -372,6 +382,21 @@ export function ApplyForm({
               {`${job.company.name} processes your data to consider you for this job, as a step before a contract, and deletes it on the schedule the law in its country sets after a decision.`}
             </p>
           </Card>
+          {aedt === null ? null : (
+            <Card padded className="flex flex-col gap-2">
+              <h3 className="font-semibold">An automated tool reads applications for this job</h3>
+              <p className="text-sm text-fg-muted">
+                {`${job.company.name} may use an automated employment decision tool, at the earliest ten business days from today, to compare what you send with the job’s criteria. A person decides. You may ask the recruiter for another way to be assessed, or for an accommodation, and what data it uses and how long it is kept. A summary of its latest bias audit is published by ${job.company.name}.`}
+              </p>
+              {aedt.length === 0 ? null : (
+                <ul className="list-disc ps-5 text-sm">
+                  {aedt.map((c) => (
+                    <li key={c}>{c}</li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
           <div className="flex items-start gap-3">
             <Checkbox
               id="consent"

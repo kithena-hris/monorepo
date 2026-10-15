@@ -137,7 +137,7 @@ import {
   submitAsAgency,
 } from '../application/agency-portal.js';
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
-import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
+import { agreeWithFinding, assessMatrix, jobNotices, rediscover } from '../application/matrix.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
 import { askForChart } from '../application/chart-ask.js';
@@ -1606,6 +1606,15 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ startsAt: Instant }),
     public: true,
     run: (ctx, { body, headers }) => bookByLink(ctx, tokenOf(headers), body.startsAt),
+  }),
+  route({
+    name: 'publicJobNotices',
+    method: 'GET',
+    path: `${V1}/public/{company}/jobs/{slug}/notices`,
+    summary: 'J4: whether the apply form carries the NYC automated-tool notice, and what it reads',
+    params: z.object({ company: text(63), slug: text(120) }),
+    public: true,
+    run: (ctx, { params }) => jobNotices(ctx, params.slug),
   }),
   route({
     name: 'publicJobQuestion',
