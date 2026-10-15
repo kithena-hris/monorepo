@@ -45,6 +45,9 @@ export const TARGETS = {
   'people-remote': { packages: ['@kithena/web-people'] },
   'timeoff-remote': { packages: ['@kithena/web-timeoff'] },
   'documents-remote': { packages: ['@kithena/web-documents'] },
+  'recruiting-remote': { packages: ['@kithena/web-recruiting'] },
+  // Kithena Jobs (REC-090): the public job site, its own Vercel project.
+  jobs: { packages: ['@kithena/jobs'] },
   // The image is People plus the Compose files that run it on the VM.
   people: { packages: ['@kithena/people'], paths: [/^deploy\/vm\//u] },
   // The Slack service: a container beside People on the VM, holding the
@@ -58,6 +61,8 @@ export const TARGETS = {
   timeoff: { packages: ['@kithena/timeoff'], paths: [/^deploy\/vm\//u] },
   // Documents (DOC-028): a container beside Time Off, for its reasons.
   documents: { packages: ['@kithena/documents'], paths: [/^deploy\/vm\//u] },
+  // Recruiting (REC-005): a container beside Documents, for its reasons.
+  recruiting: { packages: ['@kithena/recruiting'], paths: [/^deploy\/vm\//u] },
   // The assistant (assistant PRD §15): a container beside Slack on the VM,
   // which asks it every question.
   assistant: { packages: ['@kithena/assistant'], paths: [/^deploy\/vm\//u] },
@@ -71,6 +76,7 @@ export const TARGETS = {
       /^services\/people\/schemas\//u,
       /^services\/timeoff\/schemas\//u,
       /^services\/documents\/schemas\//u,
+      /^services\/recruiting\/schemas\//u,
       /^platform\/audit\/schemas\//u,
       /^platform\/assistant\/schemas\//u,
     ],
@@ -269,6 +275,7 @@ function main(argv: string[]): void {
       t === 'audit' ||
       t === 'timeoff' ||
       t === 'documents' ||
+      t === 'recruiting' ||
       t === 'assistant' ||
       t === 'migrations',
   );

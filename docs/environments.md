@@ -749,7 +749,11 @@ balances down too. `assistant` (**160 MB**,
 `--max-old-space-size=96`; not yet measured, assistant PRD §15.2) brings them
 to **3.75 GB**, to be measured the same way after its first deploy. If the sum
 stops fitting, folding the assistant into Slack's process comes before
-`m7i-flex.large`.
+`m7i-flex.large`. `documents` (**384 MB**) and `recruiting` (**256 MB**,
+`--max-old-space-size=160`, half a CPU; a guess, to be measured after its first
+deploy) bring them to **4.4 GB** against 4 GB and the swap. Recruiting is
+request-driven with light consumers, so it is the first candidate to fold into
+another process if the VM starts swapping under load.
 
 Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
 a dummy token and no tunnel to reach, so its figure is the binary retrying, not
@@ -1302,6 +1306,51 @@ module can merge first and switch on later. In this order:
    Documents says its reading is not set up and every screen works without it.
 
 Documents is not on staging.
+
+#### Recruiting's settings
+
+Recruiting (`services/recruiting`, REC-005) deploys as Documents does: a
+container on the VM (`recruiting`, 4005, `svc_recruiting`), the router's
+subgraph, and its remote on Vercel; and beside them Kithena Jobs
+(`apps/jobs`, `jobs.kithena.com`), the public job site. Every piece is skipped
+until its setting exists. In this order:
+
+1. **The bucket.** An S3 bucket (`kithena-<account>-recruiting`) the instance
+   role may read and write, for CVs and signed contracts, sealed by the service.
+2. **Environment secrets** in `production`: `RECRUITING_API_TOKEN` (the
+   router–Recruiting pair, `openssl rand -hex 32`) and `RECRUITING_ENV`:
+
+   ```bash
+   RECRUITING_BUCKET=kithena-<account>-recruiting
+   # 32 bytes, base64: what every stored file is sealed with; backed up with
+   # the other VM secrets.
+   RECRUITING_ENCRYPTION_KEY=<openssl rand -base64 32>
+   ```
+
+   The deploy writes `JOBS_ORIGIN=https://jobs.kithena.com` beside them: the
+   links in candidates' emails, and the one origin the public routes answer
+   from a browser. `MESSAGING_RECRUITING_TOKEN`, the Recruiting–messaging pair,
+   goes into both this and messaging's settings so candidates are emailed
+   (their codes, links and correspondence); without it nothing is sent.
+
+3. **The remote**: a Vercel Hobby project for `apps/web/recruiting`, the
+   secret `RECRUITING_REMOTE_SSR_SIGNING_KEY`, and the variables
+   `VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION`,
+   `RECRUITING_REMOTE_URL_PRODUCTION` and
+   `RECRUITING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`, as Documents' three.
+4. **Kithena Jobs**: a Vercel Hobby project for `apps/jobs` on
+   `jobs.kithena.com`, its id in `VERCEL_PROJECT_ID_JOBS_PRODUCTION`, and in
+   the project `RECRUITING_PUBLIC_URL` and `NEXT_PUBLIC_RECRUITING_PUBLIC_URL`
+   (the API host) and `JOBS_ORIGIN`. The tunnel routes
+   `/v1/recruiting/public/*`, `/v1/recruiting/listings*` and
+   `/v1/recruiting/companies/*` on the API host to `http://recruiting:4005`:
+   the reads are already public, and the candidate's routes take their token
+   in a header. `svc_jobs_reader` is the role those reads run as; `deploy.sh`
+   gives it a login and it can read `recruiting_public` and nothing else.
+5. **Selling it**: `module.recruiting` in `KITHENA_ENTITLEMENTS_PRODUCTION`, or
+   per company in the back office.
+
+Recruiting is not on staging.
 
 #### The assistant's settings
 

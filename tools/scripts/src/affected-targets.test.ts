@@ -80,6 +80,7 @@ describe('reason', () => {
       'audit',
       'timeoff',
       'documents',
+      'recruiting',
       'assistant',
       'router',
     ]);

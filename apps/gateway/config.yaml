@@ -141,6 +141,22 @@ headers:
         - op: 'set'
           name: 'x-internal-token'
           value: '${DOCUMENTS_API_TOKEN}'
+    # Recruiting (`services/recruiting/src/http/caller.ts`): Documents'
+    # principal, under Recruiting's own secret.
+    recruiting:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","impersonatedBy":' +
+            (request.auth.claims.act?.sub == nil || request.auth.claims.act?.kind == 'view_as' ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"viewedBy":' +
+            (request.auth.claims.act?.sub != nil && request.auth.claims.act?.kind == 'view_as' ? '"' + request.auth.claims.act.sub + '"' : 'null') +
+            ',"entitlements":${KITHENA_ENTITLEMENTS}}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${RECRUITING_API_TOKEN}'
     # The central activity log (`platform/audit`, `docs/audit.md`): the same
     # principal, less what only People reads, and its own secret — one per
     # pair of services, so a leak of People's does not open the log.

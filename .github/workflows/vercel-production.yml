@@ -45,7 +45,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, docs, storybook, storybook-mobile, people-remote, timeoff-remote, documents-remote, people, router, slack, audit, timeoff, documents, assistant, migrations'
+        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, docs, storybook, storybook-mobile, people-remote, timeoff-remote, documents-remote, recruiting-remote, jobs, people, router, slack, audit, timeoff, documents, recruiting, assistant, migrations'
         type: string
         default: ''
   # `deploy-production.yml`, the checkbox form: the same jobs, with `only`
@@ -105,12 +105,15 @@ jobs:
       people-remote: ${{ steps.plan.outputs.people-remote }}
       timeoff-remote: ${{ steps.plan.outputs.timeoff-remote }}
       documents-remote: ${{ steps.plan.outputs.documents-remote }}
+      recruiting-remote: ${{ steps.plan.outputs.recruiting-remote }}
+      jobs: ${{ steps.plan.outputs.jobs }}
       people: ${{ steps.plan.outputs.people }}
       router: ${{ steps.plan.outputs.router }}
       slack: ${{ steps.plan.outputs.slack }}
       audit: ${{ steps.plan.outputs.audit }}
       timeoff: ${{ steps.plan.outputs.timeoff }}
       documents: ${{ steps.plan.outputs.documents }}
+      recruiting: ${{ steps.plan.outputs.recruiting }}
       assistant: ${{ steps.plan.outputs.assistant }}
       migrations: ${{ steps.plan.outputs.migrations }}
       vm: ${{ steps.plan.outputs.vm }}
@@ -160,10 +163,11 @@ jobs:
           AUDIT: ${{ steps.plan.outputs.audit }}
           TIMEOFF: ${{ steps.plan.outputs.timeoff }}
           DOCUMENTS: ${{ steps.plan.outputs.documents }}
+          RECRUITING: ${{ steps.plan.outputs.recruiting }}
           ASSISTANT: ${{ steps.plan.outputs.assistant }}
         run: |
           list=()
-          for name in people router slack audit timeoff documents assistant; do
+          for name in people router slack audit timeoff documents recruiting assistant; do
             var="${name^^}"
             [ "${!var}" = true ] && list+=("\"$name\"")
           done
@@ -174,6 +178,8 @@ jobs:
           REMOTE: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
           TIMEOFF_REMOTE: ${{ vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_PRODUCTION }}
           DOCUMENTS_REMOTE: ${{ vars.VERCEL_PROJECT_ID_DOCUMENTS_REMOTE_PRODUCTION }}
+          RECRUITING_REMOTE: ${{ vars.VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION }}
+          JOBS: ${{ vars.VERCEL_PROJECT_ID_JOBS_PRODUCTION }}
           MESSAGING: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION }}
           MESSAGING_CHANGED: ${{ steps.plan.outputs.messaging }}
         run: |
@@ -181,6 +187,8 @@ jobs:
           [ -z "$REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION is unset: the People remote is not deployed"
           [ -z "$TIMEOFF_REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_TIMEOFF_REMOTE_PRODUCTION is unset: the Time Off remote is not deployed"
           [ -z "$DOCUMENTS_REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_DOCUMENTS_REMOTE_PRODUCTION is unset: the Documents remote is not deployed"
+          [ -z "$RECRUITING_REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION is unset: the Recruiting remote is not deployed"
+          [ -z "$JOBS" ] && echo "::warning::VERCEL_PROJECT_ID_JOBS_PRODUCTION is unset: Kithena Jobs is not deployed"
           if [ "$MESSAGING_CHANGED" = true ] && [ -z "$MESSAGING" ]; then
             echo "::warning::VERCEL_PROJECT_ID_MESSAGING_PRODUCTION is unset, so the messaging service is not deployed. Invitations will not be emailed; enrolment links are still returned to the back-office."
           fi
@@ -277,6 +285,10 @@ jobs:
               routing_url: http://documents:4003/graphql
               schema:
                 file: ../../services/documents/schemas/documents.graphql
+            - name: recruiting
+              routing_url: http://recruiting:4005/graphql
+              schema:
+                file: ../../services/recruiting/schemas/recruiting.graphql
             - name: audit
               routing_url: http://audit:4103/graphql
               schema:
@@ -309,6 +321,7 @@ jobs:
             audit) dockerfile=platform/audit/Dockerfile; port=4103; health=health; run_env=() ;;
             timeoff) dockerfile=services/timeoff/Dockerfile; port=4002; health=healthz; run_env=() ;;
             documents) dockerfile=services/documents/Dockerfile; port=4003; health=healthz; run_env=() ;;
+            recruiting) dockerfile=services/recruiting/Dockerfile; port=4005; health=healthz; run_env=() ;;
             assistant) dockerfile=platform/assistant/Dockerfile; port=4104; health=health; run_env=() ;;
             *) echo "::error::no build for image $NAME"; exit 1 ;;
           esac
@@ -613,7 +626,7 @@ jobs:
   # Skipped while `ROUTER_URL_PRODUCTION` is unset, so this merges before the
   # VM exists.
   vm:
-    name: VM (people, assistant, slack, audit, timeoff, documents, router)
+    name: VM (people, assistant, slack, audit, timeoff, documents, recruiting, router)
     needs: [plan, images, migrate, identity, messaging]
     if: >
       !cancelled() && !failure() &&
@@ -642,6 +655,8 @@ jobs:
       timeoff-previous: ${{ steps.timeoff.outputs.previous }}
       documents-outcome: ${{ steps.documents.outcome }}
       documents-previous: ${{ steps.documents.outputs.previous }}
+      recruiting-outcome: ${{ steps.recruiting.outcome }}
+      recruiting-previous: ${{ steps.recruiting.outputs.previous }}
       router-outcome: ${{ steps.router.outcome }}
       router-previous: ${{ steps.router.outputs.previous }}
     steps:
@@ -775,6 +790,14 @@ jobs:
           # Documents is not deployed.
           DOCUMENTS_API_TOKEN: ${{ secrets.DOCUMENTS_API_TOKEN }}
           DOCUMENTS_ENV: ${{ secrets.DOCUMENTS_ENV }}
+          # The router–Recruiting pair's secret, and the rest of Recruiting's
+          # settings (`RECRUITING_BUCKET`, `RECRUITING_ENCRYPTION_KEY`), as
+          # Documents'. Unset, the router gets a throwaway and Recruiting is
+          # not deployed. Its emails go through messaging's correspondence
+          # route under the Recruiting–messaging pair's secret.
+          RECRUITING_API_TOKEN: ${{ secrets.RECRUITING_API_TOKEN }}
+          RECRUITING_ENV: ${{ secrets.RECRUITING_ENV }}
+          MESSAGING_RECRUITING_TOKEN: ${{ secrets.MESSAGING_RECRUITING_TOKEN }}
           # The calendar integrations' credentials (TOF-110), each its own
           # secret so adding one never means rewriting TIMEOFF_ENV. Unset, the
           # integration is not offered. The Google key is the service
@@ -850,10 +873,18 @@ jobs:
               if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
             done
           } | put documents.env
+          # Recruiting: its own settings, Kithena Jobs' origin for links and
+          # CORS, and messaging for its emails when the pair's secret exists.
+          {
+            printf '%s\nRECRUITING_API_TOKEN=%s\nJOBS_ORIGIN=https://jobs.kithena.com\n' "$RECRUITING_ENV" "$RECRUITING_API_TOKEN"
+            if [ -n "$MESSAGING_RECRUITING_TOKEN" ]; then
+              printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_RECRUITING_TOKEN=%s\n' "$MESSAGING_RECRUITING_TOKEN"
+            fi
+          } | put recruiting.env
           # The router will not start with an empty header value, so an unset
           # ASSISTANT_API_TOKEN becomes a throwaway the assistant never holds.
-          printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nTIMEOFF_API_TOKEN=%s\nDOCUMENTS_API_TOKEN=%s\nASSISTANT_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
-            "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" "$TIMEOFF_API_TOKEN" "${DOCUMENTS_API_TOKEN:-$(openssl rand -hex 32)}" "${ASSISTANT_API_TOKEN:-$(openssl rand -hex 32)}" \
+          printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nTIMEOFF_API_TOKEN=%s\nDOCUMENTS_API_TOKEN=%s\nRECRUITING_API_TOKEN=%s\nASSISTANT_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
+            "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" "$TIMEOFF_API_TOKEN" "${DOCUMENTS_API_TOKEN:-$(openssl rand -hex 32)}" "${RECRUITING_API_TOKEN:-$(openssl rand -hex 32)}" "${ASSISTANT_API_TOKEN:-$(openssl rand -hex 32)}" \
             https://identity.kithena.com/.well-known/jwks.json \
             "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" | put router.env
           printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" | put secrets.env
@@ -960,6 +991,25 @@ jobs:
           status=0
           # shellcheck disable=SC2029 # the image is meant to expand here
           ssh vm sudo bash kithena/deploy.sh production documents "$IMAGES-documents:$DEPLOY_SHA" | tee deploy.out || status=$?
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT" || true
+          exit "$status"
+
+      # Recruiting (REC-005), as Documents: after the migration that made its
+      # schemas, healthy, holding the router's token, reaching its database
+      # as `svc_recruiting` and the public projection as `svc_jobs_reader`.
+      - name: deploy recruiting
+        id: recruiting
+        if: needs.plan.outputs.recruiting == 'true'
+        env:
+          RECRUITING_API_TOKEN: ${{ secrets.RECRUITING_API_TOKEN }}
+        run: |
+          if [ -z "$RECRUITING_API_TOKEN" ]; then
+            echo "::warning::RECRUITING_API_TOKEN is unset: Recruiting is not deployed (docs/environments.md, \"Recruiting's settings\")"
+            exit 0
+          fi
+          status=0
+          # shellcheck disable=SC2029 # the image is meant to expand here
+          ssh vm sudo bash kithena/deploy.sh production recruiting "$IMAGES-recruiting:$DEPLOY_SHA" | tee deploy.out || status=$?
           grep '^previous=' deploy.out >> "$GITHUB_OUTPUT" || true
           exit "$status"
 
@@ -1284,6 +1334,93 @@ jobs:
           node apps/web/documents/scripts/smoke-deploy.mjs "$REMOTE" https://acme.app.kithena.com \
             apps/web/documents/dist/ssr/manifest.json
 
+  recruiting-remote-build:
+    name: recruiting remote (build and sign)
+    needs: plan
+    if: vars.VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION != '' && needs.plan.outputs.recruiting-remote == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: build the recruiting remote
+        run: pnpm turbo run build --filter=@kithena/web-recruiting...
+      - name: sign the recruiting remote
+        env:
+          RECRUITING_REMOTE_SSR_SIGNING_KEY: ${{ secrets.RECRUITING_REMOTE_SSR_SIGNING_KEY }}
+        run: pnpm --filter @kithena/web-recruiting sign
+      - name: keep the signed build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: recruiting-remote-dist
+          path: apps/web/recruiting/dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  recruiting-remote:
+    name: recruiting remote
+    needs: [plan, recruiting-remote-build, vm]
+    if: >
+      !cancelled() && !failure() &&
+      vars.VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION != '' && needs.plan.outputs.recruiting-remote == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
+      - name: the signed build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: recruiting-remote-dist
+          path: apps/web/recruiting/dist
+      - name: deploy the recruiting remote
+        id: deploy
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION }}
+          RECRUITING_REMOTE_SSR_PUBLIC_KEY: ${{ vars.RECRUITING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
+        run: |
+          set -o pipefail
+          node apps/web/recruiting/scripts/verify-ssr.mjs
+          jq 'del(.ignoreCommand, .installCommand, .buildCommand, .outputDirectory)' \
+            apps/web/recruiting/vercel.json > apps/web/recruiting/dist/vercel.json
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/web/recruiting/dist --prod \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: smoke test the recruiting remote
+        env:
+          REMOTE: ${{ vars.RECRUITING_REMOTE_URL_PRODUCTION }}
+          RECRUITING_REMOTE_SSR_PUBLIC_KEY: ${{ vars.RECRUITING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
+        run: |
+          if [ -z "$REMOTE" ] || [ -z "$RECRUITING_REMOTE_SSR_PUBLIC_KEY" ]; then
+            echo "::error::RECRUITING_REMOTE_URL_PRODUCTION and RECRUITING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION must be set with the remote's project"
+            exit 1
+          fi
+          node apps/web/recruiting/scripts/smoke-deploy.mjs "$REMOTE" https://acme.app.kithena.com \
+            apps/web/recruiting/dist/ssr/manifest.json
+
   # The tenant app, last: it loads the remotes, which render against the
   # router.
   #
@@ -1298,7 +1435,7 @@ jobs:
   # has, rather than overwriting it with nothing.
   web:
     name: web
-    needs: [plan, identity, messaging, vm, people-remote, timeoff-remote, documents-remote]
+    needs: [plan, identity, messaging, vm, people-remote, timeoff-remote, documents-remote, recruiting-remote]
     if: >
       !cancelled() && !failure() &&
       needs.plan.outputs.shell == 'true'
@@ -1327,6 +1464,8 @@ jobs:
           TIMEOFF_REMOTE_SSR_PUBLIC_KEY: ${{ vars.TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
           DOCUMENTS_REMOTE_URL: ${{ vars.DOCUMENTS_REMOTE_URL_PRODUCTION }}
           DOCUMENTS_REMOTE_SSR_PUBLIC_KEY: ${{ vars.DOCUMENTS_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
+          RECRUITING_REMOTE_URL: ${{ vars.RECRUITING_REMOTE_URL_PRODUCTION }}
+          RECRUITING_REMOTE_SSR_PUBLIC_KEY: ${{ vars.RECRUITING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
           ROUTER_URL: ${{ vars.ROUTER_URL_PRODUCTION }}
           # Waking the VM from the People pages (`apps/web/src/lib/workspace.ts`):
           # all three, or the feature stays off.
@@ -1345,6 +1484,8 @@ jobs:
           [ -n "$TIMEOFF_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "TIMEOFF_REMOTE_SSR_PUBLIC_KEY=$TIMEOFF_REMOTE_SSR_PUBLIC_KEY")
           [ -n "$DOCUMENTS_REMOTE_URL" ] && args+=(--env "DOCUMENTS_REMOTE_URL=$DOCUMENTS_REMOTE_URL")
           [ -n "$DOCUMENTS_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "DOCUMENTS_REMOTE_SSR_PUBLIC_KEY=$DOCUMENTS_REMOTE_SSR_PUBLIC_KEY")
+          [ -n "$RECRUITING_REMOTE_URL" ] && args+=(--env "RECRUITING_REMOTE_URL=$RECRUITING_REMOTE_URL")
+          [ -n "$RECRUITING_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "RECRUITING_REMOTE_SSR_PUBLIC_KEY=$RECRUITING_REMOTE_SSR_PUBLIC_KEY")
           [ -n "$ROUTER_URL" ] && args+=(--env "ROUTER_URL=$ROUTER_URL")
           if [ -n "$WORKSPACE_INSTANCE_ID" ] && [ -n "$AWS_ROLE_ARN" ] && [ -n "$WAKE_REGION" ]; then
             args+=(--env "WORKSPACE_INSTANCE_ID=$WORKSPACE_INSTANCE_ID" \
@@ -1458,6 +1599,45 @@ jobs:
       # redirect into a page that must never render for a stranger.
       - name: smoke test
         run: curl --fail --silent --show-error --location --retry 12 --retry-delay 10 --retry-all-errors --max-time 30 https://admin.kithena.com/sign-in >/dev/null
+
+  # Kithena Jobs (REC-090), `jobs.kithena.com`: the public job site. It reads
+  # Recruiting's public routes through the tunnel, so it goes after the VM.
+  # Its project holds `RECRUITING_PUBLIC_URL`, the same for the browser
+  # (`NEXT_PUBLIC_RECRUITING_PUBLIC_URL`) and `JOBS_ORIGIN`; skipped until
+  # the project exists.
+  jobs:
+    name: kithena jobs
+    needs: [plan, vm]
+    if: >
+      !cancelled() && !failure() &&
+      vars.VERCEL_PROJECT_ID_JOBS_PRODUCTION != '' && needs.plan.outputs.jobs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
+      - name: deploy kithena jobs
+        id: deploy
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_JOBS_PRODUCTION }}
+        run: |
+          set -o pipefail
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
+          echo "Kithena Jobs production: $url"
+      - name: smoke test
+        run: curl --fail --silent --show-error --location --retry 12 --retry-delay 10 --retry-all-errors --max-time 30 https://jobs.kithena.com/robots.txt >/dev/null
 
   # Reach's two public sites. Static files built here, depending on nothing
   # that is deployed, so they go as soon as `plan` has spoken. Both custom
@@ -1650,9 +1830,12 @@ jobs:
         timeoff-remote,
         documents-remote-build,
         documents-remote,
+        recruiting-remote-build,
+        recruiting-remote,
         web,
         auth,
         admin,
+        jobs,
         docs,
         storybook,
         storybook-mobile,
@@ -1680,6 +1863,10 @@ jobs:
       TIMEOFF_REMOTE_PROJECT: ${{ vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_PRODUCTION }}
       DOCUMENTS_REMOTE_DEPLOYED: ${{ needs.documents-remote.outputs.deployed }}
       DOCUMENTS_REMOTE_PROJECT: ${{ vars.VERCEL_PROJECT_ID_DOCUMENTS_REMOTE_PRODUCTION }}
+      RECRUITING_REMOTE_DEPLOYED: ${{ needs.recruiting-remote.outputs.deployed }}
+      RECRUITING_REMOTE_PROJECT: ${{ vars.VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION }}
+      JOBS_DEPLOYED: ${{ needs.jobs.outputs.deployed }}
+      JOBS_PROJECT: ${{ vars.VERCEL_PROJECT_ID_JOBS_PRODUCTION }}
       ROUTER_OUTCOME: ${{ needs.vm.outputs.router-outcome }}
       ROUTER_PREVIOUS: ${{ needs.vm.outputs.router-previous }}
       PEOPLE_OUTCOME: ${{ needs.vm.outputs.people-outcome }}
@@ -1694,6 +1881,8 @@ jobs:
       TIMEOFF_PREVIOUS: ${{ needs.vm.outputs.timeoff-previous }}
       DOCUMENTS_OUTCOME: ${{ needs.vm.outputs.documents-outcome }}
       DOCUMENTS_PREVIOUS: ${{ needs.vm.outputs.documents-previous }}
+      RECRUITING_OUTCOME: ${{ needs.vm.outputs.recruiting-outcome }}
+      RECRUITING_PREVIOUS: ${{ needs.vm.outputs.recruiting-previous }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1703,7 +1892,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24 }
       - name: ssh to the VM
-        if: env.ROUTER_PREVIOUS != '' || env.PEOPLE_PREVIOUS != '' || env.SLACK_PREVIOUS != '' || env.AUDIT_PREVIOUS != '' || env.TIMEOFF_PREVIOUS != '' || env.DOCUMENTS_PREVIOUS != '' || env.ASSISTANT_PREVIOUS != ''
+        if: env.ROUTER_PREVIOUS != '' || env.PEOPLE_PREVIOUS != '' || env.SLACK_PREVIOUS != '' || env.AUDIT_PREVIOUS != '' || env.TIMEOFF_PREVIOUS != '' || env.DOCUMENTS_PREVIOUS != '' || env.RECRUITING_PREVIOUS != '' || env.ASSISTANT_PREVIOUS != ''
         uses: ./.github/actions/vm-ssh
         with:
           role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -1776,9 +1965,12 @@ jobs:
           roll_back people-remote "$REMOTE_DEPLOYED"    "$REMOTE_PROJECT"
           roll_back timeoff-remote "$TIMEOFF_REMOTE_DEPLOYED" "$TIMEOFF_REMOTE_PROJECT"
           roll_back documents-remote "$DOCUMENTS_REMOTE_DEPLOYED" "$DOCUMENTS_REMOTE_PROJECT"
+          roll_back recruiting-remote "$RECRUITING_REMOTE_DEPLOYED" "$RECRUITING_REMOTE_PROJECT"
+          roll_back jobs          "$JOBS_DEPLOYED"      "$JOBS_PROJECT"
           roll_back_vm router     "$ROUTER_OUTCOME"     "$ROUTER_PREVIOUS"
           roll_back_vm timeoff    "$TIMEOFF_OUTCOME"    "$TIMEOFF_PREVIOUS"
           roll_back_vm documents  "$DOCUMENTS_OUTCOME"  "$DOCUMENTS_PREVIOUS"
+          roll_back_vm recruiting "$RECRUITING_OUTCOME" "$RECRUITING_PREVIOUS"
           roll_back_vm people     "$PEOPLE_OUTCOME"     "$PEOPLE_PREVIOUS"
           roll_back_vm slack      "$SLACK_OUTCOME"      "$SLACK_PREVIOUS"
           roll_back_vm assistant  "$ASSISTANT_OUTCOME"  "$ASSISTANT_PREVIOUS"
@@ -1820,9 +2012,12 @@ jobs:
         timeoff-remote,
         documents-remote-build,
         documents-remote,
+        recruiting-remote-build,
+        recruiting-remote,
         web,
         auth,
         admin,
+        jobs,
         docs,
         storybook,
         storybook-mobile,
@@ -1850,10 +2045,13 @@ jobs:
             audit=${{ needs.vm.outputs.audit-outcome == 'success' }}
             timeoff=${{ needs.vm.outputs.timeoff-outcome == 'success' }}
             documents=${{ needs.vm.outputs.documents-outcome == 'success' }}
+            recruiting=${{ needs.vm.outputs.recruiting-outcome == 'success' }}
             assistant=${{ needs.vm.outputs.assistant-outcome == 'success' }}
             people-remote=${{ needs.people-remote.outputs.deployed }}
             timeoff-remote=${{ needs.timeoff-remote.outputs.deployed }}
             documents-remote=${{ needs.documents-remote.outputs.deployed }}
+            recruiting-remote=${{ needs.recruiting-remote.outputs.deployed }}
+            jobs=${{ needs.jobs.outputs.deployed }}
             shell=${{ needs.web.outputs.deployed }}
             auth=${{ needs.auth.outputs.deployed }}
             admin=${{ needs.admin.outputs.deployed }}
