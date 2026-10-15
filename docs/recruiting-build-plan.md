@@ -216,8 +216,11 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       §14.6.
 - [x] **REC-112** Model port through the AI gateway; prompt versions;
       `ai_assessment` logging. §22.2.
-- [ ] **REC-113** CV parser with passages; candidate confirmation on J4.
-      §14.2.
+- [x] **REC-113** CV parser with passages; candidate confirmation on J4.
+      §14.2. The hiring team asks for the read on R11 (§22.2 point 1), and the
+      candidate confirms it on J6, their own page, rather than on J4: a parse
+      on the public form would be a model call before anyone signs in, with
+      no application to log it against.
 - [ ] **REC-114** Evidence matrix; quote verification; score and band in the
       domain. §14.3.
 - [ ] **REC-115** Matrix on R10 and R11; per-criterion disagreement. §14.4,

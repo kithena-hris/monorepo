@@ -46,6 +46,7 @@ const WRITES = new Set<OperationName>([
   'ScheduleInterview',
   'SelfScheduleLink',
   'SaveRecruitingWorkingHours',
+  'ParseCv',
   'SetInterviewState',
   'SaveScorecard',
   'DecideApplication',
@@ -78,6 +79,7 @@ const WRITES = new Set<OperationName>([
   // Reads a screen asks for after it has drawn: free slots, the debrief.
   'RecruitingSlots',
   'RecruitingWorkingHours',
+  'RecruitingParsedProfile',
   'RecruitingDebrief',
   'RecruitingExport',
   'RecruitingCandidates',

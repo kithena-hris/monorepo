@@ -135,6 +135,10 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """
+  R11: the model reads the masked CV into a profile, with a passage behind every value
+  """
+  parseCv(applicationId: String!, idempotencyKey: String!): JSON
   """A legal hold"""
   placeHold(
     candidateId: String!
@@ -404,6 +408,8 @@ type Query {
   recruitingOffer(offerId: String!): JSON
   """Offers"""
   recruitingOffers: JSON
+  """R11: the parsed profile, and whether the candidate confirmed it"""
+  recruitingParsedProfile(applicationId: String!): JSON
   """R10: a job’s pipeline, filtered in the URL"""
   recruitingPipeline(jobId: String!, q: String, sort: String, source: String, stage: String): JSON
   """R13: talent pools"""

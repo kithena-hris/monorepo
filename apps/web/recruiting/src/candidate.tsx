@@ -1,4 +1,5 @@
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -7,6 +8,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Chip,
+  ChipRow,
   EmptyState,
   Field,
   FieldControl,
@@ -23,7 +26,7 @@ import {
   TimelineItem,
   icons,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, money, useAct, when, words } from './shared';
@@ -47,6 +50,112 @@ const TABS = [
   'offers',
 ] as const;
 type Tab = (typeof TABS)[number];
+
+interface Said {
+  readonly value: string;
+  readonly passage: string;
+}
+interface Parsed {
+  readonly profile: {
+    readonly work: readonly {
+      readonly employer: Said;
+      readonly title: Said;
+      readonly from: Said;
+      readonly to: Said | null;
+    }[];
+    readonly skills: readonly Said[];
+    readonly languages: readonly (Said & { readonly level: string | null })[];
+    readonly certifications: readonly Said[];
+  };
+  readonly issues: readonly { readonly code: string; readonly path: string }[];
+  readonly confirmedAt: string | null;
+  readonly note: string | null;
+}
+
+/** PRD §14.2: what the model read from the masked CV, each line with its passage; a person checks it. */
+function ReadCv({
+  application,
+  props,
+}: {
+  readonly application: CandidateData['applications'][number];
+  readonly props: ScreenProps<CandidateData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const [parsed, setParsed] = useState<Parsed | null>(null);
+  const { call } = act;
+  useEffect(() => {
+    void call('RecruitingParsedProfile', { applicationId: application.applicationId }).then(
+      (done) => {
+        setParsed(done.ok ? (done.data as Parsed | null) : null);
+      },
+    );
+  }, [call, application.applicationId]);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>Read from the CV</CardTitle>
+        <CardDescription>
+          A model read the masked text; anything it could not quote was left out.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Refusal error={act.error} />
+        {parsed === null ? (
+          <Button
+            variant="secondary"
+            loading={act.pending}
+            onClick={() => {
+              act.run('ParseCv', { applicationId: application.applicationId }, (data) => {
+                setParsed(data as Parsed);
+              });
+            }}
+          >
+            Read the CV
+          </Button>
+        ) : (
+          <>
+            {parsed.confirmedAt === null ? (
+              <Badge size="sm" tone="neutral">
+                Not yet checked by the candidate
+              </Badge>
+            ) : (
+              <Badge
+                size="sm"
+                tone="success"
+              >{`Checked by the candidate ${day(parsed.confirmedAt)}`}</Badge>
+            )}
+            {parsed.note === null ? null : (
+              <Alert tone="info" title="The candidate says">
+                {parsed.note}
+              </Alert>
+            )}
+            {parsed.issues.some((i) => i.code !== 'not_in_text') ? (
+              <Alert tone="warning" title="Dates to check">
+                Some dates are out of order or after today; they are shown as written.
+              </Alert>
+            ) : null}
+            <ul className="flex flex-col gap-2">
+              {parsed.profile.work.map((w) => (
+                <li key={`${w.employer.value}:${w.from.value}`}>
+                  <span className="font-medium">{`${w.title.value}, ${w.employer.value}`}</span>
+                  <span className="block text-sm text-fg-muted">{`${w.from.value} – ${w.to?.value ?? 'now'} · “${w.employer.passage}”`}</span>
+                </li>
+              ))}
+            </ul>
+            <ChipRow>
+              {[...parsed.profile.skills, ...parsed.profile.certifications].map((x) => (
+                <Chip key={x.value}>{x.value}</Chip>
+              ))}
+              {parsed.profile.languages.map((l) => (
+                <Chip key={l.value}>{l.level === null ? l.value : `${l.value} ${l.level}`}</Chip>
+              ))}
+            </ChipRow>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 /** R18: the referees the candidate named; each is asked only when someone here says so. */
 function References({
@@ -486,6 +595,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           </CardContent>
                         </Card>
                         <Notes data={data} application={chosen} props={props} />
+                        {chosen.may.includes('candidate.profile') ? (
+                          <ReadCv application={chosen} props={props} />
+                        ) : null}
                       </div>
                     </TabsContent>
                     <TabsContent value="answers">

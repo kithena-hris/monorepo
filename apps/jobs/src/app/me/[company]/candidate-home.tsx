@@ -29,6 +29,7 @@ import {
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi, tokenFromHash } from '../../../lib/browser-api';
+import { ReadProfile } from './read-profile';
 
 interface Offer {
   readonly offer: {
@@ -319,6 +320,7 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                 {a.requests.map((r) => (
                   <Alert key={r.id} tone="warning" title={r.label} />
                 ))}
+                <ReadProfile company={company} token={token} applicationId={a.applicationId} />
                 <div className="flex flex-wrap gap-2">
                   {a.offer === null ? null : (
                     <Button

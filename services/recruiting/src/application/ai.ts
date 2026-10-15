@@ -59,7 +59,7 @@ export async function readApplication<T>(
   applicationId: string,
   spec: PromptSpec<T>,
   extra: Readonly<Record<string, unknown>> = {},
-): Promise<Result<{ readonly assessmentId: string; readonly answer: T }>> {
+): Promise<Result<{ readonly assessmentId: string; readonly answer: T; readonly text: string }>> {
   const settings = await generalSettings(ctx);
   const model = ctx.deps.model;
   if (model === undefined || !settings.ai[spec.feature]) return err(aiOff());
@@ -98,5 +98,5 @@ export async function readApplication<T>(
     createdAt: ctx.at,
   };
   await ctx.tx.assessments.save(assessment);
-  return ok({ assessmentId: assessment.id, answer: answer.data });
+  return ok({ assessmentId: assessment.id, answer: answer.data, text: text.value });
 }

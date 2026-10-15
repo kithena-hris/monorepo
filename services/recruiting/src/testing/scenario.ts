@@ -63,6 +63,7 @@ import {
   subscribeAlert,
 } from '../application/alerts.js';
 import { readApplication } from '../application/ai.js';
+import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -556,9 +557,25 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     ...deps,
     model: {
       name: 'fake',
-      complete: (_: string, prompt: { context: Readonly<Record<string, unknown>> }) => {
+      complete: (
+        _: string,
+        prompt: { instruction: string; context: Readonly<Record<string, unknown>> },
+      ) => {
         seen.push(String(prompt.context['application']));
-        return Promise.resolve('{"summary":"A product designer."}');
+        return Promise.resolve(
+          prompt.instruction === PARSER.instruction
+            ? JSON.stringify({
+                work: [],
+                education: [],
+                skills: [
+                  { value: 'product design', passage: 'product designer' },
+                  { value: 'Kubernetes', passage: 'Kubernetes' },
+                ],
+                languages: [],
+                certifications: [],
+              })
+            : '{"summary":"A product designer."}',
+        );
       },
     },
   };
@@ -581,6 +598,26 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(logged.map((a) => [a.feature, a.model, a.promptVersion])).toEqual([
     ['parser', 'fake', 'test@1'],
   ]);
+  // §14.2: the parser keeps only what the text says, and the candidate confirms it on their page.
+  const parsed = value(
+    await uow.run(tenantId, async (tx) =>
+      parseCv(await contextOf(reading, tx, callerOf('ada')), applied.applicationId),
+    ),
+  );
+  expect(parsed.profile.skills.map((x) => x.value)).toEqual(['product design']);
+  await as('public', async (ctx) => {
+    value(
+      await confirmParsedProfile(
+        ctx,
+        yuki?.id ?? '',
+        applied.applicationId,
+        'I also lead research.',
+      ),
+    );
+    expect(value(await myParsedProfile(ctx, yuki?.id ?? '', applied.applicationId))?.note).toBe(
+      'I also lead research.',
+    );
+  });
 
   // J11: an alert sends nothing until confirmed, then each new matching job once.
   const alertMail: { to: string; text: string }[] = [];

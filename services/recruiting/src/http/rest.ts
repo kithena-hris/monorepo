@@ -137,6 +137,12 @@ import {
 } from '../application/agency-portal.js';
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
 import { importMembers } from '../application/members.js';
+import {
+  confirmParsedProfile,
+  myParsedProfile,
+  parseCv,
+  parsedProfile,
+} from '../application/parser.js';
 import { receiveReply } from '../application/replies.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from './caller.js';
@@ -934,6 +940,22 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params, body }) => decide(ctx, params.applicationId, body.decision, body.reason),
   }),
   route({
+    name: 'parseCv',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/profile`,
+    summary: 'R11: the model reads the masked CV into a profile, with a passage behind every value',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => parseCv(ctx, params.applicationId),
+  }),
+  route({
+    name: 'recruitingParsedProfile',
+    method: 'GET',
+    path: `${V1}/applications/{applicationId}/profile`,
+    summary: 'R11: the parsed profile, and whether the candidate confirmed it',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => parsedProfile(ctx, params.applicationId),
+  }),
+  route({
     name: 'requestReference',
     method: 'POST',
     path: `${V1}/applications/{applicationId}/references/{referenceId}`,
@@ -1348,6 +1370,29 @@ export const ROUTES: readonly Route[] = [
     public: true,
     run: (ctx, { params, body, headers }) =>
       asCandidate(ctx, headers, (id) => candidateDeclines(ctx, id, params.offerId, body.reason)),
+  }),
+  route({
+    name: 'publicProfile',
+    method: 'GET',
+    path: `${V1}/public/{company}/me/applications/{applicationId}/profile`,
+    summary: 'J6: what was read from my CV',
+    params: z.object({ company: text(63), applicationId: Id }),
+    public: true,
+    run: (ctx, { params, headers }) =>
+      asCandidate(ctx, headers, (id) => myParsedProfile(ctx, id, params.applicationId)),
+  }),
+  route({
+    name: 'publicProfileConfirm',
+    method: 'POST',
+    path: `${V1}/public/{company}/me/applications/{applicationId}/profile/confirm`,
+    summary: 'J6: I checked it, and here is what is wrong',
+    params: z.object({ company: text(63), applicationId: Id }),
+    body: z.object({ note: text(2000).nullable() }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      asCandidate(ctx, headers, (id) =>
+        confirmParsedProfile(ctx, id, params.applicationId, body.note),
+      ),
   }),
   route({
     name: 'publicReferee',

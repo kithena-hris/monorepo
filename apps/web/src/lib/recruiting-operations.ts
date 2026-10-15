@@ -154,6 +154,13 @@ export const OPERATIONS = {
   SelfScheduleLink: write('SelfScheduleLink', 'selfScheduleLink', ...ID('applicationId')),
   SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
+  ParseCv: write('ParseCv', 'parseCv', ...ID('applicationId'), false),
+  RecruitingParsedProfile: query(
+    'RecruitingParsedProfile',
+    'recruitingParsedProfile',
+    '$applicationId: String!',
+    'applicationId: $applicationId',
+  ),
   SetInterviewState: write('SetInterviewState', 'setInterviewState', ...ID('interviewId')),
   SaveScorecard: write('SaveScorecard', 'saveScorecard', ...ID('interviewId')),
   DecideApplication: write('DecideApplication', 'decideApplication', ...ID('applicationId')),
