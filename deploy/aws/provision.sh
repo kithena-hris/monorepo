@@ -10,8 +10,8 @@
 # each resource is looked up first and created only when missing; the policies
 # are re-put every run, so running it again is how a change here reaches AWS.
 #
-#   buckets          kithena-<account>-uploads, -exports, -backups and
-#                    -documents: Block
+#   buckets          kithena-<account>-uploads, -exports, -backups,
+#                    -documents and -recruiting: Block
 #                    Public Access, SSE-S3 by default, BucketOwnerEnforced,
 #                    unversioned, TLS only, and lifecycle rules matching
 #                    People's key layout (uploads: a day; exports/ and
@@ -186,7 +186,7 @@ role() { # <name> <trust policy> <inline policy>
 
 # Bucket names are global, so the account id is in them.
 UPLOADS="kithena-$account-uploads" EXPORTS="kithena-$account-exports" BACKUPS="kithena-$account-backups"
-DOCUMENTS="kithena-$account-documents"
+DOCUMENTS="kithena-$account-documents" RECRUITING="kithena-$account-recruiting"
 # `bucket <name> <lifecycle rules, a JSON array>`: private, SSE-S3,
 # owner-enforced, unversioned, TLS only. Created once; the rest is re-put.
 bucket() {
@@ -233,6 +233,10 @@ bucket "$BACKUPS" "[$(rule backups-30-days '' 30)]"
 # until Documents deletes them. A presigned PUT and GET from the tenant app.
 bucket "$DOCUMENTS" "[$(rule incoming-expires-after-a-day incoming/ 1),$(rule outgoing-expires-after-a-day outgoing/ 1)]"
 act s3api put-bucket-cors --bucket "$DOCUMENTS" --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"https://*.app.kithena.com\"],\"AllowedMethods\":[\"PUT\",\"GET\"],\"AllowedHeaders\":[\"content-type\",\"if-none-match\"],\"MaxAgeSeconds\":3600}]}"
+# Recruiting (docs/environments.md, "Recruiting's settings"): CVs and signed
+# contracts, sealed and written by the service, never by a browser, so no
+# CORS. They stay until Recruiting deletes them; only a stalled upload expires.
+bucket "$RECRUITING" '[{"ID":"abort-stalled-uploads","Status":"Enabled","Filter":{"Prefix":""},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":1}}]'
 
 say "instance role kithena-vm"
 role kithena-vm \
@@ -247,7 +251,10 @@ role kithena-vm \
   "Resource":"arn:aws:s3:::$BACKUPS/*"},
  {"Sid":"ListDocuments","Effect":"Allow","Action":"s3:ListBucket","Resource":"arn:aws:s3:::$DOCUMENTS"},
  {"Sid":"Documents","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
-  "Resource":"arn:aws:s3:::$DOCUMENTS/*"}]}
+  "Resource":"arn:aws:s3:::$DOCUMENTS/*"},
+ {"Sid":"ListRecruiting","Effect":"Allow","Action":"s3:ListBucket","Resource":"arn:aws:s3:::$RECRUITING"},
+ {"Sid":"Recruiting","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
+  "Resource":"arn:aws:s3:::$RECRUITING/*"}]}
 EOF
 )"
 # Managed, so AWS keeps it matched to what the agent calls. Attaching twice is

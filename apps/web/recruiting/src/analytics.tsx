@@ -1,0 +1,675 @@
+import {
+  Alert,
+  Badge,
+  BarChart,
+  Button,
+  ChartCard,
+  EmptyState,
+  FunnelChart,
+  HorizontalBarChart,
+  Input,
+  PageHeader,
+  SegmentedControl,
+  SegmentedControlItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Stat,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  TrendChart,
+  icons,
+} from '@reach/ui';
+import { useEffect, useState, type JSX } from 'react';
+
+import { Loaded } from './load';
+import { Refusal, To, useAct, words } from './shared';
+import type { AnalyticsData, Bucket, ScreenProps } from './types';
+
+/**
+ * R23 and R25: dashboards over the stage history, filters in the address,
+ * and a chart built from chips. Every number is Recruiting's; a group under
+ * five people arrives withheld and is drawn as such.
+ */
+
+const DASHBOARDS = ['overview', 'funnel', 'speed', 'sources', 'offers', 'fairness', 'ask'] as const;
+type Dashboard = (typeof DASHBOARDS)[number];
+const PERIODS = ['last_30_days', 'last_90_days', 'this_quarter', 'this_year', 'last_year'] as const;
+
+const METRICS: readonly { key: string; label: string; by: readonly string[] }[] = [
+  {
+    key: 'applications',
+    label: 'Applications',
+    by: ['department', 'source', 'job', 'country', 'month'],
+  },
+  {
+    key: 'hires',
+    label: 'Hires',
+    by: ['department', 'source', 'job', 'country', 'month', 'hiring_manager'],
+  },
+  { key: 'conversion', label: 'Conversion by stage', by: ['stage', 'job', 'department', 'source'] },
+  {
+    key: 'time_to_hire',
+    label: 'Time to hire',
+    by: ['department', 'job', 'source', 'month', 'country'],
+  },
+  {
+    key: 'rejection_reasons',
+    label: 'Rejection reasons',
+    by: ['rejection_reason', 'stage', 'job'],
+  },
+];
+
+const points = (buckets: readonly Bucket[]) =>
+  buckets
+    .filter((b) => !b.suppressed && b.value !== null)
+    .map((b) => ({ label: words(b.key), value: b.value ?? 0 }));
+
+type Point = { readonly label: string; readonly value: number };
+
+/** R24: each tile that opens on its own, with the rows behind it. */
+const TILES: readonly {
+  readonly id: string;
+  readonly title: string;
+  readonly dashboard: Dashboard;
+  readonly unit: string;
+  readonly chart: 'trend' | 'funnel' | 'bars';
+  readonly rows: (data: AnalyticsData) => readonly Point[];
+  readonly withheld?: (data: AnalyticsData) => readonly Bucket[];
+}[] = [
+  {
+    id: 'hires-by-month',
+    title: 'Hires by month',
+    dashboard: 'overview',
+    unit: 'Hires',
+    chart: 'trend',
+    rows: (d) => d.overview.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
+  },
+  {
+    id: 'pipeline',
+    title: 'Pipeline by stage',
+    dashboard: 'funnel',
+    unit: 'Applications',
+    chart: 'funnel',
+    rows: (d) => d.overview.funnel.map((f) => ({ label: words(f.category), value: f.count })),
+  },
+  {
+    id: 'time-in-stage',
+    title: 'Time in stage',
+    dashboard: 'funnel',
+    unit: 'Median days',
+    chart: 'bars',
+    rows: (d) =>
+      d.timeInStage
+        .filter((t) => t.median !== null)
+        .map((t) => ({ label: words(t.category), value: Math.round(t.median ?? 0) })),
+  },
+  {
+    id: 'rejection-reasons',
+    title: 'Rejection reasons',
+    dashboard: 'funnel',
+    unit: 'Applications',
+    chart: 'bars',
+    rows: (d) => points(d.overview.rejectionReasons),
+    withheld: (d) => d.overview.rejectionReasons,
+  },
+  {
+    id: 'time-to-fill',
+    title: 'Time to fill',
+    dashboard: 'speed',
+    unit: 'Days',
+    chart: 'bars',
+    rows: (d) =>
+      d.speed.filter((s) => s.days !== null).map((s) => ({ label: s.title, value: s.days ?? 0 })),
+  },
+  {
+    id: 'sources',
+    title: 'Applications by source',
+    dashboard: 'sources',
+    unit: 'Applications',
+    chart: 'bars',
+    rows: (d) => points(d.overview.sources),
+    withheld: (d) => d.overview.sources,
+  },
+];
+
+/** The dashboard's filters, carried to a tile and back; the tab only on the way back. */
+const query = (search: ScreenProps<AnalyticsData>['search'], dashboard?: Dashboard) => {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(search ?? {}))
+    if (k !== 'dashboard' && typeof v === 'string') q.set(k, v);
+  if (dashboard !== undefined && dashboard !== 'overview') q.set('dashboard', dashboard);
+  const text = q.toString();
+  return text === '' ? '' : `?${text}`;
+};
+
+function Detail({
+  id,
+  props,
+}: {
+  readonly id: string;
+  readonly props: ScreenProps<AnalyticsData>;
+}): JSX.Element {
+  return (
+    <To href={`/recruiting/analytics/${id}${query(props.search)}`} onNavigate={props.onNavigate}>
+      Details
+    </To>
+  );
+}
+
+function Drawn({
+  tile,
+  rows,
+}: {
+  readonly tile: (typeof TILES)[number];
+  readonly rows: readonly Point[];
+}): JSX.Element {
+  if (tile.chart === 'trend')
+    return <TrendChart label={tile.title} series={[{ label: tile.unit, data: [...rows] }]} />;
+  if (tile.chart === 'funnel')
+    return <FunnelChart label={tile.title} data={[...rows]} showConversion />;
+  return <HorizontalBarChart label={tile.title} data={[...rows]} showValues sorted />;
+}
+
+/** R24: one tile at full size, and the table it is drawn from. */
+export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
+  const tile = TILES.find((t) => t.id === props.params?.['id']);
+  return (
+    <Loaded load={props.load} what="this chart">
+      {(data) => {
+        if (tile === undefined)
+          return <EmptyState icon={<icons.analytics aria-hidden />} title="No such chart" />;
+        const rows = tile.rows(data);
+        const back = `/recruiting/analytics${query(props.search, tile.dashboard)}`;
+        return (
+          <div className="flex flex-col gap-4">
+            <PageHeader
+              title={tile.title}
+              description={words(data.filters.period)}
+              actions={
+                <To href={back} onNavigate={props.onNavigate}>
+                  {`Back to ${words(tile.dashboard).toLowerCase()}`}
+                </To>
+              }
+            />
+            <h2 className="sr-only">Chart and data</h2>
+            <ChartCard title={tile.title}>
+              {rows.length === 0 ? (
+                <EmptyState icon={<icons.analytics aria-hidden />} title="Nothing in this period" />
+              ) : (
+                <Drawn tile={tile} rows={rows} />
+              )}
+              {tile.withheld === undefined ? null : <Withheld buckets={tile.withheld(data)} />}
+            </ChartCard>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{tile.chart === 'trend' ? 'Month' : 'Group'}</TableHead>
+                  <TableHead className="text-right">{tile.unit}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.label}>
+                    <TableCell>{r.label}</TableCell>
+                    <TableCell className="text-right tabular-nums">{String(r.value)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        );
+      }}
+    </Loaded>
+  );
+}
+
+interface ImpactRow {
+  readonly stage: string;
+  readonly group: string;
+  readonly n: number;
+  readonly rateBp: number;
+  readonly ratioBp: number;
+  readonly flagged: boolean;
+}
+
+const pct = (bp: number) => `${(bp / 100).toFixed(1)}%`;
+
+function ImpactTable({
+  title,
+  rows,
+}: {
+  readonly title: string;
+  readonly rows: readonly ImpactRow[];
+}): JSX.Element {
+  return (
+    <ChartCard
+      title={title}
+      description="Share of each group that reached the stage, against the highest"
+    >
+      {rows.length === 0 ? (
+        <p className="text-sm text-fg-muted">No group of five or more people yet.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Stage</TableHead>
+              <TableHead>Group</TableHead>
+              <TableHead className="text-right">People</TableHead>
+              <TableHead className="text-right">Reached</TableHead>
+              <TableHead className="text-right">Ratio</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={`${r.stage}:${r.group}`}>
+                <TableCell>{r.stage}</TableCell>
+                <TableCell>{words(r.group)}</TableCell>
+                <TableCell className="text-right tabular-nums">{String(r.n)}</TableCell>
+                <TableCell className="text-right tabular-nums">{pct(r.rateBp)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.flagged ? (
+                    <Badge size="sm" tone="warning">{`${pct(r.ratioBp)}, under four-fifths`}</Badge>
+                  ) : (
+                    pct(r.ratioBp)
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </ChartCard>
+  );
+}
+
+/** PRD §22.6: pass rates by voluntary self-ID group, AI-assisted and not; administrators only. */
+function Fairness({ props }: { readonly props: ScreenProps<AnalyticsData> }): JSX.Element {
+  const act = useAct(props);
+  const [category, setCategory] = useState<'gender' | 'ethnicity'>('gender');
+  const [data, setData] = useState<{
+    all: readonly ImpactRow[];
+    aiAssisted: readonly ImpactRow[];
+    notAssisted: readonly ImpactRow[];
+  } | null>(null);
+  const [refused, setRefused] = useState<string | null>(null);
+  const { call } = act;
+  useEffect(() => {
+    void call('RecruitingFairness', { category }).then((done) => {
+      if (done.ok) {
+        setRefused(null);
+        setData(done.data as NonNullable<typeof data>);
+      } else setRefused(done.message);
+    });
+  }, [call, category]);
+  return (
+    <div className="flex flex-col gap-4">
+      <SegmentedControl
+        aria-label="Group by"
+        value={category}
+        onValueChange={(v) => {
+          setCategory(v === 'ethnicity' ? 'ethnicity' : 'gender');
+        }}
+      >
+        <SegmentedControlItem value="gender">Gender</SegmentedControlItem>
+        <SegmentedControlItem value="ethnicity">Race or ethnicity</SegmentedControlItem>
+      </SegmentedControl>
+      {refused === null ? null : <Alert tone="info" title={refused} />}
+      {data === null ? null : (
+        <>
+          <ImpactTable title="Every decision" rows={data.all} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ImpactTable title="With an evidence matrix" rows={data.aiAssisted} />
+            <ImpactTable title="Without one" rows={data.notAssisted} />
+          </div>
+        </>
+      )}
+      <p className="text-xs text-fg-muted">
+        From voluntary answers given after applying, sealed and never shown to a hiring team. A
+        group under five people is never shown.
+      </p>
+    </div>
+  );
+}
+
+function Withheld({ buckets }: { readonly buckets: readonly Bucket[] }): JSX.Element | null {
+  const n = buckets.filter((b) => b.suppressed).length;
+  return n === 0 ? null : (
+    <p className="text-xs text-fg-muted">{`${String(n)} group${n === 1 ? '' : 's'} under five people withheld.`}</p>
+  );
+}
+
+function Ask({
+  props,
+  period,
+}: {
+  readonly props: ScreenProps<AnalyticsData>;
+  readonly period: string;
+}): JSX.Element {
+  const act = useAct(props);
+  const [metric, setMetric] = useState('hires');
+  const [by, setBy] = useState('department');
+  const [rows, setRows] = useState<readonly Bucket[] | null>(null);
+  const [question, setQuestion] = useState('');
+  const m = METRICS.find((x) => x.key === metric) ?? METRICS[0];
+  const chip = (
+    label: string,
+    value: string,
+    set: (v: string) => void,
+    options: readonly { key: string; label: string }[],
+  ) => (
+    <Select value={value} onValueChange={set}>
+      <SelectTrigger aria-label={label} className="w-56">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.key} value={o.key}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          act.run('AskForChart', { input: { question } }, (data) => {
+            const d = data as {
+              plan: { metric: string; breakdown: string | null };
+              rows: readonly Bucket[];
+            };
+            setMetric(d.plan.metric);
+            setBy(
+              d.plan.breakdown ??
+                METRICS.find((x) => x.key === d.plan.metric)?.by[0] ??
+                'department',
+            );
+            setRows(d.rows);
+          });
+        }}
+      >
+        <Input
+          aria-label="Ask for a chart"
+          placeholder="Offer acceptance by department this year"
+          value={question}
+          onChange={(e) => {
+            setQuestion(e.target.value);
+          }}
+          className="min-w-0 flex-1"
+        />
+        <Button
+          type="submit"
+          variant="secondary"
+          loading={act.pending}
+          disabled={question.trim() === ''}
+        >
+          Ask
+        </Button>
+      </form>
+      <p className="text-xs text-fg-muted">
+        A model picks the chart below by name; Kithena checks the plan and computes every number.
+        Change any chip.
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        {chip(
+          'Metric',
+          metric,
+          (v) => {
+            setMetric(v);
+            setBy(METRICS.find((x) => x.key === v)?.by[0] ?? 'department');
+          },
+          METRICS,
+        )}
+        {chip(
+          'By',
+          by,
+          setBy,
+          (m?.by ?? []).map((k) => ({ key: k, label: words(k) })),
+        )}
+        <Button
+          loading={act.pending}
+          onClick={() => {
+            act.run(
+              'Chart',
+              {
+                input: { metric, breakdown: by, filters: {}, period, compare: null, chart: 'bar' },
+              },
+              (data) => {
+                setRows((data as { rows: readonly Bucket[] }).rows);
+              },
+            );
+          }}
+        >
+          Draw
+        </Button>
+      </div>
+      <Refusal error={act.error} />
+      {rows === null ? null : (
+        <ChartCard
+          title={`${m?.label ?? ''} by ${words(by).toLowerCase()}`}
+          description={words(period)}
+        >
+          <BarChart label={`${m?.label ?? ''} by ${words(by)}`} data={points(rows)} showValues />
+          <Withheld buckets={rows} />
+        </ChartCard>
+      )}
+      <p className="text-xs text-fg-muted">
+        Every chart is validated whole and computed by Kithena; a breakdown that would show a group
+        under five people is refused.
+      </p>
+    </div>
+  );
+}
+
+export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
+  const tab: Dashboard = DASHBOARDS.find((d) => d === props.search?.['dashboard']) ?? 'overview';
+  return (
+    <Loaded load={props.load} what="analytics">
+      {(data) => {
+        const o = data.overview;
+        const days = (n: number | null) => (n === null ? '—' : `${String(Math.round(n))} d`);
+        return (
+          <div className="flex flex-col gap-4">
+            <PageHeader
+              title="Analytics"
+              description="Every number is computed from the stage history. Groups under five people are hidden."
+              actions={
+                <Select
+                  value={data.filters.period}
+                  onValueChange={(v) =>
+                    props.onFilter?.({ period: v === 'last_90_days' ? null : v })
+                  }
+                >
+                  <SelectTrigger aria-label="Period" className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {words(p)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              }
+            />
+            {data.filters.jobId === undefined ? null : (
+              <Alert
+                tone="info"
+                title="One job"
+                action={
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => props.onFilter?.({ job: null })}
+                  >
+                    All jobs
+                  </Button>
+                }
+              >
+                Filtered to the job you came from.
+              </Alert>
+            )}
+            <h2 className="sr-only">{tab === 'ask' ? 'Build a chart' : words(tab)}</h2>
+            <Tabs
+              value={tab}
+              onValueChange={(v) => props.onFilter?.({ dashboard: v === 'overview' ? null : v })}
+            >
+              <TabsList>
+                {DASHBOARDS.map((d) => (
+                  <TabsTrigger key={d} value={d}>
+                    {d === 'ask' ? 'Build a chart' : words(d)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <TabsContent value="overview" className="flex flex-col gap-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Stat label="Open jobs" value={String(o.openJobs)} />
+                  <Stat label="Applications" value={String(o.applications)} />
+                  <Stat label="Hires" value={String(o.hires)} />
+                  <Stat label="Offers out" value={String(o.offersOut)} />
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <ChartCard
+                    title="Hires by month"
+                    action={<Detail id="hires-by-month" props={props} />}
+                  >
+                    {o.hiresByMonth.length === 0 ? (
+                      <EmptyState
+                        icon={<icons.analytics aria-hidden />}
+                        title="No hires in this period"
+                      />
+                    ) : (
+                      <TrendChart
+                        label="Hires by month"
+                        series={[
+                          {
+                            label: 'Hires',
+                            data: o.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
+                          },
+                        ]}
+                      />
+                    )}
+                  </ChartCard>
+                  <ChartCard
+                    title="Pipeline by stage"
+                    description="Applications that ever reached each stage"
+                  >
+                    <FunnelChart
+                      label="Pipeline by stage"
+                      data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
+                      showConversion
+                    />
+                  </ChartCard>
+                </div>
+              </TabsContent>
+              <TabsContent value="funnel" className="grid gap-4 lg:grid-cols-2">
+                <ChartCard
+                  title="Conversion per stage"
+                  action={<Detail id="pipeline" props={props} />}
+                >
+                  <FunnelChart
+                    label="Conversion per stage"
+                    data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
+                    showConversion
+                    highlightBiggestDrop
+                  />
+                </ChartCard>
+                <ChartCard
+                  title="Time in stage"
+                  description="Median days"
+                  action={<Detail id="time-in-stage" props={props} />}
+                >
+                  <HorizontalBarChart
+                    label="Median days in stage"
+                    data={data.timeInStage
+                      .filter((t) => t.median !== null)
+                      .map((t) => ({ label: words(t.category), value: Math.round(t.median ?? 0) }))}
+                    showValues
+                  />
+                </ChartCard>
+                <ChartCard
+                  title="Rejection reasons"
+                  className="lg:col-span-2"
+                  action={<Detail id="rejection-reasons" props={props} />}
+                >
+                  <HorizontalBarChart
+                    label="Rejection reasons"
+                    data={points(o.rejectionReasons)}
+                    showValues
+                    sorted
+                  />
+                  <Withheld buckets={o.rejectionReasons} />
+                </ChartCard>
+              </TabsContent>
+              <TabsContent value="speed" className="flex flex-col gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Stat label="Median time to hire" value={days(o.timeToHire.median)} />
+                  <Stat label="85th percentile" value={days(o.timeToHire.p85)} />
+                </div>
+                <ChartCard
+                  title="Time to fill"
+                  action={<Detail id="time-to-fill" props={props} />}
+                  description="Job opened to the last opening hired, days"
+                >
+                  <HorizontalBarChart
+                    label="Time to fill by job"
+                    data={data.speed
+                      .filter((s) => s.days !== null)
+                      .map((s) => ({ label: s.title, value: s.days ?? 0 }))}
+                    showValues
+                    sorted
+                  />
+                </ChartCard>
+              </TabsContent>
+              <TabsContent value="sources">
+                <ChartCard
+                  title="Applications by source"
+                  action={<Detail id="sources" props={props} />}
+                  description="Source is fixed at application, so attribution can’t drift"
+                >
+                  <HorizontalBarChart
+                    label="Applications by source"
+                    data={points(o.sources)}
+                    showValues
+                    sorted
+                  />
+                  <Withheld buckets={o.sources} />
+                </ChartCard>
+              </TabsContent>
+              <TabsContent value="offers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Stat
+                  label="Acceptance rate"
+                  value={data.offers.rate === null ? '—' : `${data.offers.rate}%`}
+                />
+                <Stat label="Sent" value={String(data.offers.sent)} />
+                <Stat label="Accepted" value={String(data.offers.accepted)} />
+                <Stat label="Declined" value={String(data.offers.declined)} />
+              </TabsContent>
+              <TabsContent value="fairness">
+                <Fairness props={props} />
+              </TabsContent>
+              <TabsContent value="ask">
+                <Ask props={props} period={data.filters.period} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        );
+      }}
+    </Loaded>
+  );
+}

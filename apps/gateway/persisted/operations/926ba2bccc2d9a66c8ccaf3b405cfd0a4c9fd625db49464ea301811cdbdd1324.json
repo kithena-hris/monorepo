@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PublishJob($jobId: String!, $target: String!, $key: String!) {\n    publishJob(jobId: $jobId, target: $target, idempotencyKey: $key)\n  }"}

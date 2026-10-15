@@ -17,6 +17,10 @@ const WORDS: Record<string, { label: string; description: string }> = {
     label: 'Documents',
     description: 'Contracts, policies and payslips, with signatures and retention.',
   },
+  'module.recruiting': {
+    label: 'Recruiting',
+    description: 'Job ads, the public job site, candidates, interviews and offers.',
+  },
 };
 
 export const MODULE_CHOICES: readonly {

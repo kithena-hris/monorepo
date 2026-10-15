@@ -83,6 +83,44 @@ export function settingsModules(
     });
   }
 
+  // Recruiting's settings, from its own manifest, where this viewer has any.
+  const recruiting = shell.remotes?.['recruiting']?.settings ?? [];
+  if (recruiting.length > 0) {
+    modules.push({
+      key: 'recruiting',
+      title: 'Recruiting',
+      description:
+        'How hiring runs: entities, pipelines, scorecards, pay bands, benefits and the careers page.',
+      settings: recruiting.map((place) => ({
+        path: place.path,
+        label: place.label,
+        description: place.description,
+        icon: place.icon,
+        now: null,
+        attention: null,
+      })),
+    });
+  }
+
+  // Onboarding's settings, from its own manifest, where this viewer has any.
+  const onboarding = shell.remotes?.['onboarding']?.settings ?? [];
+  if (onboarding.length > 0) {
+    modules.push({
+      key: 'onboarding',
+      title: 'Onboarding',
+      description:
+        'Who does HR’s and IT’s onboarding tasks, holidays, and the country of a People hire.',
+      settings: onboarding.map((place) => ({
+        path: place.path,
+        label: place.label,
+        description: place.description,
+        icon: place.icon,
+        now: null,
+        attention: null,
+      })),
+    });
+  }
+
   // The company's activity log (`/settings/activity`): the shell's, across
   // modules, for whoever may read it — People administrators and HR.
   if (shell.roles.admin || shell.roles.hr) {

@@ -1,0 +1,277 @@
+{
+  "routes": [
+    {
+      "path": "/recruiting/home",
+      "component": "Home"
+    },
+    {
+      "path": "/recruiting/jobs",
+      "component": "Jobs"
+    },
+    {
+      "path": "/recruiting/jobs/:id",
+      "component": "Pipeline"
+    },
+    {
+      "path": "/recruiting/jobs/:id/setup",
+      "component": "JobSetup"
+    },
+    {
+      "path": "/recruiting/candidates",
+      "component": "Candidates"
+    },
+    {
+      "path": "/recruiting/candidates/:id",
+      "component": "Candidate"
+    },
+    {
+      "path": "/recruiting/pools",
+      "component": "Pools"
+    },
+    {
+      "path": "/recruiting/pools/:id",
+      "component": "Pools"
+    },
+    {
+      "path": "/recruiting/requisitions",
+      "component": "Requisitions"
+    },
+    {
+      "path": "/recruiting/requisitions/:id",
+      "component": "Requisition"
+    },
+    {
+      "path": "/recruiting/requisitions/:id/approve",
+      "component": "RequisitionApproval"
+    },
+    {
+      "path": "/recruiting/interviews",
+      "component": "Interviews"
+    },
+    {
+      "path": "/recruiting/interviews/:id",
+      "component": "Kit"
+    },
+    {
+      "path": "/recruiting/applications/:id/schedule",
+      "component": "Schedule"
+    },
+    {
+      "path": "/recruiting/applications/:id/debrief",
+      "component": "Debrief"
+    },
+    {
+      "path": "/recruiting/offers",
+      "component": "Offers"
+    },
+    {
+      "path": "/recruiting/offers/:id",
+      "component": "Offer"
+    },
+    {
+      "path": "/recruiting/offers/:id/approve",
+      "component": "OfferApproval"
+    },
+    {
+      "path": "/recruiting/offers/:id/contract",
+      "component": "Contract"
+    },
+    {
+      "path": "/recruiting/analytics",
+      "component": "Analytics"
+    },
+    {
+      "path": "/recruiting/analytics/:id",
+      "component": "AnalyticsTile"
+    },
+    {
+      "path": "/recruiting/board",
+      "component": "Board"
+    },
+    {
+      "path": "/recruiting/agencies",
+      "component": "Agencies"
+    },
+    {
+      "path": "/settings/recruiting/general",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/entities",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/process",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/scorecards",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/pay",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/benefits",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/ai",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/integrations",
+      "component": "Settings"
+    }
+  ],
+  "actions": [],
+  "sections": [
+    {
+      "path": "/recruiting/home",
+      "label": "Home",
+      "group": "Recruiting",
+      "icon": "home",
+      "description": "Your tasks and your jobs",
+      "summary": "Tasks and jobs"
+    },
+    {
+      "path": "/recruiting/jobs",
+      "label": "Jobs",
+      "group": "Recruiting",
+      "icon": "work",
+      "description": "Every job you hire for, its pipeline and its setup",
+      "summary": "Jobs and pipelines",
+      "owns": ["/recruiting/jobs/:id", "/recruiting/jobs/:id/setup"]
+    },
+    {
+      "path": "/recruiting/interviews",
+      "label": "My interviews",
+      "group": "Recruiting",
+      "icon": "meeting",
+      "description": "Interviews you run and the scorecards you owe",
+      "summary": "Interviews and scorecards",
+      "owns": ["/recruiting/interviews/:id"]
+    },
+    {
+      "path": "/recruiting/candidates",
+      "label": "Candidates",
+      "group": "Recruiting",
+      "icon": "people",
+      "description": "Everyone who applied or was sourced, across jobs",
+      "summary": "Candidates",
+      "owns": [
+        "/recruiting/candidates/:id",
+        "/recruiting/applications/:id/schedule",
+        "/recruiting/applications/:id/debrief"
+      ]
+    },
+    {
+      "path": "/recruiting/offers",
+      "label": "Offers",
+      "group": "Recruiting",
+      "icon": "agreement",
+      "description": "Offers, their approvals, contracts and the conditions before a start",
+      "summary": "Offers and contracts",
+      "owns": [
+        "/recruiting/offers/:id",
+        "/recruiting/offers/:id/approve",
+        "/recruiting/offers/:id/contract"
+      ]
+    },
+    {
+      "path": "/recruiting/pools",
+      "label": "Talent pools",
+      "group": "Recruiting",
+      "icon": "starred",
+      "description": "People kept for later, with their consent",
+      "summary": "Talent pools",
+      "owns": ["/recruiting/pools/:id"]
+    },
+    {
+      "path": "/recruiting/requisitions",
+      "label": "Requisitions",
+      "group": "Recruiting",
+      "icon": "approve",
+      "description": "Headcount asked for and approved before a job opens",
+      "summary": "Requisitions",
+      "owns": ["/recruiting/requisitions/:id", "/recruiting/requisitions/:id/approve"]
+    },
+    {
+      "path": "/recruiting/analytics",
+      "label": "Analytics",
+      "group": "Recruiting",
+      "icon": "analytics",
+      "description": "Funnel, speed, sources and offers, from the stage history",
+      "summary": "Dashboards",
+      "owns": ["/recruiting/analytics/:id"]
+    },
+    {
+      "path": "/recruiting/board",
+      "label": "Open jobs",
+      "group": "Recruiting",
+      "icon": "hire",
+      "description": "Jobs inside the company: refer someone or apply yourself",
+      "summary": "Refer and apply"
+    },
+    {
+      "path": "/recruiting/agencies",
+      "label": "Agencies",
+      "group": "Recruiting",
+      "icon": "company",
+      "description": "Agencies, their fees and the jobs they may submit to",
+      "summary": "Agencies"
+    }
+  ],
+  "slots": {},
+  "settings": [
+    {
+      "path": "/settings/recruiting/general",
+      "label": "General",
+      "description": "Requisitions, internal applicants, the careers page and rejection reasons.",
+      "icon": "settings"
+    },
+    {
+      "path": "/settings/recruiting/entities",
+      "label": "Entities and locations",
+      "description": "The legal entities you hire through and where people work.",
+      "icon": "company"
+    },
+    {
+      "path": "/settings/recruiting/process",
+      "label": "Pipelines and approvals",
+      "description": "Pipeline templates, approval chains, questionnaires and templates.",
+      "icon": "hierarchy"
+    },
+    {
+      "path": "/settings/recruiting/scorecards",
+      "label": "Scorecards",
+      "description": "Competencies and probing questions on the four-point scale.",
+      "icon": "review"
+    },
+    {
+      "path": "/settings/recruiting/pay",
+      "label": "Pay bands",
+      "description": "The ranges every offer is checked against.",
+      "icon": "payment"
+    },
+    {
+      "path": "/settings/recruiting/benefits",
+      "label": "Benefits",
+      "description": "The catalogue per legal entity, statutory ones included.",
+      "icon": "starred"
+    },
+    {
+      "path": "/settings/recruiting/ai",
+      "label": "Kithena reading",
+      "description": "What a model may help with, and what it never sees.",
+      "icon": "assistant"
+    },
+    {
+      "path": "/settings/recruiting/integrations",
+      "label": "Integrations",
+      "description": "Job boards, the careers page embed and the hired webhook.",
+      "icon": "link"
+    }
+  ]
+}

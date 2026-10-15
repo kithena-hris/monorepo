@@ -85,6 +85,8 @@ const routes = compose({
   // What Time Off presents for its own notices; a pair's secret, like People's.
   timeOffNoticeToken: process.env['MESSAGING_TIMEOFF_TOKEN'],
   documentsNoticeToken: process.env['MESSAGING_DOCUMENTS_TOKEN'],
+  recruitingToken: process.env['MESSAGING_RECRUITING_TOKEN'],
+  onboardingToken: process.env['MESSAGING_ONBOARDING_TOKEN'],
   // Defaulted to the local app only in development; see `selectTenantAppBase`.
   tenantAppBase: process.env['TENANT_APP_BASE'],
   allowLogTransport: process.env['NODE_ENV'] !== 'production',
@@ -97,6 +99,8 @@ const routes = compose({
   identityUrl: process.env['INTERNAL_API_URL'],
   identityToken: process.env['INTERNAL_API_TOKEN'],
   cronSecret: process.env['CRON_SECRET'],
+  inboundDomain: process.env['INBOUND_DOMAIN'],
+  recruitingUrl: process.env['RECRUITING_URL'],
 });
 
 const server = createServer((request, response) => {

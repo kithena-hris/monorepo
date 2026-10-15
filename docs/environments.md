@@ -749,7 +749,13 @@ balances down too. `assistant` (**160 MB**,
 `--max-old-space-size=96`; not yet measured, assistant PRD §15.2) brings them
 to **3.75 GB**, to be measured the same way after its first deploy. If the sum
 stops fitting, folding the assistant into Slack's process comes before
-`m7i-flex.large`.
+`m7i-flex.large`. `documents` (**384 MB**) and `recruiting` (**256 MB**,
+`--max-old-space-size=160`, half a CPU; a guess, to be measured after its first
+deploy) bring them to **4.4 GB** against 4 GB and the swap. Recruiting is
+request-driven with light consumers, so it is the first candidate to fold into
+another process if the VM starts swapping under load. `onboarding` (**192 MB**,
+`--max-old-space-size=112`) brings them to **4.6 GB**; the two are the next to
+share a process, or the cue for `m7i-flex.large`, once measured.
 
 Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
 a dummy token and no tunnel to reach, so its figure is the binary retrying, not
@@ -1268,7 +1274,9 @@ module can merge first and switch on later. In this order:
    DOCUMENTS_BUCKET=kithena-<account>-documents
    DOCUMENTS_S3_REGION=us-east-1
    # 32 bytes, base64: what every stored file is sealed with. Lose it and the
-   # files are unreadable; it is backed up with the other VM secrets.
+   # files are unreadable. This secret is the copy every deploy restores
+   # (backup.sh saves the database, not the .env files): never regenerate it
+   # once a file is stored, and keep a spare from the VM (below).
    DOCUMENTS_ENCRYPTION_KEY=<openssl rand -base64 32>
    ```
 
@@ -1302,6 +1310,98 @@ module can merge first and switch on later. In this order:
    Documents says its reading is not set up and every screen works without it.
 
 Documents is not on staging.
+
+#### Recruiting's settings
+
+Recruiting (`services/recruiting`, REC-005) deploys as Documents does: a
+container on the VM (`recruiting`, 4005, `svc_recruiting`), the router's
+subgraph, and its remote on Vercel; and beside them Kithena Jobs
+(`apps/jobs`, `jobs.kithena.com`), the public job site. Every piece is skipped
+until its setting exists. In this order:
+
+1. **The bucket.** An S3 bucket (`kithena-<account>-recruiting`) the instance
+   role may read and write, for CVs and signed contracts, sealed by the service.
+2. **Environment secrets** in `production`: `RECRUITING_API_TOKEN` (the
+   router–Recruiting pair, `openssl rand -hex 32`) and `RECRUITING_ENV`:
+
+   ```bash
+   RECRUITING_BUCKET=kithena-<account>-recruiting
+   # 32 bytes, base64: what every stored file is sealed with. As Documents'
+   # key: this secret is the copy, never regenerate it once a file is stored.
+   RECRUITING_ENCRYPTION_KEY=<openssl rand -base64 32>
+   ```
+
+   GitHub never shows a secret again, so the spare comes from the VM after the
+   first deploy, into the password manager:
+
+   ```bash
+   aws ssm start-session --target <instance id>
+   sudo grep ENCRYPTION_KEY /etc/kithena/production/recruiting.env /etc/kithena/production/documents.env
+   ```
+
+   The deploy writes `JOBS_ORIGIN=https://jobs.kithena.com` beside them: the
+   links in candidates' emails, and the one origin the public routes answer
+   from a browser. `MESSAGING_RECRUITING_TOKEN`, the Recruiting–messaging pair,
+   goes into both this and messaging's settings so candidates are emailed
+   (their codes, links and correspondence); without it nothing is sent.
+
+   Replies come back by email (PRD §12.7) once Resend receives mail for a
+   domain: the repository variable `INBOUND_DOMAIN` names it for Recruiting,
+   which gives each candidate's thread the reply-to
+   `<company>.<token>@<INBOUND_DOMAIN>`. Messaging needs the same
+   `INBOUND_DOMAIN`, `RECRUITING_URL=https://api.kithena.com` and
+   `RESEND_WEBHOOK_SECRET`, with a Resend webhook for `email.received` (and
+   the delivery events) on `https://messaging.kithena.com/api/webhooks/resend`.
+   It fetches the text, and posts it to Recruiting's
+   `/v1/recruiting/public/<company>/replies` under the pair's token. Without
+   the domain, replies go to the company's own reply address.
+
+   AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
+   `ASSISTANT_MODEL`. The deploy writes the assistant's own `ASSISTANT_API_KEY`
+   into `recruiting.env`, as it does for Documents; the other two, if set, go
+   in `RECRUITING_ENV`. Without a key
+   every AI feature answers that it is off, whatever a company switched on.
+   Pick a provider that does not train on what it is sent and processes in the
+   EU where it offers to (§22.2).
+
+3. **The remote**: a Vercel Hobby project for `apps/web/recruiting`, the
+   secret `RECRUITING_REMOTE_SSR_SIGNING_KEY`, and the variables
+   `VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION`,
+   `RECRUITING_REMOTE_URL_PRODUCTION` and
+   `RECRUITING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`, as Documents' three.
+4. **Kithena Jobs**: a Vercel Hobby project for `apps/jobs` on
+   `jobs.kithena.com`, its id in `VERCEL_PROJECT_ID_JOBS_PRODUCTION`, and in
+   the project `RECRUITING_PUBLIC_URL` and `NEXT_PUBLIC_RECRUITING_PUBLIC_URL`
+   (the API host) and `JOBS_ORIGIN`. The tunnel routes
+   `/v1/recruiting/public/*`, `/v1/recruiting/listings*` and
+   `/v1/recruiting/companies/*` on the API host to `http://recruiting:4005`:
+   the reads are already public, and the candidate's routes take their token
+   in a header. `svc_jobs_reader` is the role those reads run as; `deploy.sh`
+   gives it a login and it can read `recruiting_public` and nothing else.
+5. **Selling it**: `module.recruiting` in `KITHENA_ENTITLEMENTS_PRODUCTION`, or
+   per company in the back office.
+
+Recruiting is not on staging.
+
+#### Onboarding's settings
+
+Onboarding (`services/onboarding`, ONB-001) deploys as Recruiting does: a
+container (`onboarding`, 4006, `svc_onboarding`), the router's subgraph and its
+remote, `onboarding.kithena.com`. No bucket. In order:
+
+1. **Environment secrets** in `production`: `ONBOARDING_API_TOKEN` (the
+   router–Onboarding pair) and `MESSAGING_ONBOARDING_TOKEN` (the
+   Onboarding–messaging pair, in messaging's settings too) for the welcome
+   email. Without the first the deploy skips Onboarding.
+2. **The remote**: `VERCEL_PROJECT_ID_ONBOARDING_REMOTE_PRODUCTION`,
+   `ONBOARDING_REMOTE_URL_PRODUCTION`, `ONBOARDING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`
+   and the secret `ONBOARDING_REMOTE_SSR_SIGNING_KEY`.
+3. **The welcome page** is on Kithena Jobs: the tunnel routes
+   `/v1/onboarding/welcome*` on the API host to `http://onboarding:4006`, and the
+   Jobs project has `NEXT_PUBLIC_ONBOARDING_PUBLIC_URL` (the API host).
+4. **Selling it**: `module.onboarding`.
+
+Onboarding is not on staging.
 
 #### The assistant's settings
 

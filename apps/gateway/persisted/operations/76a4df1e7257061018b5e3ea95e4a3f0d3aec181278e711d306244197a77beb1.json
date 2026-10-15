@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RequestReference($applicationId: String!, $referenceId: String!, $key: String!) {\n    requestReference(applicationId: $applicationId, referenceId: $referenceId, idempotencyKey: $key)\n  }"}

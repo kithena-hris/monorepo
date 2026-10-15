@@ -1,0 +1,55 @@
+{
+  "routes": [
+    { "path": "/onboarding/home", "component": "Home" },
+    { "path": "/onboarding/tasks", "component": "Tasks" },
+    { "path": "/onboarding/plans/:id", "component": "Plan" },
+    { "path": "/onboarding/templates", "component": "Templates" },
+    { "path": "/onboarding/analytics", "component": "Analytics" },
+    { "path": "/settings/onboarding/general", "component": "Settings" }
+  ],
+  "actions": [],
+  "sections": [
+    {
+      "path": "/onboarding/home",
+      "label": "Home",
+      "group": "Onboarding",
+      "icon": "home",
+      "description": "Who is arriving, and how far along each plan is",
+      "summary": "Plans in flight",
+      "owns": ["/onboarding/plans/:id"]
+    },
+    {
+      "path": "/onboarding/tasks",
+      "label": "My tasks",
+      "group": "Onboarding",
+      "icon": "list",
+      "description": "Your onboarding tasks as a manager, a buddy, IT or HR",
+      "summary": "My tasks"
+    },
+    {
+      "path": "/onboarding/templates",
+      "label": "Templates",
+      "group": "Onboarding",
+      "icon": "hierarchy",
+      "description": "What a plan is made of, and when each task falls due",
+      "summary": "Templates"
+    },
+    {
+      "path": "/onboarding/analytics",
+      "label": "Analytics",
+      "group": "Onboarding",
+      "icon": "analytics",
+      "description": "Plans on track, late tasks and probation outcomes",
+      "summary": "Analytics"
+    }
+  ],
+  "slots": {},
+  "settings": [
+    {
+      "path": "/settings/onboarding/general",
+      "label": "Onboarding",
+      "description": "Who does HR’s and IT’s tasks, holidays, and the country of a People hire.",
+      "icon": "hire"
+    }
+  ]
+}

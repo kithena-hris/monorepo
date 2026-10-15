@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ParseCv($applicationId: String!, $key: String!) {\n    parseCv(applicationId: $applicationId, idempotencyKey: $key)\n  }"}

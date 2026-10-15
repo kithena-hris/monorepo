@@ -1,0 +1,38 @@
+{
+  "name": "@kithena/recruiting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.ts",
+    "test:contract": "vitest run --config vitest.contract.ts",
+    "test:standalone": "vitest run --config vitest.standalone.ts",
+    "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1141.0",
+    "@kithena/auth-kit": "workspace:*",
+    "@kithena/contracts": "workspace:*",
+    "@kithena/db-kit": "workspace:*",
+    "@kithena/domain-kit": "workspace:*",
+    "@kithena/graphql-kit": "workspace:*",
+    "@kithena/telemetry": "workspace:*",
+    "decimal.js": "^10.6.0",
+    "drizzle-orm": "^0.45.3",
+    "graphql": "^16.11.0",
+    "graphql-yoga": "^5.24.1",
+    "kafkajs": "^2.2.4",
+    "postgres": "^3.4.5",
+    "unpdf": "1.8.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@kithena/testing": "workspace:*",
+    "vitest": "^5.0.3"
+  }
+}

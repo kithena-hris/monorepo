@@ -1,0 +1,1 @@
+{"version":1,"body":"query RecruitingCandidates($q: String, $tag: String) {\n    recruitingCandidates(q: $q, tag: $tag)\n  }"}

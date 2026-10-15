@@ -179,6 +179,20 @@ const AREAS: readonly {
     built: true,
     module: 'module.documents',
   },
+  {
+    label: 'Recruiting',
+    icon: <icons.work />,
+    href: '/recruiting',
+    built: true,
+    module: 'module.recruiting',
+  },
+  {
+    label: 'Onboarding',
+    icon: <icons.hire />,
+    href: '/onboarding',
+    built: true,
+    module: 'module.onboarding',
+  },
 ];
 
 /**
@@ -593,7 +607,9 @@ export function AppShell({
                           icon={area.icon}
                           current={isCurrent(area.href, pathname)}
                           shortcut={hint(area.href)}
-                          {...(area.href === '/inbox' ? { badge: <InboxCount inbox={inbox} /> } : {})}
+                          {...(area.href === '/inbox'
+                            ? { badge: <InboxCount inbox={inbox} /> }
+                            : {})}
                           {...(area.href === '/people' && shell.sections.length > 0
                             ? {
                                 // Inline while you are in People (V2); from the

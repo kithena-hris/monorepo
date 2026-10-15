@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation Refer($jobId: String!, $input: JSON!, $key: String!) {\n    refer(jobId: $jobId, input: $input, idempotencyKey: $key)\n  }"}

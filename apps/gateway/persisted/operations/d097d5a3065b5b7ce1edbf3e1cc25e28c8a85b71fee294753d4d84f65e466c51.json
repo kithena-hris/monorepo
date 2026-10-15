@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SendOffer($offerId: String!, $key: String!) {\n    sendOffer(offerId: $offerId, idempotencyKey: $key)\n  }"}

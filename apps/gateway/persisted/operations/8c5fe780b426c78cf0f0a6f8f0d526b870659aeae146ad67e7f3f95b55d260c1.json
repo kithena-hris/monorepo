@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation UndoMove($applicationId: String!, $input: JSON!, $key: String!) {\n    undoMove(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

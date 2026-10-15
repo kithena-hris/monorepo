@@ -14,6 +14,14 @@ import {
   OPERATIONS as DOCUMENTS_OPERATIONS,
   type OperationName as DocumentsOperationName,
 } from './documents-operations';
+import {
+  OPERATIONS as RECRUITING_OPERATIONS,
+  type OperationName as RecruitingOperationName,
+} from './recruiting-operations';
+import {
+  OPERATIONS as ONBOARDING_OPERATIONS,
+  type OperationName as OnboardingOperationName,
+} from './onboarding-operations';
 import { currentPerson } from './session';
 import { SESSION_COOKIE } from './session-cookie';
 import { timed } from './timing';
@@ -204,10 +212,14 @@ interface Area {
   readonly service: string;
   readonly operations: Readonly<Record<string, string>>;
 }
-const AREAS: Readonly<Record<'people' | 'timeoff' | 'documents', Area>> = {
+const AREAS: Readonly<
+  Record<'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding', Area>
+> = {
   people: { service: 'People', operations: OPERATIONS },
   timeoff: { service: 'Time Off', operations: TIMEOFF_OPERATIONS },
   documents: { service: 'Documents', operations: DOCUMENTS_OPERATIONS },
+  recruiting: { service: 'Recruiting', operations: RECRUITING_OPERATIONS },
+  onboarding: { service: 'Onboarding', operations: ONBOARDING_OPERATIONS },
 };
 
 /**
@@ -281,6 +293,22 @@ export async function documents<T>(
   variables: Record<string, unknown> = {},
 ): Promise<PeopleAnswer<T>> {
   return ask<T>('documents', name, variables);
+}
+
+/** One of Recruiting's operations (`recruiting-operations.ts`), as `people` runs People's. */
+export async function recruiting<T>(
+  name: RecruitingOperationName,
+  variables: Record<string, unknown> = {},
+): Promise<PeopleAnswer<T>> {
+  return ask<T>('recruiting', name, variables);
+}
+
+/** One of Onboarding's operations (`onboarding-operations.ts`), as `recruiting` runs Recruiting's. */
+export async function onboarding<T>(
+  name: OnboardingOperationName,
+  variables: Record<string, unknown> = {},
+): Promise<PeopleAnswer<T>> {
+  return ask<T>('onboarding', name, variables);
 }
 
 /**

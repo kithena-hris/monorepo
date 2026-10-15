@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AskForChart($input: JSON!, $key: String!) {\n    askForChart(input: $input, idempotencyKey: $key)\n  }"}

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetOnboardingBuddy($planId: String!, $input: JSON!, $key: String!) {\n    setOnboardingBuddy(planId: $planId, input: $input, idempotencyKey: $key)\n  }"}

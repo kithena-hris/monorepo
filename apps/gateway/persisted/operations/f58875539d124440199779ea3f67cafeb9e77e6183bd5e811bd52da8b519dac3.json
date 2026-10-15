@@ -1,0 +1,1 @@
+{"version":1,"body":"query RecruitingPipeline($jobId: String!, $q: String, $stage: String, $source: String, $sort: String) {\n    recruitingPipeline(jobId: $jobId, q: $q, stage: $stage, source: $source, sort: $sort)\n  }"}

@@ -14,10 +14,13 @@ import { resendTransport } from './message/infrastructure/resend-transport.js';
 import { logTransport } from './message/infrastructure/log-transport.js';
 import { smtpTransport } from './message/infrastructure/smtp-transport.js';
 import { drizzleDeliveryLog } from './message/infrastructure/drizzle-delivery-log.js';
+import { forwardReplies, resendReceived } from './message/infrastructure/inbound-replies.js';
 import { resendWebhookVerifier } from './message/infrastructure/resend-webhooks.js';
 import { messagingRoutes } from './message/http/messaging-routes.js';
 import { webhookRoutes } from './message/http/webhook-routes.js';
 import { noticeRoutes } from './message/http/notice-routes.js';
+import { correspondenceRoutes } from './message/http/correspondence-routes.js';
+import { sendCorrespondence } from './message/application/send-correspondence.js';
 import { digestRoutes } from './message/http/digest-routes.js';
 import { deliverInbox, flushDigests } from './message/application/inbox-delivery.js';
 import { drizzleDigestStore } from './message/infrastructure/drizzle-digest-store.js';
@@ -95,6 +98,10 @@ export interface Config {
   readonly timeOffNoticeToken?: string | undefined;
   /** Documents' own secret for its notices (a signing code, DOC-043). */
   readonly documentsNoticeToken?: string | undefined;
+  /** What Recruiting presents to send a candidate's correspondence. */
+  readonly recruitingToken?: string | undefined;
+  /** What Onboarding presents to send a new hire their welcome. */
+  readonly onboardingToken?: string | undefined;
   readonly tenantAppBase?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
@@ -132,6 +139,9 @@ export interface Config {
   readonly identityToken?: string | undefined;
   /** Vercel's cron secret, which starts the daily digest. Absent, only the internal token does. */
   readonly cronSecret?: string | undefined;
+  /** Where candidates' replies arrive (Resend receiving), and Recruiting, which owns the thread. */
+  readonly inboundDomain?: string | undefined;
+  readonly recruitingUrl?: string | undefined;
 }
 
 export type RequestHandler = (
@@ -338,6 +348,15 @@ export function compose(config: Config): RequestHandler {
     onRefusal: (reason) => {
       logger.info({ reason }, 'webhook refused');
     },
+    receive:
+      config.resendApiKey && config.inboundDomain && config.recruitingUrl && config.recruitingToken
+        ? forwardReplies({
+            domain: config.inboundDomain,
+            recruitingUrl: config.recruitingUrl,
+            recruitingToken: config.recruitingToken,
+            getEmail: resendReceived(config.resendApiKey),
+          })
+        : undefined,
   });
 
   const base = selectTenantAppBase(config);
@@ -395,9 +414,21 @@ export function compose(config: Config): RequestHandler {
     cronSecret: config.cronSecret,
   });
 
+  const correspondence = correspondenceRoutes({
+    send: sendCorrespondence({
+      transport,
+      deliveries,
+      onRefusal: (reason, detail) => {
+        logger.info({ reason, transport: transport.name, ...detail }, 'correspondence refused');
+      },
+    }),
+    internalTokens: [config.recruitingToken ?? '', config.onboardingToken ?? ''],
+  });
+
   return async (request, response) =>
     (await invitations(request, response)) ||
     (await notices(request, response)) ||
+    (await correspondence(request, response)) ||
     (await digest(request, response)) ||
     (await webhooks(request, response));
 }

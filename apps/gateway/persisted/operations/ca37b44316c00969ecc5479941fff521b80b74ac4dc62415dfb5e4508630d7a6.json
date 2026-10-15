@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SavePool($poolId: String!, $input: JSON!, $key: String!) {\n    savePool(poolId: $poolId, input: $input, idempotencyKey: $key)\n  }"}

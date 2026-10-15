@@ -14,6 +14,14 @@ subgraphs:
     routing_url: http://localhost:4003/graphql
     introspection:
       url: http://localhost:4003/graphql
+  - name: recruiting
+    routing_url: http://localhost:4005/graphql
+    introspection:
+      url: http://localhost:4005/graphql
+  - name: onboarding
+    routing_url: http://localhost:4006/graphql
+    introspection:
+      url: http://localhost:4006/graphql
   - name: audit
     routing_url: http://localhost:4103/graphql
     introspection:

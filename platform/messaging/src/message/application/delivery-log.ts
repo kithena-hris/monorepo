@@ -22,7 +22,7 @@ import type { NoticeKind } from '../domain/notice.js';
  * writes to the log — gets an implementation that does nothing, and the use
  * case cannot tell.
  */
-export type MessageKind = 'account_invitation' | NoticeKind;
+export type MessageKind = 'account_invitation' | 'correspondence' | NoticeKind;
 
 /**
  * Where a message got to.

@@ -18,13 +18,22 @@ import * as z from 'zod';
 import {
   allCapabilities,
   documentsEvents,
+  recruitingEvents,
+  onboardingEvents,
   identityEvents,
   policy,
   peopleEvents,
   timeoffEvents,
 } from '@kithena/contracts';
 
-const allEvents = [...identityEvents, ...peopleEvents, ...timeoffEvents, ...documentsEvents];
+const allEvents = [
+  ...identityEvents,
+  ...peopleEvents,
+  ...timeoffEvents,
+  ...documentsEvents,
+  ...recruitingEvents,
+  ...onboardingEvents,
+];
 
 function jsonSchemas(): Record<string, unknown> {
   return Object.fromEntries(

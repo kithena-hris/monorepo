@@ -43,9 +43,11 @@ export interface WebhookRoutesDeps {
   readonly verify?:
     ((input: { payload: string; headers: Record<string, string> }) => unknown) | undefined;
   readonly onRefusal?: (reason: string) => void;
+  /** An inbound email (`email.received`), by its id; absent when replies are not configured. */
+  readonly receive?: ((emailId: string) => Promise<unknown>) | undefined;
 }
 
-export function webhookRoutes({ settle, verify, onRefusal }: WebhookRoutesDeps) {
+export function webhookRoutes({ settle, verify, onRefusal, receive }: WebhookRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const path = (request.url ?? '').split('?')[0] ?? '';
     if (path !== WEBHOOK) return false;
@@ -94,6 +96,15 @@ export function webhookRoutes({ settle, verify, onRefusal }: WebhookRoutesDeps) 
     }
 
     const event = eventFrom(verified);
+    if (event?.type === 'email.received' && receive !== undefined) {
+      // A reply that cannot be handed on now is asked for again: Svix retries a 5xx.
+      const handled = await receive(event.messageId).then(
+        () => true,
+        () => false,
+      );
+      response.writeHead(handled ? 200 : 502).end();
+      return true;
+    }
     if (event === null) {
       onRefusal?.('unreadable_event');
       // 200, not 400. A shape we do not recognise is not something the provider

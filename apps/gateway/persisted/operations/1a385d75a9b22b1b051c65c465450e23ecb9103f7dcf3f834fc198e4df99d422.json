@@ -1,0 +1,1 @@
+{"version":1,"body":"query RecruitingParsedProfile($applicationId: String!) {\n    recruitingParsedProfile(applicationId: $applicationId)\n  }"}
