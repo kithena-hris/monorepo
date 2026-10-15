@@ -113,6 +113,14 @@ type Mutation {
   ): JSON
   """Delete a candidate on request (GDPR art. 17)"""
   deleteCandidate(candidateId: String!, idempotencyKey: String!): JSON
+  """
+  Members from CSV or JSON when People is absent: a dry run, then all rows or none; admin
+  """
+  importRecruitingMembers(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R10: move to a stage"""
   moveApplication(
     applicationId: String!

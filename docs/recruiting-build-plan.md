@@ -116,7 +116,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       approach, copied, not imported). §14.1.
 - [x] **REC-043** Public projection written in the job's own transaction (no dual write), with a
       `tsvector` per ad language. §31.2.
-- [ ] **REC-044** Member projection from People's events, and the member
+- [x] **REC-044** Member projection from People's events, and the member
       import (Time Off's, copied). §5.2.
 
 ### Application

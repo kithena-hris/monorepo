@@ -128,6 +128,7 @@ import {
   saveTemplate,
   recordWorksCouncilConsent,
 } from '../application/setup.js';
+import { importMembers } from '../application/members.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from './caller.js';
 
@@ -1041,6 +1042,19 @@ export const ROUTES: readonly Route[] = [
   }),
 
   /* ---------------------------------------------------------- settings -- */
+  route({
+    name: 'importRecruitingMembers',
+    method: 'POST',
+    path: `${V1}/members:import`,
+    summary:
+      'Members from CSV or JSON when People is absent: a dry run, then all rows or none; admin',
+    body: z.object({
+      format: z.enum(['csv', 'json']),
+      content: z.string().max(5_000_000),
+      dryRun: z.boolean().default(true),
+    }),
+    run: (ctx, { body }) => importMembers(ctx, body),
+  }),
   route({
     name: 'saveSettings',
     method: 'PUT',
