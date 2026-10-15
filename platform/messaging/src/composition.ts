@@ -18,6 +18,8 @@ import { resendWebhookVerifier } from './message/infrastructure/resend-webhooks.
 import { messagingRoutes } from './message/http/messaging-routes.js';
 import { webhookRoutes } from './message/http/webhook-routes.js';
 import { noticeRoutes } from './message/http/notice-routes.js';
+import { correspondenceRoutes } from './message/http/correspondence-routes.js';
+import { sendCorrespondence } from './message/application/send-correspondence.js';
 import { digestRoutes } from './message/http/digest-routes.js';
 import { deliverInbox, flushDigests } from './message/application/inbox-delivery.js';
 import { drizzleDigestStore } from './message/infrastructure/drizzle-digest-store.js';
@@ -95,6 +97,8 @@ export interface Config {
   readonly timeOffNoticeToken?: string | undefined;
   /** Documents' own secret for its notices (a signing code, DOC-043). */
   readonly documentsNoticeToken?: string | undefined;
+  /** What Recruiting presents to send a candidate's correspondence. */
+  readonly recruitingToken?: string | undefined;
   readonly tenantAppBase?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
@@ -395,9 +399,21 @@ export function compose(config: Config): RequestHandler {
     cronSecret: config.cronSecret,
   });
 
+  const correspondence = correspondenceRoutes({
+    send: sendCorrespondence({
+      transport,
+      deliveries,
+      onRefusal: (reason, detail) => {
+        logger.info({ reason, transport: transport.name, ...detail }, 'correspondence refused');
+      },
+    }),
+    internalToken: config.recruitingToken ?? '',
+  });
+
   return async (request, response) =>
     (await invitations(request, response)) ||
     (await notices(request, response)) ||
+    (await correspondence(request, response)) ||
     (await digest(request, response)) ||
     (await webhooks(request, response));
 }

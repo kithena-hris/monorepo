@@ -85,6 +85,7 @@ const routes = compose({
   // What Time Off presents for its own notices; a pair's secret, like People's.
   timeOffNoticeToken: process.env['MESSAGING_TIMEOFF_TOKEN'],
   documentsNoticeToken: process.env['MESSAGING_DOCUMENTS_TOKEN'],
+  recruitingToken: process.env['MESSAGING_RECRUITING_TOKEN'],
   // Defaulted to the local app only in development; see `selectTenantAppBase`.
   tenantAppBase: process.env['TENANT_APP_BASE'],
   allowLogTransport: process.env['NODE_ENV'] !== 'production',

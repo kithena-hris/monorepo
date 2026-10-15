@@ -73,7 +73,11 @@ export function resendTransport(config: ResendConfig): EmailTransport {
             // Both parts. See `renderInvitation` for why the text one is not
             // optional.
             text: email.text,
-            ...(config.replyTo === undefined ? {} : { replyTo: config.replyTo }),
+            ...(email.replyTo === undefined
+              ? config.replyTo === undefined
+                ? {}
+                : { replyTo: config.replyTo }
+              : { replyTo: email.replyTo }),
             ...(email.attachments === undefined
               ? {}
               : {

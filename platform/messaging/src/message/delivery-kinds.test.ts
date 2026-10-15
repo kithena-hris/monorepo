@@ -22,6 +22,8 @@ describe('delivery_kind_known', () => {
     }
     const check = /ADD CONSTRAINT delivery_kind_known CHECK \(\s*kind IN \(([^)]*)\)/u.exec(latest);
     const listed = [...(check?.[1] ?? '').matchAll(/'([a-z_]+)'/gu)].map((m) => m[1]);
-    expect(listed.toSorted()).toEqual(['account_invitation', ...NOTICE_KINDS].toSorted());
+    expect(listed.toSorted()).toEqual(
+      ['account_invitation', 'correspondence', ...NOTICE_KINDS].toSorted(),
+    );
   });
 });
