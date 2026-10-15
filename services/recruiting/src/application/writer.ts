@@ -4,8 +4,11 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { renderAd } from '../domain/ad/render.js';
 import { docFrom, textsOf, withTexts } from '../domain/ad/rewrite.js';
 import { write, type PromptSpec } from './ai.js';
-import { adminOnly, notFound, type Ctx } from './context.js';
+import { adminOnly, forbidden, notFound, type Ctx } from './context.js';
 import { editable } from './jobs.js';
+import { loadApplication, render } from './moves.js';
+import { may } from '../domain/access/access.js';
+import { generalSettings } from './setup.js';
 import type { ScorecardTemplate } from './ports.js';
 
 /**
@@ -164,5 +167,46 @@ export async function suggestQuestions(
         .slice(0, 4);
       return { ...c, questions: [...c.questions, ...added] };
     }),
+  });
+}
+
+const Email = z.object({ subject: z.string().max(200), body: z.string().max(5000) });
+
+const EMAIL: PromptSpec<z.infer<typeof Email>> = {
+  feature: 'writer',
+  version: 'email-draft@1',
+  instruction: `You draft an email from a hiring team to a candidate. Return a JSON object {"subject":"","body":""} in the language named in "language", for the purpose in "intent". Write {{candidate}} where the candidate's name goes, {{job}} for the job's title and {{company}} for the company: never invent a name, a date, a time, a salary or a promise. Warm, plain and short.`,
+  answer: Email,
+};
+
+/**
+ * R12 (REC-120): an email drafted from its purpose. The model writes with
+ * placeholders and never sees the candidate's name; the domain fills them
+ * from data, and the draft lands in the composer for a person to edit and
+ * send.
+ */
+export async function draftEmail(
+  ctx: Ctx,
+  applicationId: string,
+  input: { readonly intent: string; readonly language?: string | undefined },
+): Promise<Result<{ readonly subject: string; readonly body: string }>> {
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'candidate.message')) return err(forbidden());
+  const drafted = await write(ctx, EMAIL, {
+    intent: input.intent.slice(0, 500),
+    // The language the candidate applied in, unless the sender says otherwise.
+    language: name(input.language ?? loaded.value.app.language),
+  });
+  if (!drafted.ok) return drafted;
+  const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
+  const values = {
+    candidate: loaded.value.candidate.name,
+    job: job?.title ?? '',
+    company: (await generalSettings(ctx)).companyName,
+  };
+  return ok({
+    subject: render(drafted.value.subject, values),
+    body: render(drafted.value.body, values),
   });
 }

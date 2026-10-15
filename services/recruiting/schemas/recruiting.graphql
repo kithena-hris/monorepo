@@ -133,6 +133,13 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """R12: an email drafted from its purpose, the variables filled from data"""
+  draftEmail(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R5: why a flagged phrase may put people off, and a neutral one"""
   explainAdPhrase(
     idempotencyKey: String!

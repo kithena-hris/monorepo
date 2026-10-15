@@ -49,6 +49,7 @@ const WRITES = new Set<OperationName>([
   'ParseCv',
   'AssessMatrix',
   'SummariseDebrief',
+  'DraftEmail',
   'Rediscover',
   'DraftAd',
   'ExplainAdPhrase',

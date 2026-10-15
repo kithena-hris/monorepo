@@ -140,7 +140,13 @@ import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.j
 import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { importMembers } from '../application/members.js';
-import { draftAd, explainPhrase, suggestQuestions, translateAd } from '../application/writer.js';
+import {
+  draftAd,
+  draftEmail,
+  explainPhrase,
+  suggestQuestions,
+  translateAd,
+} from '../application/writer.js';
 import {
   confirmParsedProfile,
   myParsedProfile,
@@ -1008,6 +1014,15 @@ export const ROUTES: readonly Route[] = [
       'R10: pool members with live consent, read against this job’s criteria, strongest first',
     params: z.object({ jobId: Id }),
     run: (ctx, { params }) => rediscover(ctx, params.jobId),
+  }),
+  route({
+    name: 'draftEmail',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/email-drafts`,
+    summary: 'R12: an email drafted from its purpose, the variables filled from data',
+    params: z.object({ applicationId: Id }),
+    body: z.object({ intent: text(500).min(1), language: z.string().min(2).max(8).optional() }),
+    run: (ctx, { params, body }) => draftEmail(ctx, params.applicationId, body),
   }),
   route({
     name: 'summariseDebrief',

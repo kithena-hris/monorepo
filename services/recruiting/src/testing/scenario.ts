@@ -73,7 +73,7 @@ import {
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
-import { draftAd, suggestQuestions, translateAd } from '../application/writer.js';
+import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
 import { poolsScreen } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -687,29 +687,34 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         prompt: { instruction: string; context: Readonly<Record<string, unknown>> },
       ) =>
         Promise.resolve(
-          prompt.instruction.startsWith('You summarise interview scorecards')
+          prompt.instruction.startsWith('You draft an email')
             ? JSON.stringify({
-                sentences: [
-                  { text: 'Craft was rated strong.', cites: ['s1'] },
-                  { text: 'Hire.', cites: [] },
-                ],
+                subject: 'Next steps for {{job}}',
+                body: `Hello {{candidate}}, ${JSON.stringify(prompt.context).includes('Yuki') ? 'LEAK' : 'thank you.'}`,
               })
-            : prompt.instruction.startsWith('You suggest interview questions')
+            : prompt.instruction.startsWith('You summarise interview scorecards')
               ? JSON.stringify({
-                  competencies: [
-                    { key: 'craft', questions: ['Tell us about a design you shipped.'] },
-                    { key: 'made_up', questions: ['Ignored.'] },
+                  sentences: [
+                    { text: 'Craft was rated strong.', cites: ['s1'] },
+                    { text: 'Hire.', cites: [] },
                   ],
                 })
-              : prompt.instruction.startsWith('You translate')
+              : prompt.instruction.startsWith('You suggest interview questions')
                 ? JSON.stringify({
-                    title: 'Diseño de producto',
-                    pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+                    competencies: [
+                      { key: 'craft', questions: ['Tell us about a design you shipped.'] },
+                      { key: 'made_up', questions: ['Ignored.'] },
+                    ],
                   })
-                : JSON.stringify({
-                    title: place.jobTitle,
-                    sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
-                  }),
+                : prompt.instruction.startsWith('You translate')
+                  ? JSON.stringify({
+                      title: 'Diseño de producto',
+                      pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+                    })
+                  : JSON.stringify({
+                      title: place.jobTitle,
+                      sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
+                    }),
         ),
     },
   };
@@ -722,6 +727,20 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(
     value(await asWriter((ctx) => translateAd(ctx, jobId, { from: 'en', to: 'es' }))).html,
   ).toContain('DESIGN THE PRODUCT WITH US.');
+
+  // R12: the model writes placeholders without seeing the name; the domain fills them.
+  const email = value(
+    await asWriter((ctx) =>
+      draftEmail(ctx, applied.applicationId, {
+        intent: 'Invite to a portfolio review',
+        language: 'en',
+      }),
+    ),
+  );
+  expect(email).toEqual({
+    subject: `Next steps for ${place.jobTitle}`,
+    body: 'Hello Yuki Sato, thank you.',
+  });
 
   // R14: questions are added only to the scorecard's own competencies, and nothing is saved.
   const kit = value(await asWriter((ctx) => suggestQuestions(ctx, SCORECARD)));

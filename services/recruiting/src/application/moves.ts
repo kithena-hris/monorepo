@@ -484,36 +484,6 @@ export async function sendMessage(
   );
 }
 
-/**
- * A reply, from Resend's inbound webhook (PRD §12.7), matched to the
- * candidate by the sender's address. Unknown senders are dropped.
- */
-export async function receiveReply(
-  ctx: Ctx,
-  from: string,
-  subject: string,
-  body: string,
-): Promise<Result<Message | null>> {
-  const candidate = await ctx.tx.candidates.byEmail(from);
-  if (candidate === null) return ok(null);
-  const message: Message = {
-    id: ctx.deps.newId(),
-    candidateId: candidate.id,
-    applicationId: null,
-    direction: 'in',
-    subject: subject.slice(0, 300),
-    body: body.slice(0, 20_000),
-    fromPerson: null,
-    templateId: null,
-    sendAt: ctx.at,
-    sentAt: ctx.at,
-    readAt: null,
-    createdAt: ctx.at,
-  };
-  await ctx.tx.messages.add(message);
-  return ok(message);
-}
-
 export const templateFor = async (
   ctx: Ctx,
   purpose: string,

@@ -335,6 +335,7 @@ function Messages({
   const act = useAct(props);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [intent, setIntent] = useState('');
   const can = application.may.includes('candidate.message');
   return (
     <div className="flex flex-col gap-4">
@@ -368,6 +369,41 @@ function Messages({
         <Card padded>
           <div className="flex flex-col gap-3">
             <Refusal error={act.error} />
+            <div className="flex flex-wrap items-end gap-2">
+              <Field className="min-w-0 flex-1">
+                <FieldLabel>Draft it for me</FieldLabel>
+                <FieldControl>
+                  <Input
+                    value={intent}
+                    placeholder="Invite to a second interview next week"
+                    onChange={(e) => {
+                      setIntent(e.target.value);
+                    }}
+                  />
+                </FieldControl>
+              </Field>
+              <Button
+                variant="secondary"
+                loading={act.pending}
+                disabled={intent.trim() === ''}
+                onClick={() => {
+                  act.run(
+                    'DraftEmail',
+                    {
+                      applicationId: application.applicationId,
+                      input: { intent },
+                    },
+                    (d) => {
+                      const draft = d as { subject: string; body: string };
+                      setSubject(draft.subject);
+                      setBody(draft.body);
+                    },
+                  );
+                }}
+              >
+                Draft
+              </Button>
+            </div>
             <Field required>
               <FieldLabel>Subject</FieldLabel>
               <FieldControl>
