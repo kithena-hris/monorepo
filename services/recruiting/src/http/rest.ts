@@ -37,7 +37,7 @@ import {
   scheduleInterview,
   selfScheduleLink,
   setInterviewState,
-  slotsFor,
+  scheduleScreen,
 } from '../application/interviews.js';
 import {
   createJob,
@@ -365,21 +365,19 @@ export const ROUTES: readonly Route[] = [
     name: 'recruitingSlots',
     method: 'GET',
     path: `${V1}/applications/{applicationId}/slots`,
-    summary: 'R16: free slots for an interview in the plan',
+    summary: 'R16: the plan and free slots for one of its interviews, a week at a time',
     params: z.object({
       applicationId: Id,
-      planKey: text(40),
-      from: Instant,
-      to: Instant,
+      planKey: text(40).optional(),
+      from: Instant.optional(),
       away: text(4000).optional(),
     }),
     run: (ctx, { params }) =>
-      slotsFor(
+      scheduleScreen(
         ctx,
         params.applicationId,
         params.planKey,
         params.from,
-        params.to,
         params.away === undefined ? {} : (JSON.parse(params.away) as Record<string, string[]>),
       ),
   }),
@@ -1085,8 +1083,20 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/settings/scorecards/{id}`,
     summary: 'S5: a scorecard',
     params: z.object({ id: Id }),
-    body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) => saveScorecardTemplate(ctx, { ...body, id: params.id } as never),
+    body: z.object({
+      name: text(200).min(1),
+      competencies: z
+        .array(
+          z.object({
+            key: z.string().regex(/^[a-z][a-z0-9_]{0,59}$/u),
+            name: text(120).min(1),
+            description: text(1000),
+            questions: z.array(text(500)).max(20),
+          }),
+        )
+        .max(30),
+    }),
+    run: (ctx, { params, body }) => saveScorecardTemplate(ctx, { ...body, id: params.id }),
   }),
   route({
     name: 'saveTemplate',
@@ -1112,8 +1122,15 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/settings/pay-bands/{id}`,
     summary: 'A pay band',
     params: z.object({ id: Id }),
-    body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) => savePayBand(ctx, { ...body, id: params.id } as never),
+    body: z.object({
+      entityId: Id.nullable(),
+      grade: text(40).min(1),
+      minMinor: z.int().nonnegative(),
+      maxMinor: z.int().nonnegative(),
+      currency: z.string().length(3),
+    }),
+    run: (ctx, { params, body }) =>
+      savePayBand(ctx, { ...body, id: params.id, source: 'recruiting' }),
   }),
   route({
     name: 'saveAgency',

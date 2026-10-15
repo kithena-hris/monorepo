@@ -74,8 +74,8 @@ export const OPERATIONS = {
   RecruitingSlots: query(
     'RecruitingSlots',
     'recruitingSlots',
-    '$applicationId: String!, $planKey: String!, $from: String!, $to: String!, $away: String',
-    'applicationId: $applicationId, planKey: $planKey, from: $from, to: $to, away: $away',
+    '$applicationId: String!, $planKey: String, $from: String, $away: String',
+    'applicationId: $applicationId, planKey: $planKey, from: $from, away: $away',
   ),
   /** R17 */
   RecruitingDebrief: query(

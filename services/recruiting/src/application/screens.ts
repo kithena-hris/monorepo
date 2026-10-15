@@ -584,6 +584,7 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     benefits: await ctx.tx.benefits.list(),
     payBands: await ctx.tx.payBands.list(),
     agencies: await ctx.tx.agencies.list(),
+    jobs: (await myJobs(ctx)).map((j) => ({ id: j.id, title: j.title })),
     admin: ctx.viewer.admin,
   };
 }

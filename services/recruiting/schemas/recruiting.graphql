@@ -398,8 +398,8 @@ type Query {
   recruitingRequisitions: JSON
   """S1–S8"""
   recruitingSettings: JSON
-  """R16: free slots for an interview in the plan"""
-  recruitingSlots(applicationId: String!, away: String, from: String!, planKey: String!, to: String!): JSON
+  """R16: the plan and free slots for one of its interviews, a week at a time"""
+  recruitingSlots(applicationId: String!, away: String, from: String, planKey: String): JSON
 }
 
 type RecruitingrecruitingInbox {

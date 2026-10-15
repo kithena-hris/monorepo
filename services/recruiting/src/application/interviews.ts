@@ -15,7 +15,7 @@ import {
   type Scorecard,
 } from '../domain/interview/interview.js';
 import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interview/slots.js';
-import { asPerson, event, forbidden, notFound, publish, type Ctx } from './context.js';
+import { asPerson, event, forbidden, nameOf, notFound, publish, type Ctx } from './context.js';
 import { sha256 } from './intake.js';
 import { loadApplication, queueEmail } from './moves.js';
 import type { InterviewRecord, PlannedInterview } from './ports.js';
@@ -87,6 +87,57 @@ export async function slotsFor(
       ctx.at,
     ),
   );
+}
+
+/**
+ * R16 in one answer: the interviews in the job's plan, the one chosen, and
+ * its free slots across the week asked for (default: from today, five days).
+ */
+export async function scheduleScreen(
+  ctx: Ctx,
+  applicationId: string,
+  planKey: string | undefined,
+  from: Instant | undefined,
+  away: Absences = {},
+): Promise<
+  Result<{
+    candidate: { id: string; name: string };
+    job: { id: string; title: string };
+    plan: readonly PlannedInterview[];
+    planKey: string | null;
+    from: Instant;
+    to: Instant;
+    slots: readonly string[];
+    names: Readonly<Record<string, string>>;
+  }>
+> {
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
+  const plan = await ctx.tx.jobs.plan(loaded.value.app.jobId);
+  const chosen = plan.find((p) => p.key === planKey) ?? plan[0] ?? null;
+  const start = from ?? (`${ctx.today}T00:00:00.000Z` as Instant);
+  const end = new Date(Date.parse(start) + 5 * 86_400_000).toISOString() as Instant;
+  const slots =
+    chosen === null
+      ? ok([] as readonly string[])
+      : await slotsFor(ctx, applicationId, chosen.key, start, end, away);
+  if (!slots.ok) return slots;
+  const candidate = await ctx.tx.candidates.get(loaded.value.app.candidateId);
+  const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
+  return ok({
+    candidate: { id: candidate?.id ?? '', name: candidate?.name ?? '' },
+    job: { id: job?.id ?? '', title: job?.title ?? '' },
+    plan,
+    planKey: chosen?.key ?? null,
+    from: start,
+    to: end,
+    slots: slots.value,
+    names: await namesOf(
+      ctx,
+      plan.flatMap((p) => p.interviewerIds),
+    ),
+  });
 }
 
 export interface Booking {
@@ -329,7 +380,7 @@ async function competenciesOf(
   ctx: Ctx,
   jobId: string,
   planKey: string,
-): Promise<{ key: string; name: string }[]> {
+): Promise<{ key: string; name: string; description: string; questions: readonly string[] }[]> {
   const plan = await planned(ctx, jobId, planKey);
   const job = await ctx.tx.jobs.get(jobId);
   const templateId = plan?.scorecardTemplateId ?? job?.scorecardTemplateId ?? null;
@@ -338,7 +389,7 @@ async function competenciesOf(
   const owned = plan?.competencies ?? [];
   return all
     .filter((c) => owned.length === 0 || owned.includes(c.key))
-    .map((c) => ({ key: c.key, name: c.name }));
+    .map((c) => ({ key: c.key, name: c.name, description: c.description, questions: c.questions }));
 }
 
 export interface ScorecardInput {
@@ -409,8 +460,17 @@ export async function kit(
 ): Promise<
   Result<{
     interview: InterviewRecord;
-    competencies: readonly { key: string; name: string }[];
+    competencies: readonly {
+      key: string;
+      name: string;
+      description: string;
+      questions: readonly string[];
+    }[];
     scorecards: readonly Scorecard[];
+    candidate: { id: string; name: string };
+    job: { id: string; title: string };
+    names: Readonly<Record<string, string>>;
+    me: string;
   }>
 > {
   const person = asPerson(ctx);
@@ -423,6 +483,8 @@ export async function kit(
   const team = may(ctx.viewer, loaded.value.facts, 'scorecards.all');
   if (!onIt && !team) return err(notFound('interview'));
   const cards = await ctx.tx.interviews.scorecards(interviewId);
+  const candidate = await ctx.tx.candidates.get(loaded.value.app.candidateId);
+  const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
   return ok({
     interview,
     competencies: await competenciesOf(ctx, loaded.value.app.jobId, interview.planKey),
@@ -430,10 +492,33 @@ export async function kit(
       cards,
       team ? { kind: 'hiring_team' } : { kind: 'interviewer', personId: person.value },
     ),
+    candidate: { id: candidate?.id ?? '', name: candidate?.name ?? '' },
+    job: { id: job?.id ?? '', title: job?.title ?? '' },
+    names: await namesOf(ctx, interview.interviewerIds),
+    me: person.value,
   });
 }
 
-export async function debriefOf(ctx: Ctx, applicationId: string): Promise<Result<Debrief>> {
+async function namesOf(ctx: Ctx, ids: readonly string[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const id of new Set(ids)) out[id] = (await nameOf(ctx, id)) ?? id;
+  return out;
+}
+
+export async function debriefOf(
+  ctx: Ctx,
+  applicationId: string,
+): Promise<
+  Result<
+    Debrief & {
+      competencies: readonly { key: string; name: string }[];
+      names: Readonly<Record<string, string>>;
+      candidate: { id: string; name: string };
+      job: { id: string; title: string };
+      decider: boolean;
+    }
+  >
+> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'scorecards.all')) return err(forbidden());
@@ -446,7 +531,21 @@ export async function debriefOf(ctx: Ctx, applicationId: string): Promise<Result
   const expected = interviews
     .filter((i) => i.state === 'completed')
     .reduce((n, i) => n + i.interviewerIds.length, 0);
-  return ok(debrief([...competencies.values()], cards, expected));
+  const candidate = await ctx.tx.candidates.get(loaded.value.app.candidateId);
+  const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
+  return ok({
+    ...debrief([...competencies.values()], cards, expected),
+    competencies: [...competencies.values()].map((c) => ({ key: c.key, name: c.name })),
+    names: await namesOf(
+      ctx,
+      cards.map((c) => c.interviewerId),
+    ),
+    candidate: { id: candidate?.id ?? '', name: candidate?.name ?? '' },
+    job: { id: job?.id ?? '', title: job?.title ?? '' },
+    decider: loaded.value.facts.team.some(
+      (t) => t.role === 'hiring_manager' && t.personId === ctx.viewer.personId,
+    ),
+  });
 }
 
 export async function decide(
