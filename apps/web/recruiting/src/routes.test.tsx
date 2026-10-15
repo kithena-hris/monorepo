@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import manifest from '../public/routes.json';
 import * as screens from './index';
 import { axeViolations } from './test/axe';
-import type { HomeData, PipelineData } from './types';
+import type { CandidateData, HomeData, JobData, PipelineData, Requisition } from './types';
 
 const ready = <T,>(data: T) => ({ status: 'ready' as const, data });
 const routes = new Set(manifest.routes.map((r) => r.path));
@@ -142,5 +142,149 @@ describe('R10, the pipeline', () => {
   it('switches to the table from the address', () => {
     render(<screens.Pipeline load={ready(pipeline)} search={{ view: 'table' }} />);
     expect(screen.getByRole('checkbox', { name: 'Select Yuki Sato' })).toBeTruthy();
+  });
+});
+
+const requisition: Requisition = {
+  id: 'r1',
+  title: 'Platform engineer',
+  orgUnitId: null,
+  hiringManagerId: 'p-ada',
+  hiringManager: 'Ada Lovelace',
+  legalEntityId: null,
+  locationIds: [],
+  openings: 2,
+  filled: 0,
+  targetStart: null,
+  reason: 'growth',
+  replacesPersonId: null,
+  budget: null,
+  justification: 'The platform team doubles next year.',
+  state: 'pending_approval',
+  approval: { step: 1, steps: 2, waitingOn: ['p-ada'], changes: [], mine: true },
+};
+
+describe('R2, requisitions', () => {
+  it('sends an approver to the approval, filtered in the address', async () => {
+    const { container } = render(<screens.Requisitions load={ready([requisition])} />);
+    expect(screen.getByRole('link', { name: 'Platform engineer' }).getAttribute('href')).toBe(
+      '/recruiting/requisitions/r1/approve',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+const job: JobData = {
+  job: {
+    id: 'j1',
+    internalTitle: 'Backend engineer II',
+    title: 'Senior Backend Engineer (m/w/d)',
+    requisitionIds: [],
+    department: 'Engineering',
+    countries: ['DE'],
+    workMode: 'hybrid',
+    salaryShown: true,
+    languages: ['de', 'en'],
+    internalOnly: false,
+    confidential: false,
+    openings: 2,
+    hired: 0,
+    targetHireDate: null,
+    state: 'open',
+    entityId: null,
+    locationIds: [],
+    slug: 'senior-backend-engineer',
+    outline: { contractType: 'permanent', hours: 'full_time', seniority: 'senior' },
+    salary: { minMinor: 7_000_000, maxMinor: 8_500_000, currency: 'EUR', period: 'year' },
+    searchable: true,
+    benefitIds: [],
+    scorecardTemplateId: null,
+  },
+  may: [],
+  team: [],
+  stages: [],
+  form: null,
+  ads: [
+    {
+      language: 'de',
+      title: 'Senior Backend Engineer (m/w/d)',
+      html: '<p>Wir suchen einen jungen Kollegen.</p>',
+      plain: 'Wir suchen einen jungen Kollegen.',
+      checks: [
+        {
+          code: 'age',
+          severity: 'error',
+          message: 'Age is not a requirement (AGG §1).',
+          source: 'DE',
+          match: { text: 'jungen', index: 15, in: 'body' },
+        },
+      ],
+    },
+  ],
+  targets: [],
+  criteria: [],
+  plan: [],
+  counts: { total: 0, active: 0, newThisWeek: 0, byStage: [] },
+  locations: [],
+  entities: [],
+  questionnaires: [],
+  scorecards: [],
+  benefits: [],
+  members: [],
+};
+
+describe('R4–R7, a job’s setup', () => {
+  it('opens on the details tab', async () => {
+    const { container } = render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} />);
+    expect(screen.getByRole('tab', { name: 'Details', selected: true })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows the ad’s checks that block publishing', () => {
+    render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ tab: 'ad' }} />);
+    expect(screen.getByText('1 block publishing')).toBeTruthy();
+    expect(screen.getByText('“jungen”')).toBeTruthy();
+  });
+});
+
+const candidate: CandidateData = {
+  candidate: { id: 'c1', name: 'Yuki Sato', email: 'yuki@example.com', tags: [] },
+  files: [],
+  notes: [],
+  messages: [],
+  consents: [],
+  pools: [],
+  applications: [
+    {
+      applicationId: 'a1',
+      job: { id: 'j1', title: 'Senior Backend Engineer (m/w/d)' },
+      stageId: 's1',
+      stages: pipeline.stages,
+      reached: 'interview',
+      outcome: 'active',
+      rejection: null,
+      source: 'careers_page',
+      flagged: false,
+      answers: {},
+      adjustments: null,
+      history: [],
+      interviews: [],
+      scorecards: [],
+      offers: [],
+      prehire: null,
+      references: [],
+      may: ['pipeline.move'],
+    },
+  ],
+};
+
+describe('R11, a candidate', () => {
+  it('shows each application beside the profile', async () => {
+    const { container } = render(
+      <screens.Candidate load={ready(candidate)} params={{ id: 'c1' }} />,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Yuki Sato' })).toBeTruthy();
+    expect(screen.getByText('Senior Backend Engineer (m/w/d)')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
   });
 });

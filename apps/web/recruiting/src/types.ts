@@ -269,3 +269,146 @@ export interface PipelineData {
   }[];
   readonly pools: readonly { readonly id: string; readonly name: string }[];
 }
+
+export interface CandidateData {
+  readonly candidate: {
+    readonly id: string;
+    readonly name: string;
+    readonly email?: string;
+    readonly phone?: string | null;
+    readonly location?: string | null;
+    readonly links?: readonly string[];
+    readonly tags?: readonly string[];
+    readonly createdAt?: string;
+  };
+  readonly files: readonly {
+    readonly id: string;
+    readonly kind: string;
+    readonly fileName: string;
+    readonly size: number;
+    readonly uploadedAt: string;
+  }[];
+  readonly notes: readonly {
+    readonly id: string;
+    readonly authorId: string;
+    readonly body: string;
+    readonly createdAt: string;
+    readonly applicationId: string | null;
+  }[];
+  readonly messages: readonly {
+    readonly id: string;
+    readonly direction: 'out' | 'in';
+    readonly subject: string;
+    readonly body: string;
+    readonly sendAt: string;
+    readonly sentAt: string | null;
+    readonly createdAt: string;
+  }[];
+  readonly consents: readonly {
+    readonly id: string;
+    readonly purpose: string;
+    readonly givenAt: string;
+    readonly expiresOn: string | null;
+    readonly withdrawnAt: string | null;
+  }[];
+  readonly pools: readonly {
+    readonly poolId: string;
+    readonly reason: string;
+    readonly addedAt: string;
+  }[];
+  readonly applications: readonly {
+    readonly applicationId: string;
+    readonly job: { readonly id: string; readonly title: string };
+    readonly stageId: string;
+    readonly stages: readonly Stage[];
+    readonly reached: Category;
+    readonly outcome: 'active' | 'hired' | 'rejected' | 'withdrawn';
+    readonly rejection: { readonly reasonKey: string; readonly at: string } | null;
+    readonly source: string;
+    readonly flagged: boolean;
+    readonly answers: Readonly<Record<string, unknown>>;
+    readonly adjustments: string | null;
+    readonly history: readonly {
+      readonly id: string;
+      readonly from: string | null;
+      readonly to: string;
+      readonly at: string;
+      readonly reason: string | null;
+      readonly supersedes: string | null;
+    }[];
+    readonly interviews: readonly {
+      readonly id: string;
+      readonly title: string;
+      readonly startsAt: string;
+      readonly minutes: number;
+      readonly state: string;
+      readonly interviewerIds: readonly string[];
+    }[];
+    readonly scorecards: readonly {
+      readonly interviewId: string;
+      readonly interviewerId: string;
+      readonly recommendation: string | null;
+      readonly submittedAt: string | null;
+      readonly ratings: Readonly<Record<string, number>>;
+    }[];
+    readonly offers: readonly {
+      readonly id: string;
+      readonly state: string;
+      readonly version: number;
+      readonly startDate: string;
+      readonly baseMinor: number;
+      readonly currency: string;
+    }[];
+    readonly prehire: {
+      readonly state: string;
+      readonly startDate: string;
+      readonly conditions: readonly { readonly kind: string; readonly state: string }[];
+    } | null;
+    readonly references: readonly {
+      readonly id: string;
+      readonly refereeName: string;
+      readonly state: string;
+    }[];
+    readonly may: readonly string[];
+  }[];
+}
+
+export interface CandidatesData {
+  readonly rows: readonly {
+    readonly candidateId: string;
+    readonly name: string;
+    readonly email: string;
+    readonly tags: readonly string[];
+    readonly applications: number;
+    readonly latest: {
+      readonly applicationId: string;
+      readonly job: string;
+      readonly outcome: string;
+    } | null;
+    readonly createdAt: string;
+  }[];
+  readonly q: string;
+  readonly tag: string;
+}
+
+export interface PoolsData {
+  readonly pools: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly description: string | null;
+    readonly count: number;
+  }[];
+  readonly pool: {
+    readonly id?: string;
+    readonly name?: string;
+    readonly description?: string | null;
+    readonly members: readonly {
+      readonly candidateId: string;
+      readonly name: string;
+      readonly email: string;
+      readonly reason: string;
+      readonly addedAt: string;
+      readonly consentUntil: string | null;
+    }[];
+  } | null;
+}

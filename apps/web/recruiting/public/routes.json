@@ -1,8 +1,49 @@
 {
   "routes": [
-    { "path": "/recruiting/home", "component": "Home" },
-    { "path": "/recruiting/jobs", "component": "Jobs" },
-    { "path": "/recruiting/jobs/:id", "component": "Pipeline" }
+    {
+      "path": "/recruiting/home",
+      "component": "Home"
+    },
+    {
+      "path": "/recruiting/jobs",
+      "component": "Jobs"
+    },
+    {
+      "path": "/recruiting/jobs/:id",
+      "component": "Pipeline"
+    },
+    {
+      "path": "/recruiting/jobs/:id/setup",
+      "component": "JobSetup"
+    },
+    {
+      "path": "/recruiting/candidates",
+      "component": "Candidates"
+    },
+    {
+      "path": "/recruiting/candidates/:id",
+      "component": "Candidate"
+    },
+    {
+      "path": "/recruiting/pools",
+      "component": "Pools"
+    },
+    {
+      "path": "/recruiting/pools/:id",
+      "component": "Pools"
+    },
+    {
+      "path": "/recruiting/requisitions",
+      "component": "Requisitions"
+    },
+    {
+      "path": "/recruiting/requisitions/:id",
+      "component": "Requisition"
+    },
+    {
+      "path": "/recruiting/requisitions/:id/approve",
+      "component": "RequisitionApproval"
+    }
   ],
   "actions": [],
   "sections": [
@@ -21,7 +62,34 @@
       "icon": "work",
       "description": "Every job you hire for, its pipeline and its setup",
       "summary": "Jobs and pipelines",
-      "owns": ["/recruiting/jobs/:id"]
+      "owns": ["/recruiting/jobs/:id", "/recruiting/jobs/:id/setup"]
+    },
+    {
+      "path": "/recruiting/candidates",
+      "label": "Candidates",
+      "group": "Recruiting",
+      "icon": "people",
+      "description": "Everyone who applied or was sourced, across jobs",
+      "summary": "Candidates",
+      "owns": ["/recruiting/candidates/:id"]
+    },
+    {
+      "path": "/recruiting/pools",
+      "label": "Talent pools",
+      "group": "Recruiting",
+      "icon": "starred",
+      "description": "People kept for later, with their consent",
+      "summary": "Talent pools",
+      "owns": ["/recruiting/pools/:id"]
+    },
+    {
+      "path": "/recruiting/requisitions",
+      "label": "Requisitions",
+      "group": "Recruiting",
+      "icon": "approve",
+      "description": "Headcount asked for and approved before a job opens",
+      "summary": "Requisitions",
+      "owns": ["/recruiting/requisitions/:id", "/recruiting/requisitions/:id/approve"]
     }
   ],
   "slots": {},

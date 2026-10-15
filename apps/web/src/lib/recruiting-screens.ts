@@ -37,7 +37,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'RequisitionApproval':
       return read('RecruitingRequisitions');
     case 'JobSetup':
-      return read('RecruitingJob', { jobId: id });
+      return id === 'new' ? { status: 'none' } : read('RecruitingJob', { jobId: id });
     case 'Pipeline':
       return read('RecruitingPipeline', {
         jobId: id,
