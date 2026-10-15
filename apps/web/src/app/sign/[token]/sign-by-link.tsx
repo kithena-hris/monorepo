@@ -34,6 +34,7 @@ import {
   doneMessage,
   useSigning,
   type EnvelopeData,
+  type Stamped,
 } from '@kithena/web-documents/sign';
 
 import { declineLink, requestCode, signLink, verifyCode } from './actions';
@@ -62,6 +63,8 @@ export function SignByLink({
   readonly problem?: string | null;
 }): JSX.Element {
   const [done, setDone] = useState<string | null>(null);
+  // What they just signed, drawn over the copy on screen until the new copy has loaded.
+  const [stamped, setStamped] = useState<Stamped | null>(null);
 
   if (envelope === null) {
     return (
@@ -107,7 +110,7 @@ export function SignByLink({
               : 'You can close this page.')}
         </Alert>
         {fileUrl === null ? null : (
-          <DocumentToSign env={envelope} url={fileUrl} signing={null} name="" />
+          <DocumentToSign env={envelope} url={fileUrl} signing={null} name="" stamped={stamped} />
         )}
       </main>
     );
@@ -119,7 +122,11 @@ export function SignByLink({
       envelope={envelope}
       fileUrl={fileUrl}
       verified={envelope.me.status === 'verified'}
-      onDone={setDone}
+      onDone={(message, signed) => {
+        // A decline has nothing to draw.
+        setStamped(signed ?? null);
+        setDone(message);
+      }}
     />
   );
 }
@@ -139,7 +146,8 @@ function SignNow({
   readonly fileUrl: string | null;
   /** They confirmed the code already, on an earlier visit. */
   readonly verified: boolean;
-  readonly onDone: (done: string) => void;
+  /** Signed: what to say, and what they signed, to draw until the new copy loads. */
+  readonly onDone: (done: string, stamped?: Stamped) => void;
 }): JSX.Element {
   // The name the sender gave them: what a typed signature says.
   const name = envelope.signers.find((s) => s.id === envelope.me?.signerId)?.name ?? '';
@@ -160,15 +168,18 @@ function SignNow({
   };
 
   const submit = async () => {
-    const r = await signLink(
-      token,
-      signing.mark ?? { kind: 'typed', text: name },
-      signing.values,
-      signing.day,
-    );
+    const mark = signing.mark ?? { kind: 'typed' as const, text: name };
+    const r = await signLink(token, mark, signing.values, signing.day, signing.traceId);
     if (!r.ok) setProblem(r.message);
     else {
-      onDone(doneMessage(r.data.completed, r.data.next));
+      // At once: every box of theirs holds their signature, its print under it.
+      onDone(doneMessage(r.data.completed, r.data.next), {
+        signerId: envelope.me?.signerId ?? '',
+        mark,
+        filled: signing.filled,
+        traceId: signing.traceId,
+        at: new Date(),
+      });
       // Read again: the copy shown now has this signature drawn in.
       router.refresh();
     }

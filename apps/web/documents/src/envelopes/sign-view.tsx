@@ -21,7 +21,7 @@ import {
   nextToFill,
   readingOrder,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
 import type { EnvelopeData, FieldKind, Mark } from '../types';
 
@@ -84,6 +84,55 @@ export interface Signing {
   readonly waiting: string | null;
   /** The signer's own day, sent with the signature for the date boxes. */
   readonly day: string;
+  /**
+   * This signing's Signature ID (K7): printed under each box the moment it
+   * is filled, and sent with the signature, which keeps it as the signed
+   * event's id. What the screen shows is what the sealed file says.
+   */
+  readonly traceId: string;
+}
+
+/**
+ * The document as this signer just signed it, drawn over the copy on screen
+ * until the copy Kithena drew has loaded in its place: their signature in
+ * every box, each with its print under it, the moment Finish succeeds.
+ */
+export interface Stamped {
+  readonly signerId: string;
+  readonly mark: Mark;
+  readonly filled: Readonly<Record<string, string>>;
+  readonly traceId: string;
+  readonly at: Date;
+}
+
+/**
+ * The page at the screen's own width, never left zoomed: iOS keeps a zoom
+ * across loads (the reload after Finish among them), so a document opened
+ * from a link could arrive magnified. Snapped back by pinning the scale for
+ * a frame, then the viewport as it was, so pinching to read stays possible.
+ */
+function fitToScreen(): void {
+  if (typeof window === 'undefined') return;
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  if (meta === null || (window.visualViewport?.scale ?? 1) === 1) return;
+  const was = meta.content;
+  meta.content = 'width=device-width, initial-scale=1, maximum-scale=1';
+  requestAnimationFrame(() => {
+    meta.content = was;
+  });
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The print under a signed box, worded and timed as the sealed file prints
+ * it (`services/documents`, `traceLines`): signed electronically, when, in
+ * UTC, then the Signature ID.
+ */
+export function traceCaption(traceId: string, at: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const when = `${String(at.getUTCDate())} ${MONTHS.at(at.getUTCMonth()) ?? ''} ${String(at.getUTCFullYear())}, ${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())} UTC`;
+  return `Electronically signed via Kithena on ${when}\nSignature ID: ${traceId}`;
 }
 
 /**
@@ -116,6 +165,7 @@ export function useSigning(
   );
   const [focus, setFocus] = useState<string | null>(null);
   const [adopting, setAdopting] = useState(false);
+  const [traceId] = useState(() => crypto.randomUUID());
   const [waiting, setWaiting] = useState<string | null>(null);
 
   // Reach's model of which box is due, the phone's too: an optional tick box is never a step.
@@ -158,6 +208,7 @@ export function useSigning(
   );
 
   return {
+    traceId,
     mine,
     steps,
     mark,
@@ -216,6 +267,7 @@ export function DocumentToSign({
   name,
   onFinish,
   finishing = false,
+  stamped = null,
 }: {
   readonly env: EnvelopeData;
   readonly url: string;
@@ -225,6 +277,11 @@ export function DocumentToSign({
   /** Sign: shown on the bar, in Next's place, once every box is filled. */
   readonly onFinish?: () => void;
   readonly finishing?: boolean;
+  /**
+   * What this signer just signed, drawn over the copy on screen until the
+   * copy Kithena drew (`url`, fetched again) has loaded in its place.
+   */
+  readonly stamped?: Stamped | null;
 }): JSX.Element {
   const order = new Map(env.signers.map((s, i) => [s.id, i]));
   const waiting = signing === null ? null : signing.waiting;
@@ -237,20 +294,56 @@ export function DocumentToSign({
   // A signed field is drawn into the copy shown (K7), its trace under it:
   // nothing is laid over it. A sealed copy carries every stamp.
   const signedBy = new Set(env.signers.filter((s) => s.status === 'signed').map((s) => s.id));
+  // The copy on screen when Finish succeeded: what was just signed is drawn
+  // over it until the copy Kithena drew has loaded in its place.
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const [stampedOver, setStampedOver] = useState<string | null>(null);
+  if (stamped !== null && stampedOver === null) setStampedOver(loaded ?? url);
+  if (stamped === null && stampedOver !== null) setStampedOver(null);
+  const showStamped = stamped !== null && (loaded === null || loaded === (stampedOver ?? url));
+  // Whatever is being filled or was just filled: its boxes, values, mark and print.
+  const live =
+    signing !== null
+      ? {
+          fields: signing.mine,
+          filled: signing.filled,
+          mark: signing.mark,
+          traceId: signing.traceId,
+          at: new Date(),
+        }
+      : stamped !== null && showStamped
+        ? {
+            fields: env.fields.filter((f) => f.signerId === stamped.signerId),
+            filled: stamped.filled,
+            mark: stamped.mark as Mark | null,
+            traceId: stamped.traceId,
+            at: stamped.at,
+          }
+        : null;
+  const others = env.fields.filter(
+    (f) => !signedBy.has(f.signerId) && f.signerId !== stamped?.signerId,
+  );
   const boxes =
-    env.status === 'completed'
-      ? []
-      : signing === null
-        ? env.fields.filter((f) => !signedBy.has(f.signerId))
-        : signing.mine;
+    signing !== null
+      ? signing.mine
+      : env.status === 'completed'
+        ? (live?.fields ?? [])
+        : [...others, ...(live?.fields ?? [])];
+
+  // Every document, the first and each one drawn after Finish, opens fitted to the screen.
+  useEffect(() => {
+    fitToScreen();
+  }, [url]);
 
   return (
-    <div className="flex flex-col gap-3">
+    // A double tap on the page fills a box; it never zooms the page.
+    <div className="flex touch-manipulation flex-col gap-3">
       <PdfPages
         src={url}
         label={env.title}
         onLoad={() => {
           setShown(true);
+          setLoaded(url);
         }}
         overlay={(page) => (
           <PlacementLayer
@@ -258,7 +351,7 @@ export function DocumentToSign({
             boxes={boxes
               .filter((f) => f.page === page.number)
               .map((f) => {
-                const done = isFilled(signing?.filled[f.id]);
+                const done = isFilled(live?.filled[f.id]) && live?.fields.includes(f) === true;
                 return {
                   id: f.id,
                   x: f.x,
@@ -274,19 +367,23 @@ export function DocumentToSign({
                       ? (env.signers.find((s) => s.id === f.signerId)?.name ?? '')
                       : HINT[f.kind],
                   done,
+                  // Printed the moment it is filled, as the sealed file prints it.
+                  ...(live === null || !done
+                    ? {}
+                    : { caption: traceCaption(live.traceId, live.at) }),
                 };
               })}
             {...(signing === null ? {} : { onActivate: signing.apply })}
             render={(box) => {
-              if (signing === null || box.done !== true) return null;
-              const f = signing.mine.find((x) => x.id === box.id);
-              const value = signing.filled[box.id] ?? '';
+              if (live === null || box.done !== true) return null;
+              const f = live.fields.find((x) => x.id === box.id);
+              const value = live.filled[box.id] ?? '';
               if (f === undefined) return null;
               // Paper ink, from the box: the page is white in either theme.
-              if (SIGNED.has(f.kind) && signing.mark !== null) {
+              if (SIGNED.has(f.kind) && live.mark !== null) {
                 const mark = (
                   <Signature
-                    value={signing.mark}
+                    value={live.mark}
                     initials={f.kind === 'initials'}
                     label={`${name}’s ${f.kind === 'initials' ? 'initials' : 'signature'}`}
                   />
@@ -374,9 +471,13 @@ function StepBar({
   const focused = at === -1 ? undefined : steps[at];
   const total = steps.length;
   const place = `${String(total)} ${total === 1 ? 'place' : 'places'}`;
+  // How far through they are, said and drawn on the bar: "1 of 4 done".
+  const doneCount = steps.filter((f) => isFilled(filled[f.id])).length;
+  const progress = { value: doneCount, max: total };
+  const count = `${String(doneCount)} of ${String(total)} done`;
   if (ready && onFinish !== undefined) {
     return (
-      <PinnedBar message="Everything is filled in. Finish to sign.">
+      <PinnedBar message={`All ${String(total)} done. Finish to sign.`} progress={progress}>
         <Button
           size="sm"
           variant="primary"
@@ -391,7 +492,10 @@ function StepBar({
   }
   if (focused === undefined) {
     return (
-      <PinnedBar message={`${place} for you to fill in. Start takes you to each one.`}>
+      <PinnedBar
+        message={`${place} for you to fill in. Start takes you to each one.`}
+        progress={progress}
+      >
         <Button
           size="sm"
           variant="primary"
@@ -406,7 +510,7 @@ function StepBar({
   const step = `Step ${String(at + 1)} of ${String(total)} · ${focused.label ?? KIND_LABEL[focused.kind]}`;
   if (!isFilled(filled[focused.id])) {
     return (
-      <PinnedBar message={step}>
+      <PinnedBar message={`${step} · ${count}`} progress={progress}>
         {focused.required ? null : (
           <Button size="sm" variant="on-invert" onClick={signing.goNext}>
             Skip
@@ -426,7 +530,7 @@ function StepBar({
     );
   }
   return (
-    <PinnedBar message={`${step} · done`}>
+    <PinnedBar message={`${step} · ${count}`} progress={progress}>
       <Button
         size="sm"
         variant="primary"

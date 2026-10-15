@@ -195,7 +195,14 @@ export const PinnedSteps: Story = {
     return (
       <div className="flex max-w-md flex-col gap-3">
         <Card padded>Three boxes to fill, one after another.</Card>
-        <PinnedBar message={step === 3 ? 'Every box is filled' : `Step ${String(step + 1)} of 3`}>
+        <PinnedBar
+          message={
+            step === 3
+              ? 'Every box is filled · 3 of 3 done'
+              : `Step ${String(step + 1)} of 3 · ${String(step)} of 3 done`
+          }
+          progress={{ value: step, max: 3 }}
+        >
           {step === 3 ? (
             <Button size="sm" variant="primary">
               Finish

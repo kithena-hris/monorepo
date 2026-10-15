@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   type JSX,
   type KeyboardEvent,
@@ -43,6 +44,11 @@ export interface PlacedBox {
   readonly hint?: string;
   /** Filled: drawn without its tint, as what it holds. */
   readonly done?: boolean;
+  /**
+   * Small print under the box, as a document prints it under what fills it:
+   * who signed, how and when. Each line on its own (`\n`); never pressed.
+   */
+  readonly caption?: string;
 }
 
 export interface PlacementLayerProps {
@@ -100,6 +106,29 @@ export function PlacementLayer({
 }: PlacementLayerProps): JSX.Element {
   const layer = useRef<HTMLDivElement>(null);
   const refs = useRef(new Map<string, HTMLElement>());
+  const captions = useRef(new Map<string, HTMLElement>());
+
+  // Each caption a page's 6pt under the ink it captions, not under its box:
+  // a name is drawn smaller than its box, and the print sits close under the
+  // name, as the sealed file prints it. Again when the page is redrawn at
+  // another size, and when the handwriting face arrives.
+  useLayoutEffect(() => {
+    const host = layer.current;
+    // Nothing to measure with outside a browser (a test's document).
+    if (host === null || captions.current.size === 0 || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    // Its own chunk: only a page with a signed box needs it, and every page loads this layer.
+    let stop: (() => void) | undefined;
+    let gone = false;
+    void import('./hug').then(({ hug }) => {
+      if (!gone) stop = hug(host, captions.current, refs.current);
+    });
+    return () => {
+      gone = true;
+      stop?.();
+    };
+  });
   const drag = useRef<{
     id: string;
     mode: 'move' | 'resize';
@@ -185,7 +214,7 @@ export function PlacementLayer({
     <div
       ref={layer}
       className={cn(
-        'relative size-full',
+        '@container relative size-full',
         editable && onPlace !== undefined && 'cursor-copy',
         className,
       )}
@@ -234,8 +263,27 @@ export function PlacementLayer({
             )}
           </>
         );
+        // Under the box, its own width at least, as small as print under a signature is.
+        const caption =
+          box.caption === undefined ? null : (
+            <span
+              key={`${box.id}-caption`}
+              ref={(el) => {
+                if (el === null) captions.current.delete(box.id);
+                else captions.current.set(box.id, el);
+              }}
+              aria-hidden
+              className="pointer-events-none absolute whitespace-pre text-[max(7px,0.95cqw)] leading-[1.25] text-[var(--reach-neutral-600)]"
+              style={{
+                left: `${String(box.x * 100)}%`,
+                top: `calc(${String((box.y + box.h) * 100)}% + 2px)`,
+              }}
+            >
+              {box.caption}
+            </span>
+          );
         if (!editable) {
-          return (
+          return [
             <button
               key={box.id}
               type="button"
@@ -245,8 +293,9 @@ export function PlacementLayer({
               }}
             >
               {inside}
-            </button>
-          );
+            </button>,
+            caption,
+          ];
         }
         return (
           <div

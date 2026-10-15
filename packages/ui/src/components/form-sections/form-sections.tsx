@@ -123,6 +123,11 @@ export interface PinnedBarProps {
   message: ReactNode;
   /** Its actions, the main one last. */
   children: ReactNode;
+  /**
+   * How far through it is, as a thin line along the bar's foot: three of four
+   * boxes filled. Said with the message, so put the count in the words too.
+   */
+  progress?: { readonly value: number; readonly max: number } | undefined;
   className?: string | undefined;
 }
 
@@ -133,7 +138,11 @@ export interface PinnedBarProps {
  * last in the content it belongs to, with no `overflow` clipping between it
  * and the scroller.
  */
-export function PinnedBar({ message, children, className }: PinnedBarProps): JSX.Element {
+export function PinnedBar({ message, children, progress, className }: PinnedBarProps): JSX.Element {
+  const share =
+    progress === undefined || progress.max <= 0
+      ? 0
+      : Math.min(Math.max(progress.value / progress.max, 0), 1);
   return (
     <div
       {...PINNED_BAR}
@@ -150,6 +159,21 @@ export function PinnedBar({ message, children, className }: PinnedBarProps): JSX
         {message}
       </p>
       {children}
+      {progress === undefined ? null : (
+        <div
+          role="progressbar"
+          aria-label="Done so far"
+          aria-valuemin={0}
+          aria-valuemax={progress.max}
+          aria-valuenow={progress.value}
+          className="pointer-events-none absolute inset-x-6 bottom-1 h-0.5 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--reach-color-fg-on-invert)_22%,transparent)]"
+        >
+          <div
+            className="h-full bg-[var(--reach-color-fg-on-invert)] motion-safe:transition-[width] motion-safe:duration-300"
+            style={{ width: `${String(share * 100)}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

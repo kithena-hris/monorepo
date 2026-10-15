@@ -350,6 +350,12 @@ const SignBody = z.strictObject({
   values: z.record(z.string().max(80), z.string().max(200)).default({}),
   // The signer's own calendar day, for the date box: within a day of the server's, or ignored.
   day: z.iso.date().optional(),
+  /**
+   * The Signature ID the signer was shown under each box as they filled it
+   * (K7): kept as their `signed` event's id, so the print on the screen and
+   * in the sealed file are one. Absent, Kithena makes one.
+   */
+  traceId: z.uuid().optional(),
   ...OriginBody,
 });
 

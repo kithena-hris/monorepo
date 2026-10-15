@@ -74,9 +74,11 @@ async function trail(
   signerId: string | null,
   action: string,
   detail: Record<string, unknown> = {},
+  /** The event's id when the caller already showed it: a Signature ID shown while signing. */
+  id: string = ctx.deps.newId(),
 ) {
   await ctx.tx.envelopes.record({
-    id: ctx.deps.newId(),
+    id,
     envelopeId,
     signerId,
     action,
@@ -289,6 +291,8 @@ export interface SignInput {
   readonly values: Readonly<Record<string, string>>;
   /** The signer's own calendar day, for the date box; the domain bounds it by the clock. */
   readonly day?: string | undefined;
+  /** The Signature ID shown under each box as it was filled, kept as the signed event's id. */
+  readonly traceId?: string | undefined;
 }
 
 /** The signing transaction, shared by a member and an outside signer. */
@@ -301,7 +305,7 @@ async function signIn(
 ) {
   const next = sign(env, signerId, input, ctx.at);
   if (!next.ok) return next;
-  await trail(ctx, env.id, signerId, 'signed', { device: 'web' });
+  await trail(ctx, env.id, signerId, 'signed', { device: 'web' }, input.traceId);
   await passTurn(ctx, env, next.value, origin);
   const signer = next.value.signers.find((s) => s.id === signerId);
   await ctx.tx.outbox.publish([

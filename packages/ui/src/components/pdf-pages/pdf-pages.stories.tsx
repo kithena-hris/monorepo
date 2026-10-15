@@ -145,3 +145,40 @@ export const Signing: Story = {
     );
   },
 };
+
+/** Signed: the box holds the signature, and the print under it says how, when and its ID. */
+export const SignedWithCaption: Story = {
+  render: (args) => (
+    <div className="max-w-2xl">
+      <PdfPages
+        {...args}
+        overlay={(page) =>
+          page.number === 1 ? (
+            <PlacementLayer
+              boxes={[
+                {
+                  id: 'signed',
+                  x: 0.12,
+                  y: 0.7,
+                  w: 0.36,
+                  h: 0.06,
+                  tone: 1,
+                  label: 'Signature, Ada Lovelace, signed',
+                  done: true,
+                  caption:
+                    'Electronically signed via Kithena on 14 Oct 2026, 21:54 UTC\nSignature ID: 01a13c68-0000-7000-8000-00000000abcd',
+                },
+              ]}
+              render={() => (
+                <Signature
+                  value={{ kind: 'typed', text: 'Ada Lovelace', style: 'flowing' }}
+                  label="Ada Lovelace’s signature"
+                />
+              )}
+            />
+          ) : null
+        }
+      />
+    </div>
+  ),
+};

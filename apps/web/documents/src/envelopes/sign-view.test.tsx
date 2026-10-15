@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { adamToSign } from '../test/acme.fixture';
 import type { EnvelopeData } from '../types';
-import { useSigning } from './sign-view';
+import { traceCaption, useSigning } from './sign-view';
 
 const box = (
   id: string,
@@ -96,5 +96,15 @@ describe('a dated signature, and a name that fills itself', () => {
     const { result } = renderHook(() => useSigning(dated(), 'Adam Novak'));
     expect(result.current.filled['who']).toBe('Adam Novak');
     expect(result.current.steps.map((f) => f.id)).toEqual(['when']);
+  });
+});
+
+describe('the print under a signed box (K7)', () => {
+  it('says what the sealed file says, to the minute, in UTC, with the Signature ID', () => {
+    expect(
+      traceCaption('6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b', new Date('2026-10-14T21:54:59.000Z')),
+    ).toBe(
+      'Electronically signed via Kithena on 14 Oct 2026, 21:54 UTC\nSignature ID: 6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b',
+    );
   });
 });
