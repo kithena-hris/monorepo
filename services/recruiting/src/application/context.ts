@@ -38,6 +38,9 @@ export interface Ctx {
   readonly mail: Outgoing[];
 }
 
+/** The caller behind the public API: a candidate, with no account in this tenant. */
+export const PUBLIC_ACCOUNT = 'public';
+
 export async function contextOf(
   deps: Deps,
   tx: Tx,
@@ -54,7 +57,7 @@ export async function contextOf(
     viewer: {
       personId: caller.personId,
       accountId: caller.accountId,
-      admin: await tx.admins.has(caller.accountId),
+      admin: caller.accountId !== PUBLIC_ACCOUNT && (await tx.admins.has(caller.accountId)),
       fairness: (((await tx.settings.get('fairness_accounts')) as string[] | null) ?? []).includes(
         caller.accountId,
       ),

@@ -15,7 +15,13 @@ import {
 } from '@kithena/contracts';
 
 import { overview, offerAcceptance, chart, speed, timeInStage } from '../application/analytics.js';
-import { contextOf, deliver, type Ctx, type Outgoing } from '../application/context.js';
+import {
+  contextOf,
+  deliver,
+  PUBLIC_ACCOUNT,
+  type Ctx,
+  type Outgoing,
+} from '../application/context.js';
 import {
   addCandidate,
   apply,
@@ -1575,7 +1581,7 @@ export function restHandler(
       if (tenantId === null) return refused(failure('NOT_FOUND', 'No such company'));
       caller = {
         tenantId: TenantId.parse(tenantId),
-        accountId: 'public',
+        accountId: PUBLIC_ACCOUNT,
         personId: null,
         correlationId: deps.newId(),
       };
