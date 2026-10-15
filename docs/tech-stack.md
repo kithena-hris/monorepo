@@ -195,3 +195,26 @@ limits, enforced in Documents and not by convention:
   where the provider offers it.
 - The domain still computes every number: a salary that disagrees with an
   offer is two extracted values compared by code, not a model's opinion.
+
+## Recruiting
+
+### A model may read an application
+
+Accepted on 2026-10-15 on the owner's behalf, open for review (Recruiting PRD
+§22.2, §36). The second place a model reads content, after Documents, because
+reading a CV against a job's criteria is the feature. The limits, enforced in
+Recruiting:
+
+- Only for a member of that job's hiring team, for that request. What is kept
+  is the result and the masked text the model read.
+- Protected characteristics are masked by code before any text leaves (PRD
+  §14.6); special-category data and diversity self-ID are never sent.
+- A company can switch each AI feature off. A New York City job keeps the
+  evidence matrix off until a bias audit date is recorded.
+- Applications are never used to train a model; processing stays in the EU
+  where the provider offers it, through the AI gateway.
+- The domain computes every score and band; the model returns verdicts and
+  quoted passages, and a quote that is not in the text is discarded.
+- A model never moves, rejects or contacts a candidate. A person does.
+- Every assessment is logged with the model, prompt version, masked input's
+  hash, output and the human decision that followed (AI Act art. 12).

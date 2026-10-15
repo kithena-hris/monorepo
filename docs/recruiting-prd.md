@@ -1123,9 +1123,8 @@ convention:
    input's hash, the output and the human decision that followed (AI Act art.
    12, record-keeping).
 
-**This needs your sign-off before REC-111 starts** (the gate is REC-110); until then Phase 2's
-parser and analyser are not built and the module runs without them. Recorded
-in `docs/tech-stack.md` once accepted.
+**Accepted on 2026-10-15** (§36, open for review). Recorded in
+`docs/tech-stack.md`.
 
 ### 22.3 Features
 
@@ -1636,21 +1635,36 @@ electronic signatures, a browser sourcing extension, payroll, benefits
 enrolment, pricing equity, multiposting resellers, background-check and
 assessment providers (ports only).
 
-## 36. Needs a decision
+## 36. Decisions
 
-1. **A model may read an application** (§22.2). Proposed; blocks Phase 2's
-   parser and matrix.
-2. **Kithena Jobs as a cross-company site.** Proposed opt-in per company and
-   per job. A public board with many companies is a new kind of surface for
-   Kithena (SEO, abuse, moderation of ads); confirm it is wanted beside the
-   per-company careers pages.
-3. **Board partnerships**: who signs Indeed's developer agreement and applies
-   to LinkedIn's partner programme.
-4. **Country reviewers** for the five terms packs and the retention table.
-5. **Hosting a public site on Vercel Hobby.** The Hobby plan is for
-   non-commercial use; a public job site for paying tenants is commercial.
-   Today's hosting decision keeps Hobby; this is flagged, not changed.
-6. **The AI Act conformity assessment owner** before 2 December 2027.
+Taken on the owner's behalf on 2026-10-15, while they were away, so the build
+was not blocked. Each follows common practice in the products §34 compares
+against, and each is **open for review**: changing one is a commit, not a
+redesign.
+
+1. **A model may read an application** (§22.2): **accepted**, with the seven
+   limits in §22.2 enforced in Recruiting. Greenhouse, Workday, Personio and
+   JOIN all read CVs with a model; the limits are what make it defensible
+   under the AI Act and GDPR art. 22. Recorded in `docs/tech-stack.md` and
+   `CLAUDE.md`; REC-110 is ticked on this record.
+2. **Kithena Jobs as a cross-company site**: **yes**, opt-in per company and
+   per job, off by default. A company's careers page works without it.
+   Abuse is handled by the apply form's email code, rate limits and honeypot
+   (§10.4), and by a report link on every job page that unpublishes it from
+   the cross-company search for review.
+3. **Board partnerships**: the adapters are built behind the `JobBoard` port
+   with a fake each; going live with Indeed or LinkedIn is the owner's
+   business task (signing Indeed's developer agreement, applying to
+   LinkedIn's programme). Nothing in Phase 1 waits for it.
+4. **Country reviewers**: the five packs ship **enabled**, each marked
+   "awaiting a country reviewer" in the composer's rules panel and on the
+   offer, with the statute cited for every rule so a reviewer can check it.
+   REC-150 stays open until a reviewer signs each off.
+5. **Hosting**: `apps/jobs` goes on Vercel Hobby beside `apps/web`, per the
+   hosting decision. The non-commercial clause remains flagged for the owner;
+   moving to Pro is one setting when they choose to.
+6. **The AI Act conformity owner**: the account owner until they name
+   someone; REC-127 stays a business task with a December 2027 deadline.
 
 ---
 

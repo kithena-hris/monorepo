@@ -29,8 +29,9 @@ than quietly working around it.
   the same in the others.
 - **OpenFGA** for authorization. Org charts are graphs, not role tables.
   Documents is the exception: per-document grants, decided by its domain over
-  its own rows (`docs/tech-stack.md`, "Documents"), as is the one place a
-  model may read content.
+  its own rows (`docs/tech-stack.md`, "Documents"), and one of the two places
+  a model may read content; the other is a job application in Recruiting
+  (`docs/tech-stack.md`, "Recruiting").
 - **Temporal** for long-running human-in-the-loop workflows. BullMQ for
   fire-and-forget jobs.
 - **Two names, and they are not interchangeable.** The product is **Kithena**
@@ -297,16 +298,18 @@ of its progress. Its screens are the **Kithena Documents** pages (web and
 mobile) in the same Claude Design project. `documents` goes to `main` as one
 pull request.
 
-**The Recruiting module is specified on the `recruiting` branch, and not yet
-built.** Requirements are in `docs/recruiting-prd.md`; Part II of the same file
-specifies the Onboarding module, which is a separate module (`onboarding` in
-`ModuleKey`). The tickets, `REC-001` to `REC-150` and `ONB-001` to `ONB-015`,
-are in `docs/recruiting-build-plan.md`, which is the record of progress. The
-public job site is a new app, `apps/jobs`. Its AI phase waits on a proposed
-decision (PRD §22.2): that a model may read an application, as it may read a
-document. Building starts once its screens are designed. Read-only copies:
-the requirements at https://claude.ai/artifact/CcpXLphRFuacM5NCed2BD6 and the
-tickets at https://claude.ai/artifact/RPvxsmE6skmpEaiAn7nhKa.
+**The Recruiting and Onboarding modules are being built on the `recruiting`
+branch**, both on that one branch, a commit per concern, one pull request and
+one merge into `main`. Requirements are in `docs/recruiting-prd.md` (Part II is
+Onboarding, a separate module, `onboarding` in `ModuleKey`). The tickets,
+`REC-001` to `REC-150` and `ONB-001` to `ONB-015`, are in
+`docs/recruiting-build-plan.md`, which is the record of progress. The screens
+are the Kithena Recruiting, Jobs and Onboarding pages (web and mobile) in the
+same Claude Design project. The public job site is a new app, `apps/jobs`. The
+decisions in PRD §36 were taken on the owner's behalf and are open for review.
+Read-only copies: the requirements at
+https://claude.ai/artifact/CcpXLphRFuacM5NCed2BD6 and the tickets at
+https://claude.ai/artifact/RPvxsmE6skmpEaiAn7nhKa.
 
 ## Adding a module
 

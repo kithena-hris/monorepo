@@ -43,7 +43,7 @@ goes to `main` as one pull request and one merge, so Vercel deploys once.
       `dependsOn: []`, `requiresPeopleSource: 'either'`, entitlement
       `module.recruiting`; offered in `OFFERED_MODULES`.
 - [x] **REC-002** Schema bootstrap: `recruiting` with `svc_recruiting
-  NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
+NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       read-only role for `apps/jobs` (PRD §31.2).
 - [x] **REC-003** Outbox and Debezium: `recruiting.outbox`, table list.
 - [x] **REC-004** `services/recruiting` boots like Documents: `main.ts`,
@@ -202,7 +202,7 @@ goes to `main` as one pull request and one merge, so Vercel deploys once.
 
 ## Phase 2 — AI
 
-- [ ] **REC-110** **Gate**: the decision in PRD §22.2 signed off and recorded
+- [x] **REC-110** **Gate**: the decision in PRD §22.2 signed off and recorded
       in `docs/tech-stack.md` and `CLAUDE.md`. Nothing below starts before it.
 - [ ] **REC-111** Masking of protected characteristics, pure, tests first.
       §14.6.
