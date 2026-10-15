@@ -176,8 +176,13 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       tables.
 - [x] **REC-086** R26 all candidates.
 - [x] **REC-087** S1–S8 settings.
-- [ ] **REC-088** Reach additions (PRD §30), each in Reach first with
-      stories and axe.
+- [x] **REC-088** Reach additions (PRD §30), each in Reach first with
+      stories and axe. Checked first, as §30 asks, and nothing was needed for
+      Phase 1: `Kanban` already counts each column and takes a column footer,
+      the 1–4 scale is `SegmentedControl` with anchors, the terms composer is
+      `Card`s of `Field`s, slots are `Chip`s by day, and the chart plan is
+      `Select`s composed. `EvidenceHighlight` waits for REC-114, its only
+      user.
 
 ### Kithena Jobs (`apps/jobs`)
 
