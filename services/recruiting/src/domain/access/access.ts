@@ -132,11 +132,8 @@ export function maySeeApplication(
   if (viewer.admin) return true;
   const roles = rolesOn(viewer, job);
   if (roles.some((r) => r !== 'interviewer')) return true;
-  return (
-    roles.includes('interviewer') &&
-    viewer.personId !== null &&
-    app.interviewerIds.includes(viewer.personId)
-  );
+  // An interviewer sees the applications they interview, whether or not the job's team lists them.
+  return viewer.personId !== null && app.interviewerIds.includes(viewer.personId);
 }
 
 /** Offers and pay: recruiters, the hiring manager, approvers and admins only (PRD §25). */

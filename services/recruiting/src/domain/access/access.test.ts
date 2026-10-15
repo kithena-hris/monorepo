@@ -51,6 +51,10 @@ describe('access (PRD §25, §33)', () => {
       maySeeApplication(viewer('adam'), job, { ...external, interviewerIds: ['mei'] }, rules),
     ).toBe(false);
     expect(maySeeApplication(viewer('stranger'), job, external, rules)).toBe(false);
+    // Named on the interview without a role on the job: still theirs to see.
+    expect(
+      maySeeApplication(viewer('mei'), job, { ...external, interviewerIds: ['mei'] }, rules),
+    ).toBe(true);
   });
 
   it('hides an internal applicant from their own manager until the offer', () => {

@@ -108,40 +108,40 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ### Storage
 
-- [ ] **REC-040** Atlas migrations for every table in §31.1, expand-contract.
+- [x] **REC-040** Atlas migrations for every table in §31.1, expand-contract.
 - [ ] **REC-041** Drizzle repositories, with integration tests against
       Postgres 18.
 - [ ] **REC-042** File storage port (S3, SeaweedFS, in memory) and text
       extraction for PDF, DOCX and ODT, written in Recruiting (Documents'
       approach, copied, not imported). §14.1.
-- [ ] **REC-043** Public projection writer from the outbox, with a
+- [x] **REC-043** Public projection written in the job's own transaction (no dual write), with a
       `tsvector` per ad language. §31.2.
 - [ ] **REC-044** Member projection from People's events, and the member
       import (Time Off's, copied). §5.2.
 
 ### Application
 
-- [ ] **REC-045** Requisitions and approvals; Inbox tasks.
-- [ ] **REC-046** Jobs, ads, internal targets, publish and unpublish.
-- [ ] **REC-047** Public application intake: email code, rate limits,
+- [x] **REC-045** Requisitions and approvals; Inbox tasks.
+- [x] **REC-046** Jobs, ads, internal targets, publish and unpublish.
+- [x] **REC-047** Public application intake: email code, rate limits,
       honeypot, consent, files, source. §10.4, §11.
-- [ ] **REC-048** Pipeline moves, bulk actions, rejection with template and
+- [x] **REC-048** Pipeline moves, bulk actions, rejection with template and
       send time, stage automations. §12.
 - [ ] **REC-049** Messages: send through `platform/messaging`, inbound
       replies from Resend's webhook, templates. §12.7.
 - [ ] **REC-050** Talent pools; consent renewal and expiry job (BullMQ). §13.
 - [ ] **REC-051** Scheduling without calendars: working hours, self-scheduling
       links, panels, `.ics`, reminders. §16.4.
-- [ ] **REC-052** Scorecards, Inbox tasks, debrief, decision. §16.5–§16.7.
-- [ ] **REC-053** References. §17.1.
-- [ ] **REC-054** Offers: compose, approve, send, accept, decline, revise.
+- [x] **REC-052** Scorecards, Inbox tasks, debrief, decision. §16.5–§16.7.
+- [x] **REC-053** References. §17.1.
+- [x] **REC-054** Offers: compose, approve, send, accept, decline, revise.
       §18.
-- [ ] **REC-055** Contract by upload, pre-hire conditions, `hired` event and
+- [x] **REC-055** Contract by upload, pre-hire conditions, `hired` event and
       webhook, job filled. §21.
-- [ ] **REC-056** Retention sweeper, legal holds, DSAR export and deletion.
+- [x] **REC-056** Retention sweeper, legal holds, DSAR export and deletion.
       §24.
-- [ ] **REC-057** Analytics queries for every dashboard in §23.2.
-- [ ] **REC-058** Works council presentation and consent for DE entities.
+- [x] **REC-057** Analytics queries for every dashboard in §23.2.
+- [x] **REC-058** Works council presentation and consent for DE entities.
       §19.9.
 
 ### Transports
