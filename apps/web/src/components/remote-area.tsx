@@ -4,7 +4,7 @@ import type { JSX } from 'react';
 
 import { RemoteScreen } from './remote-screen';
 import { DocumentsScreen } from './documents-screen';
-import { OnboardingScreen, RecruitingScreen } from './act-screen';
+import { OnboardingScreen, RecruitingScreen, type ActScreenProps } from './act-screen';
 import { TimeOffScreen } from './timeoff-screen';
 import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -29,11 +29,9 @@ const SCREENS: Partial<
     Area['name'],
     {
       readonly load: (component: string, query: ScreenQuery, path: string) => Promise<ScreenLoad>;
-      readonly Screen:
-        | typeof TimeOffScreen
-        | typeof DocumentsScreen
-        | typeof RecruitingScreen
-        | typeof OnboardingScreen;
+      // Time Off and Documents read their address themselves and ignore the
+      // route's params; Recruiting and Onboarding are handed them.
+      readonly Screen: (props: ActScreenProps) => JSX.Element;
     }
   >
 > = {
@@ -108,7 +106,16 @@ export async function RemoteArea({
     ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
   };
   const frame = areaFrame(area, route.path, places);
-  if (screens !== undefined) return <screens.Screen route={drawn} load={load} frame={frame} />;
+  if (screens !== undefined)
+    return (
+      <screens.Screen
+        route={drawn}
+        load={load}
+        frame={frame}
+        params={route.params}
+        search={search}
+      />
+    );
   return (
     <RemoteScreen
       name={area.name}

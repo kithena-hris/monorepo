@@ -24,6 +24,9 @@ export interface ActScreenProps {
   readonly route: RemoteRoute | null;
   readonly load: ScreenLoad | { readonly status: 'loading' };
   readonly frame: ReturnType<typeof areaFrame>;
+  /** The route's own parts (`/jobs/:id/setup`) and the query: what the screen is of. */
+  readonly params?: Readonly<Record<string, string>>;
+  readonly search?: Readonly<Record<string, string>>;
 }
 
 type Act = (name: string, variables: Readonly<Record<string, unknown>>) => Promise<Done>;
@@ -40,6 +43,8 @@ function ActScreen({
   route,
   load,
   frame,
+  params = {},
+  search = {},
   area,
   act,
 }: ActScreenProps & {
@@ -79,6 +84,8 @@ function ActScreen({
       route={route}
       props={{
         load: loadable,
+        params,
+        search,
         onNavigate: go,
         onFilter: (patch: Readonly<Record<string, string | null>>) => {
           go(withQuery(window.location.pathname, window.location.search, patch));
