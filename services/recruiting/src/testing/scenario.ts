@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { CalendarDate, Instant, JobSearch, TenantId, type PersonId } from '@kithena/contracts';
+import {
+  CalendarDate,
+  Instant,
+  JobSearch,
+  TenantId,
+  type LaunchCountry,
+  type PersonId,
+} from '@kithena/contracts';
 import type { Clock } from '@kithena/domain-kit';
 import { expect } from 'vitest';
 
@@ -23,6 +30,7 @@ import {
 import {
   candidateAccepts,
   composeOffer,
+  decidePrehireCondition,
   offerForCandidate,
   sendTheOffer,
   submitOfferForApproval,
@@ -75,7 +83,145 @@ export interface Harness {
 
 const SCORECARD = '0190a000-0000-7000-8000-00000000005c';
 
-export async function hireInSpain(h: Harness): Promise<void> {
+/** Where the hire happens: the entity, the office, and terms the country's pack accepts (§19). */
+export interface Place {
+  readonly country: LaunchCountry;
+  readonly currency: string;
+  readonly entity: string;
+  /** As the country's job-ad rules want it: Germany's names every gender. */
+  readonly jobTitle: string;
+  readonly office: { readonly region: string; readonly city: string; readonly timeZone: string };
+  readonly fullTimeWeeklyMinutes: number;
+  /** The offer's terms, as composed on R21. */
+  readonly terms: Record<string, unknown> & {
+    readonly contractType: string;
+    readonly annualPayMinor: number;
+    readonly paymentsPerYear: number;
+  };
+  readonly probationEnd: string | null;
+}
+
+const month = { count: 1, unit: 'months' } as const;
+const common = {
+  relationship: 'employee',
+  workMode: 'hybrid',
+  hybridDaysOnsite: 3,
+  agreement: null,
+  paymentsPerYear: 12,
+  benefitIds: [],
+  nonCompeteMonths: null,
+  mobilityClause: false,
+} as const;
+
+/** One per launch country (REC-099). */
+export const PLACES: Readonly<Record<LaunchCountry, Place>> = {
+  ES: {
+    country: 'ES',
+    jobTitle: 'Product Designer',
+    currency: 'EUR',
+    entity: 'Acme Iberia SL',
+    office: { region: 'MD', city: 'Madrid', timeZone: 'Europe/Madrid' },
+    fullTimeWeeklyMinutes: 2400,
+    terms: {
+      ...common,
+      region: 'MD',
+      contractType: 'indefinido',
+      roleGroup: 'qualified',
+      weeklyMinutes: 2400,
+      probation: { count: 6, unit: 'months' },
+      noticeEmployee: { count: 15, unit: 'days' },
+      noticeEmployer: { count: 15, unit: 'days' },
+      agreement: { key: 'consultoria', group: 'grupo_1' },
+      annualPayMinor: 5_300_000,
+      paymentsPerYear: 14,
+    },
+    probationEnd: '2027-05-31',
+  },
+  DE: {
+    country: 'DE',
+    jobTitle: 'Product Designer (m/w/d)',
+    currency: 'EUR',
+    entity: 'Acme GmbH',
+    office: { region: 'BE', city: 'Berlin', timeZone: 'Europe/Berlin' },
+    fullTimeWeeklyMinutes: 2400,
+    terms: {
+      ...common,
+      region: 'BE',
+      contractType: 'unbefristet',
+      weeklyMinutes: 2400,
+      probation: { count: 6, unit: 'months' },
+      noticeEmployee: { count: 4, unit: 'weeks' },
+      noticeEmployer: { count: 4, unit: 'weeks' },
+      annualPayMinor: 7_800_000,
+    },
+    probationEnd: '2027-05-31',
+  },
+  GB: {
+    country: 'GB',
+    jobTitle: 'Product Designer',
+    currency: 'GBP',
+    entity: 'Acme UK Ltd',
+    office: { region: 'ENG', city: 'London', timeZone: 'Europe/London' },
+    fullTimeWeeklyMinutes: 2400,
+    terms: {
+      ...common,
+      region: 'ENG',
+      contractType: 'permanent',
+      weeklyMinutes: 2400,
+      probation: { count: 3, unit: 'months' },
+      noticeEmployee: month,
+      noticeEmployer: month,
+      annualPayMinor: 6_000_000,
+    },
+    probationEnd: null,
+  },
+  IN: {
+    country: 'IN',
+    jobTitle: 'Product Designer',
+    currency: 'INR',
+    entity: 'Acme India Pvt Ltd',
+    office: { region: 'KA', city: 'Bengaluru', timeZone: 'Asia/Kolkata' },
+    fullTimeWeeklyMinutes: 2880,
+    terms: {
+      ...common,
+      region: 'KA',
+      contractType: 'permanent',
+      weeklyMinutes: 2880,
+      probation: { count: 6, unit: 'months' },
+      noticeEmployee: { count: 30, unit: 'days' },
+      noticeEmployer: { count: 30, unit: 'days' },
+      annualPayMinor: 180_000_000,
+    },
+    probationEnd: null,
+  },
+  US: {
+    country: 'US',
+    jobTitle: 'Product Designer',
+    currency: 'USD',
+    entity: 'Acme Inc',
+    office: { region: 'CA', city: 'San Francisco', timeZone: 'America/Los_Angeles' },
+    fullTimeWeeklyMinutes: 2400,
+    terms: {
+      ...common,
+      region: 'CA',
+      contractType: 'at_will_full_time',
+      weeklyMinutes: 2400,
+      probation: null,
+      noticeEmployee: { count: 0, unit: 'days' },
+      noticeEmployer: { count: 0, unit: 'days' },
+      annualPayMinor: 12_000_000,
+      exempt: true,
+    },
+    probationEnd: null,
+  },
+};
+
+export const hireInSpain = (h: Harness): Promise<void> => hireIn(h, PLACES.ES);
+
+/** One candidate from a requisition to a pre-hire in `place`, Recruiting alone. */
+export async function hireIn(h: Harness, place: Place): Promise<void> {
+  const pay = place.terms.annualPayMinor;
+  const band = { min: Math.round(pay * 0.9), max: Math.round(pay * 1.1) };
   const tenantId = TenantId.parse(randomUUID());
   let now = Date.parse('2026-10-15T08:00:00Z');
   const clock: Clock = {
@@ -165,10 +311,10 @@ export async function hireInSpain(h: Harness): Promise<void> {
     value(
       await saveEntity(ctx, {
         id: entityId,
-        name: 'Acme Iberia SL',
-        country: 'ES',
-        currency: 'EUR',
-        fullTimeWeeklyMinutes: 2400,
+        name: place.entity,
+        country: place.country,
+        currency: place.currency,
+        fullTimeWeeklyMinutes: place.fullTimeWeeklyMinutes,
         headcount: 80,
         foundedOn: null,
         worksCouncil: false,
@@ -178,12 +324,12 @@ export async function hireInSpain(h: Harness): Promise<void> {
     value(
       await saveLocation(ctx, {
         id: locationId,
-        name: 'Madrid',
+        name: place.office.city,
         entityId,
-        country: 'ES',
-        region: 'MD',
-        city: 'Madrid',
-        timeZone: 'Europe/Madrid',
+        country: place.country,
+        region: place.office.region,
+        city: place.office.city,
+        timeZone: place.office.timeZone,
       }),
     );
     value(
@@ -204,7 +350,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
     value(
       await saveRequisition(ctx, {
         id: requisitionId,
-        title: 'Product Designer',
+        title: place.jobTitle,
         orgUnitId: null,
         hiringManagerId: people.marco,
         legalEntityId: entityId,
@@ -215,8 +361,8 @@ export async function hireInSpain(h: Harness): Promise<void> {
         reason: 'new_role',
         replacesPersonId: null,
         budget: {
-          from: { amountMinor: 4_800_000, currency: 'EUR' },
-          to: { amountMinor: 5_800_000, currency: 'EUR' },
+          from: { amountMinor: band.min, currency: place.currency },
+          to: { amountMinor: band.max, currency: place.currency },
         },
         justification: 'Growth squad',
         state: 'draft',
@@ -235,7 +381,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
     const job = value(
       await createJob(ctx, {
         id: jobId,
-        title: 'Product Designer',
+        title: place.jobTitle,
         internalTitle: 'Designer, Growth',
         requisitionIds: [requisitionId],
         entityId,
@@ -251,7 +397,12 @@ export async function hireInSpain(h: Harness): Promise<void> {
       await saveJobDetails(ctx, jobId, {
         ...job,
         salaryShown: true,
-        salary: { minMinor: 4_800_000, maxMinor: 5_800_000, currency: 'EUR', period: 'year' },
+        salary: {
+          minMinor: band.min,
+          maxMinor: band.max,
+          currency: place.currency,
+          period: 'year',
+        },
         scorecardTemplateId: SCORECARD,
       }),
     );
@@ -268,7 +419,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
       ]),
     );
     const ad = value(
-      await saveAd(ctx, jobId, 'en', 'Product Designer', {
+      await saveAd(ctx, jobId, 'en', place.jobTitle, {
         type: 'doc',
         content: [
           { type: 'paragraph', content: [{ type: 'text', text: 'Design the product with us.' }] },
@@ -290,7 +441,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
   });
   const found = await h.jobs.search(JobSearch.parse({ q: 'designer' }));
   expect(found.rows.map((l) => [l.title, l.searchable, l.company.slug])).toEqual([
-    ['Product Designer', true, 'acme'],
+    [place.jobTitle, true, 'acme'],
   ]);
   expect(found.total).toBe(1);
   expect((await h.jobs.search(JobSearch.parse({ q: 'plumber' }))).rows).toEqual([]);
@@ -352,7 +503,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
       await scheduleInterview(ctx, applied.applicationId, {
         planKey: 'portfolio',
         startsAt: Instant.parse(slots[0] ?? ''),
-        place: 'Madrid office',
+        place: `${place.office.city} office`,
         videoUrl: null,
       }),
     );
@@ -458,6 +609,24 @@ export async function hireInSpain(h: Harness): Promise<void> {
     expect(portal.submissions.map((x) => x.candidate)).toEqual(['Lucía Pérez']);
     expect((await agencyPortal(ctx, 'not-a-token')).ok).toBe(false);
   });
+  // §33: another agency sees none of the first one's candidates.
+  await uow.run(tenantId, (tx) =>
+    tx.agencies.save({
+      id: randomUUID(),
+      name: 'Other Search',
+      contactEmail: 'desk@other.example',
+      fee: { kind: 'fixed', amountMinor: 500_000 },
+      guaranteeDays: 90,
+      ownershipMonths: 6,
+      active: true,
+      jobIds: [jobId],
+    }),
+  );
+  await as('public', async (ctx) => {
+    const { code } = value(await requestAgencyCode(ctx, 'desk@other.example'));
+    const { token } = value(await openAgencySession(ctx, 'desk@other.example', code ?? ''));
+    expect(value(await agencyPortal(ctx, token)).submissions).toEqual([]);
+  });
   now = Date.parse('2026-10-19T15:00:00Z');
   await as('adam', async (ctx) => {
     value(await setInterviewState(ctx, interviewId, 'completed'));
@@ -474,27 +643,10 @@ export async function hireInSpain(h: Harness): Promise<void> {
     value(await moveApplication(ctx, applied.applicationId, offerStage));
     const drafted = value(
       await composeOffer(ctx, applied.applicationId, {
-        terms: {
-          region: 'MD',
-          relationship: 'employee',
-          contractType: 'indefinido',
-          roleGroup: 'qualified',
-          weeklyMinutes: 2400,
-          probation: { count: 6, unit: 'months' },
-          noticeEmployee: { count: 15, unit: 'days' },
-          noticeEmployer: { count: 15, unit: 'days' },
-          workMode: 'hybrid',
-          hybridDaysOnsite: 3,
-          agreement: { key: 'consultoria', group: 'grupo_1' },
-          annualPayMinor: 5_300_000,
-          paymentsPerYear: 14,
-          benefitIds: [],
-          nonCompeteMonths: null,
-          mobilityClause: false,
-        },
+        terms: place.terms,
         pay: {
-          baseMinor: 5_300_000,
-          currency: 'EUR',
+          baseMinor: pay,
+          currency: place.currency,
           frequency: 'year',
           variableTargetMinor: 0,
           signOnMinor: 0,
@@ -531,6 +683,12 @@ export async function hireInSpain(h: Harness): Promise<void> {
     const fileId = (await ctx.tx.files.of(candidate?.id ?? ''))[0]?.id ?? '';
     value(await uploadSignedContract(ctx, offer.id, fileId, CalendarDate.parse('2026-10-20')));
   });
+  // Whatever the country's pack made a condition (a right-to-work check, say) is checked and met.
+  await as('ada', async (ctx) => {
+    for (const c of (await ctx.tx.prehires.get(applied.applicationId))?.conditions ?? [])
+      if (c.state === 'open')
+        value(await decidePrehireCondition(ctx, applied.applicationId, c.kind, 'met', null));
+  });
 
   const events = (await h.events(tenantId)).map((e) => e.eventName);
   expect(events).toEqual(
@@ -557,10 +715,10 @@ export async function hireInSpain(h: Harness): Promise<void> {
   expect(hired?.payload).toMatchObject({
     candidate: { givenName: 'Yuki', familyName: 'Sato', email: 'yuki@example.com' },
     terms: {
-      country: 'ES',
-      contractType: 'indefinido',
-      paymentsPerYear: 14,
-      probationEnd: '2027-05-31',
+      country: place.country,
+      contractType: place.terms.contractType,
+      paymentsPerYear: place.terms.paymentsPerYear,
+      ...(place.probationEnd === null ? {} : { probationEnd: place.probationEnd }),
     },
     startDate: '2026-12-01',
   });

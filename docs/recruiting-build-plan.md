@@ -204,7 +204,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ### Standalone
 
-- [ ] **REC-099** Acceptance: one candidate from requisition to pre-hire per
+- [x] **REC-099** Acceptance: one candidate from requisition to pre-hire per
       launch country, with People, Documents and Time Off absent and the AI
       keys unset; the access cases in PRD §33.
 
