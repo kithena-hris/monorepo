@@ -787,6 +787,19 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
           tx,
           sql`s.interview_id IN (SELECT id FROM recruiting.interview WHERE application_id = ${applicationId})`,
         ),
+      scorecardNotes: async (applicationId) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT s.interview_id, s.interviewer_id, s.notes FROM recruiting.scorecard s
+                WHERE s.submitted_at IS NOT NULL AND s.notes IS NOT NULL AND s.notes <> ''
+                  AND s.interview_id IN (SELECT id FROM recruiting.interview WHERE application_id = ${applicationId})`,
+          )
+        ).map((r) => ({
+          interviewId: String(r['interview_id']),
+          interviewerId: String(r['interviewer_id']),
+          notes: String(r['notes']),
+        })),
       saveScorecard: async (card) => {
         await tx.execute(sql`INSERT INTO recruiting.scorecard (tenant_id, interview_id, interviewer_id, recommendation, notes, submitted_at)
           VALUES (${T}, ${card.interviewId}, ${card.interviewerId}, ${card.recommendation}, ${card.notes}, ${card.submittedAt})

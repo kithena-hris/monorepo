@@ -403,6 +403,16 @@ export interface InterviewStore {
   save(interview: InterviewRecord): Promise<void>;
   scorecards(interviewId: string): Promise<readonly Scorecard[]>;
   forApplicationScorecards(applicationId: string): Promise<readonly Scorecard[]>;
+  /** The submitted scorecards' notes, read only by the debrief summary. */
+  scorecardNotes(
+    applicationId: string,
+  ): Promise<
+    readonly {
+      readonly interviewId: string;
+      readonly interviewerId: string;
+      readonly notes: string;
+    }[]
+  >;
   saveScorecard(card: Scorecard & { readonly notes: string | null }): Promise<void>;
   /** Scorecards owed by a person: interviews completed and not submitted. */
   owedBy(personId: string): Promise<readonly InterviewRecord[]>;

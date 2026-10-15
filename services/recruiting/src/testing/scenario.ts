@@ -72,6 +72,7 @@ import {
 } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
+import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, suggestQuestions, translateAd } from '../application/writer.js';
 import { poolsScreen } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -577,14 +578,12 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         return Promise.resolve(
           prompt.instruction === MATRIX.instruction
             ? JSON.stringify({
-                findings: [
-                  {
-                    criterionId: criterionId,
-                    verdict: 'met',
-                    passages: ['product designer'],
-                    why: 'Says so.',
-                  },
-                ],
+                findings: (prompt.context['criteria'] as { id: string }[]).map((c) => ({
+                  criterionId: c.id,
+                  verdict: 'met',
+                  passages: ['product designer'],
+                  why: 'Says so.',
+                })),
               })
             : prompt.instruction === PARSER.instruction
               ? JSON.stringify({
@@ -658,7 +657,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     if (first !== null) await tx.jobs.save({ ...first, id: secondJobId, slug: 'lead-designer' });
     await tx.jobs.setTeam(secondJobId, [{ personId: people.ada, role: 'recruiter' }]);
     await tx.jobs.setCriteria(secondJobId, [
-      { id: criterionId, text: 'Product design', must: true, weight: 3 },
+      { id: randomUUID(), text: 'Product design', must: true, weight: 3 },
     ]);
   });
   const rediscovered = value(
@@ -688,22 +687,29 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         prompt: { instruction: string; context: Readonly<Record<string, unknown>> },
       ) =>
         Promise.resolve(
-          prompt.instruction.startsWith('You suggest interview questions')
+          prompt.instruction.startsWith('You summarise interview scorecards')
             ? JSON.stringify({
-                competencies: [
-                  { key: 'craft', questions: ['Tell us about a design you shipped.'] },
-                  { key: 'made_up', questions: ['Ignored.'] },
+                sentences: [
+                  { text: 'Craft was rated strong.', cites: ['s1'] },
+                  { text: 'Hire.', cites: [] },
                 ],
               })
-            : prompt.instruction.startsWith('You translate')
+            : prompt.instruction.startsWith('You suggest interview questions')
               ? JSON.stringify({
-                  title: 'Diseño de producto',
-                  pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+                  competencies: [
+                    { key: 'craft', questions: ['Tell us about a design you shipped.'] },
+                    { key: 'made_up', questions: ['Ignored.'] },
+                  ],
                 })
-              : JSON.stringify({
-                  title: place.jobTitle,
-                  sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
-                }),
+              : prompt.instruction.startsWith('You translate')
+                ? JSON.stringify({
+                    title: 'Diseño de producto',
+                    pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+                  })
+                : JSON.stringify({
+                    title: place.jobTitle,
+                    sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
+                  }),
         ),
     },
   };
@@ -848,6 +854,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       }),
     );
   });
+  // R17: a summary keeps only sentences that cite a scorecard; "Hire." is the manager's to say.
+  const summary = value(await asWriter((ctx) => summariseDebrief(ctx, applied.applicationId)));
+  expect(summary.sentences.map((x) => x.text)).toEqual(['Craft was rated strong.']);
+
   const offer = await as('ada', async (ctx) => {
     value(await moveApplication(ctx, applied.applicationId, offerStage));
     const drafted = value(

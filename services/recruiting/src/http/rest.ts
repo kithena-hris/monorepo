@@ -138,6 +138,7 @@ import {
 } from '../application/agency-portal.js';
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
 import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
+import { summariseDebrief } from '../application/debrief-summary.js';
 import { importMembers } from '../application/members.js';
 import { draftAd, explainPhrase, suggestQuestions, translateAd } from '../application/writer.js';
 import {
@@ -1007,6 +1008,14 @@ export const ROUTES: readonly Route[] = [
       'R10: pool members with live consent, read against this job’s criteria, strongest first',
     params: z.object({ jobId: Id }),
     run: (ctx, { params }) => rediscover(ctx, params.jobId),
+  }),
+  route({
+    name: 'summariseDebrief',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/debrief-summary`,
+    summary: 'R17: the scorecards summarised, every sentence citing its sources',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => summariseDebrief(ctx, params.applicationId),
   }),
   route({
     name: 'agreeWithFinding',

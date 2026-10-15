@@ -433,6 +433,23 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
       saveScorecard: (c) => {
         cards.set(`${c.interviewId}:${c.interviewerId}`, c);
       },
+      scorecardNotes: (applicationId) => {
+        const ids = new Set(
+          interviews
+            .values()
+            .filter((i) => i.applicationId === applicationId)
+            .map((i) => i.id),
+        );
+        return cards
+          .values()
+          .filter((c) => ids.has(c.interviewId) && c.submittedAt !== null)
+          .flatMap((c) => {
+            const notes = (c as { notes?: string | null }).notes ?? null;
+            return notes === null || notes === ''
+              ? []
+              : [{ interviewId: c.interviewId, interviewerId: c.interviewerId, notes }];
+          });
+      },
       owedBy: (person) =>
         interviews
           .values()

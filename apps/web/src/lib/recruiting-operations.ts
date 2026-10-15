@@ -156,6 +156,7 @@ export const OPERATIONS = {
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   ParseCv: write('ParseCv', 'parseCv', ...ID('applicationId'), false),
   AssessMatrix: write('AssessMatrix', 'assessMatrix', ...ID('applicationId'), false),
+  SummariseDebrief: write('SummariseDebrief', 'summariseDebrief', ...ID('applicationId'), false),
   Rediscover: write('Rediscover', 'rediscover', ...ID('jobId'), false),
   DraftAd: write('DraftAd', 'draftAd', ...ID('jobId')),
   ExplainAdPhrase: write('ExplainAdPhrase', 'explainAdPhrase', ...ID('jobId')),

@@ -696,6 +696,10 @@ function DebriefBody({
   const act = useAct(props);
   const [decision, setDecision] = useState<'advance' | 'reject' | 'offer'>('advance');
   const [reason, setReason] = useState('');
+  const [summary, setSummary] = useState<{
+    sentences: readonly { text: string; cites: readonly string[] }[];
+    sources: readonly { id: string; interviewerId: string }[];
+  } | null>(null);
   const applicationId = props.params?.['id'] ?? '';
   const people = [...new Set(data.rows.flatMap((r) => r.ratings.map((x) => x.interviewerId)))];
   const name = (key: string) => data.competencies.find((c) => c.key === key)?.name ?? words(key);
@@ -706,6 +710,47 @@ function DebriefBody({
         description={`${data.job.title} · averages and disagreements computed by Kithena`}
       />
       <Refusal error={act.error} />
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>Summary</CardTitle>
+          <CardDescription>
+            Written by a model from the scorecards; every line names the scorecards it came from. It
+            never recommends: that is yours.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {summary === null ? (
+            <Button
+              variant="secondary"
+              loading={act.pending}
+              disabled={data.submitted === 0}
+              onClick={() => {
+                act.run('SummariseDebrief', { applicationId }, (d) => {
+                  setSummary(d as NonNullable<typeof summary>);
+                });
+              }}
+            >
+              Summarise the scorecards
+            </Button>
+          ) : (
+            <ul className="flex flex-col gap-1 text-sm">
+              {summary.sentences.map((x) => (
+                <li key={x.text}>
+                  {x.text}{' '}
+                  <span className="text-fg-muted">
+                    {`(${x.cites
+                      .map((c) => {
+                        const by = summary.sources.find((s) => s.id === c)?.interviewerId ?? '';
+                        return data.names[by] ?? c;
+                      })
+                      .join(', ')})`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <CardHeader>
