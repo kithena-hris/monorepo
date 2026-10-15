@@ -70,9 +70,12 @@ describe('masking before a model reads an application (PRD §14.6)', () => {
 
   it('masks a profile link, not a site whose name ends like one', () => {
     expect(
-      maskApplication('Built dropbox.com/developers apps; see x.com/yuki', yuki, { schools: false })
-        .text,
-    ).toBe('Built dropbox.com/developers apps; see [masked]');
+      maskApplication(
+        'Built dropbox.com/developers apps; see x.com/yuki (https://www.linkedin.com/in/ys)',
+        yuki,
+        { schools: false },
+      ).text,
+    ).toBe('Built dropbox.com/developers apps; see [masked] ([masked])');
   });
 
   it('removes schools only when the company asks', () => {

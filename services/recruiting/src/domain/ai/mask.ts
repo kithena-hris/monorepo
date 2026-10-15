@@ -51,10 +51,6 @@ const escape = (s: string) => s.replace(ESCAPE, '\\$&');
 
 const SHAPES: readonly (readonly [Masked, RegExp])[] = [
   ['contact', /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gu],
-  [
-    'contact',
-    /\b(?:https?:\/\/)?(?:www\.)?(?:linkedin|github|xing|instagram|facebook|twitter|x)\.com\/\S+/giu,
-  ],
   // A phone number starts with +, a bracketed area code or a trunk 0, so "2018 - 2022" stays.
   ['contact', /(?:\+\d|\(\d{2,4}\)|\b0\d)[\d ()./-]{6,}\d/gu],
   ['address', /\b(?:calle|c\/|avenida|avda\.?|plaza|paseo|carrer)\s+[^,\n]+,?/giu],
@@ -82,6 +78,29 @@ const SHAPES: readonly (readonly [Masked, RegExp])[] = [
     /\b(?:trade union|labou?r union|union member\w*|gewerkschaft\w*|sindicato)\b(?:\s+[A-Z]{2,}\b)?/gu,
   ],
 ];
+
+// A profile link is judged by its parsed host, not a pattern, so "dropbox.com/…"
+// is not taken for "x.com/…".
+const PROFILES = [
+  'linkedin.com',
+  'github.com',
+  'xing.com',
+  'instagram.com',
+  'facebook.com',
+  'twitter.com',
+  'x.com',
+];
+// Brackets stay in: the name may already be "[masked]" inside the link.
+const LINKISH = /[^\s()<>"',;]+/gu;
+const isProfile = (word: string): boolean => {
+  if (!word.includes('/')) return false;
+  try {
+    const { hostname } = new URL(/^https?:\/\//iu.test(word) ? word : `https://${word}`);
+    return PROFILES.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
+  }
+};
 
 // Case matters here: a school's name is the capitalised words beside the keyword.
 const KEYWORD = String.raw`(?:University|Universität|Universidad|College|Institute|Hochschule|School|Escuela|Instituto)`;
@@ -139,6 +158,11 @@ export function maskApplication(
   }
 
   // 3. Shapes and words where they stand.
+  out = out.replace(LINKISH, (word) => {
+    if (!isProfile(word)) return word;
+    count('contact');
+    return tag('contact');
+  });
   for (const [kind, pattern] of SHAPES)
     out = out.replace(pattern, () => {
       count(kind);
