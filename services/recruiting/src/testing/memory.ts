@@ -555,7 +555,7 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
         publicState.listings.set(`${job.jobId}:${job.language}`, { job: clone(job), tsv });
       },
       removeListing: (jobId) => {
-        for (const key of [...publicState.listings.keys()])
+        for (const key of publicState.listings.keys())
           if (key.startsWith(`${jobId}:`)) publicState.listings.delete(key);
       },
     },
