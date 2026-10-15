@@ -297,6 +297,15 @@ of its progress. Its screens are the **Kithena Documents** pages (web and
 mobile) in the same Claude Design project. `documents` goes to `main` as one
 pull request.
 
+**The Recruiting module is specified on the `recruiting` branch, and not yet
+built.** Requirements are in `docs/recruiting-prd.md`; Part II of the same file
+specifies the Onboarding module, which is a separate module (`onboarding` in
+`ModuleKey`). The tickets, `REC-001` to `REC-150` and `ONB-001` to `ONB-015`,
+are in `docs/recruiting-build-plan.md`, which is the record of progress. The
+public job site is a new app, `apps/jobs`. Its AI phase waits on a proposed
+decision (PRD §22.2): that a model may read an application, as it may read a
+document.
+
 ## Adding a module
 
 1. `services/<name>/module.manifest.ts` with `dependsOn: []`. If that array
