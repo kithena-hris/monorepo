@@ -310,4 +310,5 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
   a store outside a tenant's rows; candidates' replies (REC-049) need Resend
   receiving on a domain, `INBOUND_DOMAIN` and the webhook, which are set up
   after merge; the AWS bucket for Recruiting's files is still to create.
-  Phase 2 waits on PRD §22.2 (a model may read an application).
+  Phase 2 builds on PRD §22.2 (a model may read an application), decided for
+  review in `docs/tech-stack.md`, "Recruiting".
