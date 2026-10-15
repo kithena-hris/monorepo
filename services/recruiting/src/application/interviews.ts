@@ -92,7 +92,7 @@ export async function slotsFor(
 export interface Booking {
   readonly planKey: string;
   readonly startsAt: Instant;
-  readonly interviewerIds?: readonly string[];
+  readonly interviewerIds?: readonly string[] | undefined;
   readonly place: string | null;
   readonly videoUrl: string | null;
 }

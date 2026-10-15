@@ -1690,6 +1690,12 @@ importers:
 
   services/recruiting:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1141.0
+        version: 3.1141.0
+      '@kithena/auth-kit':
+        specifier: workspace:*
+        version: link:../../packages/auth-kit
       '@kithena/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -1699,6 +1705,9 @@ importers:
       '@kithena/domain-kit':
         specifier: workspace:*
         version: link:../../packages/domain-kit
+      '@kithena/graphql-kit':
+        specifier: workspace:*
+        version: link:../../packages/graphql-kit
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
@@ -1708,9 +1717,21 @@ importers:
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(postgres@3.4.9)
+      graphql:
+        specifier: ^16.11.0
+        version: 16.14.2
+      graphql-yoga:
+        specifier: ^5.24.1
+        version: 5.24.1(graphql@16.14.2)
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
       postgres:
         specifier: ^3.4.5
         version: 3.4.9
+      unpdf:
+        specifier: 1.8.1
+        version: 1.8.1(@napi-rs/canvas@1.0.11)
       zod:
         specifier: ^4.6.5
         version: 4.6.5

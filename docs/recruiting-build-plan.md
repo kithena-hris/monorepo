@@ -111,7 +111,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-040** Atlas migrations for every table in §31.1, expand-contract.
 - [x] **REC-041** Drizzle repositories, with integration tests against
       Postgres 18.
-- [ ] **REC-042** File storage port (S3, SeaweedFS, in memory) and text
+- [x] **REC-042** File storage port (S3, SeaweedFS, in memory) and text
       extraction for PDF, DOCX and ODT, written in Recruiting (Documents'
       approach, copied, not imported). §14.1.
 - [x] **REC-043** Public projection written in the job's own transaction (no dual write), with a
@@ -129,7 +129,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       send time, stage automations. §12.
 - [ ] **REC-049** Messages: send through `platform/messaging`, inbound
       replies from Resend's webhook, templates. §12.7.
-- [ ] **REC-050** Talent pools; consent renewal and expiry job (BullMQ). §13.
+- [x] **REC-050** Talent pools; consent renewal and expiry job (BullMQ). §13.
 - [ ] **REC-051** Scheduling without calendars: working hours, self-scheduling
       links, panels, `.ics`, reminders. §16.4.
 - [x] **REC-052** Scorecards, Inbox tasks, debrief, decision. §16.5–§16.7.
@@ -146,8 +146,8 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ### Transports
 
-- [ ] **REC-060** GraphQL subgraph `recruiting`, one query per screen.
-- [ ] **REC-061** REST `/v1/recruiting/...`, OpenAPI, idempotency keys.
+- [x] **REC-060** GraphQL subgraph `recruiting`, one query per screen.
+- [x] **REC-061** REST `/v1/recruiting/...`, OpenAPI, idempotency keys.
 - [ ] **REC-062** Public API, XML feed, `JobPosting` JSON-LD builder. §32.
 - [ ] **REC-063** Signed webhooks for every published event.
 - [ ] **REC-064** Inbox source: Recruiting's answer, one line in

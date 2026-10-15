@@ -15,6 +15,10 @@ subgraphs:
     routing_url: http://host.docker.internal:4003/graphql
     schema:
       file: ../../services/documents/schemas/documents.graphql
+  - name: recruiting
+    routing_url: http://host.docker.internal:4005/graphql
+    schema:
+      file: ../../services/recruiting/schemas/recruiting.graphql
   - name: audit
     routing_url: http://host.docker.internal:4103/graphql
     schema:

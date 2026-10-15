@@ -457,13 +457,11 @@ export function memoryHarness(uow: MemoryUnitOfWork, blobs: Blobs): Harness {
     blobs,
     events: (tenantId) =>
       Promise.resolve(
-        uow
-          .events(tenantId as never)
-          .map((e) => ({
-            eventName: e.eventName,
-            payload: e.payload,
-            effectiveFrom: e.effectiveFrom,
-          })),
+        uow.events(tenantId as never).map((e) => ({
+          eventName: e.eventName,
+          payload: e.payload,
+          effectiveFrom: e.effectiveFrom,
+        })),
       ),
     listings: () =>
       Promise.resolve(

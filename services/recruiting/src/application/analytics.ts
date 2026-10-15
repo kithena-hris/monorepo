@@ -34,9 +34,9 @@ const PERIOD_DAYS: Readonly<Record<Period, number>> = {
 
 export interface Filters {
   readonly period: Period;
-  readonly jobId?: string;
-  readonly department?: string;
-  readonly source?: string;
+  readonly jobId?: string | undefined;
+  readonly department?: string | undefined;
+  readonly source?: string | undefined;
 }
 
 async function facts(ctx: Ctx, filters: Filters): Promise<AppFacts[]> {

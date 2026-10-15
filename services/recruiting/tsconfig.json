@@ -27,6 +27,12 @@
     },
     {
       "path": "../../packages/testing"
+    },
+    {
+      "path": "../../packages/graphql-kit"
+    },
+    {
+      "path": "../../packages/auth-kit"
     }
   ]
 }

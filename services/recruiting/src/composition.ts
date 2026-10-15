@@ -1,25 +1,72 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { createYoga } from 'graphql-yoga';
+import { TenantId } from '@kithena/contracts';
+import { logger } from '@kithena/telemetry';
+
+import type { Deps, UnitOfWork } from './application/ports.js';
+import { yogaOptions } from './graphql/schema.js';
+import { callerFromHeaders, withMember, type RecordedEntitlements } from './http/caller.js';
+import { recruitingListener, recruitingServer } from './http/server.js';
+import { blobsFrom } from './infrastructure/blobs.js';
+import { uuidv7 } from './infrastructure/ids.js';
+import { mailerFrom } from './infrastructure/messaging.js';
+import { extract } from './infrastructure/text.js';
+import { drizzleUnitOfWork, recruitingDatabase } from './infrastructure/unit-of-work.js';
+
+/**
+ * Recruiting's composition root (REC-004, REC-060), Documents' shape. With
+ * `RECRUITING_DATABASE_URL`: the Drizzle unit of work, the sealed blob store,
+ * and the router's caller resolved to the member it signs in as. Without it,
+ * `/healthz` and the schema only, every field UNAVAILABLE — what
+ * `just supergraph` reads.
+ */
 
 type Listener = (request: IncomingMessage, response: ServerResponse) => void;
 
 export interface Composed {
   readonly listener: Listener;
+  readonly storage: {
+    readonly db: PostgresJsDatabase;
+    readonly uow: UnitOfWork;
+    readonly deps: Deps;
+  } | null;
 }
 
-/**
- * Recruiting's composition root. Phase 0 (REC-004): the process boots and
- * answers `/healthz`; the transports join it as they land (REC-060 on).
- */
-export function composeRecruiting(_env: NodeJS.ProcessEnv = process.env): Promise<Composed> {
-  return Promise.resolve({
-    listener: (request, response) => {
-      if (request.method === 'GET' && request.url === '/healthz') {
-        response.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
-        return;
-      }
-      response
-        .writeHead(404, { 'content-type': 'application/json' })
-        .end('{"error":{"code":"NOT_FOUND","message":"No such route"}}');
+export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise<Composed> {
+  const db = recruitingDatabase(env);
+  if (db === null) {
+    logger.warn(
+      { module: 'recruiting' },
+      'RECRUITING_DATABASE_URL is not set; serving the schema only',
+    );
+    const yoga = createYoga(yogaOptions);
+    return Promise.resolve({
+      listener: recruitingListener((request, response) => {
+        void yoga(request, response);
+      }),
+      storage: null,
+    });
+  }
+  const uow = drizzleUnitOfWork(db);
+  const internalToken = env['RECRUITING_API_TOKEN'] ?? env['INTERNAL_API_TOKEN'] ?? '';
+  const recorded: RecordedEntitlements = async (tenantId) => {
+    const kept = (await uow.run(TenantId.parse(tenantId), (tx) =>
+      tx.settings.get('entitlements'),
+    )) as { entitlements: string[] } | null;
+    return kept?.entitlements ?? null;
+  };
+  const mailer = mailerFrom(env);
+  const { listener, deps } = recruitingServer(
+    {
+      uow,
+      blobs: blobsFrom(env),
+      jobsOrigin: env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com',
+      extractText: extract,
+      callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
+      ...(mailer === undefined ? {} : { mailer }),
     },
-  });
+    uuidv7,
+  );
+  return Promise.resolve({ listener, storage: { db, uow, deps } });
 }
