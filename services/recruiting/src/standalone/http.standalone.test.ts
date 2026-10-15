@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createServer, type Server } from 'node:http';
+import { createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -163,5 +163,28 @@ describe('Kithena Jobs’ reads', () => {
     expect((await fetch(`${base}/v1/recruiting/listings?page=0`)).status).toBe(400);
     expect((await fetch(`${base}/v1/recruiting/companies/nobody`)).status).toBe(404);
     expect((await fetch(`${base}/v1/recruiting/listings/nobody/a-job`)).status).toBe(404);
+  });
+
+  it('lets Kithena Jobs’ pages call the public API from the browser, and nobody else', async () => {
+    // fetch will not send an Origin of our choosing; a bare request will.
+    const asked = (origin: string) =>
+      new Promise<{ status: number; allow: string | undefined }>((resolve, reject) => {
+        request(
+          `${base}/v1/recruiting/public/acme/codes`,
+          { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'POST' } },
+          (res) => {
+            res.resume();
+            resolve({
+              status: res.statusCode ?? 0,
+              allow: res.headers['access-control-allow-origin'] as string | undefined,
+            });
+          },
+        )
+          .on('error', reject)
+          .end();
+      });
+    const jobs = await asked('https://jobs.example');
+    expect(jobs).toEqual({ status: 204, allow: 'https://jobs.example' });
+    expect((await asked('https://evil.example')).allow).toBeUndefined();
   });
 });

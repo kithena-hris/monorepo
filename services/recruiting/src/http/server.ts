@@ -32,9 +32,31 @@ export function recruitingListener(
   graphql: Listener,
   rest?: RestDispatch,
   listings?: Listings,
+  publicOrigin?: string,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
+    // Kithena Jobs' pages call the public API from the browser: a CV is up to
+    // 10 MB, past what a serverless function will relay. Only that origin, only
+    // the public routes, and no cookies, so a token travels in its header.
+    if (
+      publicOrigin !== undefined &&
+      request.headers.origin === publicOrigin &&
+      (request.url ?? '').startsWith('/v1/recruiting/public/')
+    ) {
+      response.setHeader('access-control-allow-origin', publicOrigin);
+      response.setHeader('vary', 'origin');
+      if (request.method === 'OPTIONS') {
+        response
+          .writeHead(204, {
+            'access-control-allow-methods': 'GET, POST',
+            'access-control-allow-headers': 'content-type, x-candidate-token',
+            'access-control-max-age': '600',
+          })
+          .end();
+        return;
+      }
+    }
     if (request.method === 'GET' && request.url === '/healthz') {
       response.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
       return;
@@ -126,6 +148,7 @@ export function recruitingServer(
       },
       rest,
       options.listings,
+      options.jobsOrigin,
     ),
   };
 }
