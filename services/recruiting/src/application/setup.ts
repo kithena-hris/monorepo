@@ -53,6 +53,8 @@ export const GeneralSettings = z.object({
     assistant: z.boolean(),
     charts: z.boolean(),
     nycAuditOn: z.iso.date().nullable(),
+    /** Schools' names masked too, against prestige bias (§14.6); a default so older settings still read. */
+    maskSchools: z.boolean().default(false),
   }),
 });
 export type GeneralSettings = z.infer<typeof GeneralSettings>;
@@ -86,6 +88,7 @@ export const DEFAULT_SETTINGS: GeneralSettings = {
     assistant: false,
     charts: false,
     nycAuditOn: null,
+    maskSchools: false,
   },
 };
 

@@ -19,6 +19,7 @@ import type { ApprovalChain, Requisition } from '../domain/requisition/requisiti
 import type { Answer, Questionnaire } from '../domain/screening/questionnaire.js';
 import { normalEmail, normalName, normalPhone } from '../domain/candidate/duplicates.js';
 import type {
+  Assessment,
   Agency,
   ApplicationRecord,
   Approval,
@@ -844,6 +845,39 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
         await tx.execute(sql`INSERT INTO recruiting.working_hours (tenant_id, person_id, time_zone, week) VALUES (${T}, ${h.personId}, ${h.timeZone}, ${J(h.week)})
           ON CONFLICT (tenant_id, person_id) DO UPDATE SET time_zone = EXCLUDED.time_zone, week = EXCLUDED.week`);
       },
+    },
+    assessments: {
+      save: async (a) => {
+        await tx.execute(sql`INSERT INTO recruiting.ai_assessment (tenant_id, id, application_id, feature, model,
+              prompt_version, input_hash, masked_input, output, score_bp, band, requested_by, created_at)
+            VALUES (${T}, ${a.id}, ${a.applicationId}, ${a.feature}, ${a.model}, ${a.promptVersion}, ${a.inputHash},
+              ${a.maskedInput}, ${J(a.output)}, ${a.scoreBp}, ${a.band}, ${a.requestedBy}, ${a.createdAt})`);
+      },
+      forApplication: async (applicationId) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT id, application_id, feature, model, prompt_version, input_hash, masked_input, output, score_bp,
+                  band, requested_by, ${iso(sql`created_at`)} AS created_at
+                FROM recruiting.ai_assessment WHERE application_id = ${applicationId} ORDER BY created_at`,
+          )
+        ).map(
+          (r) =>
+            ({
+              id: String(r['id']),
+              applicationId: String(r['application_id']),
+              feature: r['feature'] as Assessment['feature'],
+              model: String(r['model']),
+              promptVersion: String(r['prompt_version']),
+              inputHash: String(r['input_hash']),
+              maskedInput: String(r['masked_input']),
+              output: r['output'],
+              scoreBp: r['score_bp'] === null ? null : Number(r['score_bp']),
+              band: (r['band'] as string | null) ?? null,
+              requestedBy: String(r['requested_by']),
+              createdAt: r['created_at'] as Assessment['createdAt'],
+            }) satisfies Assessment,
+        ),
     },
     references: {
       forApplication: async (applicationId) =>

@@ -5,8 +5,8 @@
  * and age, gender markers, nationality, marital status, religion, health,
  * union membership — and, when the company asks, the names of schools.
  *
- * Two passes: a labelled line ("Nationality: …", "Geburtsdatum: …") loses its
- * value whatever the value is, and known shapes and words are removed where
+ * Two passes: a labelled line ("Nationality: …", "Geburtsdatum: …") goes
+ * whole, label and value, and known shapes and words are removed where
  * they stand in a sentence. A photo never reaches here: images are not text.
  * The counts go into the assessment's record, beside the masked text itself.
  */
@@ -24,6 +24,8 @@ export type Masked =
   | 'health'
   | 'union'
   | 'school';
+
+export const MARK = '[masked]';
 
 export interface Known {
   readonly name: string;
@@ -102,7 +104,9 @@ export function maskApplication(
   const count = (kind: Masked) => {
     masked[kind] = (masked[kind] ?? 0) + 1;
   };
-  const tag = (kind: Masked) => `[${kind}]`;
+  // One neutral mark: a kind's name ("health", "religion") in the text would
+  // itself be refused by the AI gateway, which names those fields as denied.
+  const tag = (_kind: Masked) => MARK;
 
   // 1. A labelled line loses its value, whatever the value is.
   let out = text
@@ -114,7 +118,8 @@ export function maskApplication(
       const hit = LABELS.find(([, pattern]) => pattern.test(label));
       if (hit === undefined || label.length > 40) return line;
       count(hit[0]);
-      return `${line.slice(0, colon + 1)} ${tag(hit[0])}`;
+      // The label goes too: naming the field is enough for the gateway to refuse.
+      return tag(hit[0]);
     })
     .join('\n');
 
@@ -139,8 +144,6 @@ export function maskApplication(
       count(kind);
       return tag(kind);
     });
-  // A stray birth year beside a masked birth date ("1. März 1991").
-  if ((masked.birth ?? 0) > 0) out = out.replace(/\[birth\][^\n]*/gu, tag('birth'));
 
   if (options.schools)
     out = out.replace(SCHOOL, () => {

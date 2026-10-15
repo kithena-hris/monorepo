@@ -214,7 +214,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       in `docs/tech-stack.md` and `CLAUDE.md`. Nothing below starts before it.
 - [x] **REC-111** Masking of protected characteristics, pure, tests first.
       §14.6.
-- [ ] **REC-112** Model port through the AI gateway; prompt versions;
+- [x] **REC-112** Model port through the AI gateway; prompt versions;
       `ai_assessment` logging. §22.2.
 - [ ] **REC-113** CV parser with passages; candidate confirmation on J4.
       §14.2.

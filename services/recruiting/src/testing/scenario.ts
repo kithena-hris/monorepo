@@ -9,6 +9,7 @@ import {
 } from '@kithena/contracts';
 import type { Clock } from '@kithena/domain-kit';
 import { expect } from 'vitest';
+import * as z from 'zod';
 
 import { contextOf, deliver, type Ctx, type Outgoing } from '../application/context.js';
 import { apply, requestCode } from '../application/intake.js';
@@ -61,6 +62,7 @@ import {
   stopAlert,
   subscribeAlert,
 } from '../application/alerts.js';
+import { readApplication } from '../application/ai.js';
 import { daily } from '../application/background.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -543,6 +545,42 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     value(await receiveReply(ctx, { ...reply, from: 'Yuki@Example.com' }));
     expect((await ctx.tx.messages.thread(yuki?.id ?? '')).at(-1)?.direction).toBe('in');
   });
+
+  // §22.2: a model reads the application only for the hiring team, masked, and every read is kept.
+  await uow.run(tenantId, async (tx) => {
+    const general = (await tx.settings.get('general')) as { ai: Record<string, unknown> };
+    await tx.settings.set('general', { ...general, ai: { ...general.ai, parser: true } });
+  });
+  const seen: string[] = [];
+  const reading = {
+    ...deps,
+    model: {
+      name: 'fake',
+      complete: (_: string, prompt: { context: Readonly<Record<string, unknown>> }) => {
+        seen.push(String(prompt.context['application']));
+        return Promise.resolve('{"summary":"A product designer."}');
+      },
+    },
+  };
+  const spec = {
+    feature: 'parser' as const,
+    version: 'test@1',
+    instruction: 'Summarise.',
+    answer: z.object({ summary: z.string() }),
+  };
+  const readAs = (who: 'ada' | 'adam') =>
+    uow.run(tenantId, async (tx) =>
+      readApplication(await contextOf(reading, tx, callerOf(who)), applied.applicationId, spec),
+    );
+  expect(value(await readAs('ada')).answer.summary).toBe('A product designer.');
+  expect((await readAs('adam')).ok).toBe(false);
+  expect(seen.join(' ')).not.toContain('Yuki');
+  const logged = await uow.run(tenantId, (tx) =>
+    tx.assessments.forApplication(applied.applicationId),
+  );
+  expect(logged.map((a) => [a.feature, a.model, a.promptVersion])).toEqual([
+    ['parser', 'fake', 'test@1'],
+  ]);
 
   // J11: an alert sends nothing until confirmed, then each new matching job once.
   const alertMail: { to: string; text: string }[] = [];

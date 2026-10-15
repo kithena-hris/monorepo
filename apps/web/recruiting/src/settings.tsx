@@ -735,6 +735,15 @@ function Ai({
           Name, photo, age, gender markers, nationality, address beyond the city, marital status,
           religion, health and union membership are always masked.
         </p>
+        <Toggle
+          id="ai-schools"
+          label="Mask schools too"
+          hint="Removes the names of universities and schools, against prestige bias."
+          checked={ai.maskSchools ?? false}
+          onChange={(on) => {
+            setAi({ ...ai, maskSchools: on });
+          }}
+        />
       </Section>
       <Section
         title="New York City"

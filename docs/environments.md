@@ -1346,6 +1346,12 @@ until its setting exists. In this order:
    `/v1/recruiting/public/<company>/replies` under the pair's token. Without
    the domain, replies go to the company's own reply address.
 
+   AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
+   `ASSISTANT_MODEL` from `RECRUITING_ENV`, as Time Off does. Without a key
+   every AI feature answers that it is off, whatever a company switched on.
+   Pick a provider that does not train on what it is sent and processes in the
+   EU where it offers to (§22.2).
+
 3. **The remote**: a Vercel Hobby project for `apps/web/recruiting`, the
    secret `RECRUITING_REMOTE_SSR_SIGNING_KEY`, and the variables
    `VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION`,

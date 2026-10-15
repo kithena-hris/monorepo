@@ -42,6 +42,9 @@ describe('masking before a model reads an application (PRD §14.6)', () => {
 
   it('removes protected characteristics, labelled or in a sentence', () => {
     for (const gone of [
+      'Date of birth',
+      'Religion',
+      'health',
       '12/03/1991',
       'Japanese',
       'married',
@@ -62,7 +65,7 @@ describe('masking before a model reads an application (PRD §14.6)', () => {
     expect(career).toBe('Acme, 2018 - 2022. Then Globex 2022–2025.');
     expect(
       maskApplication('Call (415) 555-0100 or 030 1234567', yuki, { schools: false }).text,
-    ).toBe('Call [contact] or [contact]');
+    ).toBe('Call [masked] or [masked]');
   });
 
   it('removes schools only when the company asks', () => {
@@ -85,7 +88,8 @@ describe('masking before a model reads an application (PRD §14.6)', () => {
       yuki,
       { schools: false },
     ).text;
-    for (const gone of ['1991', 'deutsch', 'ledig', 'evangelisch']) expect(de).not.toContain(gone);
+    for (const gone of ['1991', 'deutsch', 'ledig', 'evangelisch', 'Geburtsdatum'])
+      expect(de).not.toContain(gone);
     const es = maskApplication('Fecha de nacimiento: 12/03/1991\nNacionalidad: española', yuki, {
       schools: false,
     }).text;

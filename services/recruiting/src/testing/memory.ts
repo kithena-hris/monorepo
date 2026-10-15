@@ -14,6 +14,7 @@ import type { StageMove } from '../domain/pipeline/application.js';
 import type { Stage } from '../domain/pipeline/pipeline.js';
 import { normalEmail, normalPhone } from '../domain/candidate/duplicates.js';
 import type {
+  Assessment,
   Agency,
   Listings,
   AgencySubmission,
@@ -146,6 +147,7 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
   const interviews = keyed<InterviewRecord>(state, 'interviews');
   const cards = keyed<Scorecard & { notes: string | null }>(state, 'scorecards');
   const hours = keyed<WorkingHours>(state, 'hours');
+  const assessed = keyed<Assessment>(state, 'assessments');
   const refs = keyed<ReferenceRequest>(state, 'references');
   const offers = keyed<Offer>(state, 'offers');
   const contracts = keyed<Contract & { fileId: string | null }>(state, 'contracts');
@@ -410,7 +412,9 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
             (i) => i.interviewerIds.includes(person) && i.startsAt >= from && i.startsAt < to,
           ),
       startingBetween: (from, to) =>
-        interviews.values().filter((i) => i.state === 'scheduled' && i.startsAt >= from && i.startsAt < to),
+        interviews
+          .values()
+          .filter((i) => i.state === 'scheduled' && i.startsAt >= from && i.startsAt < to),
       save: (i) => {
         interviews.set(i.id, i);
       },
@@ -443,6 +447,13 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
       save: (h) => {
         hours.set(h.personId, h);
       },
+    },
+    assessments: {
+      save: (a) => {
+        assessed.set(a.id, a);
+      },
+      forApplication: (applicationId) =>
+        assessed.values().filter((a) => a.applicationId === applicationId),
     },
     references: {
       forApplication: (applicationId) =>

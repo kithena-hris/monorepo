@@ -426,6 +426,40 @@ export interface WorkingHours {
   readonly week: Readonly<Record<string, readonly (readonly [number, number])[]>>;
 }
 
+/* -------------------------------------------------------------------- AI -- */
+
+export type AiFeature = 'parser' | 'matrix' | 'writer' | 'assistant' | 'charts';
+
+/**
+ * One time a model read something for a person (PRD §22.2 point 7, AI Act
+ * art. 12): the model, the prompt's version, the masked text it read and its
+ * hash, and what it answered. The human decision that followed is the
+ * pipeline's own history.
+ */
+export interface Assessment {
+  readonly id: string;
+  readonly applicationId: string;
+  readonly feature: AiFeature;
+  readonly model: string;
+  readonly promptVersion: string;
+  readonly inputHash: string;
+  readonly maskedInput: string;
+  readonly output: unknown;
+  readonly scoreBp: number | null;
+  readonly band: string | null;
+  readonly requestedBy: string;
+  readonly createdAt: Instant;
+}
+
+/** A model, reached only through the AI gateway; null on a refusal, a failure or a timeout. */
+export interface Model {
+  readonly name: string;
+  complete(
+    tenantId: string,
+    prompt: { readonly instruction: string; readonly context: Readonly<Record<string, unknown>> },
+  ): Promise<string | null>;
+}
+
 export interface ReferenceRequest {
   readonly id: string;
   readonly applicationId: string;
@@ -610,6 +644,10 @@ export interface Tx {
     get(personId: string): Promise<WorkingHours | null>;
     save(hours: WorkingHours): Promise<void>;
   };
+  readonly assessments: {
+    save(a: Assessment): Promise<void>;
+    forApplication(applicationId: string): Promise<readonly Assessment[]>;
+  };
   readonly references: {
     forApplication(applicationId: string): Promise<readonly ReferenceRequest[]>;
     byToken(tokenHash: string): Promise<ReferenceRequest | null>;
@@ -700,6 +738,8 @@ export interface Deps {
    * replies go to the company's own reply address.
    */
   readonly inbound?: { readonly domain: string; readonly token: string };
+  /** Absent without an AI key: every AI feature is then off, and Recruiting works without it. */
+  readonly model?: Model;
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */

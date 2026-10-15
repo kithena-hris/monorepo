@@ -737,6 +737,7 @@ export interface GeneralSettings {
     readonly assistant: boolean;
     readonly charts: boolean;
     readonly nycAuditOn: string | null;
+    readonly maskSchools?: boolean;
   };
 }
 
