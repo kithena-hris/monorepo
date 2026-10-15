@@ -35,12 +35,14 @@ export type Answer<T> =
   | { readonly ok: true; readonly data: T }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
+/** Whose operation it is: a module's area on the company's `/api/mobile/people`. */
+export type Area = 'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding';
+
 export async function ask<T>(
   signed: Signed,
   operation: string,
   variables: Record<string, unknown> = {},
-  /** Whose operation it is: People's, Time Off's or Documents'. */
-  area: 'people' | 'timeoff' | 'documents' = 'people',
+  area: Area = 'people',
 ): Promise<Answer<T>> {
   const response = await fetch(`${signed.company.origin}/api/mobile/people`, {
     method: 'POST',
@@ -96,7 +98,7 @@ const options = <T>(
   signed: Signed,
   operation: string,
   variables: Record<string, unknown>,
-  area: 'people' | 'timeoff' | 'documents',
+  area: Area,
 ) => ({
   queryKey: keyOf(signed, area, operation, variables),
   queryFn: async (): Promise<T> => {
@@ -111,7 +113,7 @@ export function read<T>(
   signed: Signed,
   operation: string,
   variables: Record<string, unknown> = {},
-  area: 'people' | 'timeoff' | 'documents' = 'people',
+  area: Area = 'people',
 ): Promise<Answer<T>> {
   return queryClient.query(options<T>(signed, operation, variables, area)).then(
     (data): Answer<T> => ({ ok: true, data }),
@@ -133,7 +135,7 @@ export function keptAnswer<T>(
   signed: Signed,
   operation: string,
   variables: Record<string, unknown> = {},
-  area: 'people' | 'timeoff' | 'documents' = 'people',
+  area: Area = 'people',
 ): { readonly data: T; readonly at: number } | undefined {
   const state = queryClient.getQueryState<T>(keyOf(signed, area, operation, variables));
   return state?.data === undefined ? undefined : { data: state.data, at: state.dataUpdatedAt };
@@ -143,7 +145,7 @@ export function keptAnswer<T>(
 export function readAhead(
   signed: Signed,
   reads: readonly (readonly [string, Record<string, unknown>?])[],
-  area: 'people' | 'timeoff' | 'documents' = 'people',
+  area: Area = 'people',
 ): void {
   for (const [operation, variables = {}] of reads) {
     queryClient.query(options(signed, operation, variables, area)).catch(() => undefined);
@@ -159,7 +161,7 @@ export function readAhead(
 export function useRead<T>(
   operation: string,
   variables: Record<string, unknown> = {},
-  area: 'people' | 'timeoff' | 'documents' = 'people',
+  area: Area = 'people',
 ): { load: Load<T>; reload: () => void } {
   const signed = useSigned();
   const query = useQuery(options<T>(signed, operation, variables, area));

@@ -181,7 +181,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ### Kithena Jobs (`apps/jobs`)
 
-- [ ] **REC-090** App scaffold on Reach; Vercel project; `jobs.kithena.com`;
+- [x] **REC-090** App scaffold on Reach; Vercel project; `jobs.kithena.com`;
       reads `recruiting_public` only.
 - [x] **REC-091** J1, J2 search: full-text, filters, sort, all in the URL;
       server-rendered first page.
@@ -264,7 +264,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [ ] **REC-143** Time Off's absences and holidays passed by the shell to
       scheduling and the start-date picker. §28.
 - [ ] **REC-144** Assistant capabilities. §22.9.
-- [ ] **REC-145** Phone: RM1–RM7, the rest in `desktop-only.json`. §29.3.
+- [x] **REC-145** Phone: RM1–RM7, the rest in `desktop-only.json`. §29.3.
 
 ## Before any pack is enabled
 
@@ -293,7 +293,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       O6–O9.
 - [x] **ONB-011** O5 welcome page on the Kithena Jobs host.
 - [x] **ONB-012** Inbox source.
-- [ ] **ONB-013** Phone: MO1–MO3.
+- [x] **ONB-013** Phone: MO1–MO3.
 - [x] **ONB-014** Onboarding analytics. §O9.
 - [x] **ONB-015** Standalone acceptance with People and Recruiting absent.
 

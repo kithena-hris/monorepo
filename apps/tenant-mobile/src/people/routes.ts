@@ -151,6 +151,28 @@ export type PeopleRoutes = {
   DocumentDraft: undefined;
   /** Settings › Documents (MS1–MS6). */
   DocumentsSettings: undefined;
+  /** The last tab when the company has more modules than tabs (RM0): Recruiting, Documents, Onboarding. */
+  More: undefined;
+  /** Recruiting's home on the phone (RM0b): what needs you, your jobs. */
+  Recruiting: undefined;
+  /** My interviews and the scorecards owed (RM1). */
+  RecruitingInterviews: undefined;
+  /** A job's pipeline as a list by stage (RM2). */
+  RecruitingPipeline: { jobId: string; title: string };
+  /** A candidate (RM3), with advance and reject. */
+  RecruitingCandidate: { candidateId: string; name: string };
+  /** An interview's kit and scorecard, one competency at a time (RM4). */
+  RecruitingKit: { interviewId: string };
+  /** Requisitions and offers waiting on you (RM5). */
+  RecruitingApprovals: undefined;
+  /** The internal job board and a referral (RM6). */
+  RecruitingBoard: undefined;
+  /** The analytics overview (RM7). */
+  RecruitingAnalytics: undefined;
+  /** My onboarding tasks as a manager, a buddy, IT or HR (MO3). */
+  OnboardingTasks: undefined;
+  /** A new hire's plan: tick a task, a check-in, the probation review (MO4, MO5). */
+  OnboardingPlan: { planId: string; name: string };
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;
