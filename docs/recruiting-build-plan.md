@@ -212,7 +212,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 - [x] **REC-110** **Gate**: the decision in PRD §22.2 signed off and recorded
       in `docs/tech-stack.md` and `CLAUDE.md`. Nothing below starts before it.
-- [ ] **REC-111** Masking of protected characteristics, pure, tests first.
+- [x] **REC-111** Masking of protected characteristics, pure, tests first.
       §14.6.
 - [ ] **REC-112** Model port through the AI gateway; prompt versions;
       `ai_assessment` logging. §22.2.
