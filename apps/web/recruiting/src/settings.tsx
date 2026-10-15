@@ -115,7 +115,9 @@ function General({
   const act = useAct(props);
   const [g, setG] = useState<GeneralSettings>(data.general);
   const [reason, setReason] = useState('');
-  const save = () => act.run('SaveRecruitingSettings', { input: g });
+  const save = () => {
+    act.run('SaveRecruitingSettings', { input: g });
+  };
   return (
     <div className="flex flex-col gap-4">
       <Refusal error={act.error} />
@@ -126,22 +128,26 @@ function General({
             label="Use requisitions"
             hint="Off: jobs open directly, without approval."
             checked={g.requisitionsOn}
-            onChange={(on) => setG({ ...g, requisitionsOn: on })}
+            onChange={(on) => {
+              setG({ ...g, requisitionsOn: on });
+            }}
           />
           <Toggle
             id="federal"
             label="US federal contractor"
             hint="Adds the equal-opportunity statement to US jobs."
             checked={g.federalContractor}
-            onChange={(on) => setG({ ...g, federalContractor: on })}
+            onChange={(on) => {
+              setG({ ...g, federalContractor: on });
+            }}
           />
           <Field className="py-3">
             <FieldLabel>Show internal applicants to their manager from</FieldLabel>
             <Select
               value={g.revealInternalAt}
-              onValueChange={(v) =>
-                setG({ ...g, revealInternalAt: v as GeneralSettings['revealInternalAt'] })
-              }
+              onValueChange={(v) => {
+                setG({ ...g, revealInternalAt: v as GeneralSettings['revealInternalAt'] });
+              }}
             >
               <FieldControl>
                 <SelectTrigger>
@@ -166,29 +172,29 @@ function General({
                 : `${money(g.referralBonus.amountMinor, g.referralBonus.currency)}, after ${words(g.referralBonus.after).toLowerCase()}`
             }
             checked={g.referralBonus !== null}
-            onChange={(on) =>
+            onChange={(on) => {
               setG({
                 ...g,
                 referralBonus: on
                   ? { amountMinor: 200_000, currency: 'EUR', after: 'probation' }
                   : null,
-              })
-            }
+              });
+            }}
           />
           {g.referralBonus === null ? null : (
             <NumberField
               label="Bonus amount"
               value={g.referralBonus.amountMinor / 100}
               min={0}
-              onChange={(n) =>
+              onChange={(n) => {
                 setG({
                   ...g,
                   referralBonus:
                     g.referralBonus === null
                       ? null
                       : { ...g.referralBonus, amountMinor: Math.round((n ?? 0) * 100) },
-                })
-              }
+                });
+              }}
             />
           )}
         </Section>
@@ -199,7 +205,9 @@ function General({
               <FieldControl>
                 <Input
                   value={g.companyName}
-                  onChange={(e) => setG({ ...g, companyName: e.target.value })}
+                  onChange={(e) => {
+                    setG({ ...g, companyName: e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -208,7 +216,9 @@ function General({
               <FieldControl>
                 <Input
                   value={g.companySlug}
-                  onChange={(e) => setG({ ...g, companySlug: e.target.value.toLowerCase() })}
+                  onChange={(e) => {
+                    setG({ ...g, companySlug: e.target.value.toLowerCase() });
+                  }}
                 />
               </FieldControl>
               <FieldDescription>{`jobs.kithena.com/${g.companySlug}`}</FieldDescription>
@@ -219,9 +229,9 @@ function General({
                 <Textarea
                   autoResize
                   value={g.about ?? ''}
-                  onChange={(e) =>
-                    setG({ ...g, about: e.target.value === '' ? null : e.target.value })
-                  }
+                  onChange={(e) => {
+                    setG({ ...g, about: e.target.value === '' ? null : e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -231,9 +241,9 @@ function General({
                 <Input
                   type="email"
                   value={g.replyAddress ?? ''}
-                  onChange={(e) =>
-                    setG({ ...g, replyAddress: e.target.value === '' ? null : e.target.value })
-                  }
+                  onChange={(e) => {
+                    setG({ ...g, replyAddress: e.target.value === '' ? null : e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -242,7 +252,9 @@ function General({
               label="On Kithena Jobs’ search"
               hint="Beside your careers page, in the cross-company search."
               checked={g.searchable}
-              onChange={(on) => setG({ ...g, searchable: on })}
+              onChange={(on) => {
+                setG({ ...g, searchable: on });
+              }}
             />
           </div>
         </Section>
@@ -252,9 +264,9 @@ function General({
           {g.rejectionReasons.map((r) => (
             <Chip
               key={r}
-              onRemove={() =>
-                setG({ ...g, rejectionReasons: g.rejectionReasons.filter((x) => x !== r) })
-              }
+              onRemove={() => {
+                setG({ ...g, rejectionReasons: g.rejectionReasons.filter((x) => x !== r) });
+              }}
             >
               {words(r)}
             </Chip>
@@ -277,7 +289,9 @@ function General({
           <Input
             aria-label="A reason"
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => {
+              setReason(e.target.value);
+            }}
             placeholder="Overqualified"
           />
           <Button type="submit" variant="secondary" disabled={reason.trim() === ''}>
@@ -357,7 +371,9 @@ function Entities({
             <FieldControl>
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
                 placeholder="Acme GmbH"
               />
             </FieldControl>
@@ -425,7 +441,13 @@ function Entities({
           <Field className="min-w-64 flex-1">
             <FieldLabel>New location</FieldLabel>
             <FieldControl>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Berlin" />
+              <Input
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                }}
+                placeholder="Berlin"
+              />
             </FieldControl>
           </Field>
           <Button
@@ -478,7 +500,9 @@ function Scorecards({
             <FieldControl>
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
                 placeholder="Backend engineering"
               />
             </FieldControl>
@@ -489,7 +513,9 @@ function Scorecards({
               <Textarea
                 autoResize
                 value={competencies}
-                onChange={(e) => setCompetencies(e.target.value)}
+                onChange={(e) => {
+                  setCompetencies(e.target.value);
+                }}
                 placeholder={'System design\nGo\nOn call'}
               />
             </FieldControl>
@@ -583,7 +609,13 @@ function PayBands({
           <Field>
             <FieldLabel>Grade</FieldLabel>
             <FieldControl>
-              <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="E12" />
+              <Input
+                value={grade}
+                onChange={(e) => {
+                  setGrade(e.target.value);
+                }}
+                placeholder="E12"
+              />
             </FieldControl>
           </Field>
           <NumberField label={`From (${currency})`} value={min} min={0} onChange={setMin} />
@@ -611,7 +643,7 @@ function PayBands({
             variant="secondary"
             disabled={grade.trim() === '' || min === null || max === null}
             loading={act.pending}
-            onClick={() =>
+            onClick={() => {
               act.run(
                 'SavePayBand',
                 {
@@ -629,8 +661,8 @@ function PayBands({
                   setMin(null);
                   setMax(null);
                 },
-              )
-            }
+              );
+            }}
           >
             Add band
           </Button>
@@ -660,32 +692,42 @@ function Ai({
           id="ai-writer"
           label="Write and translate job ads"
           checked={ai.writer}
-          onChange={(on) => setAi({ ...ai, writer: on })}
+          onChange={(on) => {
+            setAi({ ...ai, writer: on });
+          }}
         />
         <Toggle
           id="ai-parser"
           label="Parse CVs"
           checked={ai.parser}
-          onChange={(on) => setAi({ ...ai, parser: on })}
+          onChange={(on) => {
+            setAi({ ...ai, parser: on });
+          }}
         />
         <Toggle
           id="ai-matrix"
           label="Evidence matrix"
           hint="Met, partly met, not met or not evidenced per criterion, with the passages; a label, never a stage."
           checked={ai.matrix}
-          onChange={(on) => setAi({ ...ai, matrix: on })}
+          onChange={(on) => {
+            setAi({ ...ai, matrix: on });
+          }}
         />
         <Toggle
           id="ai-assistant"
           label="Job assistant on Kithena Jobs"
           checked={ai.assistant}
-          onChange={(on) => setAi({ ...ai, assistant: on })}
+          onChange={(on) => {
+            setAi({ ...ai, assistant: on });
+          }}
         />
         <Toggle
           id="ai-charts"
           label="Ask for a chart"
           checked={ai.charts}
-          onChange={(on) => setAi({ ...ai, charts: on })}
+          onChange={(on) => {
+            setAi({ ...ai, charts: on });
+          }}
         />
       </Section>
       <Section title="What the model never sees">
@@ -704,9 +746,9 @@ function Ai({
             <Input
               type="date"
               value={ai.nycAuditOn ?? ''}
-              onChange={(e) =>
-                setAi({ ...ai, nycAuditOn: e.target.value === '' ? null : e.target.value })
-              }
+              onChange={(e) => {
+                setAi({ ...ai, nycAuditOn: e.target.value === '' ? null : e.target.value });
+              }}
             />
           </FieldControl>
         </Field>
@@ -714,7 +756,9 @@ function Ai({
       <div className="flex justify-end">
         <Button
           loading={act.pending}
-          onClick={() => act.run('SaveRecruitingSettings', { input: { ...data.general, ai } })}
+          onClick={() => {
+            act.run('SaveRecruitingSettings', { input: { ...data.general, ai } });
+          }}
         >
           Save
         </Button>

@@ -164,7 +164,7 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
           planId: String(r['plan_id']),
           day: Number(r['day']) as 30 | 60 | 90,
           by: String(r['by_person']),
-          notes: String((r['body'] as { notes?: string }).notes ?? ''),
+          notes: (r['body'] as { notes?: string }).notes ?? '',
           at: String(r['at']),
         })),
       save: async (c) => {

@@ -58,7 +58,9 @@ function Answer({
         <SegmentedControl
           aria-label={field.label}
           value={value === undefined ? '' : value === true ? 'yes' : 'no'}
-          onValueChange={(v) => onChange(v === 'yes')}
+          onValueChange={(v) => {
+            onChange(v === 'yes');
+          }}
         >
           <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
           <SegmentedControlItem value="no">No</SegmentedControlItem>
@@ -95,9 +97,9 @@ function Answer({
             <Checkbox
               id={`${id}-${String(i)}`}
               checked={chosen.includes(o)}
-              onCheckedChange={(on) =>
-                onChange(on === true ? [...chosen, o] : chosen.filter((x) => x !== o))
-              }
+              onCheckedChange={(on) => {
+                onChange(on === true ? [...chosen, o] : chosen.filter((x) => x !== o));
+              }}
             />
             <label htmlFor={`${id}-${String(i)}`}>{o}</label>
           </div>
@@ -111,7 +113,13 @@ function Answer({
       <FieldLabel>{field.label}</FieldLabel>
       <FieldControl>
         {field.kind === 'long_text' ? (
-          <Textarea autoResize value={text} onChange={(e) => onChange(e.target.value)} />
+          <Textarea
+            autoResize
+            value={text}
+            onChange={(e) => {
+              onChange(e.target.value);
+            }}
+          />
         ) : (
           <Input
             type={
@@ -137,7 +145,9 @@ function Answer({
                     : undefined
             }
             value={text}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              onChange(e.target.value);
+            }}
           />
         )}
       </FieldControl>
@@ -180,7 +190,7 @@ export function ApplyForm({
   const filesMissing = fileFields.filter((f) => f.required && files[f.key] === undefined);
   const answersMissing = missing(answerFields, answers);
 
-  const askCode = () =>
+  const askCode = () => {
     start(async () => {
       setError(null);
       const done = await publicApi(company, '/codes', {
@@ -190,8 +200,9 @@ export function ApplyForm({
       if (!done.ok) setError(done.message);
       else setStep(3);
     });
+  };
 
-  const send = () =>
+  const send = () => {
     start(async () => {
       setError(null);
       const uploads = await Promise.all(
@@ -228,6 +239,7 @@ export function ApplyForm({
       if (!done.ok) setError(done.message);
       else setSent(true);
     });
+  };
 
   if (sent)
     return (
@@ -262,7 +274,9 @@ export function ApplyForm({
         aria-hidden
         className="hidden"
         value={website}
-        onChange={(e) => setWebsite(e.target.value)}
+        onChange={(e) => {
+          setWebsite(e.target.value);
+        }}
       />
       {step === 0 ? (
         <section className="flex flex-col gap-4">
@@ -294,7 +308,9 @@ export function ApplyForm({
           <Button
             className="self-end"
             disabled={filesMissing.length > 0}
-            onClick={() => setStep(1)}
+            onClick={() => {
+              setStep(1);
+            }}
           >
             Next
           </Button>
@@ -308,7 +324,9 @@ export function ApplyForm({
               key={f.key}
               field={f}
               value={answers[f.key]}
-              onChange={(v) => setAnswers({ ...answers, [f.key]: v })}
+              onChange={(v) => {
+                setAnswers({ ...answers, [f.key]: v });
+              }}
             />
           ))}
           <Field>
@@ -317,17 +335,29 @@ export function ApplyForm({
               <Textarea
                 autoResize
                 value={adjustments}
-                onChange={(e) => setAdjustments(e.target.value)}
+                onChange={(e) => {
+                  setAdjustments(e.target.value);
+                }}
                 placeholder="Step-free access, extra time, another format…"
               />
             </FieldControl>
             <FieldDescription>Goes to the recruiter, never into anyone’s score.</FieldDescription>
           </Field>
           <div className="flex justify-between">
-            <Button variant="secondary" onClick={() => setStep(0)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStep(0);
+              }}
+            >
               Back
             </Button>
-            <Button disabled={answersMissing.length > 0} onClick={() => setStep(2)}>
+            <Button
+              disabled={answersMissing.length > 0}
+              onClick={() => {
+                setStep(2);
+              }}
+            >
               Next
             </Button>
           </div>
@@ -346,17 +376,31 @@ export function ApplyForm({
             <Checkbox
               id="consent"
               checked={consent}
-              onCheckedChange={(on) => setConsent(on === true)}
+              onCheckedChange={(on) => {
+                setConsent(on === true);
+              }}
             />
             <label htmlFor="consent">{`I agree to ${job.company.name} processing my application.`}</label>
           </div>
           <div className="flex items-start gap-3">
-            <Checkbox id="pool" checked={pool} onCheckedChange={(on) => setPool(on === true)} />
+            <Checkbox
+              id="pool"
+              checked={pool}
+              onCheckedChange={(on) => {
+                setPool(on === true);
+              }}
+            />
             <label htmlFor="pool">{`Keep me in ${job.company.name}’s talent pool for other jobs for 12 months (optional)`}</label>
           </div>
           {job.nycNotice ? (
             <div className="flex items-start gap-3">
-              <Checkbox id="nyc" checked={nyc} onCheckedChange={(on) => setNyc(on === true)} />
+              <Checkbox
+                id="nyc"
+                checked={nyc}
+                onCheckedChange={(on) => {
+                  setNyc(on === true);
+                }}
+              />
               <label htmlFor="nyc">
                 I have read the notice that an automated tool helps review applications for this New
                 York City job.
@@ -364,7 +408,12 @@ export function ApplyForm({
             </div>
           ) : null}
           <div className="flex justify-between">
-            <Button variant="secondary" onClick={() => setStep(1)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStep(1);
+              }}
+            >
               Back
             </Button>
             <Button

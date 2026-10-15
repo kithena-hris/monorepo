@@ -176,7 +176,7 @@ describe('Kithena Jobs’ reads', () => {
             res.resume();
             resolve({
               status: res.statusCode ?? 0,
-              allow: res.headers['access-control-allow-origin'] as string | undefined,
+              allow: res.headers['access-control-allow-origin'],
             });
           },
         )

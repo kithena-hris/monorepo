@@ -226,7 +226,9 @@ function Editor({
             {r.state === 'draft' && !isNew ? (
               <Button
                 variant="secondary"
-                onClick={() => act.run('CancelRequisition', { requisitionId: r.id })}
+                onClick={() => {
+                  act.run('CancelRequisition', { requisitionId: r.id });
+                }}
               >
                 Cancel requisition
               </Button>
@@ -235,14 +237,20 @@ function Editor({
               variant="secondary"
               disabled={!editable}
               loading={act.pending}
-              onClick={() => save()}
+              onClick={() => {
+                save();
+              }}
             >
               Save
             </Button>
             {r.state === 'draft' && !isNew ? (
               <Button
                 loading={act.pending}
-                onClick={() => save(() => act.run('SubmitRequisition', { requisitionId: r.id }))}
+                onClick={() => {
+                  save(() => {
+                    act.run('SubmitRequisition', { requisitionId: r.id });
+                  });
+                }}
               >
                 Send for approval
               </Button>
@@ -265,7 +273,12 @@ function Editor({
             <Field required>
               <FieldLabel>Title</FieldLabel>
               <FieldControl>
-                <Input value={r.title} onChange={(e) => setR({ ...r, title: e.target.value })} />
+                <Input
+                  value={r.title}
+                  onChange={(e) => {
+                    setR({ ...r, title: e.target.value });
+                  }}
+                />
               </FieldControl>
             </Field>
             <NumberField
@@ -273,13 +286,17 @@ function Editor({
               value={r.openings}
               min={1}
               max={500}
-              onChange={(n) => setR({ ...r, openings: n ?? 1 })}
+              onChange={(n) => {
+                setR({ ...r, openings: n ?? 1 });
+              }}
             />
             <Field>
               <FieldLabel>Reason</FieldLabel>
               <Select
                 value={r.reason}
-                onValueChange={(v) => setR({ ...r, reason: v as Requisition['reason'] })}
+                onValueChange={(v) => {
+                  setR({ ...r, reason: v as Requisition['reason'] });
+                }}
               >
                 <FieldControl>
                   <SelectTrigger>
@@ -301,9 +318,9 @@ function Editor({
                 <Input
                   type="date"
                   value={r.targetStart ?? ''}
-                  onChange={(e) =>
-                    setR({ ...r, targetStart: e.target.value === '' ? null : e.target.value })
-                  }
+                  onChange={(e) => {
+                    setR({ ...r, targetStart: e.target.value === '' ? null : e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -313,12 +330,12 @@ function Editor({
                 <FieldControl>
                   <Input
                     value={r.replacesPersonId ?? ''}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setR({
                         ...r,
                         replacesPersonId: e.target.value === '' ? null : e.target.value,
-                      })
-                    }
+                      });
+                    }}
                   />
                 </FieldControl>
               </Field>
@@ -329,7 +346,9 @@ function Editor({
                 <Input
                   value={currency}
                   maxLength={3}
-                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    setCurrency(e.target.value.toUpperCase());
+                  }}
                 />
               </FieldControl>
               <FieldDescription>The legal entity’s currency.</FieldDescription>
@@ -342,7 +361,9 @@ function Editor({
                 <Textarea
                   rows={3}
                   value={r.justification}
-                  onChange={(e) => setR({ ...r, justification: e.target.value })}
+                  onChange={(e) => {
+                    setR({ ...r, justification: e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -454,7 +475,9 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                         rows={2}
                         placeholder="Optional. Required to reject."
                         value={comment}
-                        onChange={(e) => setComment(e.target.value)}
+                        onChange={(e) => {
+                          setComment(e.target.value);
+                        }}
                       />
                     </FieldControl>
                   </Field>
@@ -462,18 +485,18 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                     <Button
                       variant="secondary"
                       loading={act.pending}
-                      onClick={() =>
+                      onClick={() => {
                         act.run('DecideRequisition', {
                           requisitionId: r.id,
                           input: { decision: 'rejected', comment },
-                        })
-                      }
+                        });
+                      }}
                     >
                       Reject
                     </Button>
                     <Button
                       loading={act.pending}
-                      onClick={() =>
+                      onClick={() => {
                         act.run(
                           'DecideRequisition',
                           {
@@ -484,8 +507,8 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                             },
                           },
                           () => props.onNavigate?.('/recruiting/requisitions'),
-                        )
-                      }
+                        );
+                      }}
                     >
                       Approve
                     </Button>

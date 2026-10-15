@@ -9,7 +9,7 @@ const COUNTRY: Readonly<Record<string, string>> = {
   IN: 'India',
   US: 'United States',
 };
-export const countryName = (code: string) => COUNTRY[code] ?? code;
+export const countryName = (code: string): string => COUNTRY[code] ?? code;
 
 const MODE: Readonly<Record<string, string>> = {
   onsite: 'On site',
@@ -41,7 +41,7 @@ export function salary(l: Pick<PublicListing, 'salary'>): string | null {
   return `${f.format(l.salary.minMinor / 100)}–${f.format(l.salary.maxMinor / 100)}${per}`;
 }
 
-export const hours = (h: string) => (h === 'part_time' ? 'Part time' : 'Full time');
+export const hours = (h: string): string => (h === 'part_time' ? 'Part time' : 'Full time');
 
 /** "2 d", "1 w": how long ago, for a list. */
 export function ago(iso: string, now = Date.now()): string {

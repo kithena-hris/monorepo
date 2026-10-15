@@ -92,7 +92,9 @@ function PlanBody({
             <Button
               variant="secondary"
               startIcon={<icons.calendar aria-hidden />}
-              onClick={() => setMoving(true)}
+              onClick={() => {
+                setMoving(true);
+              }}
             >
               Move start date
             </Button>
@@ -120,12 +122,12 @@ function PlanBody({
                         aria-label={t.title}
                         checked={t.state === 'done'}
                         disabled={!t.mine || !open || act.pending}
-                        onCheckedChange={(on) =>
+                        onCheckedChange={(on) => {
                           act.run(on === true ? 'CompleteOnboardingTask' : 'ReopenOnboardingTask', {
                             planId: p.id,
                             taskId: t.id,
-                          })
-                        }
+                          });
+                        }}
                       />
                       <span
                         className={`min-w-0 flex-1 font-medium ${t.state === 'done' ? 'text-fg-muted line-through' : ''}`}
@@ -191,12 +193,12 @@ function PlanBody({
                 <Button
                   variant="secondary"
                   loading={act.pending}
-                  onClick={() =>
+                  onClick={() => {
                     act.run('SetOnboardingBuddy', {
                       planId: p.id,
                       input: { buddyId: buddy === 'none' ? null : buddy },
-                    })
-                  }
+                    });
+                  }}
                 >
                   Save
                 </Button>
@@ -212,7 +214,12 @@ function PlanBody({
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <Select value={checkDay} onValueChange={(v) => setCheckDay(v as typeof checkDay)}>
+                <Select
+                  value={checkDay}
+                  onValueChange={(v) => {
+                    setCheckDay(v as typeof checkDay);
+                  }}
+                >
                   <SelectTrigger aria-label="Which check-in">
                     <SelectValue />
                   </SelectTrigger>
@@ -225,19 +232,27 @@ function PlanBody({
                 <Field>
                   <FieldLabel>How is it going?</FieldLabel>
                   <FieldControl>
-                    <Textarea autoResize value={notes} onChange={(e) => setNotes(e.target.value)} />
+                    <Textarea
+                      autoResize
+                      value={notes}
+                      onChange={(e) => {
+                        setNotes(e.target.value);
+                      }}
+                    />
                   </FieldControl>
                 </Field>
                 <Button
                   disabled={notes.trim() === ''}
                   loading={act.pending}
-                  onClick={() =>
+                  onClick={() => {
                     act.run(
                       'OnboardingCheckIn',
                       { planId: p.id, input: { day: Number(checkDay), notes } },
-                      () => setNotes(''),
-                    )
-                  }
+                      () => {
+                        setNotes('');
+                      },
+                    );
+                  }}
                 >
                   Submit
                 </Button>
@@ -273,7 +288,9 @@ function PlanBody({
             <RadioGroup
               aria-label="Outcome"
               value={outcome}
-              onValueChange={(v) => setOutcome(v as typeof outcome)}
+              onValueChange={(v) => {
+                setOutcome(v as typeof outcome);
+              }}
             >
               <RadioCard value="passed" description="People records the probation as passed.">
                 Passed
@@ -304,12 +321,12 @@ function PlanBody({
             <Button
               className="self-end"
               loading={act.pending}
-              onClick={() =>
+              onClick={() => {
                 act.run('ReviewProbation', {
                   planId: p.id,
                   input: { outcome, extendMonths: outcome === 'extended' ? months : null },
-                })
-              }
+                });
+              }}
             >
               Record review
             </Button>
@@ -328,21 +345,36 @@ function PlanBody({
           <Field>
             <FieldLabel>New start date</FieldLabel>
             <FieldControl>
-              <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <Input
+                type="date"
+                value={start}
+                onChange={(e) => {
+                  setStart(e.target.value);
+                }}
+              />
             </FieldControl>
           </Field>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setMoving(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setMoving(false);
+              }}
+            >
               Cancel
             </Button>
             <Button
               disabled={start === p.startDate || start === ''}
               loading={act.pending}
-              onClick={() =>
-                act.run('MoveOnboardingStart', { planId: p.id, input: { startDate: start } }, () =>
-                  setMoving(false),
-                )
-              }
+              onClick={() => {
+                act.run(
+                  'MoveOnboardingStart',
+                  { planId: p.id, input: { startDate: start } },
+                  () => {
+                    setMoving(false);
+                  },
+                );
+              }}
             >
               Move the tasks
             </Button>

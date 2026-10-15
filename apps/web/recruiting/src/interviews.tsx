@@ -136,7 +136,9 @@ function Scale({
     <SegmentedControl
       aria-label={label}
       value={value === null ? '' : String(value)}
-      onValueChange={(v) => onChange(Number(v))}
+      onValueChange={(v) => {
+        onChange(Number(v));
+      }}
       disabled={disabled}
       className="w-full"
     >
@@ -177,11 +179,12 @@ function KitBody({
     (c) => c.interviewerId !== data.me && c.submittedAt !== null,
   );
   const i = data.interview;
-  const save = (submit: boolean) =>
+  const save = (submit: boolean) => {
     act.run('SaveScorecard', {
       interviewId: i.id,
       input: { ratings, recommendation, notes: notes === '' ? null : notes, submit },
     });
+  };
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -194,17 +197,17 @@ function KitBody({
               <Button
                 variant="secondary"
                 loading={act.pending}
-                onClick={() =>
-                  act.run('SetInterviewState', { interviewId: i.id, input: { to: 'no_show' } })
-                }
+                onClick={() => {
+                  act.run('SetInterviewState', { interviewId: i.id, input: { to: 'no_show' } });
+                }}
               >
                 No-show
               </Button>
               <Button
                 loading={act.pending}
-                onClick={() =>
-                  act.run('SetInterviewState', { interviewId: i.id, input: { to: 'completed' } })
-                }
+                onClick={() => {
+                  act.run('SetInterviewState', { interviewId: i.id, input: { to: 'completed' } });
+                }}
               >
                 Mark completed
               </Button>
@@ -282,7 +285,9 @@ function KitBody({
                   label={c.name}
                   value={ratings[c.key] ?? null}
                   disabled={done}
-                  onChange={(v) => setRatings({ ...ratings, [c.key]: v })}
+                  onChange={(v) => {
+                    setRatings({ ...ratings, [c.key]: v });
+                  }}
                 />
               </section>
             ))}
@@ -292,7 +297,9 @@ function KitBody({
                 label="Overall recommendation"
                 value={recommendation === null ? null : RECOMMENDATIONS.indexOf(recommendation) + 1}
                 disabled={done}
-                onChange={(v) => setRecommendation(RECOMMENDATIONS[v - 1] ?? null)}
+                onChange={(v) => {
+                  setRecommendation(RECOMMENDATIONS[v - 1] ?? null);
+                }}
               />
             </section>
             {done ? null : (
@@ -302,7 +309,9 @@ function KitBody({
                   <Textarea
                     autoResize
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    onChange={(e) => {
+                      setNotes(e.target.value);
+                    }}
                     placeholder="What you saw and heard"
                   />
                 </FieldControl>
@@ -312,10 +321,21 @@ function KitBody({
               <Badge tone="success">{`Submitted ${day(mine.submittedAt)}`}</Badge>
             ) : (
               <div className="flex justify-end gap-2">
-                <Button variant="secondary" loading={act.pending} onClick={() => save(false)}>
+                <Button
+                  variant="secondary"
+                  loading={act.pending}
+                  onClick={() => {
+                    save(false);
+                  }}
+                >
                   Save draft
                 </Button>
-                <Button loading={act.pending} onClick={() => save(true)}>
+                <Button
+                  loading={act.pending}
+                  onClick={() => {
+                    save(true);
+                  }}
+                >
                   Submit scorecard
                 </Button>
               </div>
@@ -445,7 +465,13 @@ function ScheduleBody({
                     </h3>
                     <ChipRow aria-label={`Slots on ${d}`}>
                       {slots.map((s) => (
-                        <Chip key={s} selected={slot === s} onClick={() => setSlot(s)}>
+                        <Chip
+                          key={s}
+                          selected={slot === s}
+                          onClick={() => {
+                            setSlot(s);
+                          }}
+                        >
                           {time.format(new Date(s))}
                         </Chip>
                       ))}
@@ -467,7 +493,9 @@ function ScheduleBody({
               <RadioGroup
                 aria-label="How to book"
                 value={how}
-                onValueChange={(v) => setHow(v as typeof how)}
+                onValueChange={(v) => {
+                  setHow(v as typeof how);
+                }}
               >
                 <RadioCard
                   value="pick"
@@ -490,7 +518,9 @@ function ScheduleBody({
                       <Input
                         type="url"
                         value={video}
-                        onChange={(e) => setVideo(e.target.value)}
+                        onChange={(e) => {
+                          setVideo(e.target.value);
+                        }}
                         placeholder="https://meet.google.com/…"
                       />
                     </FieldControl>
@@ -498,14 +528,19 @@ function ScheduleBody({
                   <Field>
                     <FieldLabel>Or an address</FieldLabel>
                     <FieldControl>
-                      <Input value={place} onChange={(e) => setPlace(e.target.value)} />
+                      <Input
+                        value={place}
+                        onChange={(e) => {
+                          setPlace(e.target.value);
+                        }}
+                      />
                     </FieldControl>
                   </Field>
                   <p className="text-sm">{slot === null ? 'Choose a slot.' : when(slot)}</p>
                   <Button
                     disabled={slot === null || data.planKey === null}
                     loading={act.pending}
-                    onClick={() =>
+                    onClick={() => {
                       act.run(
                         'ScheduleInterview',
                         {
@@ -518,8 +553,8 @@ function ScheduleBody({
                           },
                         },
                         back,
-                      )
-                    }
+                      );
+                    }}
                   >
                     Book and send invites
                   </Button>
@@ -528,13 +563,13 @@ function ScheduleBody({
                 <Button
                   disabled={data.planKey === null}
                   loading={act.pending}
-                  onClick={() =>
+                  onClick={() => {
                     act.run(
                       'SelfScheduleLink',
                       { applicationId, input: { planKey: data.planKey } },
                       back,
-                    )
-                  }
+                    );
+                  }}
                 >
                   Send the link
                 </Button>
@@ -650,7 +685,9 @@ function DebriefBody({
             <SegmentedControl
               aria-label="Decision"
               value={decision}
-              onValueChange={(v) => setDecision(v as typeof decision)}
+              onValueChange={(v) => {
+                setDecision(v as typeof decision);
+              }}
               disabled={!data.decider}
               className="w-full"
             >
@@ -665,19 +702,21 @@ function DebriefBody({
                   autoResize
                   value={reason}
                   disabled={!data.decider}
-                  onChange={(e) => setReason(e.target.value)}
+                  onChange={(e) => {
+                    setReason(e.target.value);
+                  }}
                 />
               </FieldControl>
             </Field>
             <Button
               disabled={!data.decider || reason.trim() === ''}
               loading={act.pending}
-              onClick={() =>
+              onClick={() => {
                 act.run('DecideApplication', { applicationId, input: { decision, reason } }, () => {
                   if (decision === 'offer')
                     props.onNavigate?.(`/recruiting/offers/new?application=${applicationId}`);
-                })
-              }
+                });
+              }}
             >
               Record decision
             </Button>

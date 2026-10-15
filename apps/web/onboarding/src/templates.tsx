@@ -85,7 +85,12 @@ function Pick<T extends string>({
   readonly onChange: (v: T) => void;
 }): JSX.Element {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as T)}>
+    <Select
+      value={value}
+      onValueChange={(v) => {
+        onChange(v as T);
+      }}
+    >
       <SelectTrigger aria-label={name}>
         <SelectValue />
       </SelectTrigger>
@@ -114,8 +119,9 @@ function Editor({
   const act = useAct(props);
   const [t, setT] = useState<Draft>(template);
   const [title, setTitle] = useState('');
-  const set = (i: number, patch: Partial<TemplateTask>) =>
+  const set = (i: number, patch: Partial<TemplateTask>) => {
     setT({ ...t, tasks: t.tasks.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+  };
   const countries = t.conditions.countries ?? [];
   return (
     <Card>
@@ -131,7 +137,12 @@ function Editor({
           <Field required>
             <FieldLabel>Name</FieldLabel>
             <FieldControl>
-              <Input value={t.name} onChange={(e) => setT({ ...t, name: e.target.value })} />
+              <Input
+                value={t.name}
+                onChange={(e) => {
+                  setT({ ...t, name: e.target.value });
+                }}
+              />
             </FieldControl>
           </Field>
           <Field>
@@ -139,7 +150,7 @@ function Editor({
             <FieldControl>
               <Input
                 value={(t.conditions.departments ?? []).join(', ')}
-                onChange={(e) =>
+                onChange={(e) => {
                   setT({
                     ...t,
                     conditions: {
@@ -149,8 +160,8 @@ function Editor({
                         .map((x) => x.trim())
                         .filter(Boolean),
                     },
-                  })
-                }
+                  });
+                }}
                 placeholder="Every department"
               />
             </FieldControl>
@@ -164,15 +175,15 @@ function Editor({
               <Switch
                 id={`country-${c}`}
                 checked={countries.includes(c)}
-                onCheckedChange={(on) =>
+                onCheckedChange={(on) => {
                   setT({
                     ...t,
                     conditions: {
                       ...t.conditions,
                       countries: on ? [...countries, c] : countries.filter((x) => x !== c),
                     },
-                  })
-                }
+                  });
+                }}
               />
               <label htmlFor={`country-${c}`}>{c}</label>
             </div>
@@ -198,7 +209,9 @@ function Editor({
                   <Input
                     aria-label="Title"
                     value={x.title}
-                    onChange={(e) => set(i, { title: e.target.value })}
+                    onChange={(e) => {
+                      set(i, { title: e.target.value });
+                    }}
                   />
                 </TableCell>
                 <TableCell>
@@ -206,7 +219,9 @@ function Editor({
                     name="Phase"
                     value={x.phase}
                     options={PHASES}
-                    onChange={(v) => set(i, { phase: v })}
+                    onChange={(v) => {
+                      set(i, { phase: v });
+                    }}
                   />
                 </TableCell>
                 <TableCell>
@@ -214,7 +229,9 @@ function Editor({
                     name="Owner"
                     value={x.ownerRole === 'person' ? 'hr' : x.ownerRole}
                     options={ROLES}
-                    onChange={(v) => set(i, { ownerRole: v })}
+                    onChange={(v) => {
+                      set(i, { ownerRole: v });
+                    }}
                   />
                 </TableCell>
                 <TableCell>
@@ -222,7 +239,9 @@ function Editor({
                     name="Kind"
                     value={x.kind}
                     options={KINDS}
-                    onChange={(v) => set(i, { kind: v })}
+                    onChange={(v) => {
+                      set(i, { kind: v });
+                    }}
                   />
                 </TableCell>
                 <TableCell>
@@ -230,7 +249,9 @@ function Editor({
                     aria-label="Due"
                     className="w-28"
                     value={x.due}
-                    onChange={(e) => set(i, { due: e.target.value })}
+                    onChange={(e) => {
+                      set(i, { due: e.target.value });
+                    }}
                   />
                 </TableCell>
                 <TableCell>
@@ -239,7 +260,9 @@ function Editor({
                     size="sm"
                     aria-label={`Remove ${x.title}`}
                     startIcon={<icons.delete aria-hidden />}
-                    onClick={() => setT({ ...t, tasks: t.tasks.filter((_, j) => j !== i) })}
+                    onClick={() => {
+                      setT({ ...t, tasks: t.tasks.filter((_, j) => j !== i) });
+                    }}
                   />
                 </TableCell>
               </TableRow>
@@ -280,7 +303,9 @@ function Editor({
             aria-label="A new task"
             placeholder="Set first 30-day goals"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+            }}
           />
           <Button type="submit" variant="secondary" disabled={title.trim() === ''}>
             Add task
@@ -291,7 +316,9 @@ function Editor({
             <Switch
               id="active"
               checked={t.active}
-              onCheckedChange={(on) => setT({ ...t, active: on })}
+              onCheckedChange={(on) => {
+                setT({ ...t, active: on });
+              }}
             />
             <label htmlFor="active">In use</label>
           </div>
@@ -328,9 +355,9 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
             actions={
               <Button
                 startIcon={<icons.add aria-hidden />}
-                onClick={() =>
-                  setEditing({ id: newId(), name: '', active: true, conditions: {}, tasks: [] })
-                }
+                onClick={() => {
+                  setEditing({ id: newId(), name: '', active: true, conditions: {}, tasks: [] });
+                }}
               >
                 New template
               </Button>
@@ -341,7 +368,9 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
               key={editing.id}
               template={editing}
               props={props}
-              onDone={() => setEditing(null)}
+              onDone={() => {
+                setEditing(null);
+              }}
             />
           )}
           {data.templates.length === 0 ? (
@@ -358,7 +387,13 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                 <Badge size="sm" tone={t.active ? 'success' : 'neutral'}>
                   {t.active ? 'In use' : 'Off'}
                 </Badge>
-                <Button size="sm" variant="secondary" onClick={() => setEditing(t)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setEditing(t);
+                  }}
+                >
                   Edit
                 </Button>
               </Card>
@@ -437,14 +472,18 @@ function SettingsBody({
                     <Switch
                       aria-label={`${m.name} is HR`}
                       checked={hr.includes(m.personId)}
-                      onCheckedChange={(on) => setHr(toggle(hr, m.personId, on))}
+                      onCheckedChange={(on) => {
+                        setHr(toggle(hr, m.personId, on));
+                      }}
                     />
                   </TableCell>
                   <TableCell>
                     <Switch
                       aria-label={`${m.name} is IT`}
                       checked={it.includes(m.personId)}
-                      onCheckedChange={(on) => setIt(toggle(it, m.personId, on))}
+                      onCheckedChange={(on) => {
+                        setIt(toggle(it, m.personId, on));
+                      }}
                     />
                   </TableCell>
                 </TableRow>
@@ -482,7 +521,9 @@ function SettingsBody({
               <Textarea
                 autoResize
                 value={holidays}
-                onChange={(e) => setHolidays(e.target.value)}
+                onChange={(e) => {
+                  setHolidays(e.target.value);
+                }}
                 placeholder="DE: 2026-12-25, 2026-12-26"
               />
             </FieldControl>

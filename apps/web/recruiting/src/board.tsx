@@ -76,14 +76,21 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                       {[j.department, words(j.workMode)].filter(Boolean).join(' · ')}
                     </span>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => setReferring({ id: j.id, title: j.title })}>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setReferring({ id: j.id, title: j.title });
+                        }}
+                      >
                         Refer someone
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
                         loading={act.pending}
-                        onClick={() => act.run('ApplyInternally', { jobId: j.id, input: {} })}
+                        onClick={() => {
+                          act.run('ApplyInternally', { jobId: j.id, input: {} });
+                        }}
                       >
                         Apply
                       </Button>
@@ -126,7 +133,12 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
               )}
             </CardContent>
           </Card>
-          <Dialog open={referring !== null} onOpenChange={(open) => (open ? null : close())}>
+          <Dialog
+            open={referring !== null}
+            onOpenChange={(open) => {
+              if (!open) close();
+            }}
+          >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{`Refer someone: ${referring?.title ?? ''}`}</DialogTitle>
@@ -138,19 +150,36 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                 <Field required>
                   <FieldLabel>Name</FieldLabel>
                   <FieldControl>
-                    <Input value={name} onChange={(e) => setName(e.target.value)} />
+                    <Input
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                      }}
+                    />
                   </FieldControl>
                 </Field>
                 <Field required>
                   <FieldLabel>Email</FieldLabel>
                   <FieldControl>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                      }}
+                    />
                   </FieldControl>
                 </Field>
                 <Field>
                   <FieldLabel>Why they’d be good</FieldLabel>
                   <FieldControl>
-                    <Textarea autoResize value={note} onChange={(e) => setNote(e.target.value)} />
+                    <Textarea
+                      autoResize
+                      value={note}
+                      onChange={(e) => {
+                        setNote(e.target.value);
+                      }}
+                    />
                   </FieldControl>
                 </Field>
               </div>
@@ -161,7 +190,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                 <Button
                   disabled={name.trim() === '' || !email.includes('@')}
                   loading={act.pending}
-                  onClick={() =>
+                  onClick={() => {
                     act.run(
                       'Refer',
                       {
@@ -169,8 +198,8 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                         input: { name, email, note: note === '' ? null : note },
                       },
                       close,
-                    )
-                  }
+                    );
+                  }}
                 >
                   Send invitation
                 </Button>
@@ -207,7 +236,12 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
             description="An agency submits through its own portal to the jobs you open to it. A candidate belongs to the first agency that submits them, for the ownership period."
             actions={
               data.admin ? (
-                <Button startIcon={<icons.add aria-hidden />} onClick={() => setEditing(blank())}>
+                <Button
+                  startIcon={<icons.add aria-hidden />}
+                  onClick={() => {
+                    setEditing(blank());
+                  }}
+                >
                   Add agency
                 </Button>
               ) : null
@@ -234,7 +268,13 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
                       <TableRow key={a.id}>
                         <TableCell>
                           {data.admin ? (
-                            <Button variant="ghost" size="sm" onClick={() => setEditing(a)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditing(a);
+                              }}
+                            >
                               {a.name}
                             </Button>
                           ) : (
@@ -266,10 +306,14 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
               agency={editing}
               jobs={data.jobs}
               pending={act.pending}
-              onClose={() => setEditing(null)}
+              onClose={() => {
+                setEditing(null);
+              }}
               onSave={(a) => {
                 const { id, ...input } = a;
-                act.run('SaveAgency', { id, input }, () => setEditing(null));
+                act.run('SaveAgency', { id, input }, () => {
+                  setEditing(null);
+                });
               }}
             />
           )}
@@ -294,7 +338,12 @@ function AgencyDialog({
 }): JSX.Element {
   const [a, setA] = useState(agency);
   return (
-    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{agency.name === '' ? 'Add agency' : agency.name}</DialogTitle>
@@ -303,7 +352,12 @@ function AgencyDialog({
           <Field required>
             <FieldLabel>Name</FieldLabel>
             <FieldControl>
-              <Input value={a.name} onChange={(e) => setA({ ...a, name: e.target.value })} />
+              <Input
+                value={a.name}
+                onChange={(e) => {
+                  setA({ ...a, name: e.target.value });
+                }}
+              />
             </FieldControl>
           </Field>
           <Field required>
@@ -312,22 +366,24 @@ function AgencyDialog({
               <Input
                 type="email"
                 value={a.contactEmail}
-                onChange={(e) => setA({ ...a, contactEmail: e.target.value })}
+                onChange={(e) => {
+                  setA({ ...a, contactEmail: e.target.value });
+                }}
               />
             </FieldControl>
           </Field>
           <SegmentedControl
             aria-label="Fee"
             value={a.fee.kind}
-            onValueChange={(k) =>
+            onValueChange={(k) => {
               setA({
                 ...a,
                 fee:
                   k === 'percent'
                     ? { kind: 'percent', basisPoints: 2000 }
                     : { kind: 'fixed', amountMinor: 0 },
-              })
-            }
+              });
+            }}
           >
             <SegmentedControlItem value="percent">Percent</SegmentedControlItem>
             <SegmentedControlItem value="fixed">Fixed</SegmentedControlItem>
@@ -338,18 +394,18 @@ function AgencyDialog({
               value={a.fee.basisPoints / 100}
               min={0}
               max={100}
-              onChange={(n) =>
-                setA({ ...a, fee: { kind: 'percent', basisPoints: Math.round((n ?? 0) * 100) } })
-              }
+              onChange={(n) => {
+                setA({ ...a, fee: { kind: 'percent', basisPoints: Math.round((n ?? 0) * 100) } });
+              }}
             />
           ) : (
             <NumberField
               label="Fee"
               value={a.fee.amountMinor / 100}
               min={0}
-              onChange={(n) =>
-                setA({ ...a, fee: { kind: 'fixed', amountMinor: Math.round((n ?? 0) * 100) } })
-              }
+              onChange={(n) => {
+                setA({ ...a, fee: { kind: 'fixed', amountMinor: Math.round((n ?? 0) * 100) } });
+              }}
             />
           )}
           <div className="grid gap-3 md:grid-cols-2">
@@ -358,14 +414,18 @@ function AgencyDialog({
               value={a.guaranteeDays}
               min={0}
               max={365}
-              onChange={(n) => setA({ ...a, guaranteeDays: n ?? 0 })}
+              onChange={(n) => {
+                setA({ ...a, guaranteeDays: n ?? 0 });
+              }}
             />
             <NumberField
               label="Ownership, months"
               value={a.ownershipMonths}
               min={1}
               max={24}
-              onChange={(n) => setA({ ...a, ownershipMonths: n ?? 6 })}
+              onChange={(n) => {
+                setA({ ...a, ownershipMonths: n ?? 6 });
+              }}
             />
           </div>
           <fieldset className="flex flex-col gap-2">
@@ -375,12 +435,12 @@ function AgencyDialog({
                 <Switch
                   id={`agency-job-${j.id}`}
                   checked={a.jobIds.includes(j.id)}
-                  onCheckedChange={(on) =>
+                  onCheckedChange={(on) => {
                     setA({
                       ...a,
                       jobIds: on ? [...a.jobIds, j.id] : a.jobIds.filter((x) => x !== j.id),
-                    })
-                  }
+                    });
+                  }}
                 />
                 <label htmlFor={`agency-job-${j.id}`}>{j.title}</label>
               </div>
@@ -390,7 +450,9 @@ function AgencyDialog({
             <Switch
               id="agency-active"
               checked={a.active}
-              onCheckedChange={(on) => setA({ ...a, active: on })}
+              onCheckedChange={(on) => {
+                setA({ ...a, active: on });
+              }}
             />
             <label htmlFor="agency-active">Active</label>
           </div>
@@ -402,7 +464,9 @@ function AgencyDialog({
           <Button
             disabled={a.name.trim() === '' || !a.contactEmail.includes('@')}
             loading={pending}
-            onClick={() => onSave(a)}
+            onClick={() => {
+              onSave(a);
+            }}
           >
             Save
           </Button>

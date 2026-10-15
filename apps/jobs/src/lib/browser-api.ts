@@ -42,7 +42,10 @@ export async function publicApi<T>(
 }
 
 /** A file as the public API takes it: base64, with the field it answers. */
-export async function asUpload(field: string, file: File) {
+export async function asUpload(
+  field: string,
+  file: File,
+): Promise<{ field: string; fileName: string; mediaType: string; base64: string }> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000)

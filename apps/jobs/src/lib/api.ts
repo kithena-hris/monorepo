@@ -45,10 +45,10 @@ export interface Results {
 }
 
 /** The search's address, passed through: it is already the API's query. */
-export const search = (query: URLSearchParams) =>
+export const search = (query: URLSearchParams): Promise<Answer<Results>> =>
   call<Results>(`/v1/recruiting/listings?${query.toString()}`, { revalidate: 60 });
 
-export const job = (company: string, slug: string, language?: string) =>
+export const job = (company: string, slug: string, language?: string): Promise<Answer<PublicJob>> =>
   call<PublicJob>(
     `/v1/recruiting/listings/${encodeURIComponent(company)}/${encodeURIComponent(slug)}${
       language === undefined ? '' : `?language=${encodeURIComponent(language)}`
@@ -56,7 +56,9 @@ export const job = (company: string, slug: string, language?: string) =>
     { revalidate: 60 },
   );
 
-export const company = (slug: string) =>
+export const company = (
+  slug: string,
+): Promise<Answer<{ company: PublicCompany; jobs: readonly PublicListing[] }>> =>
   call<{ company: PublicCompany; jobs: readonly PublicListing[] }>(
     `/v1/recruiting/companies/${encodeURIComponent(slug)}`,
     { revalidate: 60 },

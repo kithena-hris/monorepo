@@ -288,6 +288,6 @@ export async function onboardingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         replies: 0,
         message: null,
         detail: null,
-      })) as InboxItem[],
+      })),
   };
 }

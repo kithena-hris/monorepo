@@ -126,7 +126,9 @@ function NewJob(props: ScreenProps<JobData>): JSX.Element {
             <FieldControl>
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                }}
                 placeholder="Senior Backend Engineer (m/w/d)"
               />
             </FieldControl>
@@ -138,7 +140,9 @@ function NewJob(props: ScreenProps<JobData>): JSX.Element {
             <FieldLabel>Work mode</FieldLabel>
             <SegmentedControl
               value={workMode}
-              onValueChange={(v) => setWorkMode(v as typeof workMode)}
+              onValueChange={(v) => {
+                setWorkMode(v as typeof workMode);
+              }}
             >
               <SegmentedControlItem value="onsite">On site</SegmentedControlItem>
               <SegmentedControlItem value="hybrid">Hybrid</SegmentedControlItem>
@@ -245,7 +249,9 @@ function Details({
               <FieldControl>
                 <Input
                   value={job.internalTitle}
-                  onChange={(e) => setJob({ ...job, internalTitle: e.target.value })}
+                  onChange={(e) => {
+                    setJob({ ...job, internalTitle: e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -254,7 +260,9 @@ function Details({
               <FieldControl>
                 <Input
                   value={job.title}
-                  onChange={(e) => setJob({ ...job, title: e.target.value })}
+                  onChange={(e) => {
+                    setJob({ ...job, title: e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -263,9 +271,9 @@ function Details({
               <FieldControl>
                 <Input
                   value={job.department ?? ''}
-                  onChange={(e) =>
-                    setJob({ ...job, department: e.target.value === '' ? null : e.target.value })
-                  }
+                  onChange={(e) => {
+                    setJob({ ...job, department: e.target.value === '' ? null : e.target.value });
+                  }}
                 />
               </FieldControl>
             </Field>
@@ -273,7 +281,9 @@ function Details({
               <FieldLabel>Legal entity</FieldLabel>
               <Select
                 value={job.entityId ?? 'none'}
-                onValueChange={(v) => setJob({ ...job, entityId: v === 'none' ? null : v })}
+                onValueChange={(v) => {
+                  setJob({ ...job, entityId: v === 'none' ? null : v });
+                }}
               >
                 <FieldControl>
                   <SelectTrigger>
@@ -292,7 +302,9 @@ function Details({
               <FieldLabel>Location</FieldLabel>
               <Select
                 value={job.locationIds[0] ?? 'none'}
-                onValueChange={(v) => setJob({ ...job, locationIds: v === 'none' ? [] : [v] })}
+                onValueChange={(v) => {
+                  setJob({ ...job, locationIds: v === 'none' ? [] : [v] });
+                }}
               >
                 <FieldControl>
                   <SelectTrigger>
@@ -311,7 +323,9 @@ function Details({
               label="Openings"
               value={job.openings}
               min={1}
-              onChange={(n) => setJob({ ...job, openings: n ?? 1 })}
+              onChange={(n) => {
+                setJob({ ...job, openings: n ?? 1 });
+              }}
             />
           </CardContent>
         </Card>
@@ -335,7 +349,9 @@ function Details({
                 <Switch
                   id="salary-shown"
                   checked={job.salaryShown}
-                  onCheckedChange={(on) => setJob({ ...job, salaryShown: on })}
+                  onCheckedChange={(on) => {
+                    setJob({ ...job, salaryShown: on });
+                  }}
                 />
                 <label htmlFor="salary-shown">Show the range in the ad</label>
               </div>
@@ -350,7 +366,9 @@ function Details({
                 <Switch
                   id="internal-only"
                   checked={job.internalOnly}
-                  onCheckedChange={(on) => setJob({ ...job, internalOnly: on })}
+                  onCheckedChange={(on) => {
+                    setJob({ ...job, internalOnly: on });
+                  }}
                 />
                 <label htmlFor="internal-only">
                   Internal only: the internal board, nowhere public
@@ -360,7 +378,9 @@ function Details({
                 <Switch
                   id="confidential"
                   checked={job.confidential}
-                  onCheckedChange={(on) => setJob({ ...job, confidential: on })}
+                  onCheckedChange={(on) => {
+                    setJob({ ...job, confidential: on });
+                  }}
                 />
                 <label htmlFor="confidential">
                   Confidential: the company is not named in the ad
@@ -370,7 +390,9 @@ function Details({
                 <Switch
                   id="searchable"
                   checked={job.searchable}
-                  onCheckedChange={(on) => setJob({ ...job, searchable: on })}
+                  onCheckedChange={(on) => {
+                    setJob({ ...job, searchable: on });
+                  }}
                 />
                 <label htmlFor="searchable">On Kithena Jobs’ search, beside the careers page</label>
               </div>
@@ -423,9 +445,9 @@ function Team({
                 <TableCell>
                   <Select
                     value={t.role}
-                    onValueChange={(v) =>
-                      setTeam(team.map((x, j) => (j === i ? { ...x, role: v } : x)))
-                    }
+                    onValueChange={(v) => {
+                      setTeam(team.map((x, j) => (j === i ? { ...x, role: v } : x)));
+                    }}
                   >
                     <SelectTrigger aria-label={`${name(t.personId)}’s role`} className="w-44">
                       <SelectValue />
@@ -445,7 +467,9 @@ function Team({
                     size="sm"
                     aria-label={`Remove ${name(t.personId)}`}
                     startIcon={<icons.delete aria-hidden />}
-                    onClick={() => setTeam(team.filter((_, j) => j !== i))}
+                    onClick={() => {
+                      setTeam(team.filter((_, j) => j !== i));
+                    }}
                   />
                 </TableCell>
               </TableRow>
@@ -480,7 +504,9 @@ function Team({
           <span className="flex-1" />
           <Button
             loading={act.pending}
-            onClick={() => act.run('SetJobTeam', { jobId: data.job.id, input: { team } })}
+            onClick={() => {
+              act.run('SetJobTeam', { jobId: data.job.id, input: { team } });
+            }}
           >
             Save team
           </Button>
@@ -523,9 +549,9 @@ function Criteria({
               <SegmentedControl
                 size="sm"
                 value={String(c.weight)}
-                onValueChange={(v) =>
-                  setRows(rows.map((x, j) => (j === i ? { ...x, weight: Number(v) } : x)))
-                }
+                onValueChange={(v) => {
+                  setRows(rows.map((x, j) => (j === i ? { ...x, weight: Number(v) } : x)));
+                }}
                 aria-label="Weight"
               >
                 <SegmentedControlItem value="1">×1</SegmentedControlItem>
@@ -537,7 +563,9 @@ function Criteria({
                 size="sm"
                 aria-label={`Remove ${c.text}`}
                 startIcon={<icons.delete aria-hidden />}
-                onClick={() => setRows(rows.filter((_, j) => j !== i))}
+                onClick={() => {
+                  setRows(rows.filter((_, j) => j !== i));
+                }}
               />
             </div>
           ))}
@@ -553,7 +581,9 @@ function Criteria({
               aria-label="A criterion"
               placeholder="Five years building backend services in production"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+              }}
             />
             <Button type="submit" variant="secondary" disabled={text.trim() === ''}>
               Add
@@ -562,9 +592,9 @@ function Criteria({
           <div className="flex justify-end">
             <Button
               loading={act.pending}
-              onClick={() =>
-                act.run('SetJobCriteria', { jobId: data.job.id, input: { criteria: rows } })
-              }
+              onClick={() => {
+                act.run('SetJobCriteria', { jobId: data.job.id, input: { criteria: rows } });
+              }}
             >
               Save criteria
             </Button>
@@ -618,19 +648,19 @@ function Plan({
               min={5}
               max={480}
               step={15}
-              onChange={(n) =>
-                setPlan(plan.map((x, j) => (j === i ? { ...x, minutes: n ?? 60 } : x)))
-              }
+              onChange={(n) => {
+                setPlan(plan.map((x, j) => (j === i ? { ...x, minutes: n ?? 60 } : x)));
+              }}
             />
             <Select
               value={p.interviewerIds[0] ?? 'none'}
-              onValueChange={(v) =>
+              onValueChange={(v) => {
                 setPlan(
                   plan.map((x, j) =>
                     j === i ? { ...x, interviewerIds: v === 'none' ? [] : [v] } : x,
                   ),
-                )
-              }
+                );
+              }}
             >
               <SelectTrigger aria-label={`${p.title}’s interviewer`}>
                 <SelectValue placeholder="Interviewer" />
@@ -646,13 +676,13 @@ function Plan({
             </Select>
             <Select
               value={p.scorecardTemplateId ?? 'none'}
-              onValueChange={(v) =>
+              onValueChange={(v) => {
                 setPlan(
                   plan.map((x, j) =>
                     j === i ? { ...x, scorecardTemplateId: v === 'none' ? null : v } : x,
                   ),
-                )
-              }
+                );
+              }}
             >
               <SelectTrigger aria-label={`${p.title}’s scorecard`}>
                 <SelectValue placeholder="Scorecard" />
@@ -671,7 +701,9 @@ function Plan({
               size="sm"
               aria-label={`Remove ${p.title}`}
               startIcon={<icons.delete aria-hidden />}
-              onClick={() => setPlan(plan.filter((_, j) => j !== i))}
+              onClick={() => {
+                setPlan(plan.filter((_, j) => j !== i));
+              }}
             />
           </div>
         ))}
@@ -704,7 +736,9 @@ function Plan({
             aria-label="An interview"
             placeholder="Technical interview"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+            }}
           />
           <Button type="submit" variant="secondary" disabled={title.trim() === ''}>
             Add
@@ -713,7 +747,9 @@ function Plan({
         <div className="flex justify-end">
           <Button
             loading={act.pending}
-            onClick={() => act.run('SetJobPlan', { jobId: data.job.id, input: { plan } })}
+            onClick={() => {
+              act.run('SetJobPlan', { jobId: data.job.id, input: { plan } });
+            }}
           >
             Save plan
           </Button>
@@ -753,7 +789,9 @@ function Ad({
                 key={l}
                 size="sm"
                 variant={l === language ? 'primary' : 'secondary'}
-                onClick={() => setLanguage(l)}
+                onClick={() => {
+                  setLanguage(l);
+                }}
               >
                 {l.toUpperCase()}
               </Button>
@@ -762,7 +800,12 @@ function Ad({
           <Field required>
             <FieldLabel>Title</FieldLabel>
             <FieldControl>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Input
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                }}
+              />
             </FieldControl>
           </Field>
           <RichTextEditor
@@ -776,13 +819,13 @@ function Ad({
             <Button
               loading={act.pending}
               disabled={title.trim() === '' || (doc === null && ad === undefined)}
-              onClick={() =>
+              onClick={() => {
                 act.run('SaveJobAd', {
                   jobId: data.job.id,
                   language,
                   input: { title, doc: doc ?? { type: 'doc', content: [] } },
-                })
-              }
+                });
+              }}
             >
               Save and check
             </Button>
@@ -859,13 +902,13 @@ function Form({
                       aria-label={`${f.label} required`}
                       disabled={locked(f.key)}
                       checked={f.required}
-                      onCheckedChange={(on) =>
+                      onCheckedChange={(on) => {
                         setFields(
                           fields.map((x, j) =>
                             j === i ? { ...x, required: on, shown: on ? true : x.shown } : x,
                           ),
-                        )
-                      }
+                        );
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -873,13 +916,13 @@ function Form({
                       aria-label={`${f.label} shown`}
                       disabled={locked(f.key)}
                       checked={f.shown}
-                      onCheckedChange={(on) =>
+                      onCheckedChange={(on) => {
                         setFields(
                           fields.map((x, j) =>
                             j === i ? { ...x, shown: on, required: on ? x.required : false } : x,
                           ),
-                        )
-                      }
+                        );
+                      }}
                     />
                   </TableCell>
                 </TableRow>
@@ -908,15 +951,15 @@ function Form({
           <div className="flex justify-end">
             <Button
               loading={act.pending}
-              onClick={() =>
+              onClick={() => {
                 act.run('SaveJobForm', {
                   jobId: data.job.id,
                   input: {
                     fields,
                     questionnaireId: questionnaire === 'none' ? null : questionnaire,
                   },
-                })
-              }
+                });
+              }}
             >
               Save form
             </Button>
@@ -1016,9 +1059,9 @@ function Publishing({
                           variant="secondary"
                           disabled={data.job.state !== 'open'}
                           loading={act.pending}
-                          onClick={() =>
-                            act.run('PublishJob', { jobId: data.job.id, target: t.key })
-                          }
+                          onClick={() => {
+                            act.run('PublishJob', { jobId: data.job.id, target: t.key });
+                          }}
                         >
                           Publish
                         </Button>
@@ -1037,7 +1080,9 @@ function Publishing({
           variant="secondary"
           startIcon={<icons.stop aria-hidden />}
           loading={act.pending}
-          onClick={() => act.run('UnpublishJob', { jobId: data.job.id })}
+          onClick={() => {
+            act.run('UnpublishJob', { jobId: data.job.id });
+          }}
         >
           Unpublish everywhere
         </Button>
@@ -1082,9 +1127,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 data.job.state === 'closed' ? (
                   <Button
                     loading={act.pending}
-                    onClick={() =>
-                      act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } })
-                    }
+                    onClick={() => {
+                      act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } });
+                    }}
                   >
                     Open job
                   </Button>
@@ -1092,9 +1137,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   <Button
                     variant="secondary"
                     loading={act.pending}
-                    onClick={() =>
-                      act.run('MoveJob', { jobId: data.job.id, input: { to: 'on_hold' } })
-                    }
+                    onClick={() => {
+                      act.run('MoveJob', { jobId: data.job.id, input: { to: 'on_hold' } });
+                    }}
                   >
                     Put on hold
                   </Button>

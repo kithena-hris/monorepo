@@ -24,9 +24,10 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
     setToken(t);
     if (t === '') setError('Open this page from the link in your invitation.');
     else
-      void publicApi<Slots>(company, '/schedule', { token: t }).then((a) =>
-        a.ok ? setData(a.data) : setError(a.message),
-      );
+      void publicApi<Slots>(company, '/schedule', { token: t }).then((a) => {
+        if (a.ok) setData(a.data);
+        else setError(a.message);
+      });
   }, [company]);
   if (booked)
     return (
@@ -74,7 +75,13 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
           <h2 className="font-semibold">{d}</h2>
           <ChipRow aria-label={`Times on ${d}`}>
             {slots.map((s) => (
-              <Chip key={s} selected={chosen === s} onClick={() => setChosen(s)}>
+              <Chip
+                key={s}
+                selected={chosen === s}
+                onClick={() => {
+                  setChosen(s);
+                }}
+              >
                 {new Date(s).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
               </Chip>
             ))}
@@ -84,7 +91,7 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
       <Button
         disabled={chosen === null}
         loading={pending}
-        onClick={() =>
+        onClick={() => {
           start(async () => {
             const done = await publicApi(company, '/schedule', {
               method: 'POST',
@@ -93,8 +100,8 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
             });
             if (!done.ok) setError(done.message);
             else setBooked(true);
-          })
-        }
+          });
+        }}
       >
         Book this time
       </Button>

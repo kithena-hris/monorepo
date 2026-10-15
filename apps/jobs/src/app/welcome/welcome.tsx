@@ -56,11 +56,11 @@ const day = (iso: string) =>
     timeZone: 'UTC',
   });
 
-async function call<T>(
+async function call(
   token: string,
   path: string,
   method: 'GET' | 'POST' = 'GET',
-): Promise<{ ok: true; data: T } | { ok: false; message: string }> {
+): Promise<{ ok: true; data: unknown } | { ok: false; message: string }> {
   try {
     const r = await fetch(`${base()}/v1/onboarding${path}`, {
       method,
@@ -68,7 +68,7 @@ async function call<T>(
     });
     const body = (await r.json().catch(() => null)) as { error?: { message?: string } } | null;
     return r.ok
-      ? { ok: true, data: body as T }
+      ? { ok: true, data: body }
       : { ok: false, message: body?.error?.message ?? 'That did not go through' };
   } catch {
     return { ok: false, message: 'Not reachable right now. Try again in a moment.' };
@@ -81,7 +81,10 @@ export function Welcome(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const load = (t: string) =>
-    void call<Page>(t, '/welcome').then((a) => (a.ok ? setPage(a.data) : setError(a.message)));
+    void call(t, '/welcome').then((a) => {
+      if (a.ok) setPage(a.data as Page);
+      else setError(a.message);
+    });
   useEffect(() => {
     const t = tokenFromHash();
     setToken(t);

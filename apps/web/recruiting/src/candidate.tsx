@@ -88,13 +88,24 @@ function Messages({
             <Field required>
               <FieldLabel>Subject</FieldLabel>
               <FieldControl>
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+                <Input
+                  value={subject}
+                  onChange={(e) => {
+                    setSubject(e.target.value);
+                  }}
+                />
               </FieldControl>
             </Field>
             <Field required>
               <FieldLabel>Message</FieldLabel>
               <FieldControl>
-                <Textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)} />
+                <Textarea
+                  rows={5}
+                  value={body}
+                  onChange={(e) => {
+                    setBody(e.target.value);
+                  }}
+                />
               </FieldControl>
             </Field>
             <div className="flex justify-end">
@@ -159,7 +170,13 @@ function Notes({
         <Field>
           <FieldLabel>Add a note</FieldLabel>
           <FieldControl>
-            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+            <Textarea
+              rows={2}
+              value={note}
+              onChange={(e) => {
+                setNote(e.target.value);
+              }}
+            />
           </FieldControl>
         </Field>
         <div className="flex justify-end">
@@ -175,7 +192,9 @@ function Notes({
                   candidateId: data.candidate.id,
                   input: { applicationId: application.applicationId, body: note, mentions: [] },
                 },
-                () => setNote(''),
+                () => {
+                  setNote('');
+                },
               );
             }}
           >
@@ -418,7 +437,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                                 label: words(k.replace(/^q_/u, '')),
                                 value:
                                   typeof v === 'object' && v !== null && 'name' in v
-                                    ? String((v as { name: string }).name)
+                                    ? (v as { name: string }).name
                                     : String(v),
                               }))}
                             />
@@ -543,7 +562,12 @@ export function Candidates(props: ScreenProps<CandidatesData>): JSX.Element {
             title="Candidates"
             description="Everyone who applied, was referred, submitted or sourced. Search reads CV text."
             actions={
-              <Button startIcon={<icons.hire aria-hidden />} onClick={() => setAdding(!adding)}>
+              <Button
+                startIcon={<icons.hire aria-hidden />}
+                onClick={() => {
+                  setAdding(!adding);
+                }}
+              >
                 Add sourced profile
               </Button>
             }
@@ -609,7 +633,9 @@ function SearchBox({
         aria-label="Search candidates"
         placeholder="Name, email or words in a CV"
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => {
+          setQ(e.target.value);
+        }}
         className="w-80"
       />
       <Button type="submit" variant="secondary">
@@ -660,7 +686,9 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                     act.run(
                       'SavePool',
                       { poolId: crypto.randomUUID(), input: { name, description: null } },
-                      () => setName(''),
+                      () => {
+                        setName('');
+                      },
                     );
                   }}
                 >
@@ -668,7 +696,9 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                     aria-label="New pool’s name"
                     placeholder="Backend, Berlin · silver medallists"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                    }}
                   />
                   <Button
                     type="submit"

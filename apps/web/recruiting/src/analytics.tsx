@@ -123,7 +123,7 @@ function Ask({
         )}
         <Button
           loading={act.pending}
-          onClick={() =>
+          onClick={() => {
             act.run(
               'Chart',
               {
@@ -132,8 +132,8 @@ function Ask({
               (data) => {
                 setRows((data as { rows: readonly Bucket[] }).rows);
               },
-            )
-          }
+            );
+          }}
         >
           Draw
         </Button>

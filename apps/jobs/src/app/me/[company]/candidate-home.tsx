@@ -91,12 +91,13 @@ function OfferDialog({
   const [reason, setReason] = useState('');
   const [pending, start] = useTransition();
   useEffect(() => {
-    void publicApi<Offer>(company, `/me/offers/${offerId}`, { token }).then((a) =>
-      a.ok ? setOffer(a.data) : setError(a.message),
-    );
+    void publicApi<Offer>(company, `/me/offers/${offerId}`, { token }).then((a) => {
+      if (a.ok) setOffer(a.data);
+      else setError(a.message);
+    });
   }, [company, offerId, token]);
   const v = offer?.offer.versions.at(-1);
-  const act = (path: string, body: unknown) =>
+  const act = (path: string, body: unknown) => {
     start(async () => {
       const done = await publicApi(company, `/me/offers/${offerId}${path}`, {
         method: 'POST',
@@ -106,8 +107,14 @@ function OfferDialog({
       if (!done.ok) setError(done.message);
       else onDone();
     });
+  };
   return (
-    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Your offer</DialogTitle>
@@ -163,7 +170,13 @@ function OfferDialog({
           <Field>
             <FieldLabel>Why, if you’d like to say</FieldLabel>
             <FieldControl>
-              <Textarea autoResize value={reason} onChange={(e) => setReason(e.target.value)} />
+              <Textarea
+                autoResize
+                value={reason}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                }}
+              />
             </FieldControl>
           </Field>
         ) : null}
@@ -173,16 +186,28 @@ function OfferDialog({
               <Button
                 variant="secondary"
                 loading={pending}
-                onClick={() => act('/decline', { reason: reason === '' ? null : reason })}
+                onClick={() => {
+                  act('/decline', { reason: reason === '' ? null : reason });
+                }}
               >
                 Decline the offer
               </Button>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => setDeclining(true)}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setDeclining(true);
+                  }}
+                >
                   Decline
                 </Button>
-                <Button loading={pending} onClick={() => act('/accept', { hash: offer.hash })}>
+                <Button
+                  loading={pending}
+                  onClick={() => {
+                    act('/accept', { hash: offer.hash });
+                  }}
+                >
                   Accept offer
                 </Button>
               </>
@@ -210,16 +235,17 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const load = (t: string) =>
-    void publicApi<CandidatePage>(company, '/me', { token: t }).then((a) =>
-      a.ok ? setPage(a.data) : setError(a.message),
-    );
+    void publicApi<CandidatePage>(company, '/me', { token: t }).then((a) => {
+      if (a.ok) setPage(a.data);
+      else setError(a.message);
+    });
   useEffect(() => {
     const t = tokenFromHash();
     setToken(t);
     if (t === '') setError('Open this page from the link in one of our emails.');
     else load(t);
   }, []);
-  const post = (path: string, body: unknown, done: string) =>
+  const post = (path: string, body: unknown, done: string) => {
     start(async () => {
       const answer = await publicApi(company, path, { method: 'POST', body, token });
       if (!answer.ok) setError(answer.message);
@@ -228,6 +254,7 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
         load(token);
       }
     });
+  };
   if (error !== null && page === null)
     return (
       <Alert tone="warning" title="We can’t show your applications">
@@ -294,7 +321,12 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                 ))}
                 <div className="flex flex-wrap gap-2">
                   {a.offer === null ? null : (
-                    <Button size="sm" onClick={() => setOffer(a.offer?.offerId ?? null)}>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setOffer(a.offer?.offerId ?? null);
+                      }}
+                    >
                       {a.offer.state === 'sent' ? 'Read your offer' : 'Your offer'}
                     </Button>
                   )}
@@ -303,7 +335,9 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => setReferee(a.applicationId)}
+                        onClick={() => {
+                          setReferee(a.applicationId);
+                        }}
                       >
                         Name a referee
                       </Button>
@@ -311,13 +345,13 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                         size="sm"
                         variant="ghost"
                         loading={pending}
-                        onClick={() =>
+                        onClick={() => {
                           post(
                             `/me/applications/${a.applicationId}/withdraw`,
                             {},
                             'Application withdrawn',
-                          )
-                        }
+                          );
+                        }}
                       >
                         Withdraw
                       </Button>
@@ -336,7 +370,7 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
             <Button
               variant="secondary"
               loading={pending}
-              onClick={() =>
+              onClick={() => {
                 start(async () => {
                   const data = await publicApi<unknown>(company, '/me/export', { token });
                   if (!data.ok) {
@@ -349,28 +383,30 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                   );
                   link.download = 'my-applications.json';
                   link.click();
-                })
-              }
+                });
+              }}
             >
               Download my data
             </Button>
             <Button
               variant="ghost"
               loading={pending}
-              onClick={() => post('/me/pool', { agree: false }, 'You have left the talent pool')}
+              onClick={() => {
+                post('/me/pool', { agree: false }, 'You have left the talent pool');
+              }}
             >
               Leave the talent pool
             </Button>
             <Button
               variant="ghost"
               loading={pending}
-              onClick={() =>
+              onClick={() => {
                 post(
                   '/me/delete',
                   {},
                   'Your data is deleted, except where the law says it must be kept',
-                )
-              }
+                );
+              }}
             >
               Delete my data
             </Button>
@@ -385,7 +421,9 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
           company={company}
           token={token}
           offerId={offer}
-          onClose={() => setOffer(null)}
+          onClose={() => {
+            setOffer(null);
+          }}
           onDone={() => {
             setOffer(null);
             setNotice('Done. The company has been told.');
@@ -393,7 +431,12 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
           }}
         />
       )}
-      <Dialog open={referee !== null} onOpenChange={(open) => (open ? null : setReferee(null))}>
+      <Dialog
+        open={referee !== null}
+        onOpenChange={(open) => {
+          if (!open) setReferee(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Name a referee</DialogTitle>
@@ -402,13 +445,24 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
           <Field required>
             <FieldLabel>Name</FieldLabel>
             <FieldControl>
-              <Input value={refName} onChange={(e) => setRefName(e.target.value)} />
+              <Input
+                value={refName}
+                onChange={(e) => {
+                  setRefName(e.target.value);
+                }}
+              />
             </FieldControl>
           </Field>
           <Field required>
             <FieldLabel>Email</FieldLabel>
             <FieldControl>
-              <Input type="email" value={refEmail} onChange={(e) => setRefEmail(e.target.value)} />
+              <Input
+                type="email"
+                value={refEmail}
+                onChange={(e) => {
+                  setRefEmail(e.target.value);
+                }}
+              />
             </FieldControl>
           </Field>
           <DialogFooter>

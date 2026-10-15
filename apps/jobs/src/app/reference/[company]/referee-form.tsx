@@ -27,7 +27,9 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
   useEffect(() => {
     setToken(tokenFromHash());
   }, []);
-  const set = (k: string, v: string) => setAnswers({ ...answers, [k]: v });
+  const set = (k: string, v: string) => {
+    setAnswers({ ...answers, [k]: v });
+  };
   if (sent)
     return (
       <EmptyState
@@ -67,7 +69,9 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
         <FieldControl>
           <Input
             value={answers['relationship'] ?? ''}
-            onChange={(e) => set('relationship', e.target.value)}
+            onChange={(e) => {
+              set('relationship', e.target.value);
+            }}
           />
         </FieldControl>
       </Field>
@@ -76,7 +80,9 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
         <SegmentedControl
           aria-label="Would you hire them again?"
           value={answers['hire_again'] ?? 'yes'}
-          onValueChange={(v) => set('hire_again', v)}
+          onValueChange={(v) => {
+            set('hire_again', v);
+          }}
         >
           <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
           <SegmentedControlItem value="maybe">Maybe</SegmentedControlItem>
@@ -89,7 +95,9 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
           <Textarea
             autoResize
             value={answers['strengths'] ?? ''}
-            onChange={(e) => set('strengths', e.target.value)}
+            onChange={(e) => {
+              set('strengths', e.target.value);
+            }}
           />
         </FieldControl>
       </Field>
@@ -99,7 +107,9 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
           <Textarea
             autoResize
             value={answers['develop'] ?? ''}
-            onChange={(e) => set('develop', e.target.value)}
+            onChange={(e) => {
+              set('develop', e.target.value);
+            }}
           />
         </FieldControl>
       </Field>

@@ -12,7 +12,7 @@ const EMPLOYMENT: Readonly<Record<string, string>> = {
 };
 const UNIT: Readonly<Record<string, string>> = { year: 'YEAR', month: 'MONTH', hour: 'HOUR' };
 
-const strip = (html: string) =>
+const strip = (html: string): string =>
   html
     .replace(/<[^>]+>/gu, ' ')
     .replace(/\s+/gu, ' ')

@@ -195,13 +195,25 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
           <Field required>
             <FieldLabel>Start date</FieldLabel>
             <FieldControl>
-              <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <Input
+                type="date"
+                value={start}
+                onChange={(e) => {
+                  setStart(e.target.value);
+                }}
+              />
             </FieldControl>
           </Field>
           <Field required>
             <FieldLabel>Offer expires</FieldLabel>
             <FieldControl>
-              <Input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
+              <Input
+                type="date"
+                value={expires}
+                onChange={(e) => {
+                  setExpires(e.target.value);
+                }}
+              />
             </FieldControl>
           </Field>
         </div>
@@ -209,7 +221,7 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
           <Button
             disabled={application === '' || base === null}
             loading={act.pending}
-            onClick={() =>
+            onClick={() => {
               act.run(
                 'ComposeOffer',
                 {
@@ -237,8 +249,8 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
                   props.onNavigate?.(
                     `/recruiting/offers/${(offer as { id: string }).id}?tab=terms`,
                   ),
-              )
-            }
+              );
+            }}
           >
             Create draft
           </Button>
@@ -369,11 +381,15 @@ function Length({
         label={label}
         value={v.count}
         min={0}
-        onChange={(n) => onChange({ ...v, count: n ?? 0 })}
+        onChange={(n) => {
+          onChange({ ...v, count: n ?? 0 });
+        }}
       />
       <Select
         value={v.unit}
-        onValueChange={(u) => onChange({ ...v, unit: u as TermLength['unit'] })}
+        onValueChange={(u) => {
+          onChange({ ...v, unit: u as TermLength['unit'] });
+        }}
       >
         <SelectTrigger aria-label={`${label}, unit`} className="w-32">
           <SelectValue />
@@ -453,11 +469,13 @@ function Composer({
     steps.find((s) => s.step === props.search?.['step']) ??
     steps.find((s) => s.state !== 'done') ??
     steps[0];
-  const set = (patch: TermsAnswers) => setAnswers({ ...answers, ...patch });
+  const set = (patch: TermsAnswers) => {
+    setAnswers({ ...answers, ...patch });
+  };
   const editable =
     data.offer.state === 'draft' || data.offer.state === 'approved' || data.offer.state === 'sent';
   const next = steps[steps.findIndex((s) => s.step === current?.step) + 1];
-  const save = () =>
+  const save = () => {
     act.run(
       'ComposeOffer',
       {
@@ -468,6 +486,7 @@ function Composer({
         if (next !== undefined) props.onFilter?.({ step: next.step });
       },
     );
+  };
   const hours = answers.weeklyMinutes === undefined ? null : answers.weeklyMinutes / 60;
   const step = current?.step ?? 'summary';
   return (
@@ -519,7 +538,9 @@ function Composer({
               label="Region"
               value={answers.region}
               choices={c.regions}
-              onChange={(v) => set({ region: v })}
+              onChange={(v) => {
+                set({ region: v });
+              }}
             />
           ) : null}
           {step === 'relationship' ? (
@@ -527,9 +548,9 @@ function Composer({
               label="Relationship"
               value={answers.relationship}
               choices={c.relationships}
-              onChange={(v) =>
-                set({ relationship: v as NonNullable<TermsAnswers['relationship']> })
-              }
+              onChange={(v) => {
+                set({ relationship: v as NonNullable<TermsAnswers['relationship']> });
+              }}
             />
           ) : null}
           {step === 'contract_type' ? (
@@ -537,7 +558,9 @@ function Composer({
               label="Contract type"
               value={answers.contractType}
               choices={c.contractTypes}
-              onChange={(v) => set({ contractType: v })}
+              onChange={(v) => {
+                set({ contractType: v });
+              }}
             />
           ) : null}
           {step === 'fixed_term_reason' ? (
@@ -546,7 +569,9 @@ function Composer({
                 label="Reason"
                 value={answers.fixedTermReason}
                 choices={c.reasons}
-                onChange={(v) => set({ fixedTermReason: v })}
+                onChange={(v) => {
+                  set({ fixedTermReason: v });
+                }}
               />
               {c.asksPreviousEmployment ? (
                 <Field>
@@ -554,7 +579,9 @@ function Composer({
                   <SegmentedControl
                     aria-label="Worked here before"
                     value={answers.previouslyEmployed === true ? 'yes' : 'no'}
-                    onValueChange={(v) => set({ previouslyEmployed: v === 'yes' })}
+                    onValueChange={(v) => {
+                      set({ previouslyEmployed: v === 'yes' });
+                    }}
                   >
                     <SegmentedControlItem value="no">No</SegmentedControlItem>
                     <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
@@ -570,9 +597,9 @@ function Composer({
                 <Input
                   type="date"
                   value={answers.contractEnd ?? ''}
-                  onChange={(e) =>
-                    set({ contractEnd: e.target.value === '' ? null : e.target.value })
-                  }
+                  onChange={(e) => {
+                    set({ contractEnd: e.target.value === '' ? null : e.target.value });
+                  }}
                 />
               </FieldControl>
               <FieldDescription>{`Starts ${day(version.startDate)}, from the offer’s dates. Leave empty for no end.`}</FieldDescription>
@@ -585,7 +612,9 @@ function Composer({
               min={1}
               max={60}
               step={0.5}
-              onChange={(n) => set({ weeklyMinutes: n === null ? undefined : Math.round(n * 60) })}
+              onChange={(n) => {
+                set({ weeklyMinutes: n === null ? undefined : Math.round(n * 60) });
+              }}
             />
           ) : null}
           {step === 'probation' ? (
@@ -594,9 +623,9 @@ function Composer({
                 <Switch
                   id="no-probation"
                   checked={answers.probation === null}
-                  onCheckedChange={(on) =>
-                    set({ probation: on ? null : { count: 6, unit: 'months' } })
-                  }
+                  onCheckedChange={(on) => {
+                    set({ probation: on ? null : { count: 6, unit: 'months' } });
+                  }}
                 />
                 <label htmlFor="no-probation">No probation</label>
               </div>
@@ -604,7 +633,9 @@ function Composer({
                 <Length
                   label="Probation"
                   value={answers.probation}
-                  onChange={(v) => set({ probation: v })}
+                  onChange={(v) => {
+                    set({ probation: v });
+                  }}
                 />
               )}
             </>
@@ -614,12 +645,16 @@ function Composer({
               <Length
                 label="Notice from the employee"
                 value={answers.noticeEmployee}
-                onChange={(v) => set({ noticeEmployee: v })}
+                onChange={(v) => {
+                  set({ noticeEmployee: v });
+                }}
               />
               <Length
                 label="Notice from the employer"
                 value={answers.noticeEmployer}
-                onChange={(v) => set({ noticeEmployer: v })}
+                onChange={(v) => {
+                  set({ noticeEmployer: v });
+                }}
               />
             </>
           ) : null}
@@ -628,7 +663,9 @@ function Composer({
               <SegmentedControl
                 aria-label="Work mode"
                 value={answers.workMode ?? ''}
-                onValueChange={(v) => set({ workMode: v as NonNullable<TermsAnswers['workMode']> })}
+                onValueChange={(v) => {
+                  set({ workMode: v as NonNullable<TermsAnswers['workMode']> });
+                }}
               >
                 <SegmentedControlItem value="onsite">On site</SegmentedControlItem>
                 <SegmentedControlItem value="hybrid">Hybrid</SegmentedControlItem>
@@ -640,7 +677,9 @@ function Composer({
                   value={answers.hybridDaysOnsite ?? null}
                   min={1}
                   max={5}
-                  onChange={(n) => set({ hybridDaysOnsite: n })}
+                  onChange={(n) => {
+                    set({ hybridDaysOnsite: n });
+                  }}
                 />
               ) : null}
               {answers.workMode === 'remote' ? (
@@ -650,12 +689,12 @@ function Composer({
                     <Input
                       maxLength={2}
                       value={answers.remoteCountry ?? ''}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         set({
                           remoteCountry:
                             e.target.value === '' ? null : e.target.value.toUpperCase(),
-                        })
-                      }
+                        });
+                      }}
                     />
                   </FieldControl>
                 </Field>
@@ -669,14 +708,14 @@ function Composer({
                 <FieldControl>
                   <Input
                     value={answers.agreement?.key ?? ''}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       set({
                         agreement:
                           e.target.value === ''
                             ? null
                             : { key: e.target.value, group: answers.agreement?.group ?? null },
-                      })
-                    }
+                      });
+                    }}
                   />
                 </FieldControl>
               </Field>
@@ -686,14 +725,14 @@ function Composer({
                   <Input
                     value={answers.agreement?.group ?? ''}
                     disabled={answers.agreement == null}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       set({
                         agreement: {
                           key: answers.agreement?.key ?? '',
                           group: e.target.value === '' ? null : e.target.value,
                         },
-                      })
-                    }
+                      });
+                    }}
                   />
                 </FieldControl>
               </Field>
@@ -705,16 +744,18 @@ function Composer({
                 label={`Yearly pay (${version.pay.currency})`}
                 value={answers.annualPayMinor === undefined ? null : answers.annualPayMinor / 100}
                 min={0}
-                onChange={(n) =>
-                  set({ annualPayMinor: n === null ? undefined : Math.round(n * 100) })
-                }
+                onChange={(n) => {
+                  set({ annualPayMinor: n === null ? undefined : Math.round(n * 100) });
+                }}
               />
               {c.paymentsPerYear.length > 1 ? (
                 <Pick
                   label="Payments a year"
                   value={String(answers.paymentsPerYear ?? c.paymentsPerYear[0])}
                   choices={c.paymentsPerYear.map((n) => ({ key: String(n), label: String(n) }))}
-                  onChange={(v) => set({ paymentsPerYear: Number(v) })}
+                  onChange={(v) => {
+                    set({ paymentsPerYear: Number(v) });
+                  }}
                 />
               ) : null}
             </>
@@ -731,7 +772,9 @@ function Composer({
                 value={answers.nonCompeteMonths ?? 0}
                 min={0}
                 max={36}
-                onChange={(n) => set({ nonCompeteMonths: n === 0 ? null : n })}
+                onChange={(n) => {
+                  set({ nonCompeteMonths: n === 0 ? null : n });
+                }}
               />
               {(answers.nonCompeteMonths ?? 0) > 0 ? (
                 <NumberField
@@ -739,14 +782,18 @@ function Composer({
                   value={answers.nonCompeteCompensationPercent ?? null}
                   min={0}
                   max={100}
-                  onChange={(n) => set({ nonCompeteCompensationPercent: n })}
+                  onChange={(n) => {
+                    set({ nonCompeteCompensationPercent: n });
+                  }}
                 />
               ) : null}
               <div className="flex items-center gap-3">
                 <Switch
                   id="mobility"
                   checked={answers.mobilityClause === true}
-                  onCheckedChange={(on) => set({ mobilityClause: on })}
+                  onCheckedChange={(on) => {
+                    set({ mobilityClause: on });
+                  }}
                 />
                 <label htmlFor="mobility">Mobility clause</label>
               </div>
@@ -855,45 +902,55 @@ function PayTab({
             label="Base pay"
             value={major(pay.baseMinor)}
             min={0}
-            onChange={(n) => setPay({ ...pay, baseMinor: minor(n) })}
+            onChange={(n) => {
+              setPay({ ...pay, baseMinor: minor(n) });
+            }}
           />
           <Pick
             label="Per"
             value={pay.frequency}
             choices={['year', 'month', 'hour'].map((k) => ({ key: k, label: words(k) }))}
-            onChange={(f) => setPay({ ...pay, frequency: f as typeof pay.frequency })}
+            onChange={(f) => {
+              setPay({ ...pay, frequency: f as typeof pay.frequency });
+            }}
           />
           <NumberField
             label="Variable at target"
             value={major(pay.variableTargetMinor)}
             min={0}
-            onChange={(n) => setPay({ ...pay, variableTargetMinor: minor(n) })}
+            onChange={(n) => {
+              setPay({ ...pay, variableTargetMinor: minor(n) });
+            }}
           />
           <NumberField
             label="Sign-on bonus"
             value={major(pay.signOnMinor)}
             min={0}
-            onChange={(n) => setPay({ ...pay, signOnMinor: minor(n) })}
+            onChange={(n) => {
+              setPay({ ...pay, signOnMinor: minor(n) });
+            }}
           />
           <NumberField
             label="Relocation"
             value={major(pay.relocationMinor)}
             min={0}
-            onChange={(n) => setPay({ ...pay, relocationMinor: minor(n) })}
+            onChange={(n) => {
+              setPay({ ...pay, relocationMinor: minor(n) });
+            }}
           />
           <NumberField
             label="Equity, units"
             value={pay.equity?.units ?? 0}
             min={0}
-            onChange={(n) =>
+            onChange={(n) => {
               setPay({
                 ...pay,
                 equity:
                   (n ?? 0) === 0
                     ? null
                     : { description: pay.equity?.description ?? 'Options', units: n ?? 0 },
-              })
-            }
+              });
+            }}
           />
           <Field>
             <FieldLabel>Grade</FieldLabel>
@@ -917,14 +974,20 @@ function PayTab({
             <Field className="md:col-span-2">
               <FieldLabel>Why outside the band</FieldLabel>
               <FieldControl>
-                <Textarea autoResize value={reason} onChange={(e) => setReason(e.target.value)} />
+                <Textarea
+                  autoResize
+                  value={reason}
+                  onChange={(e) => {
+                    setReason(e.target.value);
+                  }}
+                />
               </FieldControl>
             </Field>
           ) : null}
           <div className="flex justify-end md:col-span-2">
             <Button
               loading={act.pending}
-              onClick={() =>
+              onClick={() => {
                 act.run('ComposeOffer', {
                   applicationId: data.offer.applicationId,
                   input: input(v, data.meta, {
@@ -932,8 +995,8 @@ function PayTab({
                     grade: grade === 'none' ? null : grade,
                     outsideBandReason: reason === '' ? null : reason,
                   }),
-                })
-              }
+                });
+              }}
             >
               Save pay
             </Button>
@@ -988,11 +1051,11 @@ function BenefitsTab({
                       <Checkbox
                         aria-label={name}
                         checked={chosen.includes(b.id)}
-                        onCheckedChange={(on) =>
+                        onCheckedChange={(on) => {
                           setChosen(
                             on === true ? [...chosen, b.id] : chosen.filter((x) => x !== b.id),
-                          )
-                        }
+                          );
+                        }}
                       />
                     )}
                   </TableCell>
@@ -1006,12 +1069,12 @@ function BenefitsTab({
         <div className="flex justify-end">
           <Button
             loading={act.pending}
-            onClick={() =>
+            onClick={() => {
               act.run('ComposeOffer', {
                 applicationId: data.offer.applicationId,
                 input: input(v, data.meta, { benefitIds: chosen }),
-              })
-            }
+              });
+            }}
           >
             Save benefits
           </Button>
@@ -1040,25 +1103,37 @@ function DatesTab({
         <Field required>
           <FieldLabel>Start date</FieldLabel>
           <FieldControl>
-            <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <Input
+              type="date"
+              value={start}
+              onChange={(e) => {
+                setStart(e.target.value);
+              }}
+            />
           </FieldControl>
         </Field>
         <Field required>
           <FieldLabel>Offer expires</FieldLabel>
           <FieldControl>
-            <Input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
+            <Input
+              type="date"
+              value={expires}
+              onChange={(e) => {
+                setExpires(e.target.value);
+              }}
+            />
           </FieldControl>
         </Field>
       </div>
       <div className="mt-4 flex justify-end">
         <Button
           loading={act.pending}
-          onClick={() =>
+          onClick={() => {
             act.run('ComposeOffer', {
               applicationId: data.offer.applicationId,
               input: input(v, data.meta, { startDate: start, expiresOn: expires }),
-            })
-          }
+            });
+          }}
         >
           Save dates
         </Button>
@@ -1090,7 +1165,9 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                   {s === 'draft' ? (
                     <Button
                       loading={act.pending}
-                      onClick={() => act.run('SubmitOffer', { offerId: data.offer.id })}
+                      onClick={() => {
+                        act.run('SubmitOffer', { offerId: data.offer.id });
+                      }}
                     >
                       Send for approval
                     </Button>
@@ -1099,7 +1176,9 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                     <Button
                       loading={act.pending}
                       startIcon={<icons.send aria-hidden />}
-                      onClick={() => act.run('SendOffer', { offerId: data.offer.id })}
+                      onClick={() => {
+                        act.run('SendOffer', { offerId: data.offer.id });
+                      }}
                     >
                       Send to the candidate
                     </Button>
@@ -1117,7 +1196,9 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                     <Button
                       variant="secondary"
                       loading={act.pending}
-                      onClick={() => act.run('WithdrawOffer', { offerId: data.offer.id })}
+                      onClick={() => {
+                        act.run('WithdrawOffer', { offerId: data.offer.id });
+                      }}
                     >
                       Withdraw
                     </Button>
@@ -1174,7 +1255,7 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
       {(data) => {
         const v = data.offer.versions.at(-1);
         const t = data.checked?.terms;
-        const decide = (decision: 'approved' | 'rejected') =>
+        const decide = (decision: 'approved' | 'rejected') => {
           act.run(
             'DecideOffer',
             {
@@ -1183,6 +1264,7 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
             },
             () => props.onNavigate?.('/recruiting/offers'),
           );
+        };
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
@@ -1230,7 +1312,9 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                     <Textarea
                       autoResize
                       value={comment}
-                      onChange={(e) => setComment(e.target.value)}
+                      onChange={(e) => {
+                        setComment(e.target.value);
+                      }}
                       placeholder="Optional. Required to reject."
                     />
                   </FieldControl>
@@ -1240,11 +1324,18 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                     variant="secondary"
                     disabled={comment.trim() === ''}
                     loading={act.pending}
-                    onClick={() => decide('rejected')}
+                    onClick={() => {
+                      decide('rejected');
+                    }}
                   >
                     Reject
                   </Button>
-                  <Button loading={act.pending} onClick={() => decide('approved')}>
+                  <Button
+                    loading={act.pending}
+                    onClick={() => {
+                      decide('approved');
+                    }}
+                  >
                     Approve
                   </Button>
                 </div>
@@ -1331,7 +1422,12 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                       <Field required>
                         <FieldLabel>File reference</FieldLabel>
                         <FieldControl>
-                          <Input value={fileId} onChange={(e) => setFileId(e.target.value)} />
+                          <Input
+                            value={fileId}
+                            onChange={(e) => {
+                              setFileId(e.target.value);
+                            }}
+                          />
                         </FieldControl>
                       </Field>
                       <Field required>
@@ -1340,7 +1436,9 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                           <Input
                             type="date"
                             value={signedOn}
-                            onChange={(e) => setSignedOn(e.target.value)}
+                            onChange={(e) => {
+                              setSignedOn(e.target.value);
+                            }}
                           />
                         </FieldControl>
                         <FieldDescription>Must be before the start date.</FieldDescription>
@@ -1349,12 +1447,12 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                         <Button
                           disabled={fileId === '' || signedOn === ''}
                           loading={act.pending}
-                          onClick={() =>
+                          onClick={() => {
                             act.run('UploadSignedContract', {
                               offerId: data.offer.id,
                               input: { fileId, signedOn },
-                            })
-                          }
+                            });
+                          }}
                         >
                           Record as signed
                         </Button>
@@ -1399,13 +1497,13 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                                         size="sm"
                                         variant={to === 'met' ? 'secondary' : 'ghost'}
                                         loading={act.pending}
-                                        onClick={() =>
+                                        onClick={() => {
                                           act.run('DecideCondition', {
                                             applicationId: data.offer.applicationId,
                                             kind: c.kind,
                                             input: { state: to, note: null },
-                                          })
-                                        }
+                                          });
+                                        }}
                                       >
                                         {words(to)}
                                       </Button>
@@ -1449,12 +1547,12 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                           size="sm"
                           variant="secondary"
                           loading={act.pending}
-                          onClick={() =>
+                          onClick={() => {
                             act.run('CancelPrehire', {
                               applicationId: data.offer.applicationId,
                               input: { reason },
-                            })
-                          }
+                            });
+                          }}
                         >
                           {words(reason)}
                         </Button>
