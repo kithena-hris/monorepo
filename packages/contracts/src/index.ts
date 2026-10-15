@@ -30,3 +30,6 @@ export * from './assistant/index.js';
 export * from './inbox/index.js';
 export * from './documents/primitives.js';
 export * from './events/documents.js';
+export * from './recruiting/primitives.js';
+export * from './recruiting/terms.js';
+export * from './events/recruiting.js';
