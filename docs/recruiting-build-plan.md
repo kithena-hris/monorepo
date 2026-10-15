@@ -319,3 +319,9 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
   after merge; the AWS bucket for Recruiting's files is still to create.
   Phase 2 builds on PRD §22.2 (a model may read an application), decided for
   review in `docs/tech-stack.md`, "Recruiting".
+- **2026-10-15, later.** Phase 2 is built except REC-127 (a business task),
+  and from Phase 3 the job-board port (REC-130) and the assessment and
+  background-check ports (REC-138). The rest of Phase 3 waits on partner
+  agreements, OAuth apps, a Vercel token or a change to `platform/slack`;
+  Phase 4 changes modules on other branches. Talent pools are now for
+  recruiters only, which closed a gap where any member could list them.
