@@ -455,6 +455,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     value(await publishTo(ctx, jobId, 'careers_page'));
     value(await publishTo(ctx, jobId, 'kithena_jobs'));
     value(await publishTo(ctx, jobId, 'google_for_jobs'));
+    // Boards go through the port (§26.1): Google reads the job's page, aggregators the feed.
+    expect(value(await publishTo(ctx, jobId, 'xml_feed')).url).toBe(
+      'https://jobs.example/feeds/acme.xml',
+    );
   });
   const found = await h.jobs.search(JobSearch.parse({ q: 'designer' }));
   expect(found.rows.map((l) => [l.title, l.searchable, l.company.slug])).toEqual([

@@ -247,7 +247,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ## Phase 3 — integrations
 
-- [ ] **REC-130** `JobBoard` port; Google for Jobs and the XML feed moved
+- [x] **REC-130** `JobBoard` port; Google for Jobs and the XML feed moved
       behind it. §26.1.
 - [ ] **REC-131** Indeed: developer agreement signed (business), then Job
       Sync adapter.

@@ -19,6 +19,7 @@ import {
 import { asksPayHistory as questionnaireAsksPayHistory } from '../domain/screening/questionnaire.js';
 import { event, forbidden, loadJob, notFound, publish, type Ctx } from './context.js';
 import type { Criterion, JobAd, JobRecord, PlannedInterview } from './ports.js';
+import { ownBoards } from './boards.js';
 import { defaultTemplate, generalSettings } from './setup.js';
 
 /**
@@ -344,10 +345,7 @@ async function urlFor(ctx: Ctx, job: JobRecord, target: PublicationTarget): Prom
   switch (target) {
     case 'careers_page':
     case 'kithena_jobs':
-    case 'google_for_jobs':
       return base;
-    case 'xml_feed':
-      return `${ctx.deps.jobsOrigin}/feeds/${company}.xml`;
     case 'share_link':
       return `${base}?src=share`;
     default:
@@ -355,14 +353,15 @@ async function urlFor(ctx: Ctx, job: JobRecord, target: PublicationTarget): Prom
   }
 }
 
+/** Kithena's own pages, published at once; every other target is a board behind the port. */
 const SELF: ReadonlySet<PublicationTarget> = new Set([
   'careers_page',
   'kithena_jobs',
-  'google_for_jobs',
-  'xml_feed',
   'internal_board',
   'share_link',
 ]);
+
+const boardsOf = (ctx: Ctx) => ctx.deps.boards ?? ownBoards(ctx.deps.jobsOrigin);
 
 export async function publishTo(
   ctx: Ctx,
@@ -381,12 +380,26 @@ export async function publishTo(
   if (!requested.ok) return requested;
   // Kithena publishes to its own targets at once; a board's adapter moves the rest (PRD §26.1).
   let listing = requested.value;
+  const board = boardsOf(ctx).find((b) => b.target === target);
   if (SELF.has(target)) {
     const live = moveTarget(listing, 'live', ctx.at, {
       url: (await urlFor(ctx, job, target)) ?? '',
     });
     if (!live.ok) return live;
     listing = { ...live.value, url: live.value.url === '' ? null : live.value.url };
+  } else if (board !== undefined) {
+    const company = (await generalSettings(ctx)).companySlug;
+    const sent = await board.publish({
+      jobId,
+      company,
+      slug: job.slug,
+      url: `${ctx.deps.jobsOrigin}/${company}/${job.slug}`,
+    });
+    const moved = sent.ok
+      ? moveTarget(listing, 'live', ctx.at, { url: sent.value.url ?? '' })
+      : moveTarget(listing, 'failed', ctx.at, { error: sent.error.message });
+    if (!moved.ok) return moved;
+    listing = { ...moved.value, url: moved.value.url === '' ? null : moved.value.url };
   }
   await ctx.tx.jobs.saveTarget(jobId, listing);
   if (listing.state === 'live') {
@@ -413,6 +426,18 @@ export async function unpublish(ctx: Ctx, jobId: string): Promise<Result<readonl
 
 async function takeDown(ctx: Ctx, job: JobRecord): Promise<readonly Target[]> {
   const before = await ctx.tx.jobs.targets(job.id);
+  const company = (await generalSettings(ctx)).companySlug;
+  for (const t of before) {
+    if (t.state !== 'live') continue;
+    await boardsOf(ctx)
+      .find((b) => b.target === t.target)
+      ?.close({
+        jobId: job.id,
+        company,
+        slug: job.slug,
+        url: `${ctx.deps.jobsOrigin}/${company}/${job.slug}`,
+      });
+  }
   const after = unpublishAll(before);
   for (const [i, t] of after.entries()) {
     await ctx.tx.jobs.saveTarget(job.id, t);

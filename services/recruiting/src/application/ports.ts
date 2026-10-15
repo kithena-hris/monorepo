@@ -1,4 +1,4 @@
-import type { Clock, PendingEvent } from '@kithena/domain-kit';
+import type { Clock, PendingEvent, Result } from '@kithena/domain-kit';
 import type {
   CalendarDate,
   Instant,
@@ -10,6 +10,7 @@ import type {
   PublicCompany,
   PublicJob,
   PublicListing,
+  PublicationTarget,
 } from '@kithena/contracts';
 
 import type { Application, StageMove } from '../domain/pipeline/application.js';
@@ -459,6 +460,27 @@ export interface Assessment {
   readonly createdAt: Instant;
 }
 
+/**
+ * A job board (PRD §26.1): one adapter per board behind one port. Publishing
+ * twice updates; closing takes the job down. Google for Jobs and the XML feed
+ * are the first two, and read the job from Kithena Jobs' own page and feed;
+ * Indeed is the next, once its agreement is signed.
+ */
+export interface JobBoard {
+  readonly target: PublicationTarget;
+  publish(job: BoardJob): Promise<Result<{ readonly url: string | null }>>;
+  close(job: BoardJob): Promise<void>;
+}
+
+/** What a board is told about a job: where Kithena Jobs shows it. */
+export interface BoardJob {
+  readonly jobId: string;
+  readonly company: string;
+  readonly slug: string;
+  /** Kithena Jobs' page for the job, which a board must link to (Indeed checks it). */
+  readonly url: string;
+}
+
 export interface Sealer {
   seal(plain: Uint8Array, boundTo: string): Uint8Array;
   /** Null when it does not open: the wrong key, or a row moved to another id. */
@@ -779,6 +801,8 @@ export interface Deps {
    * id. Absent without `RECRUITING_ENCRYPTION_KEY`: self-ID is then off.
    */
   readonly sealer?: Sealer;
+  /** The boards a job may be published to beyond Kithena's own pages; Google and the feed by default. */
+  readonly boards?: readonly JobBoard[];
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */
