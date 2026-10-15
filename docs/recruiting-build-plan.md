@@ -82,7 +82,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-022** Interviews and scorecards: plan, states, ratings,
       independent-feedback visibility, debrief averages and disagreements.
       §16.
-- [ ] **REC-023** Offer aggregate: versions, supersede on counter-offer,
+- [x] **REC-023** Offer aggregate: versions, supersede on counter-offer,
       checks (band, budget, advertised range), acceptance record. §18.
 - [x] **REC-024** Terms pack framework: steps, options as a function of
       answers and date, limits, defaults, clauses, `validateTerms`. §19.1–§19.3.
@@ -92,18 +92,18 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-027** United Kingdom pack. §19.6.
 - [x] **REC-028** India pack, with the state as a required step. §19.7.
 - [x] **REC-029** United States pack, with state and city data. §19.8.
-- [ ] **REC-030** Benefits: catalogue, eligibility, statutory items locked,
+- [x] **REC-030** Benefits: catalogue, eligibility, statutory items locked,
       total rewards with `decimal.js`. §20.
-- [ ] **REC-031** Contract model: the documents each pack requires;
+- [x] **REC-031** Contract model: the documents each pack requires;
       `wet_ink` for a German fixed term. §21.1, §21.2.
-- [ ] **REC-032** Pre-hire: conditions state machine; hired, conditions met,
+- [x] **REC-032** Pre-hire: conditions state machine; hired, conditions met,
       cancelled. §21.3.
-- [ ] **REC-033** Consent and retention per country; the anonymisation plan.
+- [x] **REC-033** Consent and retention per country; the anonymisation plan.
       §13.2, §24.2.
-- [ ] **REC-034** Access: the OpenFGA model, internal-applicant hiding, works
+- [x] **REC-034** Access: decided by the domain over the hiring team (PRD §36.7), internal-applicant hiding, works
       council and agency scopes. §25.
-- [ ] **REC-035** Metrics catalogue and definitions; cohort minimum. §23.
-- [ ] **REC-036** Referral outcome visibility; agency ownership window. §9.3,
+- [x] **REC-035** Metrics catalogue and definitions; cohort minimum. §23.
+- [x] **REC-036** Referral outcome visibility; agency ownership window. §9.3,
       §9.4.
 
 ### Storage

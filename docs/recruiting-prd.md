@@ -1665,6 +1665,13 @@ redesign.
    moving to Pro is one setting when they choose to.
 6. **The AI Act conformity owner**: the account owner until they name
    someone; REC-127 stays a business task with a December 2027 deadline.
+7. **Access is decided by the domain, not OpenFGA** (§25): over
+   Recruiting's own rows (administrators, each job's hiring team, an
+   approval's approvers, a works council), for every transport, in the
+   application layer — Documents' reasoning. Nothing in it is a graph
+   OpenFGA answers better, and keeping the hiring team as tuples too would
+   be a second copy to keep in step. The internal applicant's manager comes
+   from the member projection.
 
 ---
 

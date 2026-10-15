@@ -28,7 +28,9 @@ than quietly working around it.
   Atlas dev database) means a query or migration proven in one place behaves
   the same in the others.
 - **OpenFGA** for authorization. Org charts are graphs, not role tables.
-  Documents is the exception: per-document grants, decided by its domain over
+  Documents and Recruiting are the exceptions: Recruiting decides access over
+  each job's hiring team (`docs/tech-stack.md`, "Recruiting"). Documents:
+  per-document grants, decided by its domain over
   its own rows (`docs/tech-stack.md`, "Documents"), and one of the two places
   a model may read content; the other is a job application in Recruiting
   (`docs/tech-stack.md`, "Recruiting").

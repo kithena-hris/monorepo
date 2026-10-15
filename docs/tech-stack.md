@@ -198,6 +198,15 @@ limits, enforced in Documents and not by convention:
 
 ## Recruiting
 
+### Access is decided by the domain, not OpenFGA
+
+As in Documents, and for the same reason: who may see a candidate is a
+function of Recruiting's own rows — the tenant's administrators, each job's
+hiring team and its roles, an approval's approvers, a German entity's works
+council (`domain/access/access.ts`). The one graph fact, an internal
+applicant's manager, is read from the member projection. Decided on the
+owner's behalf on 2026-10-15 and open for review (PRD §36).
+
 ### A model may read an application
 
 Accepted on 2026-10-15 on the owner's behalf, open for review (Recruiting PRD
