@@ -6,6 +6,7 @@ import {
   EmptyState,
   FunnelChart,
   HorizontalBarChart,
+  Input,
   PageHeader,
   Select,
   SelectContent,
@@ -248,6 +249,7 @@ function Ask({
   const [metric, setMetric] = useState('hires');
   const [by, setBy] = useState('department');
   const [rows, setRows] = useState<readonly Bucket[] | null>(null);
+  const [question, setQuestion] = useState('');
   const m = METRICS.find((x) => x.key === metric) ?? METRICS[0];
   const chip = (
     label: string,
@@ -270,6 +272,47 @@ function Ask({
   );
   return (
     <div className="flex flex-col gap-4">
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          act.run('AskForChart', { input: { question } }, (data) => {
+            const d = data as {
+              plan: { metric: string; breakdown: string | null };
+              rows: readonly Bucket[];
+            };
+            setMetric(d.plan.metric);
+            setBy(
+              d.plan.breakdown ??
+                METRICS.find((x) => x.key === d.plan.metric)?.by[0] ??
+                'department',
+            );
+            setRows(d.rows);
+          });
+        }}
+      >
+        <Input
+          aria-label="Ask for a chart"
+          placeholder="Offer acceptance by department this year"
+          value={question}
+          onChange={(e) => {
+            setQuestion(e.target.value);
+          }}
+          className="min-w-0 flex-1"
+        />
+        <Button
+          type="submit"
+          variant="secondary"
+          loading={act.pending}
+          disabled={question.trim() === ''}
+        >
+          Ask
+        </Button>
+      </form>
+      <p className="text-xs text-fg-muted">
+        A model picks the chart below by name; Kithena checks the plan and computes every number.
+        Change any chip.
+      </p>
       <div className="flex flex-wrap items-end gap-2">
         {chip(
           'Metric',

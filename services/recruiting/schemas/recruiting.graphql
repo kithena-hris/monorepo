@@ -48,6 +48,12 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """R25: a question becomes a plan, validated and computed by the domain"""
+  askForChart(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """
   R10, R11: the evidence matrix against the job’s criteria; the domain scores it
   """

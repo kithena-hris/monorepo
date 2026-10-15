@@ -158,6 +158,7 @@ export const OPERATIONS = {
   AssessMatrix: write('AssessMatrix', 'assessMatrix', ...ID('applicationId'), false),
   SummariseDebrief: write('SummariseDebrief', 'summariseDebrief', ...ID('applicationId'), false),
   DraftEmail: write('DraftEmail', 'draftEmail', ...ID('applicationId')),
+  AskForChart: write('AskForChart', 'askForChart'),
   Rediscover: write('Rediscover', 'rediscover', ...ID('jobId'), false),
   DraftAd: write('DraftAd', 'draftAd', ...ID('jobId')),
   ExplainAdPhrase: write('ExplainAdPhrase', 'explainAdPhrase', ...ID('jobId')),

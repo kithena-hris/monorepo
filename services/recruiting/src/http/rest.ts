@@ -140,6 +140,7 @@ import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.j
 import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
+import { askForChart } from '../application/chart-ask.js';
 import { importMembers } from '../application/members.js';
 import {
   draftAd,
@@ -1393,6 +1394,15 @@ export const ROUTES: readonly Route[] = [
       ]),
     }),
     run: (ctx, { body }) => chart(ctx, body),
+  }),
+
+  route({
+    name: 'askForChart',
+    method: 'POST',
+    path: `${V1}/analytics/ask`,
+    summary: 'R25: a question becomes a plan, validated and computed by the domain',
+    body: z.object({ question: text(300).min(1) }),
+    run: (ctx, { body }) => askForChart(ctx, body.question),
   }),
 
   /* ------------------------------------------------------ the public API -- */
