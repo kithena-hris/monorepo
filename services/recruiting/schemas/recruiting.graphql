@@ -39,6 +39,10 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """
+  R10, R11: the evidence matrix against the job’s criteria; the domain scores it
+  """
+  assessMatrix(applicationId: String!, idempotencyKey: String!): JSON
   """R10: move, reject or pool many at once"""
   bulkApplications(
     idempotencyKey: String!

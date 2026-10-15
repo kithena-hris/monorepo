@@ -59,6 +59,11 @@ export async function readApplication<T>(
   applicationId: string,
   spec: PromptSpec<T>,
   extra: Readonly<Record<string, unknown>> = {},
+  /** What the domain makes of the answer before it is kept: the checked output, a score, a band. */
+  judge?: (
+    answer: T,
+    text: string,
+  ) => { readonly output: T; readonly scoreBp: number | null; readonly band: string | null },
 ): Promise<Result<{ readonly assessmentId: string; readonly answer: T; readonly text: string }>> {
   const settings = await generalSettings(ctx);
   const model = ctx.deps.model;
@@ -83,6 +88,11 @@ export async function readApplication<T>(
   const answer = spec.answer.safeParse(parsed);
   if (!answer.success)
     return err(failure('AI_UNAVAILABLE', 'The assistant could not read this just now'));
+  const judged = judge?.(answer.data, text.value) ?? {
+    output: answer.data,
+    scoreBp: null,
+    band: null,
+  };
   const assessment: Assessment = {
     id: ctx.deps.newId(),
     applicationId,
@@ -91,12 +101,12 @@ export async function readApplication<T>(
     promptVersion: spec.version,
     inputHash: sha256(text.value),
     maskedInput: text.value,
-    output: answer.data,
-    scoreBp: null,
-    band: null,
+    output: judged.output,
+    scoreBp: judged.scoreBp,
+    band: judged.band,
     requestedBy: person.value,
     createdAt: ctx.at,
   };
   await ctx.tx.assessments.save(assessment);
-  return ok({ assessmentId: assessment.id, answer: answer.data, text: text.value });
+  return ok({ assessmentId: assessment.id, answer: judged.output, text: text.value });
 }

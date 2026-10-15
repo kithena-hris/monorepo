@@ -63,6 +63,7 @@ import {
   subscribeAlert,
 } from '../application/alerts.js';
 import { readApplication } from '../application/ai.js';
+import { MATRIX, assessMatrix } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -550,7 +551,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   // §22.2: a model reads the application only for the hiring team, masked, and every read is kept.
   await uow.run(tenantId, async (tx) => {
     const general = (await tx.settings.get('general')) as { ai: Record<string, unknown> };
-    await tx.settings.set('general', { ...general, ai: { ...general.ai, parser: true } });
+    await tx.settings.set('general', {
+      ...general,
+      ai: { ...general.ai, parser: true, matrix: true },
+    });
   });
   const seen: string[] = [];
   const reading = {
@@ -563,18 +567,29 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       ) => {
         seen.push(String(prompt.context['application']));
         return Promise.resolve(
-          prompt.instruction === PARSER.instruction
+          prompt.instruction === MATRIX.instruction
             ? JSON.stringify({
-                work: [],
-                education: [],
-                skills: [
-                  { value: 'product design', passage: 'product designer' },
-                  { value: 'Kubernetes', passage: 'Kubernetes' },
+                findings: [
+                  {
+                    criterionId: criterionId,
+                    verdict: 'met',
+                    passages: ['product designer'],
+                    why: 'Says so.',
+                  },
                 ],
-                languages: [],
-                certifications: [],
               })
-            : '{"summary":"A product designer."}',
+            : prompt.instruction === PARSER.instruction
+              ? JSON.stringify({
+                  work: [],
+                  education: [],
+                  skills: [
+                    { value: 'product design', passage: 'product designer' },
+                    { value: 'Kubernetes', passage: 'Kubernetes' },
+                  ],
+                  languages: [],
+                  certifications: [],
+                })
+              : '{"summary":"A product designer."}',
         );
       },
     },
@@ -598,6 +613,20 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(logged.map((a) => [a.feature, a.model, a.promptVersion])).toEqual([
     ['parser', 'fake', 'test@1'],
   ]);
+  // §14.3: the matrix is scored by the domain, from quotes found in the text.
+  const criterionId = randomUUID();
+  await uow.run(tenantId, (tx) =>
+    tx.jobs.setCriteria(jobId, [
+      { id: criterionId, text: 'Product design', must: true, weight: 3 },
+    ]),
+  );
+  const matrix = value(
+    await uow.run(tenantId, async (tx) =>
+      assessMatrix(await contextOf(reading, tx, callerOf('ada')), applied.applicationId),
+    ),
+  );
+  expect([matrix.scoreBp, matrix.band]).toEqual([10_000, 'strong']);
+
   // §14.2: the parser keeps only what the text says, and the candidate confirms it on their page.
   const parsed = value(
     await uow.run(tenantId, async (tx) =>

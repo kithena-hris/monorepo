@@ -221,7 +221,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       candidate confirms it on J6, their own page, rather than on J4: a parse
       on the public form would be a model call before anyone signs in, with
       no application to log it against.
-- [ ] **REC-114** Evidence matrix; quote verification; score and band in the
+- [x] **REC-114** Evidence matrix; quote verification; score and band in the
       domain. §14.3.
 - [ ] **REC-115** Matrix on R10 and R11; per-criterion disagreement. §14.4,
       §22.4.
