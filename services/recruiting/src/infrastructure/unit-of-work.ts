@@ -893,6 +893,23 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
             }) satisfies Assessment,
         ),
     },
+    selfIds: {
+      save: async (applicationId, sealed) => {
+        await tx.execute(sql`INSERT INTO recruiting.self_id (tenant_id, application_id, sealed)
+          VALUES (${T}, ${applicationId}, ${Buffer.from(sealed)})
+          ON CONFLICT (tenant_id, application_id) DO UPDATE SET sealed = EXCLUDED.sealed`);
+      },
+      remove: async (applicationId) => {
+        await tx.execute(
+          sql`DELETE FROM recruiting.self_id WHERE application_id = ${applicationId}`,
+        );
+      },
+      all: async () =>
+        (await rows(tx, sql`SELECT application_id, sealed FROM recruiting.self_id`)).map((r) => ({
+          applicationId: String(r['application_id']),
+          sealed: new Uint8Array(r['sealed'] as Buffer),
+        })),
+    },
     verdicts: {
       save: async (assessmentId, list) => {
         for (const r of list)

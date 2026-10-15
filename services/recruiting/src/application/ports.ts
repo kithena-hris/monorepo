@@ -404,9 +404,7 @@ export interface InterviewStore {
   scorecards(interviewId: string): Promise<readonly Scorecard[]>;
   forApplicationScorecards(applicationId: string): Promise<readonly Scorecard[]>;
   /** The submitted scorecards' notes, read only by the debrief summary. */
-  scorecardNotes(
-    applicationId: string,
-  ): Promise<
+  scorecardNotes(applicationId: string): Promise<
     readonly {
       readonly interviewId: string;
       readonly interviewerId: string;
@@ -459,6 +457,12 @@ export interface Assessment {
   readonly band: string | null;
   readonly requestedBy: string;
   readonly createdAt: Instant;
+}
+
+export interface Sealer {
+  seal(plain: Uint8Array, boundTo: string): Uint8Array;
+  /** Null when it does not open: the wrong key, or a row moved to another id. */
+  open(sealed: Uint8Array, boundTo: string): Uint8Array | null;
 }
 
 export interface VerdictRow {
@@ -666,6 +670,12 @@ export interface Tx {
     save(a: Assessment): Promise<void>;
     forApplication(applicationId: string): Promise<readonly Assessment[]>;
   };
+  /** Voluntary self-ID, sealed (§24.4): written by the candidate, read only to count. */
+  readonly selfIds: {
+    save(applicationId: string, sealed: Uint8Array): Promise<void>;
+    all(): Promise<readonly { readonly applicationId: string; readonly sealed: Uint8Array }[]>;
+    remove(applicationId: string): Promise<void>;
+  };
   /** The matrix's findings, one per criterion, and a person's agreement with each (§22.4). */
   readonly verdicts: {
     save(assessmentId: string, rows: readonly VerdictRow[]): Promise<void>;
@@ -764,6 +774,11 @@ export interface Deps {
   readonly inbound?: { readonly domain: string; readonly token: string };
   /** Absent without an AI key: every AI feature is then off, and Recruiting works without it. */
   readonly model?: Model;
+  /**
+   * Seals what only aggregates may read (§24.4, self-ID), bound to its row's
+   * id. Absent without `RECRUITING_ENCRYPTION_KEY`: self-ID is then off.
+   */
+  readonly sealer?: Sealer;
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */

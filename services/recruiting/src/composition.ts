@@ -11,6 +11,7 @@ import { recruitingListener, recruitingServer } from './http/server.js';
 import { blobsFrom } from './infrastructure/blobs.js';
 import { uuidv7 } from './infrastructure/ids.js';
 import { modelFrom } from './infrastructure/model.js';
+import { sealerFrom } from './infrastructure/sealer.js';
 import { mailerFrom } from './infrastructure/messaging.js';
 import { listingsFrom } from './infrastructure/listings.js';
 import { extract } from './infrastructure/text.js';
@@ -61,6 +62,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   const mailer = mailerFrom(env);
   const listings = listingsFrom(env);
   const model = modelFrom(env);
+  const sealer = sealerFrom(env);
   const inboundDomain = env['INBOUND_DOMAIN'];
   const messagingToken = env['MESSAGING_RECRUITING_TOKEN'];
   const { listener, deps } = recruitingServer(
@@ -73,6 +75,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(mailer === undefined ? {} : { mailer }),
       ...(listings === null ? {} : { listings }),
       ...(model === undefined ? {} : { model }),
+      ...(sealer === undefined ? {} : { sealer }),
       ...(inboundDomain && messagingToken
         ? { inbound: { domain: inboundDomain, token: messagingToken } }
         : {}),

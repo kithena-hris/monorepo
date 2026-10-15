@@ -90,6 +90,7 @@ const WRITES = new Set<OperationName>([
   'RecruitingSlots',
   'RecruitingWorkingHours',
   'RecruitingParsedProfile',
+  'RecruitingFairness',
   'RecruitingDebrief',
   'RecruitingExport',
   'RecruitingCandidates',

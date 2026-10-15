@@ -116,6 +116,9 @@ export async function anonymise(ctx: Ctx, candidateId: string): Promise<Result<t
   for (const file of await ctx.tx.files.removeOf(candidateId))
     await ctx.deps.blobs.delete(file.blobKey);
   for (const app of apps) {
+    // What was read from the CV and the self-ID go with the person.
+    await ctx.tx.selfIds.remove(app.id);
+    await ctx.tx.settings.set(`parsed_profile:${app.id}`, null);
     await ctx.tx.applications.save(
       { ...app, answers: {}, adjustments: null },
       'applied',

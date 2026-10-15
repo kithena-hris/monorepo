@@ -141,6 +141,7 @@ import { agreeWithFinding, assessMatrix, rediscover } from '../application/matri
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
 import { askForChart } from '../application/chart-ask.js';
+import { SelfId, fairness, saveSelfId, selfIdQuestions } from '../application/fairness.js';
 import { importMembers } from '../application/members.js';
 import {
   draftAd,
@@ -1397,6 +1398,14 @@ export const ROUTES: readonly Route[] = [
   }),
 
   route({
+    name: 'recruitingFairness',
+    method: 'GET',
+    path: `${V1}/analytics/fairness`,
+    summary: 'R23: stage pass rates by self-ID group, four-fifths rule; administrators only',
+    params: z.object({ category: z.enum(['gender', 'ethnicity']).default('gender') }),
+    run: (ctx, { params }) => fairness(ctx, params.category),
+  }),
+  route({
     name: 'askForChart',
     method: 'POST',
     path: `${V1}/analytics/ask`,
@@ -1508,6 +1517,27 @@ export const ROUTES: readonly Route[] = [
       asCandidate(ctx, headers, (id) =>
         confirmParsedProfile(ctx, id, params.applicationId, body.note),
       ),
+  }),
+  route({
+    name: 'publicSelfIdQuestions',
+    method: 'GET',
+    path: `${V1}/public/{company}/me/applications/{applicationId}/self-id`,
+    summary: 'J6: the voluntary self-ID questions the company asks, after applying',
+    params: z.object({ company: text(63), applicationId: Id }),
+    public: true,
+    run: (ctx, { params, headers }) =>
+      asCandidate(ctx, headers, (id) => selfIdQuestions(ctx, id, params.applicationId)),
+  }),
+  route({
+    name: 'publicSelfId',
+    method: 'POST',
+    path: `${V1}/public/{company}/me/applications/{applicationId}/self-id`,
+    summary: 'J6: voluntary self-ID, sealed, never seen by the hiring team or a model',
+    params: z.object({ company: text(63), applicationId: Id }),
+    body: SelfId,
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      asCandidate(ctx, headers, (id) => saveSelfId(ctx, id, params.applicationId, body)),
   }),
   route({
     name: 'publicReferee',

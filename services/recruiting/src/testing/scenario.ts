@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import {
   CalendarDate,
   Instant,
@@ -72,6 +72,8 @@ import {
 } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
+import { fairness, saveSelfId } from '../application/fairness.js';
+import { aesSealer } from '../infrastructure/sealer.js';
 import { askForChart } from '../application/chart-ask.js';
 import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
@@ -812,6 +814,27 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       'I also lead research.',
     );
   });
+
+  // §24.4: self-ID is sealed, counted only by an administrator, and a group under five is withheld.
+  await uow.run(tenantId, async (tx) => {
+    const general = (await tx.settings.get('general')) as Record<string, unknown>;
+    await tx.settings.set('general', { ...general, selfId: { gender: true, ethnicity: false } });
+  });
+  const sealing = { ...deps, sealer: aesSealer(randomBytes(32)) };
+  const asSealing = <T>(who: 'public' | 'ada' | 'adam', fn: (ctx: Ctx) => Promise<T>) =>
+    uow.run(tenantId, async (tx) => fn(await contextOf(sealing, tx, callerOf(who))));
+  value(
+    await asSealing('public', (ctx) =>
+      saveSelfId(ctx, yuki?.id ?? '', applied.applicationId, {
+        gender: 'woman',
+        ethnicity: 'asian',
+      }),
+    ),
+  );
+  const stored = await uow.run(tenantId, (tx) => tx.selfIds.all());
+  expect(new TextDecoder().decode(stored[0]?.sealed)).not.toContain('woman');
+  expect(value(await asSealing('ada', (ctx) => fairness(ctx, 'gender'))).all).toEqual([]);
+  expect((await asSealing('adam', (ctx) => fairness(ctx, 'gender'))).ok).toBe(false);
 
   // J11: an alert sends nothing until confirmed, then each new matching job once.
   const alertMail: { to: string; text: string }[] = [];

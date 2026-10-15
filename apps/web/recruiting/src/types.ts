@@ -757,6 +757,7 @@ export interface GeneralSettings {
     readonly nycAuditOn: string | null;
     readonly maskSchools?: boolean;
   };
+  readonly selfId?: { readonly gender: boolean; readonly ethnicity: boolean };
 }
 
 export interface Agency {

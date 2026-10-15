@@ -753,6 +753,7 @@ function Ai({
 }): JSX.Element {
   const act = useAct(props);
   const [ai, setAi] = useState(data.general.ai);
+  const [selfId, setSelfId] = useState(data.general.selfId ?? { gender: false, ethnicity: false });
   return (
     <div className="flex flex-col gap-4">
       <Refusal error={act.error} />
@@ -818,6 +819,29 @@ function Ai({
         />
       </Section>
       <Section
+        title="Voluntary self-ID"
+        description="Asked after applying, sealed, counted only in groups of five; never seen by a hiring team or a model"
+      >
+        <Toggle
+          id="self-id-gender"
+          label="Gender"
+          hint="Where it is lawful to ask in the countries you hire in."
+          checked={selfId.gender}
+          onChange={(on) => {
+            setSelfId({ ...selfId, gender: on });
+          }}
+        />
+        <Toggle
+          id="self-id-ethnicity"
+          label="Race or ethnicity (US EEO-1)"
+          hint="For a US employer."
+          checked={selfId.ethnicity}
+          onChange={(on) => {
+            setSelfId({ ...selfId, ethnicity: on });
+          }}
+        />
+      </Section>
+      <Section
         title="New York City"
         description="Until a bias audit is recorded, NYC jobs keep the matrix off"
       >
@@ -838,7 +862,7 @@ function Ai({
         <Button
           loading={act.pending}
           onClick={() => {
-            act.run('SaveRecruitingSettings', { input: { ...data.general, ai } });
+            act.run('SaveRecruitingSettings', { input: { ...data.general, ai, selfId } });
           }}
         >
           Save

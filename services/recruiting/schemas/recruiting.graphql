@@ -449,6 +449,10 @@ type Query {
   recruitingDebrief(applicationId: String!): JSON
   """Everything held about a candidate (GDPR art. 15)"""
   recruitingExport(candidateId: String!): JSON
+  """
+  R23: stage pass rates by self-ID group, four-fifths rule; administrators only
+  """
+  recruitingFairness(category: String): JSON
   """R1: my tasks and my jobs"""
   recruitingHome: JSON
   """The Inbox: Recruiting’s items for me"""

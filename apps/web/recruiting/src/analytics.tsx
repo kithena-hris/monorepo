@@ -1,5 +1,6 @@
 import {
   Alert,
+  Badge,
   BarChart,
   Button,
   ChartCard,
@@ -8,6 +9,8 @@ import {
   HorizontalBarChart,
   Input,
   PageHeader,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
@@ -27,7 +30,7 @@ import {
   TrendChart,
   icons,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, To, useAct, words } from './shared';
@@ -39,7 +42,7 @@ import type { AnalyticsData, Bucket, ScreenProps } from './types';
  * five people arrives withheld and is drawn as such.
  */
 
-const DASHBOARDS = ['overview', 'funnel', 'speed', 'sources', 'offers', 'ask'] as const;
+const DASHBOARDS = ['overview', 'funnel', 'speed', 'sources', 'offers', 'fairness', 'ask'] as const;
 type Dashboard = (typeof DASHBOARDS)[number];
 const PERIODS = ['last_30_days', 'last_90_days', 'this_quarter', 'this_year', 'last_year'] as const;
 
@@ -228,6 +231,114 @@ export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
         );
       }}
     </Loaded>
+  );
+}
+
+interface ImpactRow {
+  readonly stage: string;
+  readonly group: string;
+  readonly n: number;
+  readonly rateBp: number;
+  readonly ratioBp: number;
+  readonly flagged: boolean;
+}
+
+const pct = (bp: number) => `${(bp / 100).toFixed(1)}%`;
+
+function ImpactTable({
+  title,
+  rows,
+}: {
+  readonly title: string;
+  readonly rows: readonly ImpactRow[];
+}): JSX.Element {
+  return (
+    <ChartCard
+      title={title}
+      description="Share of each group that reached the stage, against the highest"
+    >
+      {rows.length === 0 ? (
+        <p className="text-sm text-fg-muted">No group of five or more people yet.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Stage</TableHead>
+              <TableHead>Group</TableHead>
+              <TableHead className="text-right">People</TableHead>
+              <TableHead className="text-right">Reached</TableHead>
+              <TableHead className="text-right">Ratio</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={`${r.stage}:${r.group}`}>
+                <TableCell>{r.stage}</TableCell>
+                <TableCell>{words(r.group)}</TableCell>
+                <TableCell className="text-right tabular-nums">{String(r.n)}</TableCell>
+                <TableCell className="text-right tabular-nums">{pct(r.rateBp)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.flagged ? (
+                    <Badge size="sm" tone="warning">{`${pct(r.ratioBp)}, under four-fifths`}</Badge>
+                  ) : (
+                    pct(r.ratioBp)
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </ChartCard>
+  );
+}
+
+/** PRD §22.6: pass rates by voluntary self-ID group, AI-assisted and not; administrators only. */
+function Fairness({ props }: { readonly props: ScreenProps<AnalyticsData> }): JSX.Element {
+  const act = useAct(props);
+  const [category, setCategory] = useState<'gender' | 'ethnicity'>('gender');
+  const [data, setData] = useState<{
+    all: readonly ImpactRow[];
+    aiAssisted: readonly ImpactRow[];
+    notAssisted: readonly ImpactRow[];
+  } | null>(null);
+  const [refused, setRefused] = useState<string | null>(null);
+  const { call } = act;
+  useEffect(() => {
+    void call('RecruitingFairness', { category }).then((done) => {
+      if (done.ok) {
+        setRefused(null);
+        setData(done.data as NonNullable<typeof data>);
+      } else setRefused(done.message);
+    });
+  }, [call, category]);
+  return (
+    <div className="flex flex-col gap-4">
+      <SegmentedControl
+        aria-label="Group by"
+        value={category}
+        onValueChange={(v) => {
+          setCategory(v === 'ethnicity' ? 'ethnicity' : 'gender');
+        }}
+      >
+        <SegmentedControlItem value="gender">Gender</SegmentedControlItem>
+        <SegmentedControlItem value="ethnicity">Race or ethnicity</SegmentedControlItem>
+      </SegmentedControl>
+      {refused === null ? null : <Alert tone="info" title={refused} />}
+      {data === null ? null : (
+        <>
+          <ImpactTable title="Every decision" rows={data.all} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ImpactTable title="With an evidence matrix" rows={data.aiAssisted} />
+            <ImpactTable title="Without one" rows={data.notAssisted} />
+          </div>
+        </>
+      )}
+      <p className="text-xs text-fg-muted">
+        From voluntary answers given after applying, sealed and never shown to a hiring team. A
+        group under five people is never shown.
+      </p>
+    </div>
   );
 }
 
@@ -548,6 +659,9 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                 <Stat label="Sent" value={String(data.offers.sent)} />
                 <Stat label="Accepted" value={String(data.offers.accepted)} />
                 <Stat label="Declined" value={String(data.offers.declined)} />
+              </TabsContent>
+              <TabsContent value="fairness">
+                <Fairness props={props} />
               </TabsContent>
               <TabsContent value="ask">
                 <Ask props={props} period={data.filters.period} />

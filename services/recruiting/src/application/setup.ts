@@ -56,6 +56,14 @@ export const GeneralSettings = z.object({
     /** Schools' names masked too, against prestige bias (§14.6); a default so older settings still read. */
     maskSchools: z.boolean().default(false),
   }),
+  /**
+   * Voluntary self-ID categories asked after applying (§24.4): US EEO-1 race
+   * and ethnicity for a US employer; gender where it is lawful to ask. Off by
+   * default; a default so older settings still read.
+   */
+  selfId: z
+    .object({ gender: z.boolean(), ethnicity: z.boolean() })
+    .default({ gender: false, ethnicity: false }),
 });
 export type GeneralSettings = z.infer<typeof GeneralSettings>;
 
@@ -90,6 +98,7 @@ export const DEFAULT_SETTINGS: GeneralSettings = {
     nycAuditOn: null,
     maskSchools: false,
   },
+  selfId: { gender: false, ethnicity: false },
 };
 
 export async function generalSettings(ctx: Ctx): Promise<GeneralSettings> {

@@ -30,6 +30,7 @@ import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi, tokenFromHash } from '../../../lib/browser-api';
 import { ReadProfile } from './read-profile';
+import { SelfIdForm } from './self-id';
 
 interface Offer {
   readonly offer: {
@@ -321,6 +322,7 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                   <Alert key={r.id} tone="warning" title={r.label} />
                 ))}
                 <ReadProfile company={company} token={token} applicationId={a.applicationId} />
+                <SelfIdForm company={company} token={token} applicationId={a.applicationId} />
                 <div className="flex flex-wrap gap-2">
                   {a.offer === null ? null : (
                     <Button
