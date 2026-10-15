@@ -14,7 +14,15 @@ import {
 } from '../domain/pipeline/application.js';
 import { sendAt, type Stage } from '../domain/pipeline/pipeline.js';
 import { poolConsent } from '../domain/privacy/retention.js';
-import { event, forbidden, jobFacts, notFound, publish, type Ctx } from './context.js';
+import {
+  event,
+  forbidden,
+  jobFacts,
+  notFound,
+  publish,
+  recruiterOnly,
+  type Ctx,
+} from './context.js';
 import type { ApplicationRecord, Candidate, Message, Template } from './ports.js';
 import { generalSettings } from './setup.js';
 
@@ -377,6 +385,8 @@ export async function addToPool(
   candidateId: string,
   reason: string,
 ): Promise<Result<'added' | 'asked'>> {
+  const allowed = await recruiterOnly(ctx);
+  if (!allowed.ok) return allowed;
   const pool = await ctx.tx.pools.get(poolId);
   const candidate = await ctx.tx.candidates.get(candidateId);
   if (pool === null || candidate === null) return err(notFound('pool'));

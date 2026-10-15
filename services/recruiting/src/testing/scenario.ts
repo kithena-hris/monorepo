@@ -66,6 +66,7 @@ import { readApplication } from '../application/ai.js';
 import { MATRIX, agreeWithFinding, assessMatrix, latestMatrix } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
+import { poolsScreen } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
@@ -720,6 +721,14 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(portal.submissions.map((x) => x.candidate)).toEqual(['Lucía Pérez']);
     expect((await agencyPortal(ctx, 'not-a-token')).ok).toBe(false);
   });
+  // Pools are the recruiters': an interviewer cannot list who is in them.
+  await as('adam', async (ctx) => {
+    expect((await poolsScreen(ctx, undefined)).ok).toBe(false);
+  });
+  await as('ada', async (ctx) => {
+    expect((await poolsScreen(ctx, undefined)).ok).toBe(true);
+  });
+
   // §33: another agency sees none of the first one's candidates.
   await uow.run(tenantId, (tx) =>
     tx.agencies.save({

@@ -20,6 +20,7 @@ import {
   contextOf,
   deliver,
   PUBLIC_ACCOUNT,
+  recruiterOnly,
   type Ctx,
   type Outgoing,
 } from '../application/context.js';
@@ -369,7 +370,7 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/pools`,
     summary: 'R13: talent pools',
     params: z.object({ poolId: Id.optional() }),
-    run: async (ctx, { params }) => ok(await poolsScreen(ctx, params.poolId)),
+    run: (ctx, { params }) => poolsScreen(ctx, params.poolId),
   }),
   route({
     name: 'recruitingInterviews',
@@ -847,6 +848,8 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ poolId: Id }),
     body: z.object({ name: text(120).min(1), description: text(500).nullable() }),
     run: async (ctx, { params, body }) => {
+      const allowed = await recruiterOnly(ctx);
+      if (!allowed.ok) return allowed;
       await ctx.tx.pools.save({ id: params.poolId, ...body });
       return ok({ ok: true });
     },

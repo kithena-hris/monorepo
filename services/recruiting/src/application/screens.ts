@@ -11,7 +11,7 @@ import { TERMS_STEPS } from '@kithena/contracts';
 import { approvalState } from '../domain/requisition/requisition.js';
 import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
-import { jobFacts, notFound, type Ctx } from './context.js';
+import { jobFacts, notFound, recruiterOnly, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
 import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
@@ -375,14 +375,16 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
 }
 
 /** R13: pools and their members. */
-export async function poolsScreen(ctx: Ctx, poolId: string | undefined): Promise<unknown> {
+export async function poolsScreen(ctx: Ctx, poolId: string | undefined): Promise<Result<unknown>> {
+  const allowed = await recruiterOnly(ctx);
+  if (!allowed.ok) return allowed;
   const pools = await Promise.all(
     (await ctx.tx.pools.list()).map(async (p) => ({
       ...p,
       count: (await ctx.tx.pools.members(p.id)).length,
     })),
   );
-  if (poolId === undefined) return { pools, pool: null };
+  if (poolId === undefined) return ok({ pools, pool: null });
   const members = await Promise.all(
     (await ctx.tx.pools.members(poolId)).map(async (m) => {
       const c = await ctx.tx.candidates.get(m.candidateId);
@@ -395,7 +397,7 @@ export async function poolsScreen(ctx: Ctx, poolId: string | undefined): Promise
       return { ...m, name: c?.name ?? '', email: c?.email ?? '', consentUntil: consent };
     }),
   );
-  return { pools, pool: { ...(await ctx.tx.pools.get(poolId)), members } };
+  return ok({ pools, pool: { ...(await ctx.tx.pools.get(poolId)), members } });
 }
 
 /** RM1 and the interviews tab: mine coming up and scorecards I owe. */

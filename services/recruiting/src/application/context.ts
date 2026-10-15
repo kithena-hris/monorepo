@@ -104,6 +104,23 @@ export const forbidden = (message = 'You cannot do this'): DomainFailure =>
 export const adminOnly = (ctx: Ctx): Result<true> =>
   ctx.viewer.admin ? ok(true) : err(forbidden('Only a recruiting administrator can do this'));
 
+/**
+ * Talent pools are the recruiters' (PRD §13): an administrator, or a person
+ * who is a recruiter on at least one job. Anyone else in the company would
+ * otherwise read every pooled candidate's name and email.
+ */
+export async function recruiterOnly(ctx: Ctx): Promise<Result<true>> {
+  if (ctx.viewer.admin) return ok(true);
+  const person = ctx.viewer.personId;
+  if (person !== null)
+    for (const jobId of await ctx.tx.jobs.onTeam(person))
+      if (
+        (await ctx.tx.jobs.team(jobId)).some((t) => t.personId === person && t.role === 'recruiter')
+      )
+        return ok(true);
+  return err(forbidden('Only a recruiter can do this'));
+}
+
 export async function jobFacts(ctx: Ctx, job: JobRecord): Promise<JobFacts> {
   return { id: job.id, team: await ctx.tx.jobs.team(job.id), confidential: job.confidential };
 }
