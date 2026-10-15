@@ -33,9 +33,11 @@ describe('inbound replies', () => {
       },
     });
     expect(await forward('e1')).toBe(1);
-    expect(posts[0]?.url).toBe('https://api.example.com/v1/recruiting/public/acme/replies');
-    expect((posts[0]?.init.headers as Record<string, string>)['x-internal-token']).toBe('secret');
-    expect(JSON.parse(posts[0]?.init.body as string)).toEqual({
+    const [first] = posts;
+    expect(first?.url).toBe('https://api.example.com/v1/recruiting/public/acme/replies');
+    const headers = (first?.init.headers ?? {}) as Record<string, string>;
+    expect(headers['x-internal-token']).toBe('secret');
+    expect(JSON.parse((first?.init.body ?? '') as string)).toEqual({
       token,
       from: 'yuki@example.com',
       subject: 'Re: Your interview',
