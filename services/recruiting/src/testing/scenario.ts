@@ -63,7 +63,7 @@ import {
   subscribeAlert,
 } from '../application/alerts.js';
 import { readApplication } from '../application/ai.js';
-import { MATRIX, assessMatrix } from '../application/matrix.js';
+import { MATRIX, agreeWithFinding, assessMatrix, latestMatrix } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -626,6 +626,13 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     ),
   );
   expect([matrix.scoreBp, matrix.band]).toEqual([10_000, 'strong']);
+  // §22.4: a recruiter disagrees with one finding; it is kept with the assessment.
+  await as('ada', async (ctx) => {
+    value(
+      await agreeWithFinding(ctx, applied.applicationId, matrix.assessmentId, criterionId, false),
+    );
+    expect((await latestMatrix(ctx, applied.applicationId))?.findings[0]?.agreed).toBe(false);
+  });
 
   // §14.2: the parser keeps only what the text says, and the candidate confirms it on their page.
   const parsed = value(

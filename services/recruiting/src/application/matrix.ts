@@ -2,8 +2,9 @@ import * as z from 'zod';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { matchScore, verifyFindings, type Band, type Finding } from '../domain/ai/matrix.js';
+import { may } from '../domain/access/access.js';
 import { readApplication, type PromptSpec } from './ai.js';
-import type { Ctx } from './context.js';
+import { asPerson, forbidden, notFound, type Ctx } from './context.js';
 import { loadApplication } from './moves.js';
 
 /**
@@ -68,6 +69,16 @@ export async function assessMatrix(ctx: Ctx, applicationId: string): Promise<Res
     },
   );
   if (!read.ok) return read;
+  await ctx.tx.verdicts.save(
+    read.value.assessmentId,
+    read.value.answer.findings.map((f) => ({
+      criterionId: f.criterionId,
+      verdict: f.verdict,
+      passages: f.passages,
+      agreed: null,
+      agreedBy: null,
+    })),
+  );
   return ok({
     assessmentId: read.value.assessmentId,
     findings: read.value.answer.findings,
@@ -75,16 +86,77 @@ export async function assessMatrix(ctx: Ctx, applicationId: string): Promise<Res
   });
 }
 
-/** The latest matrix for an application, or null; for R10 and R11. */
-export async function latestMatrix(ctx: Ctx, applicationId: string): Promise<Matrix | null> {
+/** The latest score and band, for a card on R10. */
+export async function latestMatch(
+  ctx: Ctx,
+  applicationId: string,
+): Promise<{ readonly scoreBp: number; readonly band: Band } | null> {
+  const last = (await ctx.tx.assessments.forApplication(applicationId))
+    .filter((a) => a.feature === 'matrix')
+    .at(-1);
+  return last === undefined
+    ? null
+    : { scoreBp: last.scoreBp ?? 0, band: (last.band ?? 'weak') as Band };
+}
+
+/** What R11 shows (§22.4): each finding with its criterion, what was read, by which model and when, and whether a person agreed. */
+export interface MatrixView {
+  readonly assessmentId: string;
+  readonly model: string;
+  readonly at: string;
+  readonly scoreBp: number;
+  readonly band: Band;
+  readonly findings: readonly (Finding & {
+    readonly criterion: string;
+    readonly must: boolean;
+    readonly agreed: boolean | null;
+  })[];
+}
+
+/** The latest matrix for an application, or null; its score orders R10 when someone asks. */
+export async function latestMatrix(ctx: Ctx, applicationId: string): Promise<MatrixView | null> {
   const last = (await ctx.tx.assessments.forApplication(applicationId))
     .filter((a) => a.feature === 'matrix')
     .at(-1);
   if (last === undefined) return null;
+  const app = await ctx.tx.applications.get(applicationId);
+  const criteria = app === null ? [] : await ctx.tx.jobs.criteria(app.jobId);
+  const agreement = await ctx.tx.verdicts.of(last.id);
   return {
     assessmentId: last.id,
-    findings: (last.output as { findings: Finding[] }).findings,
+    model: last.model,
+    at: last.createdAt,
     scoreBp: last.scoreBp ?? 0,
     band: (last.band ?? 'weak') as Band,
+    findings: (last.output as { findings: Finding[] }).findings.map((f) => {
+      const c = criteria.find((x) => x.id === f.criterionId);
+      return {
+        ...f,
+        criterion: c?.text ?? '',
+        must: c?.must ?? false,
+        agreed: agreement.find((v) => v.criterionId === f.criterionId)?.agreed ?? null,
+      };
+    }),
   };
+}
+
+/** "Was this right?" per criterion: stored with the assessment, it feeds the overturn rate (§3). */
+export async function agreeWithFinding(
+  ctx: Ctx,
+  applicationId: string,
+  assessmentId: string,
+  criterionId: string,
+  agreed: boolean,
+): Promise<Result<true>> {
+  const person = asPerson(ctx);
+  if (!person.ok) return person;
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'candidate.profile')) return err(forbidden());
+  const assessment = (await ctx.tx.assessments.forApplication(applicationId)).find(
+    (a) => a.id === assessmentId,
+  );
+  if (assessment === undefined) return err(notFound('assessment'));
+  await ctx.tx.verdicts.agree(assessmentId, criterionId, agreed, person.value);
+  return ok(true);
 }

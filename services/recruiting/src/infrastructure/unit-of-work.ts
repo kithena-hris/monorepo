@@ -20,6 +20,7 @@ import type { Answer, Questionnaire } from '../domain/screening/questionnaire.js
 import { normalEmail, normalName, normalPhone } from '../domain/candidate/duplicates.js';
 import type {
   Assessment,
+  VerdictRow,
   Agency,
   ApplicationRecord,
   Approval,
@@ -877,6 +878,34 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
               requestedBy: String(r['requested_by']),
               createdAt: r['created_at'] as Assessment['createdAt'],
             }) satisfies Assessment,
+        ),
+    },
+    verdicts: {
+      save: async (assessmentId, list) => {
+        for (const r of list)
+          await tx.execute(sql`INSERT INTO recruiting.ai_verdict (tenant_id, assessment_id, criterion_id, verdict, passages)
+            VALUES (${T}, ${assessmentId}, ${r.criterionId}, ${r.verdict}, ${J(r.passages)})`);
+      },
+      agree: async (assessmentId, criterionId, agreed, by) => {
+        await tx.execute(sql`UPDATE recruiting.ai_verdict SET agreed = ${agreed}, agreed_by = ${by}
+          WHERE assessment_id = ${assessmentId} AND criterion_id = ${criterionId}`);
+      },
+      of: async (assessmentId) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT criterion_id, verdict, passages, agreed, agreed_by FROM recruiting.ai_verdict
+                WHERE assessment_id = ${assessmentId}`,
+          )
+        ).map(
+          (r) =>
+            ({
+              criterionId: String(r['criterion_id']),
+              verdict: r['verdict'] as VerdictRow['verdict'],
+              passages: r['passages'] as string[],
+              agreed: (r['agreed'] as boolean | null) ?? null,
+              agreedBy: (r['agreed_by'] as string | null) ?? null,
+            }) satisfies VerdictRow,
         ),
     },
     references: {

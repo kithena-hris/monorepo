@@ -84,6 +84,9 @@ function CandidateCard({
             Possible duplicate
           </Badge>
         ) : null}
+        {card.match == null ? null : (
+          <Badge size="sm" tone="neutral">{`${words(card.match.band)} match`}</Badge>
+        )}
         <span
           className={card.daysInStage > 4 ? 'text-[var(--reach-warning-text)]' : 'text-fg-muted'}
         >{`${String(card.daysInStage)} d in stage`}</span>
@@ -400,6 +403,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   <SelectItem value="newest">Newest first</SelectItem>
                   <SelectItem value="days">Longest in stage</SelectItem>
                   <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="match">Match, strongest first</SelectItem>
                 </SelectContent>
               </Select>
             </div>

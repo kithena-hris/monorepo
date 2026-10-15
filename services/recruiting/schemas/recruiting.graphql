@@ -32,6 +32,15 @@ type Mutation {
     input: JSON!
     poolId: String!
   ): JSON
+  """R11: was this right? Per criterion, stored with the assessment"""
+  agreeWithFinding(
+    applicationId: String!
+    assessmentId: String!
+    criterionId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R8: apply to a job inside the company"""
   applyInternally(
     idempotencyKey: String!

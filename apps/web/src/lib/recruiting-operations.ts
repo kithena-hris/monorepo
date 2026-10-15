@@ -155,6 +155,13 @@ export const OPERATIONS = {
   SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   ParseCv: write('ParseCv', 'parseCv', ...ID('applicationId'), false),
+  AssessMatrix: write('AssessMatrix', 'assessMatrix', ...ID('applicationId'), false),
+  AgreeWithFinding: write(
+    'AgreeWithFinding',
+    'agreeWithFinding',
+    '$applicationId: String!, $assessmentId: String!, $criterionId: String!, ',
+    'applicationId: $applicationId, assessmentId: $assessmentId, criterionId: $criterionId, ',
+  ),
   RecruitingParsedProfile: query(
     'RecruitingParsedProfile',
     'recruitingParsedProfile',

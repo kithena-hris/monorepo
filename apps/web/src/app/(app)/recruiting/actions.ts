@@ -47,6 +47,8 @@ const WRITES = new Set<OperationName>([
   'SelfScheduleLink',
   'SaveRecruitingWorkingHours',
   'ParseCv',
+  'AssessMatrix',
+  'AgreeWithFinding',
   'SetInterviewState',
   'SaveScorecard',
   'DecideApplication',

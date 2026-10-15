@@ -451,6 +451,14 @@ export interface Assessment {
   readonly createdAt: Instant;
 }
 
+export interface VerdictRow {
+  readonly criterionId: string;
+  readonly verdict: 'met' | 'partly_met' | 'not_met' | 'not_evidenced';
+  readonly passages: readonly string[];
+  readonly agreed: boolean | null;
+  readonly agreedBy: string | null;
+}
+
 /** A model, reached only through the AI gateway; null on a refusal, a failure or a timeout. */
 export interface Model {
   readonly name: string;
@@ -647,6 +655,12 @@ export interface Tx {
   readonly assessments: {
     save(a: Assessment): Promise<void>;
     forApplication(applicationId: string): Promise<readonly Assessment[]>;
+  };
+  /** The matrix's findings, one per criterion, and a person's agreement with each (§22.4). */
+  readonly verdicts: {
+    save(assessmentId: string, rows: readonly VerdictRow[]): Promise<void>;
+    agree(assessmentId: string, criterionId: string, agreed: boolean, by: string): Promise<void>;
+    of(assessmentId: string): Promise<readonly VerdictRow[]>;
   };
   readonly references: {
     forApplication(applicationId: string): Promise<readonly ReferenceRequest[]>;

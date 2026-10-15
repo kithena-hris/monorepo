@@ -223,7 +223,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       no application to log it against.
 - [x] **REC-114** Evidence matrix; quote verification; score and band in the
       domain. §14.3.
-- [ ] **REC-115** Matrix on R10 and R11; per-criterion disagreement. §14.4,
+- [x] **REC-115** Matrix on R10 and R11; per-criterion disagreement. §14.4,
       §22.4.
 - [ ] **REC-116** Rediscovery from consented pool members. §14.5.
 - [ ] **REC-117** Ad writer, inclusive-language explanations, translation.

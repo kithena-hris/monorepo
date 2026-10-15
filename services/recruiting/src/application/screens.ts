@@ -13,6 +13,7 @@ import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
 import { jobFacts, notFound, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
+import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
 import { checkOffer } from './offers.js';
 import { generalSettings } from './setup.js';
@@ -197,6 +198,8 @@ export async function pipelineScreen(
   const job = await ctx.tx.jobs.get(jobId);
   if (job === null) return err(notFound('job'));
   const facts = await jobFacts(ctx, job);
+  // The band beside the stage, never instead of it (§22.5), for those who may read the profile.
+  const matrixOn = may(ctx.viewer, facts, 'candidate.profile');
   if (!may(ctx.viewer, facts, 'pipeline.view')) return err(notFound('job'));
   const stages = await ctx.tx.jobs.stages(jobId);
   const apps = await ctx.tx.applications.forJob(jobId);
@@ -237,6 +240,7 @@ export async function pipelineScreen(
       source: sourceLabel(app),
       appliedAt: app.createdAt,
       score: app.score,
+      match: matrixOn ? await latestMatch(ctx, app.id) : null,
       unread,
       nextInterview: next === undefined ? null : { title: next.title, startsAt: next.startsAt },
       lastMoveId: app.history.at(-1)?.id ?? null,
@@ -248,7 +252,9 @@ export async function pipelineScreen(
       ? a.name.localeCompare(b.name)
       : filters.sort === 'days'
         ? b.daysInStage - a.daysInStage
-        : b.appliedAt.localeCompare(a.appliedAt),
+        : filters.sort === 'match'
+          ? (b.match?.scoreBp ?? -1) - (a.match?.scoreBp ?? -1)
+          : b.appliedAt.localeCompare(a.appliedAt),
   );
   const settings = await generalSettings(ctx);
   return ok({
@@ -346,6 +352,7 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
       })),
       prehire: await ctx.tx.prehires.get(app.id),
       // The hiring team reads the answers; the token's hash never leaves Recruiting.
+      matrix: may(ctx.viewer, facts, 'candidate.profile') ? await latestMatrix(ctx, app.id) : null,
       references: team
         ? (await ctx.tx.references.forApplication(app.id)).map(({ tokenHash: _hash, ...r }) => r)
         : [],

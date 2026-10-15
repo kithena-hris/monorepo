@@ -136,7 +136,7 @@ import {
   submitAsAgency,
 } from '../application/agency-portal.js';
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
-import { assessMatrix } from '../application/matrix.js';
+import { agreeWithFinding, assessMatrix } from '../application/matrix.js';
 import { importMembers } from '../application/members.js';
 import {
   confirmParsedProfile,
@@ -955,6 +955,24 @@ export const ROUTES: readonly Route[] = [
     summary: 'R10, R11: the evidence matrix against the job’s criteria; the domain scores it',
     params: z.object({ applicationId: Id }),
     run: (ctx, { params }) => assessMatrix(ctx, params.applicationId),
+  }),
+  route({
+    name: 'agreeWithFinding',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/matrix/{assessmentId}/{criterionId}`,
+    summary: 'R11: was this right? Per criterion, stored with the assessment',
+    params: z.object({ applicationId: Id, assessmentId: Id, criterionId: Id }),
+    body: z.object({ agreed: z.boolean() }),
+    run: async (ctx, { params, body }) =>
+      done(
+        await agreeWithFinding(
+          ctx,
+          params.applicationId,
+          params.assessmentId,
+          params.criterionId,
+          body.agreed,
+        ),
+      ),
   }),
   route({
     name: 'recruitingParsedProfile',

@@ -251,6 +251,8 @@ export interface Card {
   readonly source: string;
   readonly appliedAt: string;
   readonly score: number | null;
+  /** The evidence matrix's band, for those who may read the profile; a label, never a stage. */
+  readonly match?: { readonly scoreBp: number; readonly band: 'strong' | 'good' | 'weak' } | null;
   readonly unread: number;
   readonly nextInterview: { readonly title: string; readonly startsAt: string } | null;
   readonly lastMoveId: string | null;
@@ -363,6 +365,22 @@ export interface CandidateData {
       readonly state: string;
       readonly startDate: string;
       readonly conditions: readonly { readonly kind: string; readonly state: string }[];
+    } | null;
+    readonly matrix?: {
+      readonly assessmentId: string;
+      readonly model: string;
+      readonly at: string;
+      readonly scoreBp: number;
+      readonly band: 'strong' | 'good' | 'weak';
+      readonly findings: readonly {
+        readonly criterionId: string;
+        readonly criterion: string;
+        readonly must: boolean;
+        readonly verdict: 'met' | 'partly_met' | 'not_met' | 'not_evidenced';
+        readonly passages: readonly string[];
+        readonly why: string;
+        readonly agreed: boolean | null;
+      }[];
     } | null;
     readonly references: readonly {
       readonly id: string;

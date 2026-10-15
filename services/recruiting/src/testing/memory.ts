@@ -15,6 +15,7 @@ import type { Stage } from '../domain/pipeline/pipeline.js';
 import { normalEmail, normalPhone } from '../domain/candidate/duplicates.js';
 import type {
   Assessment,
+  VerdictRow,
   Agency,
   Listings,
   AgencySubmission,
@@ -148,6 +149,7 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
   const cards = keyed<Scorecard & { notes: string | null }>(state, 'scorecards');
   const hours = keyed<WorkingHours>(state, 'hours');
   const assessed = keyed<Assessment>(state, 'assessments');
+  const verdicts = keyed<VerdictRow & { assessmentId: string }>(state, 'verdicts');
   const refs = keyed<ReferenceRequest>(state, 'references');
   const offers = keyed<Offer>(state, 'offers');
   const contracts = keyed<Contract & { fileId: string | null }>(state, 'contracts');
@@ -454,6 +456,22 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
       },
       forApplication: (applicationId) =>
         assessed.values().filter((a) => a.applicationId === applicationId),
+    },
+    verdicts: {
+      save: (assessmentId, rows) => {
+        for (const r of rows)
+          verdicts.set(`${assessmentId}:${r.criterionId}`, { ...r, assessmentId });
+      },
+      agree: (assessmentId, criterionId, agreed, by) => {
+        const held = verdicts.get(`${assessmentId}:${criterionId}`);
+        if (held !== null)
+          verdicts.set(`${assessmentId}:${criterionId}`, { ...held, agreed, agreedBy: by });
+      },
+      of: (assessmentId) =>
+        verdicts
+          .values()
+          .filter((v) => v.assessmentId === assessmentId)
+          .map(({ assessmentId: _a, ...v }) => v),
     },
     references: {
       forApplication: (applicationId) =>

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AgreeWithFinding($applicationId: String!, $assessmentId: String!, $criterionId: String!, $input: JSON!, $key: String!) {\n    agreeWithFinding(applicationId: $applicationId, assessmentId: $assessmentId, criterionId: $criterionId, input: $input, idempotencyKey: $key)\n  }"}

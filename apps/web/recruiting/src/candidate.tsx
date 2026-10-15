@@ -17,6 +17,14 @@ import {
   Input,
   KeyValues,
   PageHeader,
+  SegmentedControl,
+  SegmentedControlItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tabs,
   TabsContent,
   TabsList,
@@ -43,6 +51,7 @@ import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './ty
 const TABS = [
   'profile',
   'answers',
+  'evidence',
   'interviews',
   'references',
   'messages',
@@ -50,6 +59,106 @@ const TABS = [
   'offers',
 ] as const;
 type Tab = (typeof TABS)[number];
+
+const VERDICT: Readonly<Record<string, { label: string; tone: 'success' | 'info' | 'neutral' }>> = {
+  met: { label: 'Met', tone: 'success' },
+  partly_met: { label: 'Partly met', tone: 'info' },
+  not_met: { label: 'Not met', tone: 'neutral' },
+  not_evidenced: { label: 'Not evidenced', tone: 'neutral' },
+};
+
+/**
+ * PRD §14.3, §22.4, §22.5: the evidence matrix beside the person's own view.
+ * Each verdict shows its quotes, the model and the date, and asks whether it
+ * was right; the band is a label beside the stage, never instead of it.
+ */
+function Evidence({
+  application,
+  props,
+}: {
+  readonly application: CandidateData['applications'][number];
+  readonly props: ScreenProps<CandidateData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const matrix = application.matrix ?? null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>Evidence against the criteria</CardTitle>
+        <CardDescription>
+          {matrix === null
+            ? 'A model reads the masked application against the job’s criteria and quotes what it found. You decide.'
+            : `${matrix.model} · ${day(matrix.at)} · ${words(matrix.band)} match. A label, not a decision.`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Refusal error={act.error} />
+        {matrix === null ? null : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Criterion</TableHead>
+                <TableHead>Verdict</TableHead>
+                <TableHead>What it read</TableHead>
+                <TableHead>Was this right?</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {matrix.findings.map((f) => (
+                <TableRow key={f.criterionId}>
+                  <TableCell>
+                    {f.criterion}
+                    {f.must ? <span className="block text-xs text-fg-muted">Must-have</span> : null}
+                  </TableCell>
+                  <TableCell>
+                    <Badge size="sm" tone={VERDICT[f.verdict]?.tone ?? 'neutral'}>
+                      {VERDICT[f.verdict]?.label ?? f.verdict}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {f.passages.map((q) => (
+                      <q key={q} className="block">
+                        {q}
+                      </q>
+                    ))}
+                    {f.why === '' ? null : <span className="block text-fg-muted">{f.why}</span>}
+                  </TableCell>
+                  <TableCell>
+                    <SegmentedControl
+                      aria-label={`Was the verdict on ${f.criterion} right?`}
+                      value={f.agreed === null ? '' : f.agreed ? 'yes' : 'no'}
+                      disabled={act.pending}
+                      onValueChange={(v) => {
+                        act.run('AgreeWithFinding', {
+                          applicationId: application.applicationId,
+                          assessmentId: matrix.assessmentId,
+                          criterionId: f.criterionId,
+                          input: { agreed: v === 'yes' },
+                        });
+                      }}
+                    >
+                      <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
+                      <SegmentedControlItem value="no">No</SegmentedControlItem>
+                    </SegmentedControl>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <Button
+          variant="secondary"
+          loading={act.pending}
+          onClick={() => {
+            act.run('AssessMatrix', { applicationId: application.applicationId });
+          }}
+        >
+          {matrix === null ? 'Read against the criteria' : 'Read again'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface Said {
   readonly value: string;
@@ -548,6 +657,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                     <TabsList>
                       <TabsTrigger value="profile">Profile</TabsTrigger>
                       <TabsTrigger value="answers">Answers</TabsTrigger>
+                      {chosen.may.includes('candidate.profile') ? (
+                        <TabsTrigger value="evidence">Evidence</TabsTrigger>
+                      ) : null}
                       <TabsTrigger value="interviews">{`Interviews${chosen.interviews.length > 0 ? ` (${String(chosen.interviews.length)})` : ''}`}</TabsTrigger>
                       <TabsTrigger value="references">{`References${chosen.references.length > 0 ? ` (${String(chosen.references.length)})` : ''}`}</TabsTrigger>
                       <TabsTrigger value="messages">{`Messages${data.messages.length > 0 ? ` (${String(data.messages.length)})` : ''}`}</TabsTrigger>
@@ -622,6 +734,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           )}
                         </CardContent>
                       </Card>
+                    </TabsContent>
+                    <TabsContent value="evidence">
+                      <Evidence application={chosen} props={props} />
                     </TabsContent>
                     <TabsContent value="interviews">
                       <Card>
