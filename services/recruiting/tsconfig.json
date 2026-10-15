@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*",
+    "module.manifest.ts",
+    "vitest.config.ts",
+    "vitest.contract.ts",
+    "vitest.integration.ts",
+    "vitest.standalone.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/contracts"
+    },
+    {
+      "path": "../../packages/domain-kit"
+    },
+    {
+      "path": "../../packages/telemetry"
+    },
+    {
+      "path": "../../packages/testing"
+    }
+  ]
+}

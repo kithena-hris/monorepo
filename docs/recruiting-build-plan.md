@@ -6,18 +6,17 @@ commit as the work.
 
 **This file, in the repository, is the record of progress.**
 
-| What                  | Where                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------ |
-| Requirements          | [`docs/recruiting-prd.md`](./recruiting-prd.md) (Part II is Onboarding)              |
-| Screens               | Not designed yet. Ids in PRD §29 and §O10, for the Claude Design project `6fed6ac8…` |
-| The plan this mirrors | [`docs/documents-build-plan.md`](./documents-build-plan.md)                          |
+| What                  | Where                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Requirements          | [`docs/recruiting-prd.md`](./recruiting-prd.md) (Part II is Onboarding)                                                                     |
+| Screens               | Claude Design project `6fed6ac8…`: Kithena Recruiting, Jobs and Onboarding, web and mobile; source in `_build/rc-*.js`, `jobs.js`, `onb.js` |
+| The plan this mirrors | [`docs/documents-build-plan.md`](./documents-build-plan.md)                                                                                 |
 
 ### How the work lands
 
-Everything is built on the branch **`recruiting`**, one commit per ticket or
-small group. Each lane is a pull request into `recruiting`; `recruiting` goes
-to `main` once, when Phase 1 has landed. Onboarding gets its own branch,
-`onboarding`, when Phase 5 starts.
+Everything, Recruiting and Onboarding alike, is built on the one branch
+**`recruiting`**, with a commit per concern (a ticket or a small group). It
+goes to `main` as one pull request and one merge, so Vercel deploys once.
 
 ### Rules no ticket restates
 
@@ -40,28 +39,28 @@ to `main` once, when Phase 1 has landed. Onboarding gets its own branch,
 
 ## Phase 0 — unblock
 
-- [ ] **REC-001** `services/recruiting/module.manifest.ts`: key `recruiting`,
+- [x] **REC-001** `services/recruiting/module.manifest.ts`: key `recruiting`,
       `dependsOn: []`, `requiresPeopleSource: 'either'`, entitlement
       `module.recruiting`; offered in `OFFERED_MODULES`.
-- [ ] **REC-002** Schema bootstrap: `recruiting` with `svc_recruiting
-    NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
+- [x] **REC-002** Schema bootstrap: `recruiting` with `svc_recruiting
+  NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       read-only role for `apps/jobs` (PRD §31.2).
-- [ ] **REC-003** Outbox and Debezium: `recruiting.outbox`, table list.
-- [ ] **REC-004** `services/recruiting` boots like Documents: `main.ts`,
+- [x] **REC-003** Outbox and Debezium: `recruiting.outbox`, table list.
+- [x] **REC-004** `services/recruiting` boots like Documents: `main.ts`,
       `/healthz`, Dockerfile.
 - [ ] **REC-005** Codegen walks `recruitingEvents`; a check fails when a
       non-`public` field is written to `recruiting_public`.
-- [ ] **REC-006** `just standalone recruiting`; the module in the CI
+- [x] **REC-006** `just standalone recruiting`; the module in the CI
       `standalone` matrix.
 
 ## Phase 1 — boots alone, hires
 
 ### Contracts (`packages/contracts/src/recruiting/`)
 
-- [ ] **REC-010** Primitives: ids, stage categories, sources, reason keys,
+- [x] **REC-010** Primitives: ids, stage categories, sources, reason keys,
       consent, the candidate-facing shapes. §12.1, §9.2, §12.4.
-- [ ] **REC-011** Events, every field classified. §27.
-- [ ] **REC-012** `ResolvedTerms` and `TermsIssue`, with the mapping onto
+- [x] **REC-011** Events, every field classified. §27.
+- [x] **REC-012** `ResolvedTerms` and `TermsIssue`, with the mapping onto
       People's employment terms fields and `employment_type`. §19.2.
 - [ ] **REC-013** Public shapes: listing, job page, apply payload, candidate
       page operations, XML feed. §10, §32.

@@ -68,7 +68,7 @@ services:
       DEBEZIUM_SOURCE_DATABASE_DBNAME: kithena
       DEBEZIUM_SOURCE_DATABASE_USER: kithena
       DEBEZIUM_SOURCE_DATABASE_PASSWORD: kithena
-      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: platform.outbox,people.outbox,timeoff.outbox,documents.outbox
+      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: platform.outbox,people.outbox,timeoff.outbox,documents.outbox,recruiting.outbox
       DEBEZIUM_SOURCE_SLOT_NAME: kithena_relay_local
       DEBEZIUM_SOURCE_SNAPSHOT_MODE: no_data
     volumes: [relay:/debezium/data]

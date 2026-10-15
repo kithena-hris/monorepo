@@ -1,0 +1,27 @@
+{
+  "name": "@kithena/recruiting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.ts",
+    "test:contract": "vitest run --config vitest.contract.ts",
+    "test:standalone": "vitest run --config vitest.standalone.ts"
+  },
+  "dependencies": {
+    "@kithena/contracts": "workspace:*",
+    "@kithena/domain-kit": "workspace:*",
+    "@kithena/telemetry": "workspace:*",
+    "decimal.js": "^10.6.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@kithena/testing": "workspace:*",
+    "vitest": "^5.0.3"
+  }
+}
