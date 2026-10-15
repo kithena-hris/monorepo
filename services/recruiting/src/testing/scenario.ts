@@ -41,6 +41,12 @@ import {
   saveScorecardTemplate,
   DEFAULT_SETTINGS,
 } from '../application/setup.js';
+import {
+  agencyPortal,
+  openAgencySession,
+  requestAgencyCode,
+  submitAsAgency,
+} from '../application/agency-portal.js';
 import { daily } from '../application/background.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -379,6 +385,33 @@ export async function hireInSpain(h: Harness): Promise<void> {
     expect((await receiveReply(ctx, { ...reply, from: 'someone@else.com' })).ok).toBe(false);
     value(await receiveReply(ctx, { ...reply, from: 'Yuki@Example.com' }));
     expect((await ctx.tx.messages.thread(yuki?.id ?? '')).at(-1)?.direction).toBe('in');
+  });
+
+  // J9: an agency signs in by code, submits once, sees its candidate's stage; a second
+  // submission of the same person is refused with the first one's date.
+  const agencyId = randomUUID();
+  await uow.run(tenantId, (tx) =>
+    tx.agencies.save({
+      id: agencyId,
+      name: 'Talento Madrid',
+      contactEmail: 'desk@talento.example',
+      fee: { kind: 'percent', basisPoints: 2000 },
+      guaranteeDays: 90,
+      ownershipMonths: 6,
+      active: true,
+      jobIds: [jobId],
+    }),
+  );
+  await as('public', async (ctx) => {
+    const { code } = value(await requestAgencyCode(ctx, 'Desk@Talento.example'));
+    const { token } = value(await openAgencySession(ctx, 'desk@talento.example', code ?? ''));
+    const lucia = { jobId, name: 'Lucía Pérez', email: 'lucia@example.com' };
+    value(await submitAsAgency(ctx, token, lucia, []));
+    const again = await submitAsAgency(ctx, token, lucia, []);
+    expect(again.ok ? null : again.error.code).toBe('ALREADY_SUBMITTED');
+    const portal = value(await agencyPortal(ctx, token));
+    expect(portal.submissions.map((x) => x.candidate)).toEqual(['Lucía Pérez']);
+    expect((await agencyPortal(ctx, 'not-a-token')).ok).toBe(false);
   });
   now = Date.parse('2026-10-19T15:00:00Z');
   await as('adam', async (ctx) => {

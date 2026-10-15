@@ -129,6 +129,12 @@ import {
   saveTemplate,
   recordWorksCouncilConsent,
 } from '../application/setup.js';
+import {
+  agencyPortal,
+  openAgencySession,
+  requestAgencyCode,
+  submitAsAgency,
+} from '../application/agency-portal.js';
 import { importMembers } from '../application/members.js';
 import { receiveReply } from '../application/replies.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -1409,6 +1415,52 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ startsAt: Instant }),
     public: true,
     run: (ctx, { body, headers }) => bookByLink(ctx, tokenOf(headers), body.startsAt),
+  }),
+  route({
+    name: 'publicAgencyCode',
+    method: 'POST',
+    path: `${V1}/public/{company}/agency/codes`,
+    summary: 'J9: a code for the agency portal, to the address the company recorded',
+    params: z.object({ company: text(63) }),
+    body: z.object({ email: z.email() }),
+    public: true,
+    run: (ctx, { body }) => requestAgencyCode(ctx, body.email),
+  }),
+  route({
+    name: 'publicAgencySession',
+    method: 'POST',
+    path: `${V1}/public/{company}/agency/sessions`,
+    summary: 'J9: sign in with the code',
+    params: z.object({ company: text(63) }),
+    body: z.object({ email: z.email(), code: z.string().regex(/^\d{6}$/u) }),
+    status: 201,
+    public: true,
+    run: (ctx, { body }) => openAgencySession(ctx, body.email, body.code),
+  }),
+  route({
+    name: 'publicAgency',
+    method: 'GET',
+    path: `${V1}/public/{company}/agency`,
+    summary: 'J9: the jobs an agency may submit to and its own candidates',
+    params: z.object({ company: text(63) }),
+    public: true,
+    run: (ctx, { headers }) => agencyPortal(ctx, tokenOf(headers)),
+  }),
+  route({
+    name: 'publicAgencySubmit',
+    method: 'POST',
+    path: `${V1}/public/{company}/agency/submissions`,
+    summary: 'J9: submit a candidate; the first agency to submit them owns them',
+    params: z.object({ company: text(63) }),
+    body: z.object({
+      jobId: Id,
+      name: text(200).min(1),
+      email: z.email(),
+      files: z.array(File).max(6).optional(),
+    }),
+    status: 201,
+    public: true,
+    run: (ctx, { body, headers }) => submitAsAgency(ctx, tokenOf(headers), body, files(body.files)),
   }),
   route({
     name: 'publicReply',

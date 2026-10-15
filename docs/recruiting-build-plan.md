@@ -198,7 +198,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       adjustments.
 - [x] **REC-094** J6, J7 candidate page: applications, self-scheduling, offer,
       withdraw, my data.
-- [ ] **REC-095** J9 agency portal.
+- [x] **REC-095** J9 agency portal.
 - [x] **REC-096** J10 company careers page and the embed script.
 - [ ] **REC-097** J11 job alerts: double opt-in, digest, unsubscribe.
 
