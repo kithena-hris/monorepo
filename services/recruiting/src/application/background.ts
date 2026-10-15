@@ -5,6 +5,7 @@ import { expireOffer } from '../domain/offer/offer.js';
 import { contextOf, deliver, type Ctx, type Outgoing } from './context.js';
 import { portalLink } from './intake.js';
 import { sweepRetention } from './privacy.js';
+import { replyAddress } from './replies.js';
 import type { Deps } from './ports.js';
 import { generalSettings } from './setup.js';
 
@@ -44,22 +45,27 @@ export async function sendDueMessages(deps: Deps): Promise<number> {
   for (const { tenantId } of await deps.uow.tenants()) {
     const due = await deps.uow.run(tenantId, async (tx) => {
       const messages = await tx.messages.due(deps.clock.instant());
+      const settings = await generalSettings({ tx } as Ctx);
       const out = [];
       for (const m of messages) {
         const candidate = await tx.candidates.get(m.candidateId);
         if (candidate !== null && candidate.anonymisedAt === null)
-          out.push({ m, to: candidate.email });
+          out.push({
+            m,
+            to: candidate.email,
+            replyTo: await replyAddress(deps, tx, settings.companySlug, candidate.id),
+          });
       }
-      return { out, replyTo: (await generalSettings({ tx } as Ctx)).replyAddress };
+      return { out, replyTo: settings.replyAddress };
     });
-    for (const { m, to } of due.out) {
+    for (const { m, to, replyTo } of due.out) {
       try {
         await deps.mailer.send({
           tenantId,
           to,
           subject: m.subject,
           text: m.body,
-          replyTo: due.replyTo,
+          replyTo: replyTo ?? due.replyTo,
           dedupeKey: `message:${m.id}`,
         });
         await deps.uow.run(tenantId, (tx) => tx.messages.markSent(m.id, deps.clock.instant()));

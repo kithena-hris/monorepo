@@ -127,7 +127,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       honeypot, consent, files, source. §10.4, §11.
 - [x] **REC-048** Pipeline moves, bulk actions, rejection with template and
       send time, stage automations. §12.
-- [ ] **REC-049** Messages: send through `platform/messaging`, inbound
+- [x] **REC-049** Messages: send through `platform/messaging`, inbound
       replies from Resend's webhook, templates. §12.7.
 - [x] **REC-050** Talent pools; consent renewal and expiry job (BullMQ). §13.
 - [x] **REC-051** Scheduling without calendars: working hours, self-scheduling

@@ -14,6 +14,7 @@ import { resendTransport } from './message/infrastructure/resend-transport.js';
 import { logTransport } from './message/infrastructure/log-transport.js';
 import { smtpTransport } from './message/infrastructure/smtp-transport.js';
 import { drizzleDeliveryLog } from './message/infrastructure/drizzle-delivery-log.js';
+import { forwardReplies, resendReceived } from './message/infrastructure/inbound-replies.js';
 import { resendWebhookVerifier } from './message/infrastructure/resend-webhooks.js';
 import { messagingRoutes } from './message/http/messaging-routes.js';
 import { webhookRoutes } from './message/http/webhook-routes.js';
@@ -138,6 +139,9 @@ export interface Config {
   readonly identityToken?: string | undefined;
   /** Vercel's cron secret, which starts the daily digest. Absent, only the internal token does. */
   readonly cronSecret?: string | undefined;
+  /** Where candidates' replies arrive (Resend receiving), and Recruiting, which owns the thread. */
+  readonly inboundDomain?: string | undefined;
+  readonly recruitingUrl?: string | undefined;
 }
 
 export type RequestHandler = (
@@ -344,6 +348,15 @@ export function compose(config: Config): RequestHandler {
     onRefusal: (reason) => {
       logger.info({ reason }, 'webhook refused');
     },
+    receive:
+      config.resendApiKey && config.inboundDomain && config.recruitingUrl && config.recruitingToken
+        ? forwardReplies({
+            domain: config.inboundDomain,
+            recruitingUrl: config.recruitingUrl,
+            recruitingToken: config.recruitingToken,
+            getEmail: resendReceived(config.resendApiKey),
+          })
+        : undefined,
   });
 
   const base = selectTenantAppBase(config);

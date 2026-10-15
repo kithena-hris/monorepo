@@ -1335,6 +1335,17 @@ until its setting exists. In this order:
    goes into both this and messaging's settings so candidates are emailed
    (their codes, links and correspondence); without it nothing is sent.
 
+   Replies come back by email (PRD §12.7) once Resend receives mail for a
+   domain: the repository variable `INBOUND_DOMAIN` names it for Recruiting,
+   which gives each candidate's thread the reply-to
+   `<company>.<token>@<INBOUND_DOMAIN>`. Messaging needs the same
+   `INBOUND_DOMAIN`, `RECRUITING_URL=https://api.kithena.com` and
+   `RESEND_WEBHOOK_SECRET`, with a Resend webhook for `email.received` (and
+   the delivery events) on `https://messaging.kithena.com/api/webhooks/resend`.
+   It fetches the text, and posts it to Recruiting's
+   `/v1/recruiting/public/<company>/replies` under the pair's token. Without
+   the domain, replies go to the company's own reply address.
+
 3. **The remote**: a Vercel Hobby project for `apps/web/recruiting`, the
    secret `RECRUITING_REMOTE_SSR_SIGNING_KEY`, and the variables
    `VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION`,

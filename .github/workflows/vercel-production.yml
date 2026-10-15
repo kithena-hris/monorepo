@@ -810,6 +810,9 @@ jobs:
           RECRUITING_API_TOKEN: ${{ secrets.RECRUITING_API_TOKEN }}
           RECRUITING_ENV: ${{ secrets.RECRUITING_ENV }}
           MESSAGING_RECRUITING_TOKEN: ${{ secrets.MESSAGING_RECRUITING_TOKEN }}
+          # Where candidates' replies arrive (Resend receiving); unset, they
+          # go to the company's own reply address.
+          INBOUND_DOMAIN: ${{ vars.INBOUND_DOMAIN }}
           # Onboarding's, likewise: the router–Onboarding pair and the
           # Onboarding–messaging pair for the welcome email. No bucket.
           ONBOARDING_API_TOKEN: ${{ secrets.ONBOARDING_API_TOKEN }}
@@ -895,6 +898,7 @@ jobs:
             printf '%s\nRECRUITING_API_TOKEN=%s\nJOBS_ORIGIN=https://jobs.kithena.com\n' "$RECRUITING_ENV" "$RECRUITING_API_TOKEN"
             if [ -n "$MESSAGING_RECRUITING_TOKEN" ]; then
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_RECRUITING_TOKEN=%s\n' "$MESSAGING_RECRUITING_TOKEN"
+              if [ -n "$INBOUND_DOMAIN" ]; then printf 'INBOUND_DOMAIN=%s\n' "$INBOUND_DOMAIN"; fi
             fi
           } | put recruiting.env
           {

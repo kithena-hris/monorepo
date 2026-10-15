@@ -694,6 +694,12 @@ export interface Deps {
   readonly clock: Clock;
   readonly newId: () => string;
   readonly mailer?: Mailer;
+  /**
+   * Where candidates' replies arrive (PRD §12.7): Resend receives mail for
+   * `domain`, and messaging hands each reply back presenting `token`. Absent,
+   * replies go to the company's own reply address.
+   */
+  readonly inbound?: { readonly domain: string; readonly token: string };
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */

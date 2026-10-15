@@ -42,6 +42,7 @@ import {
   DEFAULT_SETTINGS,
 } from '../application/setup.js';
 import { daily } from '../application/background.js';
+import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
 
@@ -360,6 +361,25 @@ export async function hireInSpain(h: Harness): Promise<void> {
     },
   });
   expect(sent).toContain(`interview-reminder:${interviewId}`);
+
+  // A reply to the thread's own address lands on it; the same words from anyone else do not.
+  const yuki = await uow.run(tenantId, (tx) => tx.candidates.byEmail('yuki@example.com'));
+  const address =
+    (await uow.run(tenantId, (tx) =>
+      replyAddress(
+        { inbound: { domain: 'in.example.com', token: 't' } },
+        tx,
+        'acme',
+        yuki?.id ?? '',
+      ),
+    )) ?? '';
+  const replyToken = /\.([a-f0-9]{20})@in\.example\.com$/u.exec(address)?.[1] ?? '';
+  const reply = { token: replyToken, subject: 'Re: Tomorrow', text: 'See you then.' };
+  await as('public', async (ctx) => {
+    expect((await receiveReply(ctx, { ...reply, from: 'someone@else.com' })).ok).toBe(false);
+    value(await receiveReply(ctx, { ...reply, from: 'Yuki@Example.com' }));
+    expect((await ctx.tx.messages.thread(yuki?.id ?? '')).at(-1)?.direction).toBe('in');
+  });
   now = Date.parse('2026-10-19T15:00:00Z');
   await as('adam', async (ctx) => {
     value(await setInterviewState(ctx, interviewId, 'completed'));

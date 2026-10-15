@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { presentsInternalToken } from '@kithena/auth-kit';
 import * as z from 'zod';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 import {
@@ -129,6 +130,7 @@ import {
   recordWorksCouncilConsent,
 } from '../application/setup.js';
 import { importMembers } from '../application/members.js';
+import { receiveReply } from '../application/replies.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from './caller.js';
 
@@ -1407,6 +1409,25 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ startsAt: Instant }),
     public: true,
     run: (ctx, { body, headers }) => bookByLink(ctx, tokenOf(headers), body.startsAt),
+  }),
+  route({
+    name: 'publicReply',
+    method: 'POST',
+    path: `${V1}/public/{company}/replies`,
+    summary: 'A candidate replied by email; messaging hands it on',
+    params: z.object({ company: text(63) }),
+    body: z.object({
+      token: z.string().regex(/^[a-f0-9]{20}$/u),
+      from: z.string().max(320),
+      subject: z.string().max(500),
+      text: z.string().max(20_000),
+    }),
+    status: 201,
+    public: true,
+    run: (ctx, { body, headers }) =>
+      ctx.deps.inbound !== undefined && presentsInternalToken({ headers }, ctx.deps.inbound.token)
+        ? receiveReply(ctx, body)
+        : Promise.resolve(err(failure('FORBIDDEN', 'Only messaging hands on a reply'))),
   }),
   route({
     name: 'publicReference',

@@ -59,6 +59,8 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   };
   const mailer = mailerFrom(env);
   const listings = listingsFrom(env);
+  const inboundDomain = env['INBOUND_DOMAIN'];
+  const messagingToken = env['MESSAGING_RECRUITING_TOKEN'];
   const { listener, deps } = recruitingServer(
     {
       uow,
@@ -68,6 +70,9 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
       ...(mailer === undefined ? {} : { mailer }),
       ...(listings === null ? {} : { listings }),
+      ...(inboundDomain && messagingToken
+        ? { inbound: { domain: inboundDomain, token: messagingToken } }
+        : {}),
     },
     uuidv7,
   );

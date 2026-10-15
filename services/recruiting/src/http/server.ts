@@ -118,6 +118,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly clock?: Deps['clock'];
   readonly newId?: Deps['newId'];
   readonly mailer?: Deps['mailer'];
+  readonly inbound?: Deps['inbound'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -135,6 +136,7 @@ export function recruitingServer(
     jobsOrigin: options.jobsOrigin,
     extractText: options.extractText,
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
+    ...(options.inbound === undefined ? {} : { inbound: options.inbound }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

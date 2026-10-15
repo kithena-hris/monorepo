@@ -79,6 +79,8 @@ function routes(): RequestHandler {
     identityUrl: process.env['INTERNAL_API_URL'],
     identityToken: process.env['INTERNAL_API_TOKEN'],
     cronSecret: process.env['CRON_SECRET'],
+    inboundDomain: process.env['INBOUND_DOMAIN'],
+    recruitingUrl: process.env['RECRUITING_URL'],
   });
   return handler;
 }
