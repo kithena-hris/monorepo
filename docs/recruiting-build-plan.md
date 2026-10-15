@@ -149,7 +149,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-060** GraphQL subgraph `recruiting`, one query per screen.
 - [x] **REC-061** REST `/v1/recruiting/...`, OpenAPI, idempotency keys.
 - [x] **REC-062** Public API, XML feed, `JobPosting` JSON-LD builder. §32.
-- [ ] **REC-063** Signed webhooks for every published event.
+- [x] **REC-063** Signed webhooks for every published event.
 - [x] **REC-064** Inbox source: Recruiting's answer, one line in
       `apps/web/src/lib/inbox/sources.ts`.
 
