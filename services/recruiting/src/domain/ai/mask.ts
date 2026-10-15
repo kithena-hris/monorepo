@@ -53,7 +53,7 @@ const SHAPES: readonly (readonly [Masked, RegExp])[] = [
   ['contact', /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gu],
   [
     'contact',
-    /(?:https?:\/\/)?(?:www\.)?(?:linkedin|github|xing|instagram|facebook|twitter|x)\.com\/\S+/giu,
+    /\b(?:https?:\/\/)?(?:www\.)?(?:linkedin|github|xing|instagram|facebook|twitter|x)\.com\/\S+/giu,
   ],
   // A phone number starts with +, a bracketed area code or a trunk 0, so "2018 - 2022" stays.
   ['contact', /(?:\+\d|\(\d{2,4}\)|\b0\d)[\d ()./-]{6,}\d/gu],

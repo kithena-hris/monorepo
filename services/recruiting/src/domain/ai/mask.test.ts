@@ -68,6 +68,13 @@ describe('masking before a model reads an application (PRD §14.6)', () => {
     ).toBe('Call [masked] or [masked]');
   });
 
+  it('masks a profile link, not a site whose name ends like one', () => {
+    expect(
+      maskApplication('Built dropbox.com/developers apps; see x.com/yuki', yuki, { schools: false })
+        .text,
+    ).toBe('Built dropbox.com/developers apps; see [masked]');
+  });
+
   it('removes schools only when the company asks', () => {
     expect(text).not.toContain('Tokyo');
     expect(text).not.toContain('Ulm');
