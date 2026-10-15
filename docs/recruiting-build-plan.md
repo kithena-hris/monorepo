@@ -68,18 +68,18 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ### Domain (tests first)
 
-- [ ] **REC-015** Requisition aggregate and approval chain selection. §7.
-- [ ] **REC-016** Job aggregate; publication target state machine. §8.1, §9.1.
-- [ ] **REC-017** Ad checks per country and language (gender-neutral title,
+- [x] **REC-015** Requisition aggregate and approval chain selection. §7.
+- [x] **REC-016** Job aggregate; publication target state machine. §8.1, §9.1.
+- [x] **REC-017** Ad checks per country and language (gender-neutral title,
       pay range, pay history ban, protected-characteristic word lists). §8.3.
-- [ ] **REC-018** Apply form schema builder and the never-ask list. §8.4.
-- [ ] **REC-019** Application aggregate: append-only stage history,
+- [x] **REC-018** Apply form schema builder and the never-ask list. §8.4.
+- [x] **REC-019** Application aggregate: append-only stage history,
       corrections with `supersedes`, the 10-second undo, rejection. §12.
-- [ ] **REC-020** Duplicate matching: email, phone, name with CV hash;
+- [x] **REC-020** Duplicate matching: email, phone, name with CV hash;
       merge as a decision. §11.2.
-- [ ] **REC-021** Questionnaire scoring and knockouts: flag by default;
+- [x] **REC-021** Questionnaire scoring and knockouts: flag by default;
       automatic rejection guarded by country. §15.
-- [ ] **REC-022** Interviews and scorecards: plan, states, ratings,
+- [x] **REC-022** Interviews and scorecards: plan, states, ratings,
       independent-feedback visibility, debrief averages and disagreements.
       §16.
 - [ ] **REC-023** Offer aggregate: versions, supersede on counter-offer,
