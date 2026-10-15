@@ -148,7 +148,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 - [x] **REC-060** GraphQL subgraph `recruiting`, one query per screen.
 - [x] **REC-061** REST `/v1/recruiting/...`, OpenAPI, idempotency keys.
-- [ ] **REC-062** Public API, XML feed, `JobPosting` JSON-LD builder. §32.
+- [x] **REC-062** Public API, XML feed, `JobPosting` JSON-LD builder. §32.
 - [ ] **REC-063** Signed webhooks for every published event.
 - [x] **REC-064** Inbox source: Recruiting's answer, one line in
       `apps/web/src/lib/inbox/sources.ts`.
@@ -183,15 +183,18 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 - [ ] **REC-090** App scaffold on Reach; Vercel project; `jobs.kithena.com`;
       reads `recruiting_public` only.
-- [ ] **REC-091** J1, J2 search: full-text, filters, sort, all in the URL;
+- [x] **REC-091** J1, J2 search: full-text, filters, sort, all in the URL;
       server-rendered first page.
-- [ ] **REC-092** J3 job page: JSON-LD, 410 for a closed job, sitemap.
-- [ ] **REC-093** J4, J5 apply on a phone: CV first, email code, consent,
+- [x] **REC-092** J3 job page: JSON-LD, 410 for a closed job, sitemap.
+      Note: a closed or unpublished job answers 404 with a "no longer open"
+      page; App Router has no 410 short of a proxy, and search engines drop
+      both.
+- [x] **REC-093** J4, J5 apply on a phone: CV first, email code, consent,
       adjustments.
-- [ ] **REC-094** J6, J7 candidate page: applications, self-scheduling, offer,
+- [x] **REC-094** J6, J7 candidate page: applications, self-scheduling, offer,
       withdraw, my data.
 - [ ] **REC-095** J9 agency portal.
-- [ ] **REC-096** J10 company careers page and the embed script.
+- [x] **REC-096** J10 company careers page and the embed script.
 - [ ] **REC-097** J11 job alerts: double opt-in, digest, unsubscribe.
 
 ### Standalone

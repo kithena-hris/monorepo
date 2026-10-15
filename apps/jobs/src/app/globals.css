@@ -1,0 +1,6 @@
+/* Reach's stylesheet: tokens, base layer and the Tailwind theme. */
+@import '@reach/ui/styles.css';
+
+/* The components live in the workspace package, outside this app's tree. */
+@source '../../../../packages/ui/src';
+@source '../';
