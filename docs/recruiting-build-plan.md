@@ -48,7 +48,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-003** Outbox and Debezium: `recruiting.outbox`, table list.
 - [x] **REC-004** `services/recruiting` boots like Documents: `main.ts`,
       `/healthz`, Dockerfile.
-- [ ] **REC-005** Codegen walks `recruitingEvents`; a check fails when a
+- [x] **REC-005** Codegen walks `recruitingEvents`; a check fails when a
       non-`public` field is written to `recruiting_public`.
 - [x] **REC-006** `just standalone recruiting`; the module in the CI
       `standalone` matrix.
@@ -62,9 +62,9 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-011** Events, every field classified. §27.
 - [x] **REC-012** `ResolvedTerms` and `TermsIssue`, with the mapping onto
       People's employment terms fields and `employment_type`. §19.2.
-- [ ] **REC-013** Public shapes: listing, job page, apply payload, candidate
+- [x] **REC-013** Public shapes: listing, job page, apply payload, candidate
       page operations, XML feed. §10, §32.
-- [ ] **REC-014** The Inbox answer for Recruiting's item kinds. §5.3.
+- [x] **REC-014** The Inbox answer for Recruiting's item kinds. §5.3.
 
 ### Domain (tests first)
 

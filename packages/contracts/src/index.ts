@@ -33,3 +33,5 @@ export * from './events/documents.js';
 export * from './recruiting/primitives.js';
 export * from './recruiting/terms.js';
 export * from './events/recruiting.js';
+export * from './recruiting/public.js';
+export * from './recruiting/inbox.js';
