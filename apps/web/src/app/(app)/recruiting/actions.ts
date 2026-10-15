@@ -45,6 +45,7 @@ const WRITES = new Set<OperationName>([
   'AddToPool',
   'ScheduleInterview',
   'SelfScheduleLink',
+  'SaveRecruitingWorkingHours',
   'SetInterviewState',
   'SaveScorecard',
   'DecideApplication',
@@ -76,6 +77,7 @@ const WRITES = new Set<OperationName>([
   'Chart',
   // Reads a screen asks for after it has drawn: free slots, the debrief.
   'RecruitingSlots',
+  'RecruitingWorkingHours',
   'RecruitingDebrief',
   'RecruitingExport',
   'RecruitingCandidates',

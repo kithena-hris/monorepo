@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveRecruitingWorkingHours($input: JSON!, $key: String!) {\n    saveRecruitingWorkingHours(input: $input, idempotencyKey: $key)\n  }"}

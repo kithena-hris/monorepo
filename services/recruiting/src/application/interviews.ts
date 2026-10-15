@@ -18,7 +18,7 @@ import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interv
 import { asPerson, event, forbidden, nameOf, notFound, publish, type Ctx } from './context.js';
 import { sha256 } from './intake.js';
 import { loadApplication, queueEmail } from './moves.js';
-import type { InterviewRecord, PlannedInterview } from './ports.js';
+import type { InterviewRecord, PlannedInterview, WorkingHours } from './ports.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -634,4 +634,31 @@ export async function answerReference(
   if (ref === null || ref.state === 'completed') return err(notFound('reference'));
   await ctx.tx.references.save({ ...ref, state: 'completed', answers, completedAt: ctx.at });
   return ok(true);
+}
+
+/** The caller's working hours, which slots are offered from when no calendar is connected (§16.4). */
+export async function myWorkingHours(ctx: Ctx): Promise<Result<WorkingHours>> {
+  const person = asPerson(ctx);
+  if (!person.ok) return person;
+  return ok(
+    (await ctx.tx.workingHours.get(person.value)) ?? {
+      personId: person.value,
+      timeZone: 'UTC',
+      week: OFFICE_WEEK,
+    },
+  );
+}
+
+export async function saveWorkingHours(
+  ctx: Ctx,
+  input: Omit<WorkingHours, 'personId'>,
+): Promise<Result<WorkingHours>> {
+  const person = asPerson(ctx);
+  if (!person.ok) return person;
+  for (const ranges of Object.values(input.week))
+    for (const [from, to] of ranges)
+      if (from >= to) return err(failure('HOURS_ORDER', 'Each range ends after it starts'));
+  const hours = { ...input, personId: person.value };
+  await ctx.tx.workingHours.save(hours);
+  return ok(hours);
 }

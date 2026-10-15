@@ -239,6 +239,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Set my working hours"""
+  saveRecruitingWorkingHours(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Draft or edit a requisition"""
   saveRequisition(
     idempotencyKey: String!
@@ -402,6 +408,8 @@ type Query {
   R16: the plan and free slots for one of its interviews, a week at a time
   """
   recruitingSlots(applicationId: String!, away: String, from: String, planKey: String): JSON
+  """My working hours, for slots without a calendar"""
+  recruitingWorkingHours: JSON
 }
 
 type RecruitingrecruitingInbox {

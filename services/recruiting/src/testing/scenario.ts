@@ -41,6 +41,7 @@ import {
   saveScorecardTemplate,
   DEFAULT_SETTINGS,
 } from '../application/setup.js';
+import { daily } from '../application/background.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
 
@@ -343,10 +344,23 @@ export async function hireInSpain(h: Harness): Promise<void> {
       }),
     );
   });
-  now = Date.parse('2026-10-19T15:00:00Z');
   const interviewId =
     (await uow.run(tenantId, (tx) => tx.interviews.forApplication(applied.applicationId)))[0]?.id ??
     '';
+  // The day before, the candidate is reminded; messaging drops a repeat by its key.
+  now = Date.parse('2026-10-18T06:00:00Z');
+  const sent: string[] = [];
+  await daily({
+    ...deps,
+    mailer: {
+      send: (m) => {
+        sent.push(m.dedupeKey);
+        return Promise.resolve();
+      },
+    },
+  });
+  expect(sent).toContain(`interview-reminder:${interviewId}`);
+  now = Date.parse('2026-10-19T15:00:00Z');
   await as('adam', async (ctx) => {
     value(await setInterviewState(ctx, interviewId, 'completed'));
     value(

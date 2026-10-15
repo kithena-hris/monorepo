@@ -115,6 +115,22 @@ export async function daily(
           }
         }
       }
+      // The day before, each candidate is reminded of their interview (PRD §16.4).
+      const tomorrow = addDays(ctx.today, 1);
+      for (const interview of await ctx.tx.interviews.startingBetween(
+        `${tomorrow}T00:00:00.000Z` as never,
+        `${addDays(tomorrow, 1)}T00:00:00.000Z` as never,
+      )) {
+        const app = await ctx.tx.applications.get(interview.applicationId);
+        const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+        if (candidate === null) continue;
+        ctx.mail.push({
+          to: candidate.email,
+          subject: `Tomorrow: ${interview.title} with ${settings.companyName}`,
+          text: `Hello ${candidate.name},\n\nA reminder of your ${interview.title} tomorrow at ${interview.startsAt.slice(11, 16)} UTC${interview.videoUrl === null ? (interview.place === null ? '' : `, at ${interview.place}`) : `: ${interview.videoUrl}`}.\n\nTo reschedule, use your page:\n${await portalLink(ctx, candidate.id)}`,
+          dedupeKey: `interview-reminder:${interview.id}`,
+        });
+      }
       return (await sweepRetention(ctx)).anonymised;
     });
     anonymised += run.value;

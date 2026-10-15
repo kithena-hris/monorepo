@@ -27,9 +27,10 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  TimePicker,
   icons,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, useAct, when, words } from './shared';
@@ -115,9 +116,98 @@ export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
               </CardContent>
             </Card>
           ))}
+          <Hours props={props} />
         </div>
       )}
     </Loaded>
+  );
+}
+
+type Week = Readonly<Record<string, readonly (readonly [number, number])[]>>;
+const clock = (m: number) =>
+  `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const minutes = (t: string) => {
+  const [h = 0, m = 0] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/** §16.4: the hours a candidate may book me in when no calendar is connected, Monday to Friday. */
+function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.Element | null {
+  const act = useAct(props);
+  const [hours, setHours] = useState<{ timeZone: string; from: number; to: number } | null>(null);
+  const [saved, setSaved] = useState(false);
+  const { call } = act;
+  useEffect(() => {
+    void call('RecruitingWorkingHours', {}).then((done) => {
+      if (!done.ok) return;
+      const h = done.data as { timeZone: string; week: Week };
+      const [from, to] = h.week['1']?.[0] ?? [540, 1020];
+      setHours({ timeZone: h.timeZone, from, to });
+    });
+  }, []);
+  if (hours === null) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>Working hours</CardTitle>
+        <CardDescription>
+          Candidates book you inside these hours, Monday to Friday, unless your calendar is
+          connected.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-end gap-3">
+        {(['from', 'to'] as const).map((k) => (
+          <Field key={k}>
+            <FieldLabel>{k === 'from' ? 'From' : 'To'}</FieldLabel>
+            <FieldControl>
+              <TimePicker
+                label={k === 'from' ? 'From' : 'To'}
+                value={clock(hours[k])}
+                step={30}
+                onChange={(t) => {
+                  if (t !== null) setHours({ ...hours, [k]: minutes(t) });
+                  setSaved(false);
+                }}
+              />
+            </FieldControl>
+          </Field>
+        ))}
+        <Field>
+          <FieldLabel>Time zone</FieldLabel>
+          <FieldControl>
+            <Input
+              value={hours.timeZone}
+              onChange={(e) => {
+                setHours({ ...hours, timeZone: e.target.value });
+                setSaved(false);
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Button
+          loading={act.pending}
+          onClick={() => {
+            act.run(
+              'SaveRecruitingWorkingHours',
+              {
+                input: {
+                  timeZone: hours.timeZone,
+                  week: Object.fromEntries(
+                    ['1', '2', '3', '4', '5'].map((d) => [d, [[hours.from, hours.to]]]),
+                  ),
+                },
+              },
+              () => {
+                setSaved(true);
+              },
+            );
+          }}
+        >
+          {saved ? 'Saved' : 'Save'}
+        </Button>
+        <Refusal error={act.error} />
+      </CardContent>
+    </Card>
   );
 }
 

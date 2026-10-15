@@ -152,6 +152,8 @@ export const OPERATIONS = {
   /* ---------------------------------------------------------- interviews -- */
   ScheduleInterview: write('ScheduleInterview', 'scheduleInterview', ...ID('applicationId')),
   SelfScheduleLink: write('SelfScheduleLink', 'selfScheduleLink', ...ID('applicationId')),
+  SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
+  RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   SetInterviewState: write('SetInterviewState', 'setInterviewState', ...ID('interviewId')),
   SaveScorecard: write('SaveScorecard', 'saveScorecard', ...ID('interviewId')),
   DecideApplication: write('DecideApplication', 'decideApplication', ...ID('applicationId')),

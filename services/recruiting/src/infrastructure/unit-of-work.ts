@@ -758,6 +758,13 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
             WHERE x.person_id = ${personId} AND i.starts_at >= ${from} AND i.starts_at < ${to} ORDER BY i.starts_at`,
           )
         ).map(interviewOf),
+      startingBetween: async (from, to) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT ${INTERVIEW} FROM recruiting.interview i WHERE i.state = 'scheduled' AND i.starts_at >= ${from} AND i.starts_at < ${to} ORDER BY i.starts_at`,
+          )
+        ).map(interviewOf),
       save: async (i) => {
         await tx.execute(sql`INSERT INTO recruiting.interview (tenant_id, id, application_id, plan_key, title, starts_at, minutes, state, place, video_url)
           VALUES (${T}, ${i.id}, ${i.applicationId}, ${i.planKey}, ${i.title}, ${i.startsAt}, ${i.minutes}, ${i.state}, ${i.place}, ${i.videoUrl})

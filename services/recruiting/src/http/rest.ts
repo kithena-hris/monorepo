@@ -41,6 +41,8 @@ import {
   requestReference,
   saveScorecard,
   scheduleInterview,
+  saveWorkingHours,
+  myWorkingHours,
   selfScheduleLink,
   setInterviewState,
   scheduleScreen,
@@ -843,6 +845,27 @@ export const ROUTES: readonly Route[] = [
   }),
 
   /* --------------------------------------------------------- interviews -- */
+  route({
+    name: 'recruitingWorkingHours',
+    method: 'GET',
+    path: `${V1}/me/working-hours`,
+    summary: 'My working hours, for slots without a calendar',
+    run: (ctx) => myWorkingHours(ctx),
+  }),
+  route({
+    name: 'saveRecruitingWorkingHours',
+    method: 'PUT',
+    path: `${V1}/me/working-hours`,
+    summary: 'Set my working hours',
+    body: z.object({
+      timeZone: text(60).min(1),
+      week: z.record(
+        z.enum(['1', '2', '3', '4', '5', '6', '7']),
+        z.array(z.tuple([z.int().min(0).max(1440), z.int().min(0).max(1440)])).max(4),
+      ),
+    }),
+    run: (ctx, { body }) => saveWorkingHours(ctx, body),
+  }),
   route({
     name: 'scheduleInterview',
     method: 'POST',

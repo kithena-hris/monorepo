@@ -409,6 +409,8 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
           .filter(
             (i) => i.interviewerIds.includes(person) && i.startsAt >= from && i.startsAt < to,
           ),
+      startingBetween: (from, to) =>
+        interviews.values().filter((i) => i.state === 'scheduled' && i.startsAt >= from && i.startsAt < to),
       save: (i) => {
         interviews.set(i.id, i);
       },

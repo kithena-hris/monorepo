@@ -398,6 +398,8 @@ export interface InterviewStore {
   get(id: string): Promise<InterviewRecord | null>;
   forApplication(applicationId: string): Promise<readonly InterviewRecord[]>;
   forInterviewer(personId: string, from: Instant, to: Instant): Promise<readonly InterviewRecord[]>;
+  /** Every scheduled interview starting in the window: the reminders' read. */
+  startingBetween(from: Instant, to: Instant): Promise<readonly InterviewRecord[]>;
   save(interview: InterviewRecord): Promise<void>;
   scorecards(interviewId: string): Promise<readonly Scorecard[]>;
   forApplicationScorecards(applicationId: string): Promise<readonly Scorecard[]>;

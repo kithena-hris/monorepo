@@ -130,7 +130,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [ ] **REC-049** Messages: send through `platform/messaging`, inbound
       replies from Resend's webhook, templates. §12.7.
 - [x] **REC-050** Talent pools; consent renewal and expiry job (BullMQ). §13.
-- [ ] **REC-051** Scheduling without calendars: working hours, self-scheduling
+- [x] **REC-051** Scheduling without calendars: working hours, self-scheduling
       links, panels, `.ics`, reminders. §16.4.
 - [x] **REC-052** Scorecards, Inbox tasks, debrief, decision. §16.5–§16.7.
 - [x] **REC-053** References. §17.1.
