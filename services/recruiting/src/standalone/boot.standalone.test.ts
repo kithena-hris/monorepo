@@ -20,7 +20,14 @@ describe('Recruiting, alone', () => {
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
   });
-  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  afterAll(
+    () =>
+      new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve();
+        });
+      }),
+  );
 
   it('declares nothing it cannot run without', () => {
     expect(manifest.dependsOn).toEqual([]);

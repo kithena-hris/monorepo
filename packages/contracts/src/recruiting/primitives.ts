@@ -17,27 +17,25 @@ import { keySchema } from '../people/primitives.js';
  * too, and an event file importing them importing the event file is a cycle.
  */
 
-const id = <B extends string>() => z.uuid().brand<B>().register(policy, asPublic());
-
-export const RequisitionId = id<'RequisitionId'>();
+export const RequisitionId = z.uuid().brand<'RequisitionId'>().register(policy, asPublic());
 export type RequisitionId = z.infer<typeof RequisitionId>;
-export const JobId = id<'JobId'>();
+export const JobId = z.uuid().brand<'JobId'>().register(policy, asPublic());
 export type JobId = z.infer<typeof JobId>;
-export const CandidateId = id<'CandidateId'>();
+export const CandidateId = z.uuid().brand<'CandidateId'>().register(policy, asPublic());
 export type CandidateId = z.infer<typeof CandidateId>;
-export const ApplicationId = id<'ApplicationId'>();
+export const ApplicationId = z.uuid().brand<'ApplicationId'>().register(policy, asPublic());
 export type ApplicationId = z.infer<typeof ApplicationId>;
-export const StageId = id<'StageId'>();
+export const StageId = z.uuid().brand<'StageId'>().register(policy, asPublic());
 export type StageId = z.infer<typeof StageId>;
-export const InterviewId = id<'InterviewId'>();
+export const InterviewId = z.uuid().brand<'InterviewId'>().register(policy, asPublic());
 export type InterviewId = z.infer<typeof InterviewId>;
-export const OfferId = id<'OfferId'>();
+export const OfferId = z.uuid().brand<'OfferId'>().register(policy, asPublic());
 export type OfferId = z.infer<typeof OfferId>;
-export const PoolId = id<'PoolId'>();
+export const PoolId = z.uuid().brand<'PoolId'>().register(policy, asPublic());
 export type PoolId = z.infer<typeof PoolId>;
-export const AgencyId = id<'AgencyId'>();
+export const AgencyId = z.uuid().brand<'AgencyId'>().register(policy, asPublic());
 export type AgencyId = z.infer<typeof AgencyId>;
-export const BenefitId = id<'BenefitId'>();
+export const BenefitId = z.uuid().brand<'BenefitId'>().register(policy, asPublic());
 export type BenefitId = z.infer<typeof BenefitId>;
 
 /** The countries a terms pack exists for (PRD §19.1): People's launch set. */

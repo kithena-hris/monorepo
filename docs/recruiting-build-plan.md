@@ -84,14 +84,14 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       §16.
 - [ ] **REC-023** Offer aggregate: versions, supersede on counter-offer,
       checks (band, budget, advertised range), acceptance record. §18.
-- [ ] **REC-024** Terms pack framework: steps, options as a function of
+- [x] **REC-024** Terms pack framework: steps, options as a function of
       answers and date, limits, defaults, clauses, `validateTerms`. §19.1–§19.3.
-- [ ] **REC-025** Germany pack, with a table of lawful and unlawful cases.
+- [x] **REC-025** Germany pack, with a table of lawful and unlawful cases.
       §19.4, §19.9.
-- [ ] **REC-026** Spain pack. §19.5.
-- [ ] **REC-027** United Kingdom pack. §19.6.
-- [ ] **REC-028** India pack, with the state as a required step. §19.7.
-- [ ] **REC-029** United States pack, with state and city data. §19.8.
+- [x] **REC-026** Spain pack. §19.5.
+- [x] **REC-027** United Kingdom pack. §19.6.
+- [x] **REC-028** India pack, with the state as a required step. §19.7.
+- [x] **REC-029** United States pack, with state and city data. §19.8.
 - [ ] **REC-030** Benefits: catalogue, eligibility, statutory items locked,
       total rewards with `decimal.js`. §20.
 - [ ] **REC-031** Contract model: the documents each pack requires;
