@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ScheduleInterview($applicationId: String!, $input: JSON!, $key: String!) {\n    scheduleInterview(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

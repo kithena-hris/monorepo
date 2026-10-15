@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveJobAd($jobId: String!, $language: String!, $input: JSON!, $key: String!) {\n    saveJobAd(jobId: $jobId, language: $language, input: $input, idempotencyKey: $key)\n  }"}

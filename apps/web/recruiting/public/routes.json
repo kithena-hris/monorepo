@@ -1,0 +1,29 @@
+{
+  "routes": [
+    { "path": "/recruiting/home", "component": "Home" },
+    { "path": "/recruiting/jobs", "component": "Jobs" },
+    { "path": "/recruiting/jobs/:id", "component": "Pipeline" }
+  ],
+  "actions": [],
+  "sections": [
+    {
+      "path": "/recruiting/home",
+      "label": "Home",
+      "group": "Recruiting",
+      "icon": "home",
+      "description": "Your tasks and your jobs",
+      "summary": "Tasks and jobs"
+    },
+    {
+      "path": "/recruiting/jobs",
+      "label": "Jobs",
+      "group": "Recruiting",
+      "icon": "work",
+      "description": "Every job you hire for, its pipeline and its setup",
+      "summary": "Jobs and pipelines",
+      "owns": ["/recruiting/jobs/:id"]
+    }
+  ],
+  "slots": {},
+  "settings": []
+}

@@ -1,0 +1,1 @@
+{"version":1,"body":"query RecruitingKit($interviewId: String!) {\n    recruitingKit(interviewId: $interviewId)\n  }"}

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation BulkApplications($input: JSON!, $key: String!) {\n    bulkApplications(input: $input, idempotencyKey: $key)\n  }"}

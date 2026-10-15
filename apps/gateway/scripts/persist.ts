@@ -7,6 +7,7 @@ import { buildASTSchema, parse, validate } from 'graphql';
 import { OPERATIONS as PEOPLE } from '../../web/src/lib/people-operations.ts';
 import { OPERATIONS as TIMEOFF } from '../../web/src/lib/timeoff-operations.ts';
 import { OPERATIONS as DOCUMENTS } from '../../web/src/lib/documents-operations.ts';
+import { OPERATIONS as RECRUITING } from '../../web/src/lib/recruiting-operations.ts';
 
 /**
  * The router's safelist, generated from the tenant app's operations (PEO-113):
@@ -31,6 +32,7 @@ const SDLS = [
   join(HERE, '../../services/people/schemas/people.graphql'),
   join(HERE, '../../services/timeoff/schemas/timeoff.graphql'),
   join(HERE, '../../services/documents/schemas/documents.graphql'),
+  join(HERE, '../../services/recruiting/schemas/recruiting.graphql'),
   join(HERE, '../../platform/audit/schemas/audit.graphql'),
 ];
 
@@ -46,6 +48,7 @@ for (const [name, body] of [
   ...Object.entries(PEOPLE),
   ...Object.entries(TIMEOFF),
   ...Object.entries(DOCUMENTS),
+  ...Object.entries(RECRUITING),
 ]) {
   const each = schemas.map((schema) => validate(schema, parse(body)));
   const errors = each.find((e) => e.length === 0) ?? each[0] ?? [];

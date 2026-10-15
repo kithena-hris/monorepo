@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveScorecardTemplate($id: String!, $input: JSON!, $key: String!) {\n    saveScorecardTemplate(id: $id, input: $input, idempotencyKey: $key)\n  }"}

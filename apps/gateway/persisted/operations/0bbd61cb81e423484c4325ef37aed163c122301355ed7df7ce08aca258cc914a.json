@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CreateJob($input: JSON!, $key: String!) {\n    createJob(input: $input, idempotencyKey: $key)\n  }"}

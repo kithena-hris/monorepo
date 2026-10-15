@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ComposeOffer($applicationId: String!, $input: JSON!, $key: String!) {\n    composeOffer(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

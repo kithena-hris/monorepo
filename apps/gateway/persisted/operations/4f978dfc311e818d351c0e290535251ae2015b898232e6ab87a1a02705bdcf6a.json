@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation MoveApplication($applicationId: String!, $input: JSON!, $key: String!) {\n    moveApplication(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

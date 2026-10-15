@@ -300,6 +300,15 @@ export const AREAS = {
     env: 'DOCUMENTS',
     dev: 'http://localhost:3004',
   },
+  recruiting: {
+    name: 'recruiting',
+    label: 'Recruiting',
+    home: '/recruiting',
+    settings: '/settings/recruiting',
+    entitlement: 'module.recruiting',
+    env: 'RECRUITING',
+    dev: 'http://localhost:3005',
+  },
 } as const;
 export type Area = (typeof AREAS)[keyof typeof AREAS];
 

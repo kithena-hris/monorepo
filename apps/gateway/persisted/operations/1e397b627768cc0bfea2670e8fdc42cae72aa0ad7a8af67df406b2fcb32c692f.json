@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveRecruitingSettings($input: JSON!, $key: String!) {\n    saveSettings(input: $input, idempotencyKey: $key)\n  }"}

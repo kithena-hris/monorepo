@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SendMessage($applicationId: String!, $input: JSON!, $key: String!) {\n    sendMessage(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

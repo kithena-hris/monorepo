@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DecideRequisition($requisitionId: String!, $input: JSON!, $key: String!) {\n    decideRequisition(requisitionId: $requisitionId, input: $input, idempotencyKey: $key)\n  }"}
