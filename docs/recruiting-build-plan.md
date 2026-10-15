@@ -234,9 +234,9 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-122** R25 ask for a chart: plan, validation, chips. §23.4.
 - [x] **REC-123** Self-ID store and the fairness dashboard. §22.6, §24.4.
 - [x] **REC-124** NYC Local Law 144 gate and notice. §22.8.
-- [ ] **REC-125** AI Act risk management file and technical documentation.
+- [x] **REC-125** AI Act risk management file and technical documentation.
       §22.7.
-- [ ] **REC-126** Instructions for use for the deployer. §22.7.
+- [x] **REC-126** Instructions for use for the deployer. §22.7.
 - [ ] **REC-127** Conformity assessment and EU database registration before
       2 December 2027 (business task; owner to name).
 - [ ] **REC-128** Standalone suite with and without the AI keys.
