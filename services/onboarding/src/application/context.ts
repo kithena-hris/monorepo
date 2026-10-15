@@ -53,6 +53,8 @@ export interface Ctx {
 
 /** The welcome page's caller: a new hire with no account yet. */
 export const PUBLIC_ACCOUNT = 'public';
+/** Callers that are no account in this tenant, so never looked up as an admin. */
+const NO_ACCOUNT = new Set([PUBLIC_ACCOUNT, 'system']);
 
 export async function rolesOf(tx: Tx): Promise<Roles> {
   const held = (await tx.settings.get('roles')) as Partial<Roles> | null;
@@ -66,7 +68,7 @@ export async function contextOf(
   mail: Outgoing[] = [],
 ): Promise<Ctx> {
   const member = caller.personId === null ? null : await tx.members.get(caller.personId);
-  const admin = caller.accountId !== PUBLIC_ACCOUNT && (await tx.admins.has(caller.accountId));
+  const admin = !NO_ACCOUNT.has(caller.accountId) && (await tx.admins.has(caller.accountId));
   const roles = await rolesOf(tx);
   const me = caller.personId ?? '';
   return {
