@@ -200,7 +200,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       withdraw, my data.
 - [x] **REC-095** J9 agency portal.
 - [x] **REC-096** J10 company careers page and the embed script.
-- [ ] **REC-097** J11 job alerts: double opt-in, digest, unsubscribe.
+- [x] **REC-097** J11 job alerts: double opt-in, digest, unsubscribe.
 
 ### Standalone
 

@@ -135,6 +135,7 @@ import {
   requestAgencyCode,
   submitAsAgency,
 } from '../application/agency-portal.js';
+import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
 import { importMembers } from '../application/members.js';
 import { receiveReply } from '../application/replies.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -1415,6 +1416,41 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ startsAt: Instant }),
     public: true,
     run: (ctx, { body, headers }) => bookByLink(ctx, tokenOf(headers), body.startsAt),
+  }),
+  route({
+    name: 'publicAlert',
+    method: 'POST',
+    path: `${V1}/public/{company}/alerts`,
+    summary: 'J11: email me jobs like this, once the address confirms',
+    params: z.object({ company: text(63) }),
+    body: z.object({
+      email: z.email(),
+      query: z.string().max(120).default(''),
+      frequency: z.enum(['daily', 'weekly']).default('weekly'),
+    }),
+    status: 201,
+    public: true,
+    run: (ctx, { body }) => subscribeAlert(ctx, body),
+  }),
+  route({
+    name: 'publicAlertConfirm',
+    method: 'POST',
+    path: `${V1}/public/{company}/alerts/confirm`,
+    summary: 'J11: the address confirms its alert',
+    params: z.object({ company: text(63) }),
+    body: z.object({ token: z.string().min(16).max(64) }),
+    public: true,
+    run: (ctx, { body }) => confirmAlert(ctx, body.token),
+  }),
+  route({
+    name: 'publicAlertStop',
+    method: 'POST',
+    path: `${V1}/public/{company}/alerts/stop`,
+    summary: 'J11: one click ends an alert',
+    params: z.object({ company: text(63) }),
+    body: z.object({ token: z.string().min(16).max(64) }),
+    public: true,
+    run: (ctx, { body }) => stopAlert(ctx, body.token),
   }),
   route({
     name: 'publicAgencyCode',

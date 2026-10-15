@@ -3,7 +3,7 @@ import { CalendarDate, Instant, JobSearch, TenantId, type PersonId } from '@kith
 import type { Clock } from '@kithena/domain-kit';
 import { expect } from 'vitest';
 
-import { contextOf, type Ctx } from '../application/context.js';
+import { contextOf, deliver, type Ctx, type Outgoing } from '../application/context.js';
 import { apply, requestCode } from '../application/intake.js';
 import {
   createJob,
@@ -47,6 +47,12 @@ import {
   requestAgencyCode,
   submitAsAgency,
 } from '../application/agency-portal.js';
+import {
+  confirmAlert,
+  sendAlertDigests,
+  stopAlert,
+  subscribeAlert,
+} from '../application/alerts.js';
 import { daily } from '../application/background.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -386,6 +392,45 @@ export async function hireInSpain(h: Harness): Promise<void> {
     value(await receiveReply(ctx, { ...reply, from: 'Yuki@Example.com' }));
     expect((await ctx.tx.messages.thread(yuki?.id ?? '')).at(-1)?.direction).toBe('in');
   });
+
+  // J11: an alert sends nothing until confirmed, then each new matching job once.
+  const alertMail: { to: string; text: string }[] = [];
+  const mailing = {
+    ...deps,
+    mailer: {
+      send: (m: { to: string; text: string }) => {
+        alertMail.push(m);
+        return Promise.resolve();
+      },
+    },
+  };
+  const alertRun = <T>(fn: (ctx: Ctx) => Promise<T>) =>
+    uow.run(tenantId, async (tx) => {
+      const mail: Outgoing[] = [];
+      const ctx = await contextOf(mailing, tx, callerOf('public'), mail);
+      const value = await fn(ctx);
+      await deliver(mailing, tenantId, mail);
+      return value;
+    });
+  await alertRun((ctx) =>
+    subscribeAlert(ctx, { email: 'kai@example.com', query: 'designer', frequency: 'daily' }),
+  );
+  const confirm = /#confirm\.([\w-]+)/u.exec(alertMail[0]?.text ?? '')?.[1] ?? '';
+  expect(await alertRun((ctx) => sendAlertDigests(ctx))).toBe(0);
+  value(await alertRun((ctx) => confirmAlert(ctx, confirm)));
+  // As if confirmed before the Product Designer job opened.
+  await uow.run(tenantId, async (tx) => {
+    const held = (await tx.settings.get('job_alerts')) as { lastSentOn: string }[];
+    await tx.settings.set(
+      'job_alerts',
+      held.map((a) => ({ ...a, lastSentOn: '2026-10-01' })),
+    );
+  });
+  expect(await alertRun((ctx) => sendAlertDigests(ctx))).toBe(1);
+  expect(await alertRun((ctx) => sendAlertDigests(ctx))).toBe(0);
+  const stop = /#stop\.([\w-]+)/u.exec(alertMail.at(-1)?.text ?? '')?.[1] ?? '';
+  value(await alertRun((ctx) => stopAlert(ctx, stop)));
+  expect(await uow.run(tenantId, (tx) => tx.settings.get('job_alerts'))).toEqual([]);
 
   // J9: an agency signs in by code, submits once, sees its candidate's stage; a second
   // submission of the same person is refused with the first one's date.

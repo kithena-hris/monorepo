@@ -1,6 +1,7 @@
 import type { TenantId } from '@kithena/contracts';
 
 import { addDays } from '../domain/dates.js';
+import { sendAlertDigests } from './alerts.js';
 import { expireOffer } from '../domain/offer/offer.js';
 import { contextOf, deliver, type Ctx, type Outgoing } from './context.js';
 import { portalLink } from './intake.js';
@@ -137,6 +138,7 @@ export async function daily(
           dedupeKey: `interview-reminder:${interview.id}`,
         });
       }
+      await sendAlertDigests(ctx);
       return (await sweepRetention(ctx)).anonymised;
     });
     anonymised += run.value;

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { JobAlert } from '../../components/job-alert';
 import { JobCard } from '../../components/job-card';
 import { company as readCompany } from '../../lib/api';
 
@@ -20,7 +21,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 /** J10: a company's careers page, every open job of theirs whether or not it is on the shared search. */
 export default async function CareersPage({ params }: { params: Params }): Promise<JSX.Element> {
-  const answer = await readCompany((await params).company);
+  const slug = (await params).company;
+  const answer = await readCompany(slug);
   if (!answer.ok) notFound();
   const { company, jobs } = answer.data;
   return (
@@ -47,6 +49,7 @@ export default async function CareersPage({ params }: { params: Params }): Promi
           jobs.map((j) => <JobCard key={`${j.jobId}:${j.language}`} job={j} showCompany={false} />)
         )}
       </section>
+      <JobAlert company={slug} name={company.name} />
     </>
   );
 }
