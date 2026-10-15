@@ -384,6 +384,8 @@ type Mutation {
   submitOffer(idempotencyKey: String!, offerId: String!): JSON
   """Send for approval"""
   submitRequisition(idempotencyKey: String!, requisitionId: String!): JSON
+  """R14: questions suggested per competency, for an administrator to keep"""
+  suggestKitQuestions(id: String!, idempotencyKey: String!): JSON
   """R5: the prose translated, for a person to approve by saving"""
   translateAd(
     idempotencyKey: String!

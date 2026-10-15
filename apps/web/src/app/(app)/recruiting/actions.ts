@@ -52,6 +52,7 @@ const WRITES = new Set<OperationName>([
   'DraftAd',
   'ExplainAdPhrase',
   'TranslateAd',
+  'SuggestKitQuestions',
   'AgreeWithFinding',
   'SetInterviewState',
   'SaveScorecard',

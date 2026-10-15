@@ -59,6 +59,17 @@ const ZONE: Readonly<Record<string, string>> = {
   US: 'America/New_York',
 };
 
+interface Template {
+  readonly id: string;
+  readonly name: string;
+  readonly competencies: readonly {
+    readonly key: string;
+    readonly name: string;
+    readonly description: string;
+    readonly questions: readonly string[];
+  }[];
+}
+
 function Toggle({
   id,
   label,
@@ -474,6 +485,7 @@ function Scorecards({
   const act = useAct(props);
   const [name, setName] = useState('');
   const [competencies, setCompetencies] = useState('');
+  const [suggested, setSuggested] = useState<Template | null>(null);
   return (
     <div className="flex flex-col gap-4">
       <Refusal error={act.error} />
@@ -484,14 +496,74 @@ function Scorecards({
         {data.scorecards.length === 0 ? (
           <EmptyState icon={<icons.review aria-hidden />} title="No scorecards yet" />
         ) : null}
-        {data.scorecards.map((s) => (
-          <div key={s.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
-            <span className="font-medium">{s.name}</span>
-            <span className="block text-sm text-fg-muted">
-              {s.competencies.map((c) => c.name).join(' · ')}
-            </span>
-          </div>
-        ))}
+        {data.scorecards.map((s) => {
+          const held = suggested?.id === s.id ? suggested : null;
+          return (
+            <div key={s.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{s.name}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run('SuggestKitQuestions', { id: s.id }, (t) => {
+                      setSuggested(t as Template);
+                    });
+                  }}
+                >
+                  Suggest questions
+                </Button>
+              </div>
+              <span className="block text-sm text-fg-muted">
+                {s.competencies.map((c) => c.name).join(' · ')}
+              </span>
+              {held === null ? null : (
+                <div className="mt-2 flex flex-col gap-2">
+                  {held.competencies.map((c) => (
+                    <div key={c.key}>
+                      <span className="text-sm font-medium">{c.name}</span>
+                      <ul className="list-disc ps-5 text-sm">
+                        {c.questions.map((q) => (
+                          <li key={q}>{q}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      loading={act.pending}
+                      onClick={() => {
+                        act.run(
+                          'SaveScorecardTemplate',
+                          {
+                            id: held.id,
+                            input: { name: held.name, competencies: held.competencies },
+                          },
+                          () => {
+                            setSuggested(null);
+                          },
+                        );
+                      }}
+                    >
+                      Keep these
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setSuggested(null);
+                      }}
+                    >
+                      Discard
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </Section>
       <Section title="New scorecard">
         <div className="flex flex-col gap-3">

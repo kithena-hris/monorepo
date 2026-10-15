@@ -227,7 +227,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       §22.4.
 - [x] **REC-116** Rediscovery from consented pool members. §14.5.
 - [x] **REC-117** Ad writer, inclusive-language explanations, translation.
-- [ ] **REC-118** Interview kit question suggestions.
+- [x] **REC-118** Interview kit question suggestions.
 - [ ] **REC-119** Debrief summary with citations.
 - [ ] **REC-120** Email drafts.
 - [ ] **REC-121** J8 job assistant with the AI disclosure. §10.6.

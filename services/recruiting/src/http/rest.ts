@@ -139,7 +139,7 @@ import {
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
 import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
 import { importMembers } from '../application/members.js';
-import { draftAd, explainPhrase, translateAd } from '../application/writer.js';
+import { draftAd, explainPhrase, suggestQuestions, translateAd } from '../application/writer.js';
 import {
   confirmParsedProfile,
   myParsedProfile,
@@ -640,6 +640,14 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ jobId: Id }),
     body: z.object({ from: z.string().min(2).max(8), to: z.string().min(2).max(8) }),
     run: (ctx, { params, body }) => translateAd(ctx, params.jobId, body),
+  }),
+  route({
+    name: 'suggestKitQuestions',
+    method: 'POST',
+    path: `${V1}/scorecard-templates/{id}/suggestions`,
+    summary: 'R14: questions suggested per competency, for an administrator to keep',
+    params: z.object({ id: Id }),
+    run: (ctx, { params }) => suggestQuestions(ctx, params.id),
   }),
   route({
     name: 'setJobCriteria',

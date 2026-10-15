@@ -4,8 +4,9 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { renderAd } from '../domain/ad/render.js';
 import { docFrom, textsOf, withTexts } from '../domain/ad/rewrite.js';
 import { write, type PromptSpec } from './ai.js';
-import type { Ctx } from './context.js';
+import { adminOnly, notFound, type Ctx } from './context.js';
 import { editable } from './jobs.js';
+import type { ScorecardTemplate } from './ports.js';
 
 /**
  * Writing a job ad with a model (PRD §22.3, REC-117): drafting from the
@@ -114,4 +115,54 @@ export async function translateAd(
   const doc = withTexts(ad.doc, translated.value.pieces);
   if (!doc.ok) return doc;
   return ok({ title: translated.value.title, doc: doc.value, html: renderAd(doc.value).html });
+}
+
+const Kit = z.object({
+  competencies: z
+    .array(z.object({ key: z.string().max(64), questions: z.array(z.string().max(300)).max(6) }))
+    .max(20),
+});
+
+const KIT: PromptSpec<z.infer<typeof Kit>> = {
+  feature: 'writer',
+  version: 'kit-questions@1',
+  instruction: `You suggest interview questions for a scorecard. Return a JSON object {"competencies":[{"key":"","questions":[""]}]} with up to four open, behavioural questions for each competency, by its key. Each asks for a specific past example and can be answered by anyone with the competency, whatever their background. Never ask about age, family, health, religion, nationality or anything outside the job. Do not repeat a question the competency already has.`,
+  answer: Kit,
+};
+
+/**
+ * R14 (REC-118): questions suggested per competency. The domain keeps the
+ * scorecard's competencies and its four-point scale; only questions are
+ * added, to known competencies, without repeats, four at most each. Nothing
+ * is saved until an administrator keeps them.
+ */
+export async function suggestQuestions(
+  ctx: Ctx,
+  templateId: string,
+): Promise<Result<ScorecardTemplate>> {
+  const allowed = adminOnly(ctx);
+  if (!allowed.ok) return allowed;
+  const template = await ctx.tx.scorecardTemplates.get(templateId);
+  if (template === null) return err(notFound('scorecard'));
+  const suggested = await write(ctx, KIT, {
+    scorecard: template.name,
+    competencies: template.competencies.map((c) => ({
+      key: c.key,
+      name: c.name,
+      description: c.description,
+      questions: c.questions,
+    })),
+  });
+  if (!suggested.ok) return suggested;
+  return ok({
+    ...template,
+    competencies: template.competencies.map((c) => {
+      const asked = new Set(c.questions.map((q) => q.trim().toLowerCase()));
+      const added = (suggested.value.competencies.find((x) => x.key === c.key)?.questions ?? [])
+        .map((q) => q.trim())
+        .filter((q) => q !== '' && !asked.has(q.toLowerCase()))
+        .slice(0, 4);
+      return { ...c, questions: [...c.questions, ...added] };
+    }),
+  });
 }

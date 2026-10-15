@@ -72,7 +72,7 @@ import {
 } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
-import { draftAd, translateAd } from '../application/writer.js';
+import { draftAd, suggestQuestions, translateAd } from '../application/writer.js';
 import { poolsScreen } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -688,15 +688,22 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         prompt: { instruction: string; context: Readonly<Record<string, unknown>> },
       ) =>
         Promise.resolve(
-          prompt.instruction.startsWith('You translate')
+          prompt.instruction.startsWith('You suggest interview questions')
             ? JSON.stringify({
-                title: 'Diseño de producto',
-                pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+                competencies: [
+                  { key: 'craft', questions: ['Tell us about a design you shipped.'] },
+                  { key: 'made_up', questions: ['Ignored.'] },
+                ],
               })
-            : JSON.stringify({
-                title: place.jobTitle,
-                sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
-              }),
+            : prompt.instruction.startsWith('You translate')
+              ? JSON.stringify({
+                  title: 'Diseño de producto',
+                  pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+                })
+              : JSON.stringify({
+                  title: place.jobTitle,
+                  sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
+                }),
         ),
     },
   };
@@ -709,6 +716,13 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(
     value(await asWriter((ctx) => translateAd(ctx, jobId, { from: 'en', to: 'es' }))).html,
   ).toContain('DESIGN THE PRODUCT WITH US.');
+
+  // R14: questions are added only to the scorecard's own competencies, and nothing is saved.
+  const kit = value(await asWriter((ctx) => suggestQuestions(ctx, SCORECARD)));
+  expect(kit.competencies.map((c) => [c.key, c.questions])).toEqual([
+    ['craft', ['Tell us about a design you shipped.']],
+    ['collab', []],
+  ]);
 
   // §14.2: the parser keeps only what the text says, and the candidate confirms it on their page.
   const parsed = value(

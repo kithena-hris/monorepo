@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SuggestKitQuestions($id: String!, $key: String!) {\n    suggestKitQuestions(id: $id, idempotencyKey: $key)\n  }"}

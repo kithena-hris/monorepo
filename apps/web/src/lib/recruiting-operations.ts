@@ -160,6 +160,7 @@ export const OPERATIONS = {
   DraftAd: write('DraftAd', 'draftAd', ...ID('jobId')),
   ExplainAdPhrase: write('ExplainAdPhrase', 'explainAdPhrase', ...ID('jobId')),
   TranslateAd: write('TranslateAd', 'translateAd', ...ID('jobId')),
+  SuggestKitQuestions: write('SuggestKitQuestions', 'suggestKitQuestions', ...ID('id'), false),
   AgreeWithFinding: write(
     'AgreeWithFinding',
     'agreeWithFinding',
