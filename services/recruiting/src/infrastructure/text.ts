@@ -45,17 +45,27 @@ export function unzipOne(bytes: Uint8Array, wanted: string): Uint8Array | null {
 
 /** The words in an office document's XML, paragraphs on their own lines. */
 export function xmlText(xml: string): string {
-  return xml
-    .replace(/<\/(?:w:p|text:p|text:h)>/gu, '\n')
-    .replace(/<(?:w:tab|text:tab)\/>/gu, '\t')
-    .replace(/<[^>]+>/gu, '')
-    .replace(/&lt;/gu, '<')
-    .replace(/&gt;/gu, '>')
-    .replace(/&quot;/gu, '"')
-    .replace(/&apos;/gu, "'")
-    .replace(/&amp;/gu, '&')
-    .replace(/\n{3,}/gu, '\n\n')
-    .trim();
+  const decode = (t: string) =>
+    t
+      .replace(/&lt;/gu, '<')
+      .replace(/&gt;/gu, '>')
+      .replace(/&quot;/gu, '"')
+      .replace(/&apos;/gu, "'")
+      .replace(/&amp;/gu, '&');
+  // Paragraph ends become line breaks; the text is what lies between the tags.
+  const marked = xml
+    .replaceAll('</w:p>', '\u0000')
+    .replaceAll('</text:p>', '\u0000')
+    .replaceAll('</text:h>', '\u0000');
+  const text = marked
+    .split(/<[^>]*>/u)
+    .map(decode)
+    .join('')
+    .split('\u0000')
+    .map((line) => line.trim())
+    .filter((line, i, all) => line !== '' || (i > 0 && all[i - 1] !== ''))
+    .join('\n');
+  return text.trim();
 }
 
 export async function extract(bytes: Uint8Array, mediaType: string): Promise<string | null> {

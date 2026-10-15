@@ -652,7 +652,8 @@ CREATE TABLE recruiting.condition (
 
 CREATE TABLE recruiting.benefit (
   tenant_id  uuid NOT NULL,
-  id         uuid NOT NULL,
+  -- Text, not uuid: a pack's statutory items have stable ids (`statutory:GB:pension_auto_enrolment`).
+  id         text NOT NULL,
   entity_id  uuid NOT NULL,
   key        text NOT NULL,
   category   text NOT NULL,

@@ -472,7 +472,7 @@ export const ROUTES: readonly Route[] = [
     body: z.record(z.string(), z.unknown()),
     run: (ctx, { params, body }) =>
       saveRequisition(ctx, {
-        ...(body),
+        ...body,
         id: params.requisitionId,
       } as never),
   }),
@@ -580,14 +580,10 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/jobs/{jobId}/ads/{language}`,
     summary: 'R5: the ad in one language',
     params: z.object({ jobId: Id, language: z.string().regex(/^[a-z]{2}$/u) }),
-    body: z.object({
-      title: text(200).min(1),
-      doc: z.unknown(),
-      html: text(100_000),
-      plain: text(100_000),
-    }),
+    // The editor's document only: the HTML is rendered from it, never taken from the browser.
+    body: z.object({ title: text(200).min(1), doc: z.unknown() }),
     run: (ctx, { params, body }) =>
-      saveAd(ctx, params.jobId, params.language, body.title, body.doc, body.html, body.plain),
+      saveAd(ctx, params.jobId, params.language, body.title, body.doc),
   }),
   route({
     name: 'setJobCriteria',
@@ -1064,8 +1060,7 @@ export const ROUTES: readonly Route[] = [
     summary: 'S4: an approval chain',
     params: z.object({ id: Id }),
     body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) =>
-      saveChain(ctx, { ...(body), id: params.id } as never),
+    run: (ctx, { params, body }) => saveChain(ctx, { ...body, id: params.id } as never),
   }),
   route({
     name: 'saveQuestionnaire',
@@ -1074,8 +1069,7 @@ export const ROUTES: readonly Route[] = [
     summary: 'S3: a questionnaire',
     params: z.object({ id: Id }),
     body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) =>
-      saveQuestionnaire(ctx, { ...(body), id: params.id } as never),
+    run: (ctx, { params, body }) => saveQuestionnaire(ctx, { ...body, id: params.id } as never),
   }),
   route({
     name: 'consentQuestionnaire',
@@ -1090,10 +1084,9 @@ export const ROUTES: readonly Route[] = [
     method: 'PUT',
     path: `${V1}/settings/scorecards/{id}`,
     summary: 'S5: a scorecard',
-    params: z.object({ id: z.string().max(80) }),
+    params: z.object({ id: Id }),
     body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) =>
-      saveScorecardTemplate(ctx, { ...(body), id: params.id } as never),
+    run: (ctx, { params, body }) => saveScorecardTemplate(ctx, { ...body, id: params.id } as never),
   }),
   route({
     name: 'saveTemplate',
@@ -1102,8 +1095,7 @@ export const ROUTES: readonly Route[] = [
     summary: 'An email or letter template',
     params: z.object({ id: Id }),
     body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) =>
-      saveTemplate(ctx, { ...(body), id: params.id } as never),
+    run: (ctx, { params, body }) => saveTemplate(ctx, { ...body, id: params.id } as never),
   }),
   route({
     name: 'saveBenefit',
@@ -1112,8 +1104,7 @@ export const ROUTES: readonly Route[] = [
     summary: 'S6: a benefit',
     params: z.object({ id: z.string().max(80) }),
     body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) =>
-      saveBenefit(ctx, { ...(body), id: params.id } as never),
+    run: (ctx, { params, body }) => saveBenefit(ctx, { ...body, id: params.id } as never),
   }),
   route({
     name: 'savePayBand',
@@ -1122,8 +1113,7 @@ export const ROUTES: readonly Route[] = [
     summary: 'A pay band',
     params: z.object({ id: Id }),
     body: z.record(z.string(), z.unknown()),
-    run: (ctx, { params, body }) =>
-      savePayBand(ctx, { ...(body), id: params.id } as never),
+    run: (ctx, { params, body }) => savePayBand(ctx, { ...body, id: params.id } as never),
   }),
   route({
     name: 'saveAgency',

@@ -3,6 +3,7 @@ import type { LaunchCountry, PublicJob, PublicationTarget, WorkMode } from '@kit
 
 import { jobPermissions, type TeamRole } from '../domain/access/access.js';
 import { adChecks, adPasses, type AdPlace } from '../domain/ad/checks.js';
+import { renderAd } from '../domain/ad/render.js';
 import { validatePipeline, withWorksCouncil, type Stage } from '../domain/pipeline/pipeline.js';
 import { isEligible } from '../domain/benefits/benefits.js';
 import { asksPayHistory, defaultForm, validateForm, type FormField } from '../domain/form/form.js';
@@ -234,7 +235,7 @@ export async function saveForm(
   await ctx.tx.jobs.setForm(jobId, fields, questionnaireId);
   // The ad checks read the form (pay history, PRD §8.3): re-run them.
   for (const ad of await ctx.tx.jobs.ads(jobId))
-    await saveAd(ctx, jobId, ad.language, ad.title, ad.doc, ad.html, ad.plain);
+    await saveAd(ctx, jobId, ad.language, ad.title, ad.doc);
   return ok(fields);
 }
 
@@ -245,9 +246,8 @@ export async function saveAd(
   language: string,
   title: string,
   doc: unknown,
-  html: string,
-  plain: string,
 ): Promise<Result<JobAd>> {
+  const { html, plain } = renderAd(doc);
   const held = await editable(ctx, jobId);
   if (!held.ok) return held;
   const job = held.value;
@@ -273,43 +273,11 @@ export async function saveAd(
     },
     ctx.today,
   );
-  const ad: JobAd = { jobId, language, title, doc, html: sanitise(html), plain, checks };
+  const ad: JobAd = { jobId, language, title, doc, html, plain, checks };
   await ctx.tx.jobs.saveAd(ad);
   if (!job.languages.includes(language))
     await ctx.tx.jobs.save({ ...job, languages: [...job.languages, language] });
   return ok(ad);
-}
-
-/**
- * The editor's HTML, cut to the tags it emits. The public site renders it as
- * is, so anything else (a script, an event handler, a style) is removed here.
- */
-export function sanitise(html: string): string {
-  const allowed = new Set([
-    'p',
-    'h2',
-    'h3',
-    'ul',
-    'ol',
-    'li',
-    'strong',
-    'em',
-    'a',
-    'br',
-    'blockquote',
-  ]);
-  return html
-    .replace(/<(script|style|iframe|object|embed)[\s\S]*?<\/\1>/giu, '')
-    .replace(/<\/?([a-z0-9]+)([^>]*)>/giu, (tag, name: string, attributes: string) => {
-      const lower = name.toLowerCase();
-      if (!allowed.has(lower)) return '';
-      if (tag.startsWith('</')) return `</${lower}>`;
-      if (lower === 'a') {
-        const href = /href\s*=\s*"(https?:\/\/[^"\s]+)"/iu.exec(attributes)?.[1];
-        return href === undefined ? '<a>' : `<a href="${href}" rel="noopener nofollow">`;
-      }
-      return `<${lower}>`;
-    });
 }
 
 export async function setCriteria(

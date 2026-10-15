@@ -60,6 +60,8 @@ export interface Harness {
   >;
 }
 
+const SCORECARD = '0190a000-0000-7000-8000-00000000005c';
+
 export async function hireInSpain(h: Harness): Promise<void> {
   const tenantId = TenantId.parse(randomUUID());
   let now = Date.parse('2026-10-15T08:00:00Z');
@@ -173,7 +175,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
     );
     value(
       await saveScorecardTemplate(ctx, {
-        id: 'sc1',
+        id: SCORECARD,
         name: 'Design',
         competencies: [
           { key: 'craft', name: 'Craft', description: '', questions: [] },
@@ -237,7 +239,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
         ...job,
         salaryShown: true,
         salary: { minMinor: 4_800_000, maxMinor: 5_800_000, currency: 'EUR', period: 'year' },
-        scorecardTemplateId: 'sc1',
+        scorecardTemplateId: SCORECARD,
       }),
     );
     value(
@@ -248,22 +250,25 @@ export async function hireInSpain(h: Harness): Promise<void> {
           minutes: 60,
           interviewerIds: [people.adam],
           competencies: [],
-          scorecardTemplateId: 'sc1',
+          scorecardTemplateId: SCORECARD,
         },
       ]),
     );
     const ad = value(
-      await saveAd(
-        ctx,
-        jobId,
-        'en',
-        'Product Designer',
-        {},
-        '<p>Design the product with us.</p><script>x</script>',
-        'Design the product with us. You bring five years of product design.',
-      ),
+      await saveAd(ctx, jobId, 'en', 'Product Designer', {
+        type: 'doc',
+        content: [
+          { type: 'paragraph', content: [{ type: 'text', text: 'Design the product with us.' }] },
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'You bring five years of product design.' }],
+          },
+        ],
+      }),
     );
-    expect(ad.html).toBe('<p>Design the product with us.</p>');
+    expect(ad.html).toBe(
+      '<p>Design the product with us.</p><p>You bring five years of product design.</p>',
+    );
     expect(ad.checks.filter((c) => c.severity === 'error')).toEqual([]);
     value(await moveJobState(ctx, jobId, 'open'));
     value(await publishTo(ctx, jobId, 'careers_page'));
