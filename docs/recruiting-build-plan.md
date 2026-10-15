@@ -278,7 +278,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 - [ ] **ONB-001** Manifest (`onboarding`, `dependsOn: []`), schema, role,
       outbox, boot, Dockerfile, codegen, standalone matrix.
-- [ ] **ONB-002** Contracts: events and the hire intake shape. §O2.
+- [x] **ONB-002** Contracts: events and the hire intake shape. §O2.
 - [ ] **ONB-003** Domain: template matching, due rules from the start date
       and probation end, plan states, a moved start date. §O3, §O4.
 - [ ] **ONB-004** Country tasks for the five launch countries. §O7.

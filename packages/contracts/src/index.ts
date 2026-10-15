@@ -35,3 +35,5 @@ export * from './recruiting/terms.js';
 export * from './events/recruiting.js';
 export * from './recruiting/public.js';
 export * from './recruiting/inbox.js';
+export * from './onboarding/primitives.js';
+export * from './events/onboarding.js';
