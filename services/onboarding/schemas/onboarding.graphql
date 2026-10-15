@@ -12,51 +12,51 @@ scalar JSON
 
 type Mutation {
   """A hire from another ATS (§O2)"""
-  addHire(
+  addOnboardingHire(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
   ): JSON
-  """O6: a check-in"""
-  checkIn(
+  """Tick a task"""
+  completeOnboardingTask(idempotencyKey: String!, planId: String!, taskId: String!): JSON
+  """Move the start date"""
+  moveOnboardingStart(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
     planId: String!
   ): JSON
-  """Tick a task"""
-  completeTask(idempotencyKey: String!, planId: String!, taskId: String!): JSON
-  """Move the start date"""
-  moveStart(
+  """O6: a check-in"""
+  onboardingCheckIn(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
     planId: String!
   ): JSON
   """Untick a task"""
-  reopenTask(idempotencyKey: String!, planId: String!, taskId: String!): JSON
+  reopenOnboardingTask(idempotencyKey: String!, planId: String!, taskId: String!): JSON
   """O8: the probation review"""
-  reviewProbation(
+  reviewOnboardingProbation(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
     planId: String!
   ): JSON
   """O7: who holds HR and IT, holidays, the default country"""
-  saveSettings(
+  saveOnboardingSettings(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
   ): JSON
   """O2: a template"""
-  saveTemplate(
+  saveOnboardingTemplate(
     id: String!
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
   ): JSON
   """Choose the buddy"""
-  setBuddy(
+  setOnboardingBuddy(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!

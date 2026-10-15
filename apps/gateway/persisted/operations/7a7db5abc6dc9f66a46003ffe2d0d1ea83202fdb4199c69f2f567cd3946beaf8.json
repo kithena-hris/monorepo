@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveOnboardingTemplate($id: String!, $input: JSON!, $key: String!) {\n    saveOnboardingTemplate(id: $id, input: $input, idempotencyKey: $key)\n  }"}

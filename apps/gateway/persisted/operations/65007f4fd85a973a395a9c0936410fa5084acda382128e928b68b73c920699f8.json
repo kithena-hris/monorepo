@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AddHire($input: JSON!, $key: String!) {\n    addOnboardingHire(input: $input, idempotencyKey: $key)\n  }"}

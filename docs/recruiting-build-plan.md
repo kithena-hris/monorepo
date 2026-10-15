@@ -289,12 +289,12 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       `people.person.hired` and the webhook.
 - [x] **ONB-008** Application use cases; Inbox tasks per role.
 - [x] **ONB-009** GraphQL and REST.
-- [ ] **ONB-010** Web remote `apps/web/onboarding` (port 3006): O1–O4,
+- [x] **ONB-010** Web remote `apps/web/onboarding` (port 3006): O1–O4,
       O6–O9.
-- [ ] **ONB-011** O5 welcome page on the Kithena Jobs host.
-- [ ] **ONB-012** Inbox source.
+- [x] **ONB-011** O5 welcome page on the Kithena Jobs host.
+- [x] **ONB-012** Inbox source.
 - [ ] **ONB-013** Phone: MO1–MO3.
-- [ ] **ONB-014** Onboarding analytics. §O9.
+- [x] **ONB-014** Onboarding analytics. §O9.
 - [x] **ONB-015** Standalone acceptance with People and Recruiting absent.
 
 ## Progress notes

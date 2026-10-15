@@ -4,7 +4,7 @@ import type { JSX } from 'react';
 
 import { RemoteScreen } from './remote-screen';
 import { DocumentsScreen } from './documents-screen';
-import { RecruitingScreen } from './recruiting-screen';
+import { OnboardingScreen, RecruitingScreen } from './act-screen';
 import { TimeOffScreen } from './timeoff-screen';
 import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -16,6 +16,7 @@ import { areaFrame } from '../lib/shell-data';
 import { loadScreen as loadDocumentsScreen } from '../lib/documents-screens';
 import { loadScreen as loadTimeOffScreen } from '../lib/timeoff-screens';
 import { loadScreen as loadRecruitingScreen } from '../lib/recruiting-screens';
+import { loadScreen as loadOnboardingScreen } from '../lib/onboarding-screens';
 
 /**
  * Each area's screen data, by its name in `AREAS`: the read the screen is
@@ -28,13 +29,18 @@ const SCREENS: Partial<
     Area['name'],
     {
       readonly load: (component: string, query: ScreenQuery, path: string) => Promise<ScreenLoad>;
-      readonly Screen: typeof TimeOffScreen | typeof DocumentsScreen | typeof RecruitingScreen;
+      readonly Screen:
+        | typeof TimeOffScreen
+        | typeof DocumentsScreen
+        | typeof RecruitingScreen
+        | typeof OnboardingScreen;
     }
   >
 > = {
   timeoff: { load: loadTimeOffScreen, Screen: TimeOffScreen },
   documents: { load: loadDocumentsScreen, Screen: DocumentsScreen },
   recruiting: { load: loadRecruitingScreen, Screen: RecruitingScreen },
+  onboarding: { load: loadOnboardingScreen, Screen: OnboardingScreen },
 };
 
 /**

@@ -8,6 +8,7 @@ import { OPERATIONS as PEOPLE } from '../../web/src/lib/people-operations.ts';
 import { OPERATIONS as TIMEOFF } from '../../web/src/lib/timeoff-operations.ts';
 import { OPERATIONS as DOCUMENTS } from '../../web/src/lib/documents-operations.ts';
 import { OPERATIONS as RECRUITING } from '../../web/src/lib/recruiting-operations.ts';
+import { OPERATIONS as ONBOARDING } from '../../web/src/lib/onboarding-operations.ts';
 
 /**
  * The router's safelist, generated from the tenant app's operations (PEO-113):
@@ -50,6 +51,7 @@ for (const [name, body] of [
   ...Object.entries(TIMEOFF),
   ...Object.entries(DOCUMENTS),
   ...Object.entries(RECRUITING),
+  ...Object.entries(ONBOARDING),
 ]) {
   const each = schemas.map((schema) => validate(schema, parse(body)));
   const errors = each.find((e) => e.length === 0) ?? each[0] ?? [];

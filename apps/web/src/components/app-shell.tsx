@@ -186,6 +186,13 @@ const AREAS: readonly {
     built: true,
     module: 'module.recruiting',
   },
+  {
+    label: 'Onboarding',
+    icon: <icons.hire />,
+    href: '/onboarding',
+    built: true,
+    module: 'module.onboarding',
+  },
 ];
 
 /**

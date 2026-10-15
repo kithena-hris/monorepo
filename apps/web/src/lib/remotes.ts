@@ -309,6 +309,15 @@ export const AREAS = {
     env: 'RECRUITING',
     dev: 'http://localhost:3005',
   },
+  onboarding: {
+    name: 'onboarding',
+    label: 'Onboarding',
+    home: '/onboarding',
+    settings: '/settings/onboarding',
+    entitlement: 'module.onboarding',
+    env: 'ONBOARDING',
+    dev: 'http://localhost:3006',
+  },
 } as const;
 export type Area = (typeof AREAS)[keyof typeof AREAS];
 

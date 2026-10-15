@@ -15,7 +15,7 @@ import { countsOf, itemsOf, shape, type Counts, type InboxState, type Shown } fr
 
 /** Runs one module operation as the person: the cookie's on the web, the bearer's on the phone. */
 export type Run = (
-  area: 'people' | 'timeoff' | 'documents' | 'recruiting',
+  area: 'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding',
   name: string,
   variables?: Record<string, unknown>,
 ) => Promise<PeopleAnswer<unknown>>;
@@ -23,7 +23,7 @@ export type Run = (
 interface Source {
   readonly module: string;
   readonly entitlement: string;
-  readonly area: 'people' | 'timeoff' | 'documents' | 'recruiting';
+  readonly area: 'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding';
   readonly operation: string;
   /** The operation's root field, as the module answers it. */
   readonly answer: (data: unknown) => unknown;
@@ -65,6 +65,13 @@ export const SOURCES: readonly Source[] = [
     entitlement: 'module.recruiting',
     area: 'recruiting',
     operation: 'RecruitingInbox',
+    answer: (data) => data,
+  },
+  {
+    module: 'onboarding',
+    entitlement: 'module.onboarding',
+    area: 'onboarding',
+    operation: 'OnboardingInbox',
     answer: (data) => data,
   },
 ];

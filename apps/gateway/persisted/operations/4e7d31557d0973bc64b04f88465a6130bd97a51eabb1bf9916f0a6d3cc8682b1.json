@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ReopenOnboardingTask($planId: String!, $taskId: String!, $key: String!) {\n    reopenOnboardingTask(planId: $planId, taskId: $taskId, idempotencyKey: $key)\n  }"}

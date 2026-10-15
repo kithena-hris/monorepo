@@ -217,7 +217,7 @@ export const ROUTES: readonly Route[] = [
 
   /* -------------------------------------------------------------- hires -- */
   route({
-    name: 'addHire',
+    name: 'addOnboardingHire',
     method: 'POST',
     path: `${V1}/hires`,
     summary: 'A hire from another ATS (§O2)',
@@ -233,7 +233,7 @@ export const ROUTES: readonly Route[] = [
 
   /* -------------------------------------------------------------- plans -- */
   route({
-    name: 'completeTask',
+    name: 'completeOnboardingTask',
     method: 'POST',
     path: `${V1}/plans/{planId}/tasks/{taskId}/complete`,
     summary: 'Tick a task',
@@ -241,7 +241,7 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx, { params }) => done(await completeTask(ctx, params.planId, params.taskId)),
   }),
   route({
-    name: 'reopenTask',
+    name: 'reopenOnboardingTask',
     method: 'POST',
     path: `${V1}/plans/{planId}/tasks/{taskId}/reopen`,
     summary: 'Untick a task',
@@ -249,7 +249,7 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx, { params }) => done(await reopenTask(ctx, params.planId, params.taskId)),
   }),
   route({
-    name: 'setBuddy',
+    name: 'setOnboardingBuddy',
     method: 'PUT',
     path: `${V1}/plans/{planId}/buddy`,
     summary: 'Choose the buddy',
@@ -258,7 +258,7 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx, { params, body }) => done(await setBuddy(ctx, params.planId, body.buddyId)),
   }),
   route({
-    name: 'moveStart',
+    name: 'moveOnboardingStart',
     method: 'PUT',
     path: `${V1}/plans/{planId}/start`,
     summary: 'Move the start date',
@@ -268,7 +268,7 @@ export const ROUTES: readonly Route[] = [
       done(await moveStartDate(ctx, params.planId, body.startDate)),
   }),
   route({
-    name: 'checkIn',
+    name: 'onboardingCheckIn',
     method: 'POST',
     path: `${V1}/plans/{planId}/check-ins`,
     summary: 'O6: a check-in',
@@ -281,7 +281,7 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params, body }) => checkIn(ctx, params.planId, body.day, body.notes),
   }),
   route({
-    name: 'reviewProbation',
+    name: 'reviewOnboardingProbation',
     method: 'POST',
     path: `${V1}/plans/{planId}/probation`,
     summary: 'O8: the probation review',
@@ -293,7 +293,7 @@ export const ROUTES: readonly Route[] = [
 
   /* ----------------------------------------------------------- settings -- */
   route({
-    name: 'saveTemplate',
+    name: 'saveOnboardingTemplate',
     method: 'PUT',
     path: `${V1}/templates/{id}`,
     summary: 'O2: a template',
@@ -313,7 +313,7 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx, { params, body }) => done(await saveTemplate(ctx, params.id, body)),
   }),
   route({
-    name: 'saveSettings',
+    name: 'saveOnboardingSettings',
     method: 'PUT',
     path: `${V1}/settings`,
     summary: 'O7: who holds HR and IT, holidays, the default country',
