@@ -21,6 +21,7 @@ import type { JSX } from 'react';
 
 import { JobCard } from '../../components/job-card';
 import { SearchBar } from '../../components/search-bar';
+import { SearchSentence } from '../../components/search-sentence';
 import { search } from '../../lib/api';
 import { queryOf, type Search } from '../../lib/query';
 
@@ -89,6 +90,7 @@ export default async function Results({
   return (
     <>
       <SearchBar q={query.get('q') ?? ''} country={query.get('country') ?? ''} />
+      <SearchSentence />
       <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <form action="/search" method="get" aria-label="Filters" className="flex flex-col gap-4">
           {(['q', 'country'] as const).map((k) =>

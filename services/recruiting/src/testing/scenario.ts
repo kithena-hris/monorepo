@@ -72,6 +72,7 @@ import {
 } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
+import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
 import { poolsScreen } from '../application/screens.js';
@@ -676,7 +677,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   // §22.3: a draft and a translation come back for a person to save; nothing is saved here.
   await uow.run(tenantId, async (tx) => {
     const general = (await tx.settings.get('general')) as { ai: Record<string, unknown> };
-    await tx.settings.set('general', { ...general, ai: { ...general.ai, writer: true } });
+    await tx.settings.set('general', {
+      ...general,
+      ai: { ...general.ai, writer: true, assistant: true },
+    });
   });
   const writing = {
     ...deps,
@@ -687,34 +691,40 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         prompt: { instruction: string; context: Readonly<Record<string, unknown>> },
       ) =>
         Promise.resolve(
-          prompt.instruction.startsWith('You draft an email')
-            ? JSON.stringify({
-                subject: 'Next steps for {{job}}',
-                body: `Hello {{candidate}}, ${JSON.stringify(prompt.context).includes('Yuki') ? 'LEAK' : 'thank you.'}`,
-              })
-            : prompt.instruction.startsWith('You summarise interview scorecards')
-              ? JSON.stringify({
-                  sentences: [
-                    { text: 'Craft was rated strong.', cites: ['s1'] },
-                    { text: 'Hire.', cites: [] },
-                  ],
-                })
-              : prompt.instruction.startsWith('You suggest interview questions')
+          prompt.instruction.startsWith('You answer a job seeker')
+            ? JSON.stringify({ answer: 'It is hybrid.', fromSources: true })
+            : prompt.instruction.startsWith('You turn a job seeker')
+              ? JSON.stringify({ filters: { workMode: ['remote'], country: 'ES', bogus: 1 } })
+              : prompt.instruction.startsWith('You draft an email')
                 ? JSON.stringify({
-                    competencies: [
-                      { key: 'craft', questions: ['Tell us about a design you shipped.'] },
-                      { key: 'made_up', questions: ['Ignored.'] },
-                    ],
+                    subject: 'Next steps for {{job}}',
+                    body: `Hello {{candidate}}, ${JSON.stringify(prompt.context).includes('Yuki') ? 'LEAK' : 'thank you.'}`,
                   })
-                : prompt.instruction.startsWith('You translate')
+                : prompt.instruction.startsWith('You summarise interview scorecards')
                   ? JSON.stringify({
-                      title: 'Diseño de producto',
-                      pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+                      sentences: [
+                        { text: 'Craft was rated strong.', cites: ['s1'] },
+                        { text: 'Hire.', cites: [] },
+                      ],
                     })
-                  : JSON.stringify({
-                      title: place.jobTitle,
-                      sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
-                    }),
+                  : prompt.instruction.startsWith('You suggest interview questions')
+                    ? JSON.stringify({
+                        competencies: [
+                          { key: 'craft', questions: ['Tell us about a design you shipped.'] },
+                          { key: 'made_up', questions: ['Ignored.'] },
+                        ],
+                      })
+                    : prompt.instruction.startsWith('You translate')
+                      ? JSON.stringify({
+                          title: 'Diseño de producto',
+                          pieces: (prompt.context['pieces'] as string[]).map((x) =>
+                            x.toUpperCase(),
+                          ),
+                        })
+                      : JSON.stringify({
+                          title: place.jobTitle,
+                          sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
+                        }),
         ),
     },
   };
@@ -727,6 +737,20 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(
     value(await asWriter((ctx) => translateAd(ctx, jobId, { from: 'en', to: 'es' }))).html,
   ).toContain('DESIGN THE PRODUCT WITH US.');
+
+  // J8: the job assistant says it is an AI; the search planner can only fill real filters.
+  const answered = value(
+    await uow.run(tenantId, async (tx) =>
+      askAboutJob(await contextOf(writing, tx, callerOf('public')), slug, 'Is it remote?'),
+    ),
+  );
+  expect(answered).toEqual({ ai: true, answer: 'It is hybrid.', answered: true });
+  const planned = value(await planSearch(writing.model, 'remote jobs in Spain'));
+  expect([planned.workMode, planned.country, 'bogus' in planned]).toEqual([
+    ['remote'],
+    'ES',
+    false,
+  ]);
 
   // R12: the model writes placeholders without seeing the name; the domain fills them.
   const email = value(

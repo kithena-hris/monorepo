@@ -230,7 +230,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-118** Interview kit question suggestions.
 - [x] **REC-119** Debrief summary with citations.
 - [x] **REC-120** Email drafts.
-- [ ] **REC-121** J8 job assistant with the AI disclosure. §10.6.
+- [x] **REC-121** J8 job assistant with the AI disclosure. §10.6.
 - [ ] **REC-122** R25 ask for a chart: plan, validation, chips. §23.4.
 - [ ] **REC-123** Self-ID store and the fairness dashboard. §22.6, §24.4.
 - [ ] **REC-124** NYC Local Law 144 gate and notice. §22.8.

@@ -139,6 +139,7 @@ import {
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
 import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
+import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
 import { importMembers } from '../application/members.js';
 import {
   draftAd,
@@ -156,6 +157,7 @@ import {
 import { receiveReply } from '../application/replies.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from './caller.js';
+import { allowed } from './limits.js';
 
 /**
  * REST v1 for Recruiting (PRD §32, REC-061): `/v1/recruiting/...`.
@@ -1564,6 +1566,32 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ startsAt: Instant }),
     public: true,
     run: (ctx, { body, headers }) => bookByLink(ctx, tokenOf(headers), body.startsAt),
+  }),
+  route({
+    name: 'publicJobQuestion',
+    method: 'POST',
+    path: `${V1}/public/{company}/jobs/{slug}/questions`,
+    summary: 'J8: the job assistant, an AI, answering from the ad, the company and the process',
+    params: z.object({ company: text(63), slug: text(120) }),
+    body: z.object({ question: text(500).min(1) }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      allowed(ipOf(headers), Date.parse(ctx.at))
+        ? askAboutJob(ctx, params.slug, body.question)
+        : Promise.resolve(err(failure('TOO_MANY', 'Too many questions; try again in an hour'))),
+  }),
+  route({
+    name: 'publicAskRecruiter',
+    method: 'POST',
+    path: `${V1}/public/{company}/jobs/{slug}/recruiter-questions`,
+    summary: 'J8: ask the recruiter, by email, when the assistant cannot answer',
+    params: z.object({ company: text(63), slug: text(120) }),
+    body: z.object({ email: z.email(), question: text(2000).min(1) }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      allowed(ipOf(headers), Date.parse(ctx.at))
+        ? askRecruiter(ctx, params.slug, body.email, body.question)
+        : Promise.resolve(err(failure('TOO_MANY', 'Too many questions; try again in an hour'))),
   }),
   route({
     name: 'publicAlert',

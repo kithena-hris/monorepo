@@ -61,3 +61,17 @@ export async function asUpload(
 /** The candidate's token, from `#token`: never in a URL a server logs. */
 export const tokenFromHash = (): string =>
   typeof window === 'undefined' ? '' : decodeURIComponent(window.location.hash.replace(/^#/u, ''));
+
+/** J8 on search: a sentence turned into the search's own filters, or null. */
+export async function planSearch(sentence: string): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await fetch(`${base()}/v1/recruiting/public/search-plan`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sentence }),
+    });
+    return response.ok ? ((await response.json()) as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}

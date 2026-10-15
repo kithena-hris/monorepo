@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { JobAssistant } from '../../../components/job-assistant';
 import { job as readJob } from '../../../lib/api';
 import { hours, salary, where } from '../../../lib/format';
 import { jobPosting, ldJson, plain } from '../../../lib/structured';
@@ -145,6 +146,7 @@ export default async function JobPage({
               : ` · open until ${new Date(j.validThrough).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
           }`}
         </p>
+        <JobAssistant company={company} slug={slug} />
       </aside>
     </article>
   );

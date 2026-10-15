@@ -6,6 +6,10 @@ import type { Deps, Listings } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import type { CallerFrom } from './caller.js';
 import { listingsAnswer } from './listings.js';
+import { allowed } from './limits.js';
+import { planSearch } from '../application/job-assistant.js';
+import type { JobSearch } from '@kithena/contracts';
+import type { Result } from '@kithena/domain-kit';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest, type RestResponse } from './rest.js';
 
@@ -13,6 +17,7 @@ type Listener = (request: IncomingMessage, response: ServerResponse) => void;
 type RestDispatch = (request: RestRequest) => Promise<RestResponse | null>;
 
 const OPENAPI = '/v1/recruiting/openapi.json';
+const SEARCH_PLAN = '/v1/recruiting/public/search-plan';
 /** Up to six files of 10 MB as base64, plus the answers. */
 const MAX_BODY = 90 * 1024 * 1024;
 
@@ -33,6 +38,8 @@ export function recruitingListener(
   rest?: RestDispatch,
   listings?: Listings,
   publicOrigin?: string,
+  /** J8 on search: a sentence to filters, when there is a model. */
+  plan?: (sentence: string) => Promise<Result<JobSearch>>,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
@@ -84,6 +91,31 @@ export function recruitingListener(
         return;
       }
       const body = await bodyOf(request);
+      if (request.method === 'POST' && request.url === SEARCH_PLAN && body !== null) {
+        const ip =
+          String(request.headers['x-forwarded-for'] ?? '')
+            .split(',')[0]
+            ?.trim() ?? '';
+        let sentence = '';
+        try {
+          const given = (JSON.parse(body) as { sentence?: unknown }).sentence;
+          sentence = typeof given === 'string' ? given : '';
+        } catch {
+          // An unreadable body plans nothing.
+        }
+        const planned =
+          plan === undefined || !allowed(ip, Date.now()) ? null : await plan(sentence);
+        response
+          .writeHead(planned?.ok === true ? 200 : 422, { 'content-type': 'application/json' })
+          .end(
+            JSON.stringify(
+              planned?.ok === true
+                ? planned.value
+                : { error: { code: 'NO_PLAN', message: 'Try the filters instead' } },
+            ),
+          );
+        return;
+      }
       if (body === null) {
         response
           .writeHead(413, { 'content-type': 'application/json' })
@@ -153,6 +185,7 @@ export function recruitingServer(
       rest,
       options.listings,
       options.jobsOrigin,
+      (sentence) => planSearch(deps.model, sentence),
     ),
   };
 }
