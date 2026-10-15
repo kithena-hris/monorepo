@@ -150,32 +150,32 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-061** REST `/v1/recruiting/...`, OpenAPI, idempotency keys.
 - [ ] **REC-062** Public API, XML feed, `JobPosting` JSON-LD builder. §32.
 - [ ] **REC-063** Signed webhooks for every published event.
-- [ ] **REC-064** Inbox source: Recruiting's answer, one line in
+- [x] **REC-064** Inbox source: Recruiting's answer, one line in
       `apps/web/src/lib/inbox/sources.ts`.
 
 ### Web (`apps/web/recruiting`, port 3005)
 
-- [ ] **REC-070** Remote scaffold, sidebar entry with sub-items, Settings tab.
-- [ ] **REC-071** R1 home.
-- [ ] **REC-072** R2, R3 requisitions and approval.
-- [ ] **REC-073** R4 job setup: details, hiring team, criteria, plan.
-- [ ] **REC-074** R5 ad editor with checks and languages.
-- [ ] **REC-075** R6 apply form builder.
-- [ ] **REC-076** R7 publishing targets.
-- [ ] **REC-077** R8 internal board and referrals.
-- [ ] **REC-078** R9 agencies.
-- [ ] **REC-079** R10 pipeline board and table, bulk actions, filters in the
+- [x] **REC-070** Remote scaffold, sidebar entry with sub-items, Settings tab.
+- [x] **REC-071** R1 home.
+- [x] **REC-072** R2, R3 requisitions and approval.
+- [x] **REC-073** R4 job setup: details, hiring team, criteria, plan.
+- [x] **REC-074** R5 ad editor with checks and languages.
+- [x] **REC-075** R6 apply form builder.
+- [x] **REC-076** R7 publishing targets.
+- [x] **REC-077** R8 internal board and referrals.
+- [x] **REC-078** R9 agencies.
+- [x] **REC-079** R10 pipeline board and table, bulk actions, filters in the
       URL.
-- [ ] **REC-080** R11, R12 candidate profile and messages.
-- [ ] **REC-081** R13 talent pools.
-- [ ] **REC-082** R14–R16 interview plan, kit and scorecard, scheduling.
+- [x] **REC-080** R11, R12 candidate profile and messages.
+- [x] **REC-081** R13 talent pools.
+- [x] **REC-082** R14–R16 interview plan, kit and scorecard, scheduling.
 - [ ] **REC-083** R17 debrief, R18 references.
-- [ ] **REC-084** R19–R22 offer, approval, terms composer, contract and
+- [x] **REC-084** R19–R22 offer, approval, terms composer, contract and
       pre-hire.
 - [ ] **REC-085** R23, R24 analytics dashboards with Reach charts and data
       tables.
-- [ ] **REC-086** R26 all candidates.
-- [ ] **REC-087** S1–S8 settings.
+- [x] **REC-086** R26 all candidates.
+- [x] **REC-087** S1–S8 settings.
 - [ ] **REC-088** Reach additions (PRD §30), each in Reach first with
       stories and axe.
 

@@ -16,3 +16,15 @@ export const Requisitions = split(() => import('./requisitions'), 'Requisitions'
 export const Requisition = split(() => import('./requisitions'), 'RequisitionEditor');
 export const RequisitionApproval = split(() => import('./requisitions'), 'RequisitionApproval');
 export const JobSetup = split(() => import('./job'), 'JobSetup');
+export const Interviews = split(() => import('./interviews'), 'Interviews');
+export const Kit = split(() => import('./interviews'), 'Kit');
+export const Schedule = split(() => import('./interviews'), 'Schedule');
+export const Debrief = split(() => import('./interviews'), 'Debrief');
+export const Offers = split(() => import('./offers'), 'Offers');
+export const Offer = split(() => import('./offers'), 'Offer');
+export const OfferApproval = split(() => import('./offers'), 'OfferApproval');
+export const Contract = split(() => import('./offers'), 'Contract');
+export const Analytics = split(() => import('./analytics'), 'Analytics');
+export const Board = split(() => import('./board'), 'Board');
+export const Agencies = split(() => import('./board'), 'Agencies');
+export const Settings = split(() => import('./settings'), 'Settings');

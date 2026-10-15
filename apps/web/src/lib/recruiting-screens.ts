@@ -59,10 +59,15 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Debrief':
       return read('RecruitingDebrief', { applicationId: id });
     case 'Schedule':
-      return read('RecruitingCandidates', { q: null, tag: null });
+      return read('RecruitingSlots', {
+        applicationId: id,
+        planKey: or(s['plan']),
+        from: s['week'] === undefined ? null : `${s['week']}T00:00:00.000Z`,
+      });
     case 'Offers':
       return read('RecruitingOffers');
     case 'Offer':
+      return id === 'new' ? { status: 'none' } : read('RecruitingOffer', { offerId: id });
     case 'OfferApproval':
     case 'Contract':
       return read('RecruitingOffer', { offerId: id });

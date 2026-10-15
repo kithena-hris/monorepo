@@ -4,7 +4,18 @@ import { describe, expect, it } from 'vitest';
 import manifest from '../public/routes.json';
 import * as screens from './index';
 import { axeViolations } from './test/axe';
-import type { CandidateData, HomeData, JobData, PipelineData, Requisition } from './types';
+import type {
+  AnalyticsData,
+  BoardData,
+  CandidateData,
+  DebriefData,
+  HomeData,
+  JobData,
+  KitData,
+  OffersData,
+  PipelineData,
+  Requisition,
+} from './types';
 
 const ready = <T,>(data: T) => ({ status: 'ready' as const, data });
 const routes = new Set(manifest.routes.map((r) => r.path));
@@ -285,6 +296,172 @@ describe('R11, a candidate', () => {
     );
     expect(screen.getByRole('heading', { level: 1, name: 'Yuki Sato' })).toBeTruthy();
     expect(screen.getByText('Senior Backend Engineer (m/w/d)')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+const interview = {
+  id: 'i1',
+  applicationId: 'a1',
+  planKey: 'technical',
+  title: 'Technical interview',
+  startsAt: '2026-10-16T08:00:00Z',
+  minutes: 60,
+  interviewerIds: ['p-adam'],
+  state: 'completed' as const,
+  place: null,
+  videoUrl: 'https://meet.example.com/abc',
+};
+
+describe('R15, the kit and scorecard', () => {
+  const kit: KitData = {
+    interview,
+    competencies: [
+      {
+        key: 'system_design',
+        name: 'System design',
+        description: 'Designs services that stay correct under failure.',
+        questions: ['Walk me through making a ledger idempotent.'],
+      },
+    ],
+    scorecards: [],
+    candidate: { id: 'c1', name: 'Yuki Sato' },
+    job: { id: 'j1', title: 'Senior Backend Engineer (m/w/d)' },
+    names: { 'p-adam': 'Adam Novak' },
+    me: 'p-adam',
+  };
+
+  it('rates each competency on four labelled anchors, and hides the others until submitted', async () => {
+    const { container } = render(<screens.Kit load={ready(kit)} params={{ id: 'i1' }} />);
+    expect(screen.getByRole('radiogroup', { name: 'System design' })).toBeTruthy();
+    expect(screen.getAllByRole('radio', { name: '4 · Strong yes' }).length).toBe(2);
+    expect(screen.getByText('Hidden until you submit')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('R17, the debrief', () => {
+  const debrief: DebriefData = {
+    rows: [
+      {
+        competency: 'on_call',
+        average: '3.00',
+        ratings: [
+          { interviewerId: 'p-adam', rating: 4 },
+          { interviewerId: 'p-lina', rating: 2 },
+        ],
+        disagreement: true,
+      },
+    ],
+    recommendations: { strong_no: 0, no: 0, yes: 1, strong_yes: 1 },
+    submitted: 2,
+    expected: 2,
+    competencies: [{ key: 'on_call', name: 'On call' }],
+    names: { 'p-adam': 'Adam Novak', 'p-lina': 'Lina Park' },
+    candidate: { id: 'c1', name: 'Yuki Sato' },
+    job: { id: 'j1', title: 'Senior Backend Engineer (m/w/d)' },
+    decider: false,
+  };
+
+  it('shows Recruiting’s average and flags a two-point disagreement', async () => {
+    const { container } = render(<screens.Debrief load={ready(debrief)} params={{ id: 'a1' }} />);
+    expect(screen.getByText('3.00')).toBeTruthy();
+    expect(screen.getByText('Disagree by 2+')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Record decision' }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('offers', () => {
+  const offers: OffersData = {
+    rows: [
+      {
+        id: 'o1',
+        state: 'pending_approval',
+        candidate: 'Yuki Sato',
+        job: 'Senior Backend Engineer (m/w/d)',
+        startDate: '2027-02-01',
+        expiresOn: '2026-10-24',
+        baseMinor: 8_600_000,
+        currency: 'EUR',
+        needsMe: true,
+      },
+    ],
+  };
+
+  it('sends an approver to the approval', async () => {
+    const { container } = render(<screens.Offers load={ready(offers)} />);
+    expect(screen.getByRole('link', { name: 'Yuki Sato' }).getAttribute('href')).toBe(
+      '/recruiting/offers/o1/approve',
+    );
+    expect(screen.getByText('€86,000')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('R23, analytics', () => {
+  const analytics: AnalyticsData = {
+    overview: {
+      openJobs: 5,
+      applications: 120,
+      hires: 4,
+      offersOut: 2,
+      funnel: [
+        { category: 'applied', count: 120, ofPrevious: null },
+        { category: 'interview', count: 30, ofPrevious: '25.0' },
+      ],
+      hiresByMonth: [{ month: '2026-09', hires: 4 }],
+      timeToHire: { median: 34, p85: 50 },
+      sources: [
+        { key: 'careers_page', value: 80, n: 80, suppressed: false },
+        { key: 'agency', value: null, n: 3, suppressed: true },
+      ],
+      rejectionReasons: [],
+    },
+    speed: [],
+    timeInStage: [],
+    offers: { sent: 5, accepted: 4, declined: 1, rate: '80' },
+    filters: { period: 'last_90_days' },
+  };
+
+  it('opens on the overview, and says when a small group is withheld', async () => {
+    const { container } = render(
+      <screens.Analytics load={ready(analytics)} search={{ dashboard: 'sources' }} />,
+    );
+    expect(screen.getByText('1 group under five people withheld.')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('R8, the internal board', () => {
+  const board: BoardData = {
+    jobs: [
+      {
+        id: 'j1',
+        title: 'Senior Backend Engineer (m/w/d)',
+        department: 'Engineering',
+        workMode: 'hybrid',
+        slug: 'senior-backend',
+      },
+    ],
+    referrals: [
+      {
+        id: 'r1',
+        name: 'Priya Nair',
+        job: 'Senior Backend Engineer (m/w/d)',
+        at: '2026-10-01T09:00:00Z',
+        outcome: 'invited',
+      },
+    ],
+    bonus: { amountMinor: 200_000, currency: 'EUR', after: 'probation' },
+  };
+
+  it('offers refer and apply on each job', async () => {
+    const { container } = render(<screens.Board load={ready(board)} />);
+    expect(screen.getByRole('button', { name: 'Refer someone' })).toBeTruthy();
+    expect(screen.getByText('Priya Nair')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
 });
