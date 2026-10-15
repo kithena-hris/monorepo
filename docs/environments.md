@@ -1274,7 +1274,9 @@ module can merge first and switch on later. In this order:
    DOCUMENTS_BUCKET=kithena-<account>-documents
    DOCUMENTS_S3_REGION=us-east-1
    # 32 bytes, base64: what every stored file is sealed with. Lose it and the
-   # files are unreadable; it is backed up with the other VM secrets.
+   # files are unreadable. This secret is the copy every deploy restores
+   # (backup.sh saves the database, not the .env files): never regenerate it
+   # once a file is stored, and keep a spare from the VM (below).
    DOCUMENTS_ENCRYPTION_KEY=<openssl rand -base64 32>
    ```
 
@@ -1324,9 +1326,17 @@ until its setting exists. In this order:
 
    ```bash
    RECRUITING_BUCKET=kithena-<account>-recruiting
-   # 32 bytes, base64: what every stored file is sealed with; backed up with
-   # the other VM secrets.
+   # 32 bytes, base64: what every stored file is sealed with. As Documents'
+   # key: this secret is the copy, never regenerate it once a file is stored.
    RECRUITING_ENCRYPTION_KEY=<openssl rand -base64 32>
+   ```
+
+   GitHub never shows a secret again, so the spare comes from the VM after the
+   first deploy, into the password manager:
+
+   ```bash
+   aws ssm start-session --target <instance id>
+   sudo grep ENCRYPTION_KEY /etc/kithena/production/recruiting.env /etc/kithena/production/documents.env
    ```
 
    The deploy writes `JOBS_ORIGIN=https://jobs.kithena.com` beside them: the
