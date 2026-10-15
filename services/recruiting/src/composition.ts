@@ -11,6 +11,7 @@ import { recruitingListener, recruitingServer } from './http/server.js';
 import { blobsFrom } from './infrastructure/blobs.js';
 import { uuidv7 } from './infrastructure/ids.js';
 import { mailerFrom } from './infrastructure/messaging.js';
+import { listingsFrom } from './infrastructure/listings.js';
 import { extract } from './infrastructure/text.js';
 import { drizzleUnitOfWork, recruitingDatabase } from './infrastructure/unit-of-work.js';
 
@@ -57,6 +58,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
     return kept?.entitlements ?? null;
   };
   const mailer = mailerFrom(env);
+  const listings = listingsFrom(env);
   const { listener, deps } = recruitingServer(
     {
       uow,
@@ -65,6 +67,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       extractText: extract,
       callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
       ...(mailer === undefined ? {} : { mailer }),
+      ...(listings === null ? {} : { listings }),
     },
     uuidv7,
   );

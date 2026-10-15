@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { CalendarDate, Instant, TenantId, type PersonId } from '@kithena/contracts';
+import { CalendarDate, Instant, JobSearch, TenantId, type PersonId } from '@kithena/contracts';
 import type { Clock } from '@kithena/domain-kit';
 import { expect } from 'vitest';
 
@@ -41,7 +41,7 @@ import {
   saveScorecardTemplate,
   DEFAULT_SETTINGS,
 } from '../application/setup.js';
-import type { Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
+import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
 
 /**
@@ -55,9 +55,8 @@ export interface Harness {
   readonly events: (
     tenantId: string,
   ) => Promise<readonly { eventName: string; payload: unknown; effectiveFrom: string | null }[]>;
-  readonly listings: () => Promise<
-    readonly { title: string; searchable: boolean; company: string; slug: string }[]
-  >;
+  /** Kithena Jobs' reads, as `apps/jobs` makes them. */
+  readonly jobs: Listings;
 }
 
 const SCORECARD = '0190a000-0000-7000-8000-00000000005c';
@@ -275,12 +274,17 @@ export async function hireInSpain(h: Harness): Promise<void> {
     value(await publishTo(ctx, jobId, 'kithena_jobs'));
     value(await publishTo(ctx, jobId, 'google_for_jobs'));
   });
-  expect((await h.listings()).map((l) => [l.title, l.searchable, l.company])).toEqual([
+  const found = await h.jobs.search(JobSearch.parse({ q: 'designer' }));
+  expect(found.rows.map((l) => [l.title, l.searchable, l.company.slug])).toEqual([
     ['Product Designer', true, 'acme'],
   ]);
+  expect(found.total).toBe(1);
+  expect((await h.jobs.search(JobSearch.parse({ q: 'plumber' }))).rows).toEqual([]);
+  const slug = found.rows[0]?.slug ?? '';
+  expect((await h.jobs.job('acme', slug, 'en'))?.closed).toBe(false);
+  expect((await h.jobs.company('acme'))?.jobs.map((j) => j.slug)).toEqual([slug]);
 
   // Yuki applies on her phone: a code, then the form.
-  const slug = (await h.listings())[0]?.slug ?? '';
   const { code } = await as('public', async (ctx) =>
     value(await requestCode(ctx, slug, 'yuki@example.com', 'Yuki Sato')),
   );
@@ -450,7 +454,7 @@ export async function hireInSpain(h: Harness): Promise<void> {
   });
   expect(hired?.effectiveFrom).toBe('2026-12-01');
   // Filled: the job comes off Kithena Jobs.
-  expect(await h.listings()).toEqual([]);
+  expect((await h.jobs.search(JobSearch.parse({ company: 'acme' }))).rows).toEqual([]);
   const prehire = await uow.run(tenantId, (tx) => tx.prehires.get(applied.applicationId));
   expect(prehire?.state).toBe('conditions_met');
 }
@@ -468,14 +472,6 @@ export function memoryHarness(uow: MemoryUnitOfWork, blobs: Blobs): Harness {
           effectiveFrom: e.effectiveFrom,
         })),
       ),
-    listings: () =>
-      Promise.resolve(
-        [...uow.publicListings.values()].map((l) => ({
-          title: l.job.title,
-          searchable: l.job.searchable,
-          company: l.job.company.slug,
-          slug: l.job.slug,
-        })),
-      ),
+    jobs: uow.listings,
   };
 }

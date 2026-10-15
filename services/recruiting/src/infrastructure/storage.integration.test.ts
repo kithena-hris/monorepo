@@ -8,6 +8,7 @@ import { startPostgres } from '@kithena/testing';
 
 import { memoryBlobs } from '../testing/memory.js';
 import { hireInSpain, type Harness } from '../testing/scenario.js';
+import { postgresListings } from './listings.js';
 import { drizzleUnitOfWork } from './unit-of-work.js';
 
 /**
@@ -69,15 +70,7 @@ describe('Recruiting over Postgres', () => {
           return { eventName: e.eventName, payload: e.payload, effectiveFrom: e.effectiveFrom };
         }),
       // Read as Kithena Jobs reads it: the read-only role, across companies.
-      listings: async () =>
-        (
-          await reader`SELECT title, searchable, company_slug, slug FROM recruiting_public.listing ORDER BY title`
-        ).map((r) => ({
-          title: String(r['title']),
-          searchable: Boolean(r['searchable']),
-          company: String(r['company_slug']),
-          slug: String(r['slug']),
-        })),
+      jobs: postgresListings(reader),
     };
     await hireInSpain(harness);
   });

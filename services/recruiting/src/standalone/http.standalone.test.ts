@@ -43,6 +43,7 @@ beforeAll(async () => {
       jobsOrigin: 'https://jobs.example',
       extractText: () => Promise.resolve(null),
       callerFrom: callerFromHeaders(TOKEN),
+      listings: uow.listings,
     },
     uuidv7,
   );
@@ -150,5 +151,17 @@ describe('Recruiting’s transports, alone', () => {
       body: JSON.stringify({ jobSlug: 'missing', email: 'yuki@example.com', name: 'Yuki' }),
     });
     expect(((await noJob.json()) as { error: { code: string } }).error.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('Kithena Jobs’ reads', () => {
+  it('searches without a caller, refuses a malformed search, and finds no unknown company', async () => {
+    const found = await fetch(`${base}/v1/recruiting/listings?q=designer&workMode=remote,hybrid`);
+    expect(found.status).toBe(200);
+    expect(found.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(await found.json()).toEqual({ rows: [], total: 0 });
+    expect((await fetch(`${base}/v1/recruiting/listings?page=0`)).status).toBe(400);
+    expect((await fetch(`${base}/v1/recruiting/companies/nobody`)).status).toBe(404);
+    expect((await fetch(`${base}/v1/recruiting/listings/nobody/a-job`)).status).toBe(404);
   });
 });

@@ -2,9 +2,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createYoga } from 'graphql-yoga';
 import { systemClock } from '@kithena/domain-kit';
 
-import type { Deps } from '../application/ports.js';
+import type { Deps, Listings } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import type { CallerFrom } from './caller.js';
+import { listingsAnswer } from './listings.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest, type RestResponse } from './rest.js';
 
@@ -27,7 +28,11 @@ async function bodyOf(request: IncomingMessage): Promise<string | null> {
 }
 
 /** The one listener on Recruiting's port: `/healthz`, the OpenAPI document, REST v1, then GraphQL. Documents'. */
-export function recruitingListener(graphql: Listener, rest?: RestDispatch): Listener {
+export function recruitingListener(
+  graphql: Listener,
+  rest?: RestDispatch,
+  listings?: Listings,
+): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
     if (request.method === 'GET' && request.url === '/healthz') {
@@ -43,6 +48,19 @@ export function recruitingListener(graphql: Listener, rest?: RestDispatch): List
       return;
     }
     void (async () => {
+      const read =
+        listings === undefined
+          ? null
+          : await listingsAnswer(listings, request.method ?? 'GET', request.url ?? '/');
+      if (read !== null) {
+        response
+          .writeHead(read.status, {
+            'content-type': 'application/json',
+            'cache-control': read.status === 200 ? 'public, max-age=60' : 'no-store',
+          })
+          .end(JSON.stringify(read.body));
+        return;
+      }
       const body = await bodyOf(request);
       if (body === null) {
         response
@@ -78,6 +96,8 @@ export interface RecruitingServerOptions extends Pick<
   readonly clock?: Deps['clock'];
   readonly newId?: Deps['newId'];
   readonly mailer?: Deps['mailer'];
+  /** Kithena Jobs' reads, when the read-only role is configured. */
+  readonly listings?: Listings;
 }
 
 /** Recruiting's transports over a unit of work and a blob store. */
@@ -100,8 +120,12 @@ export function recruitingServer(
   return {
     rest,
     deps,
-    listener: recruitingListener((request, response) => {
-      void graphql(request, response);
-    }, rest),
+    listener: recruitingListener(
+      (request, response) => {
+        void graphql(request, response);
+      },
+      rest,
+      options.listings,
+    ),
   };
 }

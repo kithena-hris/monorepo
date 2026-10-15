@@ -6,7 +6,10 @@ import type {
   PersonId,
   TenantId,
   ApplicationSource,
+  JobSearch,
+  PublicCompany,
   PublicJob,
+  PublicListing,
 } from '@kithena/contracts';
 
 import type { Application, StageMove } from '../domain/pipeline/application.js';
@@ -671,6 +674,16 @@ export interface Mailer {
     readonly replyTo: string | null;
     readonly dedupeKey: string;
   }): Promise<void>;
+}
+
+/**
+ * Kithena Jobs' reads (REC-090, PRD §31.2): the public projection across
+ * companies, through a role that may read nothing else. No tenant, no caller.
+ */
+export interface Listings {
+  search(query: JobSearch): Promise<{ rows: readonly PublicListing[]; total: number }>;
+  job(company: string, slug: string, language: string | null): Promise<PublicJob | null>;
+  company(slug: string): Promise<{ company: PublicCompany; jobs: readonly PublicListing[] } | null>;
 }
 
 export interface Deps {

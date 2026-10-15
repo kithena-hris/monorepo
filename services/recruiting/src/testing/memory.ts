@@ -8,13 +8,14 @@ import type { FormField } from '../domain/form/form.js';
 import type { TeamRole } from '../domain/access/access.js';
 import { createHash } from 'node:crypto';
 import type { PendingEvent } from '@kithena/domain-kit';
-import type { PublicJob, TenantId } from '@kithena/contracts';
+import { PublicCompany, PublicListing, type PublicJob, type TenantId } from '@kithena/contracts';
 
 import type { StageMove } from '../domain/pipeline/application.js';
 import type { Stage } from '../domain/pipeline/pipeline.js';
 import { normalEmail, normalPhone } from '../domain/candidate/duplicates.js';
 import type {
   Agency,
+  Listings,
   AgencySubmission,
   Approval,
   ApplicationRecord,
@@ -572,6 +573,8 @@ export interface MemoryUnitOfWork extends UnitOfWork {
   /** Every event published, per tenant, for assertions. */
   events(tenantId: TenantId): readonly PendingEvent[];
   readonly publicListings: Map<string, { job: PublicJob; tsv: string }>;
+  /** Kithena Jobs' reads over the same projection. */
+  readonly listings: Listings;
 }
 
 export function memoryUnitOfWork(): MemoryUnitOfWork {
@@ -623,6 +626,58 @@ export function memoryUnitOfWork(): MemoryUnitOfWork {
       ),
     events: (tenantId) => [...stateOf(tenantId).outbox],
     publicListings: publicState.listings,
+    listings: memoryListings(publicState),
+  };
+}
+
+/** The public projection searched as Postgres would, near enough: every word of the query in the text. */
+function memoryListings(state: PublicState): Listings {
+  const listing = (job: PublicJob): PublicListing => PublicListing.parse(job);
+  const open = () => [...state.listings.values()].filter((l) => !l.job.closed);
+  return {
+    search: (query) => {
+      const words = (query.q ?? '').toLowerCase().split(/\s+/u).filter(Boolean);
+      const rows = open()
+        .filter((l) =>
+          query.company === undefined ? l.job.searchable : l.job.company.slug === query.company,
+        )
+        .filter((l) => words.every((w) => `${l.job.title} ${l.tsv}`.toLowerCase().includes(w)))
+        .filter(
+          (l) =>
+            query.country === undefined || l.job.places.some((p) => p.country === query.country),
+        )
+        .filter(
+          (l) =>
+            query.workMode === undefined ||
+            query.workMode.length === 0 ||
+            query.workMode.includes(l.job.workMode),
+        )
+        .toSorted((a, b) => b.job.postedAt.localeCompare(a.job.postedAt));
+      return Promise.resolve({
+        rows: rows.slice((query.page - 1) * 20, query.page * 20).map((l) => listing(l.job)),
+        total: rows.length,
+      });
+    },
+    job: (company, slug, language) => {
+      const all = [...state.listings.values()].filter(
+        (l) => l.job.company.slug === company && l.job.slug === slug,
+      );
+      const found = all.find((l) => l.job.language === language) ?? all[0];
+      return Promise.resolve(found === undefined ? null : clone(found.job));
+    },
+    company: (slug) => {
+      const company = state.companies.get(slug) as PublicCompany | undefined;
+      return Promise.resolve(
+        company === undefined
+          ? null
+          : {
+              company: PublicCompany.parse(company),
+              jobs: open()
+                .filter((l) => l.job.company.slug === slug)
+                .map((l) => listing(l.job)),
+            },
+      );
+    },
   };
 }
 
