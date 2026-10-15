@@ -10,8 +10,8 @@ import { createHash } from 'node:crypto';
 import type { PendingEvent } from '@kithena/domain-kit';
 import type { PublicJob, TenantId } from '@kithena/contracts';
 
-import type { StageMove } from '../domain/application/application.js';
-import type { Stage } from '../domain/application/pipeline.js';
+import type { StageMove } from '../domain/pipeline/application.js';
+import type { Stage } from '../domain/pipeline/pipeline.js';
 import { normalEmail, normalPhone } from '../domain/candidate/duplicates.js';
 import type {
   Agency,

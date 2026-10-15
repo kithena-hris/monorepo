@@ -1,7 +1,7 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { CandidatePage, Instant, LaunchCountry } from '@kithena/contracts';
 
-import { currentStage, effectiveHistory } from '../domain/application/application.js';
+import { currentStage, effectiveHistory } from '../domain/pipeline/application.js';
 import { retentionAction } from '../domain/privacy/retention.js';
 import { adminOnly, event, notFound, publish, type Ctx } from './context.js';
 import { sha256 } from './intake.js';

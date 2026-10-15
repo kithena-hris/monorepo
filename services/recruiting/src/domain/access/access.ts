@@ -1,6 +1,6 @@
 import type { StageCategory } from '@kithena/contracts';
 
-import { categoryRank } from '../application/pipeline.js';
+import { categoryRank } from '../pipeline/pipeline.js';
 
 /**
  * Who may do what in Recruiting (PRD §25, REC-034).

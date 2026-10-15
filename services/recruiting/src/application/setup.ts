@@ -2,7 +2,7 @@ import * as z from 'zod';
 import { LaunchCountry } from '@kithena/contracts';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
-import { validatePipeline, defaultPipeline, type Stage } from '../domain/application/pipeline.js';
+import { validatePipeline, defaultPipeline, type Stage } from '../domain/pipeline/pipeline.js';
 import {
   BENEFIT_CATEGORIES,
   statutoryBenefits,

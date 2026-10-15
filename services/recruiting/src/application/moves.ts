@@ -11,8 +11,8 @@ import {
   undo,
   withdraw,
   type MoveNeeds,
-} from '../domain/application/application.js';
-import { sendAt, type Stage } from '../domain/application/pipeline.js';
+} from '../domain/pipeline/application.js';
+import { sendAt, type Stage } from '../domain/pipeline/pipeline.js';
 import { poolConsent } from '../domain/privacy/retention.js';
 import { event, forbidden, jobFacts, notFound, publish, type Ctx } from './context.js';
 import type { ApplicationRecord, Candidate, Message, Template } from './ports.js';

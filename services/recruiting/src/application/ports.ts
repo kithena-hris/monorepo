@@ -9,8 +9,8 @@ import type {
   PublicJob,
 } from '@kithena/contracts';
 
-import type { Application, StageMove } from '../domain/application/application.js';
-import type { Stage } from '../domain/application/pipeline.js';
+import type { Application, StageMove } from '../domain/pipeline/application.js';
+import type { Stage } from '../domain/pipeline/pipeline.js';
 import type { AdCheck } from '../domain/ad/checks.js';
 import type { TeamRole } from '../domain/access/access.js';
 import type { Benefit } from '../domain/benefits/benefits.js';

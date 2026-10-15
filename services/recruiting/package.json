@@ -15,9 +15,12 @@
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",
+    "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
     "decimal.js": "^10.6.0",
+    "drizzle-orm": "^0.45.3",
+    "postgres": "^3.4.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {

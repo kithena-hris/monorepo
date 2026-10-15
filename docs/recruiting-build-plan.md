@@ -109,7 +109,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 ### Storage
 
 - [x] **REC-040** Atlas migrations for every table in §31.1, expand-contract.
-- [ ] **REC-041** Drizzle repositories, with integration tests against
+- [x] **REC-041** Drizzle repositories, with integration tests against
       Postgres 18.
 - [ ] **REC-042** File storage port (S3, SeaweedFS, in memory) and text
       extraction for PDF, DOCX and ODT, written in Recruiting (Documents'

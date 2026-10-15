@@ -8,7 +8,7 @@ import type {
 } from '@kithena/contracts';
 
 import { may, worksCouncilMay } from '../domain/access/access.js';
-import { hire as hireApplication } from '../domain/application/application.js';
+import { hire as hireApplication } from '../domain/pipeline/application.js';
 import {
   isEligible,
   offerBenefits,

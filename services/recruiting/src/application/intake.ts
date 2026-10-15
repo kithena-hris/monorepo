@@ -7,7 +7,7 @@ import {
 } from '@kithena/contracts';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
-import { receive } from '../domain/application/application.js';
+import { receive } from '../domain/pipeline/application.js';
 import { findMatches, normalEmail, normalPhone } from '../domain/candidate/duplicates.js';
 import { answersSchema } from '../domain/form/form.js';
 import { poolConsent } from '../domain/privacy/retention.js';

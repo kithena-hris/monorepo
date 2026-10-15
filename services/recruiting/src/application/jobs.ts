@@ -3,7 +3,7 @@ import type { LaunchCountry, PublicJob, PublicationTarget, WorkMode } from '@kit
 
 import { jobPermissions, type TeamRole } from '../domain/access/access.js';
 import { adChecks, adPasses, type AdPlace } from '../domain/ad/checks.js';
-import { validatePipeline, withWorksCouncil, type Stage } from '../domain/application/pipeline.js';
+import { validatePipeline, withWorksCouncil, type Stage } from '../domain/pipeline/pipeline.js';
 import { isEligible } from '../domain/benefits/benefits.js';
 import { asksPayHistory, defaultForm, validateForm, type FormField } from '../domain/form/form.js';
 import {

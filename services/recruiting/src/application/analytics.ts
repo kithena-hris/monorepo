@@ -1,7 +1,7 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { StageCategory } from '@kithena/contracts';
 
-import { effectiveHistory, furthestCategory } from '../domain/application/application.js';
+import { effectiveHistory, furthestCategory } from '../domain/pipeline/application.js';
 import {
   breakdown,
   funnel,

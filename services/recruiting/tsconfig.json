@@ -20,6 +20,9 @@
       "path": "../../packages/domain-kit"
     },
     {
+      "path": "../../packages/db-kit"
+    },
+    {
       "path": "../../packages/telemetry"
     },
     {
