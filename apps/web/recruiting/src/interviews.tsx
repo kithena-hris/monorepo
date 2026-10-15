@@ -168,7 +168,7 @@ function KitBody({
   const act = useAct(props);
   const mine = data.scorecards.find((c) => c.interviewerId === data.me);
   const done = mine?.submittedAt != null;
-  const [ratings, setRatings] = useState<Record<string, number>>({ ...(mine?.ratings ?? {}) });
+  const [ratings, setRatings] = useState<Record<string, number>>({ ...mine?.ratings });
   const [recommendation, setRecommendation] = useState<Recommendation | null>(
     mine?.recommendation ?? null,
   );

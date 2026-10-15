@@ -113,7 +113,6 @@ import {
   Plus,
   QrCode,
   RefreshCw,
-  Rocket,
   RotateCcw,
   RotateCcwClock,
   ScanSearch,
@@ -326,8 +325,6 @@ export const iconGroups = {
     assessment: ScanSearch,
     /** An agreement to be signed. */
     agreement: FileText,
-    /** Getting somebody started: the first days and weeks. */
-    start: Rocket,
   },
   /**
    * Where a clock has got to, for the band of the day it is in.

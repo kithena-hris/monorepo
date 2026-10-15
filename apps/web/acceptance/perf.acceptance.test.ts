@@ -58,9 +58,15 @@ const BUDGET = {
  * the remotes ship today (People's pages 556–574 KB, Time Off's 526 KB, with
  * every remote screen in its own chunk), and about 5% of room. A page that
  * goes over has gained a dependency or lost a split.
+ *
+ * People's was 600 until Recruiting joined the shell: its sidebar entry, its
+ * area and its Inbox source put the review page at 600.5 KB from 599.3, on
+ * every page because the shell is on every page. 602 is that, with the
+ * shell's next module expected to cost the same; the room is gone, so the
+ * next raise is a split instead.
  */
 const JS_BUDGET_KB: Readonly<Record<string, number>> = {
-  people: 600,
+  people: 602,
   settings: 600,
   timeoff: 560,
 };
