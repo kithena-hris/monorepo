@@ -8,9 +8,10 @@ import { STATUS, refusalOf } from './messaging-routes.js';
 
 /**
  * `POST /api/internal/messaging/correspondence` — a module sending an email
- * it wrote (Recruiting's candidate thread). Its own secret,
- * `MESSAGING_RECRUITING_TOKEN`: a leak from People cannot write to a
- * candidate. Absent, every request is refused.
+ * it wrote (Recruiting's candidate thread, Onboarding's welcome). One secret
+ * per module, `MESSAGING_RECRUITING_TOKEN` and `MESSAGING_ONBOARDING_TOKEN`:
+ * a leak from People cannot write to a candidate. Absent, every request is
+ * refused.
  */
 const CORRESPONDENCE = '/api/internal/messaging/correspondence';
 
@@ -26,10 +27,11 @@ const Request = z.object({
 
 export function correspondenceRoutes({
   send,
-  internalToken,
+  internalTokens,
 }: {
   readonly send: SendCorrespondence;
-  readonly internalToken: string;
+  /** Each sending module's own secret; an empty one opens nothing. */
+  readonly internalTokens: readonly string[];
 }) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     if ((request.url ?? '').split('?')[0] !== CORRESPONDENCE) return false;
@@ -43,7 +45,7 @@ export function correspondenceRoutes({
       response.writeHead(405, { allow: 'POST' }).end();
       return true;
     }
-    if (!presentsInternalToken(request, internalToken)) {
+    if (!internalTokens.some((token) => token !== '' && presentsInternalToken(request, token))) {
       response.writeHead(401).end();
       return true;
     }

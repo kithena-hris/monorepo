@@ -276,25 +276,25 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ## Phase 5 — Onboarding (`ONB-`)
 
-- [ ] **ONB-001** Manifest (`onboarding`, `dependsOn: []`), schema, role,
+- [x] **ONB-001** Manifest (`onboarding`, `dependsOn: []`), schema, role,
       outbox, boot, Dockerfile, codegen, standalone matrix.
 - [x] **ONB-002** Contracts: events and the hire intake shape. §O2.
-- [ ] **ONB-003** Domain: template matching, due rules from the start date
+- [x] **ONB-003** Domain: template matching, due rules from the start date
       and probation end, plan states, a moved start date. §O3, §O4.
-- [ ] **ONB-004** Country tasks for the five launch countries. §O7.
-- [ ] **ONB-005** Probation review rules from `ResolvedTerms` and the pack.
+- [x] **ONB-004** Country tasks for the five launch countries. §O7.
+- [x] **ONB-005** Probation review rules from `ResolvedTerms` and the pack.
       §O8.
-- [ ] **ONB-006** Storage and repositories. §O11.
-- [ ] **ONB-007** Hire intake from `recruiting.candidate.hired`,
+- [x] **ONB-006** Storage and repositories. §O11.
+- [x] **ONB-007** Hire intake from `recruiting.candidate.hired`,
       `people.person.hired` and the webhook.
-- [ ] **ONB-008** Application use cases; Inbox tasks per role.
-- [ ] **ONB-009** GraphQL and REST.
+- [x] **ONB-008** Application use cases; Inbox tasks per role.
+- [x] **ONB-009** GraphQL and REST.
 - [ ] **ONB-010** Web remote `apps/web/onboarding` (port 3006): O1–O4,
       O6–O9.
 - [ ] **ONB-011** O5 welcome page on the Kithena Jobs host.
 - [ ] **ONB-012** Inbox source.
 - [ ] **ONB-013** Phone: MO1–MO3.
 - [ ] **ONB-014** Onboarding analytics. §O9.
-- [ ] **ONB-015** Standalone acceptance with People and Recruiting absent.
+- [x] **ONB-015** Standalone acceptance with People and Recruiting absent.
 
 ## Progress notes

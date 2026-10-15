@@ -33,6 +33,7 @@ const SDLS = [
   join(HERE, '../../services/timeoff/schemas/timeoff.graphql'),
   join(HERE, '../../services/documents/schemas/documents.graphql'),
   join(HERE, '../../services/recruiting/schemas/recruiting.graphql'),
+  join(HERE, '../../services/onboarding/schemas/onboarding.graphql'),
   join(HERE, '../../platform/audit/schemas/audit.graphql'),
 ];
 

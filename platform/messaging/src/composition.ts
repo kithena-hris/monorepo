@@ -99,6 +99,8 @@ export interface Config {
   readonly documentsNoticeToken?: string | undefined;
   /** What Recruiting presents to send a candidate's correspondence. */
   readonly recruitingToken?: string | undefined;
+  /** What Onboarding presents to send a new hire their welcome. */
+  readonly onboardingToken?: string | undefined;
   readonly tenantAppBase?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
@@ -407,7 +409,7 @@ export function compose(config: Config): RequestHandler {
         logger.info({ reason, transport: transport.name, ...detail }, 'correspondence refused');
       },
     }),
-    internalToken: config.recruitingToken ?? '',
+    internalTokens: [config.recruitingToken ?? '', config.onboardingToken ?? ''],
   });
 
   return async (request, response) =>

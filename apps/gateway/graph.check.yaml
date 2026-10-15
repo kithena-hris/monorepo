@@ -27,6 +27,10 @@ subgraphs:
     routing_url: http://localhost:4005/graphql
     schema:
       file: ../../services/recruiting/schemas/recruiting.graphql
+  - name: onboarding
+    routing_url: http://localhost:4006/graphql
+    schema:
+      file: ../../services/onboarding/schemas/onboarding.graphql
   - name: audit
     routing_url: http://localhost:4103/graphql
     schema:
