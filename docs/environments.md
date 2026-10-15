@@ -1347,7 +1347,9 @@ until its setting exists. In this order:
    the domain, replies go to the company's own reply address.
 
    AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
-   `ASSISTANT_MODEL` from `RECRUITING_ENV`, as Time Off does. Without a key
+   `ASSISTANT_MODEL`. The deploy writes the assistant's own `ASSISTANT_API_KEY`
+   into `recruiting.env`, as it does for Documents; the other two, if set, go
+   in `RECRUITING_ENV`. Without a key
    every AI feature answers that it is off, whatever a company switched on.
    Pick a provider that does not train on what it is sent and processes in the
    EU where it offers to (§22.2).

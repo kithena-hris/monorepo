@@ -893,9 +893,11 @@ jobs:
             done
           } | put documents.env
           # Recruiting: its own settings, Kithena Jobs' origin for links and
-          # CORS, and messaging for its emails when the pair's secret exists.
+          # CORS, the assistant's model key for its AI features (PRD §22), and
+          # messaging for its emails when the pair's secret exists.
           {
             printf '%s\nRECRUITING_API_TOKEN=%s\nJOBS_ORIGIN=https://jobs.kithena.com\n' "$RECRUITING_ENV" "$RECRUITING_API_TOKEN"
+            if [ -n "$ASSISTANT_API_KEY" ]; then printf 'ASSISTANT_API_KEY=%s\n' "$ASSISTANT_API_KEY"; fi
             if [ -n "$MESSAGING_RECRUITING_TOKEN" ]; then
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_RECRUITING_TOKEN=%s\n' "$MESSAGING_RECRUITING_TOKEN"
               if [ -n "$INBOUND_DOMAIN" ]; then printf 'INBOUND_DOMAIN=%s\n' "$INBOUND_DOMAIN"; fi
