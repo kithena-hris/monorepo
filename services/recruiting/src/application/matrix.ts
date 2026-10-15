@@ -3,9 +3,10 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { matchScore, verifyFindings, type Band, type Finding } from '../domain/ai/matrix.js';
 import { may } from '../domain/access/access.js';
-import { readApplication, type PromptSpec } from './ai.js';
-import { asPerson, forbidden, notFound, type Ctx } from './context.js';
+import { maskedText, readApplication, readMasked, type PromptSpec } from './ai.js';
+import { asPerson, forbidden, jobFacts, notFound, type Ctx } from './context.js';
 import { loadApplication } from './moves.js';
+import type { Assessment } from './ports.js';
 
 /**
  * The evidence matrix (PRD §14.3, REC-114): the model reads the masked
@@ -19,6 +20,8 @@ import { loadApplication } from './moves.js';
  */
 
 const Answer = z.object({
+  /** Set by the domain, never by the model: the job the criteria came from, for rediscovery. */
+  jobId: z.string().optional(),
   findings: z
     .array(
       z.object({
@@ -86,14 +89,23 @@ export async function assessMatrix(ctx: Ctx, applicationId: string): Promise<Res
   });
 }
 
+/** The latest matrix read against this application's own job, not one rediscovery read for another. */
+async function ownMatrix(ctx: Ctx, applicationId: string): Promise<Assessment | undefined> {
+  const app = await ctx.tx.applications.get(applicationId);
+  return (await ctx.tx.assessments.forApplication(applicationId))
+    .filter((a) => {
+      const jobId = (a.output as { jobId?: string }).jobId;
+      return a.feature === 'matrix' && (jobId === undefined || jobId === app?.jobId);
+    })
+    .at(-1);
+}
+
 /** The latest score and band, for a card on R10. */
 export async function latestMatch(
   ctx: Ctx,
   applicationId: string,
 ): Promise<{ readonly scoreBp: number; readonly band: Band } | null> {
-  const last = (await ctx.tx.assessments.forApplication(applicationId))
-    .filter((a) => a.feature === 'matrix')
-    .at(-1);
+  const last = await ownMatrix(ctx, applicationId);
   return last === undefined
     ? null
     : { scoreBp: last.scoreBp ?? 0, band: (last.band ?? 'weak') as Band };
@@ -115,9 +127,7 @@ export interface MatrixView {
 
 /** The latest matrix for an application, or null; its score orders R10 when someone asks. */
 export async function latestMatrix(ctx: Ctx, applicationId: string): Promise<MatrixView | null> {
-  const last = (await ctx.tx.assessments.forApplication(applicationId))
-    .filter((a) => a.feature === 'matrix')
-    .at(-1);
+  const last = await ownMatrix(ctx, applicationId);
   if (last === undefined) return null;
   const app = await ctx.tx.applications.get(applicationId);
   const criteria = app === null ? [] : await ctx.tx.jobs.criteria(app.jobId);
@@ -159,4 +169,84 @@ export async function agreeWithFinding(
   if (assessment === undefined) return err(notFound('assessment'));
   await ctx.tx.verdicts.agree(assessmentId, criterionId, agreed, person.value);
   return ok(true);
+}
+
+export interface Rediscovered {
+  readonly candidateId: string;
+  readonly name: string;
+  readonly scoreBp: number;
+  readonly band: Band;
+  readonly findings: readonly Finding[];
+}
+
+/** How many pool members one request reads; each is a model call. */
+const REDISCOVER_AT_MOST = 25;
+
+/**
+ * Rediscovery (PRD §14.5, REC-116): when a job opens, its recruiter has the
+ * job's criteria read against pool members whose consent is live, each
+ * through their latest application, and sees the strongest first. Pools are
+ * the recruiters' (`recruiterOnly`); the reader here is the new job's
+ * recruiter, so the old job's team is not asked. Each read is an assessment
+ * like any other, marked with the job it was read for.
+ *
+ * ponytail: the first 25 members, in one request. A queue and a page that
+ * fills as reads land, when pools grow past that.
+ */
+export async function rediscover(
+  ctx: Ctx,
+  jobId: string,
+): Promise<Result<readonly Rediscovered[]>> {
+  const job = await ctx.tx.jobs.get(jobId);
+  if (job === null) return err(notFound('job'));
+  if (!may(ctx.viewer, await jobFacts(ctx, job), 'job.edit')) return err(forbidden());
+  const criteria = await ctx.tx.jobs.criteria(jobId);
+  if (criteria.length === 0)
+    return err(failure('NO_CRITERIA', 'Write the job’s criteria first (R4)'));
+  const seen = new Set<string>();
+  const found: Rediscovered[] = [];
+  for (const pool of await ctx.tx.pools.list())
+    for (const member of await ctx.tx.pools.members(pool.id)) {
+      if (seen.has(member.candidateId) || seen.size >= REDISCOVER_AT_MOST) continue;
+      seen.add(member.candidateId);
+      const candidate = await ctx.tx.candidates.get(member.candidateId);
+      const live = (await ctx.tx.consents.of(member.candidateId)).some(
+        (c) =>
+          c.purpose === 'talent_pool' &&
+          c.withdrawnAt === null &&
+          (c.expiresOn === null || c.expiresOn >= ctx.today),
+      );
+      const apps = await ctx.tx.applications.forCandidate(member.candidateId);
+      const last = apps.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)).at(-1);
+      if (candidate === null || candidate.anonymisedAt !== null || !live || last === undefined)
+        continue;
+      if (apps.some((a) => a.jobId === jobId)) continue;
+      let scored = { scoreBp: 0, band: 'weak' as Band };
+      const read = await readMasked(
+        ctx,
+        last.id,
+        await maskedText(ctx, last, candidate),
+        MATRIX,
+        { criteria: criteria.map((c) => ({ id: c.id, text: c.text })) },
+        (answer, text) => {
+          const findings = verifyFindings(answer.findings, criteria, text);
+          scored = matchScore(criteria, findings);
+          return {
+            output: { jobId, findings: findings.map((f) => ({ ...f, passages: [...f.passages] })) },
+            ...scored,
+          };
+        },
+      );
+      if (!read.ok) {
+        if (read.error.code === 'AI_OFF') return read;
+        continue;
+      }
+      found.push({
+        candidateId: candidate.id,
+        name: candidate.name,
+        ...scored,
+        findings: read.value.answer.findings,
+      });
+    }
+  return ok(found.toSorted((a, b) => b.scoreBp - a.scoreBp));
 }

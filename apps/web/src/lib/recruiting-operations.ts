@@ -156,6 +156,7 @@ export const OPERATIONS = {
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   ParseCv: write('ParseCv', 'parseCv', ...ID('applicationId'), false),
   AssessMatrix: write('AssessMatrix', 'assessMatrix', ...ID('applicationId'), false),
+  Rediscover: write('Rediscover', 'rediscover', ...ID('jobId'), false),
   AgreeWithFinding: write(
     'AgreeWithFinding',
     'agreeWithFinding',

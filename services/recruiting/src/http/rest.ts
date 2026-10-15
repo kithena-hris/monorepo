@@ -137,7 +137,7 @@ import {
   submitAsAgency,
 } from '../application/agency-portal.js';
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
-import { agreeWithFinding, assessMatrix } from '../application/matrix.js';
+import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
 import { importMembers } from '../application/members.js';
 import {
   confirmParsedProfile,
@@ -958,6 +958,15 @@ export const ROUTES: readonly Route[] = [
     summary: 'R10, R11: the evidence matrix against the job’s criteria; the domain scores it',
     params: z.object({ applicationId: Id }),
     run: (ctx, { params }) => assessMatrix(ctx, params.applicationId),
+  }),
+  route({
+    name: 'rediscover',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/rediscover`,
+    summary:
+      'R10: pool members with live consent, read against this job’s criteria, strongest first',
+    params: z.object({ jobId: Id }),
+    run: (ctx, { params }) => rediscover(ctx, params.jobId),
   }),
   route({
     name: 'agreeWithFinding',

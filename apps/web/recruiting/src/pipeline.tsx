@@ -4,6 +4,9 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Checkbox,
   Dialog,
   DialogBody,
@@ -12,6 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  EmptyState,
   Field,
   FieldControl,
   FieldDescription,
@@ -48,6 +52,12 @@ import type { Card as CardData, PipelineData, ScreenProps } from './types';
  */
 
 const UNDO_SECONDS = 10;
+
+interface Rediscovered {
+  readonly candidateId: string;
+  readonly name: string;
+  readonly band: 'strong' | 'good' | 'weak';
+}
 
 function CandidateCard({
   card,
@@ -304,6 +314,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   const view = props.search?.['view'] === 'table' ? 'table' : 'board';
   const act = useAct(props);
   const [rejecting, setRejecting] = useState<Rejecting | null>(null);
+  const [found, setFound] = useState<readonly Rediscovered[] | null>(null);
   const [asking, setAsking] = useState<{ card: CardData; to: string } | null>(null);
   const [interviewType, setInterviewType] = useState('');
   const [undo, setUndo] = useState<{
@@ -381,9 +392,55 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   >
                     Job dashboard
                   </Button>
+                  {data.may.includes('job.edit') ? (
+                    <Button
+                      variant="secondary"
+                      loading={act.pending}
+                      onClick={() => {
+                        act.run('Rediscover', { jobId: data.job.id }, (found) => {
+                          setFound(found as readonly Rediscovered[]);
+                        });
+                      }}
+                    >
+                      Rediscover from pools
+                    </Button>
+                  ) : null}
                 </>
               }
             />
+            {found === null ? null : (
+              <Card>
+                <CardHeader>
+                  <CardTitle level={2}>From your talent pools</CardTitle>
+                  <CardDescription>
+                    People who agreed to be kept, read against this job’s criteria. A label, not a
+                    decision: invite the ones you choose.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {found.length === 0 ? (
+                    <EmptyState
+                      icon={<icons.people aria-hidden />}
+                      title="Nobody in the pools yet"
+                    />
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {found.map((r) => (
+                        <li key={r.candidateId} className="flex items-center gap-2">
+                          <To
+                            href={`/recruiting/candidates/${r.candidateId}`}
+                            onNavigate={props.onNavigate}
+                          >
+                            {r.name}
+                          </To>
+                          <Badge size="sm" tone="neutral">{`${words(r.band)} match`}</Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <Search
                 label="Search candidates"

@@ -63,7 +63,13 @@ import {
   subscribeAlert,
 } from '../application/alerts.js';
 import { readApplication } from '../application/ai.js';
-import { MATRIX, agreeWithFinding, assessMatrix, latestMatrix } from '../application/matrix.js';
+import {
+  MATRIX,
+  agreeWithFinding,
+  assessMatrix,
+  latestMatrix,
+  rediscover,
+} from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
 import { poolsScreen } from '../application/screens.js';
@@ -633,6 +639,38 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       await agreeWithFinding(ctx, applied.applicationId, matrix.assessmentId, criterionId, false),
     );
     expect((await latestMatrix(ctx, applied.applicationId))?.findings[0]?.agreed).toBe(false);
+  });
+
+  // §14.5: a second job's recruiter rediscovers Yuki from the pool she agreed to join.
+  const poolId = randomUUID();
+  const secondJobId = randomUUID();
+  await uow.run(tenantId, async (tx) => {
+    await tx.pools.save({ id: poolId, name: 'Designers', description: null });
+    await tx.pools.add({
+      poolId,
+      candidateId: yuki?.id ?? '',
+      reason: 'Strong portfolio',
+      addedBy: people.ada,
+      addedAt: Instant.parse('2026-10-18T06:00:00.000Z'),
+    });
+    const first = await tx.jobs.get(jobId);
+    if (first !== null) await tx.jobs.save({ ...first, id: secondJobId, slug: 'lead-designer' });
+    await tx.jobs.setTeam(secondJobId, [{ personId: people.ada, role: 'recruiter' }]);
+    await tx.jobs.setCriteria(secondJobId, [
+      { id: criterionId, text: 'Product design', must: true, weight: 3 },
+    ]);
+  });
+  const rediscovered = value(
+    await uow.run(tenantId, async (tx) =>
+      rediscover(await contextOf(reading, tx, callerOf('ada')), secondJobId),
+    ),
+  );
+  expect(rediscovered.map((r) => [r.name, r.band])).toEqual([['Yuki Sato', 'strong']]);
+  // That read was for the second job, so Yuki's own matrix on the first is unchanged.
+  await as('ada', async (ctx) => {
+    expect((await latestMatrix(ctx, applied.applicationId))?.assessmentId).toBe(
+      matrix.assessmentId,
+    );
   });
 
   // §14.2: the parser keeps only what the text says, and the candidate confirms it on their page.

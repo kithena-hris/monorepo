@@ -6,7 +6,7 @@ import { maskApplication } from '../domain/ai/mask.js';
 import { asPerson, forbidden, type Ctx } from './context.js';
 import { sha256 } from './intake.js';
 import { loadApplication } from './moves.js';
-import type { AiFeature, Assessment } from './ports.js';
+import type { AiFeature, ApplicationRecord, Assessment, Candidate } from './ports.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -30,11 +30,12 @@ export interface PromptSpec<T> {
 export const aiOff = (): DomainFailure =>
   failure('AI_OFF', 'This needs an AI feature your company has not switched on');
 
-/** The application's text as the model may see it: answers and every file's text, masked. */
-export async function maskedApplication(ctx: Ctx, applicationId: string): Promise<Result<string>> {
-  const loaded = await loadApplication(ctx, applicationId);
-  if (!loaded.ok) return loaded;
-  const { app, candidate } = loaded.value;
+/** The application's text as the model may see it: answers and its files' text, masked. Access is the caller's to check. */
+export async function maskedText(
+  ctx: Ctx,
+  app: ApplicationRecord,
+  candidate: Candidate,
+): Promise<string> {
   const texts: string[] = [];
   for (const file of await ctx.tx.files.of(candidate.id)) {
     if (file.applicationId !== null && file.applicationId !== app.id) continue;
@@ -45,39 +46,61 @@ export async function maskedApplication(ctx: Ctx, applicationId: string): Promis
     .filter(([k, v]) => !['name', 'email', 'phone'].includes(k) && typeof v === 'string')
     .map(([k, v]) => `${k}: ${String(v)}`);
   const settings = await generalSettings(ctx);
-  return ok(
-    maskApplication(
-      [...answers, ...texts].join('\n\n'),
-      { name: candidate.name, email: candidate.email, phone: candidate.phone, city: null },
-      { schools: settings.ai.maskSchools },
-    ).text,
-  );
+  return maskApplication(
+    [...answers, ...texts].join('\n\n'),
+    { name: candidate.name, email: candidate.email, phone: candidate.phone, city: null },
+    { schools: settings.ai.maskSchools },
+  ).text;
 }
 
+type Judge<T> = (
+  answer: T,
+  text: string,
+) => { readonly output: T; readonly scoreBp: number | null; readonly band: string | null };
+
+/** For a member of the job's hiring team: the checks of §22.2, then the read. */
 export async function readApplication<T>(
   ctx: Ctx,
   applicationId: string,
   spec: PromptSpec<T>,
   extra: Readonly<Record<string, unknown>> = {},
   /** What the domain makes of the answer before it is kept: the checked output, a score, a band. */
-  judge?: (
-    answer: T,
-    text: string,
-  ) => { readonly output: T; readonly scoreBp: number | null; readonly band: string | null },
+  judge?: Judge<T>,
+): Promise<Result<{ readonly assessmentId: string; readonly answer: T; readonly text: string }>> {
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'candidate.profile')) return err(forbidden());
+  return readMasked(
+    ctx,
+    loaded.value.app.id,
+    await maskedText(ctx, loaded.value.app, loaded.value.candidate),
+    spec,
+    extra,
+    judge,
+  );
+}
+
+/**
+ * The model call and its record, once the caller has decided the reader may
+ * ask (`readApplication`, or rediscovery for a job's recruiter). The feature
+ * must be on, the text already masked; the answer is checked and kept.
+ */
+export async function readMasked<T>(
+  ctx: Ctx,
+  applicationId: string,
+  text: string,
+  spec: PromptSpec<T>,
+  extra: Readonly<Record<string, unknown>>,
+  judge?: Judge<T>,
 ): Promise<Result<{ readonly assessmentId: string; readonly answer: T; readonly text: string }>> {
   const settings = await generalSettings(ctx);
   const model = ctx.deps.model;
   if (model === undefined || !settings.ai[spec.feature]) return err(aiOff());
   const person = asPerson(ctx);
   if (!person.ok) return person;
-  const loaded = await loadApplication(ctx, applicationId);
-  if (!loaded.ok) return loaded;
-  if (!may(ctx.viewer, loaded.value.facts, 'candidate.profile')) return err(forbidden());
-  const text = await maskedApplication(ctx, applicationId);
-  if (!text.ok) return text;
   const raw = await model.complete(ctx.caller.tenantId, {
     instruction: spec.instruction,
-    context: { ...extra, application: text.value },
+    context: { ...extra, application: text },
   });
   let parsed: unknown;
   try {
@@ -88,19 +111,15 @@ export async function readApplication<T>(
   const answer = spec.answer.safeParse(parsed);
   if (!answer.success)
     return err(failure('AI_UNAVAILABLE', 'The assistant could not read this just now'));
-  const judged = judge?.(answer.data, text.value) ?? {
-    output: answer.data,
-    scoreBp: null,
-    band: null,
-  };
+  const judged = judge?.(answer.data, text) ?? { output: answer.data, scoreBp: null, band: null };
   const assessment: Assessment = {
     id: ctx.deps.newId(),
     applicationId,
     feature: spec.feature,
     model: model.name,
     promptVersion: spec.version,
-    inputHash: sha256(text.value),
-    maskedInput: text.value,
+    inputHash: sha256(text),
+    maskedInput: text,
     output: judged.output,
     scoreBp: judged.scoreBp,
     band: judged.band,
@@ -108,5 +127,5 @@ export async function readApplication<T>(
     createdAt: ctx.at,
   };
   await ctx.tx.assessments.save(assessment);
-  return ok({ assessmentId: assessment.id, answer: judged.output, text: text.value });
+  return ok({ assessmentId: assessment.id, answer: judged.output, text });
 }

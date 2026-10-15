@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation Rediscover($jobId: String!, $key: String!) {\n    rediscover(jobId: $jobId, idempotencyKey: $key)\n  }"}

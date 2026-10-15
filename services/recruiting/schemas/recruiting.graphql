@@ -163,6 +163,10 @@ type Mutation {
   presentToWorksCouncil(applicationId: String!, idempotencyKey: String!): JSON
   """R7: publish to a target"""
   publishJob(idempotencyKey: String!, jobId: String!, target: String!): JSON
+  """
+  R10: pool members with live consent, read against this job’s criteria, strongest first
+  """
+  rediscover(idempotencyKey: String!, jobId: String!): JSON
   """R8, RM6: refer someone"""
   refer(
     idempotencyKey: String!
