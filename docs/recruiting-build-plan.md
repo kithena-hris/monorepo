@@ -303,3 +303,11 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **ONB-015** Standalone acceptance with People and Recruiting absent.
 
 ## Progress notes
+
+- **2026-10-15.** Phases 0 and 1 and Onboarding (Phase 5) are built on the
+  `recruiting` branch. Decisions taken without the owner, to review:
+  job alerts (REC-097) are per company, because alerts across companies need
+  a store outside a tenant's rows; candidates' replies (REC-049) need Resend
+  receiving on a domain, `INBOUND_DOMAIN` and the webhook, which are set up
+  after merge; the AWS bucket for Recruiting's files is still to create.
+  Phase 2 waits on PRD §22.2 (a model may read an application).
