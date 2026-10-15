@@ -74,6 +74,12 @@ import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../appli
 import { daily } from '../application/background.js';
 import { fairness, saveSelfId } from '../application/fairness.js';
 import { aesSealer } from '../infrastructure/sealer.js';
+import { fakeAssessments, fakeBackgroundChecks } from '../infrastructure/fake-providers.js';
+import {
+  refreshAssessment,
+  sendAssessment,
+  startBackgroundCheck,
+} from '../application/providers.js';
 import { askForChart } from '../application/chart-ask.js';
 import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
@@ -1038,6 +1044,23 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect((await h.jobs.search(JobSearch.parse({ company: 'acme' }))).rows).toEqual([]);
   const prehire = await uow.run(tenantId, (tx) => tx.prehires.get(applied.applicationId));
   expect(prehire?.state).toBe('conditions_met');
+
+  // §15.3, §17.2: providers through their ports. A check waits for the offer and the law.
+  const providing = {
+    ...deps,
+    assessmentProvider: fakeAssessments(),
+    backgroundChecks: fakeBackgroundChecks(),
+  };
+  const asProviding = <T>(fn: (ctx: Ctx) => Promise<T>) =>
+    uow.run(tenantId, async (tx) => fn(await contextOf(providing, tx, callerOf('ada'))));
+  value(await asProviding((ctx) => sendAssessment(ctx, applied.applicationId, 'design')));
+  expect(
+    value(await asProviding((ctx) => refreshAssessment(ctx, applied.applicationId))).scoreBp,
+  ).toBe(7_200);
+  const check = await asProviding((ctx) => startBackgroundCheck(ctx, applied.applicationId));
+  expect(check.ok ? 'started' : check.error.code).toBe(
+    place.country === 'ES' || place.country === 'DE' ? 'CHECK_NOT_ALLOWED' : 'started',
+  );
 }
 
 /** The in-memory harness. */

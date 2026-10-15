@@ -261,7 +261,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [ ] **REC-136** A company's own domain for its careers page, with the
       Vercel plan's domain ceiling recorded.
 - [ ] **REC-137** Chat apps: digests, reminders, approvals. §26.3.
-- [ ] **REC-138** Assessment and background-check ports with a fake adapter
+- [x] **REC-138** Assessment and background-check ports with a fake adapter
       each. §15.3, §17.2.
 
 ## Phase 4 — with the suite

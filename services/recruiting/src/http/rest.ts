@@ -144,6 +144,12 @@ import { askForChart } from '../application/chart-ask.js';
 import { SelfId, fairness, saveSelfId, selfIdQuestions } from '../application/fairness.js';
 import { importMembers } from '../application/members.js';
 import {
+  refreshAssessment,
+  refreshBackgroundCheck,
+  sendAssessment,
+  startBackgroundCheck,
+} from '../application/providers.js';
+import {
   draftAd,
   draftEmail,
   explainPhrase,
@@ -1035,6 +1041,39 @@ export const ROUTES: readonly Route[] = [
     summary: 'R17: the scorecards summarised, every sentence citing its sources',
     params: z.object({ applicationId: Id }),
     run: (ctx, { params }) => summariseDebrief(ctx, params.applicationId),
+  }),
+  route({
+    name: 'sendAssessment',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/assessment`,
+    summary: 'R11: send the candidate a third-party assessment',
+    params: z.object({ applicationId: Id }),
+    body: z.object({ packageKey: text(80).min(1) }),
+    run: (ctx, { params, body }) => sendAssessment(ctx, params.applicationId, body.packageKey),
+  }),
+  route({
+    name: 'refreshAssessment',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/assessment/refresh`,
+    summary: 'R11: the assessment’s score and report, once the candidate has finished',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => refreshAssessment(ctx, params.applicationId),
+  }),
+  route({
+    name: 'startBackgroundCheck',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/background-check`,
+    summary: 'R22: a background check, only after the offer and only where lawful',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => startBackgroundCheck(ctx, params.applicationId),
+  }),
+  route({
+    name: 'refreshBackgroundCheck',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/background-check/refresh`,
+    summary: 'R22: the check’s state; clear meets the pre-hire condition',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => refreshBackgroundCheck(ctx, params.applicationId),
   }),
   route({
     name: 'agreeWithFinding',

@@ -472,6 +472,31 @@ export interface JobBoard {
   close(job: BoardJob): Promise<void>;
 }
 
+/** A third-party assessment (PRD §15.3): the result is a score and a report on the application. */
+export interface AssessmentProvider {
+  readonly name: string;
+  invite(input: {
+    readonly applicationId: string;
+    readonly email: string;
+    readonly packageKey: string;
+  }): Promise<Result<{ readonly externalId: string; readonly url: string }>>;
+  /** Null until the candidate has finished. */
+  result(
+    externalId: string,
+  ): Promise<{ readonly scoreBp: number; readonly reportUrl: string } | null>;
+}
+
+/** A background check (PRD §17.2), started only when the domain allows it. */
+export interface BackgroundCheckProvider {
+  readonly name: string;
+  start(input: {
+    readonly applicationId: string;
+    readonly email: string;
+    readonly country: LaunchCountry;
+  }): Promise<Result<{ readonly externalId: string }>>;
+  status(externalId: string): Promise<'pending' | 'clear' | 'consider'>;
+}
+
 /** What a board is told about a job: where Kithena Jobs shows it. */
 export interface BoardJob {
   readonly jobId: string;
@@ -803,6 +828,9 @@ export interface Deps {
   readonly sealer?: Sealer;
   /** The boards a job may be published to beyond Kithena's own pages; Google and the feed by default. */
   readonly boards?: readonly JobBoard[];
+  /** No provider is chosen yet: absent, the screens say so. A fake adapter each for tests and local runs. */
+  readonly assessmentProvider?: AssessmentProvider;
+  readonly backgroundChecks?: BackgroundCheckProvider;
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */

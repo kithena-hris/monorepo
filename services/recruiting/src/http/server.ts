@@ -153,6 +153,8 @@ export interface RecruitingServerOptions extends Pick<
   readonly inbound?: Deps['inbound'];
   readonly model?: Deps['model'];
   readonly sealer?: Deps['sealer'];
+  readonly assessmentProvider?: Deps['assessmentProvider'];
+  readonly backgroundChecks?: Deps['backgroundChecks'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -173,6 +175,12 @@ export function recruitingServer(
     ...(options.inbound === undefined ? {} : { inbound: options.inbound }),
     ...(options.model === undefined ? {} : { model: options.model }),
     ...(options.sealer === undefined ? {} : { sealer: options.sealer }),
+    ...(options.assessmentProvider === undefined
+      ? {}
+      : { assessmentProvider: options.assessmentProvider }),
+    ...(options.backgroundChecks === undefined
+      ? {}
+      : { backgroundChecks: options.backgroundChecks }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

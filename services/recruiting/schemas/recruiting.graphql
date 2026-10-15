@@ -201,6 +201,12 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """
+  R11: the assessment’s score and report, once the candidate has finished
+  """
+  refreshAssessment(applicationId: String!, idempotencyKey: String!): JSON
+  """R22: the check’s state; clear meets the pre-hire condition"""
+  refreshBackgroundCheck(applicationId: String!, idempotencyKey: String!): JSON
   """Reject with a reason, an email and a pool"""
   rejectApplication(
     applicationId: String!
@@ -349,6 +355,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """R11: send the candidate a third-party assessment"""
+  sendAssessment(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R12: email the candidate"""
   sendMessage(
     applicationId: String!
@@ -393,6 +406,8 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """R22: a background check, only after the offer and only where lawful"""
+  startBackgroundCheck(applicationId: String!, idempotencyKey: String!): JSON
   """Check and send for approval"""
   submitOffer(idempotencyKey: String!, offerId: String!): JSON
   """Send for approval"""
