@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
   Stat,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tabs,
   TabsContent,
   TabsList,
@@ -23,7 +29,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { Refusal, useAct, words } from './shared';
+import { Refusal, To, useAct, words } from './shared';
 import type { AnalyticsData, Bucket, ScreenProps } from './types';
 
 /**
@@ -64,6 +70,165 @@ const points = (buckets: readonly Bucket[]) =>
   buckets
     .filter((b) => !b.suppressed && b.value !== null)
     .map((b) => ({ label: words(b.key), value: b.value ?? 0 }));
+
+type Point = { readonly label: string; readonly value: number };
+
+/** R24: each tile that opens on its own, with the rows behind it. */
+const TILES: readonly {
+  readonly id: string;
+  readonly title: string;
+  readonly dashboard: Dashboard;
+  readonly unit: string;
+  readonly chart: 'trend' | 'funnel' | 'bars';
+  readonly rows: (data: AnalyticsData) => readonly Point[];
+  readonly withheld?: (data: AnalyticsData) => readonly Bucket[];
+}[] = [
+  {
+    id: 'hires-by-month',
+    title: 'Hires by month',
+    dashboard: 'overview',
+    unit: 'Hires',
+    chart: 'trend',
+    rows: (d) => d.overview.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
+  },
+  {
+    id: 'pipeline',
+    title: 'Pipeline by stage',
+    dashboard: 'funnel',
+    unit: 'Applications',
+    chart: 'funnel',
+    rows: (d) => d.overview.funnel.map((f) => ({ label: words(f.category), value: f.count })),
+  },
+  {
+    id: 'time-in-stage',
+    title: 'Time in stage',
+    dashboard: 'funnel',
+    unit: 'Median days',
+    chart: 'bars',
+    rows: (d) =>
+      d.timeInStage
+        .filter((t) => t.median !== null)
+        .map((t) => ({ label: words(t.category), value: Math.round(t.median ?? 0) })),
+  },
+  {
+    id: 'rejection-reasons',
+    title: 'Rejection reasons',
+    dashboard: 'funnel',
+    unit: 'Applications',
+    chart: 'bars',
+    rows: (d) => points(d.overview.rejectionReasons),
+    withheld: (d) => d.overview.rejectionReasons,
+  },
+  {
+    id: 'time-to-fill',
+    title: 'Time to fill',
+    dashboard: 'speed',
+    unit: 'Days',
+    chart: 'bars',
+    rows: (d) =>
+      d.speed.filter((s) => s.days !== null).map((s) => ({ label: s.title, value: s.days ?? 0 })),
+  },
+  {
+    id: 'sources',
+    title: 'Applications by source',
+    dashboard: 'sources',
+    unit: 'Applications',
+    chart: 'bars',
+    rows: (d) => points(d.overview.sources),
+    withheld: (d) => d.overview.sources,
+  },
+];
+
+/** The dashboard's filters, carried to a tile and back; the tab only on the way back. */
+const query = (search: ScreenProps<AnalyticsData>['search'], dashboard?: Dashboard) => {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(search ?? {}))
+    if (k !== 'dashboard' && typeof v === 'string') q.set(k, v);
+  if (dashboard !== undefined && dashboard !== 'overview') q.set('dashboard', dashboard);
+  const text = q.toString();
+  return text === '' ? '' : `?${text}`;
+};
+
+function Detail({
+  id,
+  props,
+}: {
+  readonly id: string;
+  readonly props: ScreenProps<AnalyticsData>;
+}): JSX.Element {
+  return (
+    <To href={`/recruiting/analytics/${id}${query(props.search)}`} onNavigate={props.onNavigate}>
+      Details
+    </To>
+  );
+}
+
+function Drawn({
+  tile,
+  rows,
+}: {
+  readonly tile: (typeof TILES)[number];
+  readonly rows: readonly Point[];
+}): JSX.Element {
+  if (tile.chart === 'trend')
+    return <TrendChart label={tile.title} series={[{ label: tile.unit, data: [...rows] }]} />;
+  if (tile.chart === 'funnel')
+    return <FunnelChart label={tile.title} data={[...rows]} showConversion />;
+  return <HorizontalBarChart label={tile.title} data={[...rows]} showValues sorted />;
+}
+
+/** R24: one tile at full size, and the table it is drawn from. */
+export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
+  const tile = TILES.find((t) => t.id === props.params?.['id']);
+  return (
+    <Loaded load={props.load} what="this chart">
+      {(data) => {
+        if (tile === undefined)
+          return <EmptyState icon={<icons.analytics aria-hidden />} title="No such chart" />;
+        const rows = tile.rows(data);
+        const back = `/recruiting/analytics${query(props.search, tile.dashboard)}`;
+        return (
+          <div className="flex flex-col gap-4">
+            <PageHeader
+              title={tile.title}
+              description={words(data.filters.period)}
+              actions={
+                <To href={back} onNavigate={props.onNavigate}>
+                  {`Back to ${words(tile.dashboard).toLowerCase()}`}
+                </To>
+              }
+            />
+            <h2 className="sr-only">Chart and data</h2>
+            <ChartCard title={tile.title}>
+              {rows.length === 0 ? (
+                <EmptyState icon={<icons.analytics aria-hidden />} title="Nothing in this period" />
+              ) : (
+                <Drawn tile={tile} rows={rows} />
+              )}
+              {tile.withheld === undefined ? null : <Withheld buckets={tile.withheld(data)} />}
+            </ChartCard>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{tile.chart === 'trend' ? 'Month' : 'Group'}</TableHead>
+                  <TableHead className="text-right">{tile.unit}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.label}>
+                    <TableCell>{r.label}</TableCell>
+                    <TableCell className="text-right tabular-nums">{String(r.value)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        );
+      }}
+    </Loaded>
+  );
+}
 
 function Withheld({ buckets }: { readonly buckets: readonly Bucket[] }): JSX.Element | null {
   const n = buckets.filter((b) => b.suppressed).length;
@@ -225,7 +390,10 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                   <Stat label="Offers out" value={String(o.offersOut)} />
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <ChartCard title="Hires by month">
+                  <ChartCard
+                    title="Hires by month"
+                    action={<Detail id="hires-by-month" props={props} />}
+                  >
                     {o.hiresByMonth.length === 0 ? (
                       <EmptyState
                         icon={<icons.analytics aria-hidden />}
@@ -256,7 +424,10 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                 </div>
               </TabsContent>
               <TabsContent value="funnel" className="grid gap-4 lg:grid-cols-2">
-                <ChartCard title="Conversion per stage">
+                <ChartCard
+                  title="Conversion per stage"
+                  action={<Detail id="pipeline" props={props} />}
+                >
                   <FunnelChart
                     label="Conversion per stage"
                     data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
@@ -264,7 +435,11 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                     highlightBiggestDrop
                   />
                 </ChartCard>
-                <ChartCard title="Time in stage" description="Median days">
+                <ChartCard
+                  title="Time in stage"
+                  description="Median days"
+                  action={<Detail id="time-in-stage" props={props} />}
+                >
                   <HorizontalBarChart
                     label="Median days in stage"
                     data={data.timeInStage
@@ -273,7 +448,11 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                     showValues
                   />
                 </ChartCard>
-                <ChartCard title="Rejection reasons" className="lg:col-span-2">
+                <ChartCard
+                  title="Rejection reasons"
+                  className="lg:col-span-2"
+                  action={<Detail id="rejection-reasons" props={props} />}
+                >
                   <HorizontalBarChart
                     label="Rejection reasons"
                     data={points(o.rejectionReasons)}
@@ -290,6 +469,7 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                 </div>
                 <ChartCard
                   title="Time to fill"
+                  action={<Detail id="time-to-fill" props={props} />}
                   description="Job opened to the last opening hired, days"
                 >
                   <HorizontalBarChart
@@ -305,6 +485,7 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               <TabsContent value="sources">
                 <ChartCard
                   title="Applications by source"
+                  action={<Detail id="sources" props={props} />}
                   description="Source is fixed at application, so attribution can’t drift"
                 >
                   <HorizontalBarChart

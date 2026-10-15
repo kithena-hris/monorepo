@@ -74,6 +74,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Board':
       return read('RecruitingBoard');
     case 'Analytics':
+    case 'AnalyticsTile':
       return read('RecruitingAnalytics', {
         period: or(s['period']),
         jobId: or(s['job']),

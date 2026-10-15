@@ -7,7 +7,7 @@ import './styles.css';
 import { framed } from './frame';
 import { Agencies as AgenciesScreen, Board as BoardScreen } from './board';
 import { Settings as SettingsScreen } from './settings';
-import { Analytics as AnalyticsScreen } from './analytics';
+import { Analytics as AnalyticsScreen, AnalyticsTile as AnalyticsTileScreen } from './analytics';
 import {
   Contract as ContractScreen,
   Offer as OfferScreen,
@@ -53,6 +53,7 @@ export const Offer = framed(OfferScreen);
 export const OfferApproval = framed(OfferApprovalScreen);
 export const Contract = framed(ContractScreen);
 export const Analytics = framed(AnalyticsScreen);
+export const AnalyticsTile = framed(AnalyticsTileScreen);
 export const Board = framed(BoardScreen);
 export const Agencies = framed(AgenciesScreen);
 export const Settings = framed(SettingsScreen);

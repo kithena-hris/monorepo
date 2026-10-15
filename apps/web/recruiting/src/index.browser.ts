@@ -25,6 +25,7 @@ export const Offer = split(() => import('./offers'), 'Offer');
 export const OfferApproval = split(() => import('./offers'), 'OfferApproval');
 export const Contract = split(() => import('./offers'), 'Contract');
 export const Analytics = split(() => import('./analytics'), 'Analytics');
+export const AnalyticsTile = split(() => import('./analytics'), 'AnalyticsTile');
 export const Board = split(() => import('./board'), 'Board');
 export const Agencies = split(() => import('./board'), 'Agencies');
 export const Settings = split(() => import('./settings'), 'Settings');

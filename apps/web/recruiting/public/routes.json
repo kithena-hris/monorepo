@@ -81,6 +81,10 @@
       "component": "Analytics"
     },
     {
+      "path": "/recruiting/analytics/:id",
+      "component": "AnalyticsTile"
+    },
+    {
       "path": "/recruiting/board",
       "component": "Board"
     },
@@ -199,7 +203,8 @@
       "group": "Recruiting",
       "icon": "analytics",
       "description": "Funnel, speed, sources and offers, from the stage history",
-      "summary": "Dashboards"
+      "summary": "Dashboards",
+      "owns": ["/recruiting/analytics/:id"]
     },
     {
       "path": "/recruiting/board",

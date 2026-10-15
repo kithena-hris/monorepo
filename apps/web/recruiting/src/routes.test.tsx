@@ -433,6 +433,21 @@ describe('R23, analytics', () => {
     expect(screen.getByText('1 group under five people withheld.')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('R24: opens one tile with the rows behind it, and goes back to its dashboard', async () => {
+    const { container } = render(
+      <screens.AnalyticsTile
+        load={ready(analytics)}
+        params={{ id: 'sources' }}
+        search={{ period: 'this_year' }}
+      />,
+    );
+    expect(screen.getAllByRole('cell', { name: '80' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('Back to sources').getAttribute('href')).toBe(
+      '/recruiting/analytics?period=this_year&dashboard=sources',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });
 
 describe('R8, the internal board', () => {
