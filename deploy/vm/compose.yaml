@@ -310,6 +310,38 @@ services:
         # into another process before reaching for a bigger VM.
         limits: { memory: 256m, cpus: '0.5' }
 
+  onboarding:
+    image: ${ONBOARDING_IMAGE:?ONBOARDING_IMAGE is set by deploy.sh}
+    restart: unless-stopped
+    env_file: onboarding.env
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=112
+      KAFKA_BROKERS: redpanda:9092
+      ONBOARDING_DATABASE_URL: postgres://svc_onboarding:${ONBOARDING_DB_PASSWORD:?ONBOARDING_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4006/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 3s
+      retries: 3
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+    deploy:
+      resources:
+        # ponytail: a guess; plans and tasks are small JSON. Measure after the
+        # first deploy.
+        limits: { memory: 192m, cpus: '0.5' }
+
   # The outbox relay: Debezium Server, one per database, each tailing one
   # outbox and publishing its rows to Redpanda (`debezium.env` has the
   # shared settings and why). Started by `deploy.sh migrate`, after the

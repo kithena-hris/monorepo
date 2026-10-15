@@ -753,7 +753,9 @@ stops fitting, folding the assistant into Slack's process comes before
 `--max-old-space-size=160`, half a CPU; a guess, to be measured after its first
 deploy) bring them to **4.4 GB** against 4 GB and the swap. Recruiting is
 request-driven with light consumers, so it is the first candidate to fold into
-another process if the VM starts swapping under load.
+another process if the VM starts swapping under load. `onboarding` (**192 MB**,
+`--max-old-space-size=112`) brings them to **4.6 GB**; the two are the next to
+share a process, or the cue for `m7i-flex.large`, once measured.
 
 Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
 a dummy token and no tunnel to reach, so its figure is the binary retrying, not
@@ -1351,6 +1353,26 @@ until its setting exists. In this order:
    per company in the back office.
 
 Recruiting is not on staging.
+
+#### Onboarding's settings
+
+Onboarding (`services/onboarding`, ONB-001) deploys as Recruiting does: a
+container (`onboarding`, 4006, `svc_onboarding`), the router's subgraph and its
+remote, `onboarding.kithena.com`. No bucket. In order:
+
+1. **Environment secrets** in `production`: `ONBOARDING_API_TOKEN` (the
+   router–Onboarding pair) and `MESSAGING_ONBOARDING_TOKEN` (the
+   Onboarding–messaging pair, in messaging's settings too) for the welcome
+   email. Without the first the deploy skips Onboarding.
+2. **The remote**: `VERCEL_PROJECT_ID_ONBOARDING_REMOTE_PRODUCTION`,
+   `ONBOARDING_REMOTE_URL_PRODUCTION`, `ONBOARDING_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`
+   and the secret `ONBOARDING_REMOTE_SSR_SIGNING_KEY`.
+3. **The welcome page** is on Kithena Jobs: the tunnel routes
+   `/v1/onboarding/welcome*` on the API host to `http://onboarding:4006`, and the
+   Jobs project has `NEXT_PUBLIC_ONBOARDING_PUBLIC_URL` (the API host).
+4. **Selling it**: `module.onboarding`.
+
+Onboarding is not on staging.
 
 #### The assistant's settings
 
