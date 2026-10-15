@@ -27,6 +27,11 @@ export interface PromptSpec<T> {
   readonly answer: z.ZodType<T>;
 }
 
+/** Whether a feature can run at all: a model is configured and the company switched it on. */
+export async function aiOn(ctx: Ctx, feature: AiFeature): Promise<boolean> {
+  return ctx.deps.model !== undefined && (await generalSettings(ctx)).ai[feature];
+}
+
 export const aiOff = (): DomainFailure =>
   failure('AI_OFF', 'This needs an AI feature your company has not switched on');
 

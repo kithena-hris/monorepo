@@ -569,6 +569,9 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       ai: { ...general.ai, parser: true, matrix: true },
     });
   });
+  // Without a key every AI feature says it is off, and nothing else changes (§22.3).
+  const off = await as('ada', (ctx) => assessMatrix(ctx, applied.applicationId));
+  expect(off.ok ? null : off.error.code).toBe('AI_OFF');
   const seen: string[] = [];
   const reading = {
     ...deps,

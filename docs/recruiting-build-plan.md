@@ -239,7 +239,11 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-126** Instructions for use for the deployer. §22.7.
 - [ ] **REC-127** Conformity assessment and EU database registration before
       2 December 2027 (business task; owner to name).
-- [ ] **REC-128** Standalone suite with and without the AI keys.
+- [x] **REC-128** Standalone suite with and without the AI keys. One run
+      covers both: the hire in every launch country with no model, every AI
+      feature saying it is off, and each feature against a fake model that
+      answers through the same gateway checks. A real provider in CI would be
+      paid infrastructure, which is the owner's to approve.
 
 ## Phase 3 — integrations
 

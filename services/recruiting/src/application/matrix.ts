@@ -3,7 +3,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { matchScore, verifyFindings, type Band, type Finding } from '../domain/ai/matrix.js';
 import { may } from '../domain/access/access.js';
-import { maskedText, readApplication, readMasked, type PromptSpec } from './ai.js';
+import { aiOff, aiOn, maskedText, readApplication, readMasked, type PromptSpec } from './ai.js';
 import { asPerson, forbidden, jobFacts, notFound, type Ctx } from './context.js';
 import { loadApplication } from './moves.js';
 import { generalSettings } from './setup.js';
@@ -83,6 +83,7 @@ export interface Matrix {
 }
 
 export async function assessMatrix(ctx: Ctx, applicationId: string): Promise<Result<Matrix>> {
+  if (!(await aiOn(ctx, 'matrix'))) return err(aiOff());
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
@@ -233,6 +234,7 @@ export async function rediscover(
   ctx: Ctx,
   jobId: string,
 ): Promise<Result<readonly Rediscovered[]>> {
+  if (!(await aiOn(ctx, 'matrix'))) return err(aiOff());
   const job = await ctx.tx.jobs.get(jobId);
   if (job === null) return err(notFound('job'));
   if (!may(ctx.viewer, await jobFacts(ctx, job), 'job.edit')) return err(forbidden());
