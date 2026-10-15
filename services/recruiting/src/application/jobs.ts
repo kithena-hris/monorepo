@@ -118,7 +118,7 @@ async function placesOf(ctx: Ctx, job: JobRecord): Promise<AdPlace[]> {
   return out;
 }
 
-async function editable(ctx: Ctx, jobId: string): Promise<Result<JobRecord>> {
+export async function editable(ctx: Ctx, jobId: string): Promise<Result<JobRecord>> {
   const loaded = await loadJob(ctx, jobId);
   if (!loaded.ok) return loaded;
   if (!jobPermissions(ctx.viewer, loaded.value.facts).has('job.edit')) return err(forbidden());

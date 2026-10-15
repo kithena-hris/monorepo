@@ -129,3 +129,29 @@ export async function readMasked<T>(
   await ctx.tx.assessments.save(assessment);
   return ok({ assessmentId: assessment.id, answer: judged.output, text });
 }
+
+/**
+ * A writing feature (PRD §22.3): the model sees job data, never a person,
+ * so there is no assessment to keep; the feature must be on, the prompt goes
+ * through the gateway, and the answer is checked against its schema.
+ */
+export async function write<T>(
+  ctx: Ctx,
+  spec: PromptSpec<T>,
+  context: Readonly<Record<string, unknown>>,
+): Promise<Result<T>> {
+  const settings = await generalSettings(ctx);
+  const model = ctx.deps.model;
+  if (model === undefined || !settings.ai[spec.feature]) return err(aiOff());
+  const raw = await model.complete(ctx.caller.tenantId, { instruction: spec.instruction, context });
+  let parsed: unknown;
+  try {
+    parsed = raw === null ? null : JSON.parse(raw);
+  } catch {
+    parsed = null;
+  }
+  const answer = spec.answer.safeParse(parsed);
+  return answer.success
+    ? ok(answer.data)
+    : err(failure('AI_UNAVAILABLE', 'The assistant could not write this just now'));
+}

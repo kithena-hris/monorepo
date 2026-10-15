@@ -139,6 +139,7 @@ import {
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
 import { agreeWithFinding, assessMatrix, rediscover } from '../application/matrix.js';
 import { importMembers } from '../application/members.js';
+import { draftAd, explainPhrase, translateAd } from '../application/writer.js';
 import {
   confirmParsedProfile,
   myParsedProfile,
@@ -608,6 +609,37 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ title: text(200).min(1), doc: z.unknown() }),
     run: (ctx, { params, body }) =>
       saveAd(ctx, params.jobId, params.language, body.title, body.doc),
+  }),
+  route({
+    name: 'draftAd',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/ad-drafts`,
+    summary: 'R5: a draft ad from the intake, for a person to edit and save',
+    params: z.object({ jobId: Id }),
+    body: z.object({ language: z.string().min(2).max(8), intake: text(4000) }),
+    run: (ctx, { params, body }) => draftAd(ctx, params.jobId, body),
+  }),
+  route({
+    name: 'explainAdPhrase',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/ad-hints`,
+    summary: 'R5: why a flagged phrase may put people off, and a neutral one',
+    params: z.object({ jobId: Id }),
+    body: z.object({
+      language: z.string().min(2).max(8),
+      phrase: text(300).min(1),
+      check: text(300),
+    }),
+    run: (ctx, { params, body }) => explainPhrase(ctx, params.jobId, body),
+  }),
+  route({
+    name: 'translateAd',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/ad-translations`,
+    summary: 'R5: the prose translated, for a person to approve by saving',
+    params: z.object({ jobId: Id }),
+    body: z.object({ from: z.string().min(2).max(8), to: z.string().min(2).max(8) }),
+    run: (ctx, { params, body }) => translateAd(ctx, params.jobId, body),
   }),
   route({
     name: 'setJobCriteria',

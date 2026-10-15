@@ -35,6 +35,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Textarea,
   icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -771,7 +772,20 @@ function Ad({
   const ad = data.ads.find((a) => a.language === language);
   const [title, setTitle] = useState(ad?.title ?? data.job.title);
   const [doc, setDoc] = useState<Record<string, unknown> | null>(null);
+  // A draft or a translation replaces what the editor shows; a person edits and saves it.
+  const [drafted, setDrafted] = useState<{ html: string; n: number } | null>(null);
+  const [intake, setIntake] = useState('');
+  const [to, setTo] = useState('');
+  const [hints, setHints] = useState<
+    Readonly<Partial<Record<number, { explanation: string; suggestion: string }>>>
+  >({});
   const errors = (ad?.checks ?? []).filter((c) => c.severity === 'error');
+  const take = (data: unknown) => {
+    const d = data as { title: string; doc: Record<string, unknown>; html: string };
+    setTitle(d.title);
+    setDoc(d.doc);
+    setDrafted({ html: d.html, n: (drafted?.n ?? 0) + 1 });
+  };
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <Card>
@@ -809,12 +823,75 @@ function Ad({
             </FieldControl>
           </Field>
           <RichTextEditor
-            key={language}
+            key={`${language}:${String(drafted?.n ?? 0)}`}
             label="Ad text"
-            value={ad?.html ?? ''}
+            value={drafted?.html ?? ad?.html ?? ''}
             onChangeJson={setDoc}
             minHeight="20rem"
           />
+          <Field>
+            <FieldLabel>Draft with the assistant</FieldLabel>
+            <FieldDescription>
+              What the role is about, in a few lines. The draft replaces the text above; nothing is
+              saved until you save it.
+            </FieldDescription>
+            <FieldControl>
+              <Textarea
+                autoResize
+                value={intake}
+                onChange={(e) => {
+                  setIntake(e.target.value);
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <div className="flex flex-wrap items-end gap-2">
+            <Button
+              variant="secondary"
+              loading={act.pending}
+              disabled={intake.trim() === ''}
+              onClick={() => {
+                act.run('DraftAd', { jobId: data.job.id, input: { language, intake } }, take);
+              }}
+            >
+              Draft
+            </Button>
+            {ad === undefined ? null : (
+              <>
+                <Select value={to} onValueChange={setTo}>
+                  <SelectTrigger aria-label="Translate into" className="w-44">
+                    <SelectValue placeholder="Translate into" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['en', 'es', 'de', 'hi']
+                      .filter((l) => l !== language)
+                      .map((l) => (
+                        <SelectItem key={l} value={l}>
+                          {l.toUpperCase()}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="secondary"
+                  loading={act.pending}
+                  disabled={to === ''}
+                  onClick={() => {
+                    act.run(
+                      'TranslateAd',
+                      { jobId: data.job.id, input: { from: language, to } },
+                      (d) => {
+                        setLanguage(to);
+                        take(d);
+                      },
+                    );
+                  }}
+                >
+                  Translate
+                </Button>
+              </>
+            )}
+          </div>
           <div className="flex justify-end">
             <Button
               loading={act.pending}
@@ -854,6 +931,32 @@ function Ad({
               title={c.match === null ? words(c.code) : `“${c.match.text}”`}
             >
               {`${c.message} (${c.source})`}
+              {c.match === null ? null : hints[i] === undefined ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run(
+                      'ExplainAdPhrase',
+                      {
+                        jobId: data.job.id,
+                        input: { language, phrase: c.match?.text ?? '', check: c.message },
+                      },
+                      (h) => {
+                        setHints({
+                          ...hints,
+                          [i]: h as { explanation: string; suggestion: string },
+                        });
+                      },
+                    );
+                  }}
+                >
+                  Why, and what instead?
+                </Button>
+              ) : (
+                <span className="mt-2 block">{`${hints[i].explanation} Try: “${hints[i].suggestion}”`}</span>
+              )}
             </Alert>
           ))}
         </CardContent>

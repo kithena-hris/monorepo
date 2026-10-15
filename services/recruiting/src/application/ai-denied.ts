@@ -14,7 +14,8 @@ export const DENIED: readonly TenantField[] = [
   {
     key: 'health_condition',
     policy: asSpecialCategory('health'),
-    labels: ['diagnosis', 'medical condition', 'sick leave', 'chronic illness'],
+    // Not "sick leave": an ad's benefits name it.
+    labels: ['diagnosis', 'medical condition', 'chronic illness'],
   },
   {
     key: 'religious_belief',

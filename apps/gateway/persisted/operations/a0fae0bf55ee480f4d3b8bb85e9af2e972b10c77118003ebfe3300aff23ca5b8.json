@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DraftAd($jobId: String!, $input: JSON!, $key: String!) {\n    draftAd(jobId: $jobId, input: $input, idempotencyKey: $key)\n  }"}

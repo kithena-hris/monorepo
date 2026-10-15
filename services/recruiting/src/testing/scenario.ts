@@ -72,6 +72,7 @@ import {
 } from '../application/matrix.js';
 import { PARSER, confirmParsedProfile, myParsedProfile, parseCv } from '../application/parser.js';
 import { daily } from '../application/background.js';
+import { draftAd, translateAd } from '../application/writer.js';
 import { poolsScreen } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -672,6 +673,42 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       matrix.assessmentId,
     );
   });
+
+  // §22.3: a draft and a translation come back for a person to save; nothing is saved here.
+  await uow.run(tenantId, async (tx) => {
+    const general = (await tx.settings.get('general')) as { ai: Record<string, unknown> };
+    await tx.settings.set('general', { ...general, ai: { ...general.ai, writer: true } });
+  });
+  const writing = {
+    ...deps,
+    model: {
+      name: 'fake',
+      complete: (
+        _: string,
+        prompt: { instruction: string; context: Readonly<Record<string, unknown>> },
+      ) =>
+        Promise.resolve(
+          prompt.instruction.startsWith('You translate')
+            ? JSON.stringify({
+                title: 'Diseño de producto',
+                pieces: (prompt.context['pieces'] as string[]).map((x) => x.toUpperCase()),
+              })
+            : JSON.stringify({
+                title: place.jobTitle,
+                sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
+              }),
+        ),
+    },
+  };
+  const asWriter = <T>(fn: (ctx: Ctx) => Promise<T>) =>
+    uow.run(tenantId, async (tx) => fn(await contextOf(writing, tx, callerOf('ada'))));
+  expect(
+    value(await asWriter((ctx) => draftAd(ctx, jobId, { language: 'en', intake: 'A designer.' })))
+      .html,
+  ).toContain('Design with us.');
+  expect(
+    value(await asWriter((ctx) => translateAd(ctx, jobId, { from: 'en', to: 'es' }))).html,
+  ).toContain('DESIGN THE PRODUCT WITH US.');
 
   // §14.2: the parser keeps only what the text says, and the candidate confirms it on their page.
   const parsed = value(

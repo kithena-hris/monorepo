@@ -157,6 +157,9 @@ export const OPERATIONS = {
   ParseCv: write('ParseCv', 'parseCv', ...ID('applicationId'), false),
   AssessMatrix: write('AssessMatrix', 'assessMatrix', ...ID('applicationId'), false),
   Rediscover: write('Rediscover', 'rediscover', ...ID('jobId'), false),
+  DraftAd: write('DraftAd', 'draftAd', ...ID('jobId')),
+  ExplainAdPhrase: write('ExplainAdPhrase', 'explainAdPhrase', ...ID('jobId')),
+  TranslateAd: write('TranslateAd', 'translateAd', ...ID('jobId')),
   AgreeWithFinding: write(
     'AgreeWithFinding',
     'agreeWithFinding',

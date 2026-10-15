@@ -126,6 +126,20 @@ type Mutation {
   ): JSON
   """Delete a candidate on request (GDPR art. 17)"""
   deleteCandidate(candidateId: String!, idempotencyKey: String!): JSON
+  """R5: a draft ad from the intake, for a person to edit and save"""
+  draftAd(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    jobId: String!
+  ): JSON
+  """R5: why a flagged phrase may put people off, and a neutral one"""
+  explainAdPhrase(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    jobId: String!
+  ): JSON
   """
   Members from CSV or JSON when People is absent: a dry run, then all rows or none; admin
   """
@@ -370,6 +384,13 @@ type Mutation {
   submitOffer(idempotencyKey: String!, offerId: String!): JSON
   """Send for approval"""
   submitRequisition(idempotencyKey: String!, requisitionId: String!): JSON
+  """R5: the prose translated, for a person to approve by saving"""
+  translateAd(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    jobId: String!
+  ): JSON
   """Undo a move within ten seconds"""
   undoMove(
     applicationId: String!
