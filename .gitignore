@@ -86,3 +86,6 @@ __screenshots__
 
 # Reach Mobile side-by-side screenshots (pnpm reach-mobile:compare)
 .compare/
+
+# Lint stamps CI keeps in its cache (tools/lint/eslint-in-parts.mjs).
+/.cache/

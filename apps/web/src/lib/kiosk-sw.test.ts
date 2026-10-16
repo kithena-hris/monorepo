@@ -74,9 +74,13 @@ function worker() {
     if (answer === undefined) throw new Error('the worker did not answer');
     return answer;
   };
-  const nudge = async (): Promise<void> => {
+  const nudge = async (origin = ORIGIN): Promise<void> => {
     let done: Promise<unknown> | undefined;
-    handlers.get('message')?.({ data: 'flush', waitUntil: (p: Promise<unknown>) => (done = p) });
+    handlers.get('message')?.({
+      data: 'flush',
+      origin,
+      waitUntil: (p: Promise<unknown>) => (done = p),
+    });
     await done;
   };
   return {
@@ -111,6 +115,17 @@ describe('the kiosk’s service worker', () => {
     expect(sw.sent[0]?.punches.map((p) => p.sequence)).toEqual([1, 2]);
     // The time of sending is the tablet's now, not the tap's.
     expect(sw.sent[0]?.sentAt).not.toBe('2026-10-01T06:52:00.000Z');
+    await sw.nudge();
+    expect(sw.sent).toHaveLength(1);
+  });
+
+  it('takes a nudge only from its own pages, not another origin', async () => {
+    const sw = worker();
+    sw.setOnline(false);
+    await sw.tap(1);
+    sw.setOnline(true);
+    await sw.nudge('https://elsewhere.example');
+    expect(sw.sent).toHaveLength(0);
     await sw.nudge();
     expect(sw.sent).toHaveLength(1);
   });

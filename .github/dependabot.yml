@@ -19,6 +19,15 @@ updates:
     # Not rebased each time main moves: every rebase re-ran CI. Ask with
     # `@dependabot rebase`, or merge it as it is when it is current enough.
     rebase-strategy: disabled
+    # The phone apps and Reach Mobile pin what the Expo SDK pins (React
+    # 19.2.3, Reanimated, Worklets, FlashList, NativeWind): those move only
+    # with an SDK upgrade (`npx expo install --fix`), never one at a time. A
+    # bump there failed the mobile Storybook and the native export (#398).
+    exclude-paths:
+      - 'apps/mobile/**'
+      - 'apps/tenant-mobile/**'
+      - 'apps/storybook-mobile/**'
+      - 'packages/ui-native/**'
     # A release is proposed only once it is a week old. A hijacked package is
     # usually caught and pulled within days; waiting keeps it out of the
     # lockfile. Security updates are exempt and still arrive at once.
@@ -77,6 +86,16 @@ updates:
         update-types: [version-update:semver-major, version-update:semver-minor]
       - dependency-name: react-native-webview
         update-types: [version-update:semver-major, version-update:semver-minor]
+      # The SDK itself and its modules, wherever they appear: an SDK upgrade
+      # is its own piece of work.
+      - dependency-name: 'expo'
+      - dependency-name: 'expo-*'
+      - dependency-name: '@expo/*'
+      # Babel 8 breaks the mobile Storybook and the native export:
+      # react-native-worklets' Babel plugin requires "^7.0.0-0" (#384). Lift
+      # this when a worklets release accepts Babel 8.
+      - dependency-name: '@babel/core'
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
