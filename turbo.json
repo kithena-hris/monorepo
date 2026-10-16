@@ -32,7 +32,16 @@
     // artifact worth restoring.
     "test": { "dependsOn": ["^build"], "outputs": [] },
     "test:stories": { "dependsOn": ["^build"], "outputs": [] },
-    "test:integration": { "dependsOn": ["^build"], "cache": false },
+    // Cached on the package, everything it depends on, and the migrations its
+    // containers apply (the suites read `migrations/` from the root). Real
+    // Postgres in a container is the same every run, so an unchanged package
+    // passing again proves nothing new; a People shard's `--shard` is part of
+    // the key, so each shard is cached on its own.
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/migrations/**"],
+      "outputs": []
+    },
     "test:contract": { "dependsOn": ["^build"], "outputs": ["pacts/**"] },
     // Uncached: the whole point is that it boots the module fresh, and a cache
     // hit would report a module still boots alone without ever trying.

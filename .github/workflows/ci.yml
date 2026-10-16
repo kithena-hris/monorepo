@@ -126,21 +126,18 @@ jobs:
           if any "$shared" || any "$integration"; then echo "integration=true" >> "$GITHUB_OUTPUT"; else echo "integration=false" >> "$GITHUB_OUTPUT"; fi
           echo "changed files:"; printf '%s\n' "$changed" | head -50
 
-  # Three streams at once, each on its own runner: lint (with the module
-  # boundaries and the two drift checks), the TS 6 typecheck, and the unit
-  # tests. Serially they were about six minutes; the build each needs is shared
-  # through turbo's remote cache, so only the first stream to reach a package
-  # builds it.
-  verify-stream:
-    name: verify (${{ matrix.stream }})
+  # Lint (with the module boundaries and the drift checks), the TS 6
+  # typecheck and the unit tests, one after another on one runner. Three
+  # runners each paid for their own checkout, install and build, and each was
+  # billed a whole minute at least; turbo's remote cache already makes the
+  # typecheck and the tests of an unchanged package a cache hit. Skipped on
+  # main when this tree passed in its pull request: a skipped job satisfies
+  # the required check.
+  verify:
     needs: changes
     if: needs.changes.outputs.matched != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        stream: [lint, typecheck, unit]
+    timeout-minutes: 30
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -157,27 +154,22 @@ jobs:
       # `lint` and `boundaries` do not go through turbo, so they need the
       # workspace built first; the typecheck and unit tests build what they need.
       - name: build
-        if: matrix.stream == 'lint'
         run: pnpm build
 
       - name: lint
-        if: matrix.stream == 'lint'
         run: pnpm lint
 
       # Architectural boundaries. A cross-module import fails here, which is
       # the only thing stopping the anti-sticky property from eroding.
       - name: module boundaries
-        if: matrix.stream == 'lint'
         run: pnpm boundaries
 
       # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
       # compilers can still disagree and the authoritative one should decide.
       - name: typecheck on TS 6
-        if: matrix.stream == 'typecheck'
         run: pnpm typecheck:authoritative
 
       - name: unit tests
-        if: matrix.stream == 'unit'
         run: pnpm test
 
       # The invitation email carries concrete sRGB values, because a mail client
@@ -191,7 +183,6 @@ jobs:
       # conversion is checked against `reach-tokens.json`, which a browser
       # produced, so it is verified against the renderer it stands in for.
       - name: email theme drift
-        if: matrix.stream == 'lint'
         run: pnpm email:theme-drift
 
       # Everything a person can do in People and Time Off on the web, they can
@@ -199,7 +190,6 @@ jobs:
       # app too, or `apps/tenant-mobile/desktop-only.json` says why not. A new
       # web operation fails here until the app has it or the reason is written.
       - name: the phone app reaches what the web does
-        if: matrix.stream == 'lint'
         run: pnpm --filter @kithena/tenant-mobile coverage --strict
 
       # `atlas migrate apply` verifies the directory against `atlas.sum` before
@@ -223,7 +213,6 @@ jobs:
       # lint` behind a paid tier in v0.38 and broke a production deploy on a
       # release nobody here made.
       - name: migration ledger
-        if: matrix.stream == 'lint'
         run: |
           ATLAS_VERSION=v0.37.0
           curl -sSf "https://release.ariga.io/atlas/atlas-linux-amd64-${ATLAS_VERSION}" -o /usr/local/bin/atlas
@@ -236,59 +225,30 @@ jobs:
           fi
           echo "migration ledger matches the directory"
 
-  # The required check keeps its name: green only when every stream is, or on
-  # main when `changes` proved this tree passed them in its pull request.
-  verify:
-    needs: [changes, verify-stream]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: every stream passed
-        env:
-          MATCHED: ${{ needs.changes.outputs.matched }}
-          RESULT: ${{ needs.verify-stream.result }}
-        run: |
-          echo "streams: $RESULT (already tested: ${MATCHED:-false})"
-          if [ "$MATCHED" = true ] && [ "$RESULT" = skipped ]; then
-            echo "::notice::This tree already passed verify in its pull request; see the changes job's summary."
-            exit 0
-          fi
-          [ "$RESULT" = success ]
-
   contracts:
     needs: changes
+    # Skipped when nothing it covers changed: a skipped job satisfies the
+    # required check, and no runner starts just to say so.
+    if: needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: checkout
-        if: needs.changes.outputs.contracts == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: pnpm
-        if: needs.changes.outputs.contracts == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
-        if: needs.changes.outputs.contracts == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
       - name: install
-        if: needs.changes.outputs.contracts == 'true'
         run: pnpm install --frozen-lockfile
       - name: regenerate from contracts
-        if: needs.changes.outputs.contracts == 'true'
         run: pnpm codegen
       - name: contract tests
-        if: needs.changes.outputs.contracts == 'true'
         run: pnpm test:contract
       - name: compose the supergraph
-        if: needs.changes.outputs.contracts == 'true'
         working-directory: apps/gateway
         run: pnpm check
-
-      - name: nothing to check
-        if: needs.changes.outputs.contracts != 'true'
-        run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). On main it runs unless this tree already passed it in its pull request."
-
 
   # Five streams at once. People's suite is most of the time and runs its files
   # one after another (each starts its own containers), so it is split four
@@ -785,7 +745,8 @@ jobs:
     if: >-
       ${{ github.event_name == 'pull_request' && !cancelled() &&
       needs.changes.result == 'success' && needs.verify.result == 'success' &&
-      needs.contracts.result == 'success' && needs.integration.result == 'success' &&
+      (needs.contracts.result == 'success' || needs.contracts.result == 'skipped') &&
+      needs.integration.result == 'success' &&
       needs.standalone.result == 'success' && needs.web-acceptance.result == 'success' &&
       needs.design-system-all.result == 'success' }}
     runs-on: ubuntu-latest
