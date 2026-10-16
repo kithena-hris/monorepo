@@ -923,6 +923,12 @@ jobs:
             if [ -n "$TIMEOFF_GOOGLE_SERVICE_ACCOUNT" ]; then
               printf 'GOOGLE_SERVICE_ACCOUNT=%s\n' "$TIMEOFF_GOOGLE_SERVICE_ACCOUNT"
             fi
+            # Microsoft 365 likewise: one Entra app of Kithena's for both
+            # modules, Time Off's by admin consent, Recruiting's per member.
+            if [ -n "$TIMEOFF_MICROSOFT_CLIENT_ID" ] && [ -n "$TIMEOFF_MICROSOFT_CLIENT_SECRET" ]; then
+              printf 'MICROSOFT_CALENDAR_CLIENT_ID=%s\nMICROSOFT_CALENDAR_CLIENT_SECRET=%s\n' \
+                "$TIMEOFF_MICROSOFT_CLIENT_ID" "$TIMEOFF_MICROSOFT_CLIENT_SECRET"
+            fi
             if [ -n "$VERCEL_DOMAINS_TOKEN" ] && [ -n "$JOBS_VERCEL_PROJECT_ID" ]; then
               printf 'VERCEL_DOMAINS_TOKEN=%s\nJOBS_VERCEL_PROJECT_ID=%s\nVERCEL_TEAM_ID=%s\n' "$VERCEL_DOMAINS_TOKEN" "$JOBS_VERCEL_PROJECT_ID" "$VERCEL_ORG_ID"
             fi

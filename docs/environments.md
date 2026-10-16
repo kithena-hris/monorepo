@@ -1398,11 +1398,13 @@ until its setting exists. In this order:
      (`GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`) stays
      possible for Gmail accounts outside a Workspace, and is not needed for
      launch.
-   - **Microsoft**: an Entra app registration, accounts in any organisational
-     directory, a Web redirect, the delegated Graph permissions
-     `Calendars.ReadWrite` and `offline_access`, and a client secret (it
-     expires; note the date). `MICROSOFT_CALENDAR_CLIENT_ID`,
-     `MICROSOFT_CALENDAR_CLIENT_SECRET`.
+   - **Microsoft**: the same Entra app as Time Off's Outlook calendar
+     (TOF-110): the deploy writes `TIMEOFF_MICROSOFT_CLIENT_ID` and
+     `TIMEOFF_MICROSOFT_CLIENT_SECRET` into `recruiting.env` as
+     `MICROSOFT_CALENDAR_CLIENT_ID` and `MICROSOFT_CALENDAR_CLIENT_SECRET`.
+     The app carries Time Off's application permission and Recruiting's
+     delegated ones (`Calendars.ReadWrite`, `offline_access`), and both
+     redirect addresses.
    - **Zoom**: a General app on the Zoom Marketplace, user-managed, the
      scopes `meeting:write:meeting` and `meeting:delete:meeting`, published
      before members outside Kithena's own Zoom account can add it.
