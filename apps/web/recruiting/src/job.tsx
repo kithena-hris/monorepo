@@ -1179,6 +1179,7 @@ function Publishing({
         </CardContent>
       </Card>
       {share?.url == null ? null : <CopyField label="Share link" value={share.url} />}
+      {data.chat === null ? null : <ChatChannel data={data} props={props} />}
       <div className="flex justify-end">
         <Button
           variant="secondary"
@@ -1192,6 +1193,74 @@ function Publishing({
         </Button>
       </div>
     </div>
+  );
+}
+
+/** REC-137: each morning, yesterday's new applicants are posted to this channel. */
+function ChatChannel({
+  data,
+  props,
+}: {
+  readonly data: JobData;
+  readonly props: ScreenProps<JobData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const [channel, setChannel] = useState(data.chat?.channel ?? '');
+  const save = (value: string | null) => {
+    act.run('SetJobChatChannel', { jobId: data.job.id, input: { channel: value } });
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>New applicants in Slack</CardTitle>
+        <CardDescription>
+          Each morning, yesterday’s new applicants are posted to this channel. Invite Kithena to the
+          channel first.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Field>
+          <FieldLabel>Channel ID</FieldLabel>
+          <FieldControl>
+            <Input
+              value={channel}
+              onChange={(e) => {
+                setChannel(e.target.value.trim());
+              }}
+              placeholder="C0123456789"
+            />
+          </FieldControl>
+          <FieldDescription>
+            In Slack, open the channel’s details; the ID is at the bottom.
+          </FieldDescription>
+        </Field>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            loading={act.pending}
+            disabled={channel === '' || channel === data.chat?.channel}
+            onClick={() => {
+              save(channel);
+            }}
+          >
+            Save
+          </Button>
+          {data.chat?.channel == null ? null : (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={act.pending}
+              onClick={() => {
+                setChannel('');
+                save(null);
+              }}
+            >
+              Stop posting
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -128,6 +128,7 @@ export const OPERATIONS = {
   SetJobTeam: write('SetJobTeam', 'setJobTeam', ...ID('jobId')),
   SetJobStages: write('SetJobStages', 'setJobStages', ...ID('jobId')),
   SaveJobForm: write('SaveJobForm', 'saveJobForm', ...ID('jobId')),
+  SetJobChatChannel: write('SetJobChatChannel', 'setJobChatChannel', ...ID('jobId')),
   SaveJobAd: write('SaveJobAd', 'saveJobAd', ...two('jobId', 'language')),
   SetJobCriteria: write('SetJobCriteria', 'setJobCriteria', ...ID('jobId')),
   SetJobPlan: write('SetJobPlan', 'setJobPlan', ...ID('jobId')),

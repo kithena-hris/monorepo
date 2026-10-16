@@ -145,6 +145,8 @@ import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
 import { askForChart } from '../application/chart-ask.js';
 import { SelfId, fairness, saveSelfId, selfIdQuestions } from '../application/fairness.js';
 import { importMembers } from '../application/members.js';
+import { setJobChannel } from '../application/chat.js';
+import { chatPress } from '../application/chat-press.js';
 import { connect, disconnect, myConnections, receiveGrant } from '../application/calendars.js';
 import {
   checkCareersDomain,
@@ -623,6 +625,15 @@ export const ROUTES: readonly Route[] = [
     }),
     run: (ctx, { params, body }) =>
       saveForm(ctx, params.jobId, body.fields as never, body.questionnaireId),
+  }),
+  route({
+    name: 'setJobChatChannel',
+    method: 'PUT',
+    path: `${V1}/jobs/{jobId}/chat-channel`,
+    summary: 'The chat channel a job’s new applicants are posted to each morning',
+    params: z.object({ jobId: Id }),
+    body: z.object({ channel: text(20).nullable() }),
+    run: (ctx, { params, body }) => setJobChannel(ctx, params.jobId, body.channel),
   }),
   route({
     name: 'saveJobAd',
@@ -1528,6 +1539,19 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ company: text(63), target: z.enum(['indeed']), jobId: Id }),
     public: true,
     run: (ctx, { params }) => boardQuestions(ctx, params.target, params.jobId),
+  }),
+  route({
+    name: 'publicChatPress',
+    method: 'POST',
+    path: `${V1}/public/{company}/chat-press`,
+    summary: 'An Approve pressed in the chat app, relayed by Kithena’s chat service',
+    params: z.object({ company: text(63) }),
+    body: z.object({ value: z.string().max(2000) }),
+    public: true,
+    run: (ctx, { body, headers }) =>
+      ctx.deps.chat !== undefined && presentsInternalToken({ headers }, ctx.deps.chat.token)
+        ? chatPress(ctx, body.value)
+        : Promise.resolve(err(failure('FORBIDDEN', 'Only the chat service relays a press'))),
   }),
   route({
     name: 'publicConnectGrant',

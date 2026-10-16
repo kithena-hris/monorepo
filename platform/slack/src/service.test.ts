@@ -8,6 +8,7 @@ import {
   type Assistant,
   type People,
   type Slack,
+  type Recruiting,
   type TimeOff,
 } from './service.js';
 import { memoryStore } from './store.js';
@@ -26,6 +27,8 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     emailOf: () => Promise.resolve('pam@acme.example'),
     userByEmail: (_t, email) => Promise.resolve(email === 'pam@acme.example' ? 'U1' : null),
     postBlocks: (_t, m) => {
+      if (m.channel === 'C-OUTSIDE')
+        return Promise.reject(new Error('Slack chat.postMessage: not_in_channel'));
       posted.push(m);
       return Promise.resolve();
     },
@@ -81,6 +84,13 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
         : Promise.resolve({ text: 'Approved: Adam Novak, 19–23 Oct.' });
     },
   };
+  const recruited: { tenantId: string; value: string }[] = [];
+  const recruiting: Recruiting = {
+    relay: (tenantId, value) => {
+      recruited.push({ tenantId, value });
+      return Promise.resolve({ text: 'Approved: the offer to Yuki Sato.' });
+    },
+  };
   const secret = randomBytes(32);
   const clock = { ms: 1_000 };
   const service = slackService({
@@ -88,6 +98,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     people,
     assistant,
     timeOff,
+    recruiting,
     slack,
     command: '/kithena',
     now: () => clock.ms,
@@ -98,7 +109,19 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       stateSecret: secret,
     },
   });
-  return { store, service, posted, replaced, acted, relayed, said, asked, secret, clock };
+  return {
+    store,
+    service,
+    posted,
+    replaced,
+    acted,
+    relayed,
+    recruited,
+    said,
+    asked,
+    secret,
+    clock,
+  };
 }
 
 const connect = (store: ReturnType<typeof memoryStore>, tenantId = TENANT, teamId = 'T1') =>
@@ -151,6 +174,49 @@ describe('notify', () => {
     expect(sent).toContain('"value":"ca_a"');
     expect(sent).toContain('"action_id":"timeoff_decline","style":"danger"');
     expect(sent).toContain('"value":"ca_d"');
+  });
+});
+
+describe('Recruiting', () => {
+  it('tells a person or a channel Kithena was invited to, with its Approve and links', async () => {
+    const w = world();
+    const approval = {
+      to: { email: 'pam@acme.example' },
+      text: 'An offer to Yuki Sato waits for your approval.',
+      approve: 'sealed',
+      links: [{ label: 'Open in Kithena', url: 'https://acme.app.kithena.com/recruiting/offers' }],
+    };
+    expect(await w.service.tellRecruiting(TENANT, approval)).toBe('not_connected');
+    await connect(w.store);
+    expect(await w.service.tellRecruiting(TENANT, approval)).toBe('sent');
+    const sent = JSON.stringify(w.posted[0]);
+    expect(w.posted[0]?.channel).toBe('U1');
+    expect(sent).toContain('"action_id":"recruiting_approve","style":"primary"');
+    expect(sent).toContain('"value":"sealed"');
+    expect(sent).toContain('"action_id":"open_0"');
+
+    const digest = { to: { channel: 'C1' }, text: '3 new applicants for Driver.' };
+    expect(await w.service.tellRecruiting(TENANT, digest)).toBe('sent');
+    expect(w.posted[1]?.channel).toBe('C1');
+    expect(JSON.stringify(w.posted[1])).not.toContain('actions');
+    expect(
+      await w.service.tellRecruiting(TENANT, { ...digest, to: { channel: 'C-OUTSIDE' } }),
+    ).toBe('not_in_channel');
+  });
+
+  it('passes Recruiting’s Approve to Recruiting as the workspace’s company', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.interact({
+      type: 'block_actions',
+      team: { id: 'T1' },
+      user: { id: 'U1' },
+      response_url: 'https://hooks/r',
+      actions: [{ action_id: 'recruiting_approve', value: 'sealed' }],
+    });
+    expect(w.recruited).toEqual([{ tenantId: TENANT, value: 'sealed' }]);
+    expect(w.replaced[0]?.text).toBe('Approved: the offer to Yuki Sato.');
+    expect(w.relayed).toEqual([]);
   });
 });
 

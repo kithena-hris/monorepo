@@ -4,6 +4,7 @@ import {
   approvalsMessage,
   fillView,
   noticeMessage,
+  recruitingMessage,
   savedView,
   textMessage,
   timeOffApprovalMessage,
@@ -124,6 +125,19 @@ export interface TimeOff {
   relay(tenantId: string, value: string): Promise<{ text: string }>;
 }
 
+/** Recruiting, over internal HTTP: a press on its Approve, answered with what the message becomes. */
+export interface Recruiting {
+  relay(tenantId: string, value: string): Promise<{ text: string }>;
+}
+
+/** What Recruiting sends: to a person by address, or into a channel Kithena was invited to. */
+export interface RecruitingMessage {
+  readonly to: { readonly email: string } | { readonly channel: string };
+  readonly text: string;
+  readonly approve?: string;
+  readonly links?: readonly { readonly label: string; readonly url: string }[];
+}
+
 export interface Slack {
   emailOf(token: string, user: string): Promise<string | null>;
   userByEmail(token: string, email: string): Promise<string | null>;
@@ -171,6 +185,7 @@ export interface Deps {
   readonly people: People;
   readonly assistant: Assistant;
   readonly timeOff: TimeOff;
+  readonly recruiting?: Recruiting;
   readonly slack: Slack;
   readonly command: string;
   readonly oauth: OAuth | null;
@@ -207,6 +222,10 @@ export interface SlackService {
       readonly decline: string;
     },
   ): Promise<'sent' | 'not_connected' | 'not_in_slack'>;
+  tellRecruiting(
+    tenantId: string,
+    message: RecruitingMessage,
+  ): Promise<'sent' | 'not_connected' | 'not_in_slack' | 'not_in_channel'>;
   interact(payload: Interaction): Promise<unknown>;
   status(
     tenantId: string,
@@ -313,6 +332,29 @@ export function slackService(deps: Deps): SlackService {
       return 'sent';
     },
 
+    /** Recruiting's digest, reminder, approval or interview. Says why when it is not sent. */
+    async tellRecruiting(tenantId, message) {
+      const blocks = recruitingMessage(message);
+      if ('channel' in message.to) {
+        const installation = await deps.store.installation(tenantId);
+        if (installation === null) return 'not_connected';
+        try {
+          await deps.slack.postBlocks(installation.botToken, {
+            channel: message.to.channel,
+            ...blocks,
+          });
+        } catch (e) {
+          if (/not_in_channel|channel_not_found/u.test(String(e))) return 'not_in_channel';
+          throw e;
+        }
+        return 'sent';
+      }
+      const to = await recipient(tenantId, message.to.email);
+      if (typeof to === 'string') return to;
+      await deps.slack.postBlocks(to.token, { channel: to.user, ...blocks });
+      return 'sent';
+    },
+
     /**
      * A button or a form. Returns what the acknowledgement carries — a form's
      * errors, or the view that replaces it — or undefined for a plain one.
@@ -327,6 +369,20 @@ export function slackService(deps: Deps): SlackService {
         const answer = await deps.timeOff
           .relay(where.tenantId, pressed.value)
           .catch(() => ({ text: 'Time Off could not take that just now. Try again in a moment.' }));
+        if (payload.response_url)
+          await deps.slack.replaceMessage(payload.response_url, textMessage(answer.text));
+        return undefined;
+      }
+      if (
+        pressed?.action_id === 'recruiting_approve' &&
+        pressed.value &&
+        deps.recruiting !== undefined
+      ) {
+        const answer = await deps.recruiting
+          .relay(where.tenantId, pressed.value)
+          .catch(() => ({
+            text: 'Recruiting could not take that just now. Try again in a moment.',
+          }));
         if (payload.response_url)
           await deps.slack.replaceMessage(payload.response_url, textMessage(answer.text));
         return undefined;

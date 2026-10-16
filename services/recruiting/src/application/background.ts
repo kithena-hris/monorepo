@@ -2,6 +2,7 @@ import type { TenantId } from '@kithena/contracts';
 
 import { addDays } from '../domain/dates.js';
 import { sendAlertDigests } from './alerts.js';
+import { chatDaily } from './chat.js';
 import { expireOffer } from '../domain/offer/offer.js';
 import { contextOf, deliver, type Ctx, type Outgoing } from './context.js';
 import { portalLink } from './intake.js';
@@ -79,7 +80,7 @@ export async function sendDueMessages(deps: Deps): Promise<number> {
   return sent;
 }
 
-/** Daily: expire offers past their date, ask pool members to renew, remind tomorrow's candidates, sweep retention. */
+/** Daily: expire offers past their date, ask pool members to renew, remind tomorrow's candidates, chat digests and scorecard reminders, sweep retention. */
 export async function daily(
   deps: Deps,
 ): Promise<{ readonly expired: number; readonly renewals: number; readonly anonymised: number }> {
@@ -139,6 +140,7 @@ export async function daily(
         });
       }
       await sendAlertDigests(ctx);
+      await chatDaily(ctx);
       return (await sweepRetention(ctx)).anonymised;
     });
     anonymised += run.value;

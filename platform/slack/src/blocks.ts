@@ -235,6 +235,42 @@ export function timeOffApprovalMessage(m: {
   };
 }
 
+/**
+ * Recruiting's message (REC-137): its sentence, an Approve whose value
+ * Recruiting signed, and links. Rejecting asks for a reason, so it is done
+ * in Kithena, through the link.
+ */
+export function recruitingMessage(m: {
+  readonly text: string;
+  readonly approve?: string;
+  readonly links?: readonly { readonly label: string; readonly url: string }[];
+}): Message {
+  const buttons = [
+    ...(m.approve === undefined
+      ? []
+      : [
+          {
+            type: 'button',
+            action_id: 'recruiting_approve',
+            style: 'primary',
+            text: plain('Approve'),
+            value: m.approve,
+          },
+        ]),
+    ...(m.links ?? []).map((link, i) => ({
+      ...openButton(link.url, link.label),
+      action_id: `open_${String(i)}`,
+    })),
+  ];
+  return {
+    text: m.text,
+    blocks: [
+      { type: 'section', text: mrkdwn(escape(m.text)) },
+      ...(buttons.length === 0 ? [] : [{ type: 'actions', elements: buttons }]),
+    ],
+  };
+}
+
 /** A sentence, alone: what a pressed message becomes. */
 export function textMessage(text: string): Message {
   return { text, blocks: [{ type: 'section', text: mrkdwn(escape(text)) }] };

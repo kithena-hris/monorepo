@@ -61,6 +61,7 @@ import type { TermsIssue } from '@kithena/contracts';
 import { asPerson, event, forbidden, notFound, publish, type Ctx } from './context.js';
 import { refreshProjection } from './jobs.js';
 import { portalLink } from './intake.js';
+import { askApprovers } from './chat.js';
 import { loadApplication, worksCouncilCleared } from './moves.js';
 import type { ApplicationRecord, JobRecord } from './ports.js';
 import { reportingOf } from './requisitions.js';
@@ -282,6 +283,7 @@ export async function submitOfferForApproval(ctx: Ctx, offerId: string): Promise
       changes: [],
       createdAt: ctx.at,
     });
+    await askOfferApprovers(ctx, offerId, loaded.value.app.candidateId, loaded.value.job.title);
   } else {
     await publish(ctx, offerEvent(ctx, 'approved', submitted.value));
   }
@@ -299,6 +301,18 @@ const offerEvent = (
     { type: 'Offer', id: offer.id },
     { offerId: offer.id, applicationId: offer.applicationId, version: latest(offer).version },
   );
+
+/** The chat app asks the offer's next approvers (REC-137). */
+async function askOfferApprovers(ctx: Ctx, offerId: string, candidateId: string, title: string) {
+  const name = (await ctx.tx.candidates.get(candidateId))?.name ?? 'a candidate';
+  await askApprovers(
+    ctx,
+    'offer',
+    offerId,
+    `An offer to ${name} for ${title} waits for your approval.`,
+    `/recruiting/offers/${offerId}/approve`,
+  );
+}
 
 export async function decideOffer(
   ctx: Ctx,
@@ -319,7 +333,13 @@ export async function decideOffer(
   const decisions = [...approval.decisions, { step, by: person.value, decision }];
   const outcome = approvalState(approval.steps, decisions).outcome;
   await ctx.tx.approvals.save({ ...approval, decisions, outcome });
-  if (outcome === 'pending') return ok(offer);
+  if (outcome === 'pending') {
+    const app = await ctx.tx.applications.get(offer.applicationId);
+    const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
+    if (app !== null && job !== null)
+      await askOfferApprovers(ctx, offerId, app.candidateId, job.title);
+    return ok(offer);
+  }
   const decided = approvalOutcome(offer, outcome);
   if (!decided.ok) return decided;
   await ctx.tx.offers.save(decided.value);

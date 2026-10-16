@@ -22,6 +22,8 @@ const SEARCH_PLAN = '/v1/recruiting/public/search-plan';
 const CONNECT_CALLBACK = '/v1/recruiting/public/calendar-callback';
 /** Where Indeed Apply posts every application (REC-132); the job names the company. */
 const INDEED_APPLY = '/v1/recruiting/public/indeed-apply';
+/** Internal: `platform/slack` relaying an Approve pressed in Slack (REC-137); never on the tunnel. */
+const SLACK_RELAY = '/v1/recruiting/integrations/slack/relay';
 /** Up to six files of 10 MB as base64, plus the answers. */
 const MAX_BODY = 90 * 1024 * 1024;
 
@@ -149,6 +151,27 @@ export function recruitingListener(
           .end(JSON.stringify(answer?.body ?? {}));
         return;
       }
+      if (request.method === 'POST' && request.url === SLACK_RELAY && body !== null) {
+        // The value names the company, `<company>.<sealed>`: the route checks the rest.
+        let value = '';
+        try {
+          const given = (JSON.parse(body) as { value?: unknown }).value;
+          value = typeof given === 'string' ? given : '';
+        } catch {
+          // Unreadable: the route refuses it.
+        }
+        const company = value.slice(0, Math.max(0, value.indexOf('.')));
+        const answer = await rest({
+          method: 'POST',
+          url: `/v1/recruiting/public/${encodeURIComponent(company || '-')}/chat-press`,
+          headers: { 'x-internal-token': request.headers['x-internal-token'] },
+          body: JSON.stringify({ value }),
+        });
+        response
+          .writeHead(answer?.status ?? 404, { 'content-type': 'application/json' })
+          .end(JSON.stringify(answer?.body ?? {}));
+        return;
+      }
       if (request.method === 'POST' && request.url === SEARCH_PLAN && body !== null) {
         const ip =
           String(request.headers['x-forwarded-for'] ?? '')
@@ -217,6 +240,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly connections?: Deps['connections'];
   readonly boards?: Deps['boards'];
   readonly workspaceCalendar?: Deps['workspaceCalendar'];
+  readonly chat?: Deps['chat'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -249,6 +273,7 @@ export function recruitingServer(
     ...(options.workspaceCalendar === undefined
       ? {}
       : { workspaceCalendar: options.workspaceCalendar }),
+    ...(options.chat === undefined ? {} : { chat: options.chat }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });
