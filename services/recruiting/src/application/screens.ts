@@ -165,6 +165,8 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     form: await ctx.tx.jobs.form(jobId),
     ads: await ctx.tx.jobs.ads(jobId),
     targets: await ctx.tx.jobs.targets(jobId),
+    // Boards with an adapter configured here (Indeed once its agreement is signed).
+    boards: (ctx.deps.boards ?? []).map((b) => b.target),
     criteria: await ctx.tx.jobs.criteria(jobId),
     plan: await ctx.tx.jobs.plan(jobId),
     counts: await counts(ctx, job),

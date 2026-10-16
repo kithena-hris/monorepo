@@ -61,6 +61,11 @@ describe('publication targets (PRD §9.1)', () => {
       ok: false,
       error: { code: 'NEEDS_CAREERS_PAGE' },
     });
+    // Indeed checks the job's URL against the page it sent (REC-131).
+    expect(requestPublication(job, [], 'indeed', true)).toMatchObject({
+      ok: false,
+      error: { code: 'NEEDS_CAREERS_PAGE' },
+    });
     expect(requestPublication(job, [live('careers_page')], 'glassdoor', true)).toMatchObject({
       ok: false,
       error: { code: 'THROUGH_INDEED' },

@@ -28,6 +28,7 @@ import {
   addCandidate,
   apply,
   applyInternally,
+  receiveBoardApplication,
   refer,
   requestCode,
   type IncomingFile,
@@ -1507,6 +1508,18 @@ export const ROUTES: readonly Route[] = [
 
   /* ------------------------------------------------------ the public API -- */
   route({
+    name: 'publicBoardApplication',
+    method: 'POST',
+    path: `${V1}/public/{company}/board-applications/{target}`,
+    summary: 'An application from a board’s own apply, as it was signed',
+    params: z.object({ company: text(63), target: z.enum(['indeed']) }),
+    body: z.object({ raw: z.string().max(80_000_000), signature: text(200) }),
+    status: 201,
+    public: true,
+    run: (ctx, { params, body }) =>
+      receiveBoardApplication(ctx, params.target, body.raw, body.signature),
+  }),
+  route({
     name: 'publicConnectGrant',
     method: 'POST',
     path: `${V1}/public/{company}/connect-grant`,
@@ -1884,6 +1897,7 @@ const STATUS: Record<string, number> = {
   NOT_ENTITLED: 403,
   NOT_FOUND: 404,
   IDEMPOTENCY_KEY_REUSED: 409,
+  JOB_CLOSED: 410,
   ALREADY_APPLIED: 409,
   ALREADY_SUBMITTED: 409,
   IDEMPOTENCY_KEY_REQUIRED: 428,

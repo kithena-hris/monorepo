@@ -20,6 +20,8 @@ const OPENAPI = '/v1/recruiting/openapi.json';
 const SEARCH_PLAN = '/v1/recruiting/public/search-plan';
 /** The one redirect address every calendar and Zoom app is registered with (REC-135). */
 const CONNECT_CALLBACK = '/v1/recruiting/public/calendar-callback';
+/** Where Indeed Apply posts every application (REC-132); the job names the company. */
+const INDEED_APPLY = '/v1/recruiting/public/indeed-apply';
 /** Up to six files of 10 MB as base64, plus the answers. */
 const MAX_BODY = 90 * 1024 * 1024;
 
@@ -124,6 +126,29 @@ export function recruitingListener(
         return;
       }
       const body = await bodyOf(request);
+      if (request.method === 'POST' && request.url === INDEED_APPLY && body !== null) {
+        // `jobMeta` is what Kithena sent with the posting: `<company>/<jobId>`.
+        let company = '';
+        try {
+          const meta = (JSON.parse(body) as { job?: { jobMeta?: unknown } }).job?.jobMeta;
+          company = typeof meta === 'string' ? (meta.split('/')[0] ?? '') : '';
+        } catch {
+          // Unreadable: the route answers it.
+        }
+        const answer = await rest({
+          method: 'POST',
+          url: `/v1/recruiting/public/${encodeURIComponent(company || '-')}/board-applications/indeed`,
+          headers: {},
+          body: JSON.stringify({
+            raw: body,
+            signature: String(request.headers['x-indeed-signature'] ?? ''),
+          }),
+        });
+        response
+          .writeHead(answer?.status ?? 404, { 'content-type': 'application/json' })
+          .end(JSON.stringify(answer?.body ?? {}));
+        return;
+      }
       if (request.method === 'POST' && request.url === SEARCH_PLAN && body !== null) {
         const ip =
           String(request.headers['x-forwarded-for'] ?? '')
@@ -190,6 +215,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly backgroundChecks?: Deps['backgroundChecks'];
   readonly domains?: Deps['domains'];
   readonly connections?: Deps['connections'];
+  readonly boards?: Deps['boards'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -218,6 +244,7 @@ export function recruitingServer(
       : { backgroundChecks: options.backgroundChecks }),
     ...(options.domains === undefined ? {} : { domains: options.domains }),
     ...(options.connections === undefined ? {} : { connections: options.connections }),
+    ...(options.boards === undefined ? {} : { boards: options.boards }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

@@ -18,7 +18,7 @@ import {
 } from '../domain/job/job.js';
 import { asksPayHistory as questionnaireAsksPayHistory } from '../domain/screening/questionnaire.js';
 import { event, forbidden, loadJob, notFound, publish, type Ctx } from './context.js';
-import type { Criterion, JobAd, JobRecord, PlannedInterview } from './ports.js';
+import type { BoardJob, Criterion, JobAd, JobRecord, PlannedInterview } from './ports.js';
 import { ownBoards } from './boards.js';
 import { defaultTemplate, generalSettings } from './setup.js';
 
@@ -363,6 +363,23 @@ const SELF: ReadonlySet<PublicationTarget> = new Set([
 
 const boardsOf = (ctx: Ctx) => ctx.deps.boards ?? ownBoards(ctx.deps.jobsOrigin);
 
+/** What a board is sent: the page's address and content, the company's contact, and its own id. */
+async function boardJob(ctx: Ctx, job: JobRecord, target?: PublicationTarget): Promise<BoardJob> {
+  const settings = await generalSettings(ctx);
+  const pages = await pagesFor(ctx, job, await ctx.tx.jobs.targets(job.id));
+  const ref =
+    target === undefined ? null : await ctx.tx.settings.get(`board-ref:${target}:${job.id}`);
+  return {
+    jobId: job.id,
+    company: settings.companySlug,
+    slug: job.slug,
+    url: `${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}`,
+    page: pages[0]?.page ?? null,
+    contactEmail: settings.replyAddress,
+    ref: typeof ref === 'string' ? ref : null,
+  };
+}
+
 export async function publishTo(
   ctx: Ctx,
   jobId: string,
@@ -388,18 +405,14 @@ export async function publishTo(
     if (!live.ok) return live;
     listing = { ...live.value, url: live.value.url === '' ? null : live.value.url };
   } else if (board !== undefined) {
-    const company = (await generalSettings(ctx)).companySlug;
-    const sent = await board.publish({
-      jobId,
-      company,
-      slug: job.slug,
-      url: `${ctx.deps.jobsOrigin}/${company}/${job.slug}`,
-    });
+    const sent = await board.publish(await boardJob(ctx, job));
     const moved = sent.ok
       ? moveTarget(listing, 'live', ctx.at, { url: sent.value.url ?? '' })
       : moveTarget(listing, 'failed', ctx.at, { error: sent.error.message });
     if (!moved.ok) return moved;
     listing = { ...moved.value, url: moved.value.url === '' ? null : moved.value.url };
+    if (sent.ok && sent.value.ref !== undefined)
+      await ctx.tx.settings.set(`board-ref:${target}:${jobId}`, sent.value.ref);
   }
   await ctx.tx.jobs.saveTarget(jobId, listing);
   if (listing.state === 'live') {
@@ -426,17 +439,10 @@ export async function unpublish(ctx: Ctx, jobId: string): Promise<Result<readonl
 
 async function takeDown(ctx: Ctx, job: JobRecord): Promise<readonly Target[]> {
   const before = await ctx.tx.jobs.targets(job.id);
-  const company = (await generalSettings(ctx)).companySlug;
   for (const t of before) {
     if (t.state !== 'live') continue;
-    await boardsOf(ctx)
-      .find((b) => b.target === t.target)
-      ?.close({
-        jobId: job.id,
-        company,
-        slug: job.slug,
-        url: `${ctx.deps.jobsOrigin}/${company}/${job.slug}`,
-      });
+    const board = boardsOf(ctx).find((b) => b.target === t.target);
+    if (board !== undefined) await board.close(await boardJob(ctx, job, t.target));
   }
   const after = unpublishAll(before);
   for (const [i, t] of after.entries()) {
@@ -471,6 +477,16 @@ export async function refreshProjection(ctx: Ctx, job: JobRecord): Promise<void>
   );
   await ctx.tx.public.removeListing(job.id);
   if (!onSite || job.state !== 'open' || job.internalOnly) return;
+  for (const { page, text } of await pagesFor(ctx, job, targets))
+    await ctx.tx.public.putListing(page, text);
+}
+
+/** The job's public page in each language its ads are in, with the text it is searched by. */
+export async function pagesFor(
+  ctx: Ctx,
+  job: JobRecord,
+  targets: readonly Target[],
+): Promise<{ page: PublicJob; text: string }[]> {
   const settings = await generalSettings(ctx);
   const searchable =
     settings.searchable &&
@@ -500,6 +516,7 @@ export async function refreshProjection(ctx: Ctx, job: JobRecord): Promise<void>
     locationId: null,
   };
   const nyc = places.some((p) => p.country === 'US' && p.region === 'NYC') && settings.ai.matrix;
+  const out: { page: PublicJob; text: string }[] = [];
   for (const ad of ads) {
     const page: PublicJob = {
       jobId: job.id as PublicJob['jobId'],
@@ -545,11 +562,12 @@ export async function refreshProjection(ctx: Ctx, job: JobRecord): Promise<void>
       nycNotice: nyc,
       closed: false,
     };
-    await ctx.tx.public.putListing(
+    out.push({
       page,
-      [ad.title, settings.companyName, job.department ?? '', ad.plain].join('\n'),
-    );
+      text: [ad.title, settings.companyName, job.department ?? '', ad.plain].join('\n'),
+    });
   }
+  return out;
 }
 
 /** Every job the viewer is on the team of; all for an administrator. */

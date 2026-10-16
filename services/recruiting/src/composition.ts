@@ -20,6 +20,8 @@ import {
 } from './infrastructure/fake-providers.js';
 import { domainsFrom } from './infrastructure/vercel-domains.js';
 import { connectionsFrom } from './infrastructure/calendars.js';
+import { indeedFrom } from './infrastructure/indeed.js';
+import { ownBoards } from './application/boards.js';
 import { mailerFrom } from './infrastructure/messaging.js';
 import { listingsFrom } from './infrastructure/listings.js';
 import { extract } from './infrastructure/text.js';
@@ -74,6 +76,8 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   // Stand-ins until a company chooses a provider; never in production.
   const fakes = env['RECRUITING_FAKE_PROVIDERS'] === '1' && env['NODE_ENV'] !== 'production';
   const domains = domainsFrom(env) ?? (fakes ? fakeDomains() : undefined);
+  const jobsOrigin = env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com';
+  const indeed = indeedFrom(env);
   const configured = connectionsFrom(env);
   const connections = configured.length === 0 && fakes ? fakeConnections() : configured;
   const inboundDomain = env['INBOUND_DOMAIN'];
@@ -82,7 +86,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
     {
       uow,
       blobs: blobsFrom(env),
-      jobsOrigin: env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com',
+      jobsOrigin,
       extractText: extract,
       callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
       ...(mailer === undefined ? {} : { mailer }),
@@ -91,6 +95,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(sealer === undefined ? {} : { sealer }),
       ...(domains === undefined ? {} : { domains }),
       ...(connections.length === 0 ? {} : { connections }),
+      ...(indeed === undefined ? {} : { boards: [...ownBoards(jobsOrigin), indeed] }),
       ...(fakes
         ? { assessmentProvider: fakeAssessments(), backgroundChecks: fakeBackgroundChecks() }
         : {}),

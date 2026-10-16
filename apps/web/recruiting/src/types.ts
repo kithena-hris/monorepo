@@ -197,6 +197,8 @@ export interface JobData {
     readonly checks: readonly AdCheck[];
   }[];
   readonly targets: readonly Target[];
+  /** Boards Recruiting has an adapter for here, beyond its own pages. */
+  readonly boards: readonly string[];
   readonly criteria: readonly {
     readonly id: string;
     readonly text: string;

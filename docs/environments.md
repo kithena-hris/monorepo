@@ -1406,6 +1406,19 @@ until its setting exists. In this order:
    Slack has no call a candidate can join, so it has no adapter here; posting
    an interview's call to its interviewers is a chat-app job (REC-137).
 
+   Indeed (REC-131, REC-132) is off until the partner agreement is signed.
+   Then, from Indeed's Partner Console, put in `RECRUITING_ENV`:
+   `INDEED_CLIENT_ID` and `INDEED_CLIENT_SECRET` (Job Sync and disposition
+   sync, client credentials) and `INDEED_APPLY_SECRET` (what Indeed Apply
+   signs each application with). Indeed Apply posts to
+   `https://api.kithena.com/v1/recruiting/public/indeed-apply`
+   (`INDEED_APPLY_POST_URL` overrides it), under the tunnel's public rule.
+   With all three set, Indeed shows as a target on a job (after its careers
+   page, whose URL Indeed checks) and Glassdoor lists what Indeed receives.
+   The adapter was written from Indeed's public docs; check the Apply payload
+   and the expire and disposition mutations against Indeed's sandbox before
+   the production client goes in.
+
    AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
    `ASSISTANT_MODEL`. The deploy writes the assistant's own `ASSISTANT_API_KEY`
    into `recruiting.env`, as it does for Documents; the other two, if set, go

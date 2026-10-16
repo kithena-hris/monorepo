@@ -233,6 +233,7 @@ const job: JobData = {
     },
   ],
   targets: [],
+  boards: [],
   criteria: [],
   plan: [],
   counts: { total: 0, active: 0, newThisWeek: 0, byStage: [] },

@@ -9,6 +9,7 @@ import {
 import type { CalendarDate, Instant } from '@kithena/contracts';
 
 import type { JobFacts, Viewer } from '../domain/access/access.js';
+import { tellBoards } from './board-dispositions.js';
 import type { Caller, Deps, JobRecord, Member, Tx } from './ports.js';
 
 /**
@@ -94,8 +95,10 @@ export function event(
   };
 }
 
-export const publish = (ctx: Ctx, ...events: PendingEvent[]): Promise<void> =>
-  ctx.tx.outbox.publish(events);
+export const publish = async (ctx: Ctx, ...events: PendingEvent[]): Promise<void> => {
+  await ctx.tx.outbox.publish(events);
+  await tellBoards(ctx, events);
+};
 
 export const notFound = (what = 'that'): DomainFailure => failure('NOT_FOUND', `No such ${what}`);
 export const forbidden = (message = 'You cannot do this'): DomainFailure =>

@@ -94,7 +94,7 @@ const TARGETS: readonly {
   {
     key: 'indeed',
     label: 'Indeed',
-    what: 'Needs Indeed’s partner agreement; Glassdoor lists jobs from Indeed',
+    what: 'Glassdoor lists jobs from Indeed; needs the careers page first',
     available: false,
   },
   {
@@ -1135,6 +1135,7 @@ function Publishing({
             <TableBody>
               {TARGETS.map((t) => {
                 const held = data.targets.find((x) => x.target === t.key);
+                const available = t.available || data.boards.includes(t.key);
                 return (
                   <TableRow key={t.key}>
                     <TableCell>
@@ -1147,13 +1148,13 @@ function Publishing({
                     </TableCell>
                     <TableCell>
                       {held === undefined ? (
-                        <Badge size="sm">{t.available ? 'Not published' : 'Not available'}</Badge>
+                        <Badge size="sm">{available ? 'Not published' : 'Not available'}</Badge>
                       ) : (
                         <StateBadge state={held.state} />
                       )}
                     </TableCell>
                     <TableCell>
-                      {t.available &&
+                      {available &&
                       (held === undefined ||
                         held.state === 'expired' ||
                         held.state === 'failed') ? (

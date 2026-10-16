@@ -11,6 +11,7 @@ import type {
   PublicJob,
   PublicListing,
   PublicationTarget,
+  StageCategory,
 } from '@kithena/contracts';
 
 import type { Application, StageMove } from '../domain/pipeline/application.js';
@@ -465,12 +466,41 @@ export interface Assessment {
  * A job board (PRD §26.1): one adapter per board behind one port. Publishing
  * twice updates; closing takes the job down. Google for Jobs and the XML feed
  * are the first two, and read the job from Kithena Jobs' own page and feed;
- * Indeed is the next, once its agreement is signed.
+ * Indeed sends the job by API, takes applications in its own apply and hears
+ * back where each went.
  */
 export interface JobBoard {
   readonly target: PublicationTarget;
-  publish(job: BoardJob): Promise<Result<{ readonly url: string | null }>>;
+  /** `ref` is the board's own id for the posting, kept to close it. */
+  publish(job: BoardJob): Promise<Result<{ readonly url: string | null; readonly ref?: string }>>;
   close(job: BoardJob): Promise<void>;
+  /** Applications the board's own apply posts to Recruiting, signed. */
+  readonly inbound?: {
+    verify(raw: string, signature: string): boolean;
+    parse(raw: string): Result<BoardApplication>;
+  };
+  /** Tells the board where an application it sent has got to. */
+  disposition?(input: {
+    readonly ref: string;
+    readonly status: StageCategory | 'rejected' | 'withdrawn';
+    readonly at: string;
+  }): Promise<Result<void>>;
+}
+
+/** An application as a board's apply sent it, mapped at the adapter (PRD §11.1). */
+export interface BoardApplication {
+  readonly jobId: string;
+  /** The board's id for it, for dispositions. */
+  readonly ref: string;
+  readonly name: string;
+  readonly email: string;
+  readonly phone: string | null;
+  readonly files: readonly {
+    readonly field: string;
+    readonly fileName: string;
+    readonly mediaType: string;
+    readonly bytes: Uint8Array;
+  }[];
 }
 
 /** A third-party assessment (PRD §15.3): the result is a score and a report on the application. */
@@ -505,6 +535,12 @@ export interface BoardJob {
   readonly slug: string;
   /** Kithena Jobs' page for the job, which a board must link to (Indeed checks it). */
   readonly url: string;
+  /** What that page shows, for a board that takes the ad itself; null for one that reads the page. */
+  readonly page: PublicJob | null;
+  /** The address a board may show for the company: its reply address. */
+  readonly contactEmail: string | null;
+  /** The board's id from publishing, when it gave one. */
+  readonly ref: string | null;
 }
 
 export interface Sealer {
