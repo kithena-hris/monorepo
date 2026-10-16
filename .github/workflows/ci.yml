@@ -249,6 +249,30 @@ jobs:
           fi
           echo "migration ledger matches the directory"
 
+  # A pull request can restore only its own caches and main's, and `verify`
+  # skips on main when the pull request proved the tree, so main would never
+  # save the lint stamps and every pull request would lint everything. The
+  # tree passed lint in its pull request; stamp every part of it, under main.
+  lint-stamps:
+    needs: changes
+    if: github.event_name == 'push' && needs.changes.outputs.matched == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: lint stamps
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/lint-stamps
+          key: lint-stamps-${{ github.sha }}
+          restore-keys: lint-stamps-
+      - name: stamp every part
+        env:
+          LINT_STAMPS: .cache/lint-stamps
+          LINT_STAMP_ONLY: '1'
+        run: node tools/lint/eslint-in-parts.mjs
+
   contracts:
     needs: changes
     # Skipped when nothing it covers changed: a skipped job satisfies the
