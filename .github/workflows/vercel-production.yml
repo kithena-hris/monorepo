@@ -1,12 +1,11 @@
 name: vercel-production
 
-# Production deploys, and only after `ci` has gone green on the same commit.
-#
-# A separate workflow cannot use `needs:`, so the dependency is expressed with
-# `workflow_run` plus an explicit conclusion check. On `push` this would deploy
-# whatever landed on main regardless of whether the axe pass, the contrast gate
-# or the tests failed — publishing the build the gates just rejected, which is
-# the one outcome they exist to prevent.
+# Production deploys, started by hand only (`gh workflow run
+# vercel-production.yml`, or the checkbox form in `deploy-production.yml`),
+# and only of a main commit `ci` has passed: a merge deploys nothing. Merges
+# each spent a dozen of Hobby's 100 deployments a day and production ran out
+# twice in two days (2026-10-16, 2026-10-17); a deploy now ships everything
+# merged since the last one, once.
 #
 # Only what changed ships. The Hobby plan allows 100 deployments a day, and
 # eight projects a merge spent that before the day was out. `plan` diffs this
@@ -35,15 +34,7 @@ name: vercel-production
 # undoes everything this run deployed. Before 2026-10-02 all of this was one
 # job, 6.5 minutes for a web change and 14 with the VM.
 on:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
-    branches: [main]
-  # The Reach sites (docs and both Storybooks) wait for this, or for a deploy
-  # that names them, rather than going out on every merge: see `--defer`.
-  schedule:
-    - cron: '43 6 * * 1'
-  # For what git cannot see: a secret or a variable changed, or a deploy
+  # Also for what git cannot see: a secret or a variable changed, or a deploy
   # needs repeating. `gh workflow run vercel-production.yml -f targets=identity,messaging`.
   # Runs on main only, and ships these on top of whatever changed.
   workflow_dispatch:
@@ -65,6 +56,8 @@ on:
 
 permissions:
   contents: read
+  # To read whether `ci` passed on the commit.
+  actions: read
   pull-requests: write
 
 env:
@@ -76,8 +69,8 @@ env:
   # was published minutes ago the ability to deploy. Dependabot does not
   # watch an npx invocation, so this is bumped deliberately.
   VERCEL_CLI_VERSION: 59.3.0
-  # The commit `ci` tested, or main's tip for a manual run.
-  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  # Main's tip when the run was started.
+  DEPLOY_SHA: ${{ github.sha }}
 
 concurrency:
   group: vercel-production
@@ -92,10 +85,7 @@ jobs:
   # `images`, the VM images to build as a JSON list for the matrix below.
   plan:
     name: what changed
-    if: >
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      github.event_name == 'schedule'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -135,6 +125,17 @@ jobs:
             echo "::error::missing production secret: VERCEL_TOKEN"
             exit 1
           fi
+      # Never the build the gates rejected: `ci` must have passed on this commit.
+      - name: check ci passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci --commit "$DEPLOY_SHA" \
+            --json conclusion -q '[.[] | select(.conclusion == "success")] | length')
+          if [ "$passed" = 0 ]; then
+            echo "::error::ci has not passed on $DEPLOY_SHA; wait for it, or fix main first"
+            exit 1
+          fi
       # Full history: the diff reaches back to each target's last deploy.
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -157,15 +158,9 @@ jobs:
         env:
           FORCE: ${{ inputs.targets }}
           ONLY: ${{ inputs.only }}
-          EVENT: ${{ github.event_name }}
         run: |
           args=(--env production --head "$DEPLOY_SHA" --force "$FORCE")
           [ "$ONLY" = true ] && args+=(--only)
-          # A merge deploys what it changed except the Reach sites, which a
-          # design-system change reaches all of: Hobby's 100 deployments a day
-          # ran out twice in a week. They go out every Monday (the schedule
-          # above) and whenever a deploy names them.
-          [ "$EVENT" = workflow_run ] && args+=(--defer docs,storybook,storybook-mobile)
           pnpm exec tsx tools/scripts/src/affected-targets.ts "${args[@]}"
       - name: images to build
         id: images

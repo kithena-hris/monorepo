@@ -36,14 +36,15 @@ PR opened / pushed
    └─ ci (14 checks) ──green──▶ migrate staging ──▶ deploy ──▶ smoke test
                                                               └─ url on the PR
 merge to main
-   └─ ci (14 checks) ──green──▶ approval ──▶ migrate production ──▶ deploy
-                                                              └─ smoke test
-                                                                 └─ fails? roll back
+   └─ ci (14 checks)
+started by hand, from main
+   └─ ci passed on it? ──▶ migrate production ──▶ deploy
+                                              └─ smoke test
+                                                 └─ fails? roll back
 ```
 
-Both halves trigger on `workflow_run` after `ci` and refuse anything whose
-conclusion is not `success`. A separate workflow cannot use `needs:`, and
-without that guard either would deploy a commit whose tests failed.
+A production deploy is started by hand and refuses a commit `ci` has not
+passed, so the build the gates rejected is never published.
 
 ### A merge is not tested twice
 
@@ -70,8 +71,8 @@ skips what is already proven:
    that guessed wrong. The design system is not in `ci` at all: its own
    workflow, `design-system.yml`, starts only when a file it renders changed,
    never on main, and in full every Monday and by hand. The required checks still
-   report green, `ci` concludes `success`, and `vercel-production` starts as it
-   always has; its gate, plan, smoke tests and rollback are untouched. The
+   report green and `ci` concludes `success`, which is what a production
+   deploy started afterwards checks for. The
    `changes` job's summary says which tree, which pull request and which run.
 
 Anything short of a proven match runs the full suite: a direct push (no pull
@@ -100,20 +101,15 @@ leaves a window where new code reads columns that do not exist yet.
 
 ## What a deploy ships
 
-Only what changed. Vercel Hobby allows 100 deployments a day across every
-project, and shipping all eight on every merge, every staged pull request
-push and every preview spent that before the day was out.
+Only what changed since each target last shipped, and only when somebody
+starts it. Vercel Hobby allows 100 deployments a day across every project; a
+merge used to deploy its affected targets, about a dozen each, and production
+ran out on 2026-10-16 and again on 2026-10-17. Now merges deploy nothing, and
+one deploy ships everything merged since the last, once:
+`gh workflow run vercel-production.yml` (the Reach sites included, when they
+changed), or the checkbox form below.
 
-**The Reach sites wait for Monday.** `docs`, `storybook` and
-`storybook-mobile` are left out of the deploy a merge triggers (`--defer`):
-a design-system change reaches every one of them, and on a busy day that
-spent the 100 before the shell's own deploy, twice in a week. They go out in
-the scheduled run every Monday at 06:43 UTC, which deploys whatever changed
-since each target last shipped, or straight away with
-`gh workflow run vercel-production.yml -f targets=docs,storybook`.
-
-**Nothing deploys from a pull request while on Hobby.** Production ships the
-affected targets after a merge to `main`, and that is the only automatic deploy:
+**Nothing deploys automatically while on Hobby:**
 
 - `vercel-preview` runs only on a pull request labelled `preview`: adding the
   label and every push after it deploy the apps that push affected.
@@ -123,14 +119,15 @@ affected targets after a merge to `main`, and that is the only automatic deploy:
   repository (`apps/admin/vercel.json`, `git.deploymentEnabled: false`); the
   workflows deploy through the CLI, which that setting does not affect.
 
-Restore the automatic triggers when the projects move off Hobby.
+Restore the automatic triggers (`workflow_run` after `ci` on `main`) when the
+projects move off Hobby.
 
 **Deploying by hand.** Actions → "deploy to production" → Run workflow, from
 `main`. Tick "Everything" or any of People (service, screens, router and
 migrations), Tenant app, Back office, Identity (and the sign-in pages),
 Messaging, and Reach docs and Storybook. It deploys exactly what is ticked;
 "Also deploy anything else that changed" adds what differs from production.
-It runs the same jobs as the deploy after a merge (`vercel-production.yml`,
+It runs the same jobs as `gh workflow run vercel-production.yml` (`vercel-production.yml`,
 called with `only`), so migrations, smoke tests, rollbacks and the
 `deployed/production/*` markers behave the same.
 
