@@ -140,7 +140,9 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
+// Only the kiosk's own pages may ask for a flush.
 self.addEventListener('message', (event) => {
+  if (event.origin !== self.location.origin) return;
   if (event.data === 'flush') event.waitUntil(serial(flush));
 });
 
