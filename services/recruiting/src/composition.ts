@@ -19,7 +19,7 @@ import {
   fakeDomains,
 } from './infrastructure/fake-providers.js';
 import { domainsFrom } from './infrastructure/vercel-domains.js';
-import { connectionsFrom } from './infrastructure/calendars.js';
+import { connectionsFrom, workspaceGoogle } from './infrastructure/calendars.js';
 import { indeedFrom } from './infrastructure/indeed.js';
 import { ownBoards } from './application/boards.js';
 import { mailerFrom } from './infrastructure/messaging.js';
@@ -79,6 +79,8 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   const jobsOrigin = env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com';
   const indeed = indeedFrom(env);
   const configured = connectionsFrom(env);
+  const serviceAccount = env['GOOGLE_SERVICE_ACCOUNT'];
+  const workspaceCalendar = serviceAccount ? workspaceGoogle(serviceAccount) : undefined;
   const connections = configured.length === 0 && fakes ? fakeConnections() : configured;
   const inboundDomain = env['INBOUND_DOMAIN'];
   const messagingToken = env['MESSAGING_RECRUITING_TOKEN'];
@@ -95,6 +97,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(sealer === undefined ? {} : { sealer }),
       ...(domains === undefined ? {} : { domains }),
       ...(connections.length === 0 ? {} : { connections }),
+      ...(workspaceCalendar === undefined ? {} : { workspaceCalendar }),
       ...(indeed === undefined ? {} : { boards: [...ownBoards(jobsOrigin), indeed] }),
       ...(fakes
         ? { assessmentProvider: fakeAssessments(), backgroundChecks: fakeBackgroundChecks() }

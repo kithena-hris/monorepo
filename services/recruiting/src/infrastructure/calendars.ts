@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createSign, randomUUID } from 'node:crypto';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
@@ -95,10 +95,85 @@ async function tokens(
 const end = (e: CalendarEvent) =>
   new Date(Date.parse(e.startsAt) + e.minutes * 60_000).toISOString();
 
-const GOOGLE_SCOPES =
-  'https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.events';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token';
 const GOOGLE_EVENTS = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+
+/** Google Calendar under an access token, however it was got: by OAuth or by delegation. */
+function googleSession(token: string, grant: string): CalendarSession {
+  const kind = 'google';
+  return {
+    grant,
+    async busy(from, to) {
+      // The events themselves, not free/busy: `calendar.events` reads them, so a
+      // Workspace that delegated that scope for Time Off needs nothing more.
+      const answer = await send(
+        `${GOOGLE_EVENTS}?${new URLSearchParams({
+          timeMin: from,
+          timeMax: to,
+          singleEvents: 'true',
+          maxResults: '2500',
+          fields: 'items(start,end,transparency,status)',
+        }).toString()}`,
+        { token },
+      );
+      if (answer.status !== 200) return unavailable(kind, answer.status);
+      const items = (answer.body['items'] ?? []) as {
+        start?: { dateTime?: string };
+        end?: { dateTime?: string };
+        transparency?: string;
+        status?: string;
+      }[];
+      return ok(
+        items.flatMap((e) =>
+          e.status === 'cancelled' ||
+          e.transparency === 'transparent' ||
+          e.start?.dateTime === undefined ||
+          e.end?.dateTime === undefined
+            ? []
+            : [[e.start.dateTime, e.end.dateTime] as const],
+        ),
+      );
+    },
+    async create(event) {
+      const answer = await send(`${GOOGLE_EVENTS}?conferenceDataVersion=1&sendUpdates=all`, {
+        token,
+        json: {
+          summary: event.title,
+          description: event.description,
+          ...(event.location === null ? {} : { location: event.location }),
+          start: { dateTime: event.startsAt },
+          end: { dateTime: end(event) },
+          attendees: event.attendees.map((email) => ({ email })),
+          ...(event.video
+            ? {
+                conferenceData: {
+                  createRequest: {
+                    requestId: randomUUID(),
+                    conferenceSolutionKey: { type: 'hangoutsMeet' },
+                  },
+                },
+              }
+            : {}),
+        },
+      });
+      const id = answer.body['id'];
+      if (answer.status !== 200 || typeof id !== 'string') return unavailable(kind, answer.status);
+      const meet = answer.body['hangoutLink'];
+      return ok({ eventId: id, videoUrl: typeof meet === 'string' ? meet : null });
+    },
+    async cancel(eventId) {
+      const answer = await send(`${GOOGLE_EVENTS}/${encodeURIComponent(eventId)}?sendUpdates=all`, {
+        token,
+        method: 'DELETE',
+      });
+      // Already gone is what cancelling wanted.
+      return [200, 204, 404, 410].includes(answer.status)
+        ? ok(undefined)
+        : unavailable(kind, answer.status);
+    },
+  };
+}
 
 export function googleCalendar(client: Client): CalendarProvider {
   const kind = 'google';
@@ -124,59 +199,55 @@ export function googleCalendar(client: Client): CalendarProvider {
       const got = await tokens(kind, GOOGLE_TOKEN, client, { refreshToken: grant });
       if (!got.ok) return got;
       const token = got.value.access;
-      const session: CalendarSession = {
-        grant: got.value.refresh ?? grant,
-        async busy(from, to) {
-          const answer = await send('https://www.googleapis.com/calendar/v3/freeBusy', {
-            token,
-            json: { timeMin: from, timeMax: to, items: [{ id: 'primary' }] },
-          });
-          if (answer.status !== 200) return unavailable(kind, answer.status);
-          const calendars = answer.body['calendars'] as
-            { primary?: { busy?: { start: string; end: string }[] } } | undefined;
-          return ok((calendars?.primary?.busy ?? []).map((b) => [b.start, b.end] as const));
-        },
-        async create(event) {
-          const answer = await send(`${GOOGLE_EVENTS}?conferenceDataVersion=1&sendUpdates=all`, {
-            token,
-            json: {
-              summary: event.title,
-              description: event.description,
-              ...(event.location === null ? {} : { location: event.location }),
-              start: { dateTime: event.startsAt },
-              end: { dateTime: end(event) },
-              attendees: event.attendees.map((email) => ({ email })),
-              ...(event.video
-                ? {
-                    conferenceData: {
-                      createRequest: {
-                        requestId: randomUUID(),
-                        conferenceSolutionKey: { type: 'hangoutsMeet' },
-                      },
-                    },
-                  }
-                : {}),
-            },
-          });
-          const id = answer.body['id'];
-          if (answer.status !== 200 || typeof id !== 'string')
-            return unavailable(kind, answer.status);
-          const meet = answer.body['hangoutLink'];
-          return ok({ eventId: id, videoUrl: typeof meet === 'string' ? meet : null });
-        },
-        async cancel(eventId) {
-          const answer = await send(
-            `${GOOGLE_EVENTS}/${encodeURIComponent(eventId)}?sendUpdates=all`,
-            { token, method: 'DELETE' },
-          );
-          // Already gone is what cancelling wanted.
-          return [200, 204, 404, 410].includes(answer.status)
-            ? ok(undefined)
-            : unavailable(kind, answer.status);
-        },
-      };
-      return ok(session);
+      return ok(googleSession(token, got.value.refresh ?? grant));
     },
+  };
+}
+
+/**
+ * Google Workspace by domain-wide delegation: Kithena's service account acts
+ * as the member, once the company's Workspace administrator has allowed it
+ * `calendar.events`. The same account and scope as Time Off's calendar
+ * (TOF-110), so a company that allowed it there has nothing to connect here.
+ * Null when the member's address is not in a Workspace that allowed it.
+ */
+export function workspaceGoogle(
+  serviceAccountJson: string,
+): (email: string) => Promise<CalendarSession | null> {
+  const account = JSON.parse(serviceAccountJson) as { client_email: string; private_key: string };
+  const b64url = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  // ponytail: one process's cache, an hour each, as Time Off's.
+  const held = new Map<string, { token: string; until: number }>();
+  return async (email) => {
+    const kept = held.get(email);
+    if (kept !== undefined && kept.until > Date.now() + 60_000)
+      return googleSession(kept.token, '');
+    const iat = Math.floor(Date.now() / 1000);
+    const unsigned = `${b64url({ alg: 'RS256', typ: 'JWT' })}.${b64url({
+      iss: account.client_email,
+      sub: email,
+      scope: GOOGLE_SCOPES,
+      aud: GOOGLE_TOKEN,
+      iat,
+      exp: iat + 3600,
+    })}`;
+    const signature = createSign('RSA-SHA256')
+      .update(unsigned)
+      .sign(account.private_key, 'base64url');
+    const answer = await send(GOOGLE_TOKEN, {
+      form: {
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: `${unsigned}.${signature}`,
+      },
+    });
+    const token = answer.body['access_token'];
+    const lasts = answer.body['expires_in'];
+    if (answer.status !== 200 || typeof token !== 'string') return null;
+    held.set(email, {
+      token,
+      until: Date.now() + (typeof lasts === 'number' ? lasts : 3600) * 1000,
+    });
+    return googleSession(token, '');
   };
 }
 

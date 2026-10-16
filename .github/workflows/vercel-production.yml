@@ -917,6 +917,12 @@ jobs:
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_RECRUITING_TOKEN=%s\n' "$MESSAGING_RECRUITING_TOKEN"
               if [ -n "$INBOUND_DOMAIN" ]; then printf 'INBOUND_DOMAIN=%s\n' "$INBOUND_DOMAIN"; fi
             fi
+            # Google Workspace calendars by delegation (REC-135): Time Off's
+            # service account and scope, so a company that allowed it there
+            # has its interviewers' calendars here too.
+            if [ -n "$TIMEOFF_GOOGLE_SERVICE_ACCOUNT" ]; then
+              printf 'GOOGLE_SERVICE_ACCOUNT=%s\n' "$TIMEOFF_GOOGLE_SERVICE_ACCOUNT"
+            fi
             if [ -n "$VERCEL_DOMAINS_TOKEN" ] && [ -n "$JOBS_VERCEL_PROJECT_ID" ]; then
               printf 'VERCEL_DOMAINS_TOKEN=%s\nJOBS_VERCEL_PROJECT_ID=%s\nVERCEL_TEAM_ID=%s\n' "$VERCEL_DOMAINS_TOKEN" "$JOBS_VERCEL_PROJECT_ID" "$VERCEL_ORG_ID"
             fi
