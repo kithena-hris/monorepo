@@ -74,7 +74,12 @@ function screenerQuestion(q: Question): Record<string, unknown> {
   }
 }
 
-export const screenerQuestions = (questionnaire: Questionnaire) => ({
+export const screenerQuestions = (
+  questionnaire: Questionnaire,
+): {
+  schemaVersion: string;
+  screenerQuestions: { questions: Record<string, unknown>[] };
+} => ({
   schemaVersion: '1.3',
   screenerQuestions: { questions: questionnaire.questions.map(screenerQuestion) },
 });
