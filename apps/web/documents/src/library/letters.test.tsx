@@ -31,7 +31,9 @@ describe('letters from a template (G3)', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Write to Adam Novak' }));
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
     expect(await screen.findByText('Dear Adam, from 1 November…')).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate 1' }));
+    // The dialog's next step renders after the preview settles; a loaded CI
+    // runner took longer than findBy's default second (it failed twice there).
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate 1' }, { timeout: 5000 }));
     await vi.waitFor(() => {
       expect(onGenerateLetters).toHaveBeenCalledWith('t-1', 'Promotion letter', ['p-adam'], false);
     });
