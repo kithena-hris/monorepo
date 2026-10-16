@@ -216,6 +216,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly domains?: Deps['domains'];
   readonly connections?: Deps['connections'];
   readonly boards?: Deps['boards'];
+  readonly workspaceCalendar?: Deps['workspaceCalendar'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -245,6 +246,9 @@ export function recruitingServer(
     ...(options.domains === undefined ? {} : { domains: options.domains }),
     ...(options.connections === undefined ? {} : { connections: options.connections }),
     ...(options.boards === undefined ? {} : { boards: options.boards }),
+    ...(options.workspaceCalendar === undefined
+      ? {}
+      : { workspaceCalendar: options.workspaceCalendar }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

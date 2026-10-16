@@ -959,6 +959,11 @@ export interface Deps {
   readonly domains?: DomainHost;
   /** The calendars and video members may connect; none, scheduling uses working hours and an `.ics`. */
   readonly connections?: readonly Connection[];
+  /**
+   * A member's Google Workspace calendar by delegation, without connecting it:
+   * null when their company's Workspace has not allowed Kithena.
+   */
+  readonly workspaceCalendar?: (email: string) => Promise<CalendarSession | null>;
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */

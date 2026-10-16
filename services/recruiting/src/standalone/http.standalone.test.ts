@@ -165,7 +165,11 @@ describe('a member’s calendar and Zoom (REC-135)', () => {
       fetch(`${base}/v1/recruiting/me/connections`, { headers: headers() }).then(
         (r) => r.json() as Promise<{ connected: string[]; offered: string[] }>,
       );
-    expect(await connections()).toEqual({ connected: [], offered: ['google', 'zoom'] });
+    expect(await connections()).toEqual({
+      connected: [],
+      offered: ['google', 'zoom'],
+      workspace: false,
+    });
 
     const back = 'https://acme.app.kithena.com/recruiting/interviews';
     const elsewhere = await fetch(`${base}/v1/recruiting/me/connections/zoom`, {

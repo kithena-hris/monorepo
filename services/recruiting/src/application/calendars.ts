@@ -15,7 +15,8 @@ import { generalSettings } from './setup.js';
 
 /**
  * A member's own calendar and video (PRD §26.2, REC-135): connected by OAuth,
- * each grant sealed and bound to the member. Scheduling then takes busy times
+ * each grant sealed and bound to the member, or, for Google Workspace, used by
+ * delegation where the company has allowed Kithena (as Time Off does). Scheduling then takes busy times
  * from the calendar and puts the interview on it, with a Zoom link when the
  * member has Zoom, else Meet or Teams; without either, working hours and an
  * `.ics` as before. A provider that does not answer never stops a booking:
@@ -43,14 +44,21 @@ const provider = (ctx: Ctx, kind: ConnectionKind): Connection | undefined =>
   ctx.deps.connections?.find((c) => c.kind === kind);
 
 /** What the working-hours card shows: what is connected, and what could be. */
-export async function myConnections(
-  ctx: Ctx,
-): Promise<{ connected: readonly ConnectionKind[]; offered: readonly ConnectionKind[] }> {
+export async function myConnections(ctx: Ctx): Promise<{
+  connected: readonly ConnectionKind[];
+  offered: readonly ConnectionKind[];
+  /** Google Workspace calendars are used without connecting, where the company allowed it. */
+  workspace: boolean;
+}> {
   const offered = (ctx.deps.connections ?? []).map((c) => c.kind);
   const person = ctx.viewer.personId;
   const links =
     person === null || offered.length === 0 ? [] : await ctx.tx.connections.list(person);
-  return { connected: links.map((l) => l.kind), offered };
+  return {
+    connected: links.map((l) => l.kind),
+    offered,
+    workspace: ctx.deps.workspaceCalendar !== undefined,
+  };
 }
 
 /** The provider's consent page, with a state that names the company and expires in ten minutes. */
@@ -127,12 +135,19 @@ async function sessionOf(
   want: 'calendar' | 'video',
 ): Promise<CalendarSession | VideoSession | null> {
   const sealer = ctx.deps.sealer;
-  if (sealer === undefined || (ctx.deps.connections ?? []).length === 0) return null;
-  const link = (await ctx.tx.connections.list(personId)).find(
-    (l) => isCalendar(l.kind) === (want === 'calendar'),
-  );
+  const links =
+    sealer === undefined || (ctx.deps.connections ?? []).length === 0
+      ? []
+      : await ctx.tx.connections.list(personId);
+  const link = links.find((l) => isCalendar(l.kind) === (want === 'calendar'));
   const chosen = link === undefined ? undefined : provider(ctx, link.kind);
-  if (link === undefined || chosen === undefined) return null;
+  if (link === undefined || chosen === undefined || sealer === undefined) {
+    // No calendar of their own connected: their Workspace's, when it allowed Kithena.
+    const workspace = ctx.deps.workspaceCalendar;
+    if (want !== 'calendar' || workspace === undefined) return null;
+    const email = (await ctx.tx.members.get(personId as never))?.workEmail;
+    return email ? workspace(email) : null;
+  }
   const opened = sealer.open(link.sealed, bound(personId));
   if (opened === null) return null;
   const grant = new TextDecoder().decode(opened);
@@ -174,7 +189,8 @@ export async function putOnCalendar(
   interview: InterviewRecord,
   event: Omit<CalendarEvent, 'attendees' | 'video' | 'location'>,
 ): Promise<string | null> {
-  if ((ctx.deps.connections ?? []).length === 0) return null;
+  if ((ctx.deps.connections ?? []).length === 0 && ctx.deps.workspaceCalendar === undefined)
+    return null;
   const wantsVideo = interview.videoUrl === null && interview.place === null;
   for (const organiser of interview.interviewerIds) {
     const zoom = wantsVideo ? await sessionOf(ctx, organiser, 'video') : null;

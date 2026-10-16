@@ -1387,11 +1387,17 @@ until its setting exists. In this order:
    overrides it. Each pair goes in `RECRUITING_ENV`, and an app without its
    pair is not offered:
 
-   - **Google**: a Google Cloud project, the Calendar API enabled, an OAuth
-     client of type Web application, the scopes `calendar.freebusy` and
-     `calendar.events` on the consent screen, and verification before it is
-     opened to every Workspace (both are sensitive scopes).
-     `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`.
+   - **Google**: nothing new. The deploy writes Time Off's
+     `TIMEOFF_GOOGLE_SERVICE_ACCOUNT` into `recruiting.env` as
+     `GOOGLE_SERVICE_ACCOUNT`, and Recruiting acts as each interviewer by
+     domain-wide delegation with the same `calendar.events` scope. A company
+     that allowed Kithena's service account in its Google admin console for
+     Time Off has its interviewers' calendars, Meet links included, here too,
+     with nothing to connect. Busy times are read from the events themselves,
+     so no second scope is needed. A per-member Google OAuth client
+     (`GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`) stays
+     possible for Gmail accounts outside a Workspace, and is not needed for
+     launch.
    - **Microsoft**: an Entra app registration, accounts in any organisational
      directory, a Web redirect, the delegated Graph permissions
      `Calendars.ReadWrite` and `offline_access`, and a client secret (it

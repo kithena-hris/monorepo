@@ -231,15 +231,17 @@ function Connections({
   const [state, setState] = useState<{
     connected: readonly string[];
     offered: readonly string[];
+    workspace: boolean;
   } | null>(null);
   const { call } = act;
   const load = () => {
     void call('RecruitingConnections', {}).then((done) => {
-      if (done.ok) setState(done.data as { connected: string[]; offered: string[] });
+      if (done.ok)
+        setState(done.data as { connected: string[]; offered: string[]; workspace: boolean });
     });
   };
   useEffect(load, []);
-  if (state === null || state.offered.length === 0) return null;
+  if (state === null || (state.offered.length === 0 && !state.workspace)) return null;
   return (
     <CardContent className="flex flex-col gap-3">
       <p className="text-sm text-fg-muted">
