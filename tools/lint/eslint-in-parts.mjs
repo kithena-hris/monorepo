@@ -13,6 +13,9 @@
  * are its own files, all of `packages/` (the only code another part may
  * import: modules never import each other), the lint config and the root
  * configuration. Read from git's index, so it is for a clean checkout.
+ *
+ * `LINT_STAMP_ONLY=1` stamps every part without linting, for a tree already
+ * proven to pass (`ci` on main, after its pull request linted it).
  */
 import { spawnSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -63,7 +66,7 @@ for (const part of parts) {
     continue;
   }
   console.log(`eslint ${part}`);
-  const status = eslint([part]);
+  const status = process.env['LINT_STAMP_ONLY'] === '1' ? 0 : eslint([part]);
   failed |= status;
   if (key !== null && status === 0) {
     writeFileSync(join(stamps, key), part);
