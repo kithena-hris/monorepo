@@ -12,6 +12,7 @@ import { Pressable, ScrollView, Text as CssText, View } from 'react-native-css/c
 
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
+import { hiddenOnDevice, spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import {
   Dialog,
   DialogContent,
@@ -175,7 +176,7 @@ export function SelectTrigger({
     <DialogTrigger asChild disabled={state.disabled}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={[label, chosen?.label ?? 'nothing chosen'].filter(Boolean).join(', ')}
+        {...spokenName([label, chosen?.label ?? 'nothing chosen'].filter(Boolean).join(', '))}
         {...(state.hint ? { accessibilityHint: state.hint } : {})}
         accessibilityState={{ disabled: state.disabled, expanded: false }}
         aria-invalid={state.invalid || undefined}
@@ -193,7 +194,11 @@ export function SelectTrigger({
           startAdornment={startAdornment ?? chosen?.icon}
           endAdornment={<Icon icon={ChevronsUpDown} size={18} tone="muted" />}
         >
-          <View aria-hidden>{children}</View>
+          {/* Named by its words on the web (spokenName): the label, unseen, then the value. */}
+          <View {...hiddenOnDevice}>
+            {label ? <Unseen>{label}</Unseen> : null}
+            {children}
+          </View>
         </FieldBox>
       </Pressable>
     </DialogTrigger>

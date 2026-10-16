@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
 
@@ -75,7 +76,7 @@ export function NavItem({
     <Pressable
       accessibilityRole="link"
       accessibilityState={{ selected: current, disabled }}
-      accessibilityLabel={count === undefined ? children : `${children}, ${String(count)}`}
+      {...spokenName(count === undefined ? children : `${children}, ${String(count)}`)}
       {...(current ? ({ 'aria-current': 'page' } as object) : {})}
       disabled={disabled}
       {...(onPress ? { onPress } : {})}

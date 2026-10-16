@@ -5,6 +5,7 @@ import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { cn } from '../../lib/cn.ts';
+import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Badge, type BadgeProps } from '../badge/badge.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -222,7 +223,7 @@ export function OrgChart({
 
     const row = (
       <Pressable
-        accessibilityLabel={said}
+        {...spokenName(said)}
         {...(WEB
           ? {
               role: 'treeitem' as const,
@@ -313,6 +314,7 @@ export function OrgChart({
             {node.status}
           </Badge>
         ) : null}
+        {matched ? <Unseen>match</Unseen> : null}
         {reports > 0 ? (
           <Pressable
             accessible={false}

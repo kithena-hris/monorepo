@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 
 import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import type { IconProps } from '../icon/icon.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
 
@@ -192,7 +193,12 @@ export function Button({
       ref={ref}
       {...(onLongPress ? { onLongPress } : {})}
       accessibilityRole={href ? 'link' : 'button'}
-      accessibilityLabel={accessibilityLabel ?? children}
+      // With words on it, named by them on the web (spokenName); icon-only, by the label.
+      {...(children
+        ? spokenName(accessibilityLabel ?? children)
+        : accessibilityLabel
+          ? { accessibilityLabel }
+          : {})}
       accessibilityState={{ disabled: inert, busy: loading }}
       aria-busy={loading || undefined}
       {...(loading ? { accessibilityHint: loadingLabel } : {})}

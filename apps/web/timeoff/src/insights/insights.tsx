@@ -198,7 +198,7 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
                         <Button asChild size="xs" variant="ghost">
                           <a
                             href={`/time-off/insights/what-changed?point=${p.kind}`}
-                            aria-label={`See ${people(p.personIds.length)}: ${BEHIND[p.kind]}`}
+                            aria-label={`See the ${String(p.personIds.length)}: ${BEHIND[p.kind]}`}
                           >
                             {`See the ${String(p.personIds.length)}`}
                           </a>

@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePulse } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { usePresence } from '../../lib/overlay.tsx';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
 import { ChatMessage } from '../chat/chat.tsx';
@@ -289,7 +290,7 @@ export function AssistantSource({
   return (
     <Pressable
       accessibilityRole={onPress ? 'link' : 'text'}
-      accessibilityLabel={`Source ${String(index)}: ${children}`}
+      {...spokenName(`Source ${String(index)}: ${children}`)}
       hitSlop={{ top: 9, bottom: 9 }}
       {...(onPress ? { onPress } : {})}
       className="h-[26px] flex-row items-center gap-1.5 rounded-full bg-surface-sunken pl-1 pr-2.5"

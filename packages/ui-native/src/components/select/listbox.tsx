@@ -4,6 +4,7 @@ import { Pressable, Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
+import { hiddenOnDevice, spokenName } from '../../lib/spoken-name.tsx';
 import { CheckboxBox } from '../checkbox/checkbox.tsx';
 import { Icon } from '../icon/icon.tsx';
 
@@ -57,7 +58,7 @@ export function OptionRow({
   return (
     <Pressable
       accessibilityRole={multiple ? 'checkbox' : 'radio'}
-      accessibilityLabel={description ? `${label}, ${description}` : label}
+      {...spokenName(description ? `${label}, ${description}` : label)}
       accessibilityState={{ checked: selected, disabled }}
       aria-checked={selected}
       aria-disabled={disabled || undefined}
@@ -76,7 +77,7 @@ export function OptionRow({
     >
       {multiple ? <CheckboxBox checked={selected} disabled={disabled} /> : null}
       {icon}
-      <View className="min-w-0 flex-1" aria-hidden>
+      <View className="min-w-0 flex-1" {...hiddenOnDevice}>
         <CssText
           className={cn(
             'text-[17px] leading-[1.3]',

@@ -1301,7 +1301,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     expect(await table.getByText('12345678A').count()).toBe(0);
     await table.getByRole('button', { name: /^Show .* NIF \/ NIE in full$/ }).click();
     await table.getByText('12345678A').waitFor({ timeout: 30_000 });
-    await table.getByRole('button', { name: /^Accept / }).click();
+    await table.getByRole('button', { name: /^Mark as correct anyway: / }).click();
     await reviews.getByRole('dialog').getByRole('button', { name: 'Accept' }).click();
     await eventually(
       'the decision',
@@ -1379,7 +1379,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('main');
     await table.getByText('Waiting for approval').waitFor({ timeout: 30_000 });
-    await table.getByRole('button', { name: /^Send .* NIF \/ NIE back$/ }).click();
+    await table.getByRole('button', { name: /^Ask .* to correct it: .* NIF \/ NIE$/ }).click();
     const dialog = reviews.getByRole('dialog');
     await dialog
       .getByRole('textbox', { name: /What is wrong/ })

@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text as CssText, View } from 'react-native-css/c
 
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
+import { hiddenOnDevice, spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import { Chip } from '../chip/chip.tsx';
 import {
@@ -279,7 +280,7 @@ function Trigger({
     <DialogTrigger asChild disabled={disabled}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${name}, ${shown || 'nothing chosen'}`}
+        {...spokenName(`${name}, ${shown || 'nothing chosen'}`)}
         {...(hint ? { accessibilityHint: hint } : {})}
         accessibilityState={{ disabled }}
         aria-invalid={invalid || undefined}
@@ -297,8 +298,9 @@ function Trigger({
           startAdornment={icon}
           endAdornment={<Icon icon={ChevronsUpDown} size={18} tone="muted" />}
         >
+          <Unseen>{name}</Unseen>
           <CssText
-            aria-hidden
+            {...hiddenOnDevice}
             numberOfLines={1}
             className={cn(fieldText, !shown && 'text-fg-subtle', clearing && 'pr-9')}
           >

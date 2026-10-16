@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { usePlatform } from '../../provider.tsx';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
@@ -249,7 +250,7 @@ export function TabBar({
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
             aria-selected={on}
-            accessibilityLabel={item.badge ? `${item.label}, ${count(item.badge)} new` : item.label}
+            {...spokenName(item.badge ? `${item.label}, ${count(item.badge)} new` : item.label)}
             onPress={() => {
               onValueChange(item.key);
             }}

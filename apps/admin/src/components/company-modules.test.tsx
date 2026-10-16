@@ -55,7 +55,8 @@ const user = (): ReturnType<typeof userEvent.setup> =>
 
 /** Open a picker by its name and choose somebody in it. */
 async function choose(u: ReturnType<typeof user>, picker: string, email: string): Promise<void> {
-  await u.click(screen.getByRole('button', { name: picker }));
+  // A picker is named by its label, then what it shows (WCAG 2.5.3).
+  await u.click(screen.getByRole('button', { name: new RegExp(`^${picker}: `) }));
   await u.click(screen.getByRole('option', { name: email }));
   await u.keyboard('{Escape}');
 }
