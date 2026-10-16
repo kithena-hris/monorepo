@@ -1,0 +1,307 @@
+name: design-system
+
+# Reach on its own: every story in a real browser with axe and the contrast
+# sweep, Reach Mobile's Storybook, and the native export. It starts only when a
+# file it renders or measures changed, so a pull request that does not touch
+# the design system does not show it at all; a dependency bump reaches it
+# through `packages/ui`'s or a Storybook's own `package.json`.
+#
+# Not run on `main`: the pull request ran it on the same change. A lockfile
+# change alone does not start it, so it also runs in full every Monday and by
+# hand, which is what catches a transitive bump that broke a story.
+#
+# Not a required check: GitHub cannot require a check that a path filter can
+# leave unreported (it would wait forever). Do not merge on red.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'packages/ui/**'
+      - 'packages/ui-native/**'
+      - 'apps/storybook/**'
+      - 'apps/storybook-mobile/**'
+      - 'apps/mobile/**'
+      - 'apps/docs/**'
+      - 'tools/a11y/**'
+      - 'tools/storybook/**'
+      - 'tools/reach-mobile/**'
+      - '.github/actions/chromium/**'
+      - '.github/workflows/design-system.yml'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  design-system:
+    # Every story renders in a real browser and axe runs over the result. An
+    # accessibility rule that is only written down is an accessibility rule that
+    # is already broken somewhere.
+    #
+    # Sharded eight ways, and each shard renders on four pages at once. The
+    # sweep renders every entry in two themes and two pointer profiles — 468 x 4
+    # renders in series took 34 minutes, which was the whole pipeline. The
+    # shards are a round-robin over a sorted index, verified to partition it
+    # exactly. Four shards on one page each took about 9 minutes; four on four
+    # pages about 5; six took 2.6-3.5 minutes of sweep a shard, the longest
+    # job in the pipeline, so eight. The required check is `design-system`,
+    # below, so the shard count can change without touching the branch ruleset
+    # — and the workflow only starts when a file it covers changed.
+    # A draft runs the quick checks only; marking it ready runs this.
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: chromium
+        uses: ./.github/actions/chromium
+        with: { package: '@reach/storybook' }
+
+      # Narrows the *contrast sweep* and nothing else, and only on a pull
+      # request. Every check below still runs on every event; the detector
+      # chooses how much of one of them to run, never whether the job runs.
+      - name: pick affected stories
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node tools/a11y/affected-stories.mjs
+
+      - name: contrast
+        # It measures focus rings, which means it cannot be replaced by anything
+        # static: the ring colour only exists while an element is focused.
+        timeout-minutes: 25
+        env:
+          STORY_FILTER: ${{ steps.scope.outputs.filters }}
+          SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
+          STORYBOOK_URL: http://localhost:6006
+          SHARD: ${{ matrix.shard }}/8
+          # Pages rendering at once on this runner (tools/a11y/contrast-sweep.mjs):
+          # one per vCPU.
+          CONTRAST_WORKERS: 4
+        # A built Storybook, served as files, not the dev server. The dev
+        # server compiles each story on its first request, and on this 4-vCPU
+        # runner that sometimes took longer than any timeout: the same story
+        # (the tooltip playground) failed to settle on main three runs in a
+        # row, with no contrast finding, and blocked the production deploy. A
+        # static build is compiled once, up front (about 15 s), and every page
+        # after that is a file read. The sweep still focuses and measures in
+        # a real browser, which is the part nothing static can replace.
+        #
+        # Built on every shard rather than once and handed round as an
+        # artifact: a build job in front of the shards would put its own setup
+        # (about 40 s) on the critical path to save 15 s on each shard.
+        run: |
+          pnpm --filter @reach/storybook build --quiet
+          python3 -m http.server 6006 --directory apps/storybook/storybook-static > /dev/null 2>&1 &
+          npx --yes wait-on http://localhost:6006/index.json --timeout 180000
+
+          # The drift gates describe the whole design system rather than any
+          # subset of it, so they run once rather than once per shard.
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            # The manager cannot reference a Reach custom property (it is a
+            # separate document from the preview and does not load the
+            # stylesheet), so its theme holds resolved copies. This fails if one
+            # of them no longer matches the token it is named after.
+            pnpm storybook:theme-drift
+            # The public docs site lists what ships. It cannot fetch that list at
+            # runtime (static build), so the list is a copy and this fails when
+            # it stops matching.
+            pnpm docs:catalogue-drift
+            # Reach is documented and sold on its own and must never name
+            # Kithena. Storybook enforces its half by excluding the mark's
+            # stories; this is the documentation half, added after a demo
+            # shipped a branded share link to production.
+            pnpm docs:brand-leak
+          fi
+
+          # On a pull request whose change reaches no story, the story sweep
+          # is skipped here — and runs in full every week and by hand, so a
+          # detector that guessed wrong is caught rather than never measured.
+          # Outside a pull request `scope` never ran, both variables are empty,
+          # and the full sharded sweep is what runs.
+          if [ "$SKIP_STORY_SWEEP" = "true" ]; then
+            echo "::notice::No story this pull request reaches. The story contrast sweep runs in full every week."
+          elif [ -n "$STORY_FILTER" ] && [ "$STORY_FILTER" != "__ALL__" ]; then
+            # Sharded like the full sweep: SHARD divides whatever the affected
+            # set resolved to. An affected set is not necessarily small — a
+            # change to a shared component reached 362 of 479 entries, which on
+            # one runner took 24.6 minutes against the full sweep's 8 per shard,
+            # while the other shards idled. The runners are paid for
+            # either way, and a shard left with nothing exits clean.
+            node tools/a11y/affected-contrast.mjs
+          else
+            # Unset: the sweep reads STORY_FILTER as a substring of a story
+            # id, and on a pull request with a design-system-wide change it
+            # holds `__ALL__`, which matches no story. It swept "0 of 0" and
+            # passed, on every such pull request, until 2026-10-02.
+            STORY_FILTER= node tools/a11y/contrast-sweep.mjs
+          fi
+
+          # The docs site is built out of the design system and makes claims
+          # about these thresholds, so it is held to them too. One shard, since
+          # it is a single page rather than part of the story index.
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            pnpm --filter @reach/docs build
+            pnpm --filter @reach/docs preview --port 3100 &
+            npx --yes wait-on http://localhost:3100 --timeout 60000
+            SHARD= PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
+          fi
+
+      # The build the sweep above just measured, not a second one: it is the
+      # same `storybook build` and took 15-20 s again.
+      - name: keep the storybook build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.shard == 1
+        with:
+          name: storybook
+          path: apps/storybook/storybook-static
+          retention-days: 14
+
+  # Axe over every story, on its own runner beside the contrast shards. It used
+  # to ride on shard 1, which made that shard the slowest by a minute and a
+  # half. Unconditional over every story when the UI changed: narrowing an
+  # accessibility pass by what a diff appears to touch is how such a gate
+  # quietly stops being one.
+  design-system-axe:
+    # Every story rendered, with axe and the 44px tap floor, at a desk and on a
+    # phone: about 1,200 story tests since Reach 2, which ran past 7 minutes on
+    # one runner and made this the slowest part of `design-system`. Vitest's
+    # `--shard` splits the test files; turbo hands it to both suites (Reach's
+    # stories and the People app's phone screens). A suite with fewer files
+    # than shards leaves some shards empty, hence `--passWithNoTests`.
+    #
+    # Five. A shard's test step is about 75 s of fixed cost (two Vitest
+    # projects and their browsers starting) plus its share of about 145 s of
+    # stories: 99 s on average at six shards, 93 s at eight. More shards buy
+    # almost nothing and each costs a runner, and runners are what this
+    # pipeline queues for — the account runs 20 jobs at once, across every
+    # workflow and pull request. Five leaves room for axe running over every
+    # story, which grows the shared half: at three times today's it is still
+    # about 3.5 minutes, under `web acceptance`.
+    name: design-system (axe ${{ matrix.shard }})
+    # A draft runs the quick checks only; marking it ready runs this.
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: chromium and webkit
+        uses: ./.github/actions/chromium
+        with: { package: '@reach/storybook', browsers: 'chromium webkit' }
+      - name: axe over every story, one shard
+        # The mobile Storybook has its own job, `design-system-mobile`.
+        run: pnpm turbo run test:stories --filter='!@reach/storybook-mobile' -- --shard=${{ matrix.shard }}/5 --passWithNoTests
+
+  # Reach Mobile's Storybook beside the web one: the build (react-native-web,
+  # the docs pages, the welcome page) and axe over every story at the one
+  # phone it knows, 390 x 844, including the gate story that proves a broken
+  # story fails. Small enough for one runner.
+  design-system-mobile:
+    name: design-system (mobile)
+    # A draft runs the quick checks only; marking it ready runs this.
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: chromium
+        uses: ./.github/actions/chromium
+        with: { package: '@reach/storybook-mobile' }
+      - name: build
+        run: pnpm --filter @reach/storybook-mobile build --quiet
+      - name: axe over every story
+        run: pnpm --filter @reach/storybook-mobile test:stories
+
+  # The native proof: `apps/mobile`, a gallery of every Reach Mobile component,
+  # bundled by Metro for iOS and Android. Storybook renders through
+  # react-native-web; this is what catches a component, a native singleton or
+  # a NativeWind workaround that only breaks under the device's own bundler.
+  design-system-mobile-export:
+    name: design-system (mobile export)
+    # A draft runs the quick checks only; marking it ready runs this.
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: expo export, iOS and Android
+        run: pnpm --filter @reach/mobile export
+
+  # One summary of the shards: green only when every contrast shard, every
+  # axe shard and both mobile jobs are. A matrix job's result is success only
+  # when all its shards are, so the shard counts can change freely.
+  design-system-all:
+    name: design-system
+    needs: [design-system, design-system-axe, design-system-mobile, design-system-mobile-export]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every shard passed
+        env:
+          SHARDS: ${{ needs.design-system.result }}
+          AXE: ${{ needs.design-system-axe.result }}
+          MOBILE: ${{ needs.design-system-mobile.result }}
+          EXPORT: ${{ needs.design-system-mobile-export.result }}
+          DRAFT: ${{ github.event.pull_request.draft == true }}
+        run: |
+          echo "shards: $SHARDS, axe: $AXE, mobile: $MOBILE, export: $EXPORT"
+          if [ "$DRAFT" = true ]; then
+            echo "::notice::A draft runs the quick checks only. Mark it ready for review to run the design system."
+            exit 0
+          fi
+          [ "$SHARDS" = success ] && [ "$AXE" = success ] && [ "$MOBILE" = success ] && [ "$EXPORT" = success ]

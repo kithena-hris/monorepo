@@ -16,6 +16,9 @@ updates:
       day: monday
       time: '07:00'
     open-pull-requests-limit: 8
+    # Not rebased each time main moves: every rebase re-ran CI. Ask with
+    # `@dependabot rebase`, or merge it as it is when it is current enough.
+    rebase-strategy: disabled
     # A release is proposed only once it is a week old. A hijacked package is
     # usually caught and pulled within days; waiting keeps it out of the
     # lockfile. Security updates are exempt and still arrive at once.
@@ -48,6 +51,13 @@ updates:
         patterns: ['@tiptap/*']
       dnd-kit:
         patterns: ['@dnd-kit/*']
+      # Every other minor and patch update in one pull request a week, rather
+      # than one each: every pull request runs CI. Majors stay separate, since
+      # they are the ones that break something. Listed last, so the groups
+      # above keep theirs.
+      everything-else:
+        patterns: ['*']
+        update-types: [minor, patch]
 
     ignore:
       # Held deliberately. `CLAUDE.md` pins two compilers on purpose: TypeScript
