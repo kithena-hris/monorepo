@@ -71,7 +71,8 @@ jobs:
       actions: read
     outputs:
       contracts: ${{ steps.diff.outputs.contracts }}
-      web: ${{ steps.diff.outputs.web }}
+      web_full: ${{ steps.diff.outputs.web_full }}
+      acceptance: ${{ steps.diff.outputs.acceptance }}
       integration: ${{ steps.diff.outputs.integration }}
       standalone: ${{ steps.diff.outputs.standalone }}
       matched: ${{ steps.tested.outputs.matched }}
@@ -97,12 +98,16 @@ jobs:
           PROVEN: ${{ steps.tested.outputs.proven }}
         run: |
           if [ "$EVENT" != "pull_request" ]; then
-            for gate in contracts web integration; do
+            for gate in contracts integration; do
               case " $PROVEN " in
                 *" $gate "*) echo "$gate=false" >> "$GITHUB_OUTPUT" ;;
                 *) echo "$gate=true" >> "$GITHUB_OUTPUT" ;;
               esac
             done
+            case " $PROVEN " in
+              *" web "*) .github/scripts/acceptance-files.sh none ;;
+              *) .github/scripts/acceptance-files.sh all ;;
+            esac
             echo 'standalone=["people","timeoff","documents","recruiting","onboarding"]' >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -112,21 +117,16 @@ jobs:
           shared='^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json|tsconfig[^/]*\.json|patches/|\.github/actions/|\.github/workflows/ci\.yml)'
           # What codegen, the contract tests and supergraph composition read.
           contracts='^(packages/contracts/|packages/graphql-kit/|services/|platform/|apps/gateway/|tools/codegen/)'
-          # What the web acceptance stack runs: the shell and its remotes, People,
-          # Time Off, identity, the router's config and persisted operations,
-          # every migration, and every package (the design system renders the
-          # screens, `packages/testing` starts the containers). Not the
-          # Recruiting and Onboarding remotes: the stack never builds them
-          # (`apps/web/acceptance/build.ts`).
-          web='^(apps/web/|services/people/|services/timeoff/|services/documents/|apps/web/documents/|platform/identity/|apps/gateway/|packages/|migrations/)'
           # What the integration suites run: every package with one, what they
           # import (the kits; never `packages/ui`, which a service may not
           # import), and the migrations their containers apply.
           integration='^(services/|platform/|packages/(auth-kit|contracts|db-kit|domain-kit|graphql-kit|telemetry|testing)/|migrations/|atlas\.hcl|tools/scripts/)'
           any() { printf '%s\n' "$changed" | grep -Eq "$1"; }
-          beyond_unbuilt_remotes() { printf '%s\n' "$changed" | grep -Ev '^apps/web/(recruiting|onboarding)/' | grep -Eq "$1"; }
           if any "$shared" || any "$contracts"; then echo "contracts=true" >> "$GITHUB_OUTPUT"; else echo "contracts=false" >> "$GITHUB_OUTPUT"; fi
-          if any "$shared" || beyond_unbuilt_remotes "$web"; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
+          # Which web acceptance files, per runner: an area's own files when
+          # only that area changed, every file when the shell, identity, the
+          # router, a package or a migration did (the script says which).
+          printf '%s\n' "$changed" | SHARED="$shared" .github/scripts/acceptance-files.sh diff
           if any "$shared" || any "$integration"; then echo "integration=true" >> "$GITHUB_OUTPUT"; else echo "integration=false" >> "$GITHUB_OUTPUT"; fi
           # Which modules must prove they still boot alone: their own service,
           # or anything every module is built from.
@@ -404,9 +404,11 @@ jobs:
   # remotes and the shell as production builds, driven by Chromium
   # (`apps/web/acceptance`). The builds are made once for both files; each file
   # starts its own stack. Minutes of setup, so it is gated like the
-  # jobs above: the job always runs and always reports `web acceptance`, and
-  # its steps run when the diff can reach the stack (`changes.outputs.web`),
-  # and always on `main` and in the merge queue.
+  # jobs above: each runner always reports, and runs the files of its part
+  # the diff reaches (`changes.outputs.acceptance`, from
+  # `.github/scripts/acceptance-files.sh`): an area's own files when only that
+  # area changed, all of them for the shell, identity, the router, a package
+  # or a migration, and all of them on `main` and in the merge queue.
   #
   # Hermetic: every server is on loopback or in a container, and the webhook
   # test posts to the harness's own HTTPS receiver. Nothing reaches the
@@ -427,57 +429,48 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - part: people
-            files: acceptance/people.acceptance.test.ts
-          - part: people-companies
-            files: acceptance/people-companies.acceptance.test.ts
-          - part: people-pages
-            files: acceptance/people-pages.acceptance.test.ts
-          - part: perf
-            files: acceptance/perf.acceptance.test.ts
-          # Every other file, so a new one is never left out.
-          - part: rest
-            files: ''
+        # People's three files and perf on runners of their own; `rest` is
+        # every other file, so a new one is never left out.
+        part: [people, people-companies, people-pages, perf, rest]
+    # The files of this runner the change reaches
+    # (`.github/scripts/acceptance-files.sh`); none, and no step runs.
+    env:
+      FILES: ${{ fromJSON(needs.changes.outputs.acceptance)[matrix.part] }}
     steps:
       - name: checkout
-        if: needs.changes.outputs.web == 'true'
+        if: env.FILES != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: pnpm
-        if: needs.changes.outputs.web == 'true'
+        if: env.FILES != ''
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
-        if: needs.changes.outputs.web == 'true'
+        if: env.FILES != ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
       - name: install
-        if: needs.changes.outputs.web == 'true'
+        if: env.FILES != ''
         run: pnpm install --frozen-lockfile
       # Identity, People and Time Off run from source under tsx, but resolve
       # `@kithena/contracts` and its siblings through their built `dist/`.
       - name: build the packages
-        if: needs.changes.outputs.web == 'true'
+        if: env.FILES != ''
         run: pnpm turbo run build --filter='./packages/*'
       - name: chromium
-        if: needs.changes.outputs.web == 'true'
+        if: env.FILES != ''
         uses: ./.github/actions/chromium
         with: { package: '@kithena/web' }
       - name: acceptance suite
-        if: needs.changes.outputs.web == 'true'
+        if: env.FILES != ''
         env:
           ACCEPTANCE_LOGS: ${{ runner.temp }}/acceptance-servers.log
-          FILES: ${{ matrix.files }}
         run: |
-          if [ -z "$FILES" ]; then
-            FILES="$(cd apps/web && ls acceptance/*.acceptance.test.ts | grep -v -e '/people' -e '/perf\.' | tr '\n' ' ')"
-          fi
           echo "files: $FILES"
           # shellcheck disable=SC2086 # one argument per file
           pnpm --filter @kithena/web test:acceptance $FILES
       # The servers' last output, which is what explains a red run; the suite
       # writes it on the way down whatever the result.
       - name: keep the server logs
-        if: failure() && needs.changes.outputs.web == 'true'
+        if: failure() && env.FILES != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-acceptance-logs-${{ matrix.part }}
@@ -485,8 +478,8 @@ jobs:
           retention-days: 7
 
       - name: nothing to check
-        if: needs.changes.outputs.web != 'true'
-        run: echo "::notice::No change this job covers (apps/web, People, Time Off, identity, the gateway, packages, migrations or shared config). On main it runs unless this tree already passed it in its pull request."
+        if: env.FILES == ''
+        run: echo "::notice::No file of this part is reached by the change (an area's own files run only when that area changed). On main it runs unless this tree already passed it in its pull request."
 
   web-acceptance:
     name: web acceptance
@@ -542,7 +535,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CONTRACTS: ${{ needs.changes.outputs.contracts }}
-          WEB: ${{ needs.changes.outputs.web }}
+          WEB: ${{ needs.changes.outputs.web_full }}
           INTEGRATION: ${{ needs.changes.outputs.integration }}
         run: |
           tree="$(gh api "repos/$REPO/git/commits/$MERGE_SHA" --jq .tree.sha)"
