@@ -21,9 +21,9 @@
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
     "@openfga/sdk": "^0.9.7",
-    "drizzle-orm": "^0.45.3",
+    "drizzle-orm": "^0.45.4",
     "graphql": "^16.11.0",
-    "graphql-yoga": "^5.24.1",
+    "graphql-yoga": "^5.24.4",
     "kafkajs": "^2.2.4",
     "postgres": "^3.4.5",
     "zod": "^4.6.5"
