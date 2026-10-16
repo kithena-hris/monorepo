@@ -144,6 +144,11 @@ import { askForChart } from '../application/chart-ask.js';
 import { SelfId, fairness, saveSelfId, selfIdQuestions } from '../application/fairness.js';
 import { importMembers } from '../application/members.js';
 import {
+  checkCareersDomain,
+  removeCareersDomain,
+  setCareersDomain,
+} from '../application/careers-domain.js';
+import {
   refreshAssessment,
   refreshBackgroundCheck,
   sendAssessment,
@@ -1239,6 +1244,28 @@ export const ROUTES: readonly Route[] = [
     summary: 'S1: general',
     body: z.record(z.string(), z.unknown()),
     run: (ctx, { body }) => saveGeneralSettings(ctx, body),
+  }),
+  route({
+    name: 'setCareersDomain',
+    method: 'PUT',
+    path: `${V1}/settings/careers-domain`,
+    summary: "The company's own domain for its careers page; admin",
+    body: z.object({ host: text(260).min(1) }),
+    run: (ctx, { body }) => setCareersDomain(ctx, body),
+  }),
+  route({
+    name: 'checkCareersDomain',
+    method: 'POST',
+    path: `${V1}/settings/careers-domain/check`,
+    summary: 'Ask again whether its DNS points at Kithena Jobs; admin',
+    run: (ctx) => checkCareersDomain(ctx),
+  }),
+  route({
+    name: 'removeCareersDomain',
+    method: 'DELETE',
+    path: `${V1}/settings/careers-domain`,
+    summary: 'Stop serving the careers page on its own domain; admin',
+    run: (ctx) => removeCareersDomain(ctx),
   }),
   route({
     name: 'saveEntity',

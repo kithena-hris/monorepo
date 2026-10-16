@@ -18,6 +18,7 @@ import type { Stage } from '../domain/pipeline/pipeline.js';
 import type { AdCheck } from '../domain/ad/checks.js';
 import type { TeamRole } from '../domain/access/access.js';
 import type { Benefit } from '../domain/benefits/benefits.js';
+import type { DnsRecord } from '../domain/careers/domain.js';
 import type { Contract } from '../domain/contract/contract.js';
 import type { FormField } from '../domain/form/form.js';
 import type { Interview, Scorecard } from '../domain/interview/interview.js';
@@ -675,6 +676,33 @@ export interface PublicStore {
   }): Promise<void>;
   putListing(listing: PublicJob, tsvText: string): Promise<void>;
   removeListing(jobId: string): Promise<void>;
+  /** The company's own careers domain, if it has one (REC-136). */
+  careersDomain(): Promise<CareersDomain | null>;
+  putCareersDomain(domain: CareersDomain & { readonly companySlug: string }): Promise<void>;
+  removeCareersDomain(): Promise<void>;
+  /** Every company's, for the ceiling Kithena Jobs' project allows. */
+  careersDomainCount(): Promise<number>;
+}
+
+/** A company's own domain for its careers page, and what its DNS needs (REC-136). */
+export interface CareersDomain {
+  readonly host: string;
+  readonly status: 'pending' | 'verified';
+  readonly records: readonly DnsRecord[];
+  readonly verifiedAt: string | null;
+}
+
+/** Where Kithena Jobs is served (Vercel): a host added to its project, its state, and taken off. */
+export interface DomainHost {
+  add(host: string): Promise<Result<HostedDomain>>;
+  check(host: string): Promise<Result<HostedDomain>>;
+  remove(host: string): Promise<Result<void>>;
+}
+
+export interface HostedDomain {
+  /** Serving: verified by the host and its DNS pointing at it. */
+  readonly verified: boolean;
+  readonly records: readonly DnsRecord[];
 }
 
 export interface Tx {
@@ -805,6 +833,8 @@ export interface Listings {
   search(query: JobSearch): Promise<{ rows: readonly PublicListing[]; total: number }>;
   job(company: string, slug: string, language: string | null): Promise<PublicJob | null>;
   company(slug: string): Promise<{ company: PublicCompany; jobs: readonly PublicListing[] } | null>;
+  /** The company a verified careers domain shows, or null (REC-136). */
+  companyForHost(host: string): Promise<string | null>;
 }
 
 export interface Deps {
@@ -831,6 +861,8 @@ export interface Deps {
   /** No provider is chosen yet: absent, the screens say so. A fake adapter each for tests and local runs. */
   readonly assessmentProvider?: AssessmentProvider;
   readonly backgroundChecks?: BackgroundCheckProvider;
+  /** Where a company's own careers domain is added; absent, the setting says it is not set up. */
+  readonly domains?: DomainHost;
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */

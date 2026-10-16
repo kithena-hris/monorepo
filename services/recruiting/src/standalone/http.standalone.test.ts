@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { callerFromHeaders } from '../http/caller.js';
 import { recruitingServer } from '../http/server.js';
+import { fakeDomains } from '../infrastructure/fake-providers.js';
 import { uuidv7 } from '../infrastructure/ids.js';
 import { memoryBlobs, memoryUnitOfWork } from '../testing/memory.js';
 
@@ -44,6 +45,7 @@ beforeAll(async () => {
       extractText: () => Promise.resolve(null),
       callerFrom: callerFromHeaders(TOKEN),
       listings: uow.listings,
+      domains: fakeDomains(),
     },
     uuidv7,
   );
@@ -186,5 +188,29 @@ describe('Kithena Jobs’ reads', () => {
     const jobs = await asked('https://jobs.example');
     expect(jobs).toEqual({ status: 204, allow: 'https://jobs.example' });
     expect((await asked('https://evil.example')).allow).toBeUndefined();
+  });
+
+  it('serves a company on its own domain once that domain is verified, and not after (REC-136)', async () => {
+    const write = (method: string, path: string, body?: unknown) =>
+      fetch(`${base}/v1/recruiting/settings/careers-domain${path}`, {
+        method,
+        headers: headers(randomUUID()),
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      }).then(async (r) => ({
+        status: r.status,
+        body: (await r.json()) as Record<string, unknown>,
+      }));
+    const lookup = () => fetch(`${base}/v1/recruiting/companies/by-host/careers.acme.example`);
+
+    expect((await write('PUT', '', { host: 'jobs.kithena.com' })).status).toBe(400);
+    const added = await write('PUT', '', { host: 'https://Careers.Acme.example/' });
+    expect(added.body).toMatchObject({ host: 'careers.acme.example', status: 'pending' });
+    expect((await lookup()).status).toBe(404);
+
+    expect((await write('POST', '/check')).body).toMatchObject({ status: 'verified' });
+    expect(await (await lookup()).json()).toEqual({ company: 'acme' });
+
+    expect((await write('DELETE', '')).status).toBe(200);
+    expect((await lookup()).status).toBe(404);
   });
 });

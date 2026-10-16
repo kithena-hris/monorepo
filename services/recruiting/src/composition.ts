@@ -12,7 +12,12 @@ import { blobsFrom } from './infrastructure/blobs.js';
 import { uuidv7 } from './infrastructure/ids.js';
 import { modelFrom } from './infrastructure/model.js';
 import { sealerFrom } from './infrastructure/sealer.js';
-import { fakeAssessments, fakeBackgroundChecks } from './infrastructure/fake-providers.js';
+import {
+  fakeAssessments,
+  fakeBackgroundChecks,
+  fakeDomains,
+} from './infrastructure/fake-providers.js';
+import { domainsFrom } from './infrastructure/vercel-domains.js';
 import { mailerFrom } from './infrastructure/messaging.js';
 import { listingsFrom } from './infrastructure/listings.js';
 import { extract } from './infrastructure/text.js';
@@ -66,6 +71,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   const sealer = sealerFrom(env);
   // Stand-ins until a company chooses a provider; never in production.
   const fakes = env['RECRUITING_FAKE_PROVIDERS'] === '1' && env['NODE_ENV'] !== 'production';
+  const domains = domainsFrom(env) ?? (fakes ? fakeDomains() : undefined);
   const inboundDomain = env['INBOUND_DOMAIN'];
   const messagingToken = env['MESSAGING_RECRUITING_TOKEN'];
   const { listener, deps } = recruitingServer(
@@ -79,6 +85,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(listings === null ? {} : { listings }),
       ...(model === undefined ? {} : { model }),
       ...(sealer === undefined ? {} : { sealer }),
+      ...(domains === undefined ? {} : { domains }),
       ...(fakes
         ? { assessmentProvider: fakeAssessments(), backgroundChecks: fakeBackgroundChecks() }
         : {}),

@@ -596,6 +596,9 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     benefits: await ctx.tx.benefits.list(),
     payBands: await ctx.tx.payBands.list(),
     agencies: await ctx.tx.agencies.list(),
+    careersDomain: await ctx.tx.public.careersDomain(),
+    // Whether a company can have its own domain here at all (REC-136).
+    domainsOn: ctx.deps.domains !== undefined,
     jobs: (await myJobs(ctx)).map((j) => ({ id: j.id, title: j.title })),
     admin: ctx.viewer.admin,
   };

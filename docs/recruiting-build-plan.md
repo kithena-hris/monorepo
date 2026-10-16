@@ -258,7 +258,7 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       adapter only if accepted.
 - [ ] **REC-135** Calendars and video: Google Workspace and Microsoft 365
       OAuth, free/busy, events, Meet and Teams links. §26.2.
-- [ ] **REC-136** A company's own domain for its careers page, with the
+- [x] **REC-136** A company's own domain for its careers page, with the
       Vercel plan's domain ceiling recorded.
 - [ ] **REC-137** Chat apps: digests, reminders, approvals. §26.3.
 - [x] **REC-138** Assessment and background-check ports with a fake adapter

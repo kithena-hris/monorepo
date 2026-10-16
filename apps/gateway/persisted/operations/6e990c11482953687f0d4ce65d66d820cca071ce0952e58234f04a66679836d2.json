@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CheckCareersDomain($key: String!) {\n    checkCareersDomain(idempotencyKey: $key)\n  }"}

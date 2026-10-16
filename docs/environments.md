@@ -1365,6 +1365,21 @@ until its setting exists. In this order:
    `/v1/recruiting/public/<company>/replies` under the pair's token. Without
    the domain, replies go to the company's own reply address.
 
+   A company's own domain for its careers page (REC-136,
+   `careers.acme.com` serving `jobs.kithena.com/acme`) is added to Kithena
+   Jobs' Vercel project through Vercel's API. Create an access token scoped
+   to the team (Account Settings, Tokens) and store it as the `production`
+   secret `VERCEL_DOMAINS_TOKEN`; the deploy writes it into `recruiting.env`
+   with `JOBS_VERCEL_PROJECT_ID` (from `VERCEL_PROJECT_ID_JOBS_PRODUCTION`)
+   and the team id. Without it the setting is not offered. Hobby allows 50
+   domains a project and `jobs.kithena.com` is one, so 49 companies can have
+   their own (`DOMAIN_CEILING` in `services/recruiting/src/domain/careers`);
+   the 50th is told they are all taken. Pro lifts the cap. The company adds
+   the records the setting shows (a CNAME to `cname.vercel-dns.com`, or an
+   A record for a whole domain, plus Vercel's TXT proof when it asks for
+   one) and presses Check; once verified, Kithena Jobs' proxy serves its page
+   on that host and Recruiting answers the browser from it.
+
    AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
    `ASSISTANT_MODEL`. The deploy writes the assistant's own `ASSISTANT_API_KEY`
    into `recruiting.env`, as it does for Documents; the other two, if set, go

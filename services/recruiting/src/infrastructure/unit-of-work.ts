@@ -27,6 +27,7 @@ import type {
   Candidate,
   CandidateFile,
   Consent,
+  CareersDomain,
   Criterion,
   Entity,
   InterviewRecord,
@@ -1260,6 +1261,37 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
       removeListing: async (jobId) => {
         await tx.execute(sql`DELETE FROM recruiting_public.listing WHERE job_id = ${jobId}`);
       },
+      careersDomain: async () => {
+        const r = await one(
+          tx,
+          sql`SELECT host, status, records, ${iso(sql`verified_at`)} AS verified_at
+            FROM recruiting_public.careers_domain WHERE tenant_id = ${T}`,
+        );
+        return r === null
+          ? null
+          : {
+              host: String(r['host']),
+              status: r['status'] === 'verified' ? 'verified' : 'pending',
+              records: r['records'] as CareersDomain['records'],
+              verifiedAt: str(r['verified_at']),
+            };
+      },
+      putCareersDomain: async (d) => {
+        await tx.execute(sql`INSERT INTO recruiting_public.careers_domain
+            (host, tenant_id, company_slug, status, records, verified_at)
+          VALUES (${d.host}, ${T}, ${d.companySlug}, ${d.status}, ${J(d.records)}, ${d.verifiedAt})
+          ON CONFLICT (tenant_id) DO UPDATE SET host = EXCLUDED.host, company_slug = EXCLUDED.company_slug,
+            status = EXCLUDED.status, records = EXCLUDED.records, verified_at = EXCLUDED.verified_at`);
+      },
+      removeCareersDomain: async () => {
+        await tx.execute(sql`DELETE FROM recruiting_public.careers_domain WHERE tenant_id = ${T}`);
+      },
+      careersDomainCount: async () =>
+        Number(
+          (await one(tx, sql`SELECT count(*)::int AS n FROM recruiting_public.careers_domain`))?.[
+            'n'
+          ] ?? 0,
+        ),
     },
   };
 }

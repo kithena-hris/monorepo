@@ -1,6 +1,11 @@
 import { ok } from '@kithena/domain-kit';
 
-import type { AssessmentProvider, BackgroundCheckProvider } from '../application/ports.js';
+import { pointing } from '../domain/careers/domain.js';
+import type {
+  AssessmentProvider,
+  BackgroundCheckProvider,
+  DomainHost,
+} from '../application/ports.js';
 
 /**
  * Stand-ins for the assessment and background-check providers (PRD §15.3,
@@ -26,5 +31,14 @@ export function fakeBackgroundChecks(): BackgroundCheckProvider {
     name: 'fake',
     start: ({ applicationId }) => Promise.resolve(ok({ externalId: `b-${applicationId}` })),
     status: () => Promise.resolve('clear'),
+  };
+}
+
+/** A careers domain is pending when added and verified at its first check, as if its DNS were set at once. */
+export function fakeDomains(): DomainHost {
+  return {
+    add: (host) => Promise.resolve(ok({ verified: false, records: [pointing(host)] })),
+    check: (host) => Promise.resolve(ok({ verified: true, records: [pointing(host)] })),
+    remove: () => Promise.resolve(ok(undefined)),
   };
 }

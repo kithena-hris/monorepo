@@ -32,6 +32,14 @@ async function bodyOf(request: IncomingMessage): Promise<string | null> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
+/** Whether an origin is a company's careers domain that Vercel has verified. */
+async function ownDomain(listings: Listings | undefined, origin: string): Promise<boolean> {
+  const host = /^https:\/\/([a-z0-9.-]+)$/u.exec(origin)?.[1];
+  return (
+    host !== undefined && listings !== undefined && (await listings.companyForHost(host)) !== null
+  );
+}
+
 /** The one listener on Recruiting's port: `/healthz`, the OpenAPI document, REST v1, then GraphQL. Documents'. */
 export function recruitingListener(
   graphql: Listener,
@@ -43,27 +51,6 @@ export function recruitingListener(
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
-    // Kithena Jobs' pages call the public API from the browser: a CV is up to
-    // 10 MB, past what a serverless function will relay. Only that origin, only
-    // the public routes, and no cookies, so a token travels in its header.
-    if (
-      publicOrigin !== undefined &&
-      request.headers.origin === publicOrigin &&
-      (request.url ?? '').startsWith('/v1/recruiting/public/')
-    ) {
-      response.setHeader('access-control-allow-origin', publicOrigin);
-      response.setHeader('vary', 'origin');
-      if (request.method === 'OPTIONS') {
-        response
-          .writeHead(204, {
-            'access-control-allow-methods': 'GET, POST',
-            'access-control-allow-headers': 'content-type, x-candidate-token',
-            'access-control-max-age': '600',
-          })
-          .end();
-        return;
-      }
-    }
     if (request.method === 'GET' && request.url === '/healthz') {
       response.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
       return;
@@ -77,6 +64,29 @@ export function recruitingListener(
       return;
     }
     void (async () => {
+      // Kithena Jobs' pages call the public API from the browser: a CV is up to
+      // 10 MB, past what a serverless function will relay. Only Kithena Jobs'
+      // origin or a company's own verified domain (REC-136), only the public
+      // routes, and no cookies, so a token travels in its header.
+      const origin = request.headers.origin;
+      if (
+        origin !== undefined &&
+        (request.url ?? '').startsWith('/v1/recruiting/public/') &&
+        (origin === publicOrigin || (await ownDomain(listings, origin)))
+      ) {
+        response.setHeader('access-control-allow-origin', origin);
+        response.setHeader('vary', 'origin');
+        if (request.method === 'OPTIONS') {
+          response
+            .writeHead(204, {
+              'access-control-allow-methods': 'GET, POST',
+              'access-control-allow-headers': 'content-type, x-candidate-token',
+              'access-control-max-age': '600',
+            })
+            .end();
+          return;
+        }
+      }
       const read =
         listings === undefined
           ? null
@@ -155,6 +165,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly sealer?: Deps['sealer'];
   readonly assessmentProvider?: Deps['assessmentProvider'];
   readonly backgroundChecks?: Deps['backgroundChecks'];
+  readonly domains?: Deps['domains'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -181,6 +192,7 @@ export function recruitingServer(
     ...(options.backgroundChecks === undefined
       ? {}
       : { backgroundChecks: options.backgroundChecks }),
+    ...(options.domains === undefined ? {} : { domains: options.domains }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

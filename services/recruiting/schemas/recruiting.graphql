@@ -79,6 +79,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Ask again whether its DNS points at Kithena Jobs; admin"""
+  checkCareersDomain(idempotencyKey: String!): JSON
   """R19: compose or revise the offer"""
   composeOffer(
     applicationId: String!
@@ -214,6 +216,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Stop serving the careers page on its own domain; admin"""
+  removeCareersDomain(idempotencyKey: String!): JSON
   """R18: ask a named referee"""
   requestReference(applicationId: String!, idempotencyKey: String!, referenceId: String!): JSON
   """R9: an agency and the jobs it may submit to"""
@@ -371,6 +375,12 @@ type Mutation {
   ): JSON
   """Send the offer to the candidate"""
   sendOffer(idempotencyKey: String!, offerId: String!): JSON
+  """The company's own domain for its careers page; admin"""
+  setCareersDomain(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Completed, no-show or cancelled"""
   setInterviewState(
     idempotencyKey: String!
