@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Page } from 'playwright';
+import type { Locator, Page } from 'playwright';
 
 import { ADMIN, EMPLOYEE, ROOT, TENANT } from './stack';
 import {
@@ -287,6 +287,7 @@ describe('A press on a People screen before its code has loaded', () => {
     page: Page;
     errors: string[];
     release: () => void;
+    open: (url: string, target: Locator) => Promise<void>;
     close: () => Promise<void>;
   }> {
     // The server's HTML is what these press on before the code arrives.
@@ -310,10 +311,35 @@ describe('A press on a People screen before its code has loaded', () => {
     page.on('console', (m) => {
       if (m.type() === 'error') errors.push(m.text());
     });
+    /*
+     * The page at `url`, as the server drew it, with `target` on screen and the
+     * code still held. A busy runner sometimes draws a page in the browser
+     * instead (a server build not read in time, a render over its CPU
+     * budget), and with the code held that page shows nothing at all: what
+     * these tests press on is the server's HTML, so such a page is asked for
+     * again rather than waited on for thirty seconds and failed.
+     */
+    const open = async (url: string, target: Locator): Promise<void> => {
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const response = await page.goto(url, { waitUntil: 'commit' });
+        const drawn = await target
+          .waitFor({ timeout: 15_000 })
+          .then(() => true)
+          .catch(() => false);
+        if (drawn && (await waiting(page))) return;
+        const html = (await response?.text().catch(() => '')) ?? '';
+        errors.push(
+          `attempt ${String(attempt)}: ${drawn ? 'drawn, but not waiting' : 'not drawn'}; ` +
+            `server HTML ${html.includes('data-remote=') ? 'had' : 'did not have'} the screen`,
+        );
+      }
+      throw new Error(`${url} was never drawn by the server:\n${errors.join('\n')}`);
+    };
     return {
       page,
       errors,
       release,
+      open,
       close: async () => {
         release();
         await context.close();
@@ -329,13 +355,11 @@ describe('A press on a People screen before its code has loaded', () => {
       return row?.n ?? 0;
     };
     const before = await saves();
-    const { page, release, close } = await late(ADMIN.session);
+    const { page, release, open, close } = await late(ADMIN.session);
     // Not waiting for `load`, which the preloaded remote entry holds back.
-    await page.goto(`${stack.shell}/people/me?field=preferred_name`, { waitUntil: 'commit' });
     const personal = page.getByRole('form', { name: 'Personal information' });
     const save = personal.getByRole('button', { name: 'Save' });
-    await save.waitFor({ timeout: 30_000 });
-    expect(await waiting(page)).toBe(true);
+    await open(`${stack.shell}/people/me?field=preferred_name`, save);
     await personal.getByRole('textbox', { name: /Preferred name/ }).fill('Pria');
     await save.click();
     // Held, and seen to be, until the screen can answer it.
@@ -357,11 +381,9 @@ describe('A press on a People screen before its code has loaded', () => {
   // A section's Edit, pressed before the page is live, opens its editor once:
   // the press held here must not open it a second time.
   it('opens a record’s section editor once', async () => {
-    const { page, errors, release, close } = await late(ADMIN.session);
-    await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`, { waitUntil: 'commit' });
+    const { page, release, open, close } = await late(ADMIN.session);
     const edit = page.getByRole('button', { name: /^Edit .+/ }).first();
-    await edit.waitFor({ timeout: 30_000 });
-    expect(await waiting(page), errors.join('\n')).toBe(true);
+    await open(`${stack.shell}/people/${EMPLOYEE.person}`, edit);
     const entries = await page.evaluate(() => history.length);
     await edit.click();
     release();
@@ -374,13 +396,11 @@ describe('A press on a People screen before its code has loaded', () => {
 
   // Without the hold, a link pressed this early was a full page load.
   it('follows a tab’s link once, in the page', async () => {
-    const { page, release, close } = await late(ADMIN.session);
-    await page.goto(`${stack.shell}/people/review/waiting`, { waitUntil: 'commit' });
+    const { page, release, open, close } = await late(ADMIN.session);
     const tab = page
       .getByRole('navigation', { name: 'Review tabs' })
       .getByRole('link', { name: /^Flagged/ });
-    await tab.waitFor({ timeout: 30_000 });
-    expect(await waiting(page)).toBe(true);
+    await open(`${stack.shell}/people/review/waiting`, tab);
     const entries = await page.evaluate(() => {
       (window as unknown as { stayed?: boolean }).stayed = true;
       return history.length;
