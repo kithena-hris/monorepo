@@ -513,7 +513,11 @@ export function ChangeDetail({
                 {item.awaitingReview === true ? null : (
                   <Button
                     variant="primary"
-                    aria-label={`Approve the change to ${item.name}'s ${item.label}${flaggedNow ? ' with note' : ''}`}
+                    aria-label={
+                      flaggedNow
+                        ? `Approve with note: the change to ${item.name}'s ${item.label}`
+                        : `Approve the change to ${item.name}'s ${item.label}`
+                    }
                     shortcut="row.approve"
                     loading={busy === 'approve'}
                     loadingLabel="Approving"

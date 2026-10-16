@@ -356,7 +356,13 @@ export function Scheduler({
                   on ? 'bg-accent-solid text-fg-on-accent' : 'bg-surface-sunken text-fg',
                 )}
               >
-                <span className="text-xs font-medium">{entry.weekday ?? entry.label}</span>
+                {/* Drawn, not written, for the same reason as the week's initials:
+                    "Mon" is not a word of "Monday 28 September". */}
+                <span
+                  aria-hidden
+                  data-weekday={entry.weekday ?? entry.label}
+                  className="text-xs font-medium before:content-[attr(data-weekday)]"
+                />
                 {entry.day ? (
                   <span className="text-md leading-none font-bold">{entry.day}</span>
                 ) : null}
@@ -647,9 +653,14 @@ function Rows({
           const name = entry.fullLabel ?? entry.label;
           const face = (
             <>
-              <span aria-hidden className="text-[0.5625rem] font-medium">
-                {(entry.weekday ?? entry.label).slice(0, 1)}
-              </span>
+              {/* The weekday's initial is drawn, not written: the day is named
+                  in full, and a name must hold every word the button shows
+                  (WCAG 2.5.3, Label in Name), which "M" in "Monday" is not. */}
+              <span
+                aria-hidden
+                data-initial={(entry.weekday ?? entry.label).slice(0, 1)}
+                className="text-[0.5625rem] font-medium before:content-[attr(data-initial)]"
+              />
               <span
                 aria-hidden
                 className={cn(

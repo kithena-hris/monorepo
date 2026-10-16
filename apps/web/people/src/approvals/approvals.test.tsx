@@ -89,7 +89,7 @@ describe('changes in Review (PEO-077)', () => {
     expect(screen.queryByText(/Another HR member must approve your change/)).toBeNull();
     const user = fast();
     await user.click(
-      screen.getByRole('button', { name: "Approve the change to Priya Shah's IBAN yourself" }),
+      screen.getByRole('button', { name: "Approve it myself: the change to Priya Shah's IBAN" }),
     );
     const dialog = screen.getByRole('dialog');
     expect(
@@ -208,7 +208,7 @@ describe('a sensitive field on a record (PEO-077)', () => {
       />,
     );
     const user = fast();
-    await user.click(screen.getByRole('button', { name: 'Approve the change to IBAN yourself' }));
+    await user.click(screen.getByRole('button', { name: 'Approve it myself: the change to IBAN' }));
     await user.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Approve it myself' }),
     );
@@ -383,7 +383,7 @@ describe('a flagged approval (design AI7)', () => {
     const onDecide = vi.fn(done);
     changes(data, { onDecide });
     const user = fast();
-    const approve = screen.getByRole('button', { name: /with note$/ });
+    const approve = screen.getByRole('button', { name: /^Approve with note: / });
     expect(approve).toHaveTextContent('Approve with note');
     await user.click(approve);
     expect(onDecide).not.toHaveBeenCalled();
@@ -466,7 +466,12 @@ describe('a flagged approval (design AI7)', () => {
         canTune: false,
         checks: [
           { code: 'raise', title: 'Raise much bigger than usual', detail: 'x', on: true },
-          { code: 'manager_pay', title: 'Pay that only a person’s manager can see', detail: 'x', on: true },
+          {
+            code: 'manager_pay',
+            title: 'Pay that only a person’s manager can see',
+            detail: 'x',
+            on: true,
+          },
         ],
         last90: { flagged: 0, rejected: 0, marked: 0 },
       },

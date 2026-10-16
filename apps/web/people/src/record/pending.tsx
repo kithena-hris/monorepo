@@ -102,7 +102,7 @@ export function ApproveAlone({
       <Button
         size="sm"
         variant="primary"
-        aria-label={`Approve the change to ${label} yourself`}
+        aria-label={`Approve it myself: the change to ${label}`}
         onClick={() => {
           setRefused(null);
           setOpen(true);

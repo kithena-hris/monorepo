@@ -59,7 +59,10 @@ describe('DatePicker, typed', () => {
   it('chooses a typed date and closes', async () => {
     const onChange = vi.fn();
     render(<Picker onChange={onChange} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Birthday' }));
+    const trigger = screen.getByRole('button', { name: /^Birthday: / });
+    // Label in Name (WCAG 2.5.3): what the trigger shows is part of its name.
+    expect(trigger.getAttribute('aria-label')).toContain(trigger.textContent);
+    fireEvent.click(trigger);
     const field = await screen.findByLabelText('Type birthday');
     fireEvent.change(field, { target: { value: '14/03/1996' } });
     act(() => {
@@ -70,7 +73,7 @@ describe('DatePicker, typed', () => {
 
   it('says what it could not read', async () => {
     render(<Picker onChange={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Birthday' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Birthday: / }));
     const field = await screen.findByLabelText('Type birthday');
     fireEvent.change(field, { target: { value: '31/02/1996' } });
     act(() => {
