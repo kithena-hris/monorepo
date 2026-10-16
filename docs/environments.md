@@ -64,12 +64,12 @@ skips what is already proven:
    confirms the linked run is a successful `ci` run of `pull_request` on that
    head, and compares `git rev-parse <sha>^{tree}` with the recorded tree.
 3. **The skip.** On a match, `verify` and `standalone` skip, and `changes`
-   turns off each narrowed gate (`contracts`, `web acceptance`, `integration`,
-   `design-system`) the pull request ran in full. A gate the pull request
-   narrowed — skipped by `changes`, or a contrast sweep cut to affected stories
-   — still runs on main, so main stays the backstop for a detector that
-   guessed wrong (an `apps/web` change, for instance, never runs the People
-   phone-screen axe pass on its pull request). The required checks still
+   turns off each narrowed gate (`contracts`, `web acceptance`, `integration`)
+   the pull request ran in full. A gate the pull request narrowed (skipped by
+   `changes`) still runs on main, so main stays the backstop for a detector
+   that guessed wrong. The design system is not in `ci` at all: its own
+   workflow, `design-system.yml`, starts only when a file it renders changed,
+   never on main, and in full every Monday and by hand. The required checks still
    report green, `ci` concludes `success`, and `vercel-production` starts as it
    always has; its gate, plan, smoke tests and rollback are untouched. The
    `changes` job's summary says which tree, which pull request and which run.
@@ -82,10 +82,11 @@ cannot fail the job, and empty outputs mean "run everything".
 
 How much it saves depends on the pull request. `verify`, `standalone` and
 whichever of `contracts`, `web acceptance` and `integration` it reached are
-always saved. `design-system` is saved only when the pull request swept every
-story, which is a design-system-wide change (Storybook, tokens, the theme); any
-other pull request still pays its 4-5 minutes on main, because that run is the
-one proving it.
+always saved.
+
+A draft pull request runs only `verify` and `contracts`; `integration`,
+`standalone`, `web acceptance` and the design system run when it is marked
+ready for review, and on every push after that.
 
 The decision is a plain script, so it can be dry-run with local git and a fake
 `gh` (`GH=<stub> REPO=o/r SHA=<commit> .github/scripts/retested-tree.sh`): a

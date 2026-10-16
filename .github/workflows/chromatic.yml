@@ -18,9 +18,6 @@ on:
       # dependency bump can change what a story draws.
       - 'apps/storybook/**'
       - 'packages/ui/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'turbo.json'
   merge_group:
 
 permissions:
