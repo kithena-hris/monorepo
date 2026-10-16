@@ -21,6 +21,7 @@ import {
 import { domainsFrom } from './infrastructure/vercel-domains.js';
 import { connectionsFrom, workspaceGoogle } from './infrastructure/calendars.js';
 import { indeedFrom } from './infrastructure/indeed.js';
+import { chatFrom } from './infrastructure/slack.js';
 import { ownBoards } from './application/boards.js';
 import { mailerFrom } from './infrastructure/messaging.js';
 import { listingsFrom } from './infrastructure/listings.js';
@@ -78,6 +79,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   const domains = domainsFrom(env) ?? (fakes ? fakeDomains() : undefined);
   const jobsOrigin = env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com';
   const indeed = indeedFrom(env);
+  const chat = chatFrom(env);
   const configured = connectionsFrom(env);
   const serviceAccount = env['GOOGLE_SERVICE_ACCOUNT'];
   const workspaceCalendar = serviceAccount ? workspaceGoogle(serviceAccount) : undefined;
@@ -98,6 +100,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(domains === undefined ? {} : { domains }),
       ...(connections.length === 0 ? {} : { connections }),
       ...(workspaceCalendar === undefined ? {} : { workspaceCalendar }),
+      ...(chat === undefined ? {} : { chat }),
       ...(indeed === undefined ? {} : { boards: [...ownBoards(jobsOrigin), indeed] }),
       ...(fakes
         ? { assessmentProvider: fakeAssessments(), backgroundChecks: fakeBackgroundChecks() }

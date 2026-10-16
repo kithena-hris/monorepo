@@ -234,6 +234,7 @@ const job: JobData = {
   ],
   targets: [],
   boards: [],
+  chat: null,
   criteria: [],
   plan: [],
   counts: { total: 0, active: 0, newThisWeek: 0, byStage: [] },

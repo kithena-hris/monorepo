@@ -87,6 +87,7 @@ services:
       NODE_OPTIONS: --max-old-space-size=96
       PEOPLE_URL: http://people:4001
       TIMEOFF_URL: http://timeoff:4002
+      RECRUITING_URL: http://recruiting:4005
       ASSISTANT_URL: http://assistant:4104
       SLACK_DATABASE_URL: postgres://svc_slack:${SLACK_DB_PASSWORD:?SLACK_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
     stop_grace_period: 15s
@@ -279,6 +280,8 @@ services:
     restart: unless-stopped
     env_file: recruiting.env
     environment:
+      # Kithena's one Slack app (REC-137); off until `recruiting.env` has `SLACK_RECRUITING_TOKEN`.
+      SLACK_URL: http://slack:4102
       NODE_ENV: production
       NODE_OPTIONS: --max-old-space-size=160
       KAFKA_BROKERS: redpanda:9092

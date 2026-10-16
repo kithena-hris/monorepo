@@ -16,6 +16,7 @@ import {
 } from '../domain/interview/interview.js';
 import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interview/slots.js';
 import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
+import { tellInterviewers } from './chat.js';
 import { asPerson, event, forbidden, nameOf, notFound, publish, type Ctx } from './context.js';
 import { sha256 } from './intake.js';
 import { loadApplication, queueEmail } from './moves.js';
@@ -204,6 +205,8 @@ async function book(
     ),
   );
   await invite(ctx, booked, false);
+  const candidate = await ctx.tx.candidates.get(app.candidateId);
+  await tellInterviewers(ctx, booked, candidate?.name ?? 'a candidate');
   return ok(booked);
 }
 

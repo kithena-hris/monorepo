@@ -549,6 +549,25 @@ export interface BoardJob {
   readonly asks: boolean;
 }
 
+/** A message in the company's chat app: to a person by address, or into a job's channel. */
+export interface ChatMessage {
+  readonly to: { readonly email: string } | { readonly channel: string };
+  readonly text: string;
+  /** An Approve button's value, sealed by Recruiting; the press comes back through the relay. */
+  readonly approve?: string;
+  readonly links?: readonly { readonly label: string; readonly url: string }[];
+}
+
+/** Kithena's chat app (PRD §26.3, REC-137): Slack first, through `platform/slack`. */
+export interface Chat {
+  /** What `platform/slack` presents when it relays a press. */
+  readonly token: string;
+  /** The tenant app's address, with `{slug}` where the company goes. */
+  readonly appBase: string;
+  /** Never throws: a chat message that does not go is not a failed use case. */
+  send(tenantId: string, message: ChatMessage): Promise<void>;
+}
+
 export interface Sealer {
   seal(plain: Uint8Array, boundTo: string): Uint8Array;
   /** Null when it does not open: the wrong key, or a row moved to another id. */
@@ -956,6 +975,7 @@ export interface Deps {
    * id. Absent without `RECRUITING_ENCRYPTION_KEY`: self-ID is then off.
    */
   readonly sealer?: Sealer;
+  readonly chat?: Chat;
   /** The boards a job may be published to beyond Kithena's own pages; Google and the feed by default. */
   readonly boards?: readonly JobBoard[];
   /** No provider is chosen yet: absent, the screens say so. A fake adapter each for tests and local runs. */

@@ -10,6 +10,7 @@ import {
   type Assistant,
   type Interaction,
   type People,
+  type Recruiting,
   type TimeOff,
 } from './service.js';
 import { tokenKeyFrom } from './secrets.js';
@@ -37,6 +38,10 @@ import { memoryStore, postgresStore, type Store } from './store.js';
  *   approver through this service, and the press comes back here over the
  *   socket and is passed on to Time Off. Its token opens `/internal/timeoff/`
  *   only, as People's opens everything else.
+ * - `RECRUITING_URL`, `SLACK_RECRUITING_TOKEN` — Recruiting, likewise
+ *   (REC-137): digests into a job's channel, scorecard reminders, approvals
+ *   and interviews to a person; its Approve comes back the same way. Its
+ *   token opens `/internal/recruiting/` only.
  *
  * Off production, `SLACK_BOT_TOKEN` and `SLACK_TENANT_ID` connect the
  * developer's own workspace to one company at start, since "Add to Slack"
@@ -53,6 +58,7 @@ const appToken = env['SLACK_APP_TOKEN'] ?? '';
 const peopleUrl = (env['PEOPLE_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
 const peopleToken = env['SLACK_PEOPLE_TOKEN'] ?? '';
 const timeOffToken = env['SLACK_TIMEOFF_TOKEN'] ?? '';
+const recruitingToken = env['SLACK_RECRUITING_TOKEN'] ?? '';
 const devToken = production ? '' : (env['SLACK_BOT_TOKEN'] ?? '');
 const devTenant = production ? '' : (env['SLACK_TENANT_ID'] ?? '');
 
@@ -131,6 +137,23 @@ const timeOff: TimeOff = {
   },
 };
 
+const recruitingUrl = (env['RECRUITING_URL'] ?? 'http://localhost:4005').replace(/\/$/, '');
+const recruiting: Recruiting = {
+  relay: async (tenantId, value) => {
+    const response = await fetch(`${recruitingUrl}/v1/recruiting/integrations/slack/relay`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': recruitingToken },
+      body: JSON.stringify({ tenantId, value }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      logger.error({ status: response.status }, 'recruiting refused a slack press');
+      throw new Error(`recruiting relay: ${String(response.status)}`);
+    }
+    return (await response.json()) as { text: string };
+  },
+};
+
 const clientId = env['SLACK_CLIENT_ID'] ?? '';
 const clientSecret = env['SLACK_CLIENT_SECRET'] ?? '';
 const authOrigin = env['AUTH_ORIGIN'] ?? '';
@@ -140,6 +163,7 @@ const service = slackService({
   people,
   assistant,
   timeOff,
+  ...(recruitingToken === '' ? {} : { recruiting }),
   slack: api,
   command: env['SLACK_COMMAND'] ?? '/kithena',
   now: () => Date.now(),
@@ -303,17 +327,57 @@ async function timeOffRoute(
   return { status: 404, body: {} };
 }
 
+/** Recruiting's one route: a message to a person or into a job's channel. */
+async function recruitingRoute(
+  request: IncomingMessage,
+  pathname: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+  if (pathname !== '/internal/recruiting/message' || request.method !== 'POST')
+    return { status: 404, body: {} };
+  const tenantId = str(body['tenantId'], 36);
+  const email = str(body['email'], 320);
+  const channel = str(body['channel'], 30);
+  const text = str(body['text'], 2000);
+  const approve = body['approve'] === undefined ? undefined : str(body['approve'], 2000);
+  const links = Array.isArray(body['links'])
+    ? (body['links'] as unknown[]).slice(0, 3).flatMap((l) => {
+        const label = str((l as Record<string, unknown>)['label'], 60);
+        const url = str((l as Record<string, unknown>)['url'], 2000);
+        return label && url?.startsWith('https://') ? [{ label, url }] : [];
+      })
+    : [];
+  if (!tenantId || !text || approve === null || (email === null) === (channel === null))
+    return { status: 400, body: {} };
+  const sent = await service.tellRecruiting(tenantId, {
+    to: email === null ? { channel: channel ?? '' } : { email },
+    text,
+    ...(approve === undefined ? {} : { approve }),
+    links,
+  });
+  const why = {
+    not_connected: [409, 'The company has not added Kithena to Slack.'],
+    not_in_slack: [404, 'Slack has nobody at that address.'],
+    not_in_channel: [409, 'Invite Kithena to the channel first.'],
+  } as const;
+  if (sent !== 'sent') return { status: why[sent][0], body: { sent, message: why[sent][1] } };
+  return { status: 202, body: { sent } };
+}
+
 async function route(request: IncomingMessage): Promise<{ status: number; body: unknown }> {
   // For the container's healthcheck and the deploy: up, and nothing more.
   if (request.url === '/health' && request.method === 'GET')
     return { status: 200, body: { ok: true } };
   const path = new URL(request.url ?? '/', 'http://slack.internal');
   const timeOff = path.pathname.startsWith('/internal/timeoff/');
-  if (!presents(request, timeOff ? timeOffToken : peopleToken)) {
-    return { status: 401, body: { message: timeOff ? 'Not Time Off' : 'Not People' } };
+  const recruitingCall = path.pathname.startsWith('/internal/recruiting/');
+  const caller = timeOff ? 'Time Off' : recruitingCall ? 'Recruiting' : 'People';
+  if (!presents(request, timeOff ? timeOffToken : recruitingCall ? recruitingToken : peopleToken)) {
+    return { status: 401, body: { message: `Not ${caller}` } };
   }
   const body = request.method === 'GET' ? {} : await bodyOf(request);
   if (timeOff) return timeOffRoute(request, path.pathname, body);
+  if (recruitingCall) return recruitingRoute(request, path.pathname, body);
 
   if (path.pathname === '/internal/notify' && request.method === 'POST') {
     const tenantId = str(body['tenantId'], 36);

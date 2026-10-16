@@ -17,6 +17,7 @@ import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
 import { checkOffer } from './offers.js';
 import { generalSettings } from './setup.js';
+import { jobChannel } from './chat.js';
 import type { ApplicationRecord, JobRecord } from './ports.js';
 
 /**
@@ -167,6 +168,8 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     targets: await ctx.tx.jobs.targets(jobId),
     // Boards with an adapter configured here (Indeed once its agreement is signed).
     boards: (ctx.deps.boards ?? []).map((b) => b.target),
+    // REC-137: where new applicants are posted, when the chat app is set up here.
+    chat: ctx.deps.chat === undefined ? null : { channel: await jobChannel(ctx, jobId) },
     criteria: await ctx.tx.jobs.criteria(jobId),
     plan: await ctx.tx.jobs.plan(jobId),
     counts: await counts(ctx, job),

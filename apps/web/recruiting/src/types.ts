@@ -199,6 +199,8 @@ export interface JobData {
   readonly targets: readonly Target[];
   /** Boards Recruiting has an adapter for here, beyond its own pages. */
   readonly boards: readonly string[];
+  /** The chat channel new applicants are posted to; null when no chat app is set up. */
+  readonly chat: { readonly channel: string | null } | null;
   readonly criteria: readonly {
     readonly id: string;
     readonly text: string;

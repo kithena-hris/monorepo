@@ -265,7 +265,10 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       OAuth, free/busy, events, Meet and Teams links, and Zoom. §26.2.
 - [x] **REC-136** A company's own domain for its careers page, with the
       Vercel plan's domain ceiling recorded.
-- [ ] **REC-137** Chat apps: digests, reminders, approvals. §26.3.
+- [x] **REC-137** Chat apps: digests, reminders, approvals. §26.3. Slack,
+      through `platform/slack`: a job's channel gets yesterday's applicants,
+      owed scorecards are reminded, offer and requisition approvers get an
+      Approve, and a booked interview's call goes to its interviewers.
 - [x] **REC-138** Assessment and background-check ports with a fake adapter
       each. §15.3, §17.2.
 

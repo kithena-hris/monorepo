@@ -14,6 +14,7 @@ import {
   type Reporting,
   type Requisition,
 } from '../domain/requisition/requisition.js';
+import { askApprovers } from './chat.js';
 import { asPerson, event, forbidden, notFound, publish, type Ctx } from './context.js';
 import type { Approval } from './ports.js';
 
@@ -136,8 +137,19 @@ async function openApproval(
     changes,
     createdAt: ctx.at,
   });
+  await askRequisitionApprovers(ctx, r);
   return ok(r);
 }
+
+/** The chat app asks the requisition's next approvers (REC-137). */
+const askRequisitionApprovers = (ctx: Ctx, r: Requisition) =>
+  askApprovers(
+    ctx,
+    'requisition',
+    r.id,
+    `A requisition for ${r.title} waits for your approval.`,
+    `/recruiting/requisitions/${r.id}`,
+  );
 
 export async function submitRequisition(ctx: Ctx, id: string): Promise<Result<Requisition>> {
   const held = await ctx.tx.requisitions.get(id);
@@ -168,7 +180,10 @@ export async function decideRequisition(
   const decisions = [...approval.decisions, { step, by: person.value, decision }];
   const outcome = approvalState(approval.steps, decisions).outcome;
   await ctx.tx.approvals.save({ ...approval, decisions, outcome });
-  if (outcome === 'pending') return ok(held);
+  if (outcome === 'pending') {
+    await askRequisitionApprovers(ctx, held);
+    return ok(held);
+  }
   const decided = decide(held, outcome);
   if (!decided.ok) return decided;
   await ctx.tx.requisitions.save(decided.value);

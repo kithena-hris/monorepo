@@ -1426,8 +1426,21 @@ until its setting exists. In this order:
      `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`.
 
    A grant is sealed with `RECRUITING_ENCRYPTION_KEY`, so it needs that too.
-   Slack has no call a candidate can join, so it has no adapter here; posting
-   an interview's call to its interviewers is a chat-app job (REC-137).
+   Slack has no call a candidate can join, so it has no adapter here; an
+   interview's call is posted to its interviewers through the chat app.
+
+   The chat app (REC-137) is Kithena's one Slack app, through `platform/slack`,
+   with the pair's secret `SLACK_RECRUITING_TOKEN` (a random 32 bytes, hex)
+   in GitHub's `production` environment; the deploy writes it into both
+   `recruiting.env` and `slack.env`, and `TENANT_APP_BASE` beside it for the
+   links. With it: each morning, yesterday's new applicants are posted to a
+   job's channel (chosen on the job's Publishing tab, a channel Kithena was
+   invited to), interviewers who still owe yesterday's scorecard are
+   reminded, an approver of an offer or a requisition is asked with an
+   Approve button (rejecting needs a reason, so it opens Kithena), and a
+   booked interview's interviewers are told when and how to join. Approve is
+   sealed with `RECRUITING_ENCRYPTION_KEY` and relayed to
+   `/v1/recruiting/integrations/slack/relay`, which the tunnel never routes.
 
    Indeed (REC-131, REC-132) is off until the partner agreement is signed.
    Then, from Indeed's Partner Console, put in `RECRUITING_ENV`:
