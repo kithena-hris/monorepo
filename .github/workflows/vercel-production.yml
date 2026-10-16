@@ -39,6 +39,10 @@ on:
     workflows: [ci]
     types: [completed]
     branches: [main]
+  # The Reach sites (docs and both Storybooks) wait for this, or for a deploy
+  # that names them, rather than going out on every merge: see `--defer`.
+  schedule:
+    - cron: '43 6 * * 1'
   # For what git cannot see: a secret or a variable changed, or a deploy
   # needs repeating. `gh workflow run vercel-production.yml -f targets=identity,messaging`.
   # Runs on main only, and ships these on top of whatever changed.
@@ -90,7 +94,8 @@ jobs:
     name: what changed
     if: >
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -152,9 +157,15 @@ jobs:
         env:
           FORCE: ${{ inputs.targets }}
           ONLY: ${{ inputs.only }}
+          EVENT: ${{ github.event_name }}
         run: |
           args=(--env production --head "$DEPLOY_SHA" --force "$FORCE")
           [ "$ONLY" = true ] && args+=(--only)
+          # A merge deploys what it changed except the Reach sites, which a
+          # design-system change reaches all of: Hobby's 100 deployments a day
+          # ran out twice in a week. They go out every Monday (the schedule
+          # above) and whenever a deploy names them.
+          [ "$EVENT" = workflow_run ] && args+=(--defer docs,storybook,storybook-mobile)
           pnpm exec tsx tools/scripts/src/affected-targets.ts "${args[@]}"
       - name: images to build
         id: images

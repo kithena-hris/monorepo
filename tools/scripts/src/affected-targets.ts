@@ -158,6 +158,18 @@ export function owners(
   return found;
 }
 
+/**
+ * A deferred target waits for a deploy that names it or for the weekly run,
+ * rather than going out on every merge. The Reach sites are deferred on merges
+ * (`vercel-production.yml`): a design-system change touched every one of them,
+ * and Vercel Hobby's 100 deployments a day ran out twice in a week.
+ */
+export const held = (
+  target: Target,
+  force: ReadonlySet<Target>,
+  defer: ReadonlySet<Target>,
+): boolean => defer.has(target) && !force.has(target);
+
 /** `all`, or a comma list of known targets. Throws on a name nobody deploys. */
 export function parseForce(value: string, env: Env): Set<Target> {
   const names = value
@@ -225,7 +237,7 @@ function changeBetween(
 export function plan(
   env: Env,
   head: string,
-  opts: { base?: string; force?: Set<Target>; only?: boolean },
+  opts: { base?: string; force?: Set<Target>; only?: boolean; defer?: Set<Target> },
 ): Map<Target, string | null> {
   const workspace = turboLs([]);
   const cache = new Map<string, Change | null>();
@@ -233,6 +245,10 @@ export function plan(
   for (const target of ENV_TARGETS[env]) {
     if (opts.force?.has(target)) {
       result.set(target, 'forced');
+      continue;
+    }
+    if (held(target, opts.force ?? new Set(), opts.defer ?? new Set())) {
+      result.set(target, null);
       continue;
     }
     // A hand-picked deploy: what was asked for and nothing it did not name.
@@ -256,13 +272,14 @@ function main(argv: string[]): void {
   const head = arg('head');
   if (!env || !(env in ENV_TARGETS) || !head) {
     throw new Error(
-      'usage: affected-targets --env production|staging|preview --head <sha> [--base <sha>] [--force all|a,b] [--only]',
+      'usage: affected-targets --env production|staging|preview --head <sha> [--base <sha>] [--force all|a,b] [--only] [--defer a,b]',
     );
   }
   const base = arg('base');
   const force = parseForce(arg('force') ?? '', env);
   const only = argv.includes('--only');
-  const decided = plan(env, head, { ...(base ? { base } : {}), force, only });
+  const defer = parseForce(arg('defer') ?? '', env);
+  const decided = plan(env, head, { ...(base ? { base } : {}), force, only, defer });
 
   const lines: string[] = [];
   const chosen: Target[] = [];

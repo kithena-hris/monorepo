@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ENV_TARGETS,
+  held,
   owners,
   parseForce,
   reason,
@@ -132,6 +133,15 @@ describe('owners', () => {
     );
     // A sibling directory sharing a prefix is not inside the package.
     expect(owners(['apps/webhooks/a.ts'], WORKSPACE)).toEqual(new Set());
+  });
+});
+
+describe('held', () => {
+  it('holds a deferred target back unless it was asked for by name', () => {
+    const defer = new Set<Target>(['docs', 'storybook']);
+    expect(held('docs', new Set(), defer)).toBe(true);
+    expect(held('docs', new Set(['docs']), defer)).toBe(false);
+    expect(held('shell', new Set(), defer)).toBe(false);
   });
 });
 
