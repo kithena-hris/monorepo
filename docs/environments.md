@@ -104,6 +104,14 @@ Only what changed. Vercel Hobby allows 100 deployments a day across every
 project, and shipping all eight on every merge, every staged pull request
 push and every preview spent that before the day was out.
 
+**The Reach sites wait for Monday.** `docs`, `storybook` and
+`storybook-mobile` are left out of the deploy a merge triggers (`--defer`):
+a design-system change reaches every one of them, and on a busy day that
+spent the 100 before the shell's own deploy, twice in a week. They go out in
+the scheduled run every Monday at 06:43 UTC, which deploys whatever changed
+since each target last shipped, or straight away with
+`gh workflow run vercel-production.yml -f targets=docs,storybook`.
+
 **Nothing deploys from a pull request while on Hobby.** Production ships the
 affected targets after a merge to `main`, and that is the only automatic deploy:
 
