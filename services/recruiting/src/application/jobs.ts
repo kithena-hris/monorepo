@@ -377,6 +377,7 @@ async function boardJob(ctx: Ctx, job: JobRecord, target?: PublicationTarget): P
     page: pages[0]?.page ?? null,
     contactEmail: settings.replyAddress,
     ref: typeof ref === 'string' ? ref : null,
+    asks: ((await ctx.tx.jobs.form(job.id))?.questionnaireId ?? null) !== null,
   };
 }
 

@@ -441,7 +441,7 @@ export async function receiveBoardApplication(
     job,
     candidate,
     { kind: 'target', target },
-    { name: given.name, email: given.email, boardRef: given.ref },
+    { ...given.answers, name: given.name, email: given.email, boardRef: given.ref },
     'en',
     null,
     given.files,
@@ -458,6 +458,23 @@ export async function receiveBoardApplication(
     notice: `Applied through ${words(target)}: ${settings.companyName} processes this application to consider you for ${job.title}.`,
   });
   return ok({ applicationId: landed.value.id });
+}
+
+/** A live job's questionnaire in a board's format, for its apply to ask; NOT_FOUND when it asks none. */
+export async function boardQuestions(
+  ctx: Ctx,
+  target: PublicationTarget,
+  jobId: string,
+): Promise<Result<unknown>> {
+  const board = ctx.deps.boards?.find((b) => b.target === target);
+  const live = (await ctx.tx.jobs.targets(jobId)).some(
+    (t) => t.target === target && t.state === 'live',
+  );
+  const form = live ? await ctx.tx.jobs.form(jobId) : null;
+  const questionnaire =
+    form?.questionnaireId == null ? null : await ctx.tx.questionnaires.get(form.questionnaireId);
+  if (board?.questions === undefined || questionnaire === null) return err(notFound('questions'));
+  return ok(board.questions(questionnaire));
 }
 
 /** A recruiter adds a candidate by hand (source "added by a recruiter", PRD §9.2). */

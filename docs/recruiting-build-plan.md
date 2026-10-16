@@ -253,8 +253,10 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       Sync adapter. Adapter built and off (`infrastructure/indeed.ts`);
       the agreement and a sandbox check remain.
 - [ ] **REC-132** Indeed Apply inbound and disposition sync. Built and off
-      with REC-131's adapter; ticked once the sandbox has carried one
-      application both ways.
+      with REC-131's adapter, a job's questionnaire asked as Indeed's
+      screener questions; ticked once the sandbox has carried one
+      application both ways. Indeed takes an ATS only with paying clients
+      and out of beta, so the partner request waits for launch.
 - [ ] **REC-133** Glassdoor through Indeed: confirm listings appear; document
       it on R7.
 - [ ] **REC-134** LinkedIn: apply to the partner programme (business); the
