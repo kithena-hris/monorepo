@@ -1,7 +1,7 @@
 name: deploy to production
 
 # Production by hand, one checkbox per thing that ships. Runs the same jobs as
-# the automatic deploy after a merge (`vercel-production.yml`): migrations
+# `gh workflow run vercel-production.yml` (`vercel-production.yml`): migrations
 # first, the smoke tests, the rollbacks and the deploy markers. By default it
 # deploys exactly what is ticked, whether or not it changed; "also changed"
 # adds whatever differs from what production runs. Runs from `main` only.
