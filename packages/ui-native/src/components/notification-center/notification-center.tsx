@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
 
@@ -155,6 +156,7 @@ export function NotificationItem({
 
   const body = (
     <>
+      {unread ? <Unseen>Unread.</Unseen> : null}
       {/* The unread tint: the accent wash at a little over half. */}
       {unread ? <View className="absolute inset-0 bg-accent-subtle opacity-55" /> : null}
       {leading}
@@ -219,7 +221,7 @@ export function NotificationItem({
       <View role="listitem">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={read}
+          {...spokenName(read)}
           onPress={onPress}
           className={frame}
         >

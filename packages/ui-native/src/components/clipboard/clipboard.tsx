@@ -6,6 +6,7 @@ import { Text as CssText, View } from 'react-native-css/components';
 // No extension: the bundler picks `clipboard-write.web.ts` for the web.
 import { writeText } from '../../lib/clipboard-write';
 import { cn } from '../../lib/cn.ts';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Button, type ButtonProps } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Tooltip } from '../tooltip/tooltip.tsx';
@@ -171,7 +172,10 @@ export function CopyButton({
       {...props}
       variant={copied ? 'tinted' : variant}
       size={size}
-      accessibilityLabel={accessibilityLabel ?? children ?? label}
+      // With words on it, the button is named by them on the web (spokenName).
+      {...(children
+        ? spokenName(accessibilityLabel ?? children)
+        : { accessibilityLabel: accessibilityLabel ?? label })}
       startIcon={
         status === 'error' ? <Icon icon={X} tone="danger" /> : <Icon icon={copied ? Check : icon} />
       }

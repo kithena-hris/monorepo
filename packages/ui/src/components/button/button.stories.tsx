@@ -239,7 +239,9 @@ export const WithCount: Story = {
   render: (args) => (
     <div className="flex flex-wrap items-center gap-3">
       <Button {...args} variant="secondary" aria-label="Approvals, 3 waiting">
-        Approvals
+        {/* A space between the word and the count, so they are two words
+            the name can hold (WCAG 2.5.3, Label in Name). */}
+        Approvals{' '}
         <Badge size="sm" tone="danger" variant="solid">
           3
         </Badge>

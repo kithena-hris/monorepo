@@ -48,12 +48,16 @@ describe('ID checks in Review (PEO-125)', () => {
     const onDecide = vi.fn(done);
     idChecks([item], { onReviewIdentifier: onDecide });
     const user = fast();
-    await user.click(screen.getByRole('button', { name: /Accept Lucía Ortega's/ }));
+    await user.click(
+      screen.getByRole('button', { name: /^Mark as correct anyway: Lucía Ortega's/ }),
+    );
     expect(screen.getByText(/will not be flagged again/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Accept' }));
     expect(onDecide).toHaveBeenCalledWith('p1', 'es_nif', 'accept', null);
 
-    await user.click(screen.getByRole('button', { name: /Send Lucía Ortega's NIF \/ NIE back/ }));
+    await user.click(
+      screen.getByRole('button', { name: /^Ask Lucía to correct it: Lucía Ortega's NIF \/ NIE$/ }),
+    );
     // Sent back without saying why, the employee cannot tell what to fix.
     await user.click(screen.getByRole('button', { name: 'Send back' }));
     expect(onDecide).toHaveBeenCalledTimes(1);
@@ -68,7 +72,9 @@ describe('ID checks in Review (PEO-125)', () => {
     const { container } = idChecks([{ ...item, held: true }]);
     expect(await axeViolations(container)).toEqual([]);
     expect(screen.getByText('Waiting for approval')).toBeInTheDocument();
-    await fast().click(screen.getByRole('button', { name: /Send Lucía Ortega's NIF \/ NIE back/ }));
+    await fast().click(
+      screen.getByRole('button', { name: /^Ask Lucía to correct it: Lucía Ortega's NIF \/ NIE$/ }),
+    );
     expect(
       screen.getByText(/The change is declined, and Lucía Ortega is asked to correct it/),
     ).toBeInTheDocument();

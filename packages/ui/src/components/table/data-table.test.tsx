@@ -132,11 +132,11 @@ describe('<DataTable groupBy>', () => {
       />,
     );
 
-    const engineering = screen.getByRole('button', { name: 'Engineering, 2 rows' });
+    const engineering = screen.getByRole('button', { name: /^Engineering 2 rows/ });
     expect(engineering).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Σ 210000')).toBeInTheDocument();
     // Sales is collapsed: its header and count stay, its row does not.
-    expect(screen.getByRole('button', { name: 'Sales, 1 row' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Sales 1 row/ })).toHaveAttribute(
       'aria-expanded',
       'false',
     );
@@ -249,7 +249,7 @@ describe('<DataTable> striped, resizable, paged and grouped', () => {
       />,
     );
     const headings = screen.getAllByRole('rowheader');
-    expect(headings.map((h) => h.textContent)).toEqual(['Research2', 'Networks1']);
+    expect(headings.map((h) => h.textContent)).toEqual(['Research 2 rows', 'Networks 1 row']);
   });
 });
 

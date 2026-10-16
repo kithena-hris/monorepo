@@ -11,6 +11,7 @@ import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { physics } from '../../lib/motion.ts';
 import { useReducedMotion } from '../../provider.tsx';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import { swipeOutcome } from './swipe.ts';
 
@@ -254,7 +255,7 @@ export function ListItem({
   const body = onPress ? (
     <Pressable
       accessibilityRole="button"
-      {...(said ? { accessibilityLabel: said } : {})}
+      {...(said ? spokenName(said) : {})}
       accessibilityState={{ disabled, selected }}
       disabled={disabled}
       onPress={onPress}

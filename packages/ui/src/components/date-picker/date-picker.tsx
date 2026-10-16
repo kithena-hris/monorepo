@@ -232,7 +232,9 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
       <PopoverTrigger
         id={id}
         disabled={disabled}
-        aria-label={label}
+        // The label, then what the trigger shows: a name that holds the visible
+        // text is one a voice user can say (WCAG 2.5.3, Label in Name).
+        aria-label={`${label}: ${display}`}
         aria-describedby={describedBy}
         // The icon trails, as on every field, so under a thumb the label can
         // float inside the trigger where the value starts.

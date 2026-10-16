@@ -333,7 +333,9 @@ export function Combobox({
           ref={triggerRef}
           id={id}
           disabled={disabled}
-          aria-label={label}
+          // The label, then what the trigger shows: a name that holds the
+          // visible text is one a voice user can say (WCAG 2.5.3).
+          aria-label={`${label}: ${triggerLabel}`}
           aria-describedby={describedBy}
           // Under a thumb the label of a 56px trigger floats inside it, as it
           // does on an `Input`.

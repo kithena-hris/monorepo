@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cn } from '../../lib/cn.ts';
 import { useOverlayContainer } from '../../lib/overlay-host.tsx';
 import { flatStyle, InertOutside, quietFrame, usePresence } from '../../lib/overlay.tsx';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { BackGuard } from '../dialog/dialog.tsx';
 import { Skeleton } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -341,9 +342,9 @@ export function Command({
                     onHoverIn={() => {
                       setActive(flat.indexOf(item));
                     }}
-                    accessibilityLabel={
-                      item.description ? `${item.label}, ${item.description}` : item.label
-                    }
+                    {...spokenName(
+                      item.description ? `${item.label}, ${item.description}` : item.label,
+                    )}
                     accessibilityState={{ selected: on, disabled: item.disabled ?? false }}
                     {...(WEB
                       ? aria({

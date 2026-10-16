@@ -60,7 +60,7 @@ function props(over: Partial<IntegrationsProps> = {}): IntegrationsProps {
 
 const allowlistOf = (url: string) => {
   const section = screen.getByRole('region', { name: url });
-  return within(section).getByRole('button', { name: 'Fields this endpoint receives' });
+  return within(section).getByRole('button', { name: /^Fields this endpoint receives: / });
 };
 
 describe('Integrations', () => {
@@ -149,7 +149,7 @@ describe('Integrations', () => {
       within(dialog).getByRole('textbox', { name: /URL/ }),
       'https://hooks.example.com/in',
     );
-    await user.click(within(dialog).getByRole('button', { name: 'Events' }));
+    await user.click(within(dialog).getByRole('button', { name: /^Events: / }));
     await user.click(await screen.findByRole('option', { name: /Person hired/ }));
     await user.keyboard('{Escape}');
     await user.click(within(dialog).getByRole('button', { name: 'Add endpoint' }));

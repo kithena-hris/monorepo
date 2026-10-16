@@ -195,7 +195,13 @@ describe('Missing details', () => {
     const typed: CompletenessState = {
       ...state,
       fields: [
-        { key: 'contract_end', label: 'Contract end', dataType: 'date', options: [], person: false },
+        {
+          key: 'contract_end',
+          label: 'Contract end',
+          dataType: 'date',
+          options: [],
+          person: false,
+        },
         {
           key: 'equipment',
           label: 'Equipment',
@@ -213,7 +219,13 @@ describe('Missing details', () => {
           person: false,
         },
         { key: 'work_email', label: 'Work email', dataType: 'email', options: [], person: false },
-        { key: 'iban', label: 'Bank account', dataType: 'bank_account', options: [], person: false },
+        {
+          key: 'iban',
+          label: 'Bank account',
+          dataType: 'bank_account',
+          options: [],
+          person: false,
+        },
       ],
       rows: [
         {
@@ -235,8 +247,12 @@ describe('Missing details', () => {
     const date = screen.getByRole('textbox', { name: 'Contract end for Lena Moreau' });
     expect(date).toHaveAttribute('readonly');
     await user.click(date);
-    expect(screen.getByRole('button', { name: 'Contract end for Lena Moreau' })).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: 'Contract end for Lena Moreau' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /^Contract end for Lena Moreau: / }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('dialog', { name: 'Contract end for Lena Moreau' }),
+    ).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.getByRole('switch', { name: 'Remote for Lena Moreau' })).toBeInTheDocument();
     // Money, used, is the currency field with the decimal keypad.
@@ -256,7 +272,7 @@ describe('Missing details', () => {
 
     render(<MissingDetails state={typed} fill="l" onSave={vi.fn()} />);
     const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });
-    expect(within(dialog).getByRole('button', { name: 'Contract end' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /^Contract end: / })).toBeInTheDocument();
     expect(within(dialog).getByRole('switch', { name: 'Remote' })).toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: 'Work email' })).toHaveAttribute(
       'type',
@@ -268,7 +284,10 @@ describe('Missing details', () => {
     const user = fast();
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     const countries = [
-      ...Array.from({ length: 40 }, (_, i) => ({ value: `Q${String(i)}`, label: `Country ${String(i)}` })),
+      ...Array.from({ length: 40 }, (_, i) => ({
+        value: `Q${String(i)}`,
+        label: `Country ${String(i)}`,
+      })),
       { value: 'JP', label: 'Japan' },
     ];
     render(
@@ -276,7 +295,13 @@ describe('Missing details', () => {
         state={{
           ...state,
           fields: [
-            { key: 'nationality', label: 'Nationality', dataType: 'country', options: countries, person: false },
+            {
+              key: 'nationality',
+              label: 'Nationality',
+              dataType: 'country',
+              options: countries,
+              person: false,
+            },
             { key: 'team', label: 'Team', dataType: 'org_unit_ref', options: [], person: false },
           ],
           rows: [{ ...(state.rows[0] as GapRow), missing: ['nationality', 'team'] }],
@@ -286,7 +311,10 @@ describe('Missing details', () => {
     );
     await fillAll();
     await user.click(screen.getByRole('textbox', { name: 'Nationality for Lena Moreau' }));
-    await user.type(screen.getByRole('combobox', { name: 'Nationality for Lena Moreau search' }), 'Jap');
+    await user.type(
+      screen.getByRole('combobox', { name: 'Nationality for Lena Moreau search' }),
+      'Jap',
+    );
     await user.click(await screen.findByRole('option', { name: 'Japan' }));
     // Nothing to pick from is said, not drawn as a list that opens empty.
     expect(screen.getByRole('combobox', { name: 'Team for Lena Moreau' })).toBeDisabled();
@@ -353,7 +381,9 @@ describe('Missing details', () => {
     });
     // What was filled is no longer missing: Lena is done, Nadia still waits.
     expect(screen.queryByRole('combobox', { name: 'Cost centre for Lena Moreau' })).toBeNull();
-    expect(screen.getByRole('textbox', { name: 'Cost centre for Nadia Petrova' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('textbox', { name: 'Cost centre for Nadia Petrova' }),
+    ).toBeInTheDocument();
   });
 
   it('keeps the edits and says why when the save is refused', async () => {
@@ -493,7 +523,9 @@ describe('Missing details', () => {
     const user = fast();
     const nif: CompletenessState = {
       ...state,
-      fields: [{ key: 'es_nif', label: 'NIF', dataType: 'national_id', options: [], person: false }],
+      fields: [
+        { key: 'es_nif', label: 'NIF', dataType: 'national_id', options: [], person: false },
+      ],
       rows: [{ ...(state.rows[1] as GapRow), missing: ['es_nif'] }],
     };
     const finding = {

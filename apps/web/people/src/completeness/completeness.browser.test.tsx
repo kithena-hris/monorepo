@@ -238,7 +238,7 @@ describe.skipIf(coarse)('Missing details at ten thousand gaps', () => {
         option('CC 0'),
       );
       const countries = await opening(
-        within(dialog).getByRole('button', { name: 'Nationality' }),
+        within(dialog).getByRole('button', { name: /^Nationality: / }),
         option('Country 0'),
       );
       const said = `dialog ${opened.toFixed(0)}, list ${list.toFixed(0)}, countries ${countries.toFixed(0)} ms`;

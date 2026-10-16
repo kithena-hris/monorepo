@@ -6,6 +6,7 @@ import { Pressable, ScrollView, View } from 'react-native-css/components';
 import { ReachMark } from '../../brand/reach-logo.tsx';
 import { designDocs, designNote } from '../../docs/design.ts';
 import { PEOPLE } from '../../docs/people.ts';
+
 import { Avatar } from '../avatar/avatar.tsx';
 import { Button } from '../button/button.tsx';
 import { Skeleton } from '../feedback/feedback.tsx';
@@ -134,7 +135,6 @@ export const GlassOnScroll: Story = {
           <Pressable
             key={person.name}
             accessibilityRole="button"
-            accessibilityLabel={person.name}
             className="h-12 flex-row items-center gap-3 border-b border-border px-2"
           >
             <Avatar name={person.name} size={32} decorative />

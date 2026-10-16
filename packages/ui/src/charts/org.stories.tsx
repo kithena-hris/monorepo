@@ -853,14 +853,16 @@ export const CustomCards: Story = {
         <OrgChart
           {...args}
           renderNode={(node, info) => (
+            // A space between the lines, so the card's words stay words where
+            // its text is read run together (the chart names a card by it).
             <div className="space-y-1">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="truncate text-sm font-medium text-fg">{node.name}</p>
+                <p className="truncate text-sm font-medium text-fg">{node.name}</p>{' '}
                 <span className="shrink-0 text-lg font-semibold tabular-nums text-fg">
                   {info.total}
                 </span>
-              </div>
-              <p className="truncate text-2xs text-fg-subtle">{node.title}</p>
+              </div>{' '}
+              <p className="truncate text-2xs text-fg-subtle">{node.title}</p>{' '}
               <p className="text-2xs text-fg-subtle">
                 {info.reports === 0 ? 'Individual contributor' : `${String(info.reports)} direct`} ·
                 level {info.depth}

@@ -2026,7 +2026,12 @@ export function FunnelChart({
           const overall = first === 0 ? null : stage.value / first;
           const worst = highlightBiggestDrop && index === biggestDrop;
           const grew = stepRate !== null && stepRate > 1;
-          const readout = `${stage.label}: ${format(stage.value)}`;
+          // Every figure the bar shows is in its name (WCAG 2.5.3, Label in
+          // Name), the share of the first stage included.
+          const readout =
+            overall !== null && index > 0
+              ? `${stage.label}: ${format(stage.value)}, ${String(Math.round(overall * 100))}% of ${data[0]?.label ?? ''}`
+              : `${stage.label}: ${format(stage.value)}`;
           const StepIcon = grew ? ArrowUp : ArrowDown;
 
           return (
@@ -2087,9 +2092,12 @@ export function FunnelChart({
                     <span className="shrink-0 text-sm font-semibold whitespace-nowrap tabular-nums text-fg">
                       {format(stage.value)}
                       {overall !== null && index > 0 ? (
-                        <span className="ms-1.5 text-xs font-medium text-fg-muted">
-                          {Math.round(overall * 100)}%
-                        </span>
+                        <>
+                          {/* A space, so the count and the share are two words. */}{' '}
+                          <span className="ms-1 text-xs font-medium text-fg-muted">
+                            {Math.round(overall * 100)}%
+                          </span>
+                        </>
                       ) : null}
                     </span>
                   </div>

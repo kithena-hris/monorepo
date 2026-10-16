@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import type { Pick, PickedFile } from './files.ts';
@@ -142,7 +143,7 @@ export function Dropzone({
     <Animated.View style={press.style}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label}
+        {...spokenName(label)}
         accessibilityHint={error ?? hint}
         accessibilityState={{ disabled, busy }}
         aria-invalid={error ? true : undefined}

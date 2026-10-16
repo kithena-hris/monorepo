@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { Pressable, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Progress } from '../progress/progress.tsx';
 import { Text } from '../text/text.tsx';
@@ -114,7 +115,7 @@ function Step({
     return (
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel={name}
+        {...spokenName(name)}
         onPress={step.onPress}
         className={cn(
           className,
@@ -123,6 +124,7 @@ function Step({
         )}
       >
         {children}
+        <Unseen>{`step ${String(index + 1)} of ${String(count)}, ${spoken[status]}`}</Unseen>
       </Pressable>
     );
   }

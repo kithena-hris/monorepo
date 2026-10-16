@@ -1495,7 +1495,7 @@ describe('a floating button over a pinned footer (MA7)', () => {
       // The launcher measures once a frame.
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       await settled();
-      const approve = screen.getByRole('button', { name: /with note$/ });
+      const approve = screen.getByRole('button', { name: /^Approve with note: / });
       const box = approve.getBoundingClientRect();
       if (box.bottom <= 0 || box.top >= window.innerHeight) continue;
       // At its centre, as asked, and at each end too: a corner under the button is still covered.
@@ -1554,7 +1554,7 @@ describe('Review on a phone, with a flagged change (MA E2)', () => {
       ),
     );
     expect(screen.getByRole('heading', { name: 'Why this is flagged' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /with note$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Approve with note: / })).toBeInTheDocument();
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   });
 

@@ -165,7 +165,9 @@ export function Dropzone({
       <button
         type="button"
         disabled={disabled}
-        aria-label={label}
+        // Its own words name it (WCAG 2.5.3, Label in Name); custom children
+        // may not hold the label, so they are named by it.
+        aria-label={children === undefined ? undefined : label}
         onClick={() => {
           input.current?.click();
         }}

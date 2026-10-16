@@ -247,7 +247,7 @@ describe('BulkEdit: hire', () => {
     const table = await screen.findByRole('table', { name: 'Per person' });
     expect(await axeViolations(container)).toEqual([]);
 
-    await user.click(within(table).getByRole('button', { name: 'Start date for Lena Moreau' }));
+    await user.click(within(table).getByRole('button', { name: /^Start date for Lena Moreau: / }));
     await user.click(await screen.findByRole('button', { name: /30 September|September 30/ }));
     // The preview on screen is no longer what would be hired: not offered until recomputed.
     expect(screen.getByRole('button', { name: 'Hire 2 people' })).toBeDisabled();
@@ -299,12 +299,12 @@ describe('BulkEdit: hire', () => {
     expect(within(table).getAllByText('Skipped')).toHaveLength(1);
 
     // A first change is recomputed, and hangs; a second one overtakes it.
-    await user.click(within(table).getByRole('button', { name: 'Start date for Adam Reyes' }));
+    await user.click(within(table).getByRole('button', { name: /^Start date for Adam Reyes: / }));
     await user.click(await screen.findByRole('button', { name: /29 September|September 29/ }));
     await waitFor(() => {
       expect(slow).toHaveLength(1);
     });
-    await user.click(within(table).getByRole('button', { name: 'Start date for Adam Reyes' }));
+    await user.click(within(table).getByRole('button', { name: /^Start date for Adam Reyes: / }));
     await user.click(await screen.findByRole('button', { name: /30 September|September 30/ }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Hire 3 people' })).toBeEnabled();

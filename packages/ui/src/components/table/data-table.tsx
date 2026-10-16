@@ -1265,7 +1265,6 @@ export function DataTable<T extends TableRow>({
                   <button
                     type="button"
                     aria-expanded={!isShut}
-                    aria-label={`${value}, ${String(leaves.length)} ${leaves.length === 1 ? 'row' : 'rows'}`}
                     onClick={() => {
                       setCollapsed(
                         isShut
@@ -1285,8 +1284,11 @@ export function DataTable<T extends TableRow>({
                         !isShut && 'rotate-90',
                       )}
                     />
-                    {value}
-                    <span className="font-medium text-fg-muted tabular-nums">{leaves.length}</span>
+                    {/* Named by its words, the value then the count, two words apart
+                        (WCAG 2.5.3, Label in Name). */}
+                    {value}{' '}
+                    <span className="font-medium text-fg-muted tabular-nums">{leaves.length}</span>{' '}
+                    <span className="sr-only">{leaves.length === 1 ? 'row' : 'rows'}</span>
                   </button>
                 </TableHead>
                 {columns.slice(1).map((column) => (

@@ -4,6 +4,7 @@ import type { TextInput as RNTextInput } from 'react-native';
 import { Pressable, Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../dialog/dialog.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -300,7 +301,7 @@ export function ChoiceButton({
     <Dialog open={open} onOpenChange={setOpen}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${label}, ${spokenValue ?? value}`}
+        {...spokenName(`${label}, ${spokenValue ?? value}`)}
         hitSlop={{ top: 12, bottom: 12 }}
         onPress={() => {
           setOpen(true);
@@ -310,7 +311,11 @@ export function ChoiceButton({
           divided && 'border-r border-border-strong pr-2.5',
         )}
       >
+        <Unseen>{label}</Unseen>
         <CssText className={className}>{display ?? value}</CssText>
+        {display !== undefined && display !== (spokenValue ?? value) ? (
+          <Unseen>{spokenValue ?? value}</Unseen>
+        ) : null}
         <Icon icon={ChevronDown} size={13} tone="muted" />
       </Pressable>
       <DialogContent>

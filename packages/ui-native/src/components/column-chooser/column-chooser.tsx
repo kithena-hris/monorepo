@@ -6,6 +6,7 @@ import Sortable from 'react-native-sortables';
 import { cn } from '../../lib/cn.ts';
 import { floatingSurface } from '../../lib/floating.tsx';
 import { move, ReorderHandle, useAnnouncer, useDragMotion } from '../../lib/reorder.tsx';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import { Checkbox } from '../checkbox/checkbox.tsx';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from '../dialog/dialog.tsx';
@@ -122,7 +123,7 @@ export function ColumnChooser({
           size={size}
           startIcon={<Icon icon={Columns3} />}
           endIcon={<TriggerCount count={count} />}
-          accessibilityLabel={`${label}, ${String(count)} of ${String(ordered.length)} showing`}
+          {...spokenName(`${label}, ${String(count)} of ${String(ordered.length)} showing`)}
           className={className}
         >
           {label}

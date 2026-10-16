@@ -28,7 +28,7 @@ describe('insights', () => {
     expect(points.getAllByRole('listitem')).toHaveLength(3);
     expect(points.getByText(/1240 days of vacation are still unbooked/)).toBeTruthy();
     expect(
-      points.getByRole('link', { name: 'See 4 people: who has had no break' }).getAttribute('href'),
+      points.getByRole('link', { name: 'See the 4: who has had no break' }).getAttribute('href'),
     ).toBe('/time-off/insights/what-changed?point=no_break');
     // A point about a count has nobody behind it to list.
     expect(points.queryByRole('link', { name: /missed/ })).toBeNull();

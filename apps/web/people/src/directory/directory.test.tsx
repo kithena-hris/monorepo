@@ -635,7 +635,7 @@ describe('Directory', () => {
         })}
       />,
     );
-    expect(screen.getByRole('rowheader')).toHaveTextContent('ENG-2042');
+    expect(screen.getByRole('rowheader')).toHaveTextContent('ENG-204 2 rows');
   });
 });
 

@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { WEB } from '../../lib/floating.tsx';
+import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Input } from '../input/input.tsx';
 import { List, ListItem, type IconTone } from '../list-item/list-item.tsx';
@@ -307,18 +308,22 @@ export function GroupedNav({
                       trailing={end(item, true)}
                       className="min-h-[52px] focus-visible:bg-surface-sunken focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus"
                       onPress={() => onSelect?.(item.id)}
-                      accessibilityLabel={[
-                        item.label,
-                        item.count === undefined ? null : String(item.count),
-                        item.locked ? 'locked' : null,
-                        item.pinned ? 'pinned' : null,
-                      ]
-                        .filter(Boolean)
-                        .join(', ')}
+                      {...spokenName(
+                        [
+                          item.label,
+                          item.count === undefined ? null : String(item.count),
+                          item.locked ? 'locked' : null,
+                          item.pinned ? 'pinned' : null,
+                        ]
+                          .filter(Boolean)
+                          .join(', '),
+                      )}
                     >
                       <Text weight="medium">
                         <Marked text={item.label} query={query} />
                       </Text>
+                      {item.locked ? <Unseen>locked</Unseen> : null}
+                      {item.pinned ? <Unseen>pinned</Unseen> : null}
                     </ListItem>
                   );
                 })}

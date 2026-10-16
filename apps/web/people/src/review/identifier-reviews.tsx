@@ -209,7 +209,8 @@ export function IdCheckDetail({
         className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2"
       >
         <Button
-          aria-label={`Send ${item.name}'s ${item.label} back`}
+          // Each name starts with what the button says (WCAG 2.5.3, Label in Name).
+          aria-label={`Ask ${first} to correct it: ${item.name}'s ${item.label}`}
           onClick={() => {
             setDeciding(false);
           }}
@@ -218,7 +219,7 @@ export function IdCheckDetail({
         </Button>
         <Button
           variant="primary"
-          aria-label={`Accept ${item.name}'s ${item.label}`}
+          aria-label={`Mark as correct anyway: ${item.name}'s ${item.label}`}
           onClick={() => {
             setDeciding(true);
           }}

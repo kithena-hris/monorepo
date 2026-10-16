@@ -524,7 +524,8 @@ export function AvatarUploader({
               variant="secondary"
               size="sm"
               disabled={disabled || uploading}
-              accessibilityLabel={src ? `Change ${name}’s photo` : `Add ${name}’s photo`}
+              // What it says first, then whose (WCAG 2.5.3, Label in Name).
+              accessibilityLabel={src ? `Change photo, ${name}` : `Add photo, ${name}`}
               onPress={choose}
             >
               {src ? 'Change photo' : 'Add photo'}

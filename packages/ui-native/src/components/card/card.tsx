@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { Text } from '../text/text.tsx';
 
 /**
@@ -63,7 +64,7 @@ export function Card({
   return (
     <Pressable
       accessibilityRole="button"
-      {...(accessibilityLabel ? { accessibilityLabel } : {})}
+      {...(accessibilityLabel ? spokenName(accessibilityLabel) : {})}
       onPress={onPress}
       onPressIn={() => {
         setPressed(true);

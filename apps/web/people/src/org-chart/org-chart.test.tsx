@@ -93,7 +93,7 @@ describe('the org chart’s direction and search, in the address', () => {
     );
     const direction = screen.getByRole('radiogroup', { name: 'Direction' });
     expect(within(direction).getByRole('radio', { name: 'Left to right' })).toBeChecked();
-    expect(screen.getByRole('button', { name: 'Find someone' })).toHaveTextContent('Adam Novak');
+    expect(screen.getByRole('button', { name: /^Find someone: / })).toHaveTextContent('Adam Novak');
     await user.click(within(direction).getByRole('radio', { name: 'Top down' }));
     expect(onLayoutChange).toHaveBeenCalledWith('vertical');
   });
@@ -108,7 +108,7 @@ describe('the org chart’s direction and search, in the address', () => {
       />,
       { wrapper: TooltipProvider },
     );
-    expect(screen.getByRole('button', { name: 'Find someone' }).textContent).not.toMatch(
+    expect(screen.getByRole('button', { name: /^Find someone: / }).textContent).not.toMatch(
       /Adam|Marco|Nora/,
     );
   });

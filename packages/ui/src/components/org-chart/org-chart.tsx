@@ -799,7 +799,8 @@ export function OrgChart({
   const focusRow = (id: string | undefined): void => {
     if (id === undefined) return;
     setActiveId(id);
-    const card = cards.current.get(id);
+    // The canvas's treeitem is the card; the list's is its row.
+    const card = cardBoxes.current.get(id) ?? cards.current.get(id);
     // `preventScroll` then a smooth scroll of our own: the browser's default
     // focus scroll is instantaneous and lands the card against the edge of the
     // viewport, which is exactly where you cannot see its connectors.
@@ -1065,17 +1066,17 @@ export function OrgChart({
       `Move cancelled. ${nodeById(String(active.id))?.name ?? 'The person'} stayed where they were.`,
   };
 
-  const keyHandler = useRef<(event: KeyboardEvent<HTMLLIElement>, row: VisibleRow) => void>(
+  const keyHandler = useRef<(event: KeyboardEvent<HTMLElement>, row: VisibleRow) => void>(
     () => undefined,
   );
   // One stable function identity for the life of the chart, forwarding to the
   // current render's closure. Without it every branch's props change on every
   // render and `memo` below buys nothing.
-  const onKeyDown = useCallback((event: KeyboardEvent<HTMLLIElement>, row: VisibleRow): void => {
+  const onKeyDown = useCallback((event: KeyboardEvent<HTMLElement>, row: VisibleRow): void => {
     keyHandler.current(event, row);
   }, []);
 
-  keyHandler.current = (event: KeyboardEvent<HTMLLIElement>, row: VisibleRow): void => {
+  keyHandler.current = (event: KeyboardEvent<HTMLElement>, row: VisibleRow): void => {
     const index = rowIndex.get(row.id) ?? 0;
     const handled = (): void => {
       event.preventDefault();
@@ -1769,19 +1770,28 @@ export function OrgChart({
 function OrgCardBody({ node }: { node: OrgNode }): JSX.Element {
   return (
     <div className="flex items-center gap-2.5">
+      {/* The spaces between the lines are words' edges for anything that reads
+          the text run together, as axe's Label in Name check does; a flex
+          container does not draw them. */}
       <Avatar
         size="md"
         name={node.name}
         {...(node.avatarUrl === undefined ? {} : { src: node.avatarUrl })}
-      />
+      />{' '}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] leading-tight font-semibold text-fg">{node.name}</p>
         {node.title === undefined ? null : (
-          <p className="truncate text-xs leading-tight text-fg-muted">{node.title}</p>
+          <>
+            {' '}
+            <p className="truncate text-xs leading-tight text-fg-muted">{node.title}</p>
+          </>
         )}
         {node.meta === undefined ? null : (
-          <p className="truncate text-[11px] text-fg-subtle">{node.meta}</p>
-        )}
+          <>
+            {' '}
+            <p className="truncate text-[11px] text-fg-subtle">{node.meta}</p>
+          </>
+        )}{' '}
         {node.status === undefined ? null : (
           <Badge size="sm" tone={node.statusTone ?? 'neutral'} className="mt-1">
             {node.status}
@@ -1811,7 +1821,7 @@ const OrgBranch = memo(function OrgBranch({
   level: number;
   position: number;
   size: number;
-  onKeyDown: (event: KeyboardEvent<HTMLLIElement>, row: VisibleRow) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>, row: VisibleRow) => void;
 }): JSX.Element | null {
   const org = useOrg();
   const { node } = tree;
@@ -1822,6 +1832,7 @@ const OrgBranch = memo(function OrgBranch({
     disabled: !org.reassignable || node.locked === true,
   });
   const droppable = useDroppable({ id: node.id, disabled: !org.reassignable });
+  const reportsId = useId();
 
   if (!row) return null;
 
@@ -1836,10 +1847,8 @@ const OrgBranch = memo(function OrgBranch({
   const valid = org.isValidTarget(node.id);
   const info: OrgNodeInfo = { reports: tree.children.length, total: tree.total, depth: level };
 
-  const description = [
-    node.name,
-    node.title,
-    node.status,
+  // What the card does not show, for its spoken name.
+  const unseen = [
     onSpine ? 'in the reporting chain above' : undefined,
     tree.children.length === 0
       ? 'no direct reports'
@@ -1851,6 +1860,33 @@ const OrgBranch = memo(function OrgBranch({
   const card = (
     <div
       data-org-node={node.id}
+      // The treeitem is the card, and its reports a group beside it that it
+      // owns (aria-owns), as in the ARIA Authoring Practices' navigation tree:
+      // a treeitem that contained its subtree would be named, and seen, as the
+      // whole subtree (WCAG 2.5.3, Label in Name). Its name is its own words.
+      role="treeitem"
+      // Named by what the card shows, in order, then what it does not:
+      // content would also take in the reports it owns.
+      aria-labelledby={[
+        `${reportsId}-card`,
+        row.hasChildren && !onSpine ? `${reportsId}-count` : null,
+        `${reportsId}-more`,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-level={level}
+      aria-posinset={position}
+      aria-setsize={size}
+      {...(row.hasChildren ? { 'aria-expanded': row.expanded } : {})}
+      {...(row.expanded ? { 'aria-owns': reportsId } : {})}
+      {...(org.select ? { 'aria-selected': selected } : {})}
+      tabIndex={org.tabStop === node.id ? 0 : -1}
+      onKeyDown={(event) => {
+        onKeyDown(event, row);
+      }}
+      onFocus={() => {
+        org.setActiveId(node.id);
+      }}
       // Drag *and* drop hang off the card rather than the `<li>`: a treeitem
       // contains its own subtree, so a pointer press on a report would bubble
       // into their manager's activator and lift the wrong person.
@@ -1862,6 +1898,7 @@ const OrgBranch = memo(function OrgBranch({
       }}
       {...draggable.listeners}
       className={cn(
+        'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
         'relative w-46 rounded-[16px] bg-surface p-3 text-start shadow-sm',
         'transition-[box-shadow,background-color,opacity] duration-(--animate-duration-fast)',
         // Only on arrival. A card that was already on screen and merely moved
@@ -1897,14 +1934,18 @@ const OrgBranch = memo(function OrgBranch({
           : undefined
       }
     >
-      {org.renderNode ? org.renderNode(node, info) : <OrgCardBody node={node} />}
-
+      <div id={`${reportsId}-card`}>
+        {org.renderNode ? org.renderNode(node, info) : <OrgCardBody node={node} />}
+      </div>
+      {/* A space after the body, so its last word and the count chip stay two. */}{' '}
+      <span id={`${reportsId}-more`} className="sr-only">{`, ${unseen}`}</span>
       {row.hasChildren && !onSpine ? (
         // Not a nested `<button>`: a control inside a treeitem competes with it
         // for focus and for the Enter key. The keyboard path is Left and Right,
         // which is the tree pattern people already have; this is the pointer
         // shortcut for the same thing.
         <span
+          id={`${reportsId}-count`}
           aria-hidden
           role="presentation"
           title={row.expanded ? 'Hide reports' : 'Show reports'}
@@ -1954,22 +1995,7 @@ const OrgBranch = memo(function OrgBranch({
         if (element) org.cards.set(node.id, element);
         else org.cards.delete(node.id);
       }}
-      role="treeitem"
-      // Named explicitly: a treeitem's name is otherwise computed from its
-      // contents, and its contents are the whole subtree below it.
-      aria-label={description}
-      aria-level={level}
-      aria-posinset={position}
-      aria-setsize={size}
-      {...(row.hasChildren ? { 'aria-expanded': row.expanded } : {})}
-      {...(org.select ? { 'aria-selected': selected } : {})}
-      tabIndex={org.tabStop === node.id ? 0 : -1}
-      onKeyDown={(event) => {
-        onKeyDown(event, row);
-      }}
-      onFocus={() => {
-        org.setActiveId(node.id);
-      }}
+      role="none"
       onClick={
         org.select
           ? (event) => {
@@ -1991,8 +2017,7 @@ const OrgBranch = memo(function OrgBranch({
         org.events.onNodeDoubleClick?.(node, event);
       }}
       className={cn(
-        'group/node relative flex outline-none',
-        'focus-visible:[&>*]:outline-2 focus-visible:[&>*]:outline-offset-2 focus-visible:[&>*]:outline-border-focus',
+        'group/node relative flex',
         org.select && 'cursor-pointer',
         org.orientation === 'vertical'
           ? // Symmetric padding on every child, including the outer two. Trimming
@@ -2041,6 +2066,7 @@ const OrgBranch = memo(function OrgBranch({
       {row.expanded ? (
         <ul
           role="group"
+          id={reportsId}
           // Shrink-to-fit tracks, so a manager is centred over the box its
           // subtree occupies.
           //
@@ -2107,7 +2133,7 @@ function OrgTreeList({
 }: {
   label: string;
   roots: readonly TreeNode[];
-  onKeyDown: (event: KeyboardEvent<HTMLLIElement>, row: VisibleRow) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>, row: VisibleRow) => void;
 }): JSX.Element {
   const org = useOrg();
   const items: { tree: TreeNode; row: VisibleRow; position: number; size: number }[] = [];
@@ -2141,14 +2167,8 @@ function OrgTreeList({
               else org.cards.delete(node.id);
             }}
             role="treeitem"
-            aria-label={[
-              node.name,
-              node.title,
-              node.status,
-              reports === 0 ? 'no direct reports' : `${String(reports)} direct reports`,
-            ]
-              .filter(Boolean)
-              .join(', ')}
+            // Named by its own words (WCAG 2.5.3, Label in Name): the name, the
+            // title and how many report to them, then the status.
             aria-level={row.level}
             aria-posinset={position}
             aria-setsize={size}
@@ -2181,11 +2201,14 @@ function OrgTreeList({
             {row.level > 1 ? (
               <span aria-hidden className="-ms-1 h-0.5 w-2.5 shrink-0 bg-border-strong" />
             ) : null}
-            <Avatar
-              size="md"
-              name={node.name}
-              {...(node.avatarUrl === undefined ? {} : { src: node.avatarUrl })}
-            />
+            {/* The initials would be read before the name. */}
+            <span aria-hidden className="shrink-0">
+              <Avatar
+                size="md"
+                name={node.name}
+                {...(node.avatarUrl === undefined ? {} : { src: node.avatarUrl })}
+              />
+            </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[0.9375rem]/[1.3] font-semibold text-fg">{node.name}</p>
               <p className="truncate text-[0.8125rem]/[1.3] text-fg-muted">

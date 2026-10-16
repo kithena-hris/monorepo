@@ -5,6 +5,7 @@ import { Pressable, Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { useAnnouncer } from '../../lib/reorder.tsx';
+import { spokenName } from '../../lib/spoken-name.tsx';
 import { CheckboxBox, type CheckedState } from '../checkbox/checkbox.tsx';
 import { Skeleton } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
@@ -240,7 +241,9 @@ export function TreeView({
       <Fragment key={n.id}>
         <Pressable
           nativeID={`tree-${n.id}`}
-          accessibilityLabel={`${n.label}${typeof n.meta === 'string' || typeof n.meta === 'number' ? `, ${String(n.meta)}` : ''}`}
+          {...spokenName(
+            `${n.label}${typeof n.meta === 'string' || typeof n.meta === 'number' ? `, ${String(n.meta)}` : ''}`,
+          )}
           {...(WEB
             ? ({
                 role: 'treeitem',

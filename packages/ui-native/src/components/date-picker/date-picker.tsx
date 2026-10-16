@@ -5,6 +5,7 @@ import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
 import { usePlatform } from '../../provider.tsx';
+import { hiddenOnDevice, spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import {
   Calendar,
@@ -335,7 +336,7 @@ function RangeTrigger({
     <DialogTrigger asChild disabled={disabled}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${name}, ${shown || 'no dates chosen'}`}
+        {...spokenName(`${name}, ${shown || 'no dates chosen'}`)}
         {...(hint ? { accessibilityHint: hint } : {})}
         accessibilityState={{ disabled }}
         aria-invalid={invalid || undefined}
@@ -351,8 +352,9 @@ function RangeTrigger({
           disabled={disabled}
           endAdornment={<Icon icon={CalendarDays} size={19} tone="muted" />}
         >
+          <Unseen>{name}</Unseen>
           <CssText
-            aria-hidden
+            {...hiddenOnDevice}
             numberOfLines={1}
             className={cn(fieldText, 'tabular-nums', !shown && 'text-fg-subtle')}
           >
