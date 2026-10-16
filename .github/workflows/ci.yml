@@ -193,8 +193,13 @@ jobs:
       - name: typecheck on TS 6
         run: pnpm typecheck:authoritative
 
+      # Two packages' suites at a time, not turbo's default of ten: on a
+      # 4-vCPU runner ten jsdom suites at once starved each other, and tests
+      # that take a second here timed out at five there (Documents' letters
+      # and sealing, Reach's date picker, 2026-10-16). Unchanged packages are
+      # cache hits either way, so this costs little.
       - name: unit tests
-        run: pnpm test
+        run: pnpm test --concurrency=2
 
       # The invitation email carries concrete sRGB values, because a mail client
       # has no stylesheet to load, no custom properties and no `oklch()` —
