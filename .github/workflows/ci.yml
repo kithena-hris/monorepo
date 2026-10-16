@@ -73,6 +73,7 @@ jobs:
       contracts: ${{ steps.diff.outputs.contracts }}
       web: ${{ steps.diff.outputs.web }}
       integration: ${{ steps.diff.outputs.integration }}
+      standalone: ${{ steps.diff.outputs.standalone }}
       matched: ${{ steps.tested.outputs.matched }}
     steps:
       - name: checkout
@@ -102,6 +103,7 @@ jobs:
                 *) echo "$gate=true" >> "$GITHUB_OUTPUT" ;;
               esac
             done
+            echo 'standalone=["people","timeoff","documents","recruiting","onboarding"]' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
@@ -113,16 +115,26 @@ jobs:
           # What the web acceptance stack runs: the shell and its remotes, People,
           # Time Off, identity, the router's config and persisted operations,
           # every migration, and every package (the design system renders the
-          # screens, `packages/testing` starts the containers).
+          # screens, `packages/testing` starts the containers). Not the
+          # Recruiting and Onboarding remotes: the stack never builds them
+          # (`apps/web/acceptance/build.ts`).
           web='^(apps/web/|services/people/|services/timeoff/|services/documents/|apps/web/documents/|platform/identity/|apps/gateway/|packages/|migrations/)'
           # What the integration suites run: every package with one, what they
           # import (the kits; never `packages/ui`, which a service may not
           # import), and the migrations their containers apply.
           integration='^(services/|platform/|packages/(auth-kit|contracts|db-kit|domain-kit|graphql-kit|telemetry|testing)/|migrations/|atlas\.hcl|tools/scripts/)'
           any() { printf '%s\n' "$changed" | grep -Eq "$1"; }
+          beyond_unbuilt_remotes() { printf '%s\n' "$changed" | grep -Ev '^apps/web/(recruiting|onboarding)/' | grep -Eq "$1"; }
           if any "$shared" || any "$contracts"; then echo "contracts=true" >> "$GITHUB_OUTPUT"; else echo "contracts=false" >> "$GITHUB_OUTPUT"; fi
-          if any "$shared" || any "$web"; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
+          if any "$shared" || beyond_unbuilt_remotes "$web"; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
           if any "$shared" || any "$integration"; then echo "integration=true" >> "$GITHUB_OUTPUT"; else echo "integration=false" >> "$GITHUB_OUTPUT"; fi
+          # Which modules must prove they still boot alone: their own service,
+          # or anything every module is built from.
+          booting=()
+          for module in people timeoff documents recruiting onboarding; do
+            if any "$shared" || any '^(packages/|migrations/)' || any "^services/$module/"; then booting+=("\"$module\""); fi
+          done
+          echo "standalone=[$(IFS=,; echo "${booting[*]}")]" >> "$GITHUB_OUTPUT"
           echo "changed files:"; printf '%s\n' "$changed" | head -50
 
   # Lint (with the module boundaries and the drift checks), the TS 6
@@ -155,7 +167,20 @@ jobs:
       - name: build
         run: pnpm build
 
+      # The parts ESLint passed last time, by a hash of their inputs
+      # (`tools/lint/eslint-in-parts.mjs`): a part whose files, `packages/`,
+      # the lint config and the lockfile are unchanged is not linted again.
+      # Saved under this commit, restored from the newest.
+      - name: lint stamps
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/lint-stamps
+          key: lint-stamps-${{ github.sha }}
+          restore-keys: lint-stamps-
+
       - name: lint
+        env:
+          LINT_STAMPS: .cache/lint-stamps
         run: pnpm lint
 
       # Architectural boundaries. A cross-module import fails here, which is
@@ -328,15 +353,27 @@ jobs:
     strategy:
       matrix:
         module: [people, timeoff, documents, recruiting, onboarding]
+    # Every module keeps its job, so the required checks keep their names
+    # (`standalone (people)`); one whose service, packages and migrations are
+    # untouched runs no step.
+    env:
+      BOOT: ${{ contains(fromJSON(needs.changes.outputs.standalone), matrix.module) }}
     steps:
+      - name: nothing to check
+        if: env.BOOT != 'true'
+        run: echo "::notice::Nothing this module is built from changed."
       - name: checkout
+        if: env.BOOT == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: pnpm
+        if: env.BOOT == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
+        if: env.BOOT == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
       - name: install
+        if: env.BOOT == 'true'
         run: pnpm install --frozen-lockfile
       # Through turbo, so the module's dependencies are built first. Run
       # directly, `pnpm --filter` would start vitest against an unbuilt
@@ -350,11 +387,13 @@ jobs:
       # is not a secret and reaches nothing: the suite replaces `fetch` and
       # fails on any request it did not mock, so CI never calls the real API.
       - name: boot the module alone, no TypeSafe key
+        if: env.BOOT == 'true'
         run: pnpm turbo run test:standalone --filter @kithena/${{ matrix.module }}
       # Straight through pnpm, not turbo: the step above built what it needs,
       # and turbo's strict env mode would withhold an undeclared variable from
       # the task — the run would pass with no key and prove nothing.
       - name: boot the module alone, TypeSafe key set (advisor mocked)
+        if: env.BOOT == 'true'
         env:
           TYPESAFE_API_KEY: standalone-dummy-key
           ASSISTANT_API_KEY: standalone-dummy-key
@@ -474,9 +513,10 @@ jobs:
   # The record `changes` reads on main: once every required check of a pull
   # request run is green, a `ci/tested-tree` status on the PR's head naming the
   # tree this run tested (`refs/pull/N/merge`, the PR on main's tip at that
-  # moment) and the narrowed gates that ran in full. `verify` and `standalone`
-  # always run in full on a pull request, so a green run proves them; if that
-  # ever changes, they need a word in `ran=` too. The newest status wins, so it
+  # moment) and the narrowed gates that ran in full. `verify` always runs in
+  # full on a pull request (lint skips only parts whose inputs are unchanged),
+  # and `standalone` boots every module the change can reach, so a green run
+  # proves them. The newest status wins, so it
   # always describes the last green run. Not a required check. A fork's token
   # cannot write statuses: nothing is recorded and main runs the full suite,
   # which is also what happens when this step fails.
