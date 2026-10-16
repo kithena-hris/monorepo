@@ -1404,7 +1404,21 @@ until its setting exists. In this order:
      `MICROSOFT_CALENDAR_CLIENT_ID` and `MICROSOFT_CALENDAR_CLIENT_SECRET`.
      The app carries Time Off's application permission and Recruiting's
      delegated ones (`Calendars.ReadWrite`, `offline_access`), and both
-     redirect addresses.
+     redirect addresses. It is "Kithena" (client id
+     `15ed9e35-3c99-49ef-9167-6ee4926de7a5`) in the `infokithena` tenant,
+     publisher domain `kithena.com`; its client secret expires on
+     2028-10-16.
+
+     **Publisher verification is still to do, once Kithena is a registered
+     company.** Until then the consent screen says "Unverified", and members
+     cannot consent for themselves: a customer's admin approves Kithena once
+     for their directory before interviewers can connect Outlook (Time Off
+     already asks for admin consent). To finish it: sign in to Partner Center
+     as `admin@kithena.com` (a member of the tenant; `info@kithena.com` is a
+     personal account and cannot enrol), join the Microsoft AI Cloud Partner
+     Program only, with the company's legal details and `info@kithena.com` as
+     the contact, then put the Partner ID in the app's Branding & properties,
+     "Add MPN ID".
    - **Zoom**: a General app on the Zoom Marketplace, user-managed, the
      scopes `meeting:write:meeting` and `meeting:delete:meeting`, published
      before members outside Kithena's own Zoom account can add it.
