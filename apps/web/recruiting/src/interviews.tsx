@@ -151,8 +151,8 @@ function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.
       <CardHeader>
         <CardTitle level={2}>Working hours</CardTitle>
         <CardDescription>
-          Candidates book you inside these hours, Monday to Friday, unless your calendar is
-          connected.
+          Candidates book you inside these hours, Monday to Friday, around anything on your
+          connected calendar.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-3">
@@ -207,7 +207,81 @@ function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.
         </Button>
         <Refusal error={act.error} />
       </CardContent>
+      <Connections props={props} />
     </Card>
+  );
+}
+
+const PROVIDER: Readonly<Record<string, string>> = {
+  google: 'Google Calendar',
+  microsoft: 'Microsoft 365',
+  zoom: 'Zoom',
+};
+
+/**
+ * §26.2: a calendar for busy times and the interview's event, and Zoom for its
+ * link. Connecting leaves the page for the provider's consent and comes back.
+ */
+function Connections({
+  props,
+}: {
+  readonly props: ScreenProps<InterviewsData>;
+}): JSX.Element | null {
+  const act = useAct(props);
+  const [state, setState] = useState<{
+    connected: readonly string[];
+    offered: readonly string[];
+  } | null>(null);
+  const { call } = act;
+  const load = () => {
+    void call('RecruitingConnections', {}).then((done) => {
+      if (done.ok) setState(done.data as { connected: string[]; offered: string[] });
+    });
+  };
+  useEffect(load, []);
+  if (state === null || state.offered.length === 0) return null;
+  return (
+    <CardContent className="flex flex-col gap-3">
+      <p className="text-sm text-fg-muted">
+        Connected, your calendar’s busy times are left out of the slots offered, and interviews go
+        on it with a video link.
+      </p>
+      <ul className="flex flex-col gap-2">
+        {state.offered.map((kind) => {
+          const on = state.connected.includes(kind);
+          return (
+            <li key={kind} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-40 font-medium">{PROVIDER[kind] ?? kind}</span>
+              {on ? (
+                <Badge size="sm" tone="success">
+                  Connected
+                </Badge>
+              ) : null}
+              <Button
+                size="sm"
+                variant={on ? 'secondary' : 'primary'}
+                aria-label={`${on ? 'Disconnect' : 'Connect'} ${PROVIDER[kind] ?? kind}`}
+                disabled={act.pending}
+                onClick={() => {
+                  if (on) act.run('DisconnectRecruitingCalendar', { kind }, load);
+                  else
+                    act.run(
+                      'ConnectRecruitingCalendar',
+                      { kind, input: { returnTo: window.location.href } },
+                      (data) => {
+                        window.location.assign((data as { url: string }).url);
+                      },
+                    );
+                }}
+              >
+                {on ? 'Disconnect' : 'Connect'}
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+      <Refusal error={act.error} />
+    </CardContent>
   );
 }
 

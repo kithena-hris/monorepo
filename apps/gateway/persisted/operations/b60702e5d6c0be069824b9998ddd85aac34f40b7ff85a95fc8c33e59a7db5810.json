@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DisconnectRecruitingCalendar($kind: String!, $key: String!) {\n    disconnectRecruitingCalendar(kind: $kind, idempotencyKey: $key)\n  }"}

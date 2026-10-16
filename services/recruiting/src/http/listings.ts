@@ -3,9 +3,9 @@ import { JobSearch } from '@kithena/contracts';
 import type { Listings } from '../application/ports.js';
 
 /**
- * Kithena Jobs' three reads, outside the route table because they have no
+ * Kithena Jobs' reads, outside the route table because they have no
  * tenant and no caller (REC-090): the search across companies, one job page,
- * and a company's careers page. Everything they return is already public, so
+ * a company's careers page, and which company a domain of its own shows. Everything they return is already public, so
  * the edge may cache it for a minute.
  */
 
@@ -15,6 +15,7 @@ export interface ListingsAnswer {
 }
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/u;
+const HOST = /^[a-z0-9][a-z0-9.-]{0,252}$/u;
 const list = (v: string | null) => (v === null || v === '' ? undefined : v.split(','));
 const num = (v: string | null) => (v === null || v === '' ? undefined : Number(v));
 
@@ -67,6 +68,13 @@ export async function listingsAnswer(
     if (!SLUG.test(company) || !SLUG.test(slug)) return notFound;
     const job = await listings.job(company, slug, at.searchParams.get('language'));
     return job === null ? notFound : { status: 200, body: job };
+  }
+  // Which company a careers domain of its own shows (REC-136); Kithena Jobs asks per request.
+  if (parts[2] === 'companies' && parts[3] === 'by-host' && parts.length === 5) {
+    const host = parts[4] ?? '';
+    if (!HOST.test(host)) return notFound;
+    const company = await listings.companyForHost(host);
+    return company === null ? notFound : { status: 200, body: { company } };
   }
   if (parts[2] === 'companies' && parts.length === 4) {
     const company = parts[3] ?? '';

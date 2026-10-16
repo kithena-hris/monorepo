@@ -130,8 +130,8 @@ export function moveTarget(
 
 /**
  * Ask to publish a job to a target. Refused for a job that is not open, a
- * public target on an internal-only job, and Google for Jobs or the feed
- * without the careers page (they read that page).
+ * public target on an internal-only job, and Google for Jobs, the feed or
+ * Indeed without the careers page (they read that page, or check it).
  */
 export function requestPublication(
   job: Job,
@@ -148,7 +148,10 @@ export function requestPublication(
     return err(failure('INTERNAL_ONLY', 'This job is internal only'));
   }
   if (
-    (target === 'google_for_jobs' || target === 'xml_feed' || target === 'glassdoor') &&
+    (target === 'google_for_jobs' ||
+      target === 'xml_feed' ||
+      target === 'glassdoor' ||
+      target === 'indeed') &&
     !current.some((t) => t.target === 'careers_page' && t.state !== 'failed')
   ) {
     return err(

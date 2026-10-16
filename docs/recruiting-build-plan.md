@@ -250,15 +250,18 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-130** `JobBoard` port; Google for Jobs and the XML feed moved
       behind it. §26.1.
 - [ ] **REC-131** Indeed: developer agreement signed (business), then Job
-      Sync adapter.
-- [ ] **REC-132** Indeed Apply inbound and disposition sync.
+      Sync adapter. Adapter built and off (`infrastructure/indeed.ts`);
+      the agreement and a sandbox check remain.
+- [ ] **REC-132** Indeed Apply inbound and disposition sync. Built and off
+      with REC-131's adapter; ticked once the sandbox has carried one
+      application both ways.
 - [ ] **REC-133** Glassdoor through Indeed: confirm listings appear; document
       it on R7.
 - [ ] **REC-134** LinkedIn: apply to the partner programme (business); the
       adapter only if accepted.
-- [ ] **REC-135** Calendars and video: Google Workspace and Microsoft 365
-      OAuth, free/busy, events, Meet and Teams links. §26.2.
-- [ ] **REC-136** A company's own domain for its careers page, with the
+- [x] **REC-135** Calendars and video: Google Workspace and Microsoft 365
+      OAuth, free/busy, events, Meet and Teams links, and Zoom. §26.2.
+- [x] **REC-136** A company's own domain for its careers page, with the
       Vercel plan's domain ceiling recorded.
 - [ ] **REC-137** Chat apps: digests, reminders, approvals. §26.3.
 - [x] **REC-138** Assessment and background-check ports with a fake adapter

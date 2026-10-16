@@ -27,6 +27,8 @@ import type {
   Candidate,
   CandidateFile,
   Consent,
+  CareersDomain,
+  ConnectionKind,
   Criterion,
   Entity,
   InterviewRecord,
@@ -860,6 +862,27 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
           ON CONFLICT (tenant_id, person_id) DO UPDATE SET time_zone = EXCLUDED.time_zone, week = EXCLUDED.week`);
       },
     },
+    connections: {
+      list: async (personId) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT provider, sealed FROM recruiting.calendar_link WHERE person_id = ${personId}`,
+          )
+        ).map((r) => ({
+          kind: String(r['provider']) as ConnectionKind,
+          sealed: new Uint8Array(r['sealed'] as Buffer),
+        })),
+      save: async (personId, kind, sealed) => {
+        await tx.execute(sql`INSERT INTO recruiting.calendar_link (tenant_id, person_id, provider, sealed) VALUES (${T}, ${personId}, ${kind}, ${Buffer.from(sealed)})
+          ON CONFLICT (tenant_id, person_id, provider) DO UPDATE SET sealed = EXCLUDED.sealed, updated_at = now()`);
+      },
+      remove: async (personId, kind) => {
+        await tx.execute(
+          sql`DELETE FROM recruiting.calendar_link WHERE person_id = ${personId} AND provider = ${kind}`,
+        );
+      },
+    },
     assessments: {
       save: async (a) => {
         await tx.execute(sql`INSERT INTO recruiting.ai_assessment (tenant_id, id, application_id, feature, model,
@@ -1260,6 +1283,37 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
       removeListing: async (jobId) => {
         await tx.execute(sql`DELETE FROM recruiting_public.listing WHERE job_id = ${jobId}`);
       },
+      careersDomain: async () => {
+        const r = await one(
+          tx,
+          sql`SELECT host, status, records, ${iso(sql`verified_at`)} AS verified_at
+            FROM recruiting_public.careers_domain WHERE tenant_id = ${T}`,
+        );
+        return r === null
+          ? null
+          : {
+              host: String(r['host']),
+              status: r['status'] === 'verified' ? 'verified' : 'pending',
+              records: r['records'] as CareersDomain['records'],
+              verifiedAt: str(r['verified_at']),
+            };
+      },
+      putCareersDomain: async (d) => {
+        await tx.execute(sql`INSERT INTO recruiting_public.careers_domain
+            (host, tenant_id, company_slug, status, records, verified_at)
+          VALUES (${d.host}, ${T}, ${d.companySlug}, ${d.status}, ${J(d.records)}, ${d.verifiedAt})
+          ON CONFLICT (tenant_id) DO UPDATE SET host = EXCLUDED.host, company_slug = EXCLUDED.company_slug,
+            status = EXCLUDED.status, records = EXCLUDED.records, verified_at = EXCLUDED.verified_at`);
+      },
+      removeCareersDomain: async () => {
+        await tx.execute(sql`DELETE FROM recruiting_public.careers_domain WHERE tenant_id = ${T}`);
+      },
+      careersDomainCount: async () =>
+        Number(
+          (await one(tx, sql`SELECT count(*)::int AS n FROM recruiting_public.careers_domain`))?.[
+            'n'
+          ] ?? 0,
+        ),
     },
   };
 }

@@ -1355,7 +1355,8 @@ asked for.
 ### 26.2 Calendars and video
 
 Google Workspace and Microsoft 365 by OAuth per member: free/busy, create and
-update events, and a Meet or Teams link with the event. Tokens are sealed;
+update events, and a Meet or Teams link with the event. Zoom the same way, for
+a member who would rather give a Zoom link than Meet or Teams. Tokens are sealed;
 scopes are the narrowest that do the job. Without a calendar, scheduling uses
 working hours in Recruiting and sends an `.ics` invitation.
 

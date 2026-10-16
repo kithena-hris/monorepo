@@ -36,7 +36,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, money, newId, useAct, words } from './shared';
-import type { GeneralSettings, ScreenProps, SettingsData } from './types';
+import type { CareersDomain, GeneralSettings, ScreenProps, SettingsData } from './types';
 
 /**
  * S1–S9 under Settings, one place per address (`/settings/recruiting/*`).
@@ -270,6 +270,7 @@ function General({
           </div>
         </Section>
       </div>
+      {data.domainsOn ? <OwnDomain domain={data.careersDomain} props={props} /> : null}
       <Section title="Rejection reasons" description="Internal; never sent to candidates">
         <ChipRow aria-label="Rejection reasons">
           {g.rejectionReasons.map((r) => (
@@ -316,6 +317,109 @@ function General({
         </Button>
       </div>
     </div>
+  );
+}
+
+/** The careers page on the company's own domain (REC-136): add it, point DNS, check. */
+function OwnDomain({
+  domain,
+  props,
+}: {
+  readonly domain: CareersDomain | null;
+  readonly props: ScreenProps<SettingsData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const [host, setHost] = useState('');
+  return (
+    <Section
+      title="Your own domain"
+      description="Your careers page at an address of yours, such as careers.yourcompany.com"
+    >
+      <div className="flex flex-col gap-3">
+        <Refusal error={act.error} />
+        {domain === null ? (
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              act.run('SetCareersDomain', { input: { host } });
+            }}
+          >
+            <Field className="flex-1">
+              <FieldLabel>Domain</FieldLabel>
+              <FieldControl>
+                <Input
+                  value={host}
+                  placeholder="careers.yourcompany.com"
+                  onChange={(e) => {
+                    setHost(e.target.value);
+                  }}
+                />
+              </FieldControl>
+            </Field>
+            <Button type="submit" loading={act.pending} disabled={host.trim() === ''}>
+              Add
+            </Button>
+          </form>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{domain.host}</span>
+              <Badge size="sm" tone={domain.status === 'verified' ? 'success' : 'warning'}>
+                {domain.status === 'verified' ? 'Live' : 'Waiting for DNS'}
+              </Badge>
+            </div>
+            {domain.status === 'verified' ? null : (
+              <>
+                <p className="text-sm text-fg-muted">
+                  Add these records at your DNS provider, then check. DNS can take up to a day to
+                  reach everyone.
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {domain.records.map((r) => (
+                      <TableRow key={`${r.type}:${r.name}:${r.value}`}>
+                        <TableCell>{r.type}</TableCell>
+                        <TableCell className="font-mono">{r.name}</TableCell>
+                        <TableCell className="font-mono break-all">{r.value}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+            <div className="flex gap-2">
+              {domain.status === 'verified' ? null : (
+                <Button
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run('CheckCareersDomain', {});
+                  }}
+                >
+                  Check DNS
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                disabled={act.pending}
+                onClick={() => {
+                  act.run('RemoveCareersDomain', {});
+                }}
+              >
+                Remove
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </Section>
   );
 }
 

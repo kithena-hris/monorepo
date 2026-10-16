@@ -18,6 +18,10 @@ type RestDispatch = (request: RestRequest) => Promise<RestResponse | null>;
 
 const OPENAPI = '/v1/recruiting/openapi.json';
 const SEARCH_PLAN = '/v1/recruiting/public/search-plan';
+/** The one redirect address every calendar and Zoom app is registered with (REC-135). */
+const CONNECT_CALLBACK = '/v1/recruiting/public/calendar-callback';
+/** Where Indeed Apply posts every application (REC-132); the job names the company. */
+const INDEED_APPLY = '/v1/recruiting/public/indeed-apply';
 /** Up to six files of 10 MB as base64, plus the answers. */
 const MAX_BODY = 90 * 1024 * 1024;
 
@@ -32,6 +36,14 @@ async function bodyOf(request: IncomingMessage): Promise<string | null> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
+/** Whether an origin is a company's careers domain that Vercel has verified. */
+async function ownDomain(listings: Listings | undefined, origin: string): Promise<boolean> {
+  const host = /^https:\/\/([a-z0-9.-]+)$/u.exec(origin)?.[1];
+  return (
+    host !== undefined && listings !== undefined && (await listings.companyForHost(host)) !== null
+  );
+}
+
 /** The one listener on Recruiting's port: `/healthz`, the OpenAPI document, REST v1, then GraphQL. Documents'. */
 export function recruitingListener(
   graphql: Listener,
@@ -43,27 +55,6 @@ export function recruitingListener(
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
-    // Kithena Jobs' pages call the public API from the browser: a CV is up to
-    // 10 MB, past what a serverless function will relay. Only that origin, only
-    // the public routes, and no cookies, so a token travels in its header.
-    if (
-      publicOrigin !== undefined &&
-      request.headers.origin === publicOrigin &&
-      (request.url ?? '').startsWith('/v1/recruiting/public/')
-    ) {
-      response.setHeader('access-control-allow-origin', publicOrigin);
-      response.setHeader('vary', 'origin');
-      if (request.method === 'OPTIONS') {
-        response
-          .writeHead(204, {
-            'access-control-allow-methods': 'GET, POST',
-            'access-control-allow-headers': 'content-type, x-candidate-token',
-            'access-control-max-age': '600',
-          })
-          .end();
-        return;
-      }
-    }
     if (request.method === 'GET' && request.url === '/healthz') {
       response.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
       return;
@@ -77,6 +68,29 @@ export function recruitingListener(
       return;
     }
     void (async () => {
+      // Kithena Jobs' pages call the public API from the browser: a CV is up to
+      // 10 MB, past what a serverless function will relay. Only Kithena Jobs'
+      // origin or a company's own verified domain (REC-136), only the public
+      // routes, and no cookies, so a token travels in its header.
+      const origin = request.headers.origin;
+      if (
+        origin !== undefined &&
+        (request.url ?? '').startsWith('/v1/recruiting/public/') &&
+        (origin === publicOrigin || (await ownDomain(listings, origin)))
+      ) {
+        response.setHeader('access-control-allow-origin', origin);
+        response.setHeader('vary', 'origin');
+        if (request.method === 'OPTIONS') {
+          response
+            .writeHead(204, {
+              'access-control-allow-methods': 'GET, POST',
+              'access-control-allow-headers': 'content-type, x-candidate-token',
+              'access-control-max-age': '600',
+            })
+            .end();
+          return;
+        }
+      }
       const read =
         listings === undefined
           ? null
@@ -90,7 +104,51 @@ export function recruitingListener(
           .end(JSON.stringify(read.body));
         return;
       }
+      const at = new URL(request.url ?? '/', 'http://recruiting');
+      if (request.method === 'GET' && at.pathname === CONNECT_CALLBACK) {
+        // The company travels in the state, ahead of the token: `acme.<token>`.
+        const state = at.searchParams.get('state') ?? '';
+        const company = state.slice(0, Math.max(0, state.indexOf('.')));
+        const answer = await rest({
+          method: 'POST',
+          url: `/v1/recruiting/public/${encodeURIComponent(company)}/connect-grant`,
+          headers: {},
+          body: JSON.stringify({ state, code: at.searchParams.get('code') }),
+        });
+        const back = (answer?.body as { returnTo?: unknown } | undefined)?.returnTo;
+        if (answer?.status === 200 && typeof back === 'string') {
+          response.writeHead(302, { location: back, 'cache-control': 'no-store' }).end();
+          return;
+        }
+        response
+          .writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+          .end('That did not connect. Go back to Kithena and try again.');
+        return;
+      }
       const body = await bodyOf(request);
+      if (request.method === 'POST' && request.url === INDEED_APPLY && body !== null) {
+        // `jobMeta` is what Kithena sent with the posting: `<company>/<jobId>`.
+        let company = '';
+        try {
+          const meta = (JSON.parse(body) as { job?: { jobMeta?: unknown } }).job?.jobMeta;
+          company = typeof meta === 'string' ? (meta.split('/')[0] ?? '') : '';
+        } catch {
+          // Unreadable: the route answers it.
+        }
+        const answer = await rest({
+          method: 'POST',
+          url: `/v1/recruiting/public/${encodeURIComponent(company || '-')}/board-applications/indeed`,
+          headers: {},
+          body: JSON.stringify({
+            raw: body,
+            signature: String(request.headers['x-indeed-signature'] ?? ''),
+          }),
+        });
+        response
+          .writeHead(answer?.status ?? 404, { 'content-type': 'application/json' })
+          .end(JSON.stringify(answer?.body ?? {}));
+        return;
+      }
       if (request.method === 'POST' && request.url === SEARCH_PLAN && body !== null) {
         const ip =
           String(request.headers['x-forwarded-for'] ?? '')
@@ -155,6 +213,9 @@ export interface RecruitingServerOptions extends Pick<
   readonly sealer?: Deps['sealer'];
   readonly assessmentProvider?: Deps['assessmentProvider'];
   readonly backgroundChecks?: Deps['backgroundChecks'];
+  readonly domains?: Deps['domains'];
+  readonly connections?: Deps['connections'];
+  readonly boards?: Deps['boards'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -181,6 +242,9 @@ export function recruitingServer(
     ...(options.backgroundChecks === undefined
       ? {}
       : { backgroundChecks: options.backgroundChecks }),
+    ...(options.domains === undefined ? {} : { domains: options.domains }),
+    ...(options.connections === undefined ? {} : { connections: options.connections }),
+    ...(options.boards === undefined ? {} : { boards: options.boards }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

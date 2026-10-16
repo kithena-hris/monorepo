@@ -165,6 +165,8 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     form: await ctx.tx.jobs.form(jobId),
     ads: await ctx.tx.jobs.ads(jobId),
     targets: await ctx.tx.jobs.targets(jobId),
+    // Boards with an adapter configured here (Indeed once its agreement is signed).
+    boards: (ctx.deps.boards ?? []).map((b) => b.target),
     criteria: await ctx.tx.jobs.criteria(jobId),
     plan: await ctx.tx.jobs.plan(jobId),
     counts: await counts(ctx, job),
@@ -596,6 +598,9 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     benefits: await ctx.tx.benefits.list(),
     payBands: await ctx.tx.payBands.list(),
     agencies: await ctx.tx.agencies.list(),
+    careersDomain: await ctx.tx.public.careersDomain(),
+    // Whether a company can have its own domain here at all (REC-136).
+    domainsOn: ctx.deps.domains !== undefined,
     jobs: (await myJobs(ctx)).map((j) => ({ id: j.id, title: j.title })),
     admin: ctx.viewer.admin,
   };

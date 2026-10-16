@@ -28,7 +28,23 @@ export function listingsFrom(env: NodeJS.ProcessEnv = process.env): Listings | n
 }
 
 export function postgresListings(sql: postgres.Sql): Listings {
+  // A host asked about on every request from it: kept a minute, so a new
+  // domain answers within a minute of being verified and a removed one stops.
+  // ponytail: per process; a shared cache if this ever runs on several.
+  const hosts = new Map<string, { readonly company: string | null; readonly until: number }>();
   return {
+    async companyForHost(host) {
+      const kept = hosts.get(host);
+      if (kept !== undefined && kept.until > Date.now()) return kept.company;
+      const [row] = await sql<{ company_slug: string }[]>`
+        SELECT company_slug FROM recruiting_public.careers_domain
+        WHERE host = ${host} AND status = 'verified'`;
+      const company = row?.company_slug ?? null;
+      // Anyone can ask after any host; a flood of made-up ones empties the cache, not memory.
+      if (hosts.size >= 1_000) hosts.clear();
+      hosts.set(host, { company, until: Date.now() + 60_000 });
+      return company;
+    },
     async search(query: JobSearch) {
       const q = query.q?.trim() ?? '';
       // The ad's own language stemmed the stored tsvector; a query is matched

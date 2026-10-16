@@ -824,6 +824,10 @@ jobs:
           # Where candidates' replies arrive (Resend receiving); unset, they
           # go to the company's own reply address.
           INBOUND_DOMAIN: ${{ vars.INBOUND_DOMAIN }}
+          # A company's own careers domain (REC-136) is added to Kithena Jobs'
+          # project with a token scoped to the team. Unset, it is not offered.
+          VERCEL_DOMAINS_TOKEN: ${{ secrets.VERCEL_DOMAINS_TOKEN }}
+          JOBS_VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_JOBS_PRODUCTION }}
           # Onboarding's, likewise: the router–Onboarding pair and the
           # Onboarding–messaging pair for the welcome email. No bucket.
           ONBOARDING_API_TOKEN: ${{ secrets.ONBOARDING_API_TOKEN }}
@@ -912,6 +916,9 @@ jobs:
             if [ -n "$MESSAGING_RECRUITING_TOKEN" ]; then
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_RECRUITING_TOKEN=%s\n' "$MESSAGING_RECRUITING_TOKEN"
               if [ -n "$INBOUND_DOMAIN" ]; then printf 'INBOUND_DOMAIN=%s\n' "$INBOUND_DOMAIN"; fi
+            fi
+            if [ -n "$VERCEL_DOMAINS_TOKEN" ] && [ -n "$JOBS_VERCEL_PROJECT_ID" ]; then
+              printf 'VERCEL_DOMAINS_TOKEN=%s\nJOBS_VERCEL_PROJECT_ID=%s\nVERCEL_TEAM_ID=%s\n' "$VERCEL_DOMAINS_TOKEN" "$JOBS_VERCEL_PROJECT_ID" "$VERCEL_ORG_ID"
             fi
           } | put recruiting.env
           {
@@ -1579,7 +1586,18 @@ jobs:
   # has, rather than overwriting it with nothing.
   web:
     name: web
-    needs: [plan, identity, messaging, vm, people-remote, timeoff-remote, documents-remote, recruiting-remote, onboarding-remote]
+    needs:
+      [
+        plan,
+        identity,
+        messaging,
+        vm,
+        people-remote,
+        timeoff-remote,
+        documents-remote,
+        recruiting-remote,
+        onboarding-remote,
+      ]
     if: >
       !cancelled() && !failure() &&
       needs.plan.outputs.shell == 'true'

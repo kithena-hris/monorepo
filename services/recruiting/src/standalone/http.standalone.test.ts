@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { callerFromHeaders } from '../http/caller.js';
 import { recruitingServer } from '../http/server.js';
+import { fakeConnections, fakeDomains } from '../infrastructure/fake-providers.js';
+import { aesSealer } from '../infrastructure/sealer.js';
 import { uuidv7 } from '../infrastructure/ids.js';
 import { memoryBlobs, memoryUnitOfWork } from '../testing/memory.js';
 
@@ -44,6 +46,9 @@ beforeAll(async () => {
       extractText: () => Promise.resolve(null),
       callerFrom: callerFromHeaders(TOKEN),
       listings: uow.listings,
+      domains: fakeDomains(),
+      connections: fakeConnections(),
+      sealer: aesSealer(new Uint8Array(32).fill(7)),
     },
     uuidv7,
   );
@@ -154,6 +159,53 @@ describe('Recruiting’s transports, alone', () => {
   });
 });
 
+describe('a member’s calendar and Zoom (REC-135)', () => {
+  it('connects through the provider’s consent and comes back to the page it left', async () => {
+    const connections = () =>
+      fetch(`${base}/v1/recruiting/me/connections`, { headers: headers() }).then(
+        (r) => r.json() as Promise<{ connected: string[]; offered: string[] }>,
+      );
+    expect(await connections()).toEqual({ connected: [], offered: ['google', 'zoom'] });
+
+    const back = 'https://acme.app.kithena.com/recruiting/interviews';
+    const elsewhere = await fetch(`${base}/v1/recruiting/me/connections/zoom`, {
+      method: 'POST',
+      headers: headers(randomUUID()),
+      body: JSON.stringify({ returnTo: 'https://evil.example/' }),
+    });
+    expect(elsewhere.status).toBe(400);
+    const started = (await (
+      await fetch(`${base}/v1/recruiting/me/connections/zoom`, {
+        method: 'POST',
+        headers: headers(randomUUID()),
+        body: JSON.stringify({ returnTo: back }),
+      })
+    ).json()) as { url: string };
+    const state = new URL(started.url).searchParams.get('state') ?? '';
+    expect(state.startsWith('acme.')).toBe(true);
+
+    const callback = (s: string) =>
+      fetch(
+        `${base}/v1/recruiting/public/calendar-callback?code=abc&state=${encodeURIComponent(s)}`,
+        {
+          redirect: 'manual',
+        },
+      );
+    const returned = await callback(state);
+    expect(returned.status).toBe(302);
+    expect(returned.headers.get('location')).toBe(back);
+    expect((await connections()).connected).toEqual(['zoom']);
+    // A state is good once.
+    expect((await callback(state)).status).toBe(400);
+
+    await fetch(`${base}/v1/recruiting/me/connections/zoom`, {
+      method: 'DELETE',
+      headers: headers(randomUUID()),
+    });
+    expect((await connections()).connected).toEqual([]);
+  });
+});
+
 describe('Kithena Jobs’ reads', () => {
   it('searches without a caller, refuses a malformed search, and finds no unknown company', async () => {
     const found = await fetch(`${base}/v1/recruiting/listings?q=designer&workMode=remote,hybrid`);
@@ -186,5 +238,29 @@ describe('Kithena Jobs’ reads', () => {
     const jobs = await asked('https://jobs.example');
     expect(jobs).toEqual({ status: 204, allow: 'https://jobs.example' });
     expect((await asked('https://evil.example')).allow).toBeUndefined();
+  });
+
+  it('serves a company on its own domain once that domain is verified, and not after (REC-136)', async () => {
+    const write = (method: string, path: string, body?: unknown) =>
+      fetch(`${base}/v1/recruiting/settings/careers-domain${path}`, {
+        method,
+        headers: headers(randomUUID()),
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      }).then(async (r) => ({
+        status: r.status,
+        body: (await r.json()) as Record<string, unknown>,
+      }));
+    const lookup = () => fetch(`${base}/v1/recruiting/companies/by-host/careers.acme.example`);
+
+    expect((await write('PUT', '', { host: 'jobs.kithena.com' })).status).toBe(400);
+    const added = await write('PUT', '', { host: 'https://Careers.Acme.example/' });
+    expect(added.body).toMatchObject({ host: 'careers.acme.example', status: 'pending' });
+    expect((await lookup()).status).toBe(404);
+
+    expect((await write('POST', '/check')).body).toMatchObject({ status: 'verified' });
+    expect(await (await lookup()).json()).toEqual({ company: 'acme' });
+
+    expect((await write('DELETE', '')).status).toBe(200);
+    expect((await lookup()).status).toBe(404);
   });
 });

@@ -79,12 +79,21 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Ask again whether its DNS points at Kithena Jobs; admin"""
+  checkCareersDomain(idempotencyKey: String!): JSON
   """R19: compose or revise the offer"""
   composeOffer(
     applicationId: String!
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
+  ): JSON
+  """Start connecting Google, Microsoft or Zoom: the consent page to open"""
+  connectRecruitingCalendar(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    kind: String!
   ): JSON
   """Record the works council’s consent (§ 94 BetrVG)"""
   consentQuestionnaire(id: String!, idempotencyKey: String!): JSON
@@ -132,6 +141,8 @@ type Mutation {
   ): JSON
   """Delete a candidate on request (GDPR art. 17)"""
   deleteCandidate(candidateId: String!, idempotencyKey: String!): JSON
+  """Disconnect a calendar or Zoom"""
+  disconnectRecruitingCalendar(idempotencyKey: String!, kind: String!): JSON
   """R5: a draft ad from the intake, for a person to edit and save"""
   draftAd(
     idempotencyKey: String!
@@ -214,6 +225,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Stop serving the careers page on its own domain; admin"""
+  removeCareersDomain(idempotencyKey: String!): JSON
   """R18: ask a named referee"""
   requestReference(applicationId: String!, idempotencyKey: String!, referenceId: String!): JSON
   """R9: an agency and the jobs it may submit to"""
@@ -371,6 +384,12 @@ type Mutation {
   ): JSON
   """Send the offer to the candidate"""
   sendOffer(idempotencyKey: String!, offerId: String!): JSON
+  """The company's own domain for its careers page; admin"""
+  setCareersDomain(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Completed, no-show or cancelled"""
   setInterviewState(
     idempotencyKey: String!
@@ -460,6 +479,8 @@ type Query {
   recruitingCandidate(candidateId: String!): JSON
   """R26: every candidate"""
   recruitingCandidates(q: String, tag: String): JSON
+  """My connected calendar and video, and what could be connected"""
+  recruitingConnections: JSON
   """R17: the debrief"""
   recruitingDebrief(applicationId: String!): JSON
   """Everything held about a candidate (GDPR art. 15)"""

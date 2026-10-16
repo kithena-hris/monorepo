@@ -41,6 +41,8 @@ import type {
   JobRecord,
   Member,
   PlannedInterview,
+  CareersDomain,
+  ConnectionKind,
 } from '../application/ports.js';
 
 /**
@@ -77,6 +79,7 @@ function promisify<T>(target: Sync<T>): T {
 type Bag = Map<string, unknown>;
 
 interface TenantState {
+  readonly id: string;
   readonly bags: Map<string, Bag>;
   readonly outbox: PendingEvent[];
   slug: string | null;
@@ -148,6 +151,9 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
   const interviews = keyed<InterviewRecord>(state, 'interviews');
   const cards = keyed<Scorecard & { notes: string | null }>(state, 'scorecards');
   const hours = keyed<WorkingHours>(state, 'hours');
+  const connections = keyed<{ kind: ConnectionKind; sealed: Uint8Array }[]>(state, 'connections');
+  const othersThan = (person: string, kind: ConnectionKind) =>
+    (connections.get(person) ?? []).filter((c) => c.kind !== kind);
   const assessed = keyed<Assessment>(state, 'assessments');
   const selfIds = keyed<{ applicationId: string; sealed: number[] }>(state, 'selfIds');
   const verdicts = keyed<VerdictRow & { assessmentId: string }>(state, 'verdicts');
@@ -468,6 +474,15 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
         hours.set(h.personId, h);
       },
     },
+    connections: {
+      list: (person) => connections.get(person) ?? [],
+      save: (person, kind, sealed) => {
+        connections.set(person, [...othersThan(person, kind), { kind, sealed }]);
+      },
+      remove: (person, kind) => {
+        connections.set(person, othersThan(person, kind));
+      },
+    },
     assessments: {
       save: (a) => {
         assessed.set(a.id, a);
@@ -620,6 +635,17 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
         for (const key of publicState.listings.keys())
           if (key.startsWith(`${jobId}:`)) publicState.listings.delete(key);
       },
+      careersDomain: () => {
+        const kept = publicState.domains.get(state.id);
+        return kept === undefined ? null : clone(kept.domain);
+      },
+      putCareersDomain: ({ companySlug, ...domain }) => {
+        publicState.domains.set(state.id, { companySlug, domain: clone(domain) });
+      },
+      removeCareersDomain: () => {
+        publicState.domains.delete(state.id);
+      },
+      careersDomainCount: () => publicState.domains.size,
     },
   });
 }
@@ -628,6 +654,8 @@ interface PublicState {
   readonly companies: Map<string, unknown>;
   readonly listings: Map<string, { job: PublicJob; tsv: string }>;
   readonly tenants: Set<TenantState>;
+  /** A careers domain per tenant, by tenant id. */
+  readonly domains: Map<string, { companySlug: string; domain: CareersDomain }>;
 }
 
 export interface MemoryUnitOfWork extends UnitOfWork {
@@ -644,11 +672,12 @@ export function memoryUnitOfWork(): MemoryUnitOfWork {
     companies: new Map(),
     listings: new Map(),
     tenants: new Set(),
+    domains: new Map(),
   };
   const stateOf = (tenantId: string): TenantState => {
     let found = tenants.get(tenantId);
     if (found === undefined) {
-      found = { bags: new Map(), outbox: [], slug: null };
+      found = { id: tenantId, bags: new Map(), outbox: [], slug: null };
       tenants.set(tenantId, found);
     }
     return found;
@@ -658,6 +687,7 @@ export function memoryUnitOfWork(): MemoryUnitOfWork {
       const live = stateOf(tenantId);
       // A copy per transaction: a thrown use case leaves nothing behind.
       const copy: TenantState = {
+        id: live.id,
         bags: structuredClone(live.bags),
         outbox: [...live.outbox],
         slug: live.slug,
@@ -696,6 +726,12 @@ function memoryListings(state: PublicState): Listings {
   const listing = (job: PublicJob): PublicListing => PublicListing.parse(job);
   const open = () => [...state.listings.values()].filter((l) => !l.job.closed);
   return {
+    companyForHost: (host) =>
+      Promise.resolve(
+        [...state.domains.values()].find(
+          (d) => d.domain.host === host && d.domain.status === 'verified',
+        )?.companySlug ?? null,
+      ),
     search: (query) => {
       const words = (query.q ?? '').toLowerCase().split(/\s+/u).filter(Boolean);
       const rows = open()

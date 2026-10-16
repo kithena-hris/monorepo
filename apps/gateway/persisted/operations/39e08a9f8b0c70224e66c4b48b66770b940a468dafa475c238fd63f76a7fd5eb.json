@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetCareersDomain($input: JSON!, $key: String!) {\n    setCareersDomain(input: $input, idempotencyKey: $key)\n  }"}

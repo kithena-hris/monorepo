@@ -1365,6 +1365,60 @@ until its setting exists. In this order:
    `/v1/recruiting/public/<company>/replies` under the pair's token. Without
    the domain, replies go to the company's own reply address.
 
+   A company's own domain for its careers page (REC-136,
+   `careers.acme.com` serving `jobs.kithena.com/acme`) is added to Kithena
+   Jobs' Vercel project through Vercel's API. Create an access token scoped
+   to the team (Account Settings, Tokens) and store it as the `production`
+   secret `VERCEL_DOMAINS_TOKEN`; the deploy writes it into `recruiting.env`
+   with `JOBS_VERCEL_PROJECT_ID` (from `VERCEL_PROJECT_ID_JOBS_PRODUCTION`)
+   and the team id. Without it the setting is not offered. Hobby allows 50
+   domains a project and `jobs.kithena.com` is one, so 49 companies can have
+   their own (`DOMAIN_CEILING` in `services/recruiting/src/domain/careers`);
+   the 50th is told they are all taken. Pro lifts the cap. The company adds
+   the records the setting shows (a CNAME to `cname.vercel-dns.com`, or an
+   A record for a whole domain, plus Vercel's TXT proof when it asks for
+   one) and presses Check; once verified, Kithena Jobs' proxy serves its page
+   on that host and Recruiting answers the browser from it.
+
+   Members connect their own calendar and Zoom (REC-135) through OAuth apps
+   Kithena registers once. Every app's one redirect address is
+   `https://api.kithena.com/v1/recruiting/public/calendar-callback` (under the
+   tunnel's `/v1/recruiting/public/*` rule already); `CALENDAR_REDIRECT_URI`
+   overrides it. Each pair goes in `RECRUITING_ENV`, and an app without its
+   pair is not offered:
+
+   - **Google**: a Google Cloud project, the Calendar API enabled, an OAuth
+     client of type Web application, the scopes `calendar.freebusy` and
+     `calendar.events` on the consent screen, and verification before it is
+     opened to every Workspace (both are sensitive scopes).
+     `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`.
+   - **Microsoft**: an Entra app registration, accounts in any organisational
+     directory, a Web redirect, the delegated Graph permissions
+     `Calendars.ReadWrite` and `offline_access`, and a client secret (it
+     expires; note the date). `MICROSOFT_CALENDAR_CLIENT_ID`,
+     `MICROSOFT_CALENDAR_CLIENT_SECRET`.
+   - **Zoom**: a General app on the Zoom Marketplace, user-managed, the
+     scopes `meeting:write:meeting` and `meeting:delete:meeting`, published
+     before members outside Kithena's own Zoom account can add it.
+     `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`.
+
+   A grant is sealed with `RECRUITING_ENCRYPTION_KEY`, so it needs that too.
+   Slack has no call a candidate can join, so it has no adapter here; posting
+   an interview's call to its interviewers is a chat-app job (REC-137).
+
+   Indeed (REC-131, REC-132) is off until the partner agreement is signed.
+   Then, from Indeed's Partner Console, put in `RECRUITING_ENV`:
+   `INDEED_CLIENT_ID` and `INDEED_CLIENT_SECRET` (Job Sync and disposition
+   sync, client credentials) and `INDEED_APPLY_SECRET` (what Indeed Apply
+   signs each application with). Indeed Apply posts to
+   `https://api.kithena.com/v1/recruiting/public/indeed-apply`
+   (`INDEED_APPLY_POST_URL` overrides it), under the tunnel's public rule.
+   With all three set, Indeed shows as a target on a job (after its careers
+   page, whose URL Indeed checks) and Glassdoor lists what Indeed receives.
+   The adapter was written from Indeed's public docs; check the Apply payload
+   and the expire and disposition mutations against Indeed's sandbox before
+   the production client goes in.
+
    AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
    `ASSISTANT_MODEL`. The deploy writes the assistant's own `ASSISTANT_API_KEY`
    into `recruiting.env`, as it does for Documents; the other two, if set, go

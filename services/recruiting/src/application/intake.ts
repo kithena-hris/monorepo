@@ -17,6 +17,10 @@ import { asPerson, event, notFound, publish, type Ctx } from './context.js';
 import type { ApplicationRecord, Candidate, CandidateFile, Deps, JobRecord } from './ports.js';
 import { generalSettings } from './setup.js';
 
+/** A board's name as a person reads it: `indeed` is Indeed. */
+const words = (target: PublicationTarget) =>
+  target.charAt(0).toUpperCase() + target.slice(1).replaceAll('_', ' ');
+
 /**
  * Applying (PRD §10.4, §11, REC-047), through the public API: no account,
  * the email confirmed by a six-digit code, a honeypot, consent asked
@@ -395,6 +399,65 @@ export async function apply(
     dedupeKey: `applied:${landed.value.id}`,
   });
   return ok({ applicationId: landed.value.id, candidateId: candidate.id, portalUrl });
+}
+
+/**
+ * An application from a board's own apply (Indeed Apply, REC-132), signed by
+ * the board: checked, mapped at its adapter, and landed as any other. The
+ * board asked for consent on its form; the record says where. Nothing about
+ * the content is refused here (a board stops sending to a site that refuses):
+ * the knockout rules and the team decide afterwards.
+ */
+export async function receiveBoardApplication(
+  ctx: Ctx,
+  target: PublicationTarget,
+  raw: string,
+  signature: string,
+): Promise<Result<{ applicationId: string }>> {
+  const board = ctx.deps.boards?.find((b) => b.target === target);
+  if (board?.inbound === undefined) return err(notFound('board'));
+  if (!board.inbound.verify(raw, signature))
+    return err(failure('UNAUTHENTICATED', 'The signature does not match'));
+  const parsed = board.inbound.parse(raw);
+  if (!parsed.ok) return parsed;
+  const given = parsed.value;
+  const job = await ctx.tx.jobs.get(given.jobId);
+  const listed = (await ctx.tx.jobs.targets(given.jobId)).some(
+    (t) => t.target === target && t.state === 'live',
+  );
+  if (job === null || job.state !== 'open' || !listed)
+    return err(failure('JOB_CLOSED', 'This job is no longer taking applications'));
+  const cv = given.files.find((f) => f.field === 'cv');
+  const candidate = await candidateFor(
+    ctx,
+    given.name,
+    given.email,
+    given.phone,
+    cv === undefined ? null : sha256(cv.bytes),
+    null,
+  );
+  const landed = await land(
+    ctx,
+    job,
+    candidate,
+    { kind: 'target', target },
+    { name: given.name, email: given.email, boardRef: given.ref },
+    'en',
+    null,
+    given.files,
+  );
+  if (!landed.ok) return landed;
+  const settings = await generalSettings(ctx);
+  await ctx.tx.consents.save({
+    id: ctx.deps.newId(),
+    candidateId: candidate.id,
+    purpose: 'application',
+    givenAt: ctx.at,
+    expiresOn: null,
+    withdrawnAt: null,
+    notice: `Applied through ${words(target)}: ${settings.companyName} processes this application to consider you for ${job.title}.`,
+  });
+  return ok({ applicationId: landed.value.id });
 }
 
 /** A recruiter adds a candidate by hand (source "added by a recruiter", PRD §9.2). */

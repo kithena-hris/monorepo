@@ -197,6 +197,8 @@ export interface JobData {
     readonly checks: readonly AdCheck[];
   }[];
   readonly targets: readonly Target[];
+  /** Boards Recruiting has an adapter for here, beyond its own pages. */
+  readonly boards: readonly string[];
   readonly criteria: readonly {
     readonly id: string;
     readonly text: string;
@@ -834,8 +836,24 @@ export interface SettingsData {
     readonly source: 'recruiting' | 'people';
   }[];
   readonly agencies: readonly Agency[];
+  /** The careers page on the company's own domain (REC-136). */
+  readonly careersDomain: CareersDomain | null;
+  /** Whether Kithena Jobs can take a domain of a company's own here at all. */
+  readonly domainsOn: boolean;
   readonly jobs: readonly { readonly id: string; readonly title: string }[];
   readonly admin: boolean;
+}
+
+export interface CareersDomain {
+  readonly host: string;
+  readonly status: 'pending' | 'verified';
+  /** What the company's DNS needs, as the hosting answered it. */
+  readonly records: readonly {
+    readonly type: string;
+    readonly name: string;
+    readonly value: string;
+  }[];
+  readonly verifiedAt: string | null;
 }
 
 export interface BoardData {

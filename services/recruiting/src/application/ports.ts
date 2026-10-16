@@ -11,6 +11,7 @@ import type {
   PublicJob,
   PublicListing,
   PublicationTarget,
+  StageCategory,
 } from '@kithena/contracts';
 
 import type { Application, StageMove } from '../domain/pipeline/application.js';
@@ -18,6 +19,7 @@ import type { Stage } from '../domain/pipeline/pipeline.js';
 import type { AdCheck } from '../domain/ad/checks.js';
 import type { TeamRole } from '../domain/access/access.js';
 import type { Benefit } from '../domain/benefits/benefits.js';
+import type { DnsRecord } from '../domain/careers/domain.js';
 import type { Contract } from '../domain/contract/contract.js';
 import type { FormField } from '../domain/form/form.js';
 import type { Interview, Scorecard } from '../domain/interview/interview.js';
@@ -464,12 +466,41 @@ export interface Assessment {
  * A job board (PRD §26.1): one adapter per board behind one port. Publishing
  * twice updates; closing takes the job down. Google for Jobs and the XML feed
  * are the first two, and read the job from Kithena Jobs' own page and feed;
- * Indeed is the next, once its agreement is signed.
+ * Indeed sends the job by API, takes applications in its own apply and hears
+ * back where each went.
  */
 export interface JobBoard {
   readonly target: PublicationTarget;
-  publish(job: BoardJob): Promise<Result<{ readonly url: string | null }>>;
+  /** `ref` is the board's own id for the posting, kept to close it. */
+  publish(job: BoardJob): Promise<Result<{ readonly url: string | null; readonly ref?: string }>>;
   close(job: BoardJob): Promise<void>;
+  /** Applications the board's own apply posts to Recruiting, signed. */
+  readonly inbound?: {
+    verify(raw: string, signature: string): boolean;
+    parse(raw: string): Result<BoardApplication>;
+  };
+  /** Tells the board where an application it sent has got to. */
+  disposition?(input: {
+    readonly ref: string;
+    readonly status: StageCategory | 'rejected' | 'withdrawn';
+    readonly at: string;
+  }): Promise<Result<void>>;
+}
+
+/** An application as a board's apply sent it, mapped at the adapter (PRD §11.1). */
+export interface BoardApplication {
+  readonly jobId: string;
+  /** The board's id for it, for dispositions. */
+  readonly ref: string;
+  readonly name: string;
+  readonly email: string;
+  readonly phone: string | null;
+  readonly files: readonly {
+    readonly field: string;
+    readonly fileName: string;
+    readonly mediaType: string;
+    readonly bytes: Uint8Array;
+  }[];
 }
 
 /** A third-party assessment (PRD §15.3): the result is a score and a report on the application. */
@@ -504,6 +535,12 @@ export interface BoardJob {
   readonly slug: string;
   /** Kithena Jobs' page for the job, which a board must link to (Indeed checks it). */
   readonly url: string;
+  /** What that page shows, for a board that takes the ad itself; null for one that reads the page. */
+  readonly page: PublicJob | null;
+  /** The address a board may show for the company: its reply address. */
+  readonly contactEmail: string | null;
+  /** The board's id from publishing, when it gave one. */
+  readonly ref: string | null;
 }
 
 export interface Sealer {
@@ -675,6 +712,85 @@ export interface PublicStore {
   }): Promise<void>;
   putListing(listing: PublicJob, tsvText: string): Promise<void>;
   removeListing(jobId: string): Promise<void>;
+  /** The company's own careers domain, if it has one (REC-136). */
+  careersDomain(): Promise<CareersDomain | null>;
+  putCareersDomain(domain: CareersDomain & { readonly companySlug: string }): Promise<void>;
+  removeCareersDomain(): Promise<void>;
+  /** Every company's, for the ceiling Kithena Jobs' project allows. */
+  careersDomainCount(): Promise<number>;
+}
+
+/** A company's own domain for its careers page, and what its DNS needs (REC-136). */
+export interface CareersDomain {
+  readonly host: string;
+  readonly status: 'pending' | 'verified';
+  readonly records: readonly DnsRecord[];
+  readonly verifiedAt: string | null;
+}
+
+export type CalendarKind = 'google' | 'microsoft';
+export type VideoKind = 'zoom';
+export type ConnectionKind = CalendarKind | VideoKind;
+
+export interface CalendarEvent {
+  readonly title: string;
+  readonly startsAt: string;
+  readonly minutes: number;
+  readonly description: string;
+  readonly location: string | null;
+  /** Work emails of the interviewers; never the candidate's. */
+  readonly attendees: readonly string[];
+  /** Ask the calendar for a Meet or Teams link. */
+  readonly video: boolean;
+}
+
+/** A member's calendar for one session: a grant refreshed once, busy times, events. */
+export interface CalendarSession {
+  /** The grant to keep: a provider may rotate it on refresh. */
+  readonly grant: string;
+  busy(from: string, to: string): Promise<Result<readonly (readonly [string, string])[]>>;
+  create(event: CalendarEvent): Promise<Result<{ eventId: string; videoUrl: string | null }>>;
+  cancel(eventId: string): Promise<Result<void>>;
+}
+
+/** A member's video account for one session: a meeting made and ended. */
+export interface VideoSession {
+  readonly grant: string;
+  meeting(input: {
+    readonly title: string;
+    readonly startsAt: string;
+    readonly minutes: number;
+  }): Promise<Result<{ meetingId: string; url: string }>>;
+  end(meetingId: string): Promise<Result<void>>;
+}
+
+/** What a member connects by OAuth: consent, a code redeemed for a grant, a session. */
+interface Connectable<K extends ConnectionKind, S> {
+  readonly kind: K;
+  /** Where the member grants access; `state` comes back with the code. */
+  consentUrl(state: string): string;
+  /** The long-lived grant (a refresh token) for the code the provider sent back. */
+  redeem(code: string): Promise<Result<string>>;
+  open(grant: string): Promise<Result<S>>;
+}
+
+/** Google Workspace or Microsoft 365 (PRD §26.2, REC-135). */
+export type CalendarProvider = Connectable<CalendarKind, CalendarSession>;
+/** Zoom: a meeting link of the member's own in place of Meet or Teams. */
+export type VideoProvider = Connectable<VideoKind, VideoSession>;
+export type Connection = CalendarProvider | VideoProvider;
+
+/** Where Kithena Jobs is served (Vercel): a host added to its project, its state, and taken off. */
+export interface DomainHost {
+  add(host: string): Promise<Result<HostedDomain>>;
+  check(host: string): Promise<Result<HostedDomain>>;
+  remove(host: string): Promise<Result<void>>;
+}
+
+export interface HostedDomain {
+  /** Serving: verified by the host and its DNS pointing at it. */
+  readonly verified: boolean;
+  readonly records: readonly DnsRecord[];
 }
 
 export interface Tx {
@@ -712,6 +828,12 @@ export interface Tx {
   readonly workingHours: {
     get(personId: string): Promise<WorkingHours | null>;
     save(hours: WorkingHours): Promise<void>;
+  };
+  /** A member's connected calendar and video (PRD §26.2): each grant sealed. */
+  readonly connections: {
+    list(personId: string): Promise<readonly { kind: ConnectionKind; sealed: Uint8Array }[]>;
+    save(personId: string, kind: ConnectionKind, sealed: Uint8Array): Promise<void>;
+    remove(personId: string, kind: ConnectionKind): Promise<void>;
   };
   readonly assessments: {
     save(a: Assessment): Promise<void>;
@@ -805,6 +927,8 @@ export interface Listings {
   search(query: JobSearch): Promise<{ rows: readonly PublicListing[]; total: number }>;
   job(company: string, slug: string, language: string | null): Promise<PublicJob | null>;
   company(slug: string): Promise<{ company: PublicCompany; jobs: readonly PublicListing[] } | null>;
+  /** The company a verified careers domain shows, or null (REC-136). */
+  companyForHost(host: string): Promise<string | null>;
 }
 
 export interface Deps {
@@ -831,6 +955,10 @@ export interface Deps {
   /** No provider is chosen yet: absent, the screens say so. A fake adapter each for tests and local runs. */
   readonly assessmentProvider?: AssessmentProvider;
   readonly backgroundChecks?: BackgroundCheckProvider;
+  /** Where a company's own careers domain is added; absent, the setting says it is not set up. */
+  readonly domains?: DomainHost;
+  /** The calendars and video members may connect; none, scheduling uses working hours and an `.ics`. */
+  readonly connections?: readonly Connection[];
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */
