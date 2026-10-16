@@ -104,6 +104,8 @@ jobs:
       packages: write
       id-token: write
       pull-requests: write
+      # The deploy reads whether `ci` passed on the commit.
+      actions: read
     uses: ./.github/workflows/vercel-production.yml
     with:
       targets: ${{ needs.choose.outputs.targets }}
