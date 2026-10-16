@@ -77,6 +77,11 @@ updates:
         update-types: [version-update:semver-major, version-update:semver-minor]
       - dependency-name: react-native-webview
         update-types: [version-update:semver-major, version-update:semver-minor]
+      # Babel 8 breaks the mobile Storybook and the native export:
+      # react-native-worklets' Babel plugin requires "^7.0.0-0" (#384). Lift
+      # this when a worklets release accepts Babel 8.
+      - dependency-name: '@babel/core'
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
