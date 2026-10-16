@@ -50,7 +50,7 @@
     "tailwind-merge": "^3.7.0"
   },
   "peerDependencies": {
-    "expo-clipboard": "~57.0.2",
+    "expo-clipboard": "~58.0.3",
     "react": ">=19.2.3",
     "react-native": ">=0.86",
     "react-native-gesture-handler": "^2.32.0",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "@storybook/react-native-web-vite": "10.6.1",
     "@types/react": "^19.3.0",
-    "expo-clipboard": "~57.0.2",
+    "expo-clipboard": "~58.0.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
