@@ -479,6 +479,8 @@ export interface JobBoard {
     verify(raw: string, signature: string): boolean;
     parse(raw: string): Result<BoardApplication>;
   };
+  /** The job's questionnaire in the board's own format, for its apply to ask (Indeed's screener questions). */
+  questions?(questionnaire: Questionnaire): unknown;
   /** Tells the board where an application it sent has got to. */
   disposition?(input: {
     readonly ref: string;
@@ -495,6 +497,8 @@ export interface BoardApplication {
   readonly name: string;
   readonly email: string;
   readonly phone: string | null;
+  /** Questionnaire answers as the public form sends them: `q_<question id>`. */
+  readonly answers: Readonly<Record<string, Answer>>;
   readonly files: readonly {
     readonly field: string;
     readonly fileName: string;
@@ -541,6 +545,8 @@ export interface BoardJob {
   readonly contactEmail: string | null;
   /** The board's id from publishing, when it gave one. */
   readonly ref: string | null;
+  /** Whether the job's form has a questionnaire for the board's apply to ask. */
+  readonly asks: boolean;
 }
 
 export interface Sealer {

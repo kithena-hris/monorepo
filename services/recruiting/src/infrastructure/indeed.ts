@@ -3,11 +3,14 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
 import type { BoardApplication, JobBoard } from '../application/ports.js';
+import type { Answer, Question, Questionnaire } from '../domain/screening/questionnaire.js';
 
 /**
  * Indeed (PRD §26.1, REC-131, REC-132): Job Sync to publish and expire a job,
- * Indeed Apply posting applications to Recruiting, and disposition sync
- * telling Indeed where each went. Glassdoor lists what Indeed receives.
+ * Indeed Apply posting applications to Recruiting, with the job's
+ * questionnaire as its screener questions (Indeed approves no integration
+ * that leaves them out), and disposition sync telling Indeed where each went.
+ * Glassdoor lists what Indeed receives.
  *
  * ponytail: written from Indeed's public docs (2026-10-16). The Apply
  * payload's keys, the `indeedApply` settings and the expire and disposition
@@ -20,8 +23,10 @@ export interface IndeedConfig {
   readonly clientSecret: string;
   /** Indeed Apply's shared secret: what `X-Indeed-Signature` is made with. */
   readonly applySecret: string;
-  /** Where Indeed Apply posts: Recruiting's public `/indeed-apply`. */
-  readonly postUrl: string;
+  /** Indeed Apply's API token, from Indeed's Partner Console. */
+  readonly applyToken: string;
+  /** Recruiting's public API, which Indeed Apply posts to and reads questions from. */
+  readonly publicUrl: string;
   readonly api?: string;
 }
 
@@ -38,19 +43,72 @@ export const DISPOSITION: Readonly<Record<string, string>> = {
   withdrawn: 'WITHDRAWN',
 };
 
+/** Recruiting's question kinds as Indeed's screener question types (schema 1.3). */
+function screenerQuestion(q: Question): Record<string, unknown> {
+  const base = { id: q.id, question: q.text, required: q.required };
+  const choices = (options: readonly string[]) => options.map((o) => ({ value: o, label: o }));
+  switch (q.kind) {
+    case 'short_text':
+      return { ...base, type: 'text' };
+    case 'long_text':
+      return { ...base, type: 'textarea' };
+    case 'number':
+      return { ...base, type: 'text', format: 'decimal' };
+    case 'date':
+      return { ...base, type: 'date', format: 'yyyy-MM-dd' };
+    case 'file':
+      return { ...base, type: 'file' };
+    case 'yes_no':
+      return {
+        ...base,
+        type: 'select',
+        options: [
+          { value: 'yes', label: 'Yes' },
+          { value: 'no', label: 'No' },
+        ],
+      };
+    case 'single':
+      return { ...base, type: 'select', options: choices(q.options) };
+    case 'multiple':
+      return { ...base, type: 'multiselect', options: choices(q.options) };
+  }
+}
+
+export const screenerQuestions = (
+  questionnaire: Questionnaire,
+): {
+  schemaVersion: string;
+  screenerQuestions: { questions: Record<string, unknown>[] };
+} => ({
+  schemaVersion: '1.3',
+  screenerQuestions: { questions: questionnaire.questions.map(screenerQuestion) },
+});
+
+interface ApplyFile {
+  readonly fileName?: string;
+  readonly contentType?: string;
+  readonly data?: string;
+}
+
 interface ApplyPayload {
   readonly id?: string;
   readonly job?: { readonly jobMeta?: string };
+  readonly screenerQuestionsAndAnswers?: {
+    readonly questionsAndAnswers?: readonly {
+      readonly question?: {
+        readonly id?: string;
+        readonly type?: string;
+        readonly format?: string;
+      };
+      readonly answer?: unknown;
+    }[];
+  };
   readonly applicant?: {
     readonly fullName?: string;
     readonly email?: string;
     readonly phoneNumber?: string;
     readonly resume?: {
-      readonly file?: {
-        readonly fileName?: string;
-        readonly contentType?: string;
-        readonly data?: string;
-      };
+      readonly file?: ApplyFile;
     };
   };
 }
@@ -81,24 +139,41 @@ export function indeedInbound(applySecret: string): NonNullable<JobBoard['inboun
         applicant.fullName === undefined
       )
         return err(failure('INVALID', 'The application is missing a required key'));
-      const file = applicant.resume?.file;
+      const files: BoardApplication['files'][number][] = [];
+      const take = (field: string, file: ApplyFile | undefined, name: string) => {
+        if (file?.data !== undefined)
+          files.push({
+            field,
+            fileName: file.fileName ?? name,
+            mediaType: file.contentType ?? 'application/octet-stream',
+            bytes: new Uint8Array(Buffer.from(file.data, 'base64')),
+          });
+      };
+      take('cv', applicant.resume?.file, 'resume');
+      const answers: Record<string, Answer> = {};
+      for (const { question, answer } of body.screenerQuestionsAndAnswers?.questionsAndAnswers ??
+        []) {
+        const id = question?.id;
+        if (question === undefined || id === undefined) continue;
+        const key = `q_${id}`;
+        const value = (a: unknown) => (a as { value?: string } | null)?.value ?? null;
+        if (question.type === 'file' && Array.isArray(answer)) {
+          for (const f of answer as ApplyFile[]) take(key, f, id);
+          answers[key] = (answer as ApplyFile[]).map((f) => f.fileName ?? id);
+        } else if (question.type === 'multiselect' && Array.isArray(answer))
+          answers[key] = answer.map(value).filter((v): v is string => v !== null);
+        else if (question.type === 'select') answers[key] = value(answer);
+        else if (typeof answer === 'string' && answer !== '')
+          answers[key] = question.format === 'decimal' ? Number(answer) : answer;
+      }
       return ok({
         jobId,
         ref: body.id,
         name: applicant.fullName,
         email: applicant.email,
         phone: applicant.phoneNumber ?? null,
-        files:
-          file?.data === undefined
-            ? []
-            : [
-                {
-                  field: 'cv',
-                  fileName: file.fileName ?? 'resume',
-                  mediaType: file.contentType ?? 'application/octet-stream',
-                  bytes: new Uint8Array(Buffer.from(file.data, 'base64')),
-                },
-              ],
+        answers,
+        files,
       });
     },
   };
@@ -214,9 +289,15 @@ export function indeedBoard(config: IndeedConfig): JobBoard {
                   ],
                   applyMethod: {
                     indeedApply: {
-                      postUrl: config.postUrl,
+                      apiToken: config.applyToken,
+                      postUrl: `${config.publicUrl}/indeed-apply`,
                       // Comes back on every application: which company and which job.
                       jobMeta: `${job.company}/${job.jobId}`,
+                      ...(job.asks
+                        ? {
+                            applyQuestions: `${config.publicUrl}/${job.company}/board-questions/indeed/${job.jobId}`,
+                          }
+                        : {}),
                     },
                   },
                 },
@@ -256,6 +337,7 @@ export function indeedBoard(config: IndeedConfig): JobBoard {
       );
     },
     inbound: indeedInbound(config.applySecret),
+    questions: screenerQuestions,
     async disposition({ ref, status, at }) {
       const sent = await graphql(
         `
@@ -291,17 +373,18 @@ function refused(why: string, status: number) {
   return err(failure('BOARD_REFUSED', 'Indeed did not take it just now. Try again.'));
 }
 
-/** Indeed when its client and Apply secret are set; else not offered. */
+/** Indeed when its client and Apply token and secret are set; else not offered. */
 export function indeedFrom(env: NodeJS.ProcessEnv): JobBoard | undefined {
   const clientId = env['INDEED_CLIENT_ID'];
   const clientSecret = env['INDEED_CLIENT_SECRET'];
+  const applyToken = env['INDEED_APPLY_TOKEN'];
   const applySecret = env['INDEED_APPLY_SECRET'];
-  if (!clientId || !clientSecret || !applySecret) return undefined;
+  if (!clientId || !clientSecret || !applyToken || !applySecret) return undefined;
   return indeedBoard({
     clientId,
     clientSecret,
+    applyToken,
     applySecret,
-    postUrl:
-      env['INDEED_APPLY_POST_URL'] ?? 'https://api.kithena.com/v1/recruiting/public/indeed-apply',
+    publicUrl: env['INDEED_PUBLIC_URL'] ?? 'https://api.kithena.com/v1/recruiting/public',
   });
 }

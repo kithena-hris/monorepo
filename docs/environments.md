@@ -1419,6 +1419,7 @@ until its setting exists. In this order:
      Program only, with the company's legal details and `info@kithena.com` as
      the contact, then put the Partner ID in the app's Branding & properties,
      "Add MPN ID".
+
    - **Zoom**: a General app on the Zoom Marketplace, user-managed, the
      scopes `meeting:write:meeting` and `meeting:delete:meeting`, published
      before members outside Kithena's own Zoom account can add it.
@@ -1431,15 +1432,23 @@ until its setting exists. In this order:
    Indeed (REC-131, REC-132) is off until the partner agreement is signed.
    Then, from Indeed's Partner Console, put in `RECRUITING_ENV`:
    `INDEED_CLIENT_ID` and `INDEED_CLIENT_SECRET` (Job Sync and disposition
-   sync, client credentials) and `INDEED_APPLY_SECRET` (what Indeed Apply
-   signs each application with). Indeed Apply posts to
-   `https://api.kithena.com/v1/recruiting/public/indeed-apply`
-   (`INDEED_APPLY_POST_URL` overrides it), under the tunnel's public rule.
-   With all three set, Indeed shows as a target on a job (after its careers
-   page, whose URL Indeed checks) and Glassdoor lists what Indeed receives.
-   The adapter was written from Indeed's public docs; check the Apply payload
-   and the expire and disposition mutations against Indeed's sandbox before
-   the production client goes in.
+   sync, client credentials), `INDEED_APPLY_TOKEN` (Indeed Apply's API
+   token, sent with each posting) and `INDEED_APPLY_SECRET` (what Indeed
+   Apply signs each application with). Indeed Apply posts to
+   `https://api.kithena.com/v1/recruiting/public/indeed-apply`, and a job
+   with a questionnaire has it asked as Indeed's screener questions, read
+   from `.../public/<company>/board-questions/indeed/<jobId>`; both sit under
+   the tunnel's public rule, and `INDEED_PUBLIC_URL` moves the base. With all
+   four set, Indeed shows as a target on a job (after its careers page, whose
+   URL Indeed checks) and Glassdoor lists what Indeed receives.
+   The adapter was written from Indeed's public docs; check the Apply payload,
+   the screener questions and the expire and disposition mutations against
+   Indeed's sandbox before the production client goes in.
+
+   Indeed accepts an ATS only once it is a company with paying clients:
+   its Job Sync terms take "content from paid clients" only, none from a
+   free trial, and nothing from an ATS "in Beta". The partner request
+   (https://partners.indeed.com/?becomePartner) waits for that.
 
    AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
    `ASSISTANT_MODEL`. The deploy writes the assistant's own `ASSISTANT_API_KEY`

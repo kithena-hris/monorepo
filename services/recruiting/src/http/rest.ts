@@ -28,6 +28,7 @@ import {
   addCandidate,
   apply,
   applyInternally,
+  boardQuestions,
   receiveBoardApplication,
   refer,
   requestCode,
@@ -1518,6 +1519,15 @@ export const ROUTES: readonly Route[] = [
     public: true,
     run: (ctx, { params, body }) =>
       receiveBoardApplication(ctx, params.target, body.raw, body.signature),
+  }),
+  route({
+    name: 'publicBoardQuestions',
+    method: 'GET',
+    path: `${V1}/public/{company}/board-questions/{target}/{jobId}`,
+    summary: 'A live job’s questionnaire in a board’s own format, which its apply asks',
+    params: z.object({ company: text(63), target: z.enum(['indeed']), jobId: Id }),
+    public: true,
+    run: (ctx, { params }) => boardQuestions(ctx, params.target, params.jobId),
   }),
   route({
     name: 'publicConnectGrant',
