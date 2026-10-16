@@ -137,7 +137,7 @@ describe('the scheduled reports screen (PEO-069)', () => {
     await user.click(screen.getByRole('button', { name: 'New scheduled report' }));
     const dialog = screen.getByRole('dialog', { name: 'New scheduled report' });
     await user.type(within(dialog).getByRole('textbox', { name: /Name/ }), 'Team list');
-    await user.click(within(dialog).getByRole('button', { name: 'Recipients' }));
+    await user.click(within(dialog).getByRole('button', { name: /^Recipients: / }));
     await user.click(screen.getByRole('option', { name: /Marco Rossi/ }));
     await user.keyboard('{Escape}');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));

@@ -119,7 +119,7 @@ describe('the organisation settings (PEO-119)', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for Madrid office' }));
     await user.click(screen.getByRole('menuitem', { name: 'Change time zone' }));
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'New time zone' }));
+    await user.click(within(dialog).getByRole('button', { name: /^New time zone: / }));
     await user.click(screen.getByRole('option', { name: 'Pacific/Kiritimati' }));
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(p.onChangeZone).toHaveBeenCalledWith(
@@ -160,7 +160,7 @@ describe('the organisation settings (PEO-119)', () => {
     await user.click(within(add).getByRole('button', { name: 'Save' }));
     expect(within(add).getByText('A name is needed.')).toBeInTheDocument();
     await user.type(within(add).getByRole('textbox', { name: /Name/ }), 'Data');
-    await user.click(within(add).getByRole('button', { name: 'Under' }));
+    await user.click(within(add).getByRole('button', { name: /^Under: / }));
     await user.click(screen.getByRole('option', { name: 'Engineering' }));
     await user.click(within(add).getByRole('button', { name: 'Save' }));
     expect(p.onCreateOrgUnit).toHaveBeenCalledWith({ name: 'Data', parentId: ENG });
@@ -175,7 +175,7 @@ describe('the organisation settings (PEO-119)', () => {
       />,
     );
     const move = screen.getByRole('dialog', { name: 'Move Engineering' });
-    await user.click(within(move).getByRole('button', { name: 'Under' }));
+    await user.click(within(move).getByRole('button', { name: /^Under: / }));
     // Not under itself, nor anything beneath it.
     expect(screen.queryByRole('option', { name: 'Engineering › Platform' })).toBeNull();
     await user.click(screen.getByRole('option', { name: 'Top level' }));

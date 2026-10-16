@@ -108,8 +108,10 @@ export function TreeView({
     visible.find((entry) => entry.node.id === picked)?.node.id ??
     visible[0]?.node.id;
 
-  const nodesRef = useRef(new Map<string, HTMLLIElement>());
-  const idFor = (id: string): string => `${base}-${id}`;
+  const nodesRef = useRef(new Map<string, HTMLDivElement>());
+  const groupFor = (id: string): string => `${base}-${id}-group`;
+  const labelFor = (id: string): string => `${base}-${id}-label`;
+  const metaFor = (id: string): string => `${base}-${id}-meta`;
 
   const setOpen = (next: ReadonlySet<string>): void => {
     const list = [...next];
@@ -161,39 +163,46 @@ export function TreeView({
       const state = checkable ? checkState(node, ticks) : undefined;
 
       return (
-        <li
-          key={node.id}
-          ref={(element) => {
-            if (element) nodesRef.current.set(node.id, element);
-            else nodesRef.current.delete(node.id);
-          }}
-          role="treeitem"
-          aria-labelledby={idFor(node.id)}
-          aria-level={level}
-          aria-setsize={nodes.length}
-          aria-posinset={index + 1}
-          aria-expanded={branch ? isOpen : undefined}
-          aria-busy={isBusy || undefined}
-          aria-selected={checkable ? undefined : isSelected}
-          aria-checked={
-            state === undefined ? undefined : state === 'indeterminate' ? 'mixed' : state
-          }
-          tabIndex={node.id === focus ? 0 : -1}
-          onKeyDown={(event) => {
-            // Handled once, by the item that has focus, not by every ancestor
-            // the event bubbles through.
-            if (event.target !== event.currentTarget) return;
-            onKeyDown(event, node);
-          }}
-          onFocus={(event) => {
-            if (event.target === event.currentTarget) setFocusId(node.id);
-          }}
-          className={cn(
-            'outline-none',
-            '[&:focus-visible>[data-row]]:outline-2 [&:focus-visible>[data-row]]:-outline-offset-2 [&:focus-visible>[data-row]]:outline-border-focus',
-          )}
-        >
+        // The row is the treeitem and its children are a group beside it, owned
+        // (aria-owns), as in the ARIA Authoring Practices' navigation tree: a
+        // treeitem that contained its subtree would be named, and seen, as the
+        // whole subtree (WCAG 2.5.3, Label in Name).
+        <li key={node.id} role="none">
           <div
+            ref={(element) => {
+              if (element) nodesRef.current.set(node.id, element);
+              else nodesRef.current.delete(node.id);
+            }}
+            role="treeitem"
+            // Named by its own label and count, in the order they show: content
+            // would also take in the reports it owns.
+            aria-labelledby={
+              node.meta === undefined
+                ? labelFor(node.id)
+                : `${labelFor(node.id)} ${metaFor(node.id)}`
+            }
+            aria-owns={
+              isOpen && node.children && node.children.length > 0 ? groupFor(node.id) : undefined
+            }
+            aria-level={level}
+            aria-setsize={nodes.length}
+            aria-posinset={index + 1}
+            aria-expanded={branch ? isOpen : undefined}
+            aria-busy={isBusy || undefined}
+            aria-selected={checkable ? undefined : isSelected}
+            aria-checked={
+              state === undefined ? undefined : state === 'indeterminate' ? 'mixed' : state
+            }
+            tabIndex={node.id === focus ? 0 : -1}
+            onKeyDown={(event) => {
+              // Handled once, by the item that has focus, not by every ancestor
+              // the event bubbles through.
+              if (event.target !== event.currentTarget) return;
+              onKeyDown(event, node);
+            }}
+            onFocus={(event) => {
+              if (event.target === event.currentTarget) setFocusId(node.id);
+            }}
             data-row
             onClick={() => {
               moveFocus(node.id);
@@ -201,6 +210,7 @@ export function TreeView({
               else select(node.id);
             }}
             className={cn(
+              'outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
               'relative flex min-h-8.5 cursor-pointer items-center gap-2 rounded-sm pe-2.5 text-sm font-medium text-fg select-none',
               'transition-colors duration-(--animate-duration-fast) hover:bg-surface-sunken',
               'touch:min-h-12 touch:text-base',
@@ -220,7 +230,6 @@ export function TreeView({
                 style={{ insetInlineStart: `${String(1 + depth * 1.25)}rem` }}
               />
             ))}
-
             <span
               aria-hidden
               className="relative grid size-4 shrink-0 place-items-center text-fg-subtle tap-target"
@@ -243,7 +252,6 @@ export function TreeView({
                 />
               ) : null}
             </span>
-
             {state === undefined ? null : (
               <Checkbox
                 aria-hidden
@@ -256,7 +264,6 @@ export function TreeView({
                 }}
               />
             )}
-
             {node.icon ? (
               <span
                 aria-hidden
@@ -268,20 +275,23 @@ export function TreeView({
                 {node.icon}
               </span>
             ) : null}
-
-            <span id={idFor(node.id)} className="min-w-0 flex-1 truncate">
+            <span id={labelFor(node.id)} className="min-w-0 flex-1 truncate">
               {node.label}
-            </span>
-
+            </span>{' '}
             {node.meta === undefined ? null : (
-              <span className="shrink-0 text-xs font-medium text-fg-subtle tabular-nums">
+              <span
+                id={metaFor(node.id)}
+                className="shrink-0 text-xs font-medium text-fg-subtle tabular-nums"
+              >
                 {node.meta}
               </span>
             )}
           </div>
 
           {isOpen && node.children && node.children.length > 0 ? (
-            <ul role="group">{renderLevel(node.children, level + 1)}</ul>
+            <ul role="group" id={groupFor(node.id)}>
+              {renderLevel(node.children, level + 1)}
+            </ul>
           ) : null}
 
           {isOpen && isBusy ? (

@@ -150,7 +150,7 @@ describe('conditional requiredness (PEO-065)', () => {
     ).toBeInTheDocument();
 
     await user.click(
-      within(sheet).getByRole('button', { name: 'Required when, condition 1: is one of' }),
+      within(sheet).getByRole('button', { name: /^Required when, condition 1: is one of: / }),
     );
     await user.click(screen.getByRole('option', { name: 'Spain' }));
     await user.keyboard('{Escape}');
@@ -175,7 +175,7 @@ describe('conditional requiredness (PEO-065)', () => {
     const n = 'Required when, condition 1';
     await user.click(within(sheet).getByRole('combobox', { name: `${n}: what it reads` }));
     await user.click(screen.getByRole('option', { name: 'Employment type' }));
-    await user.click(within(sheet).getByRole('button', { name: `${n}: is one of` }));
+    await user.click(within(sheet).getByRole('button', { name: new RegExp(`^${n}: is one of: `) }));
     expect(screen.queryByRole('option', { name: 'Permanent' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'Full-time' }));
     await user.keyboard('{Escape}');
@@ -212,7 +212,7 @@ describe('conditional requiredness (PEO-065)', () => {
     );
     await user.click(screen.getByRole('option', { name: 'Any of these holds' }));
     await user.click(
-      within(sheet).getByRole('button', { name: 'Required when, condition 2: is one of' }),
+      within(sheet).getByRole('button', { name: /^Required when, condition 2: is one of: / }),
     );
     await user.click(screen.getByRole('option', { name: 'Germany' }));
     await user.keyboard('{Escape}');
@@ -297,7 +297,7 @@ describe('custom visibility rules (PEO-066)', () => {
     const n = 'Rule 1: when, condition 1';
     await user.click(within(sheet).getByRole('combobox', { name: `${n}: what it reads` }));
     await user.click(screen.getByRole('option', { name: 'Employment type' }));
-    await user.click(within(sheet).getByRole('button', { name: `${n}: is one of` }));
+    await user.click(within(sheet).getByRole('button', { name: new RegExp(`^${n}: is one of: `) }));
     await user.click(screen.getByRole('option', { name: 'Contractor' }));
     await user.keyboard('{Escape}');
     expect(await axeViolations(sheet)).toEqual([]);
@@ -327,7 +327,7 @@ describe('custom visibility rules (PEO-066)', () => {
     const n = 'Rule 1: when, condition 1';
     await user.click(within(sheet).getByRole('combobox', { name: `${n}: what it reads` }));
     await user.click(screen.getByRole('option', { name: 'Employment type' }));
-    await user.click(within(sheet).getByRole('button', { name: `${n}: is one of` }));
+    await user.click(within(sheet).getByRole('button', { name: new RegExp(`^${n}: is one of: `) }));
     expect(screen.queryByRole('option', { name: 'Permanent' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'Full-time' }));
     await user.keyboard('{Escape}');

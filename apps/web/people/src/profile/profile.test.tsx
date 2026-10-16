@@ -243,7 +243,7 @@ describe('Profile', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Edit Work' }));
     const form = screen.getByRole('form', { name: 'Work' });
-    const picker = within(form).getByRole('button', { name: 'Manager' });
+    const picker = within(form).getByRole('button', { name: /^Manager: / });
     expect(picker).toHaveTextContent('Grace Hopper');
     expect(await axeViolations(container)).toEqual([]);
     await user.click(picker);
