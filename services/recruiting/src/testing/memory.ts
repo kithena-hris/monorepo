@@ -42,6 +42,7 @@ import type {
   Member,
   PlannedInterview,
   CareersDomain,
+  ConnectionKind,
 } from '../application/ports.js';
 
 /**
@@ -150,6 +151,9 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
   const interviews = keyed<InterviewRecord>(state, 'interviews');
   const cards = keyed<Scorecard & { notes: string | null }>(state, 'scorecards');
   const hours = keyed<WorkingHours>(state, 'hours');
+  const connections = keyed<{ kind: ConnectionKind; sealed: Uint8Array }[]>(state, 'connections');
+  const othersThan = (person: string, kind: ConnectionKind) =>
+    (connections.get(person) ?? []).filter((c) => c.kind !== kind);
   const assessed = keyed<Assessment>(state, 'assessments');
   const selfIds = keyed<{ applicationId: string; sealed: number[] }>(state, 'selfIds');
   const verdicts = keyed<VerdictRow & { assessmentId: string }>(state, 'verdicts');
@@ -468,6 +472,15 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
       get: (person) => hours.get(person),
       save: (h) => {
         hours.set(h.personId, h);
+      },
+    },
+    connections: {
+      list: (person) => connections.get(person) ?? [],
+      save: (person, kind, sealed) => {
+        connections.set(person, [...othersThan(person, kind), { kind, sealed }]);
+      },
+      remove: (person, kind) => {
+        connections.set(person, othersThan(person, kind));
       },
     },
     assessments: {

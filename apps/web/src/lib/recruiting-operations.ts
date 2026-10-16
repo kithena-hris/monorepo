@@ -154,6 +154,18 @@ export const OPERATIONS = {
   SelfScheduleLink: write('SelfScheduleLink', 'selfScheduleLink', ...ID('applicationId')),
   SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
+  RecruitingConnections: query('RecruitingConnections', 'recruitingConnections'),
+  ConnectRecruitingCalendar: write(
+    'ConnectRecruitingCalendar',
+    'connectRecruitingCalendar',
+    ...ID('kind'),
+  ),
+  DisconnectRecruitingCalendar: write(
+    'DisconnectRecruitingCalendar',
+    'disconnectRecruitingCalendar',
+    ...ID('kind'),
+    false,
+  ),
   ParseCv: write('ParseCv', 'parseCv', ...ID('applicationId'), false),
   AssessMatrix: write('AssessMatrix', 'assessMatrix', ...ID('applicationId'), false),
   SummariseDebrief: write('SummariseDebrief', 'summariseDebrief', ...ID('applicationId'), false),

@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { callerFromHeaders } from '../http/caller.js';
 import { recruitingServer } from '../http/server.js';
-import { fakeDomains } from '../infrastructure/fake-providers.js';
+import { fakeConnections, fakeDomains } from '../infrastructure/fake-providers.js';
+import { aesSealer } from '../infrastructure/sealer.js';
 import { uuidv7 } from '../infrastructure/ids.js';
 import { memoryBlobs, memoryUnitOfWork } from '../testing/memory.js';
 
@@ -46,6 +47,8 @@ beforeAll(async () => {
       callerFrom: callerFromHeaders(TOKEN),
       listings: uow.listings,
       domains: fakeDomains(),
+      connections: fakeConnections(),
+      sealer: aesSealer(new Uint8Array(32).fill(7)),
     },
     uuidv7,
   );
@@ -153,6 +156,53 @@ describe('Recruiting’s transports, alone', () => {
       body: JSON.stringify({ jobSlug: 'missing', email: 'yuki@example.com', name: 'Yuki' }),
     });
     expect(((await noJob.json()) as { error: { code: string } }).error.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('a member’s calendar and Zoom (REC-135)', () => {
+  it('connects through the provider’s consent and comes back to the page it left', async () => {
+    const connections = () =>
+      fetch(`${base}/v1/recruiting/me/connections`, { headers: headers() }).then(
+        (r) => r.json() as Promise<{ connected: string[]; offered: string[] }>,
+      );
+    expect(await connections()).toEqual({ connected: [], offered: ['google', 'zoom'] });
+
+    const back = 'https://acme.app.kithena.com/recruiting/interviews';
+    const elsewhere = await fetch(`${base}/v1/recruiting/me/connections/zoom`, {
+      method: 'POST',
+      headers: headers(randomUUID()),
+      body: JSON.stringify({ returnTo: 'https://evil.example/' }),
+    });
+    expect(elsewhere.status).toBe(400);
+    const started = (await (
+      await fetch(`${base}/v1/recruiting/me/connections/zoom`, {
+        method: 'POST',
+        headers: headers(randomUUID()),
+        body: JSON.stringify({ returnTo: back }),
+      })
+    ).json()) as { url: string };
+    const state = new URL(started.url).searchParams.get('state') ?? '';
+    expect(state.startsWith('acme.')).toBe(true);
+
+    const callback = (s: string) =>
+      fetch(
+        `${base}/v1/recruiting/public/calendar-callback?code=abc&state=${encodeURIComponent(s)}`,
+        {
+          redirect: 'manual',
+        },
+      );
+    const returned = await callback(state);
+    expect(returned.status).toBe(302);
+    expect(returned.headers.get('location')).toBe(back);
+    expect((await connections()).connected).toEqual(['zoom']);
+    // A state is good once.
+    expect((await callback(state)).status).toBe(400);
+
+    await fetch(`${base}/v1/recruiting/me/connections/zoom`, {
+      method: 'DELETE',
+      headers: headers(randomUUID()),
+    });
+    expect((await connections()).connected).toEqual([]);
   });
 });
 

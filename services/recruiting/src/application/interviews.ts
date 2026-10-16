@@ -15,6 +15,7 @@ import {
   type Scorecard,
 } from '../domain/interview/interview.js';
 import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interview/slots.js';
+import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
 import { asPerson, event, forbidden, nameOf, notFound, publish, type Ctx } from './context.js';
 import { sha256 } from './intake.js';
 import { loadApplication, queueEmail } from './moves.js';
@@ -48,7 +49,8 @@ async function availability(
             i.startsAt,
             new Date(Date.parse(i.startsAt) + i.minutes * 60_000).toISOString(),
           ] as const,
-      );
+      )
+      .concat(await calendarBusy(ctx, personId, from, to));
     out.push({
       personId,
       timeZone: hours?.timeZone ?? 'UTC',
@@ -183,7 +185,15 @@ async function book(
     place: booking.place,
     videoUrl: booking.videoUrl,
   };
-  await ctx.tx.interviews.save(interview);
+  const job = await ctx.tx.jobs.get(app.jobId);
+  const videoUrl = await putOnCalendar(ctx, interview, {
+    title: `${plan.title}: ${job?.title ?? ''}`,
+    startsAt: booking.startsAt,
+    minutes: plan.minutes,
+    description: 'Scheduled in Kithena Recruiting.',
+  });
+  const booked = videoUrl === null ? interview : { ...interview, videoUrl };
+  await ctx.tx.interviews.save(booked);
   await publish(
     ctx,
     event(
@@ -193,8 +203,8 @@ async function book(
       { interviewId: interview.id, applicationId, interviewerIds, startsAt: booking.startsAt },
     ),
   );
-  await invite(ctx, interview, false);
-  return ok(interview);
+  await invite(ctx, booked, false);
+  return ok(booked);
 }
 
 async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean): Promise<void> {
@@ -326,6 +336,7 @@ export async function bookByLink(
   if (existing !== undefined) {
     // Rescheduling from the same link (PRD §16.4): the earlier one is marked rescheduled.
     await ctx.tx.interviews.save({ ...existing, state: 'rescheduled' });
+    await takeOffCalendar(ctx, existing.id);
     await invite(ctx, existing, true);
   }
   return book(
@@ -369,6 +380,7 @@ export async function setInterviewState(
       ctx,
       event(ctx, 'recruiting.interview.cancelled', { type: 'Interview', id: interviewId }, payload),
     );
+    await takeOffCalendar(ctx, interviewId);
     await invite(ctx, next, true);
   }
   return ok(next);

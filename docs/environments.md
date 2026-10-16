@@ -1380,6 +1380,32 @@ until its setting exists. In this order:
    one) and presses Check; once verified, Kithena Jobs' proxy serves its page
    on that host and Recruiting answers the browser from it.
 
+   Members connect their own calendar and Zoom (REC-135) through OAuth apps
+   Kithena registers once. Every app's one redirect address is
+   `https://api.kithena.com/v1/recruiting/public/calendar-callback` (under the
+   tunnel's `/v1/recruiting/public/*` rule already); `CALENDAR_REDIRECT_URI`
+   overrides it. Each pair goes in `RECRUITING_ENV`, and an app without its
+   pair is not offered:
+
+   - **Google**: a Google Cloud project, the Calendar API enabled, an OAuth
+     client of type Web application, the scopes `calendar.freebusy` and
+     `calendar.events` on the consent screen, and verification before it is
+     opened to every Workspace (both are sensitive scopes).
+     `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`.
+   - **Microsoft**: an Entra app registration, accounts in any organisational
+     directory, a Web redirect, the delegated Graph permissions
+     `Calendars.ReadWrite` and `offline_access`, and a client secret (it
+     expires; note the date). `MICROSOFT_CALENDAR_CLIENT_ID`,
+     `MICROSOFT_CALENDAR_CLIENT_SECRET`.
+   - **Zoom**: a General app on the Zoom Marketplace, user-managed, the
+     scopes `meeting:write:meeting` and `meeting:delete:meeting`, published
+     before members outside Kithena's own Zoom account can add it.
+     `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`.
+
+   A grant is sealed with `RECRUITING_ENCRYPTION_KEY`, so it needs that too.
+   Slack has no call a candidate can join, so it has no adapter here; posting
+   an interview's call to its interviewers is a chat-app job (REC-137).
+
    AI features (PRD §22) read `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` and
    `ASSISTANT_MODEL`. The deploy writes the assistant's own `ASSISTANT_API_KEY`
    into `recruiting.env`, as it does for Documents; the other two, if set, go

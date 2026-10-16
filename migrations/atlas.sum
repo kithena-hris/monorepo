@@ -1,4 +1,4 @@
-h1:MjwXpynkpHz2hqL1CEMVFtd8YV02jp5gx510Hb8rJ7M=
+h1:DYsBZRwcTaveVUxcKfEHZmKtpgQV+6Wh9OIuoMm72UQ=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -141,3 +141,4 @@ h1:MjwXpynkpHz2hqL1CEMVFtd8YV02jp5gx510Hb8rJ7M=
 20261015130005_onboarding_outbox.sql h1:Ib3heV3FipfPN8GVQWFGKJ6oGcVruk9AzUDF7701IfQ=
 20261015130010_onboarding_core.sql h1:HjkrDin3CxG5uaRhC1wFIpgmdR74JBwU/TRvVsLsAHc=
 20261016120000_recruiting_careers_domain.sql h1:FMG8qYBfgEXfS5VJ1OA1U/QpNK249RX5fjzQ2JVy0mg=
+20261016130000_recruiting_zoom_connection.sql h1:WEHIBGJeOGiK6lSeJLujJrn4TIa/kYkKcAfxx4T6aUQ=

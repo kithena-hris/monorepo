@@ -143,6 +143,7 @@ import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
 import { askForChart } from '../application/chart-ask.js';
 import { SelfId, fairness, saveSelfId, selfIdQuestions } from '../application/fairness.js';
 import { importMembers } from '../application/members.js';
+import { connect, disconnect, myConnections, receiveGrant } from '../application/calendars.js';
 import {
   checkCareersDomain,
   removeCareersDomain,
@@ -949,6 +950,30 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { body }) => saveWorkingHours(ctx, body),
   }),
   route({
+    name: 'recruitingConnections',
+    method: 'GET',
+    path: `${V1}/me/connections`,
+    summary: 'My connected calendar and video, and what could be connected',
+    run: async (ctx) => ok(await myConnections(ctx)),
+  }),
+  route({
+    name: 'connectRecruitingCalendar',
+    method: 'POST',
+    path: `${V1}/me/connections/{kind}`,
+    summary: 'Start connecting Google, Microsoft or Zoom: the consent page to open',
+    params: z.object({ kind: z.enum(['google', 'microsoft', 'zoom']) }),
+    body: z.object({ returnTo: z.url().max(2000) }),
+    run: (ctx, { params, body }) => connect(ctx, params.kind, body.returnTo),
+  }),
+  route({
+    name: 'disconnectRecruitingCalendar',
+    method: 'DELETE',
+    path: `${V1}/me/connections/{kind}`,
+    summary: 'Disconnect a calendar or Zoom',
+    params: z.object({ kind: z.enum(['google', 'microsoft', 'zoom']) }),
+    run: (ctx, { params }) => disconnect(ctx, params.kind),
+  }),
+  route({
     name: 'scheduleInterview',
     method: 'POST',
     path: `${V1}/applications/{applicationId}/interviews`,
@@ -1481,6 +1506,16 @@ export const ROUTES: readonly Route[] = [
   }),
 
   /* ------------------------------------------------------ the public API -- */
+  route({
+    name: 'publicConnectGrant',
+    method: 'POST',
+    path: `${V1}/public/{company}/connect-grant`,
+    summary: 'The OAuth code a calendar or Zoom sent back, under the state it was asked with',
+    params: z.object({ company: text(63) }),
+    body: z.object({ state: text(200).min(1), code: text(2000).nullable() }),
+    public: true,
+    run: (ctx, { body }) => receiveGrant(ctx, body.state, body.code),
+  }),
   route({
     name: 'publicCode',
     method: 'POST',

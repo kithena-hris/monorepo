@@ -4,6 +4,7 @@ import { pointing } from '../domain/careers/domain.js';
 import type {
   AssessmentProvider,
   BackgroundCheckProvider,
+  Connection,
   DomainHost,
 } from '../application/ports.js';
 
@@ -41,4 +42,43 @@ export function fakeDomains(): DomainHost {
     check: (host) => Promise.resolve(ok({ verified: true, records: [pointing(host)] })),
     remove: () => Promise.resolve(ok(undefined)),
   };
+}
+
+/**
+ * A calendar and Zoom that consent at once and never fail: Google's busy is
+ * empty, its events take a Meet link, and Zoom's meetings a Zoom one.
+ */
+export function fakeConnections(origin = 'https://consent.example'): Connection[] {
+  const consent = (kind: string) => (state: string) =>
+    `${origin}/${kind}?state=${encodeURIComponent(state)}`;
+  return [
+    {
+      kind: 'google',
+      consentUrl: consent('google'),
+      redeem: (code) => Promise.resolve(ok(`google-${code}`)),
+      open: (grant) =>
+        Promise.resolve(
+          ok({
+            grant,
+            busy: () => Promise.resolve(ok([])),
+            create: () =>
+              Promise.resolve(ok({ eventId: 'event-1', videoUrl: 'https://meet.example/abc' })),
+            cancel: () => Promise.resolve(ok(undefined)),
+          }),
+        ),
+    },
+    {
+      kind: 'zoom',
+      consentUrl: consent('zoom'),
+      redeem: (code) => Promise.resolve(ok(`zoom-${code}`)),
+      open: (grant) =>
+        Promise.resolve(
+          ok({
+            grant,
+            meeting: () => Promise.resolve(ok({ meetingId: '1', url: 'https://zoom.example/j/1' })),
+            end: () => Promise.resolve(ok(undefined)),
+          }),
+        ),
+    },
+  ];
 }

@@ -692,6 +692,58 @@ export interface CareersDomain {
   readonly verifiedAt: string | null;
 }
 
+export type CalendarKind = 'google' | 'microsoft';
+export type VideoKind = 'zoom';
+export type ConnectionKind = CalendarKind | VideoKind;
+
+export interface CalendarEvent {
+  readonly title: string;
+  readonly startsAt: string;
+  readonly minutes: number;
+  readonly description: string;
+  readonly location: string | null;
+  /** Work emails of the interviewers; never the candidate's. */
+  readonly attendees: readonly string[];
+  /** Ask the calendar for a Meet or Teams link. */
+  readonly video: boolean;
+}
+
+/** A member's calendar for one session: a grant refreshed once, busy times, events. */
+export interface CalendarSession {
+  /** The grant to keep: a provider may rotate it on refresh. */
+  readonly grant: string;
+  busy(from: string, to: string): Promise<Result<readonly (readonly [string, string])[]>>;
+  create(event: CalendarEvent): Promise<Result<{ eventId: string; videoUrl: string | null }>>;
+  cancel(eventId: string): Promise<Result<void>>;
+}
+
+/** A member's video account for one session: a meeting made and ended. */
+export interface VideoSession {
+  readonly grant: string;
+  meeting(input: {
+    readonly title: string;
+    readonly startsAt: string;
+    readonly minutes: number;
+  }): Promise<Result<{ meetingId: string; url: string }>>;
+  end(meetingId: string): Promise<Result<void>>;
+}
+
+/** What a member connects by OAuth: consent, a code redeemed for a grant, a session. */
+interface Connectable<K extends ConnectionKind, S> {
+  readonly kind: K;
+  /** Where the member grants access; `state` comes back with the code. */
+  consentUrl(state: string): string;
+  /** The long-lived grant (a refresh token) for the code the provider sent back. */
+  redeem(code: string): Promise<Result<string>>;
+  open(grant: string): Promise<Result<S>>;
+}
+
+/** Google Workspace or Microsoft 365 (PRD §26.2, REC-135). */
+export type CalendarProvider = Connectable<CalendarKind, CalendarSession>;
+/** Zoom: a meeting link of the member's own in place of Meet or Teams. */
+export type VideoProvider = Connectable<VideoKind, VideoSession>;
+export type Connection = CalendarProvider | VideoProvider;
+
 /** Where Kithena Jobs is served (Vercel): a host added to its project, its state, and taken off. */
 export interface DomainHost {
   add(host: string): Promise<Result<HostedDomain>>;
@@ -740,6 +792,12 @@ export interface Tx {
   readonly workingHours: {
     get(personId: string): Promise<WorkingHours | null>;
     save(hours: WorkingHours): Promise<void>;
+  };
+  /** A member's connected calendar and video (PRD §26.2): each grant sealed. */
+  readonly connections: {
+    list(personId: string): Promise<readonly { kind: ConnectionKind; sealed: Uint8Array }[]>;
+    save(personId: string, kind: ConnectionKind, sealed: Uint8Array): Promise<void>;
+    remove(personId: string, kind: ConnectionKind): Promise<void>;
   };
   readonly assessments: {
     save(a: Assessment): Promise<void>;
@@ -863,6 +921,8 @@ export interface Deps {
   readonly backgroundChecks?: BackgroundCheckProvider;
   /** Where a company's own careers domain is added; absent, the setting says it is not set up. */
   readonly domains?: DomainHost;
+  /** The calendars and video members may connect; none, scheduling uses working hours and an `.ics`. */
+  readonly connections?: readonly Connection[];
   /** The public site's origin, for links in emails: `https://jobs.kithena.com`. */
   readonly jobsOrigin: string;
   /** Text from a PDF, DOCX or ODT (PRD §14.1); null when it has none. */

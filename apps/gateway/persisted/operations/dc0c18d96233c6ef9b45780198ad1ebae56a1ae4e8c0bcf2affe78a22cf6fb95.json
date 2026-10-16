@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ConnectRecruitingCalendar($kind: String!, $input: JSON!, $key: String!) {\n    connectRecruitingCalendar(kind: $kind, input: $input, idempotencyKey: $key)\n  }"}

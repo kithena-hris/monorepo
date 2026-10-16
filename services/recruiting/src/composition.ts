@@ -15,9 +15,11 @@ import { sealerFrom } from './infrastructure/sealer.js';
 import {
   fakeAssessments,
   fakeBackgroundChecks,
+  fakeConnections,
   fakeDomains,
 } from './infrastructure/fake-providers.js';
 import { domainsFrom } from './infrastructure/vercel-domains.js';
+import { connectionsFrom } from './infrastructure/calendars.js';
 import { mailerFrom } from './infrastructure/messaging.js';
 import { listingsFrom } from './infrastructure/listings.js';
 import { extract } from './infrastructure/text.js';
@@ -72,6 +74,8 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   // Stand-ins until a company chooses a provider; never in production.
   const fakes = env['RECRUITING_FAKE_PROVIDERS'] === '1' && env['NODE_ENV'] !== 'production';
   const domains = domainsFrom(env) ?? (fakes ? fakeDomains() : undefined);
+  const configured = connectionsFrom(env);
+  const connections = configured.length === 0 && fakes ? fakeConnections() : configured;
   const inboundDomain = env['INBOUND_DOMAIN'];
   const messagingToken = env['MESSAGING_RECRUITING_TOKEN'];
   const { listener, deps } = recruitingServer(
@@ -86,6 +90,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(model === undefined ? {} : { model }),
       ...(sealer === undefined ? {} : { sealer }),
       ...(domains === undefined ? {} : { domains }),
+      ...(connections.length === 0 ? {} : { connections }),
       ...(fakes
         ? { assessmentProvider: fakeAssessments(), backgroundChecks: fakeBackgroundChecks() }
         : {}),

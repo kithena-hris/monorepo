@@ -28,6 +28,7 @@ import type {
   CandidateFile,
   Consent,
   CareersDomain,
+  ConnectionKind,
   Criterion,
   Entity,
   InterviewRecord,
@@ -859,6 +860,27 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
       save: async (h) => {
         await tx.execute(sql`INSERT INTO recruiting.working_hours (tenant_id, person_id, time_zone, week) VALUES (${T}, ${h.personId}, ${h.timeZone}, ${J(h.week)})
           ON CONFLICT (tenant_id, person_id) DO UPDATE SET time_zone = EXCLUDED.time_zone, week = EXCLUDED.week`);
+      },
+    },
+    connections: {
+      list: async (personId) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT provider, sealed FROM recruiting.calendar_link WHERE person_id = ${personId}`,
+          )
+        ).map((r) => ({
+          kind: String(r['provider']) as ConnectionKind,
+          sealed: new Uint8Array(r['sealed'] as Buffer),
+        })),
+      save: async (personId, kind, sealed) => {
+        await tx.execute(sql`INSERT INTO recruiting.calendar_link (tenant_id, person_id, provider, sealed) VALUES (${T}, ${personId}, ${kind}, ${Buffer.from(sealed)})
+          ON CONFLICT (tenant_id, person_id, provider) DO UPDATE SET sealed = EXCLUDED.sealed, updated_at = now()`);
+      },
+      remove: async (personId, kind) => {
+        await tx.execute(
+          sql`DELETE FROM recruiting.calendar_link WHERE person_id = ${personId} AND provider = ${kind}`,
+        );
       },
     },
     assessments: {

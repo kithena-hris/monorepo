@@ -18,6 +18,8 @@ type RestDispatch = (request: RestRequest) => Promise<RestResponse | null>;
 
 const OPENAPI = '/v1/recruiting/openapi.json';
 const SEARCH_PLAN = '/v1/recruiting/public/search-plan';
+/** The one redirect address every calendar and Zoom app is registered with (REC-135). */
+const CONNECT_CALLBACK = '/v1/recruiting/public/calendar-callback';
 /** Up to six files of 10 MB as base64, plus the answers. */
 const MAX_BODY = 90 * 1024 * 1024;
 
@@ -100,6 +102,27 @@ export function recruitingListener(
           .end(JSON.stringify(read.body));
         return;
       }
+      const at = new URL(request.url ?? '/', 'http://recruiting');
+      if (request.method === 'GET' && at.pathname === CONNECT_CALLBACK) {
+        // The company travels in the state, ahead of the token: `acme.<token>`.
+        const state = at.searchParams.get('state') ?? '';
+        const company = state.slice(0, Math.max(0, state.indexOf('.')));
+        const answer = await rest({
+          method: 'POST',
+          url: `/v1/recruiting/public/${encodeURIComponent(company)}/connect-grant`,
+          headers: {},
+          body: JSON.stringify({ state, code: at.searchParams.get('code') }),
+        });
+        const back = (answer?.body as { returnTo?: unknown } | undefined)?.returnTo;
+        if (answer?.status === 200 && typeof back === 'string') {
+          response.writeHead(302, { location: back, 'cache-control': 'no-store' }).end();
+          return;
+        }
+        response
+          .writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+          .end('That did not connect. Go back to Kithena and try again.');
+        return;
+      }
       const body = await bodyOf(request);
       if (request.method === 'POST' && request.url === SEARCH_PLAN && body !== null) {
         const ip =
@@ -166,6 +189,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly assessmentProvider?: Deps['assessmentProvider'];
   readonly backgroundChecks?: Deps['backgroundChecks'];
   readonly domains?: Deps['domains'];
+  readonly connections?: Deps['connections'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
 }
@@ -193,6 +217,7 @@ export function recruitingServer(
       ? {}
       : { backgroundChecks: options.backgroundChecks }),
     ...(options.domains === undefined ? {} : { domains: options.domains }),
+    ...(options.connections === undefined ? {} : { connections: options.connections }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

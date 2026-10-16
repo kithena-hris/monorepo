@@ -88,6 +88,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Start connecting Google, Microsoft or Zoom: the consent page to open"""
+  connectRecruitingCalendar(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    kind: String!
+  ): JSON
   """Record the works council’s consent (§ 94 BetrVG)"""
   consentQuestionnaire(id: String!, idempotencyKey: String!): JSON
   """Correct a move, with a reason"""
@@ -134,6 +141,8 @@ type Mutation {
   ): JSON
   """Delete a candidate on request (GDPR art. 17)"""
   deleteCandidate(candidateId: String!, idempotencyKey: String!): JSON
+  """Disconnect a calendar or Zoom"""
+  disconnectRecruitingCalendar(idempotencyKey: String!, kind: String!): JSON
   """R5: a draft ad from the intake, for a person to edit and save"""
   draftAd(
     idempotencyKey: String!
@@ -470,6 +479,8 @@ type Query {
   recruitingCandidate(candidateId: String!): JSON
   """R26: every candidate"""
   recruitingCandidates(q: String, tag: String): JSON
+  """My connected calendar and video, and what could be connected"""
+  recruitingConnections: JSON
   """R17: the debrief"""
   recruitingDebrief(applicationId: String!): JSON
   """Everything held about a candidate (GDPR art. 15)"""
