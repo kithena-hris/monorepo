@@ -24,7 +24,9 @@ export type Kind =
   | 'ai'
   | 'grant'
   | 'org_unit'
-  | 'chart';
+  | 'chart'
+  | 'webhook'
+  | 'chat_plan';
 
 export interface Columns {
   readonly cycleId: string | null;
@@ -84,6 +86,8 @@ export const COLUMNS: Readonly<Record<Kind, (v: V) => Columns>> = {
   grant: () => none,
   org_unit: () => none,
   chart: (v) => ({ ...none, ownerId: s(v['owner']) }),
+  webhook: (v) => ({ ...none, state: v['disabled'] === null ? 'on' : 'off' }),
+  chat_plan: (v) => ({ ...none, ownerId: s(v['accountId']) }),
 };
 
 /** Which store on `Tx` holds which kind. */
@@ -104,6 +108,8 @@ export const STORES = {
   grants: 'grant',
   orgUnits: 'org_unit',
   charts: 'chart',
+  webhooks: 'webhook',
+  chatPlans: 'chat_plan',
 } as const satisfies Partial<Record<keyof Tx, Kind>>;
 
 /** Whether a row's columns satisfy a filter. */

@@ -396,13 +396,18 @@ services:
       DEBEZIUM_SOURCE_DATABASE_HOSTNAME: postgres
       DEBEZIUM_SOURCE_DATABASE_DBNAME: kithena
       DEBEZIUM_SOURCE_DATABASE_PASSWORD: ${DEBEZIUM_DB_PASSWORD:?DEBEZIUM_DB_PASSWORD is set by deploy.sh}
-      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: people.outbox
+      # Every module's outbox on this database, so each module's events reach
+      # Redpanda: their consumers, the activity log (`docs/audit.md`) and each
+      # module's webhooks. One relay, because one Debezium source reads one
+      # database; the name and slot stay People's so its offsets carry on.
+      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: people.outbox,timeoff.outbox,documents.outbox,recruiting.outbox,onboarding.outbox,performance.outbox
       DEBEZIUM_SOURCE_SLOT_NAME: kithena_relay_people
       # From now, not from the start. People's events have never been
       # delivered here, and replaying them would start an approval workflow,
       # and email its approvers, for every change ever held, however long ago
-      # it was decided. The slot lives on this VM's own Postgres, so it is not
-      # lost short of a restore.
+      # it was decided. The same holds for a module joining the list: only what
+      # it writes from then on is published. The slot lives on this VM's own
+      # Postgres, so it is not lost short of a restore.
       DEBEZIUM_SOURCE_SNAPSHOT_MODE: no_data
     volumes: [relay-people:/debezium/data]
     healthcheck: &relay-health

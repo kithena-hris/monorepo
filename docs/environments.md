@@ -1239,10 +1239,12 @@ TIMEOFF_FEED_SECRET=<openssl rand -base64 32>
 # Kafka SASL/TLS, when Redpanda leaves the VM: the same KAFKA_* as PEOPLE_ENV.
 ```
 
-Its outbox is not relayed yet: `relay-people` tails `people.outbox` only, and
-nothing on the VM reads Time Off's topic. Add `timeoff.outbox` to its
-`DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST` (the publication already holds it) when
-something does.
+Its outbox is relayed with every other module's on the VM: `relay-people`
+tails `people.outbox`, `timeoff.outbox`, `documents.outbox`,
+`recruiting.outbox`, `onboarding.outbox` and `performance.outbox`, one
+Debezium source for the one database, from the moment each joined the list
+(no snapshot, so nothing written earlier is replayed). The activity log, each
+module's consumers and each module's webhooks read the topics.
 
 | Setting                                                          | Holds                                                                                                                                                                                                                                                                                                                     |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1516,9 +1518,12 @@ reaches the router over SSE, the first subgraph subscription. No bucket: a PDF
 is drawn on request. In order:
 
 1. **Environment secrets** in `production`: `PERFORMANCE_API_TOKEN` (the
-   router–Performance pair) and, optionally, `MESSAGING_PERFORMANCE_TOKEN`
-   (the Performance–messaging pair, in messaging's settings too) for its
-   emails. Without the first the deploy skips Performance. Its AI features
+   router–Performance pair), `MESSAGING_PERFORMANCE_TOKEN` (the
+   Performance–messaging pair, in messaging's settings too) for its emails
+   and session invitations, and `PERFORMANCE_WEBHOOK_KEY` (32 random bytes,
+   base64), which every webhook endpoint's secret is derived from: unset, no
+   endpoint can be added, and rotating it changes every endpoint's secret.
+   All three are set. Without the first the deploy skips Performance. Its AI features
    read the assistant's model key, `ASSISTANT_API_KEY`; unset, they are off.
 2. **The remote**: `VERCEL_PROJECT_ID_PERFORMANCE_REMOTE_PRODUCTION`,
    `PERFORMANCE_REMOTE_URL_PRODUCTION`, `PERFORMANCE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`

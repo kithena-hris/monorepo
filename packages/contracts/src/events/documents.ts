@@ -2,6 +2,7 @@ import * as z from 'zod';
 
 import { asContact, asFreeText, asInternal, asPublic, policy } from '../classification.js';
 import { defineEvent } from '../event.js';
+import { activityRecorded } from './activity.js';
 import { CalendarDate, PersonId } from '../primitives.js';
 import {
   AccessLevel,
@@ -245,7 +246,11 @@ export const DocumentAcknowledged = defineEvent(
   z.object({ campaignId: id(), documentId: DocumentId, personId: PersonId }),
 );
 
+/** Every act in Documents, in words, for the company's activity log (`docs/audit.md`). */
+export const DocumentsActivityRecorded = activityRecorded('documents');
+
 export const documentsEvents = [
+  DocumentsActivityRecorded,
   DocumentFiled,
   DocumentVersioned,
   DocumentShared,

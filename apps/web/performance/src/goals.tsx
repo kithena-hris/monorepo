@@ -67,7 +67,16 @@ interface GoalRow {
   readonly commitment: string;
   readonly parentId: string | null;
   readonly alignedTo: string | null;
+  readonly visibility: 'owner' | 'team' | 'everyone';
 }
+
+/** Who sees a goal (§14.2), private until made public. */
+const VISIBILITY = [
+  ['owner', 'Only the owner and their managers'],
+  ['team', 'Their team and managers too'],
+  ['everyone', 'Everyone at the company'],
+] as const;
+const visibleTo = (v: string): string => VISIBILITY.find(([k]) => k === v)?.[1] ?? v;
 
 interface Period {
   readonly id: string;
@@ -358,6 +367,7 @@ function NewGoal({
   const [parentId, setParentId] = useState('none');
   const [weight, setWeight] = useState<number | null>(null);
   const [aspirational, setAspirational] = useState(false);
+  const [visibility, setVisibility] = useState<string>('owner');
   const setKr = (i: number, patch: Partial<KrDraft>): void => {
     setKrs(krs.map((k, j) => (j === i ? { ...k, ...patch } : k)));
   };
@@ -395,6 +405,8 @@ function NewGoal({
               keyResults: krs.map((k) =>
                 k.measure === 'done' ? { ...k, start: 0, target: 1, current: 0 } : k,
               ),
+              // A company goal is everyone's; anyone else's is private unless shared.
+              visibility: ownerKind === 'company' ? 'everyone' : visibility,
             },
           },
           onClose,
@@ -433,7 +445,7 @@ function NewGoal({
           {data.may.company ? (
             <RadioGroup
               aria-label="Whose goal"
-              className="grid gap-2 sm:grid-cols-2"
+              className="flex flex-col gap-2"
               value={ownerKind}
               onValueChange={(v) => {
                 setOwnerKind(v === 'company' ? 'company' : 'person');
@@ -566,7 +578,17 @@ function NewGoal({
             checked={aspirational}
             onChange={setAspirational}
           />
-          <p className="text-sm text-fg-muted">Everyone at the company can see goals.</p>
+          {ownerKind === 'company' ? (
+            <p className="text-sm text-fg-muted">A company goal is visible to everyone.</p>
+          ) : (
+            <RadioGroup aria-label="Who can see it" value={visibility} onValueChange={setVisibility}>
+              {VISIBILITY.map(([v, label]) => (
+                <RadioCard key={v} value={v}>
+                  {label}
+                </RadioCard>
+              ))}
+            </RadioGroup>
+          )}
         </div>
       ) : null}
     </StepDialog>
@@ -749,7 +771,24 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                         label: 'Commitment',
                         value: g.commitment === 'aspirational' ? 'Aspirational' : 'Committed',
                       },
-                      { label: 'Visible to', value: 'Everyone at the company' },
+                      {
+                        label: 'Visible to',
+                        value: data.may.edit ? (
+                          <Choose
+                            label="Visible to"
+                            value={g.visibility}
+                            options={VISIBILITY}
+                            onChange={(v) => {
+                              act.run('SetPerformanceGoalVisibility', {
+                                id: g.id,
+                                input: { visibility: v },
+                              });
+                            }}
+                          />
+                        ) : (
+                          visibleTo(g.visibility)
+                        ),
+                      },
                     ]}
                   />
                   {data.children.length === 0 ? null : (
@@ -854,7 +893,7 @@ function CheckIn({
       )}
       <RadioGroup
         aria-label="Confidence"
-        className="grid gap-2 sm:grid-cols-3"
+        className="flex flex-col gap-2"
         value={confidence}
         onValueChange={setConfidence}
       >

@@ -82,6 +82,7 @@ export interface PerformanceServerOptions {
   readonly newId?: Deps['newId'];
   readonly mailer?: Deps['mailer'];
   readonly model?: Deps['model'];
+  readonly webhooks?: Deps['webhooks'];
 }
 
 /** Performance's transports over a unit of work. */
@@ -96,6 +97,7 @@ export function performanceServer(
     newId: options.newId ?? newId,
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.model === undefined ? {} : { model: options.model }),
+    ...(options.webhooks === undefined ? {} : { webhooks: options.webhooks }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest, live: deps.live, callerFrom: options.callerFrom });

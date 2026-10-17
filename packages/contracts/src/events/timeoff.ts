@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { defineEvent, EventEnvelope } from '../event.js';
+import { activityRecorded } from './activity.js';
 import { CalendarDate, Instant, Money, PersonId } from '../primitives.js';
 import {
   policy,
@@ -449,7 +450,11 @@ export const SettingsChanged = defineEvent(
 );
 
 /** What Time Off publishes, one entry per event name. v1 of `requested` is read, not published. */
+/** Every act in Time Off, in words, for the company's activity log (`docs/audit.md`). */
+export const TimeOffActivityRecorded = activityRecorded('timeoff');
+
 export const timeoffEvents = [
+  TimeOffActivityRecorded,
   LeaveRequested,
   LeaveApproved,
   LeaveRejected,

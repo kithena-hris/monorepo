@@ -1,4 +1,6 @@
 import {
+  FieldControl,
+  DatePicker,
   Alert,
   Badge,
   Button,
@@ -683,13 +685,15 @@ function Ask({
       )}
       <Field>
         <FieldLabel>Answer by</FieldLabel>
-        <Input
-          type="date"
-          value={due}
-          onChange={(e) => {
-            setDue(e.target.value);
-          }}
-        />
+        <FieldControl>
+          <DatePicker
+            label="Answer by"
+            value={due === '' ? null : due}
+            onChange={(date) => {
+              setDue(date ?? '');
+            }}
+          />
+        </FieldControl>
       </Field>
     </Modal>
   );

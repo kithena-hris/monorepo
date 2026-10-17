@@ -20,7 +20,16 @@ import {
   undo,
   type Feedback,
 } from './feedback.js';
-import { checkIn, checkWeights, goalScore, krProgress, progress, type Goal } from './goals.js';
+import {
+  canSeeGoal,
+  checkIn,
+  checkWeights,
+  goalScore,
+  krProgress,
+  progress,
+  visibilityOf,
+  type Goal,
+} from './goals.js';
 import { complete, scan, type Assignment, type LearningItem } from './learning.js';
 import {
   access,
@@ -40,7 +49,17 @@ import {
   type Nomination,
   type Review,
 } from './review.js';
+import { dueNow, dueOn, ownNotesDueOn } from './retention.js';
+import { invitation } from './calendar.js';
 import { position } from './sentiment.js';
+import {
+  afterSend,
+  liveVersions,
+  ready,
+  rotated,
+  subscribes,
+  type WebhookEndpoint,
+} from './webhook.js';
 
 /** The element at an index, or the test fails here. */
 const must = <T>(v: T | undefined): T => {
@@ -454,6 +473,45 @@ describe('goals', () => {
     });
     expect(c.ok && progress(c.value)).toBe(75);
   });
+
+  describe('who sees a goal', () => {
+    // Adam reports to Marco; Omar is Adam's peer under Marco; Priya reports to Adam.
+    const owner = { managerId: 'marco' };
+    const reader = (personId: string, managerId: string | null, org: string[] = []) => ({
+      personId,
+      managerId,
+      hr: false,
+      org: new Set(org),
+    });
+    const adam = reader('adam', 'marco');
+    const marco = reader('marco', 'ceo', ['adam', 'omar', 'priya']);
+    const omar = reader('omar', 'marco');
+    const priya = reader('priya', 'adam');
+    const stranger = reader('zoe', 'someone');
+
+    it('is private until made public: the owner, their managers and HR', () => {
+      expect(visibilityOf(g)).toBe('owner');
+      for (const r of [adam, marco, { ...stranger, hr: true }])
+        expect(canSeeGoal(g, r, owner), r.personId).toBe(true);
+      for (const r of [omar, priya, stranger]) expect(canSeeGoal(g, r, owner), r.personId).toBe(false);
+    });
+
+    it('shows a team goal to the owner’s peers and reports too', () => {
+      const team = { ...g, visibility: 'team' as const };
+      expect([omar, priya, stranger].map((r) => canSeeGoal(team, r, owner))).toEqual([
+        true,
+        true,
+        false,
+      ]);
+    });
+
+    it('shows a public goal to everyone, and a company goal is public unless HR says otherwise', () => {
+      expect(canSeeGoal({ ...g, visibility: 'everyone' }, stranger, owner)).toBe(true);
+      const company = { ...g, ownerKind: 'company' as const, ownerId: null };
+      expect(visibilityOf(company)).toBe('everyone');
+      expect(canSeeGoal(company, stranger, null)).toBe(true);
+    });
+  });
 });
 
 describe('learning', () => {
@@ -545,5 +603,113 @@ describe('sentiment', () => {
         { sentence: 'Late.', label: -1 },
       ]),
     ).toBe(50);
+  });
+});
+
+describe('retention', () => {
+  const rule = { reviewsYears: 3, feedbackYears: 1, notesYears: 1, learningYears: 2, aiYears: 1 };
+  const day = (d: string) => d as CalendarDate;
+
+  it('counts each kind’s years from the last working day, and a leaver’s own notes 30 days', () => {
+    expect(dueOn(day('2024-02-29'), 'reviews', rule)).toBe('2027-03-01');
+    expect(dueOn(day('2025-03-31'), 'feedback', rule)).toBe('2026-03-31');
+    expect(ownNotesDueOn(day('2026-09-15'))).toBe('2026-10-15');
+  });
+
+  it('is due once the day comes, never for a leaver on hold or without a date', () => {
+    const leavers = [
+      { personId: 'gone', leftOn: day('2025-06-30') },
+      { personId: 'held', leftOn: day('2020-01-01') },
+      { personId: 'undated', leftOn: null },
+      { personId: 'recent', leftOn: day('2026-10-01') },
+    ];
+    expect(dueNow(leavers, new Set(['held']), rule, day('2026-10-17'))).toEqual([
+      { personId: 'gone', leftOn: '2025-06-30', kinds: ['feedback', 'notes', 'ai'], ownNotes: true },
+    ]);
+  });
+});
+
+describe('a webhook endpoint', () => {
+  const T0 = new Date('2026-10-17T10:00:00.000Z');
+  const at = (ms: number) => new Date(T0.getTime() + ms);
+  const endpoint: WebhookEndpoint = {
+    id: 'w',
+    url: 'https://hooks.example.com/kithena',
+    events: ['performance.review.released'],
+    version: 1,
+    previous: null,
+    createdAt: T0.toISOString(),
+    disabled: null,
+    cursor: { at: T0.toISOString(), id: '00000000-0000-0000-0000-000000000000' },
+    failing: null,
+    last: null,
+  };
+  const sent = (status: number) => ({ eventId: 'e1', writtenAt: '2026-10-17T10:00:05.000Z', status });
+
+  it('takes what it subscribes to, or everything for *', () => {
+    expect(subscribes(endpoint, 'performance.review.released')).toBe(true);
+    expect(subscribes(endpoint, 'performance.goal.checked_in')).toBe(false);
+    expect(subscribes({ events: ['*'] }, 'performance.goal.checked_in')).toBe(true);
+  });
+
+  it('moves on past a delivered event, and waits out a failed one before anything after it', () => {
+    expect(afterSend(endpoint, sent(204), T0).cursor.id).toBe('e1');
+    const failed = afterSend(endpoint, sent(500), T0);
+    expect(failed.cursor.id).not.toBe('e1');
+    expect(failed.failing).toMatchObject({ attempts: 1, retryAt: '2026-10-17T10:00:30.000Z' });
+    expect(ready(failed, at(10_000))).toBe(false);
+    expect(ready(failed, at(30_000))).toBe(true);
+    expect(afterSend(failed, sent(200), at(30_000)).failing).toBeNull();
+  });
+
+  it('is turned off after 24 hours of failures, saying why', () => {
+    const failing = afterSend(endpoint, sent(503), T0);
+    const off = afterSend(failing, sent(0), at(24 * 60 * 60 * 1000));
+    expect(off.disabled?.why).toContain('24 hours');
+    expect(ready(off, at(25 * 60 * 60 * 1000))).toBe(false);
+  });
+
+  it('signs with the old secret too for a day after a rotation', () => {
+    const next = rotated(endpoint, T0);
+    expect(liveVersions(next, at(60_000))).toEqual([2, 1]);
+    expect(liveVersions(next, at(25 * 60 * 60 * 1000))).toEqual([2]);
+  });
+});
+
+describe('a session’s calendar invitation', () => {
+  const base = {
+    uid: 's1@performance.kithena.com',
+    sequence: 1,
+    method: 'REQUEST' as const,
+    start: '2026-11-03T09:00:00.000Z',
+    end: '2026-11-03T10:30:00.000Z',
+    title: 'Giving feedback, well',
+    description: 'Bring one example; we practise, in pairs.',
+    location: 'Room 4, Madrid',
+    url: null,
+    organizer: { name: 'Acme', email: 'no-reply@kithena.com' },
+    attendee: { name: 'Ada Lovelace', email: 'ada@acme.example' },
+    stamp: '2026-10-17T08:00:00.000Z',
+  };
+
+  it('is one event a calendar can add, with times in UTC and text escaped', () => {
+    const ics = invitation(base);
+    expect(ics).toContain('METHOD:REQUEST\r\n');
+    expect(ics).toContain('DTSTART:20261103T090000Z');
+    expect(ics).toContain('DESCRIPTION:Bring one example\\; we practise\\, in pairs.');
+    expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
+    expect(ics.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75)).toBe(true);
+  });
+
+  it('cancels the same event, by its UID', () => {
+    const ics = invitation({ ...base, method: 'CANCEL', sequence: 2 });
+    expect(ics).toContain('UID:s1@performance.kithena.com');
+    expect(ics).toContain('STATUS:CANCELLED');
+    expect(ics).toContain('SEQUENCE:2');
+  });
+
+  it('folds a long line rather than letting a calendar cut it', () => {
+    const ics = invitation({ ...base, description: 'x'.repeat(200) });
+    expect(ics).toContain('\r\n x');
   });
 });

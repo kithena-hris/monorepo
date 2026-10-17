@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { TenantId, type CalendarDate } from '@kithena/contracts';
-import { ok, type Clock } from '@kithena/domain-kit';
+import { err, failure, ok, type Clock } from '@kithena/domain-kit';
 import { expect } from 'vitest';
 
 import type { UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from '../http/caller.js';
+import { deliverWebhooks } from '../application/webhooks.js';
 import { performanceServer } from '../http/server.js';
 import { inProcessLive } from '../infrastructure/live.js';
+import { secretFor, signatureHeader, verifySignature } from '../infrastructure/webhooks.js';
 
 /**
  * One cycle end to end with every review activity (PRD §3 validation,
@@ -59,8 +61,41 @@ export async function oneCycle(h: Harness): Promise<void> {
     const m = await h.uow.run(tenantId, (tx) => tx.members.byAccount(asked.value.accountId));
     return ok({ ...asked.value, personId: m?.personId ?? null });
   };
-  const { rest } = performanceServer(
-    { uow: h.uow, live: inProcessLive(), callerFrom: withMember, clock },
+  // A webhook receiver that keeps what it is sent.
+  const posted: { url: string; headers: Record<string, string>; body: string }[] = [];
+  // And a mailbox that keeps what messaging would send.
+  const mailed: {
+    to: string;
+    subject: string;
+    attachments?: readonly { filename: string; base64: string }[];
+  }[] = [];
+  const { rest, deps } = performanceServer(
+    {
+      uow: h.uow,
+      live: inProcessLive(),
+      callerFrom: withMember,
+      clock,
+      mailer: {
+        send: (m) => {
+          mailed.push(m);
+          return Promise.resolve();
+        },
+      },
+      webhooks: {
+        secret: (t, e, v) => secretFor('scenario-key', t, e, v),
+        sign: signatureHeader,
+        vet: (url) =>
+          Promise.resolve(
+            url.startsWith('https://')
+              ? ok(true as const)
+              : err(failure('BAD_WEBHOOK_URL', 'A webhook URL is https')),
+          ),
+        post: (url, request) => {
+          posted.push({ url, ...request });
+          return Promise.resolve({ status: 204 });
+        },
+      },
+    },
     randomUUID,
   );
   const call = async (who: keyof typeof ids, method: string, path: string, body?: unknown) => {
@@ -108,6 +143,17 @@ export async function oneCycle(h: Harness): Promise<void> {
       member('priya', 'marco', 'Recruiter'),
     ],
   });
+
+  // An integration takes reviews' releases, signed; plain http is refused.
+  expect(
+    (await call('ada', 'POST', '/webhooks', { url: 'http://hooks.example.com', events: ['*'] }))
+      .status,
+  ).toBe(422);
+  const hook = await data<{ id: string; secret: string }>('ada', 'POST', '/webhooks', {
+    url: 'https://hooks.example.com/kithena',
+    events: ['performance.review.released', 'performance.cycle.state_changed'],
+  });
+  expect((await call('marco', 'GET', '/webhooks')).status).toBe(403);
 
   // Templates arrive seeded and published.
   const templates = await data<{ rows: { id: string; name: string; state: string }[] }>(
@@ -294,6 +340,30 @@ export async function oneCycle(h: Harness): Promise<void> {
   for (const id of peerIds)
     expect((await call('adam', 'GET', `/reviews/${id}/released`)).status).toBe(404);
 
+  // HR's bulk export, as one PDF or as a zip of a PDF each with an index.
+  const pdf = await data<{ base64: string; mediaType: string; filename: string }>(
+    'ada',
+    'POST',
+    `/cycles/${cycleId}/export`,
+    { full: false, kinds: [] },
+  );
+  expect([pdf.mediaType, Buffer.from(pdf.base64, 'base64').subarray(0, 4).toString()]).toEqual([
+    'application/pdf',
+    '%PDF',
+  ]);
+  const zip = await data<{ base64: string; mediaType: string; filename: string; count: number }>(
+    'ada',
+    'POST',
+    `/cycles/${cycleId}/export`,
+    { full: false, kinds: [], format: 'zip' },
+  );
+  const archive = Buffer.from(zip.base64, 'base64');
+  expect([zip.mediaType, zip.filename.endsWith('.zip'), archive.subarray(0, 2).toString()]).toEqual(
+    ['application/zip', true, 'PK'],
+  );
+  expect(archive.toString('latin1')).toContain('index.csv');
+  expect(archive.toString('latin1').split('.pdf').length - 1).toBeGreaterThanOrEqual(zip.count);
+
   // Feedback, seen by its recipient, undone within ten minutes by its writer only.
   const given = await data<{ id: string }>('omar', 'POST', '/feedback', {
     to: ids.adam.person,
@@ -317,7 +387,7 @@ export async function oneCycle(h: Harness): Promise<void> {
 
   // A goal and its check-in.
   const goals = await data<{ periods: { id: string }[] }>('adam', 'GET', '/goals');
-  const { id: goalId } = await data<{ id: string }>('adam', 'POST', '/goals', {
+  const goal = {
     title: 'Cut payout latency p95 to 400 ms',
     description: '',
     ownerId: null,
@@ -338,7 +408,13 @@ export async function oneCycle(h: Harness): Promise<void> {
         linked: null,
       },
     ],
-  });
+  };
+  const { id: goalId } = await data<{ id: string }>('adam', 'POST', '/goals', goal);
+  // Private until made public: Marco, his manager, sees it; Omar, his peer, does not.
+  expect((await call('marco', 'GET', `/goals/${goalId}`)).status).toBe(200);
+  expect((await call('omar', 'GET', `/goals/${goalId}`)).status).toBe(404);
+  await data('adam', 'PUT', `/goals/${goalId}`, { ...goal, visibility: 'team' });
+  expect((await call('omar', 'GET', `/goals/${goalId}`)).status).toBe(200);
   expect(
     (
       await data<{ progress: number }>('adam', 'POST', `/goals/${goalId}/check-ins`, {
@@ -408,8 +484,113 @@ export async function oneCycle(h: Harness): Promise<void> {
   expect(rating.scoreHundredths).toBe(420);
   expect(JSON.stringify(events)).not.toContain('ledger migration');
 
-  // And the audit log has the work and the refusal.
-  const log = await data<{ rows: { action: string; outcome: string }[] }>('ada', 'GET', '/audit');
-  expect(log.rows.some((r) => r.action === 'Submitted a review')).toBe(true);
-  expect(log.rows.some((r) => r.outcome === 'refused')).toBe(true);
+  // And the company's activity log hears the work and the refusal, never a value.
+  const log = events
+    .filter((e) => e.eventName === 'performance.activity.recorded')
+    .map((e) => e.payload as { action: string; outcome: string });
+  expect(log.some((r) => r.action === 'Submitted a review')).toBe(true);
+  expect(log.some((r) => r.outcome === 'refused')).toBe(true);
+
+  // The endpoint is sent what it took, in the order written, each signed with its secret:
+  // fifty events a pass, so a few passes drain the cycle's.
+  for (let pass = 0, seen = -1; pass < 20 && seen !== posted.length; pass += 1) {
+    seen = posted.length;
+    await deliverWebhooks(deps);
+  }
+  const delivered = posted.filter((p) => p.url === 'https://hooks.example.com/kithena');
+  const sent = delivered.map((p) => (JSON.parse(p.body) as { eventName: string }).eventName);
+  expect(sent).toContain('performance.review.released');
+  expect(sent.every((n) => n !== 'performance.feedback.given')).toBe(true);
+  expect(sent.indexOf('performance.cycle.state_changed')).toBeLessThan(
+    sent.indexOf('performance.review.released'),
+  );
+  for (const p of delivered)
+    expect(verifySignature(p.body, p.headers['kithena-signature'] ?? '', hook.secret)).toBe(true);
+  // Delivered once: a second pass sends nothing new.
+  const before = posted.length;
+  await deliverWebhooks(deps);
+  expect(posted.length).toBe(before);
+
+  // A live session invites its learners to their calendars, and its cancellation follows.
+  const session = {
+    id: null,
+    start: '2026-11-03T09:00:00.000Z',
+    end: '2026-11-03T10:30:00.000Z',
+    place: 'Room 4',
+    online: null,
+  };
+  const item = {
+    title: 'Giving feedback, well',
+    kind: 'session',
+    provider: 'In person',
+    minutes: 90,
+    parts: [],
+    acknowledgement: null,
+    quiz: null,
+    recursMonths: null,
+    certificateYears: null,
+    sessions: [session],
+    skills: [],
+    url: null,
+  };
+  const { id: itemId } = await data<{ id: string }>('ada', 'POST', '/learning', item);
+  await data('ada', 'POST', `/learning/${itemId}/assign`, {
+    people: [ids.omar.person],
+    filter: [],
+    cycleId: null,
+    due: null,
+    why: 'Required',
+  });
+  const invited = mailed.find((m) => m.to === 'omar@acme.example' && m.attachments !== undefined);
+  expect(invited?.subject).toContain('Invitation: Giving feedback, well');
+  const ics = Buffer.from(invited?.attachments?.[0]?.base64 ?? '', 'base64').toString('utf8');
+  expect(ics).toContain('METHOD:REQUEST');
+  await data('ada', 'PUT', `/learning/${itemId}`, { ...item, sessions: [] });
+  const cancelled = mailed.filter((m) => m.to === 'omar@acme.example').at(-1);
+  expect(
+    Buffer.from(cancelled?.attachments?.[0]?.base64 ?? '', 'base64').toString('utf8'),
+  ).toContain('METHOD:CANCEL');
+
+  // Retention: Priya left in 2020, so her feedback is due; a legal hold keeps it.
+  await data('omar', 'POST', '/feedback', {
+    to: ids.priya.person,
+    kind: 'praise',
+    body: '<p>Thanks for the referral.</p>',
+    audience: 'recipient',
+    showName: true,
+    value: null,
+    templateId: null,
+    answers: null,
+    requestId: null,
+  });
+  await data('ada', 'POST', '/members/import', {
+    members: [
+      { ...member('priya', 'marco', 'Recruiter'), status: 'terminated', leftOn: '2020-01-31' },
+    ],
+  });
+  type Retention = { due: { personId: string; what: { kind: string; count: number }[] }[] };
+  const dueNow = async () => (await data<Retention>('ada', 'GET', '/retention')).due;
+  expect((await dueNow()).map((d) => d.personId)).toEqual([ids.priya.person]);
+  expect((await call('marco', 'GET', '/retention')).status).toBe(403);
+  await data('ada', 'POST', '/holds', { personId: ids.priya.person, reason: 'Tribunal claim' });
+  expect(await dueNow()).toEqual([]);
+  await data('ada', 'POST', `/holds/${ids.priya.person}/lift`, { reason: 'Settled' });
+  // Her data, before it goes: what she received, by name where the writer allowed it.
+  const exported = await data<{ base64: string; mediaType: string }>(
+    'ada',
+    'POST',
+    `/people/${ids.priya.person}/export`,
+    {},
+  );
+  const person = JSON.parse(Buffer.from(exported.base64, 'base64').toString('utf8')) as {
+    feedbackReceived: { from: string; text: string }[];
+  };
+  expect(person.feedbackReceived).toContainEqual(
+    expect.objectContaining({ from: 'Omar', text: 'Thanks for the referral.' }),
+  );
+  const gone = await data<{ deleted: number }>('ada', 'POST', '/retention/delete', {
+    personIds: [ids.priya.person],
+  });
+  expect(gone.deleted).toBeGreaterThan(0);
+  expect(await dueNow()).toEqual([]);
 }

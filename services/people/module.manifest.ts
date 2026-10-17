@@ -6,6 +6,7 @@ export default ModuleManifest.parse({
   dependsOn: [],
   enrichedBy: [],
   publishes: [
+    'people.person.snapshot',
     'people.schema.section_created',
     'people.schema.section_updated',
     'people.schema.section_archived',

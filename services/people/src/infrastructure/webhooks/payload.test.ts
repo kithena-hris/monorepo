@@ -130,3 +130,14 @@ describe('signing', () => {
     expect(verifySignature('{"a":1}', header, 'another')).toBe(false);
   });
 });
+
+describe('a snapshot of a person, for Kithena’s own modules', () => {
+  it('never leaves in a webhook, whatever the endpoint may see', () => {
+    const snapshot = {
+      eventId: 'e',
+      eventName: 'people.person.snapshot',
+      payload: { personId: 'p', name: { given: 'Ada', family: 'Lovelace' } },
+    } as unknown as StoredEnvelope;
+    expect(filterFor(snapshot, ['given_name', 'family_name', 'work_email'])).toBeNull();
+  });
+});

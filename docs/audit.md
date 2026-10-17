@@ -27,7 +27,15 @@ a salary, an identifier or a field's contents — so the log cannot show a viewe
 what the record would not.
 
 **It decides who reads it.** People administrators and HR, checked by this
-service against OpenFGA, never only in the UI.
+service against OpenFGA, never only in the UI; and each module's
+administrators, for that module's own activity.
+
+**Every module's activity is here, with the module's name.** Time Off,
+Documents, Recruiting, Onboarding and Performance each raise
+`<module>.activity.recorded` (`packages/contracts/src/events/activity.ts`),
+and each module's **Settings › Activity log** is this log filtered to it
+(`/settings/activity?module=performance`). No module keeps a log of its own
+beside it.
 
 **It keeps everything.** No retention period is decided (PEO-129).
 `AUDIT_RETENTION_DAYS` is the one place a period will go.
@@ -82,6 +90,28 @@ rules out.
 Anything else on those topics is ignored. A module a company lacks publishes
 nothing, so it contributes no areas.
 
+**Every module's own acts** arrive as `<module>.activity.recorded` on the
+module's topic (`kithena.timeoff.v1`, `kithena.documents.v1`,
+`kithena.recruiting.v1`, `kithena.onboarding.v1`, `kithena.performance.v1`),
+one payload for all of them: the area (`settings`, `records`, `access`, `ai`,
+`integrations`), the action in the module's words, the fields by name, what it
+was done to (kind, id and its name at the time), the reason, the outcome
+(`done` or `refused`), the surface (`Web`, `Phone`, `Slack`, `Ask Kithena`,
+`Kithena` for its own timers) and whether AI proposed it. How each module
+raises it:
+
+| Module      | Where                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------- |
+| Performance | every `audit()` (`application/context.ts`): every write, sensitive read and refused attempt, in the act's transaction |
+| Documents   | beside each `documents.activity` row, in the same transaction; the document by id, never its title         |
+| Recruiting, Onboarding | every write that stands, worded from its route (`routeActivity`), in the write's transaction    |
+| Time Off    | every write that stands, worded from its route, just after it commits (People's settings log's rule)       |
+
+`identity.tenant.administrator_named` and `_removed`, which the log already
+reads, also keep `audit.module_admin`: who administers which module, the
+latest word winning, so a module's administrators can read their module's
+activity.
+
 **A support sign-in was not an event either.** Identity recorded it in
 `platform.support_access` alone. It now raises
 `identity.support.session_started` in the same transaction as that row: the
@@ -124,7 +154,7 @@ then People) makes it seconds.
 | `source_event_id`  | the event it came from. Unique per tenant: a redelivery is not a second entry.               |
 | `occurred_at`      | when it happened (the envelope's `occurredAt`).                                              |
 | `recorded_at`      | when the module recorded it (the envelope's `recordedAt`).                                   |
-| `module`           | `people`, `identity`.                                                                        |
+| `module`           | `people`, `identity`, `timeoff`, `documents`, `recruiting`, `onboarding`, `performance`.      |
 | `area`             | one of the areas below.                                                                      |
 | `action`           | one plain sentence, as the settings log words it: "Added a field".                           |
 | `detail`           | one more sentence, or null: "Seen by: HR → HR and their manager."                            |
@@ -136,6 +166,9 @@ then People) makes it seconds.
 | `subject_id`       | its id, when it has one.                                                                     |
 | `subject_label`    | its name at the time, in words: a field's label, a location's name. Never a person's value. |
 | `reason`           | what the actor gave as the reason, when there was one.                                       |
+| `outcome`          | `done`, or `refused` for an attempt a module turned down.                                    |
+| `via`              | the surface a module's act came from; null for People's and identity's.                      |
+| `ai`               | proposed by AI and confirmed by the person.                                                  |
 
 A few settings commands name a field or section by its key in their path
 (`/attributes/manager_id/assistant`). People's router says the key's label
@@ -171,7 +204,8 @@ the hour rather than the session.
 
 ## Who may read it
 
-People administrators and HR, as the People settings log allowed, and Kithena
+People administrators and HR, as the People settings log allowed; a module's
+administrators, for that module's activity alone (`?module=`); and Kithena
 support, which is a full administrator at the company it signed in to (the
 principal's `impersonatedBy`, set by the router from the token's `act.sub`). The audit
 service asks OpenFGA itself — `user:<account> people_admin tenant:<id>` or
@@ -204,7 +238,7 @@ The page asks People for the names and photos of the ones on it
 People cannot name somebody they are "Someone at your company"; Kithena support
 and the system are named by kind, never looked up.
 
-**Filters**, all in the address: area (several: `?area=fields,roles`), who
+**Filters**, all in the address: module (`?module=performance`), area (several: `?area=fields,roles`), who
 (`?actor=<account>` for a person, `?by=person|support|system|integration`), whose
 record (`?subject=<id>`), a date range (`?from=`, `?to=`, calendar dates, the
 viewer's zone, which the page adds as `?tz=`), and search (`?q=`, over the

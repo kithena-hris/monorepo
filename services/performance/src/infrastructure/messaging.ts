@@ -5,8 +5,9 @@ import type { Mailer } from '../application/ports.js';
 /**
  * Performance's email through messaging (`platform/messaging`):
  * `POST /api/internal/messaging/correspondence` under the Performance–messaging
- * pair's own secret: the welcome, in the words Performance wrote. Messaging
- * sends it and records the outcome, never the body.
+ * pair's own secret: reminders and notices in the words Performance wrote,
+ * and a session's calendar invitation beside them. Messaging sends it and
+ * records the outcome, never the body.
  */
 export function httpMailer(config: { readonly baseUrl: string; readonly token: string }): Mailer {
   const endpoint = new URL('/api/internal/messaging/correspondence', config.baseUrl).toString();
@@ -37,7 +38,7 @@ export function mailerFrom(env: NodeJS.ProcessEnv): Mailer | undefined {
   if (!baseUrl || !token) {
     logger.info(
       { module: 'performance' },
-      'MESSAGING_URL or MESSAGING_PERFORMANCE_TOKEN unset; new hires get no welcome email',
+      'MESSAGING_URL or MESSAGING_PERFORMANCE_TOKEN unset; Performance sends no email',
     );
     return undefined;
   }

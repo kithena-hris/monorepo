@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemovePerformanceWebhook($id: String!, $key: String!) {\n    removePerformanceWebhook(id: $id, idempotencyKey: $key)\n  }"}

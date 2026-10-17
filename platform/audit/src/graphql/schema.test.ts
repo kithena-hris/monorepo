@@ -19,6 +19,8 @@ function wired(roles: string[]) {
   const asked: Filter[] = [];
   const store: EntryStore = {
     append: () => Promise.resolve(true),
+    administrator: () => Promise.resolve(),
+    administers: () => Promise.resolve(new Set()),
     page: (_t, q) => {
       asked.push(q.filter);
       return Promise.resolve([]);
@@ -68,6 +70,7 @@ describe('the audit subgraph', () => {
     );
     expect(answer.errors).toBeUndefined();
     expect(asked[0]).toEqual({
+      module: null,
       areas: ['roles', 'sign_in'],
       actorKind: 'support',
       actor: null,
@@ -76,6 +79,16 @@ describe('the audit subgraph', () => {
       until: '2026-09-01T22:00:00.000Z',
       search: 'role',
     });
+  });
+
+  it('narrows to one module when asked', async () => {
+    const { ask, asked } = wired(['hr']);
+    const answer = await ask(
+      '{ auditActivity(module: "performance") { entries { id outcome via ai } next } }',
+      routed,
+    );
+    expect(answer.errors).toBeUndefined();
+    expect(asked[0]?.module).toBe('performance');
   });
 
   it('refuses a filter it does not have rather than ignoring it', async () => {

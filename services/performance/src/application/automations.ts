@@ -231,7 +231,7 @@ export async function saveAutomation(
     at: old?.at ?? ctx.at,
   };
   await ctx.tx.automations.save(a);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'automation',
     action: id === null ? 'Created an automation' : 'Edited an automation',
     target: a.name,
     targetId: a.id,
@@ -250,7 +250,7 @@ export async function pauseAutomation(
   const a = await ctx.tx.automations.get(id);
   if (a === null) return err(notFound('automation'));
   await ctx.tx.automations.save({ ...a, paused });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'automation',
     action: paused ? 'Paused an automation' : 'Turned on an automation',
     target: a.name,
     targetId: id,
@@ -264,7 +264,7 @@ export async function deleteAutomation(ctx: Ctx, id: string): Promise<Result<{ o
   const a = await ctx.tx.automations.get(id);
   if (a === null) return err(notFound('automation'));
   await ctx.tx.automations.remove(id);
-  await audit(ctx, { action: 'Deleted an automation', target: a.name, targetId: id });
+  await audit(ctx, { kind: 'automation', action: 'Deleted an automation', target: a.name, targetId: id });
   return ok({ ok: true });
 }
 
@@ -342,7 +342,7 @@ async function cycleFrom(ctx: Ctx, a: Automation, o: Occurrence): Promise<Cycle>
       { cycleId: c.id, from: null, to: 'scheduled', reviews: 0 },
     ),
   );
-  await audit(ctx, { action: 'An automation scheduled a cycle', target: c.name, targetId: c.id });
+  await audit(ctx, { kind: 'cycle', action: 'An automation scheduled a cycle', target: c.name, targetId: c.id });
   ctx.touched.add(c.id);
   return c;
 }

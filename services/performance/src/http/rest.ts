@@ -25,7 +25,9 @@ import * as learning from '../application/learning.js';
 import { importMembers } from '../application/import.js';
 import * as pdf from '../application/pdf.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
+import * as retention from '../application/retention.js';
 import * as reviews from '../application/reviews.js';
+import * as webhooks from '../application/webhooks.js';
 import { aiOn, saveSection } from '../application/settings.js';
 import * as templates from '../application/templates.js';
 import type { CallerFrom } from './caller.js';
@@ -227,6 +229,8 @@ const GoalIn = z.object({
   weight: z.int().min(0).max(100).nullable(),
   commitment: z.enum(['committed', 'aspirational']),
   keyResults: z.array(KeyResultIn).min(1).max(10),
+  /** Who sees it: the owner and their managers (the default), their team too, or everyone. */
+  visibility: z.enum(['owner', 'team', 'everyone']).optional(),
 });
 const ItemIn = z.object({
   title: text(200).min(1),
@@ -291,6 +295,8 @@ const MemberIn = z.object({
   title: text(200).nullable(),
   department: text(120).nullable(),
   hiredOn: CalendarDate.nullable(),
+  /** A leaver's last working day, where retention counts from. */
+  leftOn: CalendarDate.nullable().optional(),
 });
 
 const RunBody = z.object({
@@ -679,9 +685,13 @@ export const ROUTES: readonly Route[] = [
     name: 'exportPerformanceCycle',
     method: 'POST',
     path: `${V1}/cycles/{id}/export`,
-    summary: 'PF5h: PDFs',
+    summary: 'PF5h: the reviews as one PDF, or a zip of a PDF each',
     params: z.object({ id: Id }),
-    body: z.object({ full: z.boolean(), kinds: z.array(ActivityKind).max(6) }),
+    body: z.object({
+      full: z.boolean(),
+      kinds: z.array(ActivityKind).max(6),
+      format: z.enum(['pdf', 'zip']).default('pdf'),
+    }),
     run: (ctx, { params, body }) => pdf.cyclePdf(ctx, params.id, body),
   }),
   route({
@@ -1054,6 +1064,15 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params, body }) => goals.saveGoal(ctx, params.id, body),
   }),
   route({
+    name: 'setPerformanceGoalVisibility',
+    method: 'PUT',
+    path: `${V1}/goals/{id}/visibility`,
+    summary: 'Who sees a goal',
+    params: z.object({ id: Id }),
+    body: z.object({ visibility: z.enum(['owner', 'team', 'everyone']) }),
+    run: (ctx, { params, body }) => goals.setGoalVisibility(ctx, params.id, body.visibility),
+  }),
+  route({
     name: 'setPerformanceGoalStatus',
     method: 'POST',
     path: `${V1}/goals/{id}/status`,
@@ -1383,6 +1402,103 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { body }) => ai.saveChart(ctx, body),
   }),
 
+  /* ---------------------------------------------------------- retention -- */
+  route({
+    name: 'performanceRetention',
+    method: 'GET',
+    path: `${V1}/retention`,
+    summary: 'S10: what is due to go, the holds and what comes next',
+    run: (ctx) => retention.retentionScreen(ctx),
+  }),
+  route({
+    name: 'confirmPerformanceRetention',
+    method: 'POST',
+    path: `${V1}/retention/delete`,
+    summary: 'HR confirms a batch: the due records of these people go',
+    body: z.object({ personIds: z.array(Id).min(1).max(500) }),
+    run: (ctx, { body }) => retention.confirmRetention(ctx, body.personIds),
+  }),
+  route({
+    name: 'placePerformanceHold',
+    method: 'POST',
+    path: `${V1}/holds`,
+    summary: 'A legal hold on a person’s records',
+    status: 201,
+    body: z.object({ personId: Id, reason: text(300).min(1) }),
+    run: (ctx, { body }) => retention.placeHold(ctx, body.personId, body.reason),
+  }),
+  route({
+    name: 'liftPerformanceHold',
+    method: 'POST',
+    path: `${V1}/holds/{id}/lift`,
+    summary: 'Lift a legal hold',
+    params: z.object({ id: Id }),
+    body: z.object({ reason: text(300).nullable() }),
+    run: (ctx, { params, body }) => retention.liftHold(ctx, params.id, body.reason),
+  }),
+  route({
+    name: 'exportPerformancePerson',
+    method: 'POST',
+    path: `${V1}/people/{id}/export`,
+    summary: 'A person’s data, for their request (DSAR)',
+    params: z.object({ id: Id }),
+    body: z.object({}),
+    run: (ctx, { params }) => retention.personExport(ctx, params.id),
+  }),
+
+  /* ----------------------------------------------------------- webhooks -- */
+  route({
+    name: 'performanceWebhooks',
+    method: 'GET',
+    path: `${V1}/webhooks`,
+    summary: 'S8b: webhook endpoints and their deliveries',
+    run: (ctx) => webhooks.webhooksScreen(ctx),
+  }),
+  route({
+    name: 'addPerformanceWebhook',
+    method: 'POST',
+    path: `${V1}/webhooks`,
+    summary: 'A webhook endpoint, its secret shown once',
+    status: 201,
+    body: z.object({ url: z.url().max(2000), events: z.array(text(80)).max(40) }),
+    run: (ctx, { body }) => webhooks.addWebhook(ctx, body),
+  }),
+  route({
+    name: 'changePerformanceWebhook',
+    method: 'PATCH',
+    path: `${V1}/webhooks/{id}`,
+    summary: 'A webhook endpoint’s events, or on or off',
+    params: z.object({ id: Id }),
+    body: z.object({ events: z.array(text(80)).max(40).optional(), on: z.boolean().optional() }),
+    run: (ctx, { params, body }) => webhooks.changeWebhook(ctx, params.id, body),
+  }),
+  route({
+    name: 'rotatePerformanceWebhook',
+    method: 'POST',
+    path: `${V1}/webhooks/{id}/rotate`,
+    summary: 'A new webhook secret; the old one signs for a day',
+    params: z.object({ id: Id }),
+    body: z.object({}),
+    run: (ctx, { params }) => webhooks.rotateWebhook(ctx, params.id),
+  }),
+  route({
+    name: 'testPerformanceWebhook',
+    method: 'POST',
+    path: `${V1}/webhooks/{id}/test`,
+    summary: 'Send a webhook endpoint a signed test',
+    params: z.object({ id: Id }),
+    body: z.object({}),
+    run: (ctx, { params }) => webhooks.testWebhook(ctx, params.id),
+  }),
+  route({
+    name: 'removePerformanceWebhook',
+    method: 'DELETE',
+    path: `${V1}/webhooks/{id}`,
+    summary: 'Remove a webhook endpoint',
+    params: z.object({ id: Id }),
+    run: (ctx, { params }) => webhooks.removeWebhook(ctx, params.id),
+  }),
+
   /* ----------------------------------------------------------- settings -- */
   route({
     name: 'performanceSettings',
@@ -1406,19 +1522,6 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/ai/log`,
     summary: 'S7b: the AI output log',
     run: (ctx) => ai.aiLogScreen(ctx),
-  }),
-  route({
-    name: 'performanceAudit',
-    method: 'GET',
-    path: `${V1}/audit`,
-    summary: 'S11: the audit log',
-    params: z.object({ q: z.string().max(100).optional(), refused: flag, ai: flag }),
-    run: (ctx, { params }) =>
-      home.auditScreen(ctx, {
-        ...(params.q === undefined ? {} : { q: params.q }),
-        refused: params.refused === 'true',
-        ai: params.ai === 'true',
-      }),
   }),
   route({
     name: 'performanceConnectedTools',

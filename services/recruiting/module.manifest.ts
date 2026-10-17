@@ -14,6 +14,7 @@ export default ModuleManifest.parse({
   dependsOn: [],
   enrichedBy: ['people', 'documents', 'timeoff'],
   publishes: [
+    'recruiting.activity.recorded',
     'recruiting.requisition.submitted',
     'recruiting.requisition.decided',
     'recruiting.job.opened',
@@ -41,6 +42,7 @@ export default ModuleManifest.parse({
   ],
   consumes: [
     'people.person.hired',
+    'people.person.snapshot',
     'people.person.terminated',
     'people.person.manager_changed',
     'people.person.org_changed',

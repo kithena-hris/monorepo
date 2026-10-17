@@ -5,13 +5,13 @@ import { outboxTable, publish, withTenant } from '@kithena/db-kit';
 import type { PersonId, TenantId } from '@kithena/contracts';
 import { logger, onShutdown } from '@kithena/telemetry';
 
-import type { AuditEntry, Member, Store, Tx, UnitOfWork, Where } from '../application/ports.js';
+import type { Member, Store, Tx, UnitOfWork, Where } from '../application/ports.js';
 import { COLUMNS, STORES, type Kind } from './records.js';
 
 /**
  * One tenant, one transaction, every store (PRF-036), over
- * `migrations/*_performance_core.sql`: the member projection, the audit log
- * and settings in tables of their own, every aggregate a row of
+ * `migrations/*_performance_core.sql`: the member projection and settings in
+ * tables of their own (the activity log is the company's, `docs/audit.md`), every aggregate a row of
  * `performance.record`. Onboarding's raw-SQL shape.
  */
 
@@ -49,6 +49,7 @@ function memberOf(r: Row): Member {
     legalEntityId: str(r['legal_entity_id']),
     hiredOn: day(r['hired_on']) as Member['hiredOn'],
     probationEnd: day(r['probation_end']) as Member['probationEnd'],
+    leftOn: day(r['left_on']) as Member['probationEnd'],
   };
 }
 
@@ -99,23 +100,6 @@ function store<T extends { readonly id: string }>(
   };
 }
 
-function auditOf(r: Row): AuditEntry {
-  return {
-    id: String(r['id']),
-    at: str(r['at']) ?? '',
-    actorPersonId: str(r['actor_person_id']),
-    actorAccountId: String(r['actor_account_id']),
-    as: String(r['acting_as']),
-    action: String(r['action']),
-    target: String(r['target']),
-    targetId: str(r['target_id']),
-    where: String(r['via']),
-    outcome: r['outcome'] === 'refused' ? 'refused' : 'done',
-    fields: (r['fields'] as string[] | null) ?? [],
-    ai: r['ai'] === true,
-  };
-}
-
 function storesIn(tx: PostgresJsDatabase, T: string): Tx {
   const stores = Object.fromEntries(
     Object.entries(STORES).map(([name, kind]) => [name, store(tx, T, kind)]),
@@ -139,12 +123,13 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       upsert: async (m, eventId) => {
         const written = await rows(
           tx,
-          sql`INSERT INTO performance.member (tenant_id, person_id, account_id, display_name, work_email, manager_person_id, status, title, org_unit_id, location_id, legal_entity_id, hired_on, probation_end, last_event_id)
-            VALUES (${T}, ${m.personId}, ${m.accountId}, ${m.displayName}, ${m.workEmail}, ${m.managerPersonId}, ${m.status}, ${m.title}, ${m.orgUnitId}, ${m.locationId}, ${m.legalEntityId}, ${m.hiredOn}, ${m.probationEnd}, ${eventId})
+          sql`INSERT INTO performance.member (tenant_id, person_id, account_id, display_name, work_email, manager_person_id, status, title, org_unit_id, location_id, legal_entity_id, hired_on, probation_end, left_on, last_event_id)
+            VALUES (${T}, ${m.personId}, ${m.accountId}, ${m.displayName}, ${m.workEmail}, ${m.managerPersonId}, ${m.status}, ${m.title}, ${m.orgUnitId}, ${m.locationId}, ${m.legalEntityId}, ${m.hiredOn}, ${m.probationEnd}, ${m.leftOn ?? null}, ${eventId})
             ON CONFLICT (tenant_id, person_id) DO UPDATE SET account_id = EXCLUDED.account_id, display_name = EXCLUDED.display_name,
               work_email = EXCLUDED.work_email, manager_person_id = EXCLUDED.manager_person_id, status = EXCLUDED.status,
               title = EXCLUDED.title, org_unit_id = EXCLUDED.org_unit_id, location_id = EXCLUDED.location_id,
               legal_entity_id = EXCLUDED.legal_entity_id, hired_on = EXCLUDED.hired_on, probation_end = EXCLUDED.probation_end,
+              left_on = EXCLUDED.left_on,
               last_event_id = EXCLUDED.last_event_id, updated_at = now()
             WHERE performance.member.last_event_id <> EXCLUDED.last_event_id
             RETURNING person_id`,
@@ -163,27 +148,6 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       },
       remove: async (a) => {
         await tx.execute(sql`DELETE FROM performance.admin WHERE account_id = ${a}`);
-      },
-    },
-    audit: {
-      record: async (e) => {
-        await tx.execute(sql`INSERT INTO performance.audit (tenant_id, id, at, actor_person_id, actor_account_id, acting_as, action, target, target_id, via, outcome, fields, ai)
-          VALUES (${T}, ${e.id}, ${e.at}, ${e.actorPersonId}, ${e.actorAccountId}, ${e.as}, ${e.action}, ${e.target}, ${e.targetId}, ${e.where}, ${e.outcome}, ${J(e.fields)}, ${e.ai})`);
-      },
-      list: async (f) => {
-        const parts: SQL[] = [sql`true`];
-        if (f.q !== undefined && f.q !== '')
-          parts.push(
-            sql`(action ILIKE ${`%${f.q}%`} OR target ILIKE ${`%${f.q}%`} OR acting_as ILIKE ${`%${f.q}%`})`,
-          );
-        if (f.refused === true) parts.push(sql`outcome = 'refused'`);
-        if (f.ai === true) parts.push(sql`ai`);
-        return (
-          await rows(
-            tx,
-            sql`SELECT * FROM performance.audit WHERE ${sql.join(parts, sql` AND `)} ORDER BY at DESC LIMIT ${f.limit}`,
-          )
-        ).map(auditOf);
       },
     },
     settings: {
@@ -219,6 +183,20 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       publish: async (events) => {
         if (events.length > 0) await publish(tx, outbox, events);
       },
+      since: async (after, limit) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT event_id, event_name, created_at, envelope FROM performance.outbox
+              WHERE (created_at, event_id) > (${after.at}::timestamptz, ${after.id}::uuid)
+              ORDER BY created_at, event_id LIMIT ${limit}`,
+          )
+        ).map((r) => ({
+          eventId: String(r['event_id']),
+          eventName: String(r['event_name']),
+          writtenAt: str(r['created_at']) ?? '',
+          envelope: r['envelope'],
+        })),
     },
   };
 }

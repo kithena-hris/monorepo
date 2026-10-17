@@ -3,6 +3,7 @@ import {
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
+  PersonSnapshot,
   PersonOrgChanged,
   PersonProfileUpdated,
   PersonStatusChanged,
@@ -88,6 +89,33 @@ export function recruitingConsumer(uow: UnitOfWork): (raw: unknown) => Promise<O
               teamName: existing?.teamKey === teamKey ? existing.teamName : null,
               locationKey: existing?.locationKey ?? null,
               legalEntityId: existing?.legalEntityId ?? null,
+              status: statusOf(p.status) ?? 'active',
+            },
+            event.eventId,
+            dateOf(event),
+          );
+          return wrote ? 'applied' : 'unchanged';
+        });
+      }
+      // Everything People holds of a person: one hired before Recruiting listened.
+      case PersonSnapshot.name: {
+        const event = parse(PersonSnapshot, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        return uow.run(event.tenantId, async (tx) => {
+          const existing = await tx.members.get(p.personId);
+          const teamKey = p.orgUnitId === null ? null : teamKeyOf(p.orgUnitId);
+          const wrote = await tx.members.upsert(
+            {
+              personId: p.personId,
+              accountId: p.identityAccountId ?? existing?.accountId ?? null,
+              displayName: `${p.name.preferred ?? p.name.given} ${p.name.family}`,
+              workEmail: p.workEmail,
+              managerPersonId: p.managerId,
+              teamKey,
+              teamName: existing?.teamKey === teamKey ? existing.teamName : null,
+              locationKey: existing?.locationKey ?? null,
+              legalEntityId: p.legalEntityId ?? existing?.legalEntityId ?? null,
               status: statusOf(p.status) ?? 'active',
             },
             event.eventId,

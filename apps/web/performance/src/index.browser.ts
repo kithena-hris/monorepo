@@ -33,6 +33,7 @@ export const Calibrations = split(() => import('./calibration'), 'Calibrations')
 export const Calibration = split(() => import('./calibration'), 'Calibration');
 export const Analytics = split(() => import('./analytics'), 'Analytics');
 export const Settings = split(() => import('./settings'), 'Settings');
-export const AuditLog = split(() => import('./settings'), 'AuditLog');
 export const AiLog = split(() => import('./settings'), 'AiLog');
+export const Retention = split(() => import('./settings'), 'Retention');
+export const Webhooks = split(() => import('./settings'), 'Webhooks');
 export const ConnectedTools = split(() => import('./settings'), 'ConnectedTools');

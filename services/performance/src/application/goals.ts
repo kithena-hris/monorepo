@@ -1,13 +1,16 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import {
+  canSeeGoal,
   checkIn as addCheckIn,
   checkWeights,
   confidence,
   goalScore,
   nextCheckIn,
   progress,
+  visibilityOf,
   type Goal,
+  type GoalVisibility,
   type KeyResult,
 } from '../domain/goals.js';
 import { audit, event, forbidden, me, names, notFound, publish, type Ctx } from './context.js';
@@ -19,9 +22,24 @@ import { settingsOf } from './settings.js';
  * results, check-ins on a cadence, alignment to one parent, and goals put
  * into a cycle. Every number is computed here.
  *
- * ponytail: every goal is visible to everyone at the company; per-goal
- * visibility (§14.2) when a company asks for private goals.
+ * A goal is private until its owner makes it public (§14.2, `canSeeGoal`):
+ * every list, tree and page shows only the goals this reader may see, and an
+ * alignment names a parent only when the reader may see that too.
  */
+
+/** Whether this reader sees a goal: the domain's rule, with the org chart's facts filled in. */
+async function seer(ctx: Ctx): Promise<(g: Goal) => boolean> {
+  const members = await ctx.members();
+  const managers = new Map(members.map((m) => [m.personId as string, m.managerPersonId]));
+  const reader = {
+    personId: ctx.viewer.personId,
+    managerId: ctx.viewer.personId === null ? null : (managers.get(ctx.viewer.personId) ?? null),
+    hr: ctx.viewer.hr,
+    org: ctx.viewer.org,
+  };
+  return (g) =>
+    canSeeGoal(g, reader, g.ownerId === null ? null : { managerId: managers.get(g.ownerId) ?? null });
+}
 
 const view = (g: Goal, name: (id: string | null) => string, parent: Goal | undefined) => ({
   id: g.id,
@@ -37,6 +55,7 @@ const view = (g: Goal, name: (id: string | null) => string, parent: Goal | undef
   commitment: g.commitment,
   parentId: g.parentId,
   alignedTo: parent?.title ?? null,
+  visibility: visibilityOf(g),
 });
 
 export async function goalsScreen(
@@ -51,7 +70,8 @@ export async function goalsScreen(
     periods.find((p) => p.from <= today && p.to >= today && p.id.startsWith('h')) ??
     periods[0];
   const name = await names(ctx);
-  const all = await ctx.tx.goals.find();
+  const sees = await seer(ctx);
+  const all = (await ctx.tx.goals.find()).filter(sees);
   const byId = new Map(all.map((g) => [g.id, g]));
   const mine = ctx.viewer.personId;
   const scope = opts.scope ?? (ctx.viewer.reports.size > 0 ? 'team' : 'mine');
@@ -94,12 +114,15 @@ export async function goalsScreen(
 
 export async function goalScreen(ctx: Ctx, id: string): Promise<Result<unknown>> {
   const g = await ctx.tx.goals.get(id);
-  if (g === null) return err(notFound('goal'));
+  const sees = await seer(ctx);
+  // A goal the reader may not see is no goal at all to them, as a missing one.
+  if (g === null || !sees(g)) return err(notFound('goal'));
   const name = await names(ctx);
-  const parent = g.parentId === null ? null : await ctx.tx.goals.get(g.parentId);
+  const found = g.parentId === null ? null : await ctx.tx.goals.get(g.parentId);
+  const parent = found !== null && sees(found) ? found : null;
   const settings = await settingsOf(ctx);
   const period = settings.goals.periods.find((p) => p.id === g.periodId);
-  const children = (await ctx.tx.goals.find()).filter((x) => x.parentId === id);
+  const children = (await ctx.tx.goals.find()).filter((x) => x.parentId === id && sees(x));
   const owner =
     g.ownerId === ctx.viewer.personId ||
     ctx.viewer.hr ||
@@ -132,6 +155,8 @@ export interface GoalInput {
   readonly weight: number | null;
   readonly commitment: Goal['commitment'];
   readonly keyResults: readonly Omit<KeyResult, 'id'>[];
+  /** Absent keeps what the goal had: private for a new one. */
+  readonly visibility?: GoalVisibility | undefined;
 }
 
 export async function saveGoal(
@@ -173,11 +198,13 @@ export async function saveGoal(
     })),
     checkIns: old?.checkIns ?? [],
     createdAt: old?.createdAt ?? ctx.at,
+    visibility:
+      input.visibility ?? old?.visibility ?? visibilityOf({ ownerKind: input.ownerKind }),
   };
   if (goal.keyResults.length === 0)
     return err(failure('NO_KR', 'A goal needs at least one key result'));
   await ctx.tx.goals.save(goal);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'goal',
     action: id === null ? 'Created a goal' : 'Edited a goal',
     target: input.title,
     targetId: goal.id,
@@ -200,11 +227,36 @@ export async function setGoalStatus(
   )
     return err(forbidden());
   await ctx.tx.goals.save({ ...g, status });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'goal',
     action: 'Changed a goal’s status',
     target: g.title,
     targetId: id,
     fields: ['status'],
+  });
+  return ok({ ok: true });
+}
+
+/** Who sees a goal: its owner, their managers and HR decide (§14.2). */
+export async function setGoalVisibility(
+  ctx: Ctx,
+  id: string,
+  visibility: GoalVisibility,
+): Promise<Result<{ ok: true }>> {
+  const g = await ctx.tx.goals.get(id);
+  if (g === null || !(await seer(ctx))(g)) return err(notFound('goal'));
+  if (
+    g.ownerId !== ctx.viewer.personId &&
+    !ctx.viewer.hr &&
+    !(g.ownerId !== null && ctx.viewer.org.has(g.ownerId))
+  )
+    return err(forbidden('The owner, their managers and HR decide who sees a goal'));
+  await ctx.tx.goals.save({ ...g, visibility });
+  await audit(ctx, {
+    kind: 'goal',
+    action: 'Changed who sees a goal',
+    target: g.title,
+    targetId: id,
+    fields: ['visibility'],
   });
   return ok({ ok: true });
 }
@@ -243,7 +295,7 @@ export async function checkInGoal(
       { goalId: id, owner: g.ownerId ?? who.value, progress: p, confidence: input.confidence },
     ),
   );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'goal',
     action: 'Checked in on a goal',
     target: g.title,
     targetId: id,
@@ -284,7 +336,7 @@ export async function attachGoals(
       }
     }
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Attached goals to a cycle',
     target: c.name,
     targetId: cycleId,

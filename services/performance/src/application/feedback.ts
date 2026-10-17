@@ -212,7 +212,7 @@ export async function giveFeedback(
       { feedbackId: id, to: input.to, praise: input.kind === 'praise' },
     ),
   );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'feedback',
     action: input.kind === 'praise' ? 'Gave praise' : 'Gave feedback',
     target: (await names(ctx))(input.to),
     targetId: id,
@@ -227,7 +227,7 @@ export async function undoFeedback(ctx: Ctx, id: string): Promise<Result<{ ok: t
   const done = undo(f, ctx.viewer.personId ?? '', Date.parse(ctx.at));
   if (!done.ok) return done;
   await ctx.tx.feedback.save(done.value);
-  await audit(ctx, { action: 'Undid feedback', target: 'Feedback', targetId: id });
+  await audit(ctx, { kind: 'feedback', action: 'Undid feedback', target: 'Feedback', targetId: id });
   return ok({ ok: true });
 }
 
@@ -276,7 +276,7 @@ export async function requestFeedback(
         dedupeKey: `request:${id}:${p}`,
       });
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'request',
     action: 'Requested feedback',
     target: `${String(to.length)} people`,
     targetId: id,
@@ -296,7 +296,7 @@ export async function declineRequest(ctx: Ctx, id: string): Promise<Result<{ ok:
       { personId: who.value, feedbackId: null, declined: true },
     ],
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'request',
     action: 'Declined a feedback request',
     target: 'Feedback request',
     targetId: id,
@@ -356,7 +356,7 @@ export async function saveNote(
     shared: input.shared,
     at: ctx.at,
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'note',
     action: input.id === null ? 'Wrote a note' : 'Edited a note',
     target: 'Note',
     targetId: id,
@@ -369,6 +369,6 @@ export async function deleteNote(ctx: Ctx, id: string): Promise<Result<{ ok: tru
   const n = await ctx.tx.notes.get(id);
   if (n === null || n.author !== ctx.viewer.personId) return err(notFound('note'));
   await ctx.tx.notes.remove(id);
-  await audit(ctx, { action: 'Deleted a note', target: 'Note', targetId: id });
+  await audit(ctx, { kind: 'note', action: 'Deleted a note', target: 'Note', targetId: id });
   return ok({ ok: true });
 }

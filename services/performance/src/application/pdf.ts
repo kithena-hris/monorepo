@@ -12,6 +12,7 @@ import { audit, hrOnly, names, notFound, type Ctx } from './context.js';
 import { formOf } from './forms.js';
 import { load } from './reviews.js';
 import { settingsOf } from './settings.js';
+import { storedZip } from './zip.js';
 
 /**
  * PDFs (PRD §20, PRF-048): one review, or a cycle's reviews in one file, each
@@ -19,8 +20,10 @@ import { settingsOf } from './settings.js';
  * private question never reaches paper. Noto Sans is embedded for People's
  * reason: "Łukasz" must print as Łukasz.
  *
- * ponytail: a bulk export is one PDF with a page per review, built in the
- * request; a zip on a background job when a cycle outgrows a request.
+ * A bulk export is the reader's choice: one PDF with a page per review, or a
+ * zip with each review as its own PDF and an index of them all.
+ *
+ * ponytail: built in the request; a background job when a cycle outgrows one.
  */
 
 const FONT_DIR = ['../../assets/fonts/', '../../../assets/fonts/']
@@ -32,13 +35,16 @@ const BOLD = font('NotoSans_700Bold.ttf');
 
 interface Page {
   readonly title: string;
+  /** For the zip's index: whose, which review, by whom, when, the score. */
+  readonly index: readonly string[];
   readonly lines: readonly string[];
   readonly definition: FormDefinition;
   readonly answers: FormAnswers;
   readonly score: string | null;
 }
 
-const answerText = (def: FormDefinition, id: string, answers: FormAnswers): string => {
+/** One answer in words, as a reader of the PDF or an export sees it. */
+export const answerText = (def: FormDefinition, id: string, answers: FormAnswers): string => {
   const q = def.sections.flatMap((s) => s.questions).find((x) => x.id === id);
   const v = answers[id]?.value;
   if (q === undefined || v === undefined || v === null) return '—';
@@ -111,8 +117,17 @@ async function pageOf(ctx: Ctx, r: Review, asSubject: boolean): Promise<Page | n
           scale[0] ?? { value: 0, label: '' },
         ).label;
   const kind = label(r.kind);
+  const by = asSubject && r.confidential ? 'A colleague' : name(r.authorId);
+  const submitted = r.submitted.at(-1)?.at.slice(0, 10) ?? '';
   return {
     title: `${kind.charAt(0).toUpperCase()}${kind.slice(1)}: ${name(r.subjectId)}`,
+    index: [
+      name(r.subjectId),
+      `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`,
+      by,
+      submitted,
+      s === null ? '' : (s / 100).toFixed(1),
+    ],
     lines: [
       c?.name ?? '',
       asSubject && r.confidential ? 'Written by a colleague' : `By ${name(r.authorId)}`,
@@ -133,19 +148,48 @@ export async function reviewPdf(
   if (!loaded.ok) return loaded;
   const page = await pageOf(ctx, loaded.value.review, loaded.value.access === 'subject');
   if (page === null) return err(notFound('form'));
-  await audit(ctx, { action: 'Downloaded a review as PDF', target: page.title, targetId: id });
+  await audit(ctx, { kind: 'review', action: 'Downloaded a review as PDF', target: page.title, targetId: id });
   return ok({
     filename: `${page.title.replaceAll(/[^\w -]+/gu, '')}.pdf`,
     base64: (await draw([page])).toString('base64'),
   });
 }
 
+/** A file name without what a file system would refuse. */
+const safe = (name: string): string => name.replaceAll(/[^\p{L}\p{N} ._-]+/gu, '').trim() || 'Review';
+
+/** One CSV cell: quoted, its quotes doubled, a leading formula character defused. */
+const cell = (v: string): string => `"${(/^[=+\-@]/u.test(v) ? `'${v}` : v).replaceAll('"', '""')}"`;
+
+/** The zip: each review its own PDF, named for whose it is, and `index.csv` listing them. */
+async function zipOf(pages: readonly Page[]): Promise<Buffer> {
+  const used = new Set<string>();
+  const files: { name: string; bytes: Uint8Array }[] = [];
+  for (const p of pages) {
+    const base = safe(`${p.index[0] ?? ''} - ${p.index[1] ?? ''}`);
+    let name = `${base}.pdf`;
+    for (let n = 2; used.has(name); n += 1) name = `${base} (${String(n)}).pdf`;
+    used.add(name);
+    files.push({ name, bytes: await draw([p]) });
+  }
+  const rows = [
+    ['File', 'Subject', 'Review', 'Written by', 'Submitted', 'Score'],
+    ...pages.map((p, i) => [files[i]?.name ?? '', ...p.index]),
+  ];
+  const csv = `${rows.map((r) => r.map(cell).join(',')).join('\r\n')}\r\n`;
+  return Buffer.from(
+    storedZip([{ name: 'index.csv', bytes: new TextEncoder().encode(csv) }, ...files]),
+  );
+}
+
 /** PF5h: a cycle's reviews, as each subject would see them or in full for HR (logged as a sensitive read). */
 export async function cyclePdf(
   ctx: Ctx,
   cycleId: string,
-  input: { full: boolean; kinds: string[] },
-): Promise<Result<{ filename: string; base64: string; count: number }>> {
+  input: { full: boolean; kinds: string[]; format?: 'pdf' | 'zip' },
+): Promise<
+  Result<{ filename: string; base64: string; count: number; mediaType: string }>
+> {
   const may = hrOnly(ctx);
   if (!may.ok) return may;
   const c = await ctx.tx.cycles.get(cycleId);
@@ -161,18 +205,21 @@ export async function cyclePdf(
     const p = await pageOf(ctx, r, !input.full);
     if (p !== null) pages.push(p);
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: input.full
       ? 'Exported full reviews (sensitive read)'
       : 'Exported reviews as subjects see them',
+    fields: [input.format === 'zip' ? 'zip' : 'pdf'],
     target: `${c.name} · ${String(pages.length)}`,
     targetId: cycleId,
   });
   if (pages.length === 0)
     return err({ code: 'EMPTY', message: 'No submitted reviews to export yet' });
+  const zip = input.format === 'zip';
   return ok({
-    filename: `${c.name.replaceAll(/[^\w -]+/gu, '')}.pdf`,
-    base64: (await draw(pages)).toString('base64'),
+    filename: `${safe(c.name)}.${zip ? 'zip' : 'pdf'}`,
+    base64: (zip ? await zipOf(pages) : await draw(pages)).toString('base64'),
     count: pages.length,
+    mediaType: zip ? 'application/zip' : 'application/pdf',
   });
 }

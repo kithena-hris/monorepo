@@ -40,6 +40,7 @@ import type { TenantRoles } from '../../application/roles/roles.js';
 import type { OpenFga } from '../openfga.js';
 import type { ReportRoles } from '../role-report.js';
 import { rememberEntitlements } from '../entitlements.js';
+import { snapshotEveryone } from '../snapshot.js';
 import { rememberTenant } from '../tenants.js';
 import type { InTenantTransaction } from '../unit-of-work.js';
 import { captureProfile } from './identity.js';
@@ -299,12 +300,16 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         if (!event) return 'rejected';
         const kept = await deps.inTenant(event.tenantId, async ({ tx }) => {
           await rememberTenant(tx, event.tenantId);
-          return rememberEntitlements(
+          const changed = await rememberEntitlements(
             tx,
             event.tenantId,
             event.payload.entitlements,
             event.occurredAt,
           );
+          // A module may have just been switched on: it hears about everybody
+          // already here, however long ago they were hired.
+          if (changed) await snapshotEveryone(tx, event.tenantId);
+          return changed;
         });
         return kept ? 'applied' : 'unchanged';
       }

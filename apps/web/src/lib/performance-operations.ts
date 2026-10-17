@@ -10,6 +10,39 @@
  */
 
 export const OPERATIONS = {
+  PerformanceWebhooks: `query PerformanceWebhooks {
+    performanceWebhooks
+  }`,
+  AddPerformanceWebhook: `mutation AddPerformanceWebhook($key: String!, $input: JSON!) {
+    addPerformanceWebhook(idempotencyKey: $key, input: $input)
+  }`,
+  ChangePerformanceWebhook: `mutation ChangePerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
+    changePerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  RotatePerformanceWebhook: `mutation RotatePerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
+    rotatePerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  TestPerformanceWebhook: `mutation TestPerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
+    testPerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  RemovePerformanceWebhook: `mutation RemovePerformanceWebhook($id: String!, $key: String!) {
+    removePerformanceWebhook(id: $id, idempotencyKey: $key)
+  }`,
+  PerformanceRetention: `query PerformanceRetention {
+    performanceRetention
+  }`,
+  ConfirmPerformanceRetention: `mutation ConfirmPerformanceRetention($key: String!, $input: JSON!) {
+    confirmPerformanceRetention(idempotencyKey: $key, input: $input)
+  }`,
+  PlacePerformanceHold: `mutation PlacePerformanceHold($key: String!, $input: JSON!) {
+    placePerformanceHold(idempotencyKey: $key, input: $input)
+  }`,
+  LiftPerformanceHold: `mutation LiftPerformanceHold($id: String!, $key: String!, $input: JSON!) {
+    liftPerformanceHold(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  ExportPerformancePerson: `mutation ExportPerformancePerson($id: String!, $key: String!, $input: JSON!) {
+    exportPerformancePerson(id: $id, idempotencyKey: $key, input: $input)
+  }`,
   PerformanceAiLog: `query PerformanceAiLog {
     performanceAiLog
   }`,
@@ -18,9 +51,6 @@ export const OPERATIONS = {
   }`,
   PerformanceAttachGoals: `query PerformanceAttachGoals($id: String!) {
     performanceAttachGoals(id: $id)
-  }`,
-  PerformanceAudit: `query PerformanceAudit($ai: String, $q: String, $refused: String) {
-    performanceAudit(ai: $ai, q: $q, refused: $refused)
   }`,
   PerformanceAutomation: `query PerformanceAutomation($id: String!) {
     performanceAutomation(id: $id)
@@ -335,6 +365,9 @@ export const OPERATIONS = {
   }`,
   ScanPerformanceSession: `mutation ScanPerformanceSession($key: String!, $input: JSON!) {
     scanPerformanceSession(idempotencyKey: $key, input: $input)
+  }`,
+  SetPerformanceGoalVisibility: `mutation SetPerformanceGoalVisibility($id: String!, $key: String!, $input: JSON!) {
+    setPerformanceGoalVisibility(id: $id, idempotencyKey: $key, input: $input)
   }`,
   SetPerformanceGoalStatus: `mutation SetPerformanceGoalStatus($id: String!, $key: String!, $input: JSON!) {
     setPerformanceGoalStatus(id: $id, idempotencyKey: $key, input: $input)

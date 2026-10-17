@@ -48,6 +48,9 @@ describe('an entry from an event', () => {
       actor: { kind: 'person', accountId: ADA, onBehalfOf: null, operatorLabel: null },
       subject: { kind: 'setting', id: null, label: 'Work phone' },
       reason: null,
+      outcome: 'done',
+      via: null,
+      ai: false,
     });
   });
 
@@ -309,5 +312,59 @@ describe('an entry from an event', () => {
   it('ignores what the log does not keep, ordinary sign-ins among them', () => {
     expect(entryFrom(event('identity.session.started', {}))).toBeNull();
     expect(entryFrom(event('people.person.hired', {}))).toBeNull();
+  });
+});
+
+describe('a module’s own activity', () => {
+  const act = {
+    area: 'records',
+    action: 'Launched a cycle',
+    detail: 'Changed: deadlines, participants.',
+    subjectKind: 'cycle',
+    subjectId: 'c1',
+    subjectLabel: 'H2 2026',
+    reason: null,
+    outcome: 'done',
+    via: 'Ask Kithena',
+    ai: true,
+  };
+
+  it('keeps it under the module’s name, with the surface and whether AI proposed it', () => {
+    expect(entryFrom(event('performance.activity.recorded', act))).toMatchObject({
+      module: 'performance',
+      area: 'records',
+      action: 'Launched a cycle',
+      detail: 'Changed: deadlines, participants.',
+      subject: { kind: 'cycle', id: 'c1', label: 'H2 2026' },
+      actor: { kind: 'person', accountId: ADA },
+      outcome: 'done',
+      via: 'Ask Kithena',
+      ai: true,
+    });
+  });
+
+  it('keeps a refused attempt as refused', () => {
+    expect(
+      entryFrom(event('performance.activity.recorded', { ...act, outcome: 'refused', ai: false }))
+        ?.outcome,
+    ).toBe('refused');
+  });
+
+  it('takes every module’s the same way, and no subject when there is none', () => {
+    for (const module of ['timeoff', 'documents', 'recruiting', 'onboarding'] as const) {
+      const entry = entryFrom(
+        event(`${module}.activity.recorded`, { ...act, subjectKind: null, subjectId: null }),
+      );
+      expect(entry?.module).toBe(module);
+      expect(entry?.subject).toBeNull();
+    }
+  });
+
+  it('says a People entry came from no surface in particular, and not from AI', () => {
+    expect(entryFrom(event('people.settings.activity_recorded', setting))).toMatchObject({
+      outcome: 'done',
+      via: null,
+      ai: false,
+    });
   });
 });

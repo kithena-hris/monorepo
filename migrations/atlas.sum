@@ -1,4 +1,4 @@
-h1:0zxwMFyZzqVu8G3smjYMRsw2hgdWU4zeGTtVzKv/dnk=
+h1:8l/ZbQdM9xAGONtUqhWh2tKinqfyP1rHIBCWxqRy9R8=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -145,3 +145,8 @@ h1:0zxwMFyZzqVu8G3smjYMRsw2hgdWU4zeGTtVzKv/dnk=
 20261017120000_performance_bootstrap.sql h1:EOejjBw/6buISviULB3PNaeOvlJUpLC5znJtZeheeJ8=
 20261017120005_performance_outbox.sql h1:LDNhycVj+N/bE1OVZWAKC5LQflWqJ0Z92LohT3WwwrM=
 20261017120010_performance_core.sql h1:h6MTmw9GwxS4u1i7tYC/SPVl0xfrc0EViF8sHFqG2Mk=
+20261017180000_audit_modules.sql h1:I+lSyZlcJzSNAAVcQcEoQBy1Dlfm83JiZ62UGSAYU0s=
+20261017180100_performance_activity_event.sql h1:V6gT0pia11dsf0PqsiuJlBQEROGJF0dUhoww0/hBKMA=
+20261017180200_performance_member_left_on.sql h1:Q2UXdHRa0T5Fhpqn9oXyR4g+PhQ6Qp8S+7huLBceguo=
+20261017180300_performance_record_kinds.sql h1:DfRS9NRt9OJk4p+68wGHvmd11ZSkYB4SKq0uhhEMEKU=
+20261017190000_people_person_snapshot.sql h1:yfmkk9hRUnRgh/bxX6Nd3+P9mVEr2zN+18cjCmr1Elo=

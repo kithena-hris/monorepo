@@ -95,6 +95,7 @@ import {
   PerformanceGoals,
   PerformanceItem,
   PerformanceLearning,
+  PerformanceScan,
   PerformanceNominate,
   PerformanceReleased,
   PerformanceRequest,
@@ -233,6 +234,7 @@ const TabStack = memo(function TabStack({
           <Stack_.Screen name="PerformanceGoal" component={PerformanceGoal} />
           <Stack_.Screen name="PerformanceLearning" component={PerformanceLearning} />
           <Stack_.Screen name="PerformanceItem" component={PerformanceItem} />
+          <Stack_.Screen name="PerformanceScan" component={PerformanceScan} />
           <Stack_.Screen name="PerformanceTeam" component={PerformanceTeam} />
           <Stack_.Screen name="PerformanceCycle" component={PerformanceCycle} />
           <Stack_.Screen name="PerformanceUnlocks" component={PerformanceUnlocks} />

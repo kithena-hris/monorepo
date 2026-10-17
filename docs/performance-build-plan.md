@@ -45,7 +45,7 @@ one merge, so Vercel deploys once.
       entitlement `module.performance`; offered in `OFFERED_MODULES`.
 - [x] **PRF-002** Schema bootstrap: `performance` with `svc_performance
 NOBYPASSRLS` and RLS on `tenant_id`.
-- [ ] **PRF-003** Outbox and Debezium: `performance.outbox`, table list.
+- [x] **PRF-003** Outbox and Debezium: `performance.outbox`, table list.
 - [x] **PRF-004** `services/performance` boots like Recruiting: `main.ts`,
       `/healthz`, Dockerfile.
 - [x] **PRF-005** Codegen walks `performanceEvents` and the forms contract.
@@ -139,7 +139,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       unlock requests and decisions with Inbox tasks, decided by HR only.
       PRD §10.2–§10.4.
 - [x] **PRF-045** Feedback, requests and notes.
-- [ ] **PRF-046** Retention sweeper, legal holds, DSAR export (no private
+- [x] **PRF-046** Retention sweeper, legal holds, DSAR export (no private
       questions, no confidential writers) and deletion. PRD §30.
 - [x] **PRF-047** Analytics queries for the cycle dashboard, with the cohort
       minimum. PRD §18.1, §18.2.
@@ -147,7 +147,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       (BullMQ), with the subject's view applied. PRD §20.
 - [ ] **PRF-049** Works council gate per legal entity and the description
       export. PRD §23.4.
-- [ ] **PRF-050** Audit: `performance.activity.recorded` in the same
+- [x] **PRF-050** Audit: `performance.activity.recorded` in the same
       transaction as every action, refused attempt and sensitive read, with
       actor, as whom, AI output id, action, target, fields changed, reason
       link, surface, request, IP and user agent, outcome; no values.
@@ -161,7 +161,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       Router's event-driven federation; reconnect reads once. PRD §8.7.
 - [x] **PRF-057** REST `/v1/performance/...`, OpenAPI, idempotency keys, cursor
       pagination.
-- [ ] **PRF-058** Signed webhooks for every published event.
+- [x] **PRF-058** Signed webhooks for every published event.
 - [x] **PRF-059** Inbox source: Performance's answer, one line in
       `apps/web/src/lib/inbox/sources.ts`.
 
@@ -213,7 +213,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 - [x] **PRF-104** PF18 goals screens.
 - [x] **PRF-105** Learning items, paths, assignment by person, filter and
       cycle, acknowledgement, recurrence and expiry. PRD §15.2, §15.3, §15.8.
-- [ ] **PRF-106** Sessions with `.ics` invitations, in-person attendance by QR
+- [x] **PRF-106** Sessions with `.ics` invitations, in-person attendance by QR
       and by hand, recordings, quizzes on the form kit. PRD §15.4–§15.6.
 - [x] **PRF-107** PF15 learning screens.
 - [x] **PRF-108** Automations on a calendar: lead time, exclusions, relative
@@ -327,49 +327,47 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 ## Decisions to review
 
 Taken on the owner's behalf while the owner was away, each the recommended
-option. Each can be reversed without undoing the module.
+option. The owner reviewed them on 17 October 2026; where they chose
+otherwise, the item says what was built instead.
 
 1. **The launch runs in process, not on Temporal (PRF-042).** A cycle launches
    in batches of 25 subjects, idempotent by review key, resumed by a sweep
-   every 60 seconds; a failure is `launch_failed` with Retry. Temporal when a
-   launch needs to outlive a deploy mid-batch at scale.
-2. **The audit log is Performance's own table, not `platform/audit`
-   (PRF-050).** Every read of a review and every change, with field names and
-   never values, refusals in their own transaction, shown in Settings ›
-   Performance › Activity log. Publishing `performance.activity.recorded` to
-   the central log is the next step.
+   every 60 seconds; a failure is `launch_failed` with Retry.
+2. **Done: one activity log for every module (PRF-050).** The owner chose the
+   company's log, with each module's filtered to it. Every module raises
+   `<module>.activity.recorded`; `platform/audit` keeps it under the module's
+   name; Settings lists each module's Activity log as
+   `/settings/activity?module=<key>`, read by that module's administrators.
+   `performance.audit` is no longer written; its lines were backfilled.
 3. **One record table (PRF-035, PRF-036).** Every aggregate is a row of
-   `performance.record` (kind, id, key, revision, body as JSON) under RLS;
-   members, settings, audit, idempotency and the outbox have tables of their
-   own. Columns per aggregate when a query needs an index the JSON cannot give.
+   `performance.record` under RLS.
 4. **The form view, builder and detail panel are composed in the remote, not
-   added to Reach (PRF-060 to PRF-063).** They are built from Reach's parts
-   (`RadioCard`, `SegmentedControl`, `RichTextEditor`, `Card`, `Dialog`);
-   moving them into `packages/ui` is a refactor once a second module needs a
-   form. No sentiment slider yet.
-5. **Bulk export is one combined PDF, not a zip (PRF-048).**
-6. **Read-only answers are drawn as plain text** from the stored rich text,
-   by a one-pass scanner, so no writer's markup reaches a reader's page.
-7. **Goals are visible to everyone at the company.** Per-goal visibility
-   (PRD §14.2) when a company asks for private goals.
-8. **Publishing a template is immediate**: draft and scheduled cycles follow
-   the new version, launched ones keep theirs; there is no "publishing" state.
-9. **Feedback audiences follow v2**: "the receiver and their manager" or
-   "only their manager"; the receiver alone when the company says so.
-10. **Release modes keep their three stored values** with the v2 words: when
-    the cycle closes (after calibration), on a date, or as each is submitted.
-    v2's "share the score" switch is not built; the score is shared on release.
-11. **The scale's top label is "Exceptional"** (v2), and the nine-box labels
-    are v2's.
-12. **The VM container is 192 MB with a 112 MB heap**, as Onboarding's.
-    Measure after the first deploy.
-13. **Performance's outbox is not relayed on the VM yet (PRF-003)**, as no
-    module's but People's is; it consumes People's events, which are.
-14. **On the phone**, everything that sets things up (cycles, templates,
-    calibration, automations, analytics, company settings, notes, new goals,
-    quizzes) is web only, each with its reason in `desktop-only.json`; a
-    session's door code is typed rather than scanned.
-15. **Not built yet**: the retention sweeper, legal holds and DSAR export
-    (PRF-046), the works council gate (PRF-049), signed webhooks (PRF-058),
-    `.ics` invitations (PRF-106), the AI Act file (PRF-143), Phase 4's
-    integrations and Phase 5's links to the other modules.
+   added to Reach (PRF-060 to PRF-063).**
+5. **Done: bulk export as one PDF or a zip, the reader's choice (PRF-048).**
+   The zip holds a PDF per review and `index.csv`.
+6. **Read-only answers are drawn as plain text**, by a one-pass scanner.
+7. **Done: goals are private until made public (PRD §14.2).** Owner and
+   managers by default; the team, or everyone, when the owner shares it.
+   Company goals are everyone's.
+8. **Publishing a template is immediate**; there is no "publishing" state.
+9. **Feedback audiences follow v2.**
+10. **Release modes keep their three stored values** with the v2 words.
+11. **The scale's top label is "Exceptional"** (v2).
+12. **The VM container is 192 MB with a 112 MB heap.** Measure.
+13. **Done: every module's outbox is relayed (PRF-003).** The VM's one relay
+    tails all six; nothing written before is replayed. People writes
+    `people.person.snapshot` (and restates its departments) for a company
+    whenever its modules change, and once after this deploy, so no module
+    shows a person as "Someone".
+14. **Done: on the phone a session's code is scanned with the camera**
+    (expo-camera); typing it stays as the fallback.
+15. **Not built yet**: the works council gate (PRF-049), the AI Act file
+    (PRF-143, parked to launch prep), Phase 4's provider integrations, chat
+    apps for the work (PRF-164), the assistant's capabilities (PRF-194) and
+    the links to Time Off, Documents, Onboarding and People (PRF-190 to
+    PRF-193): the next pull request.
+16. **A super administrator administers every module.** A People
+    administrator, however they became one, is named administrator of every
+    module the company has, whenever either happened (identity). People's
+    Roles page shows an administrator's HR and Finance as held. Removing
+    somebody as People administrator does not remove them elsewhere.

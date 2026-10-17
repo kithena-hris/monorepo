@@ -11,8 +11,22 @@ const ADA = '00000000-0000-4000-8000-0000000000a1';
 
 function memoryStore(): EntryStore & { readonly rows: StoredEntry[] } {
   const rows: StoredEntry[] = [];
+  const admins = new Map<string, boolean>();
   return {
     rows,
+    administrator(_tenantId, c) {
+      admins.set(`${c.module}:${c.accountId}`, c.named);
+      return Promise.resolve();
+    },
+    administers(_tenantId, accountId) {
+      return Promise.resolve(
+        new Set(
+          [...admins]
+            .filter(([k, named]) => named && k.endsWith(`:${accountId}`))
+            .map(([k]) => k.split(':')[0] ?? ''),
+        ),
+      );
+    },
     append(entry: Entry) {
       if (rows.some((r) => r.sourceEventId === entry.sourceEventId)) return Promise.resolve(false);
       rows.unshift({
@@ -46,6 +60,7 @@ const envelope = (eventId: string, over: Record<string, unknown> = {}) => ({
 });
 
 const ALL: Filter = {
+  module: null,
   areas: [],
   actorKind: null,
   actor: null,
@@ -102,6 +117,25 @@ describe('reading the log', () => {
     const read = readActivity({ store: await seeded(1), readers: roles(['finance']) });
     const answer = await read(asking, { filter: ALL, before: null });
     expect(answer.ok ? null : answer.error.code).toBe('FORBIDDEN');
+  });
+
+  it('lets a module’s administrator read that module’s activity alone', async () => {
+    const store = await seeded(1);
+    const record = recordEvent({ store });
+    await record({
+      ...envelope('01890000-0000-7000-8000-0000000000aa'),
+      eventName: 'identity.tenant.administrator_named',
+      actor: { kind: 'system', process: 'identity.admin' },
+      payload: { entitlement: 'module.performance', accountId: ADA, namedBy: null },
+    });
+    const read = readActivity({ store, readers: roles([]) });
+    const performance = await read(asking, {
+      filter: { ...ALL, module: 'performance' },
+      before: null,
+    });
+    expect(performance.ok).toBe(true);
+    const everything = await read(asking, { filter: ALL, before: null });
+    expect(everything.ok ? null : everything.error.code).toBe('FORBIDDEN');
   });
 
   it('lets Kithena support read without asking OpenFGA', async () => {

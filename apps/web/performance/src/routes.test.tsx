@@ -205,6 +205,7 @@ const goals: GoalsData = {
       commitment: 'committed',
       parentId: null,
       alignedTo: null,
+      visibility: 'owner',
     },
   ],
   tree: [],

@@ -1,6 +1,17 @@
-import { identityEvents, peopleEvents, type DefinedEvent } from '@kithena/contracts';
+import {
+  DocumentsActivityRecorded,
+  identityEvents,
+  OnboardingActivityRecorded,
+  peopleEvents,
+  PerformanceActivityRecorded,
+  RecruitingActivityRecorded,
+  TenantAdministratorNamed,
+  TenantAdministratorRemoved,
+  TimeOffActivityRecorded,
+  type DefinedEvent,
+} from '@kithena/contracts';
 
-import { entryFrom, kept } from '../domain/entry.js';
+import { entryFrom, kept, moduleOf } from '../domain/entry.js';
 import type { EntryStore } from './ports.js';
 
 /**
@@ -18,8 +29,21 @@ import type { EntryStore } from './ports.js';
 export type Recorded = 'recorded' | 'duplicate' | 'ignored' | 'rejected';
 
 const CONTRACTS = new Map<string, DefinedEvent>(
-  [...identityEvents, ...peopleEvents].map((e) => [e.name, e]),
+  [
+    ...identityEvents,
+    ...peopleEvents,
+    TimeOffActivityRecorded,
+    DocumentsActivityRecorded,
+    RecruitingActivityRecorded,
+    OnboardingActivityRecorded,
+    PerformanceActivityRecorded,
+  ].map((e) => [e.name, e]),
 );
+
+const ADMINISTRATORS: ReadonlySet<string> = new Set([
+  TenantAdministratorNamed.name,
+  TenantAdministratorRemoved.name,
+]);
 
 export function recordEvent(deps: {
   readonly store: EntryStore;
@@ -35,7 +59,18 @@ export function recordEvent(deps: {
       deps.onRejected?.(name, parsed?.error.message ?? 'no contract');
       return 'rejected';
     }
-    const entry = entryFrom(parsed.data as Parameters<typeof entryFrom>[0]);
+    const event = parsed.data as Parameters<typeof entryFrom>[0];
+    // Who administers which module: whose module log they may read.
+    if (ADMINISTRATORS.has(name)) {
+      const p = event.payload as { entitlement: string; accountId: string };
+      await deps.store.administrator(event.tenantId, {
+        module: moduleOf(p.entitlement),
+        accountId: p.accountId,
+        named: name === TenantAdministratorNamed.name,
+        at: event.occurredAt,
+      });
+    }
+    const entry = entryFrom(event);
     if (entry === null) return 'ignored';
     return (await deps.store.append(entry)) ? 'recorded' : 'duplicate';
   };

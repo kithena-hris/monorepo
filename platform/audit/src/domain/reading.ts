@@ -15,12 +15,22 @@ export const READING_ROLES = ['people_admin', 'hr'] as const;
  * People administrators and HR, as the People settings log allowed, and
  * Kithena support, a full administrator at the company it signed in to.
  * Finance reads what it asked for through its own requests, not everybody's.
+ *
+ * A module's administrators (named in the back office or by the company)
+ * read that module's own activity, its Settings › Activity log, and nothing
+ * else of the log.
  */
-export function mayRead(viewer: {
-  readonly roles: ReadonlySet<string>;
-  readonly support: boolean;
-}): boolean {
-  return viewer.support || READING_ROLES.some((r) => viewer.roles.has(r));
+export function mayRead(
+  viewer: {
+    readonly roles: ReadonlySet<string>;
+    readonly support: boolean;
+    /** The modules this person administers: `performance`, `timeoff`. */
+    readonly administers: ReadonlySet<string>;
+  },
+  module: string | null,
+): boolean {
+  if (viewer.support || READING_ROLES.some((r) => viewer.roles.has(r))) return true;
+  return module !== null && viewer.administers.has(module);
 }
 
 /**
@@ -31,6 +41,8 @@ export function mayRead(viewer: {
 export const SUPPORT_SESSION_HOURS = 1;
 
 export interface Filter {
+  /** One module's activity; null for every module's. */
+  readonly module: string | null;
   /** Any of these; empty for all. */
   readonly areas: readonly Area[];
   readonly actorKind: ActorKind | null;

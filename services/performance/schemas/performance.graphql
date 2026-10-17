@@ -28,6 +28,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """A webhook endpoint, its secret shown once"""
+  addPerformanceWebhook(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Archive or unarchive"""
   archivePerformanceCycle(
     id: String!
@@ -69,6 +75,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """A webhook endpoint’s events, or on or off"""
+  changePerformanceWebhook(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF18e: check in"""
   checkInPerformanceGoal(
     id: String!
@@ -81,6 +94,12 @@ type Mutation {
   """PF5g: close"""
   closePerformanceCycle(
     id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """HR confirms a batch: the due records of these people go"""
+  confirmPerformanceRetention(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
@@ -159,8 +178,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
-  """PF5h: PDFs"""
+  """PF5h: the reviews as one PDF, or a zip of a PDF each"""
   exportPerformanceCycle(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """A person’s data, for their request (DSAR)"""
+  exportPerformancePerson(
     id: String!
     idempotencyKey: String!
     """The REST body"""
@@ -202,6 +228,13 @@ type Mutation {
   ): JSON
   """PF10f: keep or delete"""
   keepPerformanceDetached(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """Lift a legal hold"""
+  liftPerformanceHold(
     id: String!
     idempotencyKey: String!
     """The REST body"""
@@ -267,6 +300,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """A legal hold on a person’s records"""
+  placePerformanceHold(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF10b: prefill"""
   prefillPerformanceReview(id: String!, idempotencyKey: String!): JSON
   """Publish the draft"""
@@ -307,6 +346,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Remove a webhook endpoint"""
+  removePerformanceWebhook(id: String!, idempotencyKey: String!): JSON
   """PF14e: request feedback"""
   requestPerformanceFeedback(
     idempotencyKey: String!
@@ -337,6 +378,13 @@ type Mutation {
   ): JSON
   """Retry a failed launch"""
   retryPerformanceLaunch(id: String!, idempotencyKey: String!): JSON
+  """A new webhook secret; the old one signs for a day"""
+  rotatePerformanceWebhook(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """X6: run a confirmed plan, as the person"""
   runPerformanceAsk(
     idempotencyKey: String!
@@ -417,6 +465,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Who sees a goal"""
+  setPerformanceGoalVisibility(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Grant or revoke a source"""
   setPerformanceGrant(
     idempotencyKey: String!
@@ -442,6 +497,13 @@ type Mutation {
   ): JSON
   """PF10b: summary with citations"""
   summarisePerformanceReview(id: String!, idempotencyKey: String!): JSON
+  """Send a webhook endpoint a signed test"""
+  testPerformanceWebhook(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF2e: translate a form"""
   translatePerformanceTemplate(
     id: String!
@@ -525,8 +587,6 @@ type Query {
   performanceAnalytics(cycleId: String, personId: String, tab: String): JSON
   """PF18f: goals in a cycle"""
   performanceAttachGoals(id: String!): JSON
-  """S11: the audit log"""
-  performanceAudit(ai: String, q: String, refused: String): JSON
   """PF16c: one automation"""
   performanceAutomation(id: String!): JSON
   """PF16: automations"""
@@ -573,6 +633,8 @@ type Query {
   performanceRecipient(personId: String!): JSON
   """PF11b: a released review"""
   performanceReleased(id: String!): JSON
+  """S10: what is due to go, the holds and what comes next"""
+  performanceRetention: JSON
   """PF10: write a review"""
   performanceReview(id: String!): JSON
   """A review as PDF"""
@@ -595,6 +657,8 @@ type Query {
   performanceUnlocks: JSON
   """Who the viewer is to Performance, for the shell"""
   performanceViewer: JSON
+  """S8b: webhook endpoints and their deliveries"""
+  performanceWebhooks: JSON
 }
 
 type Subscription {

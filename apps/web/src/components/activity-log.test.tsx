@@ -35,6 +35,9 @@ const base: ActivityEntry = {
   subjectId: null,
   subjectLabel: 'HR',
   reason: null,
+  outcome: 'done',
+  via: null,
+  ai: false,
   supportSignIn: null,
 };
 

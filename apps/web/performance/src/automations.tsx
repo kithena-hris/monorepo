@@ -333,7 +333,7 @@ function AutomationDialog({
           </Button>
           <RadioGroup
             aria-label="When"
-            className="grid gap-2 sm:grid-cols-2"
+            className="flex flex-col gap-2"
             value={t.kind}
             onValueChange={(v) => {
               set({ trigger: v === 'calendar' ? calendar : event });

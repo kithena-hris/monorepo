@@ -79,7 +79,7 @@ export async function load(
   if (r === null || r.hidden) return err(notFound('review'));
   const a = access(r, await readerOfCtx(ctx), await enough(ctx, r));
   if (a === null) {
-    await audit(ctx, {
+    await audit(ctx, { kind: 'review',
       action: 'Tried to read a review',
       target: title(r.kind),
       targetId: id,
@@ -514,7 +514,7 @@ export async function submitReview(
       },
     ),
   );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: 'Submitted a review',
     target: `${title(r.kind)} · ${(await names(ctx))(r.subjectId)}`,
     targetId: id,
@@ -539,7 +539,7 @@ export async function requestUnlockOf(
   const next = requestUnlock(r, reason, ctx.at);
   if (!next.ok) return next;
   await ctx.tx.reviews.save(next.value);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: 'Asked HR to unlock a review',
     target: title(r.kind),
     targetId: id,
@@ -555,7 +555,7 @@ export async function withdrawUnlockOf(ctx: Ctx, id: string): Promise<Result<{ o
   const next = withdrawUnlock(r);
   if (!next.ok) return next;
   await ctx.tx.reviews.save(next.value);
-  await audit(ctx, { action: 'Withdrew an unlock request', target: title(r.kind), targetId: id });
+  await audit(ctx, { kind: 'review', action: 'Withdrew an unlock request', target: title(r.kind), targetId: id });
   return ok({ ok: true });
 }
 
@@ -596,7 +596,7 @@ export async function decideUnlockOf(
       },
     ),
   );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: input.approve ? 'Unlocked a review' : 'Declined an unlock request',
     target: title(r.kind),
     targetId: id,
@@ -629,7 +629,7 @@ export async function declineReview(
       });
     ctx.touched.add(r.cycleId);
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: 'Declined a peer review',
     target: 'Peer review',
     targetId: id,
@@ -649,7 +649,7 @@ export async function detachedChoice(
   if (r.authorId !== ctx.viewer.personId) return err(forbidden());
   if (keep) await ctx.tx.reviews.save({ ...r, detached: { ...r.detached, keep: true } });
   else await ctx.tx.reviews.remove(id);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: keep ? 'Kept a detached review' : 'Deleted a detached review',
     target: title(r.kind),
     targetId: id,
@@ -679,7 +679,7 @@ export async function confirmSuggestion(
     savedAt: ctx.at,
     status: r.status === 'not_started' ? 'in_progress' : r.status,
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: 'Confirmed a suggestion',
     target: title(r.kind),
     targetId: id,
@@ -723,7 +723,7 @@ export async function aboutScreen(
       acknowledged: r.acknowledged,
     });
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Read reviews about someone',
     target: `${c.name} · ${name(subjectId)}`,
     targetId: cycleId,
@@ -795,7 +795,7 @@ export async function releaseToSubject(
     );
     released += 1;
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Released reviews to their subject',
     target: `${c.name} · ${(await names(ctx))(subjectId)}`,
     targetId: cycleId,
@@ -850,7 +850,7 @@ export async function releasedScreen(ctx: Ctx, id: string): Promise<Result<unkno
     );
   const scoreH = r.calibrated?.hundredths ?? r.submitted.at(-1)?.scoreHundredths ?? null;
   if (loaded.value.access === 'full' && ctx.viewer.personId !== r.authorId)
-    await audit(ctx, {
+    await audit(ctx, { kind: 'review',
       action: 'Read a review',
       target: `${title(r.kind)} · ${name(r.subjectId)}`,
       targetId: id,
@@ -896,7 +896,7 @@ export async function acknowledge(
     ...r,
     acknowledged: { at: ctx.at, comment: comment?.trim() === '' ? null : comment },
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: 'Acknowledged a review',
     target: title(r.kind),
     targetId: id,
@@ -982,7 +982,7 @@ export async function nominatePeers(
   await ctx.tx.nominations.save(done.value);
   if (done.value.state === 'approved' && c.state === 'in_progress')
     await reviewsFor(ctx, c, n.subjectId, { hidden: false });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'nomination',
     action: 'Nominated peers',
     target: `${c.name} · ${(await names(ctx))(n.subjectId)}`,
     targetId: id,
@@ -1009,7 +1009,7 @@ export async function decideNominations(
   await ctx.tx.nominations.save(done.value);
   const c = await ctx.tx.cycles.get(n.cycleId);
   if (c?.state === 'in_progress') await reviewsFor(ctx, c, n.subjectId, { hidden: false });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'nomination',
     action: 'Decided nominations',
     target: (await names(ctx))(n.subjectId),
     targetId: id,

@@ -55,7 +55,12 @@ describe('the roles screen (PEO-112)', () => {
 
   it('offers no role to oneself, and never the last administrator', () => {
     render(<RoleSettings {...props()} />);
-    expect(screen.getByRole('checkbox', { name: 'Finance for Priya Shah' })).toBeDisabled();
+    // Finance comes with administrator: ticked, and not hers to untick here.
+    const finance = screen.getByRole('checkbox', {
+      name: 'Finance for Priya Shah, included with People administrator',
+    });
+    expect(finance).toBeDisabled();
+    expect(finance).toBeChecked();
     expect(
       screen.getByRole('checkbox', { name: 'People administrator for Priya Shah' }),
     ).toBeDisabled();

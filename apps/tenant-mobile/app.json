@@ -30,7 +30,7 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Kithena reads the number on your ID card from a photo, so you don't have to type it. The photo isn't kept.",
+          "cameraPermission": "Kithena uses the camera to read the number on your ID card from a photo, so you don't have to type it, and to scan a training session's code at the door. Nothing it sees is kept.",
           "photosPermission": "Kithena uses a photo you choose for your profile."
         }
       ],
@@ -38,6 +38,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "When your company takes clock-ins only at the office, Kithena checks once, as you clock in, whether you're there. Your location isn't kept or sent."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kithena uses the camera to read the number on your ID card from a photo, so you don't have to type it, and to scan a training session's code at the door. Nothing it sees is kept.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ]
     ],

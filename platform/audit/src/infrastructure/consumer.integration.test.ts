@@ -33,8 +33,10 @@ beforeAll(async () => {
   brokers = rp.brokers;
   const admin = postgres(pg.url, { max: 1 });
   await drizzle(admin).execute(sql`CREATE ROLE svc_audit LOGIN PASSWORD 'svc_audit' NOBYPASSRLS`);
-  const path = new URL('../../../../migrations/20260929160000_audit.sql', import.meta.url);
-  await drizzle(admin).execute(sql.raw(await readFile(path, 'utf8')));
+  for (const file of ['20260929160000_audit.sql', '20261017180000_audit_modules.sql']) {
+    const path = new URL(`../../../../migrations/${file}`, import.meta.url);
+    await drizzle(admin).execute(sql.raw(await readFile(path, 'utf8')));
+  }
   const asService = new URL(pg.url);
   asService.username = 'svc_audit';
   asService.password = 'svc_audit';
@@ -122,6 +124,7 @@ describe('the audit consumer', () => {
       await new Promise((r) => setTimeout(r, 500));
       rows = await store.page(TENANT, {
         filter: {
+          module: null,
           areas: [],
           actorKind: null,
           actor: null,

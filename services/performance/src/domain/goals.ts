@@ -33,6 +33,12 @@ export interface CheckIn {
   readonly note: string | null;
 }
 
+/**
+ * Who sees a goal (§14.2): its owner and their managers only, the owner's team
+ * and managers, or everyone. Private until made public.
+ */
+export type GoalVisibility = 'owner' | 'team' | 'everyone';
+
 export interface Goal {
   readonly id: string;
   readonly title: string;
@@ -48,6 +54,38 @@ export interface Goal {
   readonly keyResults: readonly KeyResult[];
   readonly checkIns: readonly CheckIn[];
   readonly createdAt: string;
+  /** Absent on a goal set before visibility existed, which is private like any other. */
+  readonly visibility?: GoalVisibility;
+}
+
+/** A goal's visibility: as set, else private, except the company's own goals, which are everyone's. */
+export const visibilityOf = (g: Pick<Goal, 'visibility' | 'ownerKind'>): GoalVisibility =>
+  g.visibility ?? (g.ownerKind === 'company' ? 'everyone' : 'owner');
+
+/**
+ * Whether this reader sees this goal. HR and the owner always; anyone the
+ * owner reports to, at any depth (`org`, the reader's organisation); then as
+ * the goal says: for `team`, the owner's peers under the same manager and the
+ * owner's own reports; for `everyone`, everyone.
+ */
+export function canSeeGoal(
+  g: Pick<Goal, 'visibility' | 'ownerKind' | 'ownerId'>,
+  reader: {
+    readonly personId: string | null;
+    readonly managerId: string | null;
+    readonly hr: boolean;
+    readonly org: ReadonlySet<string>;
+  },
+  owner: { readonly managerId: string | null } | null,
+): boolean {
+  if (reader.hr) return true;
+  const visibility = visibilityOf(g);
+  if (visibility === 'everyone') return true;
+  if (g.ownerId === null) return false;
+  if (g.ownerId === reader.personId || reader.org.has(g.ownerId)) return true;
+  if (visibility === 'owner') return false;
+  const peers = reader.managerId !== null && reader.managerId === owner?.managerId;
+  return peers || reader.managerId === g.ownerId;
 }
 
 export interface Period {

@@ -25,6 +25,7 @@ export const OFFERED_MODULES: readonly ModuleEntitlement[] = [
   'module.timeoff',
   'module.documents',
   'module.recruiting',
+  'module.onboarding',
   'module.performance',
 ];
 
@@ -45,6 +46,7 @@ export const ADMINISTERED_MODULES: readonly ModuleEntitlement[] = [
   'module.timeoff',
   'module.documents',
   'module.recruiting',
+  'module.onboarding',
   'module.performance',
 ];
 

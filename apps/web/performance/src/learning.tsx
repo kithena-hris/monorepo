@@ -1,4 +1,5 @@
 import {
+  DatePicker,
   Alert,
   Badge,
   Button,
@@ -27,6 +28,7 @@ import {
   Textarea,
   icons,
 } from '@reach/ui';
+import { encode } from 'uqr';
 import { useState, type JSX } from 'react';
 
 import { FormView } from './form-view';
@@ -408,13 +410,15 @@ function Assign({
         <div className="flex flex-col gap-3">
           <Field>
             <FieldLabel>Due</FieldLabel>
-            <Input
-              type="date"
-              value={due}
-              onChange={(e) => {
-                setDue(e.target.value);
-              }}
-            />
+            <FieldControl>
+              <DatePicker
+                label="Due"
+                value={due === '' ? null : due}
+                onChange={(date) => {
+                  setDue(date ?? '');
+                }}
+              />
+            </FieldControl>
           </Field>
           <p className="text-sm text-fg-muted">
             An item that recurs is assigned again when it expires, on the item’s own schedule.
@@ -874,6 +878,44 @@ export interface SessionData {
   }[];
 }
 
+/**
+ * The door's code as a QR, one SVG path: a rectangle per run of dark modules,
+ * the standard quiet zone. Time Off's kiosk code's way (`kiosk/code.tsx`):
+ * Reach has no QR, so the encoder is this module's.
+ */
+function qrPath(text: string): { path: string; size: number } {
+  const { data, size } = encode(text, { border: 4 });
+  let path = '';
+  data.forEach((row, y) => {
+    let x = 0;
+    while (x < size) {
+      if (!row[x]) {
+        x++;
+        continue;
+      }
+      const start = x;
+      while (row[x]) x++;
+      path += `M${String(start)} ${String(y)}h${String(x - start)}v1h-${String(x - start)}z`;
+    }
+  });
+  return { path, size };
+}
+
+function DoorQr({ code }: { readonly code: string }): JSX.Element {
+  const qr = qrPath(code);
+  return (
+    <svg
+      role="img"
+      aria-label={`The session’s code, ${code}`}
+      viewBox={`0 0 ${String(qr.size)} ${String(qr.size)}`}
+      shapeRendering="crispEdges"
+      className="aspect-square w-40 rounded-md bg-white"
+    >
+      <path d={qr.path} fill="black" />
+    </svg>
+  );
+}
+
 /** PF15d: who was invited, who came, and the door's code; attendance by hand. */
 export function Session(props: ScreenProps<SessionData>): JSX.Element {
   const act = useAct(props);
@@ -887,10 +929,12 @@ export function Session(props: ScreenProps<SessionData>): JSX.Element {
           />
           <Refusal error={act.error} />
           <Card>
-            <CardContent className="flex flex-wrap items-center gap-3">
+            <CardContent className="flex flex-wrap items-center gap-4">
+              <DoorQr code={data.session.qr} />
               <span className="flex-1">
                 <span className="block text-sm text-fg-muted">
-                  Door code, shown at the session; a scan of it is attendance
+                  Show this at the door: a learner scans it with the Kithena app, or types the code,
+                  and is marked as attending
                 </span>
                 <span className="font-mono text-2xl font-bold tracking-widest">
                   {data.session.qr}

@@ -105,7 +105,6 @@ const Ai = z.object({ features: z.record(z.string(), z.boolean()) });
 const Integrations = z.object({
   connections: z.record(z.string(), z.boolean()),
   evidence: z.record(z.string(), z.boolean()),
-  webhooks: z.array(z.url()).max(10),
 });
 const Privacy = z.object({
   retention: z.object({
@@ -233,7 +232,6 @@ export const DEFAULTS = (): Settings => ({
   integrations: {
     connections: { google: false, microsoft: false, slack: false, teams: false, gchat: false },
     evidence: Object.fromEntries(EVIDENCE_SOURCES.map((s) => [s, true])),
-    webhooks: [],
   },
   privacy: {
     retention: { reviewsYears: 6, feedbackYears: 3, notesYears: 2, learningYears: 3, aiYears: 2 },
@@ -274,7 +272,7 @@ export async function saveSection(
       ),
     );
   await ctx.tx.settings.set(section, parsed.data);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'setting',
     action: 'Changed settings',
     target: `Settings › ${section}`,
     fields: Object.keys(parsed.data),

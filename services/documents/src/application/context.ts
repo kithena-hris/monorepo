@@ -6,7 +6,12 @@ import {
   type PendingEvent,
   type Result,
 } from '@kithena/domain-kit';
-import type { CalendarDate, DocumentId, Instant } from '@kithena/contracts';
+import {
+  DocumentsActivityRecorded,
+  type CalendarDate,
+  type DocumentId,
+  type Instant,
+} from '@kithena/contracts';
 
 import type { AccessFacts, Viewer } from '../domain/access/access.js';
 import type { Document } from '../domain/document/document.js';
@@ -82,6 +87,37 @@ export function event(
   };
 }
 
+/** Each act Documents records, as the company's activity log says it (`docs/audit.md`). */
+const SAID: Readonly<Record<string, string>> = {
+  requested: 'Asked somebody for a document',
+  access_granted: 'Granted a request to open a document',
+  access_refused: 'Turned down a request to open a document',
+  hold_placed: 'Placed a legal hold',
+  hold_lifted: 'Lifted a legal hold',
+  retention_deleted: 'Deleted a document at the end of its retention',
+  type_saved: 'Saved a document type',
+  settings_changed: 'Changed settings',
+  sent_for_signature: 'Sent a document for signature',
+  sealed: 'Sealed a signed document',
+  uploaded: 'Uploaded a document',
+  versioned: 'Uploaded a new version of a document',
+  made_private: 'Made a document private',
+  shared: 'Shared a document',
+  protected: 'Protected a document',
+  unprotected: 'Took a document’s protection off',
+  renamed: 'Renamed a document',
+  expiry_set: 'Set when a document expires',
+  deleted: 'Deleted a document',
+  restored: 'Restored a document',
+  sent_for_acknowledgement: 'Sent a document to be acknowledged',
+};
+
+/**
+ * One act: a line of the document's own history (`documents.activity`), and
+ * the same act for the company's activity log (`documents.activity.recorded`),
+ * in the same transaction. The log's line names the document by id, never by
+ * its title: a title can say what the document is about.
+ */
 export async function record(
   ctx: Ctx,
   action: string,
@@ -96,6 +132,26 @@ export async function record(
     detail,
     at: ctx.at,
   });
+  const keys = Array.isArray(detail['keys']) ? (detail['keys'] as unknown[]).map(String) : [];
+  await ctx.tx.outbox.publish([
+    event(ctx, DocumentsActivityRecorded.name, { type: 'activity', id: ctx.deps.newId() }, {
+      area:
+        action === 'type_saved' || action === 'settings_changed'
+          ? 'settings'
+          : action.startsWith('access_')
+            ? 'access'
+            : 'records',
+      action: SAID[action] ?? 'Changed a document',
+      detail: keys.length === 0 ? null : `Fields: ${keys.join(', ')}.`.slice(0, 500),
+      subjectKind: documentId === null ? null : 'document',
+      subjectId: documentId,
+      subjectLabel: null,
+      reason: null,
+      outcome: 'done',
+      via: 'App',
+      ai: false,
+    }),
+  ]);
 }
 
 /** What the access rules need, from the document and its type. */

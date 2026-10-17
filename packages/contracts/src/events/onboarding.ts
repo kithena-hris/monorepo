@@ -2,6 +2,7 @@ import * as z from 'zod';
 
 import { asInternal, asPublic, policy } from '../classification.js';
 import { defineEvent } from '../event.js';
+import { activityRecorded } from './activity.js';
 import { CalendarDate } from '../primitives.js';
 import {
   HireId,
@@ -68,7 +69,11 @@ export const ProbationReviewed = defineEvent(
   }),
 );
 
+/** Every act in Onboarding, in words, for the company's activity log (`docs/audit.md`). */
+export const OnboardingActivityRecorded = activityRecorded('onboarding');
+
 export const onboardingEvents = [
+  OnboardingActivityRecorded,
   PlanStarted,
   OnboardingTaskCompleted,
   PlanCompleted,

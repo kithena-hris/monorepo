@@ -6,7 +6,7 @@ import { isTimeZone } from '@kithena/domain-kit';
 
 import type { ActivityPage, readActivity } from '../application/read.js';
 import type { StoredEntry } from '../application/ports.js';
-import { ACTOR_KINDS, AREAS } from '../domain/entry.js';
+import { ACTOR_KINDS, AREAS, MODULES } from '../domain/entry.js';
 import { dayBounds } from '../domain/reading.js';
 import { readerFrom } from './caller.js';
 
@@ -36,6 +36,7 @@ const builder = createBuilder<{ Context: RequestContext }>();
 
 const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Args = z.object({
+  module: z.enum(MODULES).nullable().default(null),
   areas: z.array(z.enum(AREAS)).max(AREAS.length).default([]),
   by: z.enum(ACTOR_KINDS).nullable().default(null),
   actor: z.uuid().nullable().default(null),
@@ -85,6 +86,12 @@ const Entry = builder.objectRef<StoredEntry>('AuditEntry').implement({
     subjectId: t.id({ nullable: true, resolve: (e) => e.subject?.id ?? null }),
     subjectLabel: t.string({ nullable: true, resolve: (e) => e.subject?.label ?? null }),
     reason: t.exposeString('reason', { nullable: true }),
+    outcome: t.exposeString('outcome', { description: 'done, or refused.' }),
+    via: t.exposeString('via', {
+      nullable: true,
+      description: 'The surface a module’s act came from: Web, Phone, API, Slack, Ask Kithena.',
+    }),
+    ai: t.exposeBoolean('ai', { description: 'Proposed by AI and confirmed by the person.' }),
     supportSignIn: t.field({
       type: SupportSignIn,
       nullable: true,
@@ -106,8 +113,11 @@ builder.queryType({
     auditActivity: t.field({
       type: Activity,
       description:
-        'Who did what, across every module this company has. People administrators, HR and Kithena support.',
+        'Who did what, across every module this company has. People administrators, HR and Kithena support; one module’s, for its administrators too.',
       args: {
+        module: t.arg.string({
+          description: 'One module’s activity: people, identity, timeoff, documents, recruiting, onboarding, performance.',
+        }),
         areas: t.arg.stringList(),
         by: t.arg.string({ description: 'person, support, system or integration.' }),
         actor: t.arg.id({ description: 'One account’s acts.' }),
@@ -139,6 +149,7 @@ builder.queryType({
         const range = dayBounds(a.from, a.to, a.zone);
         const answer = await wiring.read(reader.value, {
           filter: {
+            module: a.module,
             areas: a.areas,
             actorKind: a.by,
             actor: a.actor,

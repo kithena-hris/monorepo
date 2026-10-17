@@ -6,6 +6,7 @@ import {
   AdministratorUnusable,
   ModuleNotEnabled,
   administratorChanges,
+  everywhere,
   mayAdminister,
   type AskedAdministrators,
   type NamedAdministrator,
@@ -33,6 +34,12 @@ export interface ModulesScope {
   accountStatus(accountId: string): Promise<string | null>;
   /** Module → who the back office has named and can still sign in. */
   administrators(): Promise<Readonly<Record<string, readonly string[]>>>;
+  /**
+   * The company's super administrators, who can still sign in: everybody
+   * named to administer People, and everybody People last reported holding
+   * its administrator role, however they were given it.
+   */
+  superAdministrators(): Promise<readonly string[]>;
   save(entitlements: readonly ModuleEntitlement[]): Promise<void>;
   /**
    * Remember the naming and, when `announce` (the default), raise
@@ -143,7 +150,21 @@ export function setEntitlements({ inTenant }: ModulesDeps): SetEntitlements {
       for (const administrator of removed) {
         await scope.remove(administrator, asked.namedBy ?? null, asked.confirmLast === true);
       }
-      return ok({ entitlements: checked.value, changed, named, removed });
+      // A super administrator administers every module, the ones just switched
+      // on included; nobody the operator just removed is put back.
+      const gone = new Set(removed.map((r) => `${r.entitlement}:${r.accountId}`));
+      const spread = everywhere(
+        checked.value,
+        await scope.administrators(),
+        await scope.superAdministrators(),
+      ).filter((a) => !gone.has(`${a.entitlement}:${a.accountId}`));
+      for (const administrator of spread) await scope.name(administrator, asked.namedBy ?? null);
+      return ok({
+        entitlements: checked.value,
+        changed,
+        named: [...named, ...spread],
+        removed,
+      });
     });
   };
 }
@@ -165,6 +186,39 @@ export function nameAdministrator({ inTenant }: ModulesDeps): NameAdministrator 
       const accounts = await usable(scope, [administrator]);
       if (!accounts.ok) return accounts;
       await scope.name(administrator, asked.namedBy ?? null, asked.grant !== false);
+      // Named to administer People: a super administrator, so every module too.
+      if (asked.grant !== false) await spreadIn(scope, current.effective, asked.namedBy ?? null);
       return ok(administrator);
+    });
+}
+
+/** Every super administrator named for every module the company has, where they are not yet. */
+async function spreadIn(
+  scope: ModulesScope,
+  effective: readonly ModuleEntitlement[],
+  namedBy: string | null,
+): Promise<readonly NamedAdministrator[]> {
+  const spread = everywhere(
+    effective,
+    await scope.administrators(),
+    await scope.superAdministrators(),
+  );
+  for (const administrator of spread) await scope.name(administrator, namedBy);
+  return spread;
+}
+
+/**
+ * After People reports who holds its roles: anybody it now calls an
+ * administrator administers every module the company has, however People
+ * came to grant it.
+ */
+export function spreadSuperAdministrators({
+  inTenant,
+}: ModulesDeps): (tenantId: string) => Promise<readonly NamedAdministrator[]> {
+  return (tenantId) =>
+    inTenant(tenantId, async (scope) => {
+      const current = await scope.modules();
+      if (current === null) return [];
+      return spreadIn(scope, current.effective, null);
     });
 }

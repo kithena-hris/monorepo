@@ -13,6 +13,7 @@ export default ModuleManifest.parse({
   dependsOn: [],
   enrichedBy: ['people', 'timeoff'],
   publishes: [
+    'documents.activity.recorded',
     'documents.document.filed',
     'documents.document.versioned',
     'documents.document.shared',
@@ -39,6 +40,7 @@ export default ModuleManifest.parse({
   ],
   consumes: [
     'people.person.hired',
+    'people.person.snapshot',
     'people.person.terminated',
     'people.person.manager_changed',
     'people.person.org_changed',

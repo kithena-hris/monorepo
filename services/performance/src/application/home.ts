@@ -5,7 +5,7 @@ import { label } from '../domain/cycle.js';
 import { confidence, progress } from '../domain/goals.js';
 import { stateOf } from '../domain/learning.js';
 import { isSubmitted } from '../domain/review.js';
-import { adminOnly, audit, hrOnly, me, names, type Ctx } from './context.js';
+import { adminOnly, audit, me, names, type Ctx } from './context.js';
 import { countsOf } from './cycles.js';
 import { stateFor } from './reviews.js';
 import { people, search, subtitle } from './members.js';
@@ -358,29 +358,12 @@ export async function setGrant(
     sources: { ...grant.sources, [source]: { on, at: ctx.at } },
     reads: on ? grant.reads : grant.reads.filter((r) => r.source !== source),
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'tool',
     action: on ? 'Granted a connected tool' : 'Revoked a connected tool',
     target: source,
     fields: ['grant'],
   });
   return ok({ ok: true });
-}
-
-/* ------------------------------------------------------- audit, S11 -- */
-
-export async function auditScreen(
-  ctx: Ctx,
-  filter: { q?: string; refused?: boolean; ai?: boolean },
-): Promise<Result<unknown>> {
-  const may = hrOnly(ctx);
-  if (!may.ok) return may;
-  const rows = await ctx.tx.audit.list({
-    ...(filter.q === undefined ? {} : { q: filter.q }),
-    ...(filter.refused === true ? { refused: true } : {}),
-    ...(filter.ai === true ? { ai: true } : {}),
-    limit: 300,
-  });
-  return ok({ rows });
 }
 
 /* ---------------------------------------------------- settings, S1–S10 -- */
