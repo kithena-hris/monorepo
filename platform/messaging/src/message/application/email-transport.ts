@@ -33,7 +33,7 @@ export interface OutgoingEmail {
   readonly idempotencyKey: string;
   /** Where a reply goes, when it is not the deployment's own: a company's reply address. */
   readonly replyTo?: EmailAddress;
-  /** A file the message carries: a signer's copy of what they signed, and nothing else so far. */
+  /** A file the message carries: a signer's copy of what they signed, a calendar invitation. */
   readonly attachments?: readonly { readonly filename: string; readonly base64: string }[];
 }
 

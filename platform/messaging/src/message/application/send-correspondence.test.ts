@@ -52,4 +52,37 @@ describe('correspondence (Recruiting PRD §12.7)', () => {
     expect(recorded[0]).toMatchObject({ kind: 'correspondence', status: 'accepted' });
     expect(JSON.stringify(recorded[0])).not.toContain('Body');
   });
+
+  it('carries an invitation it is given, and records nothing of it', async () => {
+    const sent: OutgoingEmail[] = [];
+    const recorded: DeliveryRecord[] = [];
+    const send = sendCorrespondence({
+      transport: {
+        name: 'fake',
+        send: (email) => {
+          sent.push(email);
+          return Promise.resolve(ok({ id: 'm2' }));
+        },
+      },
+      deliveries: {
+        record: (r: DeliveryRecord) => {
+          recorded.push(r);
+          return Promise.resolve();
+        },
+      } as never,
+    });
+    const invite = { filename: 'invite.ics', base64: Buffer.from('BEGIN:VCALENDAR').toString('base64') };
+    await send({
+      tenantId: '00000000-0000-4000-8000-000000000001',
+      to: 'ada@example.com',
+      subject: 'Invitation',
+      text: 'Body',
+      replyTo: null,
+      companyName: 'Acme',
+      dedupeKey: 'invite:1',
+      attachments: [invite],
+    });
+    expect(sent[0]?.attachments).toEqual([invite]);
+    expect(JSON.stringify(recorded[0])).not.toContain('invite.ics');
+  });
 });

@@ -20,6 +20,14 @@ export interface SendCorrespondenceRequest {
   readonly replyTo: string | null;
   readonly companyName: string;
   readonly dedupeKey: string;
+  /**
+   * A calendar invitation (`.ics`) or a PDF the module drew: never a file a
+   * person uploaded, so nothing here needs scanning. The record of the send
+   * holds neither its name nor its bytes.
+   */
+  readonly attachments?:
+    | readonly { readonly filename: string; readonly base64: string }[]
+    | undefined;
 }
 
 export type SendCorrespondence = (
@@ -53,6 +61,9 @@ export function sendCorrespondence(deps: {
       text: message.value.text,
       idempotencyKey: `${CORRESPONDENCE_KIND}/${digest}`,
       ...(replyTo === null ? {} : { replyTo: replyTo.value }),
+      ...(request.attachments === undefined || request.attachments.length === 0
+        ? {}
+        : { attachments: request.attachments }),
     });
     // The outcome, never the message.
     await deps.deliveries.record({

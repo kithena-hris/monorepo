@@ -23,6 +23,16 @@ const Request = z.object({
   replyTo: z.string().min(3).max(320).nullable(),
   companyName: z.string().min(1).max(120).default('Kithena'),
   dedupeKey: z.string().min(1).max(200),
+  /** A calendar invitation or a drawn PDF, by kind of file only: at most two, each small. */
+  attachments: z
+    .array(
+      z.object({
+        filename: z.string().regex(/^[\w ,.()-]{1,100}\.(ics|pdf)$/u),
+        base64: z.base64().max(200_000),
+      }),
+    )
+    .max(2)
+    .optional(),
 });
 
 export function correspondenceRoutes({
@@ -49,7 +59,8 @@ export function correspondenceRoutes({
       response.writeHead(401).end();
       return true;
     }
-    const body = await readJsonBody(request, 64_000);
+    // Room for an invitation or a short PDF beside the words.
+    const body = await readJsonBody(request, 512_000);
     if (body === null) return json(400, { code: 'MALFORMED_BODY' });
     const parsed = Request.safeParse(body);
     if (!parsed.success)
