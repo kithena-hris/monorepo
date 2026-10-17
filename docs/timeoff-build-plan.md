@@ -969,7 +969,7 @@ approver`, a conditional tuple whose ranges are checked against `today`;
   a Vercel Hobby project for `apps/web/timeoff` with its custom domain; and
   `module.timeoff` in `KITHENA_ENTITLEMENTS_PRODUCTION` when a company should
   see it. Time Off's outbox is not relayed: nothing on the VM reads its topic
-  yet. Measure the container's memory after its first deploy.
+  yet (relayed with every module's since 17 October 2026). Measure the container's memory after its first deploy.
 
 ### Web shell and Reach
 

@@ -1239,10 +1239,12 @@ TIMEOFF_FEED_SECRET=<openssl rand -base64 32>
 # Kafka SASL/TLS, when Redpanda leaves the VM: the same KAFKA_* as PEOPLE_ENV.
 ```
 
-Its outbox is not relayed yet: `relay-people` tails `people.outbox` only, and
-nothing on the VM reads Time Off's topic. Add `timeoff.outbox` to its
-`DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST` (the publication already holds it) when
-something does.
+Its outbox is relayed with every other module's on the VM: `relay-people`
+tails `people.outbox`, `timeoff.outbox`, `documents.outbox`,
+`recruiting.outbox`, `onboarding.outbox` and `performance.outbox`, one
+Debezium source for the one database, from the moment each joined the list
+(no snapshot, so nothing written earlier is replayed). The activity log, each
+module's consumers and each module's webhooks read the topics.
 
 | Setting                                                          | Holds                                                                                                                                                                                                                                                                                                                     |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
