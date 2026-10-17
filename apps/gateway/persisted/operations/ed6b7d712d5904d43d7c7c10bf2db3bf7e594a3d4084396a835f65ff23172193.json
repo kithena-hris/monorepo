@@ -1,0 +1,1 @@
+{"version":1,"body":"query PerformanceRecipient($personId: String!) {\n    performanceRecipient(personId: $personId)\n  }"}

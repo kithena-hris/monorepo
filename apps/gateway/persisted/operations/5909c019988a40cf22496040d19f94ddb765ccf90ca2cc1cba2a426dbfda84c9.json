@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PausePerformanceAutomation($id: String!, $key: String!, $input: JSON!) {\n    pausePerformanceAutomation(id: $id, idempotencyKey: $key, input: $input)\n  }"}

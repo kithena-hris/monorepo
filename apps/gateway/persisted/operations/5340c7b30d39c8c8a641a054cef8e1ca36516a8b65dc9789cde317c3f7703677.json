@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation WritePerformanceTemplate($key: String!, $input: JSON!) {\n    writePerformanceTemplate(idempotencyKey: $key, input: $input)\n  }"}

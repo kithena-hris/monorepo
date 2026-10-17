@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RespondPerformanceSession($id: String!, $key: String!, $input: JSON!, $sessionId: String!) {\n    respondPerformanceSession(id: $id, idempotencyKey: $key, input: $input, sessionId: $sessionId)\n  }"}

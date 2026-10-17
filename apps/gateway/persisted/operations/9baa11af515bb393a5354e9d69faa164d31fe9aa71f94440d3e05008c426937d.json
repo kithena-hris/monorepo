@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ReleasePerformanceSubject($cycleId: String!, $key: String!, $input: JSON!, $subjectId: String!) {\n    releasePerformanceSubject(cycleId: $cycleId, idempotencyKey: $key, input: $input, subjectId: $subjectId)\n  }"}

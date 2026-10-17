@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ClosePerformanceCycle($id: String!, $key: String!, $input: JSON!) {\n    closePerformanceCycle(id: $id, idempotencyKey: $key, input: $input)\n  }"}

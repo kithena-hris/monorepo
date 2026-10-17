@@ -23,6 +23,13 @@ subgraphs:
     routing_url: http://host.docker.internal:4006/graphql
     schema:
       file: ../../services/onboarding/schemas/onboarding.graphql
+  - name: performance
+    routing_url: http://host.docker.internal:4007/graphql
+    subscription:
+      url: http://host.docker.internal:4007/graphql
+      protocol: sse
+    schema:
+      file: ../../services/performance/schemas/performance.graphql
   - name: audit
     routing_url: http://host.docker.internal:4103/graphql
     schema:

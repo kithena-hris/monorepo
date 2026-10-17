@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DeletePerformanceTemplate($id: String!, $key: String!) {\n    deletePerformanceTemplate(id: $id, idempotencyKey: $key)\n  }"}

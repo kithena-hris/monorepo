@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SavePerformanceChart($key: String!, $input: JSON!) {\n    savePerformanceChart(idempotencyKey: $key, input: $input)\n  }"}

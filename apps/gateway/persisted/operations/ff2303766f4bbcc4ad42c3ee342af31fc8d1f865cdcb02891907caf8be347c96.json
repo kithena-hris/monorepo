@@ -1,0 +1,1 @@
+{"version":1,"body":"query PerformanceAnalytics($cycleId: String, $personId: String, $tab: String) {\n    performanceAnalytics(cycleId: $cycleId, personId: $personId, tab: $tab)\n  }"}
