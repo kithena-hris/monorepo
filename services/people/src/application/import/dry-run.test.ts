@@ -501,7 +501,7 @@ describe('org units named in a file', () => {
     ['Eva', 'Paz', 'eva@acme.test', '2026-03-01', 'Data'],
   ];
 
-  it('finds a unit by its path or its own name, and leaves anything else empty for HR', async () => {
+  it('finds a unit by its path or its own name, proposes one it lacks, and leaves the rest for HR', async () => {
     const store = priyasTenant();
     store.versions.push(
       versionOf(2, [
@@ -551,8 +551,10 @@ describe('org units named in a file', () => {
     for (const row of [carl, dani, eva]) expect(row?.changes).not.toHaveProperty('team');
     expect([carl, dani, eva].map((r) => r?.leftEmpty.map((l) => l.reason))).toEqual([
       ['more than one is called “Platform”'],
-      ['no org unit here is called “Marketing”: add it in Settings › Organisation › Org units'],
+      [],
       ['“Data” is archived'],
     ]);
+    // A department nobody has yet: the plan adds it for an administrator, as a work location.
+    expect(result.value.newDepartments).toEqual(['Marketing']);
   });
 });

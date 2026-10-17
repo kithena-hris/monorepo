@@ -100,6 +100,25 @@ export const choiceField = (
     effectiveDated: true,
   });
 
+/**
+ * Somebody's department: one of the company's own (Settings › Organisation),
+ * picked from a list, never typed, so every module groups people the same
+ * way. Existing companies get it from `pickedFields`.
+ */
+export const DEPARTMENT_FIELD: AttributeDefinitionInput = field({
+  key: 'org_unit_id',
+  sectionKey: 'employment',
+  label: 'Department',
+  order: 5,
+  dataType: 'org_unit_ref',
+  typeConfig: { kind: 'org_unit_ref' },
+  ownership: ['hr'],
+  visibility: [...everyone],
+  collectAt: 'hr_only',
+  classification: { ...identity, piiKind: 'none', aiEligible: true },
+  effectiveDated: true,
+});
+
 export const CORE_PACK: {
   readonly sections: readonly SectionInput[];
   readonly attributes: readonly AttributeDefinitionInput[];
@@ -211,5 +230,6 @@ export const CORE_PACK: {
       classification: { ...identity, piiKind: 'none', aiEligible: true },
       effectiveDated: true,
     }),
+    DEPARTMENT_FIELD,
   ],
 };

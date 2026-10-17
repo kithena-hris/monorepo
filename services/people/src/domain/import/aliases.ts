@@ -67,8 +67,28 @@ const ALIASES: Readonly<Record<string, readonly string[]>> = {
   ],
   date_of_birth: ['date of birth', 'dob', 'birth date', 'birthdate', 'birthday'],
   job_title: ['job title', 'title', 'position', 'job'],
-  manager_id: ['manager', 'manager email', 'reports to', 'line manager', 'supervisor'],
+  // Best first: when a file has several, the manager is read from the first.
+  // An email finds somebody here or in the file; a name, when one person has
+  // it; another system's number only a row of the same file.
+  manager_id: [
+    'manager email',
+    'supervisor email',
+    'manager',
+    'supervisor',
+    'line manager',
+    'reports to',
+    'manager id',
+    'manager employee id',
+    'manager employee number',
+    'supervisor id',
+    'supervisor employee id',
+    'supervisor employee number',
+    'line manager id',
+    'reports to id',
+  ],
   location_id: ['location', 'work location', 'office location'],
+  // Not "division" or "team": a file often has those beside its departments.
+  org_unit_id: ['department', 'dept', 'org unit', 'organisational unit', 'organizational unit'],
   legal_entity_id: ['legal entity', 'employer', 'employing entity'],
   employment_type: [
     'employment type',
@@ -98,6 +118,12 @@ const BY_NAME = new Map(
 /** The core field a header usually means, or null. */
 export function aliasOf(header: string): string | null {
   return BY_NAME.get(normal(header)) ?? null;
+}
+
+/** How good a name for its field a header is: 0 the best, in `ALIASES` order. */
+export function aliasRank(header: string): number {
+  const key = aliasOf(header);
+  return key === null ? Infinity : (ALIASES[key] ?? []).indexOf(normal(header));
 }
 
 /* ------------------------------------------- People's own choice fields -- */

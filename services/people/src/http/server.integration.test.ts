@@ -1268,9 +1268,12 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
         ? 'existing'
         : x.reason === 'Kithena creates this'
           ? 'kithena'
-          : proposedFor.has(x.index)
-            ? 'new'
-            : `${x.status}: ${x.reason ?? ''}`;
+          : // Another name for a field a better column fills: "Manager Email" for the manager.
+            x.reason?.startsWith('read from') === true
+            ? 'existing'
+            : proposedFor.has(x.index)
+              ? 'new'
+              : `${x.status}: ${x.reason ?? ''}`;
     expect(
       columns
         .filter((x) => !['existing', 'kithena', 'new'].includes(where(x)))
@@ -1536,9 +1539,10 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       columns: { existing: number; created: number; kithena: number; leftOut: number };
     }>(c.graph, { ...step, proposals }, 'meridian-run');
     expect(done).toMatchObject({ created: 100, blocked: 0, held: 0 });
-    // 14 to People's own (employment type, work model and the four lifecycle
-    // columns among them), 89 new, 2 ids.
-    expect(done.columns).toEqual({ existing: 14, created: 89, kithena: 2, leftOut: 0 });
+    // 15 to People's own (employment type, work model, Department and the four
+    // lifecycle columns among them), 87 new, 2 ids, and Manager Employee Number
+    // left out: the manager is read from Manager Email.
+    expect(done.columns).toEqual({ existing: 15, created: 87, kithena: 2, leftOut: 1 });
 
     // The requests: one per person, listing every detail asked of them that
     // the file left empty; none for anybody who has left, nor per field.
