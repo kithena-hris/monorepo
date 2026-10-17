@@ -8,6 +8,11 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
  * later needs to know everyone already there, whoever was hired before it
  * listened. One statement. A record without a name and a work address is
  * nobody a module can show yet, and is left out.
+ *
+ * Each row's event id is drawn in the subquery's select list, once per row.
+ * `CROSS JOIN LATERAL (SELECT uuidv7())` refers to no column, so Postgres
+ * draws it once for the whole statement: every row had the same id, and the
+ * outbox's primary key refused the second.
  */
 export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string): Promise<number> {
   // Its departments first, each restated as it is, `fieldsChanged` empty: a
@@ -16,10 +21,10 @@ export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string)
   INSERT INTO people.outbox
     (event_id, tenant_id, event_name, event_version, aggregate_type, aggregate_id,
      partition_key, envelope)
-  SELECT e.id, u.tenant_id, 'people.org_unit.updated', '1', 'OrgUnit', u.id::text,
+  SELECT u.event_id, u.tenant_id, 'people.org_unit.updated', '1', 'OrgUnit', u.id::text,
          u.tenant_id::text || ':' || u.id::text,
          jsonb_build_object(
-           'eventId', e.id,
+           'eventId', u.event_id,
            'eventName', 'people.org_unit.updated',
            'eventVersion', 1,
            'tenantId', u.tenant_id,
@@ -36,17 +41,16 @@ export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string)
              'parentId', u.parent_id,
              'archived', u.archived_at IS NOT NULL,
              'fieldsChanged', '[]'::jsonb))
-    FROM people.org_unit u
-   CROSS JOIN LATERAL (SELECT uuidv7() AS id) e
-   WHERE u.tenant_id = ${tenantId}::uuid`);
+    FROM (SELECT uuidv7() AS event_id, o.* FROM people.org_unit o
+           WHERE o.tenant_id = ${tenantId}::uuid) u`);
   const rows = await tx.execute(sql`
   INSERT INTO people.outbox
     (event_id, tenant_id, event_name, event_version, aggregate_type, aggregate_id,
      partition_key, envelope)
-  SELECT e.id, p.tenant_id, 'people.person.snapshot', '1', 'Person', p.id::text,
+  SELECT p.event_id, p.tenant_id, 'people.person.snapshot', '1', 'Person', p.id::text,
          p.tenant_id::text || ':' || p.id::text,
          jsonb_build_object(
-           'eventId', e.id,
+           'eventId', p.event_id,
            'eventName', 'people.person.snapshot',
            'eventVersion', 1,
            'tenantId', p.tenant_id,
@@ -71,13 +75,12 @@ export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string)
              'locationId', p.location_id,
              'legalEntityId', p.legal_entity_id,
              'title', left(NULLIF(trim(p.custom ->> 'job_title'), ''), 300)))
-    FROM people.person p
-   CROSS JOIN LATERAL (SELECT uuidv7() AS id) e
-   WHERE p.status IN ('pre_hire', 'active', 'on_leave', 'notice', 'terminated')
-     AND p.given_name IS NOT NULL AND p.given_name <> ''
-     AND p.family_name IS NOT NULL AND p.family_name <> ''
-     AND p.work_email IS NOT NULL AND p.work_email <> ''
-     AND p.tenant_id = ${tenantId}::uuid
+    FROM (SELECT uuidv7() AS event_id, r.* FROM people.person r
+           WHERE r.status IN ('pre_hire', 'active', 'on_leave', 'notice', 'terminated')
+             AND r.given_name IS NOT NULL AND r.given_name <> ''
+             AND r.family_name IS NOT NULL AND r.family_name <> ''
+             AND r.work_email IS NOT NULL AND r.work_email <> ''
+             AND r.tenant_id = ${tenantId}::uuid) p
   RETURNING event_id`);
   return [...rows].length;
 }
