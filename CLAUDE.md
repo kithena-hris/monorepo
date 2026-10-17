@@ -33,7 +33,7 @@ than quietly working around it.
   per-document grants, decided by its domain over
   its own rows (`docs/tech-stack.md`, "Documents"), and one of the three places
   a model may read content; the others are a job application in Recruiting
-  (`docs/tech-stack.md`, "Recruiting") and reviews, feedback and a person.s
+  (`docs/tech-stack.md`, "Recruiting") and reviews, feedback and a person's
   granted tools in Performance (`docs/tech-stack.md`, "Performance").
 - **Temporal** for long-running human-in-the-loop workflows. BullMQ for
   fire-and-forget jobs.
@@ -322,7 +322,7 @@ request and one merge into `main`. Requirements are in `docs/performance-prd.md`
 record of progress. Screens `PF1`–`PF21` (web) and `PFM1`–`PFM9` (mobile) are
 not designed yet. The owner accepted the AI decisions (PRD §22.2, §22.3): AI
 does everything a person can, numbers included as suggestions a person
-confirms, reads connected tools only on each person.s grant, and every action
+confirms, reads connected tools only on each person's grant, and every action
 is audited; the rest of PRD §36 is open for review. Read-only copies: the
 requirements at https://claude.ai/artifact/XizvxyfaS5jWHXz84vBSaj and the
 tickets at https://claude.ai/artifact/AoEcvVQBkZgwdpm57etTTg.

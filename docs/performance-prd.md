@@ -1054,10 +1054,10 @@ draft the self review's text answers from these on request.
 
 ### 13.5 Evidence from connected tools
 
-Nothing here happens until the writer grants it. With the company.s
+Nothing here happens until the writer grants it. With the company's
 connections on (§23), each person turns on, source by source, the tools AI may
 read for them (§22.3); nothing is on by default. Once granted, the panel
-searches those tools whenever it summarises or drafts, over the cycle.s review
+searches those tools whenever it summarises or drafts, over the cycle's review
 period, and the writer can narrow a request to fewer tools or a shorter period.
 Kithena searches **as the writer**, only what the writer can already see:
 
@@ -1558,12 +1558,12 @@ confirms every rating.**
   every scale, choice and binary question, rate goals, suggest the performance
   score and propose calibration changes. Each suggested number shows its reason
   and the evidence it cites, is marked "AI suggestion" until the person confirms
-  or changes it, and is never submitted, finalised or released on the model.s
+  or changes it, and is never submitted, finalised or released on the model's
   word alone: submitting a review or finalising a calibration asks the person to
   confirm every AI-suggested number still unconfirmed. The domain still
   computes every derived number (goal scores, sentiment positions, analytics)
-  from those answers. The audit records whether the final value is the AI.s
-  suggestion or the person.s change (§24.1), and §22.9 compares outcomes with
+  from those answers. The audit records whether the final value is the AI's
+  suggestion or the person's change (§24.1), and §22.9 compares outcomes with
   and without AI suggestions. AI-drafted text is marked until the person edits
   it.
 - Every AI action is audited as the person, with the AI marked (§24.1).
@@ -1593,7 +1593,7 @@ Performance:
 6. Content is never used to train a model; processing stays in the EU where the
    provider offers it; every prompt leaves through the AI gateway
    (`packages/telemetry/src/ai-gateway.ts`).
-7. The domain computes every derived number; a model.s numeric answers are
+7. The domain computes every derived number; a model's numeric answers are
    suggestions a person confirms (§22.1).
 8. Every AI output is logged with the model, the prompt version, the input hash,
    the output, and what the person did with it (AI Act art. 12).
@@ -1698,7 +1698,7 @@ module offers nothing that infers emotion from a meeting recording.
 The module processes personal data about performance on the employer's
 legitimate interest or the employment contract, never on consent. A data
 protection impact assessment template ships with the module (art. 35), because
-evaluation with AI and work-tool evidence meets the criteria. A person.s tool grant (§22.3) is a
+evaluation with AI and work-tool evidence meets the criteria. A person's tool grant (§22.3) is a
 control they hold over their own accounts, not the legal basis. Art. 22 does
 not apply because a person confirms every AI-suggested number and can change
 it, with the reasons and evidence in front of them, so the confirmation is a

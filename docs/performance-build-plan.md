@@ -278,7 +278,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       launch-prep task (PRF-168), not a gate.
 - [ ] **PRF-166** `EvidenceSource` port and adapters: Slack (Real-time Search),
       Teams, Google Chat, meeting notes, GitHub, GitLab, Linear, Jira,
-      Confluence. Each read only on the person.s own explicit, revocable,
+      Confluence. Each read only on the person's own explicit, revocable,
       audited grant, per source, off by default (My connected tools). PRD
       §13.5, §22.3, §23.1.
 - [ ] **PRF-167** Key results that follow a Linear project or a Jira epic.
