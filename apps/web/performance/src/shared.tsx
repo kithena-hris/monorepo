@@ -447,10 +447,16 @@ export function Search({
   );
 }
 
-/** A PDF Performance answered as base64, saved by the browser. */
-export function download(file: { readonly filename: string; readonly base64: string }): void {
+/** A file Performance answered as base64 (a PDF unless it says otherwise), saved by the browser. */
+export function download(file: {
+  readonly filename: string;
+  readonly base64: string;
+  readonly mediaType?: string;
+}): void {
   const bytes = Uint8Array.from(atob(file.base64), (c) => c.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  const url = URL.createObjectURL(
+    new Blob([bytes], { type: file.mediaType ?? 'application/pdf' }),
+  );
   const a = document.createElement('a');
   a.href = url;
   a.download = file.filename;

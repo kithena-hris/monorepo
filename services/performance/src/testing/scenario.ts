@@ -294,6 +294,30 @@ export async function oneCycle(h: Harness): Promise<void> {
   for (const id of peerIds)
     expect((await call('adam', 'GET', `/reviews/${id}/released`)).status).toBe(404);
 
+  // HR's bulk export, as one PDF or as a zip of a PDF each with an index.
+  const pdf = await data<{ base64: string; mediaType: string; filename: string }>(
+    'ada',
+    'POST',
+    `/cycles/${cycleId}/export`,
+    { full: false, kinds: [] },
+  );
+  expect([pdf.mediaType, Buffer.from(pdf.base64, 'base64').subarray(0, 4).toString()]).toEqual([
+    'application/pdf',
+    '%PDF',
+  ]);
+  const zip = await data<{ base64: string; mediaType: string; filename: string; count: number }>(
+    'ada',
+    'POST',
+    `/cycles/${cycleId}/export`,
+    { full: false, kinds: [], format: 'zip' },
+  );
+  const archive = Buffer.from(zip.base64, 'base64');
+  expect([zip.mediaType, zip.filename.endsWith('.zip'), archive.subarray(0, 2).toString()]).toEqual(
+    ['application/zip', true, 'PK'],
+  );
+  expect(archive.toString('latin1')).toContain('index.csv');
+  expect(archive.toString('latin1').split('.pdf').length - 1).toBeGreaterThanOrEqual(zip.count);
+
   // Feedback, seen by its recipient, undone within ten minutes by its writer only.
   const given = await data<{ id: string }>('omar', 'POST', '/feedback', {
     to: ids.adam.person,

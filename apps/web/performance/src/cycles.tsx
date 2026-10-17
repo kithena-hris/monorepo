@@ -1453,7 +1453,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                           setDialog('export');
                         }}
                       >
-                        Export PDFs
+                        Export
                       </Button>
                     ) : null}
                     {c.state === 'in_progress' ? (
@@ -2156,13 +2156,14 @@ function ExportDialog({
 }): JSX.Element {
   const [step, setStep] = useState(0);
   const [full, setFull] = useState('subject');
+  const [format, setFormat] = useState('pdf');
   const [include, setInclude] = useState<readonly string[]>(kinds.filter((k) => k !== 'goals'));
   return (
     <StepDialog
       open
       onClose={onDone}
-      title="Export PDFs"
-      steps={['Whose view', 'What', 'Export']}
+      title="Export reviews"
+      steps={['Whose view', 'What', 'As']}
       step={step}
       onStep={setStep}
       finishLabel="Export"
@@ -2170,9 +2171,9 @@ function ExportDialog({
       finish={() => {
         act.run(
           'ExportPerformanceCycle',
-          { id, input: { full: full === 'full', kinds: include } },
+          { id, input: { full: full === 'full', kinds: include, format } },
           (d) => {
-            download(d as { filename: string; base64: string });
+            download(d as { filename: string; base64: string; mediaType: string });
             onDone();
           },
         );
@@ -2212,10 +2213,17 @@ function ExportDialog({
         </div>
       ) : null}
       {step === 2 ? (
-        <p className="text-sm text-fg-muted">
-          Every submitted review, a page each, in one PDF. Filing in Documents follows when
-          Documents is on.
-        </p>
+        <RadioGroup aria-label="As" value={format} onValueChange={setFormat}>
+          <RadioCard value="pdf" description="Every submitted review, a page each, in one file.">
+            One PDF
+          </RadioCard>
+          <RadioCard
+            value="zip"
+            description="Each review its own PDF, named for whose it is, with an index of them all."
+          >
+            A zip of PDFs
+          </RadioCard>
+        </RadioGroup>
       ) : null}
     </StepDialog>
   );

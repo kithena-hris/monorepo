@@ -679,9 +679,13 @@ export const ROUTES: readonly Route[] = [
     name: 'exportPerformanceCycle',
     method: 'POST',
     path: `${V1}/cycles/{id}/export`,
-    summary: 'PF5h: PDFs',
+    summary: 'PF5h: the reviews as one PDF, or a zip of a PDF each',
     params: z.object({ id: Id }),
-    body: z.object({ full: z.boolean(), kinds: z.array(ActivityKind).max(6) }),
+    body: z.object({
+      full: z.boolean(),
+      kinds: z.array(ActivityKind).max(6),
+      format: z.enum(['pdf', 'zip']).default('pdf'),
+    }),
     run: (ctx, { params, body }) => pdf.cyclePdf(ctx, params.id, body),
   }),
   route({
