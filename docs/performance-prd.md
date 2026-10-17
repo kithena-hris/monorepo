@@ -296,10 +296,12 @@ breaks "every module boots alone". So:
                                                                   └─▶ performance.rating.finalized ─▶ Compensation
 
  Review         not_started → in_progress → locked ⇄ unlock_requested
-                                               ▲          │
-                                               └─unlocked ◀┘ (HR approves)
+                                             ▲ │ ▲        │
+                                             │ │ └unlocked ◀┘ (HR approves)
+                                             │ └─▶ in_review (calibration takes the score; reserved, §10.1)
+                                             └──── in_review (calibration finalised)
                 at close: not_started → abandoned · in_progress → withdrawn
-                          locked, unlock_requested, unlocked → completed
+                          locked, unlock_requested, unlocked, in_review → completed
 
  Nomination     (scheduled or in_progress) open → submitted → approved | changed → reviews created
 
@@ -617,28 +619,47 @@ See §15.8.
 
 ### 10.1 Statuses
 
-| Status             | Means                                                                        | Reviewer can            | Next                                                      |
-| ------------------ | ---------------------------------------------------------------------------- | ----------------------- | --------------------------------------------------------- |
-| `not_started`      | Created, nothing saved                                                       | Open and write          | `in_progress` on the first saved answer                   |
-| `in_progress`      | At least one answer saved                                                    | Write, submit           | `locked` on submit                                        |
-| `locked`           | Submitted. Read-only                                                         | Read, request an unlock | `unlock_requested`                                        |
-| `unlock_requested` | Submitted, an unlock request waits for HR (the request's "locked in review") | Read, withdraw request  | `unlocked` (approved) or `locked` (declined or withdrawn) |
-| `unlocked`         | Reopened by HR for edits; the last submitted version still stands            | Write, resubmit         | `locked` on resubmit                                      |
-| `abandoned`        | Cycle closed while `not_started`                                             | Nothing                 | Final                                                     |
-| `withdrawn`        | Cycle closed while `in_progress`; the draft is kept for HR, never shared     | Nothing                 | Final                                                     |
-| `completed`        | Cycle closed while `locked`, `unlock_requested` or `unlocked`                | Read                    | Final                                                     |
-| `cancelled`        | The subject or reviewer left the cycle before submitting                     | Nothing                 | Final                                                     |
+| Status             | Means                                                                                                                                                                                 | Reviewer can            | Next                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------ |
+| `not_started`      | Created, nothing saved                                                                                                                                                                | Open and write          | `in_progress` on the first saved answer                      |
+| `in_progress`      | At least one answer saved                                                                                                                                                             | Write, submit           | `locked` on submit                                           |
+| `locked`           | Submitted. Read-only                                                                                                                                                                  | Read, request an unlock | `unlock_requested`                                           |
+| `unlock_requested` | Submitted, an unlock request waits for HR (the request's "locked in review")                                                                                                          | Read, withdraw request  | `unlocked` (approved) or `locked` (declined or withdrawn)    |
+| `unlocked`         | Reopened by HR for edits; the last submitted version still stands                                                                                                                     | Write, resubmit         | `locked` on resubmit                                         |
+| `in_review`        | Submitted and held for calibration: its performance score is being compared and may be changed (§17). **Reserved**: in the contract and the domain, not reachable from any screen yet | Read                    | `locked` when calibration is finalised; `completed` at close |
+| `abandoned`        | Cycle closed while `not_started`                                                                                                                                                      | Nothing                 | Final                                                        |
+| `withdrawn`        | Cycle closed while `in_progress`; the draft is kept for HR, never shared                                                                                                              | Nothing                 | Final                                                        |
+| `completed`        | Cycle closed while `locked`, `unlock_requested`, `unlocked` or `in_review`                                                                                                            | Read                    | Final                                                        |
+| `cancelled`        | The subject or reviewer left the cycle before submitting                                                                                                                              | Nothing                 | Final                                                        |
 
 When a cycle closes on an `unlocked` review, **the last submitted version is the
 completed one**. Edits made after the unlock and not resubmitted are kept as a
 draft revision HR can see, and are never shared. An `unlock_requested` review
 closes as `completed` with the request closed as "cycle closed".
 
-The request named the statuses "in review and locked" and "locked in review".
-This document reads them as `locked` (submitted, being read by the manager or
-HR) and `unlock_requested` (locked while an unlock request is reviewed). If a
-separate state was meant — for example the manager reading a submitted self
-review — it is one more row here (§36, open question 1).
+**Why `in_review` exists.** Each manager rates differently: one gives most of
+their team the top score, another almost never does. Calibration makes the
+scores comparable before they are final (§17), and while it runs a review's
+score must not move under it. `in_review` is that hold:
+
+- A submitted review carrying a performance score (normally the manager
+  review) moves from `locked` to `in_review` when a calibration session takes
+  its subject. Reviews without a score (peer, upward, most self reviews) never
+  enter it.
+- While `in_review`, the reviewer reads and cannot request an unlock; an unlock
+  request already open waits until the session is finalised. HR can still take
+  a review out of the session, which returns it to `locked`.
+- Finalising the session moves the review back to `locked`. A score changed in
+  calibration is a calibration change superseding the reviewer's value; the
+  reviewer's answers are not edited.
+- At close, `in_review` becomes `completed`, like every submitted review.
+
+**Reserved for now.** The state, its transitions and the close mapping are in
+the contract (`PRF-010`) and the review aggregate (`PRF-022`), with domain
+tests, so stored data and events never need a migration when calibration
+arrives. No screen or operation moves a review into `in_review` until the
+calibration work (§17, `PRF-111`) ships; until then the UI has no badge for it,
+and a review that somehow reached it would show as "Submitted".
 
 ### 10.2 Autosave
 
@@ -1342,14 +1363,16 @@ Not in the request, and expected by every buyer of a mid-size or larger tool.
 - The session shows the group's performance scores as a distribution and on an
   **N-box grid** (§18.3), and each person's card with their score, goal score,
   sentiment and summary.
+- Adding a person to the session moves their scored review to `in_review`
+  (§10.1), so nobody changes it while it is compared.
 - Moving a person to another score is a **calibration change** with a required
   reason, recorded as an event that supersedes the manager's value. The manager's
   original stays visible. The subject never sees calibration notes.
 - Optional **guide distribution** (for example "about 15% in the top two
   scores"): shown as a target line, never enforced.
-- **Finalise** closes the session: the scores become final and
-  `performance.rating.finalized` is published per person (§25). Release follows
-  (§10.8).
+- **Finalise** closes the session: the scores become final, the reviews return
+  from `in_review` to `locked`, and `performance.rating.finalized` is published
+  per person (§25). Release follows (§10.8).
 
 ---
 
@@ -1731,21 +1754,21 @@ Every event carries `occurredAt` and `effectiveFrom`; corrections carry
 `supersedes`; every field is classified. **No event carries review text, an
 answer, feedback text, a note or a comment.**
 
-| Event                                                                                                    | When                                                | Notable fields                                                                                                                                             |
-| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `performance.cycle.created` / `.scheduled` / `.unscheduled`                                              | Setup                                               | cycleId, startDate, periodFrom, periodTo, automationId?                                                                                                    |
-| `performance.cycle.launching` / `.launched` / `.launch_failed`                                           | Launch                                              | counts per activity; reason                                                                                                                                |
-| `performance.cycle.closing` / `.closed` / `.archived`                                                    | End                                                 | counts by final status                                                                                                                                     |
-| `performance.participant.added` / `.removed`                                                             | Membership                                          | personId, by, reason?                                                                                                                                      |
-| `performance.nomination.submitted` / `.decided`                                                          | Nominations                                         | subjectId, nomineeIds, decision                                                                                                                            |
-| `performance.review.created` / `.started` / `.submitted` / `.unlock_requested` / `.unlocked` / `.closed` | Review state                                        | reviewId, activity, subjectId, reviewerId, formVersionId, status                                                                                           |
-| `performance.review.detached` / `.deleted`                                                               | Detached review                                     | reviewId                                                                                                                                                   |
-| `performance.results.released`                                                                           | Release                                             | cycleId, subjectIds                                                                                                                                        |
-| `performance.rating.finalized`                                                                           | Calibration finalised, or close without calibration | subjectId, cycleId, scale id, option key, value (decimal string), goalScore?, calibrated, `effectiveFrom` = `periodTo`; `supersedes` on a later correction |
-| `performance.feedback.sent`                                                                              | Feedback                                            | feedbackId, receiverId, shared, confidential (no writer id when confidential)                                                                              |
-| `performance.goal.created` / `.committed` / `.checked_in` / `.closed`                                    | Goals                                               | goalId, ownerId, periodId, progress (decimal string), status                                                                                               |
-| `performance.learning.assigned` / `.acknowledged` / `.attended` / `.completed`                           | Learning                                            | itemId, learnerId, source (session, provider, self), dueDate                                                                                               |
-| `performance.template.published`                                                                         | Template version                                    | templateId, versionId, version                                                                                                                             |
+| Event                                                                                                                                                             | When                                                | Notable fields                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `performance.cycle.created` / `.scheduled` / `.unscheduled`                                                                                                       | Setup                                               | cycleId, startDate, periodFrom, periodTo, automationId?                                                                                                    |
+| `performance.cycle.launching` / `.launched` / `.launch_failed`                                                                                                    | Launch                                              | counts per activity; reason                                                                                                                                |
+| `performance.cycle.closing` / `.closed` / `.archived`                                                                                                             | End                                                 | counts by final status                                                                                                                                     |
+| `performance.participant.added` / `.removed`                                                                                                                      | Membership                                          | personId, by, reason?                                                                                                                                      |
+| `performance.nomination.submitted` / `.decided`                                                                                                                   | Nominations                                         | subjectId, nomineeIds, decision                                                                                                                            |
+| `performance.review.created` / `.started` / `.submitted` / `.unlock_requested` / `.unlocked` / `.held_for_calibration` / `.released_from_calibration` / `.closed` | Review state                                        | reviewId, activity, subjectId, reviewerId, formVersionId, status                                                                                           |
+| `performance.review.detached` / `.deleted`                                                                                                                        | Detached review                                     | reviewId                                                                                                                                                   |
+| `performance.results.released`                                                                                                                                    | Release                                             | cycleId, subjectIds                                                                                                                                        |
+| `performance.rating.finalized`                                                                                                                                    | Calibration finalised, or close without calibration | subjectId, cycleId, scale id, option key, value (decimal string), goalScore?, calibrated, `effectiveFrom` = `periodTo`; `supersedes` on a later correction |
+| `performance.feedback.sent`                                                                                                                                       | Feedback                                            | feedbackId, receiverId, shared, confidential (no writer id when confidential)                                                                              |
+| `performance.goal.created` / `.committed` / `.checked_in` / `.closed`                                                                                             | Goals                                               | goalId, ownerId, periodId, progress (decimal string), status                                                                                               |
+| `performance.learning.assigned` / `.acknowledged` / `.attended` / `.completed`                                                                                    | Learning                                            | itemId, learnerId, source (session, provider, self), dueDate                                                                                               |
+| `performance.template.published`                                                                                                                                  | Template version                                    | templateId, versionId, version                                                                                                                             |
 
 `performance.rating.finalized` is the contract with Compensation. It is the
 calibrated value, on the company's performance score scale (§11.5), effective at
@@ -2044,18 +2067,19 @@ not a redesign.
    Compensation receives one scale; per-template scales remain possible.
 9. **Probation cycles group by week** (§16.3).
 10. **A model never answers a numeric question** (§22.1), including in prefill.
+11. **`in_review` is the calibration hold** (§10.1), decided by the owner on
+    2026-10-17: in the contract and the domain from Phase 1, reachable from no
+    screen until calibration ships.
 
 Open questions for the owner:
 
-1. **Statuses**: is "in review" a separate state (for example, a submitted self
-   review being read by the manager), or the same as `locked` (§10.1)?
-2. **Who approves an unlock**: the request says both "the manager can unlock"
+1. **Who approves an unlock**: the request says both "the manager can unlock"
    and "an inbox task for HR". This document makes HR the approver, with a setting
    to let managers approve for their reports (§10.4). Which should be the
    default?
-3. **Peers**: same manager by default, widened to same team by a setting
+2. **Peers**: same manager by default, widened to same team by a setting
    (§9.3). Should cross-team peers (people who work together often) be a third
    option once work tools are connected?
-4. **Business tasks** for Phase 4: Slack Marketplace listing, Google OAuth
+3. **Business tasks** for Phase 4: Slack Marketplace listing, Google OAuth
    verification, the GitHub App and Atlassian app, and asking Frontend Masters
    about a teams API. Entra and Zoom stay parked with the existing decision.

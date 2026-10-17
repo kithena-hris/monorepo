@@ -63,8 +63,9 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 
 ### Contracts (`packages/contracts/src/performance/`)
 
-- [ ] **PRF-010** Primitives: ids, cycle and review statuses, activity kinds,
-      confidentiality and sharing values, release modes. PRD §6, §7, §10.1.
+- [ ] **PRF-010** Primitives: ids, cycle and review statuses (including the
+      reserved `in_review`), activity kinds, confidentiality and sharing values,
+      release modes. PRD §6, §7, §10.1.
 - [ ] **PRF-011** Events, every field classified, `performance.rating.finalized`
       shaped for Compensation. PRD §25.
 - [ ] **PRF-012** The Inbox answer for Performance's item kinds. PRD §5.3.
@@ -89,7 +90,9 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       decline and replace, for peer and upward. PRD §9.3, §9.4.
 - [ ] **PRF-022** Review aggregate: statuses, revisions, unlock request and
       decision, close mapping (abandoned, withdrawn, completed), the last
-      submitted revision as the completed one. PRD §10.1, §10.4, §10.5.
+      submitted revision as the completed one; the `in_review` calibration hold
+      and its transitions, domain only, with no operation or screen reaching it.
+      PRD §10.1, §10.4, §10.5.
 - [ ] **PRF-023** Detached reviews: detach on removal, keep or delete by the
       author, reattach. PRD §10.7.
 - [ ] **PRF-024** Changes after launch: late joiners and their deadlines,
@@ -208,8 +211,9 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 - [ ] **PRF-109** Event-triggered automations and probation cycles grouped by
       week. PRD §16.3.
 - [ ] **PRF-110** PF16 automations screens.
-- [ ] **PRF-111** Calibration sessions, changes with reasons, guide
-      distribution, finalise and `performance.rating.finalized`. PRD §17.
+- [ ] **PRF-111** Calibration sessions: subjects added move their scored
+      review to `in_review`, changes with reasons, guide distribution, finalise
+      back to `locked` and `performance.rating.finalized`. PRD §10.1, §17.
 - [ ] **PRF-112** PF19 calibration with the N-box grid (`GridChart` or
       `HeatmapChart`). PRD §18.3.
 - [ ] **PRF-113** Rater analytics, across-cycle trends and the timeline.
@@ -281,5 +285,6 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 ## Progress notes
 
 - **2026-10-17.** Requirements written and proposed. Nothing is built.
-  Decisions open for review are in PRD §36, with four open questions for the
-  owner.
+  Decisions open for review are in PRD §36, with three open questions for the
+  owner. The `in_review` review state is the calibration hold, decided by the
+  owner: built in Phase 1 in the contract and domain, used from PRF-111.
