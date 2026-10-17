@@ -576,9 +576,13 @@ subject (§13).
 
 ### 9.3 Peer review
 
-**All peers**: at launch, a review for every peer of the subject, where a peer
-is someone with the same manager. A tenant can widen "peer" to "same team" in
-settings. Capped at the maximum; when there are more, the domain picks
+**A peer can be anyone** in the company except the subject. The subject's
+**team** (people with the same manager, and the rest of their team) comes
+first wherever peers are picked, but nobody is out of reach.
+
+**All peers**: at launch, a review from every member of the subject's team
+(same manager, and same team when the company widens it in settings). People
+outside the team join only by nomination. Capped at the maximum; when there are more, the domain picks
 deterministically (by most recent shared work, else alphabetically) and HR can
 change the picks.
 
@@ -590,9 +594,13 @@ cycle setting:
 - the manager nominates;
 - HR nominates.
 
-The nominator picks between the minimum and maximum from a list that suggests
-people the subject works with (members of the same team, people who gave them
-feedback this year, and with integrations, people they work with most; §23).
+The nominator picks between the minimum and maximum. The picker lists, in this
+order: **the team** first; then people the subject works with (people who gave
+or received feedback with them this year, members of shared goals and
+training, and, with granted tools, people they work with most; §22.3); then a
+search over **everyone else** in the company, any department, location or
+entity. Anyone found can be nominated. A nominee outside the team is shown with
+their department so the approver sees the choice.
 Approval can change the list. Approved nominations create the reviews: at
 launch when nominations finish before the start, or at once when the cycle is
 already `in_progress`. A nominee can decline with a reason; the nominator is
@@ -2186,14 +2194,22 @@ not a redesign.
     2026-10-17.
 14. **Every action is audited** with all its details, through `platform/audit`
     (§24.1), decided by the owner on 2026-10-17.
+15. **A peer can be anyone** in the company (§9.3), decided by the owner on
+    2026-10-17: the team is listed first, then people the subject works with,
+    then everyone else by search.
 
-Open questions for the owner:
+No questions are open.
 
-1. **Peers**: same manager by default, widened to same team by a setting
-   (§9.3). Should cross-team peers (people who work together often) be a third
-   option once work tools are connected?
-2. **Business tasks** for Phase 4: Slack Marketplace listing, Google OAuth
-   verification, the GitHub App and Atlassian app, and asking Frontend Masters
-   about a teams API. Entra and Zoom stay parked with the existing decision.
-   At launch preparation, a legal review of reading connected tools per launch
-   country (§22.3).
+**The owner's tasks** (business tasks, owned by the account owner, tracked as
+PRF-168; nothing in the build waits for them except going live with each
+integration):
+
+- List Kithena's Slack app in the Slack Marketplace (Slack's Real-time Search
+  API needs it, §23.1).
+- Google OAuth verification for the Chat, Meet and Calendar scopes.
+- Register the GitHub App, and the Atlassian app for Jira and Confluence.
+- Ask Frontend Masters whether a teams API exists (§15.7).
+- At launch preparation, a legal review of reading connected tools per launch
+  country (§22.3).
+- Entra (Teams, Microsoft 365) and Zoom stay parked with the existing decision
+  until Kithena is a registered company.

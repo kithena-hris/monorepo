@@ -85,10 +85,13 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 - [ ] **PRF-018** Deadlines (exact and relative), order checks, reminder rules.
       PRD §8.4.
 - [ ] **PRF-019** Checks before launch, blocking and not. PRD §8.6.
-- [ ] **PRF-020** Peers: same manager, same team setting, the deterministic
+- [ ] **PRF-020** Peers: anyone in the company except the subject; "all peers"
+      means the team (same manager, same team setting), with the deterministic
       cap. PRD §9.3.
 - [ ] **PRF-021** Nominations: who nominates, minimum and maximum, approval,
-      decline and replace, for peer and upward. PRD §9.3, §9.4.
+      decline and replace, for peer and upward; the picker lists the team first,
+      then people the subject works with, then a search over everyone. PRD §9.3,
+      §9.4.
 - [ ] **PRF-022** Review aggregate: statuses, revisions, unlock request and
       decision, close mapping (abandoned, withdrawn, completed), the last
       submitted revision as the completed one; the `in_review` calibration hold
@@ -283,10 +286,10 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       §13.5, §22.3, §23.1.
 - [ ] **PRF-167** Key results that follow a Linear project or a Jira epic.
       PRD §14.5.
-- [ ] **PRF-168** Business tasks: Slack Marketplace listing, Google OAuth
-      verification, GitHub App, Atlassian app, Frontend Masters enquiry. At launch prep, a legal review of
-      reading connected tools per launch country.
-      PRD §36.
+- [ ] **PRF-168** The owner's business tasks (the account owner does them):
+      Slack Marketplace listing, Google OAuth verification, the GitHub App, the
+      Atlassian app, the Frontend Masters enquiry; at launch prep, a legal
+      review of reading connected tools per launch country. PRD §36.
 
 ## Phase 5 — with the suite
 
@@ -305,8 +308,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 ## Progress notes
 
 - **2026-10-17.** Requirements written and proposed. Nothing is built.
-  Decisions open for review are in PRD §36, with two open questions for the
-  owner. The `in_review` review state is the calibration hold, decided by the
+  Decisions open for review are in PRD §36, with no open questions left. The `in_review` review state is the calibration hold, decided by the
   owner: built in Phase 1 in the contract and domain, used from PRF-111.
 - **2026-10-17, later.** The owner decided: AI does everything a person can,
   numbers included as suggestions a person confirms (PRF-136, PRF-145,
@@ -314,3 +316,6 @@ NOBYPASSRLS` and RLS on `tenant_id`.
   never by default (PRF-166); only HR approves an unlock (PRF-044); every
   action is audited with all its details (PRF-050). Both AI gates are ticked on
   this record.
+- **2026-10-17, later still.** A peer can be anyone in the company, with the
+  team listed first (PRF-020, PRF-021). The business tasks are the owner's
+  (PRF-168). No questions are open.
