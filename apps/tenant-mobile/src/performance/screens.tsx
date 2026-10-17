@@ -25,12 +25,14 @@ import {
   Text,
   Textarea,
 } from '@reach/ui-native';
-import { useRef, useState, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Linking, View } from 'react-native';
 
 import { Failed, Heading, Loading, Page } from '../frame';
 import { ask, useRead, useSigned, type Load } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
+import { sessionCode } from './session-code';
 
 /**
  * Performance on the phone (PRF-080 to PRF-089; design Mobile v2, PFM1 to
@@ -1964,8 +1966,16 @@ export function PerformanceLearning({
             </List>
           )}
           <Heading title="At a session" />
+          <Button
+            variant="primary"
+            onPress={() => {
+              navigation.navigate('PerformanceScan');
+            }}
+          >
+            Scan the code at the door
+          </Button>
           <Field>
-            <FieldLabel>The code shown at the door</FieldLabel>
+            <FieldLabel>Or type the code shown there</FieldLabel>
             <Input value={code} onChange={setCode} accessibilityLabel="Session code" />
           </Field>
           <Problem text={write.problem} />
@@ -1984,6 +1994,74 @@ export function PerformanceLearning({
         </>
       )}
     </Screen>
+  );
+}
+
+/**
+ * PFM7c: the code at the door, read with the camera (PRD §15.5): the first QR
+ * it sees marks the learner as attending, as a typed code does. The camera is
+ * asked for here, the first time, and nothing it sees is kept.
+ */
+export function PerformanceScan({
+  navigation,
+}: PeopleScreen<'PerformanceScan'>): React.JSX.Element {
+  const [permission, requestPermission] = useCameraPermissions();
+  const write = useWrite(() => undefined);
+  const [done, setDone] = useState(false);
+  // One read at a time: the camera reports the same code many times a second.
+  const reading = useRef(false);
+  const onScan = (scan: BarcodeScanningResult): void => {
+    if (reading.current || done) return;
+    reading.current = true;
+    write.run('ScanPerformanceSession', { input: { code: sessionCode(scan.data) } }, () => {
+      setDone(true);
+    });
+  };
+  useEffect(() => {
+    // A refused code: the next one the camera sees is read.
+    if (write.problem !== null) reading.current = false;
+  }, [write.problem]);
+  return (
+    <Page title="Scan the code" back={{ label: 'Learning', onPress: navigation.goBack }}>
+      {permission === null ? (
+        <Loading label="Opening the camera" />
+      ) : done ? (
+        <>
+          <Alert tone="success">You are marked as attending.</Alert>
+          <Button variant="primary" onPress={navigation.goBack}>
+            Done
+          </Button>
+        </>
+      ) : !permission.granted ? (
+        <>
+          <Text>
+            Kithena reads the session’s code with the camera. Nothing it sees is kept.
+          </Text>
+          <Button
+            variant="primary"
+            onPress={() => {
+              if (permission.canAskAgain) void requestPermission();
+              else void Linking.openSettings();
+            }}
+          >
+            {permission.canAskAgain ? 'Allow the camera' : 'Turn the camera on in Settings'}
+          </Button>
+        </>
+      ) : (
+        <>
+          <View className="aspect-square w-full overflow-hidden rounded-lg">
+            <CameraView
+              style={{ flex: 1 }}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={write.busy ? undefined : onScan}
+            />
+          </View>
+          <Text tone="muted">Point the camera at the code shown at the door.</Text>
+          <Problem text={write.problem} />
+        </>
+      )}
+    </Page>
   );
 }
 

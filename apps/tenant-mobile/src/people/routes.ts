@@ -195,6 +195,8 @@ export type PeopleRoutes = {
   PerformanceLearning: undefined;
   /** A learning item (PFM7b). */
   PerformanceItem: { id: string; title: string };
+  /** The session's code at the door, read with the camera (PFM7c). */
+  PerformanceScan: undefined;
   /** A manager's running cycles (PFM8). */
   PerformanceTeam: undefined;
   /** One cycle's people and their reviews (PFM8). */
