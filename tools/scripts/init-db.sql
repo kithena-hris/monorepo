@@ -12,6 +12,7 @@ CREATE SCHEMA IF NOT EXISTS recruiting;
 -- What Kithena Jobs reads across companies: published ads only (Recruiting PRD §31.2).
 CREATE SCHEMA IF NOT EXISTS recruiting_public;
 CREATE SCHEMA IF NOT EXISTS onboarding;
+CREATE SCHEMA IF NOT EXISTS performance;
 CREATE SCHEMA IF NOT EXISTS platform;
 -- Messaging is a platform service too, and gets its own schema for the same
 -- reason a module does: `svc_messaging` can see this and nothing else, so a
@@ -57,6 +58,10 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_onboarding') THEN
     CREATE ROLE svc_onboarding LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
+  -- Performance: NOBYPASSRLS, every table carries a tenant policy.
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_performance') THEN
+    CREATE ROLE svc_performance LOGIN PASSWORD 'kithena' NOBYPASSRLS;
+  END IF;
   -- The identity service is not a module and gets the platform schema instead.
   --
   -- NOBYPASSRLS is spelled out although it is already the default, because it
@@ -90,6 +95,7 @@ GRANT USAGE ON SCHEMA documents TO svc_documents;
 GRANT USAGE ON SCHEMA recruiting TO svc_recruiting;
 GRANT USAGE ON SCHEMA recruiting_public TO svc_recruiting, svc_jobs_reader;
 GRANT USAGE ON SCHEMA onboarding TO svc_onboarding;
+GRANT USAGE ON SCHEMA performance TO svc_performance;
 GRANT USAGE ON SCHEMA platform TO svc_identity;
 GRANT USAGE ON SCHEMA messaging TO svc_messaging;
 
