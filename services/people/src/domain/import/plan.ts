@@ -54,6 +54,8 @@ export interface PlanInput {
     /** Values of the file HR mapped to a work location here, in the import. */
     readonly mapped?: readonly { readonly value: string; readonly to: string }[];
   };
+  /** Departments the file names that are not here yet; `added` when this run adds them. */
+  readonly newDepartments?: { readonly names: readonly string[]; readonly added: boolean };
   /** References the rows leave empty for HR, and the fields they are in. */
   readonly leftEmpty?: { readonly count: number; readonly labels: readonly string[] };
   /**
@@ -316,6 +318,28 @@ export function planOf(input: PlanInput): {
     );
     if (places.added) {
       short.push(`add ${plural(places.names.length, 'work location', 'work locations')}`);
+    }
+  }
+  const departments = input.newDepartments;
+  if (departments !== undefined && departments.names.length > 0) {
+    const names = listed(departments.names);
+    steps.push(
+      departments.added
+        ? {
+            kind: 'places',
+            title: `Add ${plural(departments.names.length, 'department', 'departments')}: ${names}`,
+            detail:
+              'Nothing here has those names yet. Each is added in Settings › Organisation, where it can be renamed, moved under another or archived; people are then picked into a department, never typed.',
+          }
+        : {
+            kind: 'places',
+            title: `Leave department empty where the file names ${names}`,
+            detail:
+              'Only an administrator adds departments. Add them in Settings › Organisation and import the file again, or set them on each profile.',
+          },
+    );
+    if (departments.added) {
+      short.push(`add ${plural(departments.names.length, 'department', 'departments')}`);
     }
   }
   for (const c of input.choices ?? []) {

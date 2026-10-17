@@ -84,16 +84,8 @@ const ALIASES: Readonly<Record<string, readonly string[]>> = {
     'supervisor employee number',
   ],
   location_id: ['location', 'work location', 'office location'],
-  org_unit_id: [
-    'department',
-    'dept',
-    'team',
-    'division',
-    'business unit',
-    'org unit',
-    'organisational unit',
-    'organizational unit',
-  ],
+  // Not "division" or "team": a file often has those beside its departments.
+  org_unit_id: ['department', 'dept', 'org unit', 'organisational unit', 'organizational unit'],
   legal_entity_id: ['legal entity', 'employer', 'employing entity'],
   employment_type: [
     'employment type',

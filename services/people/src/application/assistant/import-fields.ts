@@ -366,9 +366,7 @@ export async function proposeNewFields(
   const merged = heard.length === 0 ? local : withModel(local, heard, g.sections, g.seen).proposals;
   const keyed = checked(g.planning, withKeys(merged, taken));
   const owners = await whoFills(planner, asking.tenantId, unplaced(keyed, g.sections));
-  return ok(
-    view(g, owned(keyed, g.sections, g.seen, owners), heard.length > 0 || owners.size > 0),
-  );
+  return ok(view(g, owned(keyed, g.sections, g.seen, owners), heard.length > 0 || owners.size > 0));
 }
 
 /**
@@ -648,8 +646,9 @@ async function planned(
     kept: ColumnProposal[];
     built: ReturnType<typeof draftWithNewFields>;
     view: ImportPlanView;
-    /** Work locations this run adds, and entities it starts numbering: an administrator's run only. */
+    /** Work locations and departments this run adds, and entities it starts numbering: an administrator's run only. */
     places: readonly NewLocation[];
+    departments: readonly string[];
     numbering: readonly string[];
   }>
 > {
@@ -722,6 +721,7 @@ async function planned(
         return to === undefined ? [] : [{ value: w.value, to: to.name }];
       }),
     },
+    newDepartments: { names: dry.newDepartments, added: canSet },
     who: { asked: peopleFor(g, fields, 'ask'), forHr: peopleFor(g, fields, 'hr') },
     lifecycle: dry.lifecycle,
     leftEmpty: {
@@ -758,6 +758,7 @@ async function planned(
       forHr: sum('hr'),
     },
     places: canSet ? dry.newLocations : [],
+    departments: canSet ? dry.newDepartments : [],
     numbering: canSet ? dry.createdIn.filter((e) => !g.numbered.has(e)) : [],
   });
 }
@@ -835,7 +836,7 @@ export async function setUpImport(
 ): Promise<Result<SetUp>> {
   const got = await planned(deps, asking, input);
   if (!got.ok) return got;
-  const { g, kept, view: plan, places, numbering } = got.value;
+  const { g, kept, view: plan, places, departments, numbering } = got.value;
   if (plan.blocked !== null) {
     return err(failure(g.isAdmin ? 'DRAFT_HAS_CHANGES' : 'FORBIDDEN', plan.blocked));
   }
@@ -848,7 +849,7 @@ export async function setUpImport(
     );
   }
   const publishing = g.published === null || kept.length > 0 || g.choices.attributes.length > 0;
-  const setting = publishing || places.length > 0 || numbering.length > 0;
+  const setting = publishing || places.length > 0 || departments.length > 0 || numbering.length > 0;
   const today = deps.clock.instant().slice(0, 10);
   const added = await run(deps.service, asking.tenantId, async (tx) => {
     if (!setting) {
@@ -857,7 +858,7 @@ export async function setUpImport(
     }
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     if (!everyone.isAdmin) return err(failure('FORBIDDEN', ONLY_ADMIN));
-    const settled = await settle(deps, tx, asking, g, places, numbering);
+    const settled = await settle(deps, tx, asking, g, places, numbering, departments);
     if (!settled.ok) return settled;
     if (!publishing) {
       await within(tx);
@@ -1003,9 +1004,19 @@ async function settle(
   g: Gathered,
   places: readonly NewLocation[],
   numbering: readonly string[],
+  departments: readonly string[] = [],
 ): Promise<Result<null>> {
   const org = deps.service.org;
   if (org === undefined) return ok(null);
+  for (const name of departments) {
+    const created = await org.createOrgUnit(tx, { ...asking, name, parentId: null });
+    if (!created.ok) {
+      return err({
+        ...created.error,
+        message: `The department “${name}” could not be added: ${created.error.message}. Nothing was imported.`,
+      });
+    }
+  }
   const entityOf = new Map(g.entities.map((e) => [e.id, e]));
   for (const place of places) {
     const entity = entityOf.get(place.legalEntityId);

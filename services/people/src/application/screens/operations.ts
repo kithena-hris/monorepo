@@ -394,6 +394,8 @@ export type ImportStageView =
         readonly leftEmptyCount: number;
         /** Work locations the file names that are not here yet, and the entity each would join. */
         readonly newLocations: readonly NewLocation[];
+        /** Departments the file names that are not here yet. */
+        readonly newDepartments: readonly string[];
         /** Each work location value of the file, its people, and what is proposed for it. */
         readonly workplaces: DryRun['workplaces'];
         /** The work locations and legal entities here, to map a value to or add one in. */
@@ -966,6 +968,7 @@ export async function dryRunImport(
           .map((l) => leftEmptyView(l, indexOf, byKey, names)),
         leftEmptyCount: plan.leftEmpty.length,
         newLocations: plan.newLocations,
+        newDepartments: plan.newDepartments,
         workplaces: plan.workplaces,
         here: {
           ...plan.here,

@@ -234,6 +234,12 @@ export interface DryRun {
    * run adds them before the import, which then finds them by name.
    */
   readonly newLocations: readonly NewLocation[];
+  /**
+   * Departments the file names that this company does not have yet. An
+   * administrator's run adds them before the import, as it adds work
+   * locations, and every row then finds its own by name.
+   */
+  readonly newDepartments: readonly string[];
   /** Each distinct work location value of the file, its people, and what is proposed for it. */
   readonly workplaces: readonly WorkplaceValue[];
   /** What a value may be mapped to or added in: the live work locations and legal entities here. */
@@ -455,6 +461,7 @@ export async function dryRun(
   const items = itemsByPerson(sheets.filter((s) => s.imported).map((s) => s.source));
   const blockedItems: BlockedItem[] = [];
   const newLocations = new Map<string, NewLocation>();
+  const newDepartments = new Map<string, string>();
   const classify = rowClassifier(
     version,
     input,
@@ -464,6 +471,7 @@ export async function dryRun(
     calendar,
     { items, blocked: blockedItems },
     newLocations,
+    newDepartments,
   );
   const rows = input.file.rows.map(classify);
   // What no importable row claimed: an item whose row is blocked, a
@@ -530,6 +538,7 @@ export async function dryRun(
       .filter((r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged')
       .flatMap((r) => r.leftEmpty),
     newLocations: [...newLocations.values()],
+    newDepartments: [...newDepartments.values()],
     ...workplacesOf(input, rows, calendar),
     rows,
     schemaVersion: version.version,
@@ -677,6 +686,7 @@ function rowClassifier(
   calendar: TenantCalendar,
   repeating: { readonly items: ItemsByPerson; readonly blocked: BlockedItem[] },
   newLocations: Map<string, NewLocation>,
+  newDepartments: Map<string, string>,
 ) {
   const at = clock.instant();
   const definitions = version.document.attributes;
@@ -791,17 +801,14 @@ function rowClassifier(
             empty(ref.kind === 'new' ? `no legal entity here is called “${ref.name}”` : ref.reason);
           }
         } else if (kind === 'org_unit_ref') {
-          // ponytail: a unit the company lacks is left empty, not added as a location would be.
           const byPath = placeOf(raw, unitsByPath);
           const ref = byPath.kind === 'new' ? placeOf(raw, units) : byPath;
           if (ref.kind === 'id') refs[key] = ref.id;
-          else {
-            empty(
-              ref.kind === 'new'
-                ? `no org unit here is called “${ref.name}”: add it in Settings › Organisation › Org units`
-                : ref.reason,
-            );
-          }
+          else if (ref.kind === 'new') {
+            // Not yet a department: the plan says it is added, or, for HR, that it is not.
+            const wanted = ref.name.toLocaleLowerCase('en');
+            if (!newDepartments.has(wanted)) newDepartments.set(wanted, ref.name);
+          } else empty(ref.reason);
         } else {
           const entityHere =
             refs['legal_entity_id'] ?? person?.attributes['legal_entity_id'] ?? onlyEntity;

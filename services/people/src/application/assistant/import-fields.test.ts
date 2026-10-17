@@ -200,6 +200,7 @@ function world(
             leftEmpty: [],
             leftEmptyCount: 0,
             newLocations: [],
+            newDepartments: [],
             workplaces: [
               {
                 key: 'nyc hq',
@@ -463,11 +464,7 @@ describe('proposing fields for new columns', () => {
     expect(
       got.value.proposals.map((p) => [p.header, p.forExisting.kind, p.forExistingWhy]),
     ).toEqual([
-      [
-        'Favourite colour',
-        'ask',
-        'The assistant reads it as theirs to give, so they are asked.',
-      ],
+      ['Favourite colour', 'ask', 'The assistant reads it as theirs to give, so they are asked.'],
       ['Spirit animal', 'leave', 'Nice to have: nobody is chased for it.'],
       ['IBAN', 'ask', 'Bank details are the employee’s to give.'],
     ]);
