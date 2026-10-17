@@ -1,0 +1,1 @@
+{"version":1,"body":"query PerformanceGoals($period: String, $risk: String, $scope: String, $tab: String) {\n    performanceGoals(period: $period, risk: $risk, scope: $scope, tab: $tab)\n  }"}

@@ -38,11 +38,12 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { savedLook, setLook, type Look } from '../../appearance';
 import { Failed, Loading, Page } from '../../frame';
+import { MoreModules } from '../../more';
 import { ask, useSigned } from '../api';
 import type { Roles } from '../roles';
 import { AskedChange } from './field-sentence';
@@ -111,6 +112,7 @@ const LOOKS: readonly [Look, string][] = [
  * above. A setting this viewer may not open is not drawn.
  */
 export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.Element {
+  const { performance } = useContext(MoreModules);
   const signed = useSigned();
   const [data, setData] = useState<Overview | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -339,6 +341,19 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
         navigation.navigate('Notifications');
       },
     },
+    // Performance's grants are each person's own (PFS3).
+    ...(performance
+      ? [
+          {
+            title: 'My connected tools',
+            line: 'What Kithena may read of your work for your reviews',
+            icon: Plug,
+            go: () => {
+              navigation.navigate('PerformanceTools');
+            },
+          },
+        ]
+      : []),
     {
       title: 'Appearance',
       line: LOOKS.find(([value]) => value === look)?.[1] ?? 'Automatic',

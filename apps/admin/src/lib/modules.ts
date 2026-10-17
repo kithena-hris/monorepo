@@ -21,6 +21,10 @@ const WORDS: Record<string, { label: string; description: string }> = {
     label: 'Recruiting',
     description: 'Job ads, the public job site, candidates, interviews and offers.',
   },
+  'module.performance': {
+    label: 'Performance',
+    description: 'Review cycles, feedback, goals, learning and calibration.',
+  },
 };
 
 export const MODULE_CHOICES: readonly {

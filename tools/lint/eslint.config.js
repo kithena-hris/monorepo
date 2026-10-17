@@ -87,10 +87,12 @@ export default tseslint.config(
             // rather than in spite of it.
             'apps/*/postcss.config.mjs',
             'apps/*/*/postcss.config.mjs',
-            // Only db-kit. Every other package either has no vitest config or
+            // db-kit and form-kit. Every other package either has no vitest config or
             // lists it in its own tsconfig, which is the better home; db-kit
             // cannot, because its `rootDir` is `src` and these sit beside it.
             'packages/db-kit/vitest.*.ts',
+            // form-kit for db-kit's reason: `rootDir` is `src`.
+            'packages/form-kit/vitest.config.ts',
           ],
           // Every match is a one-screen config file, so the default project
           // stays cheap; the default cap of 8 was reached by the second Expo

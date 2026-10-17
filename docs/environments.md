@@ -1507,6 +1507,26 @@ remote, `onboarding.kithena.com`. No bucket. In order:
 
 Onboarding is not on staging.
 
+#### Performance's settings
+
+Performance (`services/performance`, PRF-001) deploys as Onboarding does: a
+container (`performance`, 4007, `svc_performance`), the router's subgraph and
+its remote, `performance.kithena.com`. Its cycle stream (`performanceLive`)
+reaches the router over SSE, the first subgraph subscription. No bucket: a PDF
+is drawn on request. In order:
+
+1. **Environment secrets** in `production`: `PERFORMANCE_API_TOKEN` (the
+   router–Performance pair) and, optionally, `MESSAGING_PERFORMANCE_TOKEN`
+   (the Performance–messaging pair, in messaging's settings too) for its
+   emails. Without the first the deploy skips Performance. Its AI features
+   read the assistant's model key, `ASSISTANT_API_KEY`; unset, they are off.
+2. **The remote**: `VERCEL_PROJECT_ID_PERFORMANCE_REMOTE_PRODUCTION`,
+   `PERFORMANCE_REMOTE_URL_PRODUCTION`, `PERFORMANCE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`
+   and the secret `PERFORMANCE_REMOTE_SSR_SIGNING_KEY`.
+3. **Selling it**: `module.performance`.
+
+Performance is not on staging.
+
 #### The assistant's settings
 
 The assistant (`platform/assistant`, `docs/assistant-prd.md` §15) runs on the

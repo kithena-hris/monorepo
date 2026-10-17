@@ -37,3 +37,6 @@ export * from './recruiting/public.js';
 export * from './recruiting/inbox.js';
 export * from './onboarding/primitives.js';
 export * from './events/onboarding.js';
+export * from './forms/index.js';
+export * from './performance/primitives.js';
+export * from './events/performance.js';

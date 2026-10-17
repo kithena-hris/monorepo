@@ -1,0 +1,56 @@
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import manifest from '../../module.manifest.js';
+import { composePerformance } from '../composition.js';
+import { memoryUnitOfWork } from '../testing/memory.js';
+import { oneCycle } from '../testing/scenario.js';
+
+/**
+ * Performance boots with every sibling module absent (PRF-006): the config
+ * resolves People, Time Off, Documents, Recruiting and Onboarding to a file
+ * that throws on evaluation, so a sideways import fails here. Then one cycle
+ * runs end to end with members from the import and no model key.
+ */
+describe('Performance, alone', () => {
+  let server: Server;
+  let base: string;
+
+  beforeAll(async () => {
+    const { listener } = composePerformance({});
+    server = createServer(listener);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  });
+  afterAll(
+    () =>
+      new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve();
+        });
+      }),
+  );
+
+  it('declares nothing it cannot run without', () => {
+    expect(manifest.dependsOn).toEqual([]);
+    expect(manifest.requiresPeopleSource).toBe('either');
+  });
+
+  it('answers its health check', async () => {
+    const response = await fetch(`${base}/healthz`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+  });
+
+  it('runs one cycle end to end with every review activity', async () => {
+    const world = memoryUnitOfWork();
+    await oneCycle({
+      uow: world.uow,
+      events: (tenantId) =>
+        Promise.resolve(
+          world.outbox(tenantId).map((e) => ({ eventName: e.eventName, payload: e.payload })),
+        ),
+    });
+  });
+});

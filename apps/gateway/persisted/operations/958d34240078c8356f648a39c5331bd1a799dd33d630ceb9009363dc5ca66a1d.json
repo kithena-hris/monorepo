@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DuplicatePerformanceTemplate($id: String!, $key: String!, $input: JSON!) {\n    duplicatePerformanceTemplate(id: $id, idempotencyKey: $key, input: $input)\n  }"}

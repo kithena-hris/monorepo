@@ -1,0 +1,2359 @@
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  Chip,
+  ChipRow,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  EmptyState,
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldLabel,
+  Input,
+  KeyValues,
+  NumberField,
+  PageHeader,
+  Pagination,
+  Progress,
+  RadioCard,
+  RadioGroup,
+  SearchField,
+  SegmentedControl,
+  SegmentedControlItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Stat,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TertiaryNav,
+  icons,
+} from '@reach/ui';
+import { useState, type JSX } from 'react';
+
+import { Loaded } from './load';
+import {
+  CycleBadge,
+  Live,
+  Modal,
+  Person,
+  Refusal,
+  ReviewBadge,
+  Search,
+  StepDialog,
+  SwitchRow,
+  To,
+  day,
+  download,
+  kindLabel,
+  plural,
+  score,
+  useAct,
+  when,
+  words,
+  type Act,
+} from './shared';
+import type { Kind, ScreenProps } from './types';
+
+/**
+ * Cycles (PRD §8, §19; design PF4–PF6, PF9): the list, setup in five steps in
+ * a centred dialog, and the overview, live, with its table, bulk actions and
+ * every change after launch.
+ */
+
+const KINDS: readonly Kind[] = ['self', 'manager', 'peer', 'upward', 'skip', 'goals'];
+
+/* --------------------------------------------------------------- cycles -- */
+
+export interface CyclesData {
+  readonly rows: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly owner: string;
+    readonly state: string;
+    readonly who: string;
+    readonly kinds: readonly string[];
+    readonly dates: string;
+    readonly progress: number;
+  }[];
+  readonly hr: boolean;
+}
+
+const STATES = [
+  ['', 'All'],
+  ['draft', 'Draft'],
+  ['scheduled', 'Scheduled'],
+  ['in_progress', 'In progress'],
+  ['closed', 'Closed'],
+  ['archived', 'Archived'],
+] as const;
+
+export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
+  const act = useAct(props);
+  const [creating, setCreating] = useState(props.search?.['new'] === '1');
+  const [copying, setCopying] = useState(false);
+  const [name, setName] = useState('');
+  const [start, setStart] = useState('');
+  const [from, setFrom] = useState('');
+  const state = props.search?.['state'] ?? '';
+  const create = (copyFrom: string | null): void => {
+    act.run(
+      'CreatePerformanceCycle',
+      { input: { name, start: start === '' ? null : start, copyFrom } },
+      (d) => {
+        props.onNavigate?.(`/performance/cycles/${(d as { id: string }).id}/setup`);
+      },
+    );
+  };
+  return (
+    <Loaded load={props.load} what="cycles">
+      {(data) => (
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            title="Cycles"
+            description="A cycle is a set of review activities for a group of people, with deadlines. Filters are in the address."
+            actions={
+              data.hr ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    startIcon={<icons.copy aria-hidden />}
+                    onClick={() => {
+                      setCopying(true);
+                    }}
+                  >
+                    Copy a cycle
+                  </Button>
+                  <Button
+                    startIcon={<icons.add aria-hidden />}
+                    onClick={() => {
+                      setCreating(true);
+                    }}
+                  >
+                    New cycle
+                  </Button>
+                </>
+              ) : undefined
+            }
+          />
+          <Card>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Search
+                  label="Search cycles"
+                  placeholder="Search cycles"
+                  initial={props.search?.['q'] ?? ''}
+                  onSearch={(q) => {
+                    props.onFilter?.({ q: q === '' ? null : q });
+                  }}
+                />
+                <ChipRow aria-label="State">
+                  {STATES.map(([v, l]) => (
+                    <Chip
+                      key={v}
+                      selected={state === v}
+                      onClick={() => {
+                        props.onFilter?.({ state: v === '' ? null : v });
+                      }}
+                    >
+                      {l}
+                    </Chip>
+                  ))}
+                </ChipRow>
+                <span className="ml-auto">
+                  <Live />
+                </span>
+              </div>
+              {data.rows.length === 0 ? (
+                <EmptyState
+                  icon={<icons.review aria-hidden />}
+                  title="No cycles here"
+                  description={
+                    data.hr ? 'Start one with New cycle.' : 'Cycles you take part in show here.'
+                  }
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cycle</TableHead>
+                        <TableHead>State</TableHead>
+                        <TableHead>Who</TableHead>
+                        <TableHead>Activities</TableHead>
+                        <TableHead>Dates</TableHead>
+                        <TableHead>Progress</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.rows.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell>
+                            <To
+                              href={
+                                c.state === 'draft'
+                                  ? `/performance/cycles/${c.id}/setup`
+                                  : `/performance/cycles/${c.id}`
+                              }
+                              onNavigate={props.onNavigate}
+                            >
+                              {c.name}
+                            </To>
+                            <span className="block text-xs text-fg-muted">
+                              {c.owner === 'Automation'
+                                ? 'From an automation'
+                                : `Owner: ${c.owner}`}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <CycleBadge state={c.state} />
+                          </TableCell>
+                          <TableCell className="text-sm text-fg-muted">{c.who}</TableCell>
+                          <TableCell className="text-sm">
+                            {c.kinds.map(kindLabel).join(', ')}
+                          </TableCell>
+                          <TableCell className="text-sm text-fg-muted">{c.dates}</TableCell>
+                          <TableCell className="min-w-28">
+                            {['in_progress', 'closed', 'archived'].includes(c.state) ? (
+                              <Progress
+                                value={c.progress}
+                                label={`${c.name}: ${String(c.progress)}%`}
+                              />
+                            ) : (
+                              '—'
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Modal
+            open={creating || copying}
+            onClose={() => {
+              setCreating(false);
+              setCopying(false);
+            }}
+            title={copying ? 'Copy a cycle' : 'New cycle'}
+            description="Setup opens next, in six steps; every step saves as it changes."
+            footer={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setCreating(false);
+                    setCopying(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={name.trim() === '' || (copying && from === '')}
+                  loading={act.pending}
+                  onClick={() => {
+                    create(copying ? from : null);
+                  }}
+                >
+                  Continue to setup
+                </Button>
+              </>
+            }
+          >
+            <Refusal error={act.error} />
+            {copying ? (
+              <Field required>
+                <FieldLabel>Copy settings from</FieldLabel>
+                <Select value={from} onValueChange={setFrom}>
+                  <FieldControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick a cycle" />
+                    </SelectTrigger>
+                  </FieldControl>
+                  <SelectContent>
+                    {data.rows.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            ) : null}
+            <Field required>
+              <FieldLabel>Name</FieldLabel>
+              <Input
+                value={name}
+                placeholder="H2 2026 performance review"
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Starts</FieldLabel>
+              <Input
+                type="date"
+                value={start}
+                onChange={(e) => {
+                  setStart(e.target.value);
+                }}
+              />
+              <FieldDescription>
+                A start today launches it when you confirm; a later one schedules it.
+              </FieldDescription>
+            </Field>
+          </Modal>
+        </div>
+      )}
+    </Loaded>
+  );
+}
+
+/* ---------------------------------------------------------------- setup -- */
+
+interface Deadline {
+  readonly kind: 'exact' | 'relative';
+  readonly date?: string;
+  readonly days?: number;
+  readonly from?: 'start' | 'nominations';
+}
+
+interface ActivityConfig {
+  readonly on: boolean;
+  readonly templateId: string | null;
+  readonly pinnedVersion: number | null;
+  readonly due: Deadline;
+  readonly afterOthers?: boolean;
+}
+
+interface CycleSetup {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly state: string;
+  readonly start: { readonly date: string; readonly time: string; readonly zone: string };
+  readonly goals: 'none' | 'context' | 'scored';
+  readonly participants: {
+    readonly filter: readonly { readonly field: string; readonly value: string }[];
+    readonly include: readonly {
+      readonly personId: string;
+      readonly reason: string | null;
+      readonly by: string;
+      readonly at: string;
+    }[];
+    readonly exclude: readonly {
+      readonly personId: string;
+      readonly reason: string | null;
+      readonly by: string;
+      readonly at: string;
+    }[];
+    readonly keepInStep: boolean;
+  };
+  readonly activities: Readonly<Record<Kind, ActivityConfig>>;
+  readonly peer: {
+    readonly picker: string;
+    readonly min: number;
+    readonly max: number;
+    readonly approval: boolean;
+    readonly declineReplace: boolean;
+    readonly all: boolean;
+    readonly perReviewerMax: number;
+  };
+  readonly nominations: Deadline;
+  readonly visibility: {
+    readonly peerNames: string;
+    readonly upwardNames: string;
+    readonly minimum: number;
+    readonly release: { readonly mode: string; readonly date: string | null };
+    readonly acknowledge: boolean;
+    readonly subjectComment: boolean;
+    readonly peerSummary: boolean;
+  };
+  readonly reminders: {
+    readonly rules: readonly string[];
+    readonly email: boolean;
+    readonly chat: boolean;
+  };
+}
+
+export interface SetupData {
+  readonly cycle: CycleSetup;
+  readonly templates: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly purpose: readonly string[];
+    readonly published: number | null;
+    readonly questions: number;
+  }[];
+  readonly participants: {
+    readonly count: number;
+    readonly fromFilter: number;
+    readonly included: number;
+    readonly excluded: number;
+    readonly rows: readonly {
+      readonly personId: string;
+      readonly name: string;
+      readonly title: string;
+      readonly manager: string | null;
+      readonly note: string | null;
+    }[];
+    readonly noLongerMatches: readonly {
+      readonly personId: string;
+      readonly name: string;
+      readonly title: string;
+    }[];
+  };
+  readonly fields: {
+    readonly departments: readonly string[];
+    readonly statuses: readonly string[];
+  };
+  readonly due: Readonly<Record<string, string>>;
+  readonly checks: readonly {
+    readonly level: 'block' | 'warn' | 'ok';
+    readonly title: string;
+    readonly detail: string;
+  }[];
+  readonly action: 'launch' | 'schedule' | 'past';
+}
+
+const STEPS = ['Basics', 'Participants', 'Activities', 'Release', 'Review'];
+const ZONES = [
+  'Europe/Madrid',
+  'Europe/London',
+  'Europe/Berlin',
+  'Europe/Paris',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Asia/Kolkata',
+  'UTC',
+];
+const REMINDERS = [
+  ['before:7', '7 days before'],
+  ['before:3', '3 days before'],
+  ['on_day', 'On the day'],
+  ['late:2', 'Every 2 days when late'],
+  ['opens', 'When it opens'],
+] as const;
+
+/** PF4: setup in a centred dialog; each step saves as it changes. */
+export function Setup(props: ScreenProps<SetupData>): JSX.Element {
+  return (
+    <Loaded load={props.load} what="the cycle">
+      {(data) => <SetupDialog key={data.cycle.id} data={data} {...props} />}
+    </Loaded>
+  );
+}
+
+function SetupDialog({
+  data,
+  ...props
+}: ScreenProps<SetupData> & { readonly data: SetupData }): JSX.Element {
+  const act = useAct(props);
+  const [step, setStep] = useState(
+    Math.min(STEPS.length - 1, Number(props.search?.['step'] ?? '0') || 0),
+  );
+  const [c, setC] = useState<CycleSetup>(data.cycle);
+  const save = (patch: Partial<CycleSetup>): void => {
+    setC({ ...c, ...patch });
+    act.run('SavePerformanceCycle', { id: c.id, input: patch });
+  };
+  const go = (to: number): void => {
+    setStep(to);
+    props.onFilter?.({ step: String(to) });
+  };
+  const close = (): void => {
+    props.onNavigate?.('/performance/cycles');
+  };
+  const blocked = data.checks.some((i) => i.level === 'block');
+  const finishLabel =
+    data.action === 'launch'
+      ? 'Launch cycle'
+      : data.action === 'past'
+        ? 'The start date has passed'
+        : 'Schedule cycle';
+  const activity = (k: Kind, patch: Partial<ActivityConfig>): void => {
+    save({ activities: { ...c.activities, [k]: { ...c.activities[k], ...patch } } });
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader title={c.name} description="New cycle · draft saved" />
+      <StepDialog
+        open
+        wide
+        onClose={close}
+        title={c.name}
+        description={c.state === 'draft' ? 'Draft · saved as you go' : words(c.state)}
+        steps={STEPS}
+        step={step}
+        onStep={go}
+        finishLabel={finishLabel}
+        canNext={step < STEPS.length - 1 || (!blocked && data.action !== 'past')}
+        pending={act.pending}
+        finish={() => {
+          act.run('StartPerformanceCycle', { id: c.id }, () => {
+            props.onNavigate?.(`/performance/cycles/${c.id}`);
+          });
+        }}
+      >
+        <Refusal error={act.error} />
+        {step === 0 ? <Basics c={c} save={save} action={data.action} /> : null}
+        {step === 1 ? <Participants c={c} data={data} save={save} act={act} {...props} /> : null}
+        {step === 2 ? (
+          <div className="flex flex-col gap-6">
+            <Activities c={c} data={data} save={save} activity={activity} />
+            <Deadlines c={c} data={data} save={save} activity={activity} />
+          </div>
+        ) : null}
+        {step === 3 ? <Visibility c={c} save={save} /> : null}
+        {step === 4 ? <Checks c={c} data={data} /> : null}
+      </StepDialog>
+    </div>
+  );
+}
+
+function Basics({
+  c,
+  save,
+  action,
+}: {
+  readonly c: CycleSetup;
+  readonly save: (p: Partial<CycleSetup>) => void;
+  readonly action: string;
+}): JSX.Element {
+  const [name, setName] = useState(c.name);
+  const [description, setDescription] = useState(c.description);
+  return (
+    <div className="flex flex-col gap-4">
+      <Field required>
+        <FieldLabel>Name</FieldLabel>
+        <Input
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+          }}
+          onBlur={() => {
+            if (name.trim() !== '' && name !== c.name) save({ name });
+          }}
+        />
+      </Field>
+      <Field>
+        <FieldLabel>Description, shown to participants</FieldLabel>
+        <Input
+          value={description}
+          onChange={(e) => {
+            setDescription(e.target.value);
+          }}
+          onBlur={() => {
+            if (description !== c.description) save({ description });
+          }}
+        />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field>
+          <FieldLabel>Starts</FieldLabel>
+          <Input
+            type="date"
+            value={c.start.date}
+            onChange={(e) => {
+              if (e.target.value !== '') save({ start: { ...c.start, date: e.target.value } });
+            }}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>At</FieldLabel>
+          <Input
+            type="time"
+            value={c.start.time}
+            onChange={(e) => {
+              if (e.target.value !== '') save({ start: { ...c.start, time: e.target.value } });
+            }}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Time zone</FieldLabel>
+          <Select
+            value={c.start.zone}
+            onValueChange={(v) => {
+              save({ start: { ...c.start, zone: v } });
+            }}
+          >
+            <FieldControl>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+            </FieldControl>
+            <SelectContent>
+              {[...new Set([c.start.zone, ...ZONES])].map((z) => (
+                <SelectItem key={z} value={z}>
+                  {z}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <Alert
+        tone="info"
+        title={
+          action === 'launch'
+            ? 'Starts today, so this cycle launches when you confirm'
+            : 'Starts in the future, so this cycle will be scheduled'
+        }
+      >
+        A start today or earlier launches it as soon as you confirm. Nominations open at the start.
+      </Alert>
+      <Field>
+        <FieldLabel>Goals in this cycle</FieldLabel>
+        <RadioGroup
+          aria-label="Goals in this cycle"
+          className="grid gap-2 sm:grid-cols-3"
+          value={c.goals}
+          onValueChange={(v) => {
+            save({ goals: v as CycleSetup['goals'] });
+          }}
+        >
+          <RadioCard value="none">Not included</RadioCard>
+          <RadioCard
+            value="context"
+            description="Reviewers see each person’s goals beside the form."
+          >
+            Shown as context
+          </RadioCard>
+          <RadioCard
+            value="scored"
+            description="Kithena adds a generated section with each goal and its score."
+          >
+            Scored in a goals section
+          </RadioCard>
+        </RadioGroup>
+      </Field>
+    </div>
+  );
+}
+
+function Participants({
+  c,
+  data,
+  save,
+  act,
+  ...props
+}: ScreenProps<SetupData> & {
+  readonly c: CycleSetup;
+  readonly data: SetupData;
+  readonly save: (p: Partial<CycleSetup>) => void;
+  readonly act: Act;
+}): JSX.Element {
+  const [dept, setDept] = useState('');
+  const [excluding, setExcluding] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+  const [chat, setChat] = useState('');
+  const [proposal, setProposal] = useState<{
+    filter: { field: string; value: string }[];
+    summary: string[];
+  } | null>(null);
+  const p = data.participants;
+  const filter = c.participants.filter;
+  const setFilter = (next: readonly { field: string; value: string }[]): void => {
+    save({ participants: { ...c.participants, filter: next } });
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-semibold">Who’s in</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {filter.map((f, i) => (
+            <Chip
+              key={`${f.field}-${f.value}`}
+              selected
+              onRemove={() => {
+                setFilter(filter.filter((_, j) => j !== i));
+              }}
+              removeLabel={`Remove ${f.field} ${f.value}`}
+            >
+              {`${f.field === 'startedBefore' ? 'Started before' : words(f.field)} is ${f.value}`}
+            </Chip>
+          ))}
+          <Select
+            value={dept}
+            onValueChange={(v) => {
+              setDept('');
+              setFilter([...filter, { field: 'department', value: v }]);
+            }}
+          >
+            <SelectTrigger aria-label="Add a department" className="w-56">
+              <SelectValue placeholder="Add a department" />
+            </SelectTrigger>
+            <SelectContent>
+              {data.fields.departments.map((d) => (
+                <SelectItem key={d} value={d}>
+                  {d}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 rounded-md bg-surface-sunken p-3">
+        <Field>
+          <FieldLabel>Or say it in words</FieldLabel>
+          <Input
+            value={chat}
+            placeholder="Add product design too, but leave out anyone on leave"
+            onChange={(e) => {
+              setChat(e.target.value);
+            }}
+          />
+        </Field>
+        <div>
+          <Button
+            size="sm"
+            variant="secondary"
+            startIcon={<icons.assistant aria-hidden />}
+            disabled={chat.trim().length < 3}
+            loading={act.pending}
+            onClick={() => {
+              act.run(
+                'PerformanceParticipantsInWords',
+                { id: c.id, input: { text: chat } },
+                (d) => {
+                  setProposal(d as typeof proposal);
+                },
+              );
+            }}
+          >
+            Propose the change
+          </Button>
+        </div>
+        {proposal === null ? null : (
+          <Alert
+            tone="info"
+            title="Change the participants"
+            action={
+              <span className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setProposal(null);
+                  }}
+                >
+                  Discard
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setFilter(proposal.filter);
+                    setProposal(null);
+                  }}
+                >
+                  Apply to the draft
+                </Button>
+              </span>
+            }
+          >
+            {proposal.summary.join(' · ')}
+          </Alert>
+        )}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader>
+            <CardTitle level={3}>{plural(p.count, 'person', 'people')}</CardTitle>
+            <p className="text-sm text-fg-muted">{`${String(p.fromFilter)} from the filter, ${String(p.included)} by hand, ${String(p.excluded)} excluded`}</p>
+          </CardHeader>
+          <CardContent className="max-h-80 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Manager</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Note</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {p.rows.map((r) => (
+                  <TableRow key={r.personId}>
+                    <TableCell>
+                      <Person name={r.name} sub={r.title} />
+                    </TableCell>
+                    <TableCell className="text-sm text-fg-muted">
+                      {r.manager ?? 'No manager'}
+                    </TableCell>
+                    <TableCell>
+                      {r.note === null ? (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => {
+                            setExcluding(r.personId);
+                          }}
+                        >
+                          Exclude
+                        </Button>
+                      ) : (
+                        <Badge
+                          size="sm"
+                          tone={r.note.startsWith('Excluded') ? 'neutral' : 'accent'}
+                        >
+                          {r.note}
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <div className="flex flex-col gap-3">
+          <Card>
+            <CardContent>
+              <SwitchRow
+                label="Keep in step until launch"
+                hint="People who start matching are added; people who stop matching are listed below."
+                checked={c.participants.keepInStep}
+                onChange={(on) => {
+                  save({ participants: { ...c.participants, keepInStep: on } });
+                }}
+              />
+            </CardContent>
+          </Card>
+          {p.noLongerMatches.length === 0 ? null : (
+            <Card>
+              <CardHeader>
+                <CardTitle
+                  level={3}
+                >{`No longer matches · ${String(p.noLongerMatches.length)}`}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                {p.noLongerMatches.map((n) => (
+                  <Person key={n.personId} name={n.name} sub={n.title} />
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          <Alert tone="neutral" title="Exclusions need a reason">
+            The reason is kept with the exclusion and shown in the audit log.
+          </Alert>
+        </div>
+      </div>
+      <Modal
+        open={excluding !== null}
+        onClose={() => {
+          setExcluding(null);
+        }}
+        title="Exclude from this cycle?"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setExcluding(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={reason.trim() === ''}
+              onClick={() => {
+                if (excluding === null) return;
+                save({
+                  participants: {
+                    ...c.participants,
+                    exclude: [
+                      ...c.participants.exclude,
+                      { personId: excluding, reason, by: 'You', at: new Date().toISOString() },
+                    ],
+                    include: c.participants.include.filter((x) => x.personId !== excluding),
+                  },
+                });
+                setExcluding(null);
+                setReason('');
+              }}
+            >
+              Exclude
+            </Button>
+          </>
+        }
+      >
+        <Field required>
+          <FieldLabel>Reason</FieldLabel>
+          <Input
+            value={reason}
+            placeholder="On leave until January"
+            onChange={(e) => {
+              setReason(e.target.value);
+            }}
+          />
+        </Field>
+      </Modal>
+      {props.search === undefined ? null : null}
+    </div>
+  );
+}
+
+function Activities({
+  c,
+  data,
+  save,
+  activity,
+}: {
+  readonly c: CycleSetup;
+  readonly data: SetupData;
+  readonly save: (p: Partial<CycleSetup>) => void;
+  readonly activity: (k: Kind, p: Partial<ActivityConfig>) => void;
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-fg-muted">
+        Each activity is a review kind with its own form. Off kinds are skipped.
+      </p>
+      {KINDS.map((k) => {
+        const a = c.activities[k];
+        const options = data.templates.filter(
+          (t) =>
+            t.published !== null &&
+            (k === 'goals' || t.purpose.includes(k) || t.purpose.length === 0),
+        );
+        return (
+          <Card key={k}>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="min-w-40 flex-1 font-semibold">{kindLabel(k)}</span>
+                {a.on && k !== 'goals' ? (
+                  <Select
+                    value={a.templateId ?? ''}
+                    onValueChange={(v) => {
+                      activity(k, { templateId: v });
+                    }}
+                  >
+                    <SelectTrigger aria-label={`${kindLabel(k)} form`} className="w-72">
+                      <SelectValue placeholder="Pick a published form" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(options.length === 0
+                        ? data.templates.filter((t) => t.published !== null)
+                        : options
+                      ).map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {`${t.name} · v${String(t.published ?? 1)}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+                <Switch
+                  aria-label={`${kindLabel(k)} on`}
+                  checked={a.on}
+                  onCheckedChange={(on) => {
+                    activity(k, { on });
+                  }}
+                />
+              </div>
+              {k === 'peer' && a.on ? (
+                <div className="grid gap-3 rounded-md bg-surface-sunken p-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel>Who picks peers</FieldLabel>
+                    <SegmentedControl
+                      value={c.peer.picker}
+                      onValueChange={(v) => {
+                        save({ peer: { ...c.peer, picker: v } });
+                      }}
+                    >
+                      <SegmentedControlItem value="subject">The person</SegmentedControlItem>
+                      <SegmentedControlItem value="manager">Their manager</SegmentedControlItem>
+                      <SegmentedControlItem value="hr">HR</SegmentedControlItem>
+                    </SegmentedControl>
+                  </Field>
+                  <div className="grid grid-cols-2 gap-2">
+                    <NumberField
+                      label="At least"
+                      value={c.peer.min}
+                      min={0}
+                      max={20}
+                      onChange={(v) => {
+                        if (v !== null) save({ peer: { ...c.peer, min: v } });
+                      }}
+                    />
+                    <NumberField
+                      label="At most"
+                      value={c.peer.max}
+                      min={1}
+                      max={20}
+                      onChange={(v) => {
+                        if (v !== null) save({ peer: { ...c.peer, max: v } });
+                      }}
+                    />
+                  </div>
+                  <SwitchRow
+                    label="Manager approves nominations"
+                    checked={c.peer.approval}
+                    onChange={(on) => {
+                      save({ peer: { ...c.peer, approval: on } });
+                    }}
+                  />
+                  <SwitchRow
+                    label="Reviewers can decline, and the person replaces them"
+                    checked={c.peer.declineReplace}
+                    onChange={(on) => {
+                      save({ peer: { ...c.peer, declineReplace: on } });
+                    }}
+                  />
+                  <SwitchRow
+                    label="All peers instead"
+                    hint={`The person’s team (same manager), capped at ${String(c.peer.max)}, chosen the same way each time. Anyone else joins by nomination.`}
+                    checked={c.peer.all}
+                    onChange={(on) => {
+                      save({ peer: { ...c.peer, all: on } });
+                    }}
+                  />
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function Deadlines({
+  c,
+  data,
+  save,
+  activity,
+}: {
+  readonly c: CycleSetup;
+  readonly data: SetupData;
+  readonly save: (p: Partial<CycleSetup>) => void;
+  readonly activity: (k: Kind, p: Partial<ActivityConfig>) => void;
+}): JSX.Element {
+  const on = KINDS.filter((k) => c.activities[k].on);
+  const rules = c.reminders.rules;
+  return (
+    <div className="flex flex-col gap-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Activity</TableHead>
+            <TableHead>Due, days after</TableHead>
+            <TableHead>Works out to</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {c.activities.peer.on && !c.peer.all ? (
+            <TableRow>
+              <TableCell className="font-medium">Peer nominations</TableCell>
+              <TableCell>
+                <NumberField
+                  label="Days after the start"
+                  value={c.nominations.days ?? 3}
+                  min={0}
+                  max={90}
+                  size="sm"
+                  onChange={(v) => {
+                    if (v !== null)
+                      save({ nominations: { kind: 'relative', days: v, from: 'start' } });
+                  }}
+                />
+              </TableCell>
+              <TableCell>{day(data.due['nominations'])}</TableCell>
+            </TableRow>
+          ) : null}
+          {on.map((k) => {
+            const d = c.activities[k].due;
+            return (
+              <TableRow key={k}>
+                <TableCell className="font-medium">{kindLabel(k)}</TableCell>
+                <TableCell>
+                  {d.kind === 'relative' ? (
+                    <NumberField
+                      label={`Days after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`}
+                      value={d.days ?? 14}
+                      min={0}
+                      max={365}
+                      size="sm"
+                      onChange={(v) => {
+                        if (v !== null)
+                          activity(k, {
+                            due: { kind: 'relative', days: v, from: d.from ?? 'start' },
+                          });
+                      }}
+                    />
+                  ) : (
+                    <Input
+                      type="date"
+                      aria-label={`${kindLabel(k)} due`}
+                      value={d.date ?? ''}
+                      onChange={(e) => {
+                        activity(k, { due: { kind: 'exact', date: e.target.value } });
+                      }}
+                    />
+                  )}
+                </TableCell>
+                <TableCell>{day(data.due[k])}</TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>Reminders</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <ChipRow aria-label="Reminders">
+            {REMINDERS.map(([v, l]) => (
+              <Chip
+                key={v}
+                selected={rules.includes(v)}
+                onClick={() => {
+                  save({
+                    reminders: {
+                      ...c.reminders,
+                      rules: rules.includes(v) ? rules.filter((x) => x !== v) : [...rules, v],
+                    },
+                  });
+                }}
+              >
+                {l}
+              </Chip>
+            ))}
+          </ChipRow>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <SwitchRow label="Inbox" hint="Always" checked locked="Always on" />
+            <SwitchRow
+              label="Email"
+              hint="By each person’s preference"
+              checked={c.reminders.email}
+              onChange={(on) => {
+                save({ reminders: { ...c.reminders, email: on } });
+              }}
+            />
+            <SwitchRow
+              label="Chat app"
+              hint="By preference, when connected"
+              checked={c.reminders.chat}
+              onChange={(on) => {
+                save({ reminders: { ...c.reminders, chat: on } });
+              }}
+            />
+          </div>
+          <p className="text-sm text-fg-muted">Reminders stop for a review once it’s submitted.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const NAMES = [
+  ['hidden', 'Hidden from the subject'],
+  ['shown', 'Shown to the subject'],
+  ['writer', 'The writer chooses'],
+] as const;
+
+function Visibility({
+  c,
+  save,
+}: {
+  readonly c: CycleSetup;
+  readonly save: (p: Partial<CycleSetup>) => void;
+}): JSX.Element {
+  const v = c.visibility;
+  const set = (patch: Partial<CycleSetup['visibility']>): void => {
+    save({ visibility: { ...v, ...patch } });
+  };
+  const names = (label: string, value: string, key: 'peerNames' | 'upwardNames'): JSX.Element => (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <Select
+        value={value}
+        onValueChange={(x) => {
+          set({ [key]: x });
+        }}
+      >
+        <FieldControl>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+        </FieldControl>
+        <SelectContent>
+          {NAMES.map(([x, l]) => (
+            <SelectItem key={x} value={x}>
+              {l}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {names('Peer reviews: names shown to the subject', v.peerNames, 'peerNames')}
+        {names('Upward reviews: names shown to the subject', v.upwardNames, 'upwardNames')}
+      </div>
+      <p className="text-sm text-fg-muted">
+        The subject’s manager and HR always see who wrote what. Confidential answers show only once
+        the minimum is in.
+      </p>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Field>
+          <FieldLabel>Release to the subject</FieldLabel>
+          <RadioGroup
+            aria-label="Release"
+            value={v.release.mode}
+            onValueChange={(mode) => {
+              set({ release: { ...v.release, mode } });
+            }}
+          >
+            <RadioCard
+              value="close"
+              description="Once calibration is finalised, when the cycle follows one."
+            >
+              When the cycle closes
+            </RadioCard>
+            <RadioCard value="hr_date" description="Everyone at once.">
+              On a date
+            </RadioCard>
+            <RadioCard
+              value="manager"
+              description="The manager releases each one once it is submitted."
+            >
+              As each is submitted
+            </RadioCard>
+          </RadioGroup>
+          {v.release.mode === 'hr_date' ? (
+            <Input
+              type="date"
+              aria-label="Release date"
+              value={v.release.date ?? ''}
+              onChange={(e) => {
+                set({
+                  release: { ...v.release, date: e.target.value === '' ? null : e.target.value },
+                });
+              }}
+            />
+          ) : null}
+        </Field>
+        <div className="flex flex-col gap-1">
+          <SwitchRow
+            label="Ask for an acknowledgement"
+            hint="“I’ve read this” is not agreement."
+            checked={v.acknowledge}
+            onChange={(on) => {
+              set({ acknowledge: on });
+            }}
+          />
+          <SwitchRow
+            label="Let the subject comment"
+            hint="Shown to the manager and HR"
+            checked={v.subjectComment}
+            onChange={(on) => {
+              set({ subjectComment: on });
+            }}
+          />
+          <SwitchRow
+            label="Share the peer summary"
+            hint="Peer answers, without names"
+            checked={v.peerSummary}
+            onChange={(on) => {
+              set({ peerSummary: on });
+            }}
+          />
+          <NumberField
+            label="Response minimum"
+            hint="For confidential answers. Below it, answers are held back and the reason is shown."
+            value={v.minimum}
+            min={1}
+            max={20}
+            onChange={(n) => {
+              if (n !== null) set({ minimum: n });
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Checks({ c, data }: { readonly c: CycleSetup; readonly data: SetupData }): JSX.Element {
+  const blocks = data.checks.filter((i) => i.level === 'block').length;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="flex flex-col gap-2">
+        {data.checks.map((i) => (
+          <Alert
+            key={`${i.level}-${i.title}`}
+            tone={i.level === 'block' ? 'danger' : i.level === 'warn' ? 'warning' : 'success'}
+            title={i.title}
+          >
+            {i.detail}
+          </Alert>
+        ))}
+        <p className="text-sm text-fg-muted">
+          {blocks === 0
+            ? 'Nothing blocks this cycle. Warnings don’t.'
+            : `${plural(blocks, 'issue')} ${blocks === 1 ? 'blocks' : 'block'} it. Warnings don’t.`}
+        </p>
+      </div>
+      <Card>
+        <CardContent>
+          <KeyValues
+            layout="split"
+            items={[
+              { label: 'Participants', value: plural(data.participants.count, 'person', 'people') },
+              {
+                label: 'Activities',
+                value: KINDS.filter((k) => c.activities[k].on)
+                  .map(kindLabel)
+                  .join(', '),
+              },
+              { label: 'Starts', value: `${day(c.start.date)}, ${c.start.time} ${c.start.zone}` },
+              {
+                label: 'Nominations',
+                value:
+                  c.activities.peer.on && !c.peer.all
+                    ? `Open at the start, due ${day(data.due['nominations'])}`
+                    : 'None',
+              },
+              {
+                label: 'Release',
+                value:
+                  c.visibility.release.mode === 'manager'
+                    ? 'Each manager'
+                    : c.visibility.release.mode === 'hr_date'
+                      ? `HR on ${day(c.visibility.release.date)}`
+                      : 'When the cycle closes',
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- overview -- */
+
+interface OverviewRow {
+  readonly personId: string;
+  readonly name: string;
+  readonly title: string;
+  readonly manager: string | null;
+  readonly self: string;
+  readonly peers: string;
+  readonly upward: string;
+  readonly managerReview: string;
+  readonly managerReviewId: string | null;
+  readonly release: string;
+  readonly score: number | null;
+}
+
+export interface OverviewData {
+  readonly cycle: {
+    readonly id: string;
+    readonly name: string;
+    readonly state: string;
+    readonly dates: string;
+    readonly versions: string;
+    readonly who: string;
+    readonly launch: {
+      readonly total: number;
+      readonly created: number;
+      readonly error: string | null;
+      readonly at: string | null;
+    };
+    readonly kinds: readonly string[];
+  };
+  readonly tiles: readonly {
+    readonly kind: string;
+    readonly submitted: number;
+    readonly total: number;
+    readonly due: string | null;
+  }[];
+  readonly released: number;
+  readonly overdue: number;
+  readonly rows: readonly OverviewRow[];
+  readonly total: number;
+  readonly page: number;
+  readonly size: number;
+  readonly nominations: readonly {
+    readonly id: string;
+    readonly subject: string;
+    readonly peers: readonly string[];
+    readonly count: number;
+    readonly state: string;
+    readonly late: boolean;
+  }[];
+  readonly bounds: { readonly min: number; readonly max: number };
+  readonly changes: readonly {
+    readonly at: string;
+    readonly who: string;
+    readonly action: string;
+    readonly target: string;
+  }[];
+  readonly settings: {
+    readonly visibility: { readonly minimum: number; readonly release: { readonly mode: string } };
+    readonly peer: { readonly all: boolean; readonly min: number; readonly max: number };
+  };
+  readonly hr: boolean;
+}
+
+type Dialog = 'extend' | 'close' | 'export' | 'add' | 'remove' | null;
+
+/** PF5: live tiles and the table, bulk actions, and the changes after launch. */
+export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
+  const act = useAct(props);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const tab = props.search?.['tab'] ?? 'overview';
+  return (
+    <Loaded load={props.load} what="the cycle">
+      {(data) => {
+        const c = data.cycle;
+        const id = c.id;
+        const chosen = [...selected];
+        const run = (name: string, input: Record<string, unknown>, after?: () => void): void => {
+          act.run(name, { id, input }, () => {
+            setSelected(new Set());
+            after?.();
+          });
+        };
+        return (
+          <div className="flex flex-col gap-4">
+            <PageHeader
+              title={c.name}
+              meta={<CycleBadge state={c.state} />}
+              description={`${c.who} · ${c.dates}${c.versions === '' ? '' : ` · ${c.versions}`}`}
+              actions={
+                data.hr ? (
+                  <>
+                    <Live />
+                    {['in_progress', 'closed', 'archived'].includes(c.state) ? (
+                      <Button
+                        variant="secondary"
+                        startIcon={<icons.download aria-hidden />}
+                        onClick={() => {
+                          setDialog('export');
+                        }}
+                      >
+                        Export PDFs
+                      </Button>
+                    ) : null}
+                    {c.state === 'in_progress' ? (
+                      <Button
+                        variant="secondary"
+                        startIcon={<icons.notifications aria-hidden />}
+                        loading={act.pending}
+                        onClick={() => {
+                          run('RemindPerformanceCycle', { personIds: [] });
+                        }}
+                      >
+                        Remind
+                      </Button>
+                    ) : null}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          aria-label="More actions"
+                          startIcon={<icons.more aria-hidden />}
+                        />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {['draft', 'scheduled', 'launch_failed'].includes(c.state) ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              props.onNavigate?.(`/performance/cycles/${id}/setup`);
+                            }}
+                          >
+                            Edit setup
+                          </DropdownMenuItem>
+                        ) : null}
+                        {c.state === 'scheduled' ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              act.run('UnschedulePerformanceCycle', { id });
+                            }}
+                          >
+                            Unschedule
+                          </DropdownMenuItem>
+                        ) : null}
+                        {c.state === 'in_progress' ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setDialog('add');
+                            }}
+                          >
+                            Add someone
+                          </DropdownMenuItem>
+                        ) : null}
+                        {c.state === 'in_progress' ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setDialog('close');
+                            }}
+                          >
+                            Close the cycle
+                          </DropdownMenuItem>
+                        ) : null}
+                        {['in_progress', 'closed'].includes(c.state) ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              props.onNavigate?.(`/performance/calibration?cycle=${id}`);
+                            }}
+                          >
+                            Open calibration
+                          </DropdownMenuItem>
+                        ) : null}
+                        {c.state === 'closed' ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              act.run('ArchivePerformanceCycle', { id, input: { archived: true } });
+                            }}
+                          >
+                            Archive
+                          </DropdownMenuItem>
+                        ) : null}
+                        {c.state === 'archived' ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              act.run('ArchivePerformanceCycle', {
+                                id,
+                                input: { archived: false },
+                              });
+                            }}
+                          >
+                            Unarchive
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                ) : undefined
+              }
+              tabs={
+                <TertiaryNav
+                  label="Cycle"
+                  orientation="horizontal"
+                  variant="line"
+                  activeId={tab}
+                  onSelect={(t) => {
+                    props.onFilter?.({ tab: t === 'overview' ? null : t, page: null });
+                  }}
+                  items={[
+                    { id: 'overview', label: 'Overview' },
+                    ...(c.kinds.includes('peer')
+                      ? [{ id: 'nominations', label: 'Nominations' }]
+                      : []),
+                    ...(data.hr
+                      ? [
+                          { id: 'changes', label: 'Changes' },
+                          { id: 'settings', label: 'Settings' },
+                        ]
+                      : []),
+                  ]}
+                />
+              }
+            />
+            <Refusal error={act.error} />
+            {c.state === 'launch_failed' ? (
+              <Alert
+                tone="danger"
+                title={`The launch stopped at ${String(c.launch.created)} of ${String(c.launch.total)} reviews`}
+                action={
+                  <span className="flex gap-2">
+                    <Button
+                      size="sm"
+                      startIcon={<icons.refresh aria-hidden />}
+                      loading={act.pending}
+                      onClick={() => {
+                        act.run('RetryPerformanceLaunch', { id });
+                      }}
+                    >
+                      Retry launch
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        act.run('UnschedulePerformanceCycle', { id });
+                      }}
+                    >
+                      Back to draft
+                    </Button>
+                  </span>
+                }
+              >
+                {`${c.launch.error ?? 'Something stopped it.'} Retrying continues where it stopped; nothing is created or sent twice. No participant has been told yet.`}
+              </Alert>
+            ) : null}
+            {c.state === 'launching' ? (
+              <Progress
+                value={
+                  c.launch.total === 0 ? 0 : Math.round((c.launch.created / c.launch.total) * 100)
+                }
+                label={`Creating reviews · ${String(c.launch.created)} of ${String(c.launch.total)}`}
+                showValue
+              />
+            ) : null}
+            {tab === 'overview' ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {data.tiles.map((t) => (
+                    <Stat
+                      key={t.kind}
+                      label={`${kindLabel(t.kind)}s`}
+                      value={String(t.submitted)}
+                      description={`of ${String(t.total)}${t.due === null ? '' : ` · due ${day(t.due)}`}`}
+                    />
+                  ))}
+                  <Stat
+                    label="Released"
+                    value={String(data.released)}
+                    description="Manager reviews"
+                  />
+                  <Stat
+                    label="Overdue"
+                    value={String(data.overdue)}
+                    {...(data.overdue > 0 ? { sentiment: 'negative' as const } : {})}
+                  />
+                </div>
+                <Card>
+                  <CardContent className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Search
+                        label="Search people"
+                        placeholder={`Search ${String(data.total)} people`}
+                        initial={props.search?.['q'] ?? ''}
+                        onSearch={(q) => {
+                          props.onFilter?.({ q: q === '' ? null : q, page: null });
+                        }}
+                      />
+                      <span className="ml-auto text-sm text-fg-muted">{`Showing ${String(Math.min(data.total, (data.page - 1) * data.size + 1))}–${String(Math.min(data.total, data.page * data.size))} of ${String(data.total)}`}</span>
+                    </div>
+                    {data.rows.length === 0 ? (
+                      <EmptyState
+                        icon={<icons.people aria-hidden />}
+                        title="Nobody here yet"
+                        description={
+                          c.state === 'draft'
+                            ? 'Participants are fixed when the cycle launches.'
+                            : 'No one matches the search.'
+                        }
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {data.hr ? (
+                                <TableHead>
+                                  <Checkbox
+                                    aria-label="Select everyone on this page"
+                                    checked={
+                                      selected.size > 0 && selected.size === data.rows.length
+                                    }
+                                    onCheckedChange={(on) => {
+                                      setSelected(
+                                        on === true
+                                          ? new Set(data.rows.map((r) => r.personId))
+                                          : new Set(),
+                                      );
+                                    }}
+                                  />
+                                </TableHead>
+                              ) : null}
+                              <TableHead>Person</TableHead>
+                              <TableHead>Manager</TableHead>
+                              {c.kinds.includes('self') ? <TableHead>Self</TableHead> : null}
+                              {c.kinds.includes('peer') ? <TableHead>Peers</TableHead> : null}
+                              {c.kinds.includes('upward') ? <TableHead>Upward</TableHead> : null}
+                              {c.kinds.includes('manager') ? (
+                                <TableHead>Manager review</TableHead>
+                              ) : null}
+                              <TableHead>Release</TableHead>
+                              {data.hr ? <TableHead>Score</TableHead> : null}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {data.rows.map((r) => (
+                              <TableRow key={r.personId}>
+                                {data.hr ? (
+                                  <TableCell>
+                                    <Checkbox
+                                      aria-label={`Select ${r.name}`}
+                                      checked={selected.has(r.personId)}
+                                      onCheckedChange={(on) => {
+                                        const next = new Set(selected);
+                                        if (on === true) next.add(r.personId);
+                                        else next.delete(r.personId);
+                                        setSelected(next);
+                                      }}
+                                    />
+                                  </TableCell>
+                                ) : null}
+                                <TableCell>
+                                  <To
+                                    href={`/performance/cycles/${id}/about/${r.personId}`}
+                                    onNavigate={props.onNavigate}
+                                  >
+                                    {r.name}
+                                  </To>
+                                  <span className="block text-xs text-fg-muted">{r.title}</span>
+                                </TableCell>
+                                <TableCell className="text-sm text-fg-muted">
+                                  {r.manager ?? 'No manager'}
+                                </TableCell>
+                                {c.kinds.includes('self') ? (
+                                  <TableCell>
+                                    <ReviewBadge state={r.self} />
+                                  </TableCell>
+                                ) : null}
+                                {c.kinds.includes('peer') ? (
+                                  <TableCell className="text-sm">{r.peers}</TableCell>
+                                ) : null}
+                                {c.kinds.includes('upward') ? (
+                                  <TableCell className="text-sm">{r.upward}</TableCell>
+                                ) : null}
+                                {c.kinds.includes('manager') ? (
+                                  <TableCell>
+                                    <ReviewBadge state={r.managerReview} />
+                                  </TableCell>
+                                ) : null}
+                                <TableCell className="text-sm text-fg-muted">{r.release}</TableCell>
+                                {data.hr ? (
+                                  <TableCell className="tabular-nums">{score(r.score)}</TableCell>
+                                ) : null}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    {data.total > data.size ? (
+                      <Pagination
+                        page={data.page}
+                        pageCount={Math.ceil(data.total / data.size)}
+                        totalItems={data.total}
+                        pageSize={data.size}
+                        onPageChange={(p) => {
+                          props.onFilter?.({ page: p === 1 ? null : String(p) });
+                        }}
+                      />
+                    ) : null}
+                  </CardContent>
+                </Card>
+                {selected.size > 0 ? (
+                  <div
+                    role="toolbar"
+                    aria-label="Selected people"
+                    className="sticky bottom-4 flex flex-wrap items-center gap-2 rounded-lg bg-surface-inverse p-3 text-fg-inverse shadow-lg"
+                  >
+                    <span className="mr-auto font-semibold">{`${String(selected.size)} selected`}</span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        run('RemindPerformanceCycle', { personIds: chosen });
+                      }}
+                    >
+                      Remind
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setDialog('extend');
+                      }}
+                    >
+                      Extend deadline
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        run('ReleasePerformanceCycle', { personIds: chosen });
+                      }}
+                    >
+                      Release
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={selected.size !== 1}
+                      onClick={() => {
+                        setDialog('remove');
+                      }}
+                    >
+                      Remove from cycle
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            {tab === 'nominations' ? <Nominations data={data} act={act} id={id} /> : null}
+            {tab === 'changes' ? (
+              <Card>
+                <CardContent className="overflow-x-auto">
+                  {data.changes.length === 0 ? (
+                    <EmptyState title="No changes yet" />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>When</TableHead>
+                          <TableHead>Who</TableHead>
+                          <TableHead>What</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.changes.map((e) => (
+                          <TableRow key={`${e.at}-${e.action}`}>
+                            <TableCell className="text-sm text-fg-muted">{when(e.at)}</TableCell>
+                            <TableCell>{e.who}</TableCell>
+                            <TableCell className="text-sm">{`${e.action} · ${e.target}`}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+            {tab === 'settings' ? (
+              <Card>
+                <CardContent>
+                  <KeyValues
+                    layout="split"
+                    items={[
+                      {
+                        label: 'Response minimum',
+                        value: String(data.settings.visibility.minimum),
+                      },
+                      { label: 'Release', value: words(data.settings.visibility.release.mode) },
+                      {
+                        label: 'Peers',
+                        value: data.settings.peer.all
+                          ? `All peers, up to ${String(data.settings.peer.max)}`
+                          : `Nominated, ${String(data.settings.peer.min)} to ${String(data.settings.peer.max)}`,
+                      },
+                    ]}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
+            {dialog === 'extend' ? (
+              <ExtendDialog
+                kinds={c.kinds}
+                people={chosen}
+                act={act}
+                onDone={() => {
+                  setDialog(null);
+                  setSelected(new Set());
+                }}
+                id={id}
+              />
+            ) : null}
+            {dialog === 'close' ? (
+              <CloseDialog
+                act={act}
+                id={id}
+                name={c.name}
+                onDone={() => {
+                  setDialog(null);
+                }}
+              />
+            ) : null}
+            {dialog === 'export' ? (
+              <ExportDialog
+                act={act}
+                id={id}
+                kinds={c.kinds}
+                onDone={() => {
+                  setDialog(null);
+                }}
+              />
+            ) : null}
+            {dialog === 'add' ? (
+              <AddDialog
+                act={act}
+                id={id}
+                onDone={() => {
+                  setDialog(null);
+                }}
+              />
+            ) : null}
+            {dialog === 'remove' ? (
+              <RemoveDialog
+                act={act}
+                id={id}
+                person={data.rows.find((r) => r.personId === chosen[0])}
+                onDone={() => {
+                  setDialog(null);
+                  setSelected(new Set());
+                }}
+              />
+            ) : null}
+          </div>
+        );
+      }}
+    </Loaded>
+  );
+}
+
+/** PF9: who has nominated, who is waiting for approval, who is late. */
+function Nominations({
+  data,
+  act,
+  id,
+}: {
+  readonly data: OverviewData;
+  readonly act: Act;
+  readonly id: string;
+}): JSX.Element {
+  const late = data.nominations.filter((n) => n.state === 'Not nominated').length;
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3">
+        {data.hr && late > 0 ? (
+          <div>
+            <Button
+              size="sm"
+              variant="secondary"
+              startIcon={<icons.notifications aria-hidden />}
+              loading={act.pending}
+              onClick={() => {
+                act.run('RemindPerformanceCycle', { id, input: { personIds: [] } });
+              }}
+            >
+              {`Remind ${String(late)} who haven’t nominated`}
+            </Button>
+          </div>
+        ) : null}
+        {data.nominations.length === 0 ? (
+          <EmptyState title="No nominations" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Subject</TableHead>
+                <TableHead>Peers</TableHead>
+                <TableHead>{`${String(data.bounds.min)} to ${String(data.bounds.max)}`}</TableHead>
+                <TableHead>State</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.nominations.map((n) => (
+                <TableRow key={n.id}>
+                  <TableCell>
+                    <Person name={n.subject} />
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {n.peers.length === 0 ? '—' : n.peers.join(', ')}
+                  </TableCell>
+                  <TableCell>
+                    <Badge size="sm" tone={n.count >= data.bounds.min ? 'success' : 'danger'}>
+                      {String(n.count)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      size="sm"
+                      tone={
+                        n.state === 'Approved'
+                          ? 'success'
+                          : n.state.startsWith('Waiting')
+                            ? 'warning'
+                            : n.state === 'Not nominated'
+                              ? 'danger'
+                              : 'neutral'
+                      }
+                    >
+                      {n.state}
+                    </Badge>
+                    {n.late ? <span className="ml-2 text-xs text-danger-fg">Late</span> : null}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ExtendDialog({
+  kinds,
+  people,
+  act,
+  onDone,
+  id,
+}: {
+  readonly kinds: readonly string[];
+  readonly people: readonly string[];
+  readonly act: Act;
+  readonly onDone: () => void;
+  readonly id: string;
+}): JSX.Element {
+  const [kind, setKind] = useState(kinds.find((k) => k !== 'goals') ?? 'self');
+  const [due, setDue] = useState('');
+  const [reason, setReason] = useState('');
+  return (
+    <Modal
+      open
+      onClose={onDone}
+      title={`Extend the deadline for ${plural(people.length, 'person', 'people')}?`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onDone}>
+            Cancel
+          </Button>
+          <Button
+            disabled={due === '' || reason.trim() === ''}
+            loading={act.pending}
+            onClick={() => {
+              act.run(
+                'ExtendPerformanceDeadline',
+                { id, input: { kind, personIds: people, due, reason } },
+                onDone,
+              );
+            }}
+          >
+            {`Extend for ${String(people.length)}`}
+          </Button>
+        </>
+      }
+    >
+      <Refusal error={act.error} />
+      <Field>
+        <FieldLabel>Activity</FieldLabel>
+        <Select value={kind} onValueChange={setKind}>
+          <FieldControl>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+          </FieldControl>
+          <SelectContent>
+            {kinds
+              .filter((k) => k !== 'goals')
+              .map((k) => (
+                <SelectItem key={k} value={k}>
+                  {`${kindLabel(k)}s about them`}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field required>
+        <FieldLabel>New deadline</FieldLabel>
+        <Input
+          type="date"
+          value={due}
+          onChange={(e) => {
+            setDue(e.target.value);
+          }}
+        />
+      </Field>
+      <Field required>
+        <FieldLabel>Reason, kept in the audit log</FieldLabel>
+        <Input
+          value={reason}
+          placeholder="Engineering offsite"
+          onChange={(e) => {
+            setReason(e.target.value);
+          }}
+        />
+      </Field>
+    </Modal>
+  );
+}
+
+function CloseDialog({
+  act,
+  id,
+  name,
+  onDone,
+}: {
+  readonly act: Act;
+  readonly id: string;
+  readonly name: string;
+  readonly onDone: () => void;
+}): JSX.Element {
+  const [release, setRelease] = useState('now');
+  return (
+    <Modal
+      open
+      onClose={onDone}
+      title={`Close ${name}?`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onDone}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={act.pending}
+            onClick={() => {
+              act.run(
+                'ClosePerformanceCycle',
+                { id, input: { releaseNow: release === 'now' } },
+                onDone,
+              );
+            }}
+          >
+            Close cycle
+          </Button>
+        </>
+      }
+    >
+      <Refusal error={act.error} />
+      <p>Closing locks every review. Each one ends in one of three states:</p>
+      <KeyValues
+        layout="split"
+        items={[
+          {
+            label: 'Submitted',
+            value: (
+              <Badge size="sm" tone="success">
+                Completed
+              </Badge>
+            ),
+          },
+          {
+            label: 'Unlocked and edited, once submitted before',
+            value: 'Completed, on the last submitted revision',
+          },
+          { label: 'Draft, never submitted', value: <Badge size="sm">Withdrawn</Badge> },
+          { label: 'Not started', value: <Badge size="sm">Abandoned</Badge> },
+        ]}
+      />
+      <Field>
+        <FieldLabel>Reviews not yet released</FieldLabel>
+        <SegmentedControl value={release} onValueChange={setRelease}>
+          <SegmentedControlItem value="now">Release them now</SegmentedControlItem>
+          <SegmentedControlItem value="keep">Keep them unreleased</SegmentedControlItem>
+        </SegmentedControl>
+      </Field>
+    </Modal>
+  );
+}
+
+function ExportDialog({
+  act,
+  id,
+  kinds,
+  onDone,
+}: {
+  readonly act: Act;
+  readonly id: string;
+  readonly kinds: readonly string[];
+  readonly onDone: () => void;
+}): JSX.Element {
+  const [step, setStep] = useState(0);
+  const [full, setFull] = useState('subject');
+  const [include, setInclude] = useState<readonly string[]>(kinds.filter((k) => k !== 'goals'));
+  return (
+    <StepDialog
+      open
+      onClose={onDone}
+      title="Export PDFs"
+      steps={['Whose view', 'What', 'Export']}
+      step={step}
+      onStep={setStep}
+      finishLabel="Export"
+      pending={act.pending}
+      finish={() => {
+        act.run(
+          'ExportPerformanceCycle',
+          { id, input: { full: full === 'full', kinds: include } },
+          (d) => {
+            download(d as { filename: string; base64: string });
+            onDone();
+          },
+        );
+      }}
+    >
+      <Refusal error={act.error} />
+      {step === 0 ? (
+        <RadioGroup aria-label="Whose view" value={full} onValueChange={setFull}>
+          <RadioCard
+            value="subject"
+            description="Private questions and confidential names removed."
+          >
+            As each subject would see it
+          </RadioCard>
+          <RadioCard value="full" description="Every answer and name. Logged as a sensitive read.">
+            Full, for HR
+          </RadioCard>
+        </RadioGroup>
+      ) : null}
+      {step === 1 ? (
+        <div className="flex flex-col gap-1.5">
+          {kinds
+            .filter((k) => k !== 'goals')
+            .map((k) => (
+              <Field key={k} orientation="horizontal">
+                <FieldControl>
+                  <Checkbox
+                    checked={include.includes(k)}
+                    onCheckedChange={(on) => {
+                      setInclude(on === true ? [...include, k] : include.filter((x) => x !== k));
+                    }}
+                  />
+                </FieldControl>
+                <FieldLabel>{kindLabel(k)}</FieldLabel>
+              </Field>
+            ))}
+        </div>
+      ) : null}
+      {step === 2 ? (
+        <p className="text-sm text-fg-muted">
+          Every submitted review, a page each, in one PDF. Filing in Documents follows when
+          Documents is on.
+        </p>
+      ) : null}
+    </StepDialog>
+  );
+}
+
+function AddDialog({
+  act,
+  id,
+  onDone,
+}: {
+  readonly act: Act;
+  readonly id: string;
+  readonly onDone: () => void;
+}): JSX.Element {
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState<readonly { personId: string; name: string; title: string }[]>(
+    [],
+  );
+  const [chosen, setChosen] = useState<string | null>(null);
+  return (
+    <Modal
+      open
+      onClose={onDone}
+      title="Add someone to the cycle"
+      description="Their reviews are created from the cycle’s settings; with under a week left, they are due a week from today."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onDone}>
+            Cancel
+          </Button>
+          <Button
+            disabled={chosen === null}
+            loading={act.pending}
+            onClick={() => {
+              act.run(
+                'AddPerformanceParticipant',
+                { id, input: { personId: chosen, reason: 'Late joiner' } },
+                onDone,
+              );
+            }}
+          >
+            Add
+          </Button>
+        </>
+      }
+    >
+      <Refusal error={act.error} />
+      <SearchField
+        label="Search people"
+        placeholder="Search everyone"
+        value={q}
+        onValueChange={setQ}
+        onSearch={(v) => {
+          void act.call('PerformanceDirectory', { q: v }).then((d) => {
+            if (d.ok) setFound((d.data as { rows: typeof found }).rows);
+          });
+        }}
+      />
+      <RadioGroup aria-label="Who" value={chosen ?? ''} onValueChange={setChosen}>
+        {found.map((p) => (
+          <RadioCard key={p.personId} value={p.personId} description={p.title}>
+            {p.name}
+          </RadioCard>
+        ))}
+      </RadioGroup>
+    </Modal>
+  );
+}
+
+function RemoveDialog({
+  act,
+  id,
+  person,
+  onDone,
+}: {
+  readonly act: Act;
+  readonly id: string;
+  readonly person: OverviewRow | undefined;
+  readonly onDone: () => void;
+}): JSX.Element {
+  const [reason, setReason] = useState('');
+  return (
+    <Modal
+      open
+      onClose={onDone}
+      title={`Remove ${person?.name ?? 'them'} from the cycle?`}
+      description="Started reviews about them become detached: kept for their authors, out of the cycle. Unstarted ones are cancelled."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onDone}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={reason.trim() === ''}
+            loading={act.pending}
+            onClick={() => {
+              act.run(
+                'RemovePerformanceParticipant',
+                { id, input: { personId: person?.personId, reason } },
+                onDone,
+              );
+            }}
+          >
+            Remove
+          </Button>
+        </>
+      }
+    >
+      <Refusal error={act.error} />
+      <Field required>
+        <FieldLabel>Reason</FieldLabel>
+        <Input
+          value={reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+          }}
+        />
+      </Field>
+    </Modal>
+  );
+}

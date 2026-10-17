@@ -12,6 +12,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('../app/(app)/recruiting/actions', () => ({ recruitingAct: vi.fn() }));
 vi.mock('../app/(app)/onboarding/actions', () => ({ onboardingAct: vi.fn() }));
+vi.mock('../app/(app)/performance/actions', () => ({ performanceAct: vi.fn() }));
 vi.mock('./app-shell', () => ({ useShellData: () => ({ sections: [], remotes: {} }) }));
 let shown: Record<string, unknown> = {};
 vi.mock('./remote-screen', () => ({

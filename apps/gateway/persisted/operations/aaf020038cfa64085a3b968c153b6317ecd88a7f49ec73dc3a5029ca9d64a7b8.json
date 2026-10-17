@@ -1,0 +1,1 @@
+{"version":1,"body":"query PerformanceTemplatePreview($activity: String, $as: String, $id: String!, $version: Int) {\n    performanceTemplatePreview(activity: $activity, as: $as, id: $id, version: $version)\n  }"}

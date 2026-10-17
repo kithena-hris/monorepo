@@ -131,6 +131,7 @@ import {
   Sunset,
   Table2,
   Tag,
+  Target,
   Thermometer,
   ThumbsDown,
   ThumbsUp,
@@ -323,6 +324,8 @@ export const iconGroups = {
     meeting: Calendar,
     /** A form somebody fills in about somebody else: a scorecard, a review. */
     assessment: ScanSearch,
+    /** Something worked towards: a goal and its key results, and the area that holds them. */
+    goal: Target,
     /** An agreement to be signed. */
     agreement: FileText,
   },

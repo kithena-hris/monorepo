@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SubmitPerformanceQuiz($id: String!, $key: String!, $input: JSON!) {\n    submitPerformanceQuiz(id: $id, idempotencyKey: $key, input: $input)\n  }"}

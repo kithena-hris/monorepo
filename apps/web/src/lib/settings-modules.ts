@@ -121,6 +121,25 @@ export function settingsModules(
     });
   }
 
+  // Performance's settings, from its own manifest, where this viewer has any.
+  const performanceSettings = shell.remotes?.['performance']?.settings ?? [];
+  if (performanceSettings.length > 0) {
+    modules.push({
+      key: 'performance',
+      title: 'Performance',
+      description:
+        'The scale, reviews, feedback, goals, learning, calibration, AI and who sees what.',
+      settings: performanceSettings.map((place) => ({
+        path: place.path,
+        label: place.label,
+        description: place.description,
+        icon: place.icon,
+        now: null,
+        attention: null,
+      })),
+    });
+  }
+
   // The company's activity log (`/settings/activity`): the shell's, across
   // modules, for whoever may read it — People administrators and HR.
   if (shell.roles.admin || shell.roles.hr) {

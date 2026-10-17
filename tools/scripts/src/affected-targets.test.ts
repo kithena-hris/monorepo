@@ -83,6 +83,7 @@ describe('reason', () => {
       'documents',
       'recruiting',
       'onboarding',
+      'performance',
       'assistant',
       'router',
     ]);

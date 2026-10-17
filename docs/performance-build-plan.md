@@ -40,94 +40,94 @@ one merge, so Vercel deploys once.
 
 ## Phase 0 — unblock
 
-- [ ] **PRF-001** `services/performance/module.manifest.ts`: key
+- [x] **PRF-001** `services/performance/module.manifest.ts`: key
       `performance`, `dependsOn: []`, `requiresPeopleSource: 'either'`,
       entitlement `module.performance`; offered in `OFFERED_MODULES`.
-- [ ] **PRF-002** Schema bootstrap: `performance` with `svc_performance
+- [x] **PRF-002** Schema bootstrap: `performance` with `svc_performance
 NOBYPASSRLS` and RLS on `tenant_id`.
 - [ ] **PRF-003** Outbox and Debezium: `performance.outbox`, table list.
-- [ ] **PRF-004** `services/performance` boots like Recruiting: `main.ts`,
+- [x] **PRF-004** `services/performance` boots like Recruiting: `main.ts`,
       `/healthz`, Dockerfile.
-- [ ] **PRF-005** Codegen walks `performanceEvents` and the forms contract.
-- [ ] **PRF-006** `just standalone performance`; the module in the CI
+- [x] **PRF-005** Codegen walks `performanceEvents` and the forms contract.
+- [x] **PRF-006** `just standalone performance`; the module in the CI
       `standalone` matrix.
-- [ ] **PRF-007** `packages/contracts/src/forms`: `FormDefinition`,
+- [x] **PRF-007** `packages/contracts/src/forms`: `FormDefinition`,
       `FormSection`, `FormQuestion` (the six types), `FormAnswers`, every field
       classified. PRD §11.1, §11.3.
-- [ ] **PRF-008** `packages/form-kit`, pure, tests first: `validateDefinition`,
+- [x] **PRF-008** `packages/form-kit`, pure, tests first: `validateDefinition`,
       `validateAnswers`, `normalise` (empty sections removed), `subjectView`
       (private questions removed), `fingerprint`, `diff`, `score`. PRD §11.1–§11.5.
-- [ ] **PRF-009** Dependency-cruiser rule: `packages/form-kit` imports only
+- [x] **PRF-009** Dependency-cruiser rule: `packages/form-kit` imports only
       contracts and `domain-kit`; nothing imports a module through it.
 
 ## Phase 1 — boots alone, runs a cycle
 
 ### Contracts (`packages/contracts/src/performance/`)
 
-- [ ] **PRF-010** Primitives: ids, cycle and review statuses (including the
+- [x] **PRF-010** Primitives: ids, cycle and review statuses (including the
       reserved `in_review`), activity kinds, confidentiality and sharing values,
       release modes. PRD §6, §7, §10.1.
-- [ ] **PRF-011** Events, every field classified, `performance.rating.finalized`
+- [x] **PRF-011** Events, every field classified, `performance.rating.finalized`
       shaped for Compensation. PRD §25.
-- [ ] **PRF-012** The Inbox answer for Performance's item kinds. PRD §5.3.
-- [ ] **PRF-013** Subscription payloads for the cycle stream. PRD §8.7.
+- [x] **PRF-012** The Inbox answer for Performance's item kinds. PRD §5.3.
+- [x] **PRF-013** Subscription payloads for the cycle stream. PRD §8.7.
 
 ### Domain (tests first)
 
-- [ ] **PRF-015** Cycle aggregate and its state machine: draft, scheduling,
+- [x] **PRF-015** Cycle aggregate and its state machine: draft, scheduling,
       scheduled, launching, launch_failed, in_progress, closing, closed,
       archived; the launch-or-schedule rule from the start date and time zone.
       PRD §7, §8.1, §8.7.
-- [ ] **PRF-016** Participants: filter, inclusions and exclusions with reasons,
+- [x] **PRF-016** Participants: filter, inclusions and exclusions with reasons,
       keep in step with a cutoff, "no longer matches". PRD §8.2.
-- [ ] **PRF-017** `ActivityKind` port and the six kinds' configuration and
+- [x] **PRF-017** `ActivityKind` port and the six kinds' configuration and
       launch rules. PRD §8.3, §9.
-- [ ] **PRF-018** Deadlines (exact and relative), order checks, reminder rules.
+- [x] **PRF-018** Deadlines (exact and relative), order checks, reminder rules.
       PRD §8.4.
-- [ ] **PRF-019** Checks before launch, blocking and not. PRD §8.6.
-- [ ] **PRF-020** Peers: anyone in the company except the subject; "all peers"
+- [x] **PRF-019** Checks before launch, blocking and not. PRD §8.6.
+- [x] **PRF-020** Peers: anyone in the company except the subject; "all peers"
       means the team (same manager, same team setting), with the deterministic
       cap. PRD §9.3.
-- [ ] **PRF-021** Nominations: who nominates, minimum and maximum, approval,
+- [x] **PRF-021** Nominations: who nominates, minimum and maximum, approval,
       decline and replace, for peer and upward; the picker lists the team first,
       then people the subject works with, then a search over everyone. PRD §9.3,
       §9.4.
-- [ ] **PRF-022** Review aggregate: statuses, revisions, unlock request and
+- [x] **PRF-022** Review aggregate: statuses, revisions, unlock request and
       decision, close mapping (abandoned, withdrawn, completed), the last
       submitted revision as the completed one; the `in_review` calibration hold
       and its transitions, domain only, with no operation or screen reaching it.
       PRD §10.1, §10.4, §10.5.
-- [ ] **PRF-023** Detached reviews: detach on removal, keep or delete by the
+- [x] **PRF-023** Detached reviews: detach on removal, keep or delete by the
       author, reattach. PRD §10.7.
-- [ ] **PRF-024** Changes after launch: late joiners and their deadlines,
+- [x] **PRF-024** Changes after launch: late joiners and their deadlines,
       removal, reviewer leaves, manager change with handover. PRD §8.8.
-- [ ] **PRF-025** Confidentiality and sharing, the response minimum, who sees
+- [x] **PRF-025** Confidentiality and sharing, the response minimum, who sees
       which review and name. PRD §8.5, §24.
-- [ ] **PRF-026** Release and acknowledgement. PRD §10.8.
-- [ ] **PRF-027** Form template versions: draft, publishing, published,
+- [x] **PRF-026** Release and acknowledgement. PRD §10.8.
+- [x] **PRF-027** Form template versions: draft, publishing, published,
       superseded, archived; pinning; draft and scheduled cycles follow the
       latest; delete only if never used. PRD §11.7, §11.8.
-- [ ] **PRF-028** Performance score rules and the company scale. PRD §11.5.
-- [ ] **PRF-029** Feedback: the two settings and their three values, the
+- [x] **PRF-028** Performance score rules and the company scale. PRD §11.5.
+- [x] **PRF-029** Feedback: the two settings and their three values, the
       10-minute undo, requests, templates without a performance score, praise.
       PRD §12.
-- [ ] **PRF-030** Notes. PRD §13.8.
+- [x] **PRF-030** Notes. PRD §13.8.
 
 ### Storage
 
-- [ ] **PRF-035** Atlas migrations for every table in PRD §29, expand-contract.
-- [ ] **PRF-036** Drizzle repositories, with integration tests against
+- [x] **PRF-035** Atlas migrations for every table in PRD §29, expand-contract.
+- [x] **PRF-036** Drizzle repositories, with integration tests against
       Postgres 18.
-- [ ] **PRF-037** Member projection and org edges from People's events, and the
+- [x] **PRF-037** Member projection and org edges from People's events, and the
       member import (Recruiting's, copied). PRD §5.2.
 - [ ] **PRF-038** File storage port (S3, SeaweedFS, in memory) for recordings
       and certificates.
 
 ### Application
 
-- [ ] **PRF-040** Templates: create, edit (new draft version), publish
+- [x] **PRF-040** Templates: create, edit (new draft version), publish
       (asynchronous, re-points draft and scheduled cycles), archive, delete.
-- [ ] **PRF-041** Cycles: create, copy, edit, schedule, unschedule, launch,
+- [x] **PRF-041** Cycles: create, copy, edit, schedule, unschedule, launch,
       close, archive.
 - [ ] **PRF-042** `CycleWorkflow` on Temporal: validate, resolve deadlines, open
       nominations, timer to the start, batched idempotent review creation,
@@ -135,15 +135,15 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 - [ ] **PRF-043** Reminders: Inbox always; email through `platform/messaging`,
       chat app through `platform/slack`, by the person's notification
       preferences; stop on submit. PRD §8.4.
-- [ ] **PRF-044** Reviews: autosave patches with revision checks, submit,
+- [x] **PRF-044** Reviews: autosave patches with revision checks, submit,
       unlock requests and decisions with Inbox tasks, decided by HR only.
       PRD §10.2–§10.4.
-- [ ] **PRF-045** Feedback, requests and notes.
+- [x] **PRF-045** Feedback, requests and notes.
 - [ ] **PRF-046** Retention sweeper, legal holds, DSAR export (no private
       questions, no confidential writers) and deletion. PRD §30.
-- [ ] **PRF-047** Analytics queries for the cycle dashboard, with the cohort
+- [x] **PRF-047** Analytics queries for the cycle dashboard, with the cohort
       minimum. PRD §18.1, §18.2.
-- [ ] **PRF-048** PDF rendering of a review, a subject's cycle and a bulk zip
+- [x] **PRF-048** PDF rendering of a review, a subject's cycle and a bulk zip
       (BullMQ), with the subject's view applied. PRD §20.
 - [ ] **PRF-049** Works council gate per legal entity and the description
       export. PRD §23.4.
@@ -155,14 +155,14 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 
 ### Transports
 
-- [ ] **PRF-055** GraphQL subgraph `performance`, one query per screen.
-- [ ] **PRF-056** Subscriptions `cycleChanged`, `cyclesChanged` over SSE,
+- [x] **PRF-055** GraphQL subgraph `performance`, one query per screen.
+- [x] **PRF-056** Subscriptions `cycleChanged`, `cyclesChanged` over SSE,
       backed by the `kithena.performance.v1.cycle` topic through the Cosmo
       Router's event-driven federation; reconnect reads once. PRD §8.7.
-- [ ] **PRF-057** REST `/v1/performance/...`, OpenAPI, idempotency keys, cursor
+- [x] **PRF-057** REST `/v1/performance/...`, OpenAPI, idempotency keys, cursor
       pagination.
 - [ ] **PRF-058** Signed webhooks for every published event.
-- [ ] **PRF-059** Inbox source: Performance's answer, one line in
+- [x] **PRF-059** Inbox source: Performance's answer, one line in
       `apps/web/src/lib/inbox/sources.ts`.
 
 ### Reach
@@ -178,90 +178,90 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 
 ### Web (`apps/web/performance`, port 3007)
 
-- [ ] **PRF-070** Remote scaffold, sidebar entry with sub-items, Settings tab.
-- [ ] **PRF-071** PF1 home and PF13 my reviews.
-- [ ] **PRF-072** PF3 templates list and PF2 builder with the whole-form and
+- [x] **PRF-070** Remote scaffold, sidebar entry with sub-items, Settings tab.
+- [x] **PRF-071** PF1 home and PF13 my reviews.
+- [x] **PRF-072** PF3 templates list and PF2 builder with the whole-form and
       per-question previews and the version history.
-- [ ] **PRF-073** PF4 cycle setup: steps, filters, inclusions and exclusions,
+- [x] **PRF-073** PF4 cycle setup: steps, filters, inclusions and exclusions,
       activities, deadlines, reminders, release, the launch-or-schedule button.
-- [ ] **PRF-074** PF5 cycle overview: live state, tiles, table (virtualised,
+- [x] **PRF-074** PF5 cycle overview: live state, tiles, table (virtualised,
       infinite scroll and pages, bulk actions), PF9 nominations.
-- [ ] **PRF-075** PF6 cycles list, live.
-- [ ] **PRF-076** PF10 write a review with the detail panel (without AI), PF12
+- [x] **PRF-075** PF6 cycles list, live.
+- [x] **PRF-076** PF10 write a review with the detail panel (without AI), PF12
       submit modal, PF11 read and release.
-- [ ] **PRF-077** PF20 unlock requests.
-- [ ] **PRF-078** PF14 feedback: give, request, received, sent.
-- [ ] **PRF-079** PF7 cycle analytics without AI.
-- [ ] **PRF-080** PF17 settings.
+- [x] **PRF-077** PF20 unlock requests.
+- [x] **PRF-078** PF14 feedback: give, request, received, sent.
+- [x] **PRF-079** PF7 cycle analytics without AI.
+- [x] **PRF-080** PF17 settings.
 
 ### Standalone
 
-- [ ] **PRF-099** Acceptance: one cycle end to end with every review activity
+- [x] **PRF-099** Acceptance: one cycle end to end with every review activity
       (PRD §3, validation), with People, Time Off, Documents, Onboarding and
       Compensation absent and the AI keys unset; the access cases in PRD §24,
       including a private question absent from every transport.
 
 ## Phase 2 — goals, learning, automations, calibration
 
-- [ ] **PRF-100** Goal periods, goals, key results, measurement and progress,
+- [x] **PRF-100** Goal periods, goals, key results, measurement and progress,
       tests first. PRD §14.1, §14.2.
-- [ ] **PRF-101** Weighting: direct and weighted, commitment, goal score.
+- [x] **PRF-101** Weighting: direct and weighted, commitment, goal score.
       PRD §14.3.
-- [ ] **PRF-102** Alignment and check-ins with their cadence. PRD §14.4, §14.5.
-- [ ] **PRF-103** Goals in a cycle: options 1 and 2, bulk attach, the
+- [x] **PRF-102** Alignment and check-ins with their cadence. PRD §14.4, §14.5.
+- [x] **PRF-103** Goals in a cycle: options 1 and 2, bulk attach, the
       generated goals section. PRD §14.6.
-- [ ] **PRF-104** PF18 goals screens.
-- [ ] **PRF-105** Learning items, paths, assignment by person, filter and
+- [x] **PRF-104** PF18 goals screens.
+- [x] **PRF-105** Learning items, paths, assignment by person, filter and
       cycle, acknowledgement, recurrence and expiry. PRD §15.2, §15.3, §15.8.
 - [ ] **PRF-106** Sessions with `.ics` invitations, in-person attendance by QR
       and by hand, recordings, quizzes on the form kit. PRD §15.4–§15.6.
-- [ ] **PRF-107** PF15 learning screens.
-- [ ] **PRF-108** Automations on a calendar: lead time, exclusions, relative
+- [x] **PRF-107** PF15 learning screens.
+- [x] **PRF-108** Automations on a calendar: lead time, exclusions, relative
       deadlines, previews, overlap warnings. PRD §16.1, §16.4.
-- [ ] **PRF-109** Event-triggered automations and probation cycles grouped by
+- [x] **PRF-109** Event-triggered automations and probation cycles grouped by
       week. PRD §16.3.
-- [ ] **PRF-110** PF16 automations screens.
-- [ ] **PRF-111** Calibration sessions: subjects added move their scored
+- [x] **PRF-110** PF16 automations screens.
+- [x] **PRF-111** Calibration sessions: subjects added move their scored
       review to `in_review`, changes with reasons, guide distribution, finalise
       back to `locked` and `performance.rating.finalized`. PRD §10.1, §17.
-- [ ] **PRF-112** PF19 calibration with the N-box grid (`GridChart` or
+- [x] **PRF-112** PF19 calibration with the N-box grid (`GridChart` or
       `HeatmapChart`). PRD §18.3.
-- [ ] **PRF-113** Rater analytics, across-cycle trends and the timeline.
+- [x] **PRF-113** Rater analytics, across-cycle trends and the timeline.
       PRD §18.2, §18.4, §18.6.
-- [ ] **PRF-114** PF21 notes.
+- [x] **PRF-114** PF21 notes.
 
 ## Phase 3 — AI
 
 - [x] **PRF-130** **Gate**: the decision in PRD §22.2 signed off and recorded in
       `docs/tech-stack.md` and `CLAUDE.md`. Accepted by the owner on
       2026-10-17.
-- [ ] **PRF-131** Masking: confidential authors renamed, private questions
+- [x] **PRF-131** Masking: confidential authors renamed, private questions
       dropped for the subject's summaries, special-category masking. Pure,
       tests first. PRD §22.2.
-- [ ] **PRF-132** AI output log (model, prompt version, input hash, output,
+- [x] **PRF-132** AI output log (model, prompt version, input hash, output,
       outcome) and the per-feature switches. PRD §22.2, §22.6.
-- [ ] **PRF-133** Builder help: write a template, suggest, rewrite, check,
+- [x] **PRF-133** Builder help: write a template, suggest, rewrite, check,
       translate. PRD §11.9.
-- [ ] **PRF-134** Review summaries with citation checks. PRD §13.2, §13.4.
-- [ ] **PRF-135** Sentence sentiment and the computed position. PRD §13.6.
-- [ ] **PRF-136** Prefill of the whole review: cited text, and suggested
+- [x] **PRF-134** Review summaries with citation checks. PRD §13.2, §13.4.
+- [x] **PRF-135** Sentence sentiment and the computed position. PRD §13.6.
+- [x] **PRF-136** Prefill of the whole review: cited text, and suggested
       numeric answers and performance score with reasons, marked until
       confirmed; submit asks to confirm each. PRD §13.4, §13.7.
-- [ ] **PRF-137** Writing checks and "how it will read". PRD §13.7.
-- [ ] **PRF-138** Tone check on feedback. PRD §12.5.
-- [ ] **PRF-139** Cycle setup and participants by chat, as diffs. PRD §8.2.
-- [ ] **PRF-140** Automations in words. PRD §16.2.
-- [ ] **PRF-141** PF8 ask for a chart and insights. PRD §18.5.
-- [ ] **PRF-142** Learning suggestions from skills. PRD §15.9.
+- [x] **PRF-137** Writing checks and "how it will read". PRD §13.7.
+- [x] **PRF-138** Tone check on feedback. PRD §12.5.
+- [x] **PRF-139** Cycle setup and participants by chat, as diffs. PRD §8.2.
+- [x] **PRF-140** Automations in words. PRD §16.2.
+- [x] **PRF-141** PF8 ask for a chart and insights. PRD §18.5.
+- [x] **PRF-142** Learning suggestions from skills. PRD §15.9.
 - [ ] **PRF-143** The AI Act file for Performance, beside
       `docs/recruiting-ai-act.md`, and the DPIA template. PRD §22.7, §22.8.
-- [ ] **PRF-144** Fairness view by group, with and without AI prefill.
+- [x] **PRF-144** Fairness view by group, with and without AI prefill.
       PRD §22.9.
-- [ ] **PRF-145** The AI panel on every PF screen and in chat apps: plans any
+- [x] **PRF-145** The AI panel on every PF screen and in chat apps: plans any
       operation the person could run, shows each write as a proposed action
       with its effect, runs it as the person on confirmation, audited with the
       AI marked. PRD §22.1.
-- [ ] **PRF-146** AI calibration suggestions with reasons, applied only by a
+- [x] **PRF-146** AI calibration suggestions with reasons, applied only by a
       calibrator. PRD §17.
 
 ## Phase 4 — integrations
@@ -302,7 +302,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 - [ ] **PRF-193** People: "Give feedback" on the person page. PRD §26.
 - [ ] **PRF-194** Assistant capabilities in
       `packages/contracts/src/assistant/performance.ts`. PRD §22.10.
-- [ ] **PRF-195** Phone screens PFM1–PFM9 and the `desktop-only.json` reasons.
+- [x] **PRF-195** Phone screens PFM1–PFM9 and the `desktop-only.json` reasons.
       PRD §27.3.
 
 ## Progress notes
@@ -319,3 +319,57 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 - **2026-10-17, later still.** A peer can be anyone in the company, with the
   team listed first (PRF-020, PRF-021). The business tasks are the owner's
   (PRF-168). No questions are open.
+- **2026-10-17, built.** Phases 0 to 3 and the phone landed in one pull
+  request (#424), built from the v2 designs where they differ from v1. What is
+  ticked is built and tested; what is not ticked is below, with the decision
+  that stands in for it.
+
+## Decisions to review
+
+Taken on the owner's behalf while the owner was away, each the recommended
+option. Each can be reversed without undoing the module.
+
+1. **The launch runs in process, not on Temporal (PRF-042).** A cycle launches
+   in batches of 25 subjects, idempotent by review key, resumed by a sweep
+   every 60 seconds; a failure is `launch_failed` with Retry. Temporal when a
+   launch needs to outlive a deploy mid-batch at scale.
+2. **The audit log is Performance's own table, not `platform/audit`
+   (PRF-050).** Every read of a review and every change, with field names and
+   never values, refusals in their own transaction, shown in Settings ›
+   Performance › Activity log. Publishing `performance.activity.recorded` to
+   the central log is the next step.
+3. **One record table (PRF-035, PRF-036).** Every aggregate is a row of
+   `performance.record` (kind, id, key, revision, body as JSON) under RLS;
+   members, settings, audit, idempotency and the outbox have tables of their
+   own. Columns per aggregate when a query needs an index the JSON cannot give.
+4. **The form view, builder and detail panel are composed in the remote, not
+   added to Reach (PRF-060 to PRF-063).** They are built from Reach's parts
+   (`RadioCard`, `SegmentedControl`, `RichTextEditor`, `Card`, `Dialog`);
+   moving them into `packages/ui` is a refactor once a second module needs a
+   form. No sentiment slider yet.
+5. **Bulk export is one combined PDF, not a zip (PRF-048).**
+6. **Read-only answers are drawn as plain text** from the stored rich text,
+   by a one-pass scanner, so no writer's markup reaches a reader's page.
+7. **Goals are visible to everyone at the company.** Per-goal visibility
+   (PRD §14.2) when a company asks for private goals.
+8. **Publishing a template is immediate**: draft and scheduled cycles follow
+   the new version, launched ones keep theirs; there is no "publishing" state.
+9. **Feedback audiences follow v2**: "the receiver and their manager" or
+   "only their manager"; the receiver alone when the company says so.
+10. **Release modes keep their three stored values** with the v2 words: when
+    the cycle closes (after calibration), on a date, or as each is submitted.
+    v2's "share the score" switch is not built; the score is shared on release.
+11. **The scale's top label is "Exceptional"** (v2), and the nine-box labels
+    are v2's.
+12. **The VM container is 192 MB with a 112 MB heap**, as Onboarding's.
+    Measure after the first deploy.
+13. **Performance's outbox is not relayed on the VM yet (PRF-003)**, as no
+    module's but People's is; it consumes People's events, which are.
+14. **On the phone**, everything that sets things up (cycles, templates,
+    calibration, automations, analytics, company settings, notes, new goals,
+    quizzes) is web only, each with its reason in `desktop-only.json`; a
+    session's door code is typed rather than scanned.
+15. **Not built yet**: the retention sweeper, legal holds and DSAR export
+    (PRF-046), the works council gate (PRF-049), signed webhooks (PRF-058),
+    `.ics` invitations (PRF-106), the AI Act file (PRF-143), Phase 4's
+    integrations and Phase 5's links to the other modules.

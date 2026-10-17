@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation StartPerformanceCycle($id: String!, $key: String!) {\n    startPerformanceCycle(id: $id, idempotencyKey: $key)\n  }"}

@@ -1,4 +1,4 @@
-h1:DYsBZRwcTaveVUxcKfEHZmKtpgQV+6Wh9OIuoMm72UQ=
+h1:0zxwMFyZzqVu8G3smjYMRsw2hgdWU4zeGTtVzKv/dnk=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -142,3 +142,6 @@ h1:DYsBZRwcTaveVUxcKfEHZmKtpgQV+6Wh9OIuoMm72UQ=
 20261015130010_onboarding_core.sql h1:HjkrDin3CxG5uaRhC1wFIpgmdR74JBwU/TRvVsLsAHc=
 20261016120000_recruiting_careers_domain.sql h1:FMG8qYBfgEXfS5VJ1OA1U/QpNK249RX5fjzQ2JVy0mg=
 20261016130000_recruiting_zoom_connection.sql h1:WEHIBGJeOGiK6lSeJLujJrn4TIa/kYkKcAfxx4T6aUQ=
+20261017120000_performance_bootstrap.sql h1:EOejjBw/6buISviULB3PNaeOvlJUpLC5znJtZeheeJ8=
+20261017120005_performance_outbox.sql h1:LDNhycVj+N/bE1OVZWAKC5LQflWqJ0Z92LohT3WwwrM=
+20261017120010_performance_core.sql h1:h6MTmw9GwxS4u1i7tYC/SPVl0xfrc0EViF8sHFqG2Mk=

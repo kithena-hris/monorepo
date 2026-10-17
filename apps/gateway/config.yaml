@@ -173,6 +173,22 @@ headers:
         - op: 'set'
           name: 'x-internal-token'
           value: '${ONBOARDING_API_TOKEN}'
+    # Performance (`services/performance/src/http/caller.ts`): the same
+    # principal, under Performance's own secret.
+    performance:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","impersonatedBy":' +
+            (request.auth.claims.act?.sub == nil || request.auth.claims.act?.kind == 'view_as' ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"viewedBy":' +
+            (request.auth.claims.act?.sub != nil && request.auth.claims.act?.kind == 'view_as' ? '"' + request.auth.claims.act.sub + '"' : 'null') +
+            ',"entitlements":${KITHENA_ENTITLEMENTS}}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${PERFORMANCE_API_TOKEN}'
     # The central activity log (`platform/audit`, `docs/audit.md`): the same
     # principal, less what only People reads, and its own secret — one per
     # pair of services, so a leak of People's does not open the log.

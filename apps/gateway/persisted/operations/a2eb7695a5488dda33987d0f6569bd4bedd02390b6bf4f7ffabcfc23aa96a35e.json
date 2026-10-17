@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PerformanceAutomationInWords($key: String!, $input: JSON!) {\n    performanceAutomationInWords(idempotencyKey: $key, input: $input)\n  }"}

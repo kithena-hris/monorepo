@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTransition, type JSX } from 'react';
+import { useCallback, useEffect, useRef, useTransition, type JSX } from 'react';
 
 import { onboardingAct } from '../app/(app)/onboarding/actions';
+import { performanceAct } from '../app/(app)/performance/actions';
 import { recruitingAct, type Done } from '../app/(app)/recruiting/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS } from '../lib/remotes';
@@ -39,6 +40,47 @@ export const OnboardingScreen = (props: ActScreenProps): JSX.Element => (
   <ActScreen {...props} area="onboarding" act={onboardingAct} />
 );
 
+export const PerformanceScreen = (props: ActScreenProps): JSX.Element => (
+  <ActScreen {...props} area="performance" act={performanceAct} />
+);
+
+/**
+ * Performance's live screens (PRD §8.7): the page was drawn with the current
+ * state, and the cycle stream moves it on by drawing it again, at most once
+ * a second. No polling; `EventSource` reconnects by itself.
+ */
+const LIVE = new Set(['Home', 'Cycles', 'Overview']);
+
+function useLive(
+  component: string | undefined,
+  cycleId: string | undefined,
+  refresh: () => void,
+): void {
+  const last = useRef(0);
+  useEffect(() => {
+    if (component === undefined || !LIVE.has(component) || typeof EventSource === 'undefined')
+      return;
+    const source = new EventSource(
+      `/api/performance/live${cycleId === undefined ? '' : `?cycle=${cycleId}`}`,
+    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const moved = (): void => {
+      const wait = Math.max(0, 1000 - (Date.now() - last.current));
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        last.current = Date.now();
+        refresh();
+      }, wait);
+    };
+    source.addEventListener('next', moved);
+    source.addEventListener('message', moved);
+    return () => {
+      clearTimeout(timer);
+      source.close();
+    };
+  }, [component, cycleId, refresh]);
+}
+
 function ActScreen({
   route,
   load,
@@ -48,12 +90,16 @@ function ActScreen({
   area,
   act,
 }: ActScreenProps & {
-  readonly area: 'recruiting' | 'onboarding';
+  readonly area: 'recruiting' | 'onboarding' | 'performance';
   readonly act: Act;
 }): JSX.Element {
   const router = useRouter();
   const shellData = useShellData();
   const [, startTransition] = useTransition();
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+  useLive(area === 'performance' ? route?.component : undefined, params['id'], refresh);
   const loadable =
     load.status === 'ready'
       ? { status: 'ready' as const, data: load.data }

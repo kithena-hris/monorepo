@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ArchivePerformanceTemplate($id: String!, $key: String!, $input: JSON!) {\n    archivePerformanceTemplate(id: $id, idempotencyKey: $key, input: $input)\n  }"}

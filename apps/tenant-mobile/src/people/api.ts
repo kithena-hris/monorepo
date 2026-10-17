@@ -36,7 +36,7 @@ export type Answer<T> =
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Whose operation it is: a module's area on the company's `/api/mobile/people`. */
-export type Area = 'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding';
+export type Area = 'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding' | 'performance';
 
 export async function ask<T>(
   signed: Signed,

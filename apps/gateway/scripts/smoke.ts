@@ -91,6 +91,8 @@ const container = docker(
   '--env',
   'ONBOARDING_API_TOKEN=smoke',
   '--env',
+  'PERFORMANCE_API_TOKEN=smoke',
+  '--env',
   'ASSISTANT_API_TOKEN=smoke',
   '--env',
   'KITHENA_ENTITLEMENTS=[]',

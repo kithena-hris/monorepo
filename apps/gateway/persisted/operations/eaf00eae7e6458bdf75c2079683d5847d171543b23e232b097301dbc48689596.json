@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SavePerformanceGoal($id: String!, $key: String!, $input: JSON!) {\n    savePerformanceGoal(id: $id, idempotencyKey: $key, input: $input)\n  }"}

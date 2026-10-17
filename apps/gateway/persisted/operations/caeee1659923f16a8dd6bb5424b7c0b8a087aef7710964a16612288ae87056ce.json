@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AcknowledgePerformanceLearning($id: String!, $key: String!) {\n    acknowledgePerformanceLearning(id: $id, idempotencyKey: $key)\n  }"}

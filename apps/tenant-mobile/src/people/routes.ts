@@ -151,7 +151,7 @@ export type PeopleRoutes = {
   DocumentDraft: undefined;
   /** Settings › Documents (MS1–MS6). */
   DocumentsSettings: undefined;
-  /** The last tab when the company has more modules than tabs (RM0): Recruiting, Documents, Onboarding. */
+  /** The last tab when the company has more modules than tabs (RM0): Recruiting, Documents, Onboarding, Performance. */
   More: undefined;
   /** Recruiting's home on the phone (RM0b): what needs you, your jobs. */
   Recruiting: undefined;
@@ -173,6 +173,38 @@ export type PeopleRoutes = {
   OnboardingTasks: undefined;
   /** A new hire's plan: tick a task, a check-in, the probation review (MO4, MO5). */
   OnboardingPlan: { planId: string; name: string };
+  /** Performance (PFM1): my reviews, and feedback, goals and learning a tap away. */
+  Performance: undefined;
+  /** Writing a review, one question a screen (PFM3). */
+  PerformanceWrite: { id: string; title: string };
+  /** A released review, read and acknowledged (PFM2). */
+  PerformanceReleased: { id: string };
+  /** Picking peers, or approving them (PFM4, PFM4b). */
+  PerformanceNominate: { id: string };
+  /** Feedback received, sent and asked for (PFM5). */
+  PerformanceFeedback: undefined;
+  /** Giving feedback, perhaps answering a request (PFM5b–5d). */
+  PerformanceGive: { to?: string; name?: string; requestId?: string };
+  /** Asking for feedback (PFM5d). */
+  PerformanceRequest: undefined;
+  /** My goals and my team's (PFM6). */
+  PerformanceGoals: undefined;
+  /** A goal and its check-in (PFM6b). */
+  PerformanceGoal: { id: string; title: string };
+  /** My learning and a session's door code (PFM7). */
+  PerformanceLearning: undefined;
+  /** A learning item (PFM7b). */
+  PerformanceItem: { id: string; title: string };
+  /** A manager's running cycles (PFM8). */
+  PerformanceTeam: undefined;
+  /** One cycle's people and their reviews (PFM8). */
+  PerformanceCycle: { id: string; name: string };
+  /** HR's unlock requests (PFM9). */
+  PerformanceUnlocks: undefined;
+  /** Ask Kithena, in words (PFM11). */
+  PerformanceAsk: undefined;
+  /** My connected tools (PFS3). */
+  PerformanceTools: undefined;
 };
 
 export type PeopleScreen<K extends keyof PeopleRoutes> = NativeStackScreenProps<PeopleRoutes, K>;

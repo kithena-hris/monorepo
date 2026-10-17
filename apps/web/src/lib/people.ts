@@ -22,6 +22,10 @@ import {
   OPERATIONS as ONBOARDING_OPERATIONS,
   type OperationName as OnboardingOperationName,
 } from './onboarding-operations';
+import {
+  OPERATIONS as PERFORMANCE_OPERATIONS,
+  type OperationName as PerformanceOperationName,
+} from './performance-operations';
 import { currentPerson } from './session';
 import { SESSION_COOKIE } from './session-cookie';
 import { timed } from './timing';
@@ -213,13 +217,14 @@ interface Area {
   readonly operations: Readonly<Record<string, string>>;
 }
 const AREAS: Readonly<
-  Record<'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding', Area>
+  Record<'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding' | 'performance', Area>
 > = {
   people: { service: 'People', operations: OPERATIONS },
   timeoff: { service: 'Time Off', operations: TIMEOFF_OPERATIONS },
   documents: { service: 'Documents', operations: DOCUMENTS_OPERATIONS },
   recruiting: { service: 'Recruiting', operations: RECRUITING_OPERATIONS },
   onboarding: { service: 'Onboarding', operations: ONBOARDING_OPERATIONS },
+  performance: { service: 'Performance', operations: PERFORMANCE_OPERATIONS },
 };
 
 /**
@@ -309,6 +314,50 @@ export async function onboarding<T>(
   variables: Record<string, unknown> = {},
 ): Promise<PeopleAnswer<T>> {
   return ask<T>('onboarding', name, variables);
+}
+
+/** One of Performance's operations (`performance-operations.ts`), as `onboarding` runs Onboarding's. */
+export async function performance<T>(
+  name: PerformanceOperationName,
+  variables: Record<string, unknown> = {},
+): Promise<PeopleAnswer<T>> {
+  return ask<T>('performance', name, variables);
+}
+
+/**
+ * The cycle stream (Performance PRD §8.7): the router's server-sent events
+ * for Performance's subscription, as the person signed in, for the shell's
+ * `/api/performance/live` to hand to the browser. Null without a session.
+ */
+export async function performanceLive(
+  cycleId: string | null,
+  signal: AbortSignal,
+): Promise<Response | null> {
+  const token = await accessToken();
+  if (token === null) return null;
+  const body = PERFORMANCE_OPERATIONS.PerformanceLive;
+  const router = (process.env['ROUTER_URL'] ?? 'http://localhost:4000').replace(/\/$/, '');
+  try {
+    return await fetch(`${router}/graphql`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'graphql-client-name': CLIENT_NAME,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: JSON.stringify({
+        query: body,
+        operationName: 'PerformanceLive',
+        variables: { cycleId },
+        extensions: { persistedQuery: { version: 1, sha256Hash: hashOf(body) } },
+      }),
+      cache: 'no-store',
+      signal,
+    });
+  } catch {
+    return null;
+  }
 }
 
 /**

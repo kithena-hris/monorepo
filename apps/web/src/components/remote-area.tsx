@@ -4,7 +4,12 @@ import type { JSX } from 'react';
 
 import { RemoteScreen } from './remote-screen';
 import { DocumentsScreen } from './documents-screen';
-import { OnboardingScreen, RecruitingScreen, type ActScreenProps } from './act-screen';
+import {
+  OnboardingScreen,
+  PerformanceScreen,
+  RecruitingScreen,
+  type ActScreenProps,
+} from './act-screen';
 import { TimeOffScreen } from './timeoff-screen';
 import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -17,6 +22,7 @@ import { loadScreen as loadDocumentsScreen } from '../lib/documents-screens';
 import { loadScreen as loadTimeOffScreen } from '../lib/timeoff-screens';
 import { loadScreen as loadRecruitingScreen } from '../lib/recruiting-screens';
 import { loadScreen as loadOnboardingScreen } from '../lib/onboarding-screens';
+import { loadScreen as loadPerformanceScreen } from '../lib/performance-screens';
 
 /**
  * Each area's screen data, by its name in `AREAS`: the read the screen is
@@ -39,6 +45,7 @@ const SCREENS: Partial<
   documents: { load: loadDocumentsScreen, Screen: DocumentsScreen },
   recruiting: { load: loadRecruitingScreen, Screen: RecruitingScreen },
   onboarding: { load: loadOnboardingScreen, Screen: OnboardingScreen },
+  performance: { load: loadPerformanceScreen, Screen: PerformanceScreen },
 };
 
 /**

@@ -22,6 +22,14 @@ subgraphs:
     routing_url: http://localhost:4006/graphql
     introspection:
       url: http://localhost:4006/graphql
+  # Performance's cycle stream (`performanceLive`) reaches the router as SSE.
+  - name: performance
+    routing_url: http://localhost:4007/graphql
+    subscription:
+      url: http://localhost:4007/graphql
+      protocol: sse
+    introspection:
+      url: http://localhost:4007/graphql
   - name: audit
     routing_url: http://localhost:4103/graphql
     introspection:

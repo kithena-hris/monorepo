@@ -314,16 +314,18 @@ Read-only copies: the requirements at
 https://claude.ai/artifact/CcpXLphRFuacM5NCed2BD6 and the tickets at
 https://claude.ai/artifact/RPvxsmE6skmpEaiAn7nhKa.
 
-**The Performance and Development module is specified and not yet built.** It
-will be built on the `performance` branch, a commit per concern, one pull
-request and one merge into `main`. Requirements are in `docs/performance-prd.md`
-(`performance` in `ModuleKey`; Goals and Learning live inside it). The tickets,
-`PRF-001` to `PRF-195`, are in `docs/performance-build-plan.md`, which is the
-record of progress. Screens `PF1`–`PF21` (web) and `PFM1`–`PFM9` (mobile) are
-not designed yet. The owner accepted the AI decisions (PRD §22.2, §22.3): AI
-does everything a person can, numbers included as suggestions a person
-confirms, reads connected tools only on each person's grant, and every action
-is audited; the rest of PRD §36 is open for review. Read-only copies: the
+**The Performance and Development module is built** (`services/performance`,
+port 4007; `apps/web/performance`; the phone's Performance screens), landed as
+one pull request from the `performance` branch. Requirements are in
+`docs/performance-prd.md` (`performance` in `ModuleKey`; Goals and Learning
+live inside it). The tickets, `PRF-001` to `PRF-195`, are in
+`docs/performance-build-plan.md`, which is the record of progress; the
+unticked ones and the decisions taken for the owner to review are at its end.
+Screens are the Kithena Performance v2 pages (web and mobile) in the same
+Claude Design project, which win over v1 where they differ. The owner accepted
+the AI decisions (PRD §22.2, §22.3): AI does everything a person can, numbers
+included as suggestions a person confirms, reads connected tools only on each
+person's grant, and every action is audited. Read-only copies: the
 requirements at https://claude.ai/artifact/XizvxyfaS5jWHXz84vBSaj and the
 tickets at https://claude.ai/artifact/AoEcvVQBkZgwdpm57etTTg.
 

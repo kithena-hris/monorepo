@@ -1,0 +1,1 @@
+{"version":1,"body":"subscription PerformanceLive($cycleId: String) {\n    performanceLive(cycleId: $cycleId) { cycleId state version counts }\n  }"}

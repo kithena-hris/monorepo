@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SubmitPerformanceReview($id: String!, $key: String!, $input: JSON!) {\n    submitPerformanceReview(id: $id, idempotencyKey: $key, input: $input)\n  }"}

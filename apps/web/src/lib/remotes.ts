@@ -318,6 +318,15 @@ export const AREAS = {
     env: 'ONBOARDING',
     dev: 'http://localhost:3006',
   },
+  performance: {
+    name: 'performance',
+    label: 'Performance',
+    home: '/performance',
+    settings: '/settings/performance',
+    entitlement: 'module.performance',
+    env: 'PERFORMANCE',
+    dev: 'http://localhost:3007',
+  },
 } as const;
 export type Area = (typeof AREAS)[keyof typeof AREAS];
 

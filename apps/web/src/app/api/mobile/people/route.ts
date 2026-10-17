@@ -28,7 +28,11 @@ export async function POST(request: Request): Promise<Response> {
     body !== null && typeof body === 'object' ? Reflect.get(body, key) : undefined;
   const asked = read('area');
   const area =
-    asked === 'timeoff' || asked === 'documents' || asked === 'recruiting' || asked === 'onboarding'
+    asked === 'timeoff' ||
+    asked === 'documents' ||
+    asked === 'recruiting' ||
+    asked === 'onboarding' ||
+    asked === 'performance'
       ? asked
       : 'people';
   const operation = read('operation');

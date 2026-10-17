@@ -1,0 +1,1 @@
+{"version":1,"body":"query PerformanceAutomation($id: String!) {\n    performanceAutomation(id: $id)\n  }"}

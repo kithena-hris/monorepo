@@ -1,0 +1,1979 @@
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  EmptyState,
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldLabel,
+  HorizontalBarChart,
+  Input,
+  KeyValues,
+  PageHeader,
+  Progress,
+  SearchField,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TertiaryNav,
+  Textarea,
+  icons,
+} from '@reach/ui';
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
+
+import { CONFIDENCE } from './home';
+import { FormView } from './form-view';
+import { Loaded } from './load';
+import {
+  CycleBadge,
+  KindBadge,
+  Modal,
+  Person,
+  Refusal,
+  ReviewBadge,
+  To,
+  day,
+  download,
+  kindLabel,
+  plural,
+  score,
+  time,
+  useAct,
+  when,
+} from './shared';
+import type {
+  Answer,
+  Answers,
+  FormDefinition,
+  ScaleOption,
+  ScreenProps,
+  Score,
+  Suggestion,
+} from './types';
+
+/**
+ * Reviews (PRD §10, §13; design PF10–PF13, PF20, PF9b–c): what a person
+ * writes and what is written about them.
+ */
+
+/* ---------------------------------------------------------- my reviews -- */
+
+interface Row {
+  readonly id: string;
+  readonly kind: string;
+  readonly title: string;
+  readonly subjectId: string;
+  readonly about: string;
+  readonly aboutTitle: string;
+  readonly cycle: string | null;
+  readonly due: string;
+  readonly state: string;
+  readonly savedAt: string | null;
+}
+
+interface AboutCycle {
+  readonly cycleId: string;
+  readonly cycle: string;
+  readonly state: string;
+  readonly self: { readonly id: string; readonly state: string; readonly due: string } | null;
+  readonly nominated: readonly string[];
+  readonly nomination: string | null;
+  readonly manager: {
+    readonly id: string;
+    readonly by: string;
+    readonly released: string | null;
+    readonly acknowledged: string | null;
+    readonly comment: string | null;
+    readonly writing: boolean;
+  } | null;
+  readonly score: {
+    readonly display: string;
+    readonly label: string;
+    readonly final: boolean;
+  } | null;
+  readonly peers: { readonly count: number; readonly ids: readonly string[] } | null;
+}
+
+export interface MyReviewsData {
+  readonly tab: string;
+  readonly counts: { readonly toWrite: number; readonly written: number };
+  readonly rows: readonly Row[];
+  readonly nominations: readonly {
+    readonly id: string;
+    readonly kind: 'nominate' | 'approve';
+    readonly cycle: string;
+    readonly subject: string;
+    readonly min: number;
+    readonly max: number;
+    readonly due: string | null;
+  }[];
+  readonly about: readonly AboutCycle[] | null;
+}
+
+export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
+  return (
+    <Loaded load={props.load} what="your reviews">
+      {(data) => (
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            title="My reviews"
+            description="Every review you write, across cycles, and what is written about you."
+          />
+          {data.tab === 'nominations' ? (
+            <Card>
+              <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
+                {data.nominations.length === 0 ? (
+                  <EmptyState
+                    icon={<icons.people aria-hidden />}
+                    title="No nominations to make"
+                    description="When a cycle asks you to pick peers, or approve someone’s, it shows here."
+                  />
+                ) : (
+                  data.nominations.map((n) => (
+                    <div key={n.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="font-medium">
+                          {n.kind === 'nominate'
+                            ? `Pick ${String(n.min)} to ${String(n.max)} peers for ${n.subject}`
+                            : `Approve ${n.subject}’s peers`}
+                        </span>
+                        <span className="block text-sm text-fg-muted">{`${n.cycle}${n.due === null ? '' : ` · due ${day(n.due)}`}`}</span>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={n.kind === 'approve' ? 'primary' : 'secondary'}
+                        asChild
+                      >
+                        <a href={`/performance/nominations/${n.id}`}>
+                          {n.kind === 'approve' ? 'Review' : 'Pick peers'}
+                        </a>
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+          {data.tab === 'nominations' ? null : data.tab === 'about' ? (
+            <AboutMe cycles={data.about ?? []} onNavigate={props.onNavigate} />
+          ) : (
+            <>
+              <Card>
+                <CardContent className="overflow-x-auto">
+                  {data.rows.length === 0 ? (
+                    <EmptyState
+                      icon={<icons.review aria-hidden />}
+                      title={data.tab === 'written' ? 'Nothing written yet' : 'No reviews to write'}
+                      description="When a cycle asks you for a review, it shows here and in your Inbox."
+                    />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Review</TableHead>
+                          <TableHead>About</TableHead>
+                          <TableHead>Cycle</TableHead>
+                          <TableHead>Kind</TableHead>
+                          <TableHead>Due</TableHead>
+                          <TableHead>State</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.rows.map((r) => (
+                          <TableRow key={r.id}>
+                            <TableCell>
+                              <To
+                                href={`/performance/reviews/${r.id}`}
+                                onNavigate={props.onNavigate}
+                              >
+                                {r.title}
+                              </To>
+                              {r.savedAt === null ? null : (
+                                <span className="block text-xs text-fg-muted">{`Saved ${when(r.savedAt)}`}</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Person name={r.about} sub={r.aboutTitle} />
+                            </TableCell>
+                            <TableCell className="text-sm text-fg-muted">
+                              {r.cycle ?? '—'}
+                            </TableCell>
+                            <TableCell>
+                              <KindBadge kind={r.kind} />
+                            </TableCell>
+                            <TableCell>{day(r.due)}</TableCell>
+                            <TableCell>
+                              <ReviewBadge state={r.state} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+              {data.tab === 'write' ? (
+                <Alert tone="info" title="Upward and peer reviews are confidential">
+                  Your manager sees upward answers only once enough of their reports have answered,
+                  and never your name. People you review as a peer see your answers without your
+                  name; their managers see it.
+                </Alert>
+              ) : null}
+            </>
+          )}
+        </div>
+      )}
+    </Loaded>
+  );
+}
+
+function AboutMe({
+  cycles,
+  onNavigate,
+}: {
+  readonly cycles: readonly AboutCycle[];
+  readonly onNavigate?: ((to: string) => void) | undefined;
+}): JSX.Element {
+  if (cycles.length === 0)
+    return (
+      <Card>
+        <CardContent>
+          <EmptyState
+            icon={<icons.review aria-hidden />}
+            title="Nothing about you yet"
+            description="Reviews about you appear here once they are released to you."
+          />
+        </CardContent>
+      </Card>
+    );
+  return (
+    <div className="flex flex-col gap-4">
+      {cycles.map((c) => (
+        <Card key={c.cycleId}>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle level={2}>{c.cycle}</CardTitle>
+            {c.manager?.acknowledged ? (
+              <Badge size="sm" tone="success">
+                Acknowledged
+              </Badge>
+            ) : (
+              <CycleBadge state={c.state} />
+            )}
+          </CardHeader>
+          <CardContent>
+            <KeyValues
+              layout="split"
+              items={[
+                ...(c.self === null
+                  ? []
+                  : [
+                      {
+                        label: 'Your self review',
+                        value: (
+                          <span className="flex items-center gap-2">
+                            <ReviewBadge state={c.self.state} />
+                            <To href={`/performance/reviews/${c.self.id}`} onNavigate={onNavigate}>
+                              Open
+                            </To>
+                          </span>
+                        ),
+                      },
+                    ]),
+                ...(c.nominated.length === 0
+                  ? []
+                  : [
+                      {
+                        label: 'Peers you nominated',
+                        value: `${c.nominated.join(', ')}${c.nomination === 'approved' ? ' · approved' : ''}`,
+                      },
+                    ]),
+                ...(c.score === null
+                  ? []
+                  : [
+                      {
+                        label: 'Performance score',
+                        value: `${c.score.display} · ${c.score.label}${c.score.final ? '' : ', before calibration'}`,
+                      },
+                    ]),
+                ...(c.manager === null
+                  ? []
+                  : [
+                      {
+                        label: 'Manager review',
+                        value:
+                          c.manager.released === null ? (
+                            c.manager.writing ? (
+                              `${c.manager.by} is writing it`
+                            ) : (
+                              `Submitted by ${c.manager.by}, not released yet`
+                            )
+                          ) : (
+                            <To
+                              href={`/performance/released/${c.manager.id}`}
+                              onNavigate={onNavigate}
+                            >
+                              {`Read ${c.manager.by}’s review`}
+                            </To>
+                          ),
+                      },
+                    ]),
+                ...(c.peers === null
+                  ? []
+                  : [
+                      {
+                        label: 'Peer reviews',
+                        value:
+                          c.peers.count === 0 ? (
+                            'Not enough responses to share confidentially'
+                          ) : (
+                            <To
+                              href={`/performance/released/${c.peers.ids[0] ?? ''}`}
+                              onNavigate={onNavigate}
+                            >
+                              {`${plural(c.peers.count, 'review')}, names hidden`}
+                            </To>
+                          ),
+                      },
+                    ]),
+                ...(c.manager?.comment
+                  ? [{ label: 'Your comment', value: `“${c.manager.comment}”` }]
+                  : []),
+              ]}
+            />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- writing -- */
+
+interface PanelReview {
+  readonly id: string;
+  readonly kind: string;
+  readonly title: string;
+  readonly by: string;
+  readonly at: string | null;
+  readonly excerpt: string | null;
+  readonly ratings: readonly {
+    readonly question: string;
+    readonly value: number | null;
+    readonly label: string | null;
+  }[];
+}
+
+export interface WriteData {
+  readonly review: {
+    readonly id: string;
+    readonly kind: string;
+    readonly title: string;
+    readonly status: string;
+    readonly revision: number;
+    readonly savedAt: string | null;
+    readonly due: string;
+    readonly confidential: boolean;
+    readonly subject: { readonly personId: string; readonly name: string; readonly title: string };
+    readonly author: string;
+    readonly cycle: {
+      readonly id: string;
+      readonly name: string;
+      readonly names: string;
+      readonly minimum: number;
+    } | null;
+    readonly handover: { readonly from: string; readonly note: string | null } | null;
+    readonly detached: { readonly at: string; readonly keep: boolean | null } | null;
+    readonly unlock: {
+      readonly reason: string;
+      readonly decided: { readonly approved: boolean } | null;
+    } | null;
+  };
+  readonly form: FormDefinition;
+  readonly answers: Answers;
+  readonly suggestions: Readonly<Record<string, Suggestion>>;
+  readonly drafted: readonly string[];
+  readonly missing: readonly string[];
+  readonly score: Score | null;
+  readonly panel: {
+    readonly goals: readonly {
+      readonly id: string;
+      readonly title: string;
+      readonly progress: number;
+      readonly confidence: string;
+    }[];
+    readonly reviews: readonly PanelReview[];
+    readonly feedback: readonly {
+      readonly id: string;
+      readonly kind: string;
+      readonly from: string;
+      readonly at: string;
+      readonly text: string;
+    }[];
+    readonly notes: readonly {
+      readonly id: string;
+      readonly title: string;
+      readonly text: string;
+      readonly at: string;
+    }[];
+    readonly earlier: readonly {
+      readonly id: string;
+      readonly cycle: string | null;
+      readonly by: string;
+      readonly score: number | null;
+    }[];
+  };
+  readonly may: {
+    readonly write: boolean;
+    readonly unlock: boolean;
+    readonly withdraw: boolean;
+    readonly decline: boolean;
+  };
+  readonly ai: Readonly<Record<string, boolean>>;
+  readonly scale?: readonly ScaleOption[];
+}
+
+type Saving =
+  | { readonly state: 'saved'; readonly at: string | null; readonly revision: number }
+  | { readonly state: 'saving' }
+  | { readonly state: 'stale'; readonly message: string }
+  | { readonly state: 'failed'; readonly message: string };
+
+/** PF10: the form, autosaving, with the detail panel beside it. */
+export function Write(props: ScreenProps<WriteData>): JSX.Element {
+  return (
+    <Loaded load={props.load} what="the review">
+      {(data) => <Writing key={data.review.id} data={data} {...props} />}
+    </Loaded>
+  );
+}
+
+function Writing({
+  data,
+  ...props
+}: ScreenProps<WriteData> & { readonly data: WriteData }): JSX.Element {
+  const act = useAct(props);
+  const [answers, setAnswers] = useState<Answers>(data.answers);
+  const [saving, setSaving] = useState<Saving>({
+    state: 'saved',
+    at: data.review.savedAt,
+    revision: data.review.revision,
+  });
+  const [currentScore, setScore] = useState<Score | null>(data.score);
+  const [missing, setMissing] = useState(data.missing);
+  const [dialog, setDialog] = useState<'submit' | 'unlock' | 'decline' | null>(null);
+  const [panelOpen, setPanelOpen] = useState(props.search?.['panel'] !== 'closed');
+  const [tab, setTab] = useState(props.search?.['tab'] ?? 'context');
+  const pending = useRef<Record<string, Answer>>({});
+  const revision = useRef(data.review.revision);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const subject = data.review.subject.name.split(' ')[0] ?? data.review.subject.name;
+
+  const flush = async (): Promise<void> => {
+    const patch = pending.current;
+    if (Object.keys(patch).length === 0) return;
+    pending.current = {};
+    setSaving({ state: 'saving' });
+    const done = await act.call('SavePerformanceAnswers', {
+      id: data.review.id,
+      input: { revision: revision.current, answers: patch },
+    });
+    if (!done.ok) {
+      pending.current = { ...patch, ...pending.current };
+      setSaving(
+        done.code === 'STALE_REVISION'
+          ? { state: 'stale', message: done.message }
+          : { state: 'failed', message: done.message },
+      );
+      return;
+    }
+    const saved = done.data as {
+      revision: number;
+      savedAt: string;
+      missing: string[];
+      score: Score | null;
+    };
+    revision.current = saved.revision;
+    setScore(saved.score);
+    setMissing(saved.missing);
+    setSaving({ state: 'saved', at: saved.savedAt, revision: saved.revision });
+  };
+  // Saved 800 ms after the last change, and before the page goes away (§10.2).
+  useEffect(() => {
+    const hide = (): void => {
+      if (document.visibilityState === 'hidden') void flush();
+    };
+    document.addEventListener('visibilitychange', hide);
+    return () => {
+      document.removeEventListener('visibilitychange', hide);
+      clearTimeout(timer.current);
+    };
+  });
+  const change = (id: string, a: Answer): void => {
+    setAnswers((prev) => ({ ...prev, [id]: a }));
+    pending.current = { ...pending.current, [id]: a };
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      void flush();
+    }, 800);
+  };
+  const ai = (name: string, after?: (d: unknown) => void): void => {
+    act.run(name, { id: data.review.id }, after);
+  };
+  const [summary, setSummary] = useState<{
+    sentences: { text: string; cites: string[] }[];
+    sources: { id: string; label: string }[];
+    dropped: number;
+  } | null>(null);
+  const [reads, setReads] = useState<{
+    reads: string;
+    flags: { sentence: string; level: string; title: string; suggestion: string | null }[];
+  } | null>(null);
+  const writing = data.may.write;
+  const unconfirmed = Object.entries(data.suggestions).filter(([, s]) => !s.confirmed);
+  const badge =
+    saving.state === 'saving'
+      ? 'Saving…'
+      : saving.state === 'saved'
+        ? saving.at === null
+          ? 'Not saved yet'
+          : `Saved ${time(saving.at)} · revision ${String(saving.revision)}`
+        : 'Not saved';
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={`${data.review.title}${data.review.kind === 'self' ? '' : `: ${data.review.subject.name}`}`}
+        description={`${data.review.cycle?.name ?? 'Detached review'} · due ${day(data.review.due)}`}
+        actions={
+          <>
+            <span className="text-sm text-fg-muted" aria-live="polite">
+              {badge}
+            </span>
+            {data.may.decline ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDialog('decline');
+                }}
+              >
+                Decline
+              </Button>
+            ) : null}
+            {data.may.unlock ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDialog('unlock');
+                }}
+              >
+                Request unlock
+              </Button>
+            ) : null}
+            {data.may.withdraw ? (
+              <Button
+                variant="ghost"
+                loading={act.pending}
+                onClick={() => {
+                  act.run('WithdrawPerformanceUnlock', { id: data.review.id });
+                }}
+              >
+                Withdraw unlock request
+              </Button>
+            ) : null}
+            {writing ? (
+              <Button
+                onClick={() => {
+                  void flush().then(() => {
+                    setDialog('submit');
+                  });
+                }}
+              >
+                Submit
+              </Button>
+            ) : null}
+          </>
+        }
+      />
+      <Refusal error={act.error} />
+      {saving.state === 'stale' ? (
+        <Alert
+          tone="warning"
+          title="This review changed in another tab"
+          action={
+            <Button
+              size="sm"
+              onClick={() => {
+                props.onRefresh?.();
+              }}
+            >
+              Load the newer revision
+            </Button>
+          }
+        >
+          {`${saving.message} Your last change is kept on this page; load the newer revision and make it again.`}
+        </Alert>
+      ) : null}
+      {saving.state === 'failed' ? (
+        <Alert tone="danger" title="Not saved">
+          {saving.message}
+        </Alert>
+      ) : null}
+      {data.review.detached === null ? null : (
+        <Detached
+          reviewId={data.review.id}
+          subject={data.review.subject.name}
+          keep={data.review.detached.keep}
+          {...props}
+        />
+      )}
+      {data.review.handover === null ? null : (
+        <Alert tone="info" title={`Handed over from ${data.review.handover.from}`}>
+          {data.review.handover.note ?? 'Their draft came with the review.'}
+        </Alert>
+      )}
+      {data.review.status === 'unlock_requested' ? (
+        <Alert tone="info" title="Waiting for HR to unlock it">
+          {`You asked: “${data.review.unlock?.reason ?? ''}”. Until HR decides, the review stays submitted.`}
+        </Alert>
+      ) : null}
+      {data.review.kind === 'peer' || data.review.kind === 'upward' ? (
+        <Alert tone="info" title={`Confidential to ${subject}`}>
+          {`${subject} sees your answers ${data.review.cycle?.names === 'shown' ? 'with' : 'without'} your name, and only once at least ${String(data.review.cycle?.minimum ?? 3)} have answered. Their manager and HR see your name.`}
+        </Alert>
+      ) : null}
+      {writing && (data.ai['prefill'] === true || data.ai['summaries'] === true) ? (
+        <div className="flex flex-wrap gap-2">
+          {data.ai['prefill'] === true ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              startIcon={<icons.assistant aria-hidden />}
+              loading={act.pending}
+              onClick={() => {
+                ai('PrefillPerformanceReview');
+              }}
+            >
+              Prefill with AI
+            </Button>
+          ) : null}
+          {unconfirmed.length > 0 ? (
+            <Badge tone="accent">{`${plural(unconfirmed.length, 'suggestion')} to confirm`}</Badge>
+          ) : null}
+        </div>
+      ) : null}
+      <div className={`grid gap-4 ${panelOpen ? 'lg:grid-cols-[minmax(0,1fr)_auto]' : ''}`}>
+        <div className="flex min-w-0 flex-col gap-3">
+          <Progress
+            value={Math.round(
+              ((data.form.sections
+                .flatMap((s) => s.questions)
+                .filter((q) => q.required && q.type !== 'performance_score').length -
+                missing.length) /
+                Math.max(
+                  1,
+                  data.form.sections
+                    .flatMap((s) => s.questions)
+                    .filter((q) => q.required && q.type !== 'performance_score').length,
+                )) *
+                100,
+            )}
+            label="Required questions answered"
+            showValue
+          />
+          <FormView
+            definition={data.form}
+            answers={answers}
+            editable={writing}
+            onChange={change}
+            suggestions={data.suggestions}
+            drafted={data.drafted}
+            onConfirm={(q) => {
+              act.run('ConfirmPerformanceSuggestion', { id: data.review.id, questionId: q });
+            }}
+            score={currentScore}
+            subject={subject}
+            missing={missing}
+            {...(data.scale === undefined ? {} : { scale: data.scale })}
+          />
+        </div>
+        {panelOpen ? (
+          <aside
+            aria-label="Detail panel"
+            className="flex min-w-72 resize-x flex-col gap-3 overflow-auto lg:w-[26rem] lg:max-w-[40rem]"
+          >
+            <div className="flex items-center gap-2">
+              <TertiaryNav
+                label="Detail panel"
+                orientation="horizontal"
+                variant="line"
+                activeId={tab}
+                onSelect={setTab}
+                items={[
+                  { id: 'context', label: 'Context' },
+                  ...(data.ai['summaries'] === true ? [{ id: 'summary', label: 'Summary' }] : []),
+                  ...(data.ai['writingChecks'] === true && writing
+                    ? [{ id: 'reads', label: 'How it reads' }]
+                    : []),
+                  { id: 'earlier', label: 'Earlier reviews' },
+                ]}
+              />
+              <Button
+                size="xs"
+                variant="ghost"
+                aria-label="Close the panel"
+                startIcon={<icons.close aria-hidden />}
+                onClick={() => {
+                  setPanelOpen(false);
+                }}
+              />
+            </div>
+            {tab === 'context' ? <Context data={data} /> : null}
+            {tab === 'summary' ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle level={3}>Summary of what others said</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  {summary === null ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={act.pending}
+                      onClick={() => {
+                        ai('SummarisePerformanceReview', (d) => {
+                          setSummary(d as typeof summary);
+                        });
+                      }}
+                    >
+                      Summarise
+                    </Button>
+                  ) : (
+                    <>
+                      <p>
+                        {summary.sentences
+                          .map((s) => `${s.text} [${s.cites.join(', ')}]`)
+                          .join(' ')}
+                      </p>
+                      <ul className="flex flex-col gap-1 text-sm text-fg-muted">
+                        {summary.sources.map((s) => (
+                          <li key={s.id}>{`${s.id}: ${s.label}`}</li>
+                        ))}
+                      </ul>
+                      {summary.dropped > 0 ? (
+                        <p className="text-sm text-fg-muted">{`${plural(summary.dropped, 'sentence')} without a source left out.`}</p>
+                      ) : null}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+            {tab === 'reads' ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle level={3}>{`How it will read to ${subject}`}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  {reads === null ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={act.pending}
+                      onClick={() => {
+                        ai('PerformanceHowItReads', (d) => {
+                          setReads(d as typeof reads);
+                        });
+                      }}
+                    >
+                      Check my draft
+                    </Button>
+                  ) : (
+                    <>
+                      <p>{reads.reads}</p>
+                      {reads.flags.map((f) => (
+                        <Alert
+                          key={f.sentence}
+                          tone={
+                            f.level === 'danger'
+                              ? 'danger'
+                              : f.level === 'warning'
+                                ? 'warning'
+                                : 'info'
+                          }
+                          title={f.title}
+                        >
+                          {`“${f.sentence}”${f.suggestion === null ? '' : ` Try: ${f.suggestion}`}`}
+                        </Alert>
+                      ))}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+            {tab === 'earlier' ? (
+              <Card>
+                <CardContent className="flex flex-col gap-2">
+                  {data.panel.earlier.length === 0 ? (
+                    <p className="text-sm text-fg-muted">No earlier reviews you may read.</p>
+                  ) : (
+                    data.panel.earlier.map((e) => (
+                      <KeyValues
+                        key={e.id}
+                        layout="split"
+                        items={[
+                          { label: e.cycle ?? 'Review', value: `${e.by} · ${score(e.score)}` },
+                        ]}
+                      />
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+          </aside>
+        ) : (
+          <div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setPanelOpen(true);
+              }}
+            >
+              Show the detail panel
+            </Button>
+          </div>
+        )}
+      </div>
+      {dialog === 'submit' ? (
+        <SubmitDialog
+          data={data}
+          answers={answers}
+          missing={missing}
+          score={currentScore}
+          onClose={() => {
+            setDialog(null);
+          }}
+          {...props}
+        />
+      ) : null}
+      {dialog === 'unlock' ? (
+        <UnlockDialog
+          id={data.review.id}
+          subject={data.review.subject.name}
+          onClose={() => {
+            setDialog(null);
+          }}
+          {...props}
+        />
+      ) : null}
+      {dialog === 'decline' ? (
+        <DeclineDialog
+          id={data.review.id}
+          subject={subject}
+          onClose={() => {
+            setDialog(null);
+          }}
+          {...props}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function Context({ data }: { readonly data: WriteData }): JSX.Element {
+  const p = data.panel;
+  return (
+    <div className="flex flex-col gap-3">
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>Goals</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2.5">
+          {p.goals.length === 0 ? (
+            <p className="text-sm text-fg-muted">No goals this period.</p>
+          ) : (
+            p.goals.map((g) => (
+              <div key={g.id} className="flex flex-col gap-1">
+                <span className="flex items-center justify-between gap-2 text-sm">
+                  <span className="truncate">{g.title}</span>
+                  <Badge size="sm" tone={CONFIDENCE[g.confidence]?.[1] ?? 'success'}>
+                    {CONFIDENCE[g.confidence]?.[0] ?? 'On track'}
+                  </Badge>
+                </span>
+                <Progress value={g.progress} label={`${g.title}: ${String(g.progress)}%`} />
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+      {p.reviews.length === 0 ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle level={3}>{`Reviews in · ${String(p.reviews.length)}`}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {p.reviews.map((r) => (
+              <div key={r.id} className="flex flex-col gap-1">
+                <Person name={r.by} sub={`${r.title}${r.at === null ? '' : ` · ${day(r.at)}`}`} />
+                {r.ratings.length === 0 ? null : (
+                  <p className="text-sm text-fg-muted">
+                    {r.ratings.map((x) => `${x.question}: ${x.label ?? '—'}`).join(' · ')}
+                  </p>
+                )}
+                {r.excerpt === null || r.excerpt === '' ? null : (
+                  <p className="text-sm">{`“${r.excerpt}”`}</p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>{`Feedback · ${String(p.feedback.length)}`}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {p.feedback.length === 0 ? (
+            <p className="text-sm text-fg-muted">No feedback you may read.</p>
+          ) : (
+            p.feedback
+              .slice(0, 6)
+              .map((f) => (
+                <p key={f.id} className="text-sm">{`“${f.text}” — ${f.from}, ${day(f.at)}`}</p>
+              ))
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>Your notes</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {p.notes.length === 0 ? (
+            <p className="text-sm text-fg-muted">
+              Notes you keep about them show here, for you alone.
+            </p>
+          ) : (
+            p.notes.map((n) => <p key={n.id} className="text-sm">{`${n.title}: ${n.text}`}</p>)
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** PF12: submit and lock, every AI suggestion confirmed, the score Kithena's. */
+function SubmitDialog({
+  data,
+  missing,
+  score: s,
+  onClose,
+  ...props
+}: ScreenProps<WriteData> & {
+  readonly data: WriteData;
+  readonly answers: Answers;
+  readonly missing: readonly string[];
+  readonly score: Score | null;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const act = useAct(props);
+  const pending = Object.entries(data.suggestions).filter(([, x]) => !x.confirmed);
+  const [confirmed, setConfirmed] = useState<string[]>([]);
+  const [hideName, setHideName] = useState(true);
+  const prompts = new Map(
+    data.form.sections.flatMap((x) => x.questions.map((q) => [q.id, q.prompt] as const)),
+  );
+  const left = pending.filter(([q]) => !confirmed.includes(q)).length;
+  const subject = data.review.subject.name.split(' ')[0] ?? '';
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Submit ${data.review.kind === 'self' ? 'your self review' : `${subject}’s ${kindLabel(data.review.kind).toLowerCase()}`}?`}
+      description="After submitting you can’t edit. HR can unlock it if you ask."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Keep writing
+          </Button>
+          <Button
+            disabled={missing.length > 0 || left > 0}
+            loading={act.pending}
+            onClick={() => {
+              act.run(
+                'SubmitPerformanceReview',
+                {
+                  id: data.review.id,
+                  input: {
+                    confidential: data.review.cycle?.names === 'writer' ? hideName : null,
+                    confirm: confirmed,
+                  },
+                },
+                onClose,
+              );
+            }}
+          >
+            {left > 0 ? `Confirm ${String(left)} more to submit` : 'Submit'}
+          </Button>
+        </>
+      }
+    >
+      <Refusal error={act.error} />
+      {missing.length > 0 ? (
+        <Alert
+          tone="warning"
+          title={`${plural(missing.length, 'required question')} without an answer`}
+        >
+          {missing.map((q) => prompts.get(q) ?? q).join(' · ')}
+        </Alert>
+      ) : (
+        <Alert tone="success" title="Every required question is answered" />
+      )}
+      {pending.length === 0 ? null : (
+        <div className="flex flex-col gap-2">
+          <p className="font-medium">Confirm each AI suggestion</p>
+          {pending.map(([q, x]) => (
+            <Field key={q} orientation="horizontal">
+              <FieldControl>
+                <Checkbox
+                  checked={confirmed.includes(q)}
+                  onCheckedChange={(on) => {
+                    setConfirmed(
+                      on === true ? [...confirmed, q] : confirmed.filter((y) => y !== q),
+                    );
+                  }}
+                />
+              </FieldControl>
+              <span className="flex flex-col">
+                <FieldLabel>{`${prompts.get(q) ?? q}: ${String(x.value)}`}</FieldLabel>
+                <FieldDescription>{x.reason}</FieldDescription>
+              </span>
+            </Field>
+          ))}
+          {pending.length > 1 ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setConfirmed(pending.map(([q]) => q));
+              }}
+            >
+              Confirm all
+            </Button>
+          ) : null}
+        </div>
+      )}
+      {s === null ? null : (
+        <KeyValues
+          layout="split"
+          items={[
+            {
+              label: 'Performance score',
+              value: `${s.display} · ${s.label}, computed from ${String(s.rated)} answers`,
+            },
+          ]}
+        />
+      )}
+      {data.review.cycle?.names === 'writer' ? (
+        <Field orientation="horizontal">
+          <FieldControl>
+            <Checkbox
+              checked={hideName}
+              onCheckedChange={(on) => {
+                setHideName(on === true);
+              }}
+            />
+          </FieldControl>
+          <FieldLabel>{`Don’t show my name to ${subject}`}</FieldLabel>
+        </Field>
+      ) : null}
+      <p className="text-sm text-fg-muted">
+        The score is worked out by Kithena from the confirmed answers; the AI never sets it.
+      </p>
+    </Modal>
+  );
+}
+
+function UnlockDialog({
+  id,
+  subject,
+  onClose,
+  ...props
+}: ScreenProps<unknown> & {
+  readonly id: string;
+  readonly subject: string;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const act = useAct(props);
+  const [reason, setReason] = useState('');
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Ask HR to unlock this review?"
+      description={`About ${subject}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={reason.trim().length < 10}
+            loading={act.pending}
+            onClick={() => {
+              act.run('RequestPerformanceUnlock', { id, input: { reason } }, onClose);
+            }}
+          >
+            Send request
+          </Button>
+        </>
+      }
+    >
+      <Refusal error={act.error} />
+      <Field required>
+        <FieldLabel>Why</FieldLabel>
+        <Textarea
+          autoResize
+          value={reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+          }}
+        />
+        <FieldDescription>
+          At least 10 characters. HR gets an Inbox task; until they decide, the review stays
+          submitted.
+        </FieldDescription>
+      </Field>
+    </Modal>
+  );
+}
+
+function DeclineDialog({
+  id,
+  subject,
+  onClose,
+  ...props
+}: ScreenProps<unknown> & {
+  readonly id: string;
+  readonly subject: string;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const act = useAct(props);
+  const [reason, setReason] = useState('');
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Decline the peer review of ${subject}?`}
+      description="Whoever nominated you is told and can pick someone else."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={reason.trim().length < 3}
+            loading={act.pending}
+            onClick={() => {
+              act.run('DeclinePerformanceReview', { id, input: { reason } }, () => {
+                props.onNavigate?.('/performance/reviews');
+              });
+            }}
+          >
+            Decline
+          </Button>
+        </>
+      }
+    >
+      <Refusal error={act.error} />
+      <Field required>
+        <FieldLabel>Why</FieldLabel>
+        <Input
+          value={reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+          }}
+        />
+      </Field>
+    </Modal>
+  );
+}
+
+/** PF10f: the author keeps or deletes a review whose subject left the cycle. */
+function Detached({
+  reviewId,
+  subject,
+  keep,
+  ...props
+}: ScreenProps<unknown> & {
+  readonly reviewId: string;
+  readonly subject: string;
+  readonly keep: boolean | null;
+}): JSX.Element {
+  const act = useAct(props);
+  return (
+    <Alert
+      tone="warning"
+      title="This review is not part of its cycle any more"
+      action={
+        keep === null ? (
+          <span className="flex gap-2">
+            <Button
+              size="sm"
+              loading={act.pending}
+              onClick={() => {
+                act.run('KeepPerformanceDetached', { id: reviewId, input: { keep: true } });
+              }}
+            >
+              Keep it
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                act.run('KeepPerformanceDetached', { id: reviewId, input: { keep: false } }, () => {
+                  props.onNavigate?.('/performance/reviews/done');
+                });
+              }}
+            >
+              Delete it
+            </Button>
+          </span>
+        ) : undefined
+      }
+    >
+      {`${subject} was removed from the cycle. Nobody else can read your draft; a kept review reattaches if ${subject} is added back.`}
+    </Alert>
+  );
+}
+
+/* ------------------------------------------------------------ released -- */
+
+export interface ReleasedData {
+  readonly review: {
+    readonly id: string;
+    readonly kind: string;
+    readonly title: string;
+    readonly by: string | null;
+    readonly released: string | null;
+    readonly acknowledged: { readonly at: string; readonly comment: string | null } | null;
+    readonly cycle: string | null;
+  };
+  readonly definition: FormDefinition;
+  readonly answers: Answers;
+  readonly score: {
+    readonly display: string;
+    readonly label: string;
+    readonly final: boolean;
+  } | null;
+  readonly group: readonly {
+    readonly id: string;
+    readonly by: string;
+    readonly definition: FormDefinition;
+    readonly answers: Answers;
+  }[];
+  readonly may: { readonly acknowledge: boolean; readonly comment: boolean };
+}
+
+/** PF11b: a released review as its subject reads it, and acknowledging it. */
+export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
+  const act = useAct(props);
+  const [comment, setComment] = useState('');
+  return (
+    <Loaded load={props.load} what="the review">
+      {(data) => (
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            title={
+              data.review.cycle === null
+                ? data.review.title
+                : `${data.review.title}, ${data.review.cycle}`
+            }
+            description={`${data.review.by === null ? 'Names hidden' : `From ${data.review.by}`}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}`}
+            actions={
+              <Button
+                variant="secondary"
+                startIcon={<icons.download aria-hidden />}
+                loading={act.pending}
+                onClick={() => {
+                  act.run('PerformanceReviewPdf', { id: data.review.id }, (d) => {
+                    download(d as { filename: string; base64: string });
+                  });
+                }}
+              >
+                Download PDF
+              </Button>
+            }
+          />
+          <Refusal error={act.error} />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="flex flex-col gap-4">
+              {data.score === null ? null : (
+                <Card>
+                  <CardContent className="flex items-baseline gap-3">
+                    <span className="text-3xl font-bold tabular-nums">{data.score.display}</span>
+                    <span className="text-fg-muted">{`${data.score.label}${data.score.final ? '' : ' · before calibration'}`}</span>
+                  </CardContent>
+                </Card>
+              )}
+              {data.group.length > 0 ? (
+                data.group.map((g) => (
+                  <div key={g.id} className="flex flex-col gap-2">
+                    <p className="font-semibold">{g.by}</p>
+                    <FormView definition={g.definition} answers={g.answers} />
+                  </div>
+                ))
+              ) : (
+                <FormView definition={data.definition} answers={data.answers} />
+              )}
+            </div>
+            {data.may.acknowledge || data.review.acknowledged !== null ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle level={2}>Acknowledge</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  {data.review.acknowledged === null ? (
+                    <>
+                      <p className="text-sm text-fg-muted">
+                        Acknowledging says you’ve read it. It doesn’t say you agree.
+                      </p>
+                      {data.may.comment ? (
+                        <Field>
+                          <FieldLabel>Comment for your manager and HR (optional)</FieldLabel>
+                          <Textarea
+                            autoResize
+                            value={comment}
+                            onChange={(e) => {
+                              setComment(e.target.value);
+                            }}
+                          />
+                        </Field>
+                      ) : null}
+                      <Button
+                        startIcon={<icons.confirm aria-hidden />}
+                        loading={act.pending}
+                        onClick={() => {
+                          act.run('AcknowledgePerformanceReview', {
+                            id: data.review.id,
+                            input: { comment: comment.trim() === '' ? null : comment },
+                          });
+                        }}
+                      >
+                        Acknowledge
+                      </Button>
+                    </>
+                  ) : (
+                    <Alert
+                      tone="success"
+                      title={`Acknowledged ${day(data.review.acknowledged.at)}`}
+                    >
+                      {data.review.acknowledged.comment === null
+                        ? 'No comment.'
+                        : `“${data.review.acknowledged.comment}”`}
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </Loaded>
+  );
+}
+
+/* ------------------------------------------------ reading and releasing -- */
+
+export interface AboutData {
+  readonly cycle: {
+    readonly id: string;
+    readonly name: string;
+    readonly minimum: number;
+    readonly acknowledge: boolean;
+  };
+  readonly subject: { readonly personId: string; readonly name: string };
+  readonly reviews: readonly {
+    readonly id: string;
+    readonly kind: string;
+    readonly title: string;
+    readonly by: string;
+    readonly at: string | null;
+    readonly form: FormDefinition;
+    readonly answers: Answers;
+    readonly score: Score | null;
+    readonly released: string | null;
+  }[];
+  readonly peers: number;
+  readonly release: {
+    readonly manager: {
+      readonly id: string;
+      readonly at: string | null;
+      readonly released: string | null;
+    } | null;
+    readonly peerSummary: boolean;
+    readonly beforeCalibration: boolean;
+    readonly may: boolean;
+  };
+}
+
+/** PF11: the manager reads everything about a report, with names, then releases. */
+export function About(props: ScreenProps<AboutData>): JSX.Element {
+  const act = useAct(props);
+  const [kind, setKind] = useState('manager');
+  const [ack, setAck] = useState(true);
+  return (
+    <Loaded load={props.load} what="the reviews">
+      {(data) => {
+        const shown = data.reviews.filter((r) => r.kind === kind);
+        const kinds = [...new Set(data.reviews.map((r) => r.kind))];
+        return (
+          <div className="flex flex-col gap-4">
+            <PageHeader title={`${data.subject.name}’s reviews`} description={data.cycle.name} />
+            <Refusal error={act.error} />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+              <div className="flex flex-col gap-3">
+                <TertiaryNav
+                  label="Reviews"
+                  orientation="horizontal"
+                  variant="line"
+                  activeId={kinds.includes(kind) ? kind : (kinds[0] ?? '')}
+                  onSelect={setKind}
+                  items={kinds.map((k) => ({
+                    id: k,
+                    label: `${kindLabel(k)}${data.reviews.filter((r) => r.kind === k).length > 1 ? ` · ${String(data.reviews.filter((r) => r.kind === k).length)}` : ''}`,
+                  }))}
+                />
+                {shown.length === 0 ? (
+                  <EmptyState title="Nothing submitted yet" />
+                ) : (
+                  shown.map((r) => (
+                    <div key={r.id} className="flex flex-col gap-2">
+                      <Person name={r.by} sub={r.at === null ? null : `Submitted ${day(r.at)}`} />
+                      {r.kind === 'peer' && shown.length > 1 ? (
+                        <RatingBars reviews={shown} />
+                      ) : null}
+                      <FormView
+                        definition={r.form}
+                        answers={r.answers}
+                        score={r.score}
+                        subject={data.subject.name}
+                      />
+                    </div>
+                  ))
+                )}
+                {kind === 'peer' ? (
+                  <p className="text-sm text-fg-muted">{`You see peer names. ${data.subject.name.split(' ')[0] ?? ''} won’t.`}</p>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle
+                      level={2}
+                    >{`Release to ${data.subject.name.split(' ')[0] ?? ''}`}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3">
+                    <KeyValues
+                      layout="split"
+                      items={[
+                        {
+                          label: 'Manager review',
+                          value:
+                            data.release.manager === null
+                              ? 'Not submitted'
+                              : data.release.manager.released === null
+                                ? `Submitted ${day(data.release.manager.at)}`
+                                : `Released ${day(data.release.manager.released)}`,
+                        },
+                        {
+                          label: 'Peer summary',
+                          value: data.release.peerSummary
+                            ? `${plural(data.peers, 'answer')}, no names`
+                            : `Held back: under ${String(data.cycle.minimum)}`,
+                        },
+                      ]}
+                    />
+                    {data.cycle.acknowledge ? (
+                      <Field orientation="horizontal">
+                        <FieldControl>
+                          <Checkbox
+                            checked={ack}
+                            onCheckedChange={(on) => {
+                              setAck(on === true);
+                            }}
+                          />
+                        </FieldControl>
+                        <FieldLabel>Ask for an acknowledgement</FieldLabel>
+                      </Field>
+                    ) : null}
+                    <Button
+                      startIcon={<icons.send aria-hidden />}
+                      disabled={
+                        !data.release.may ||
+                        data.release.manager === null ||
+                        data.release.manager.released !== null
+                      }
+                      loading={act.pending}
+                      onClick={() => {
+                        act.run('ReleasePerformanceSubject', {
+                          cycleId: data.cycle.id,
+                          subjectId: data.subject.personId,
+                          input: { acknowledge: ack },
+                        });
+                      }}
+                    >
+                      {data.release.manager?.released
+                        ? 'Released'
+                        : `Release to ${data.subject.name.split(' ')[0] ?? ''}`}
+                    </Button>
+                  </CardContent>
+                </Card>
+                {data.release.beforeCalibration ? (
+                  <Alert tone="neutral" title="Not final until calibration">
+                    Released now, the score shows as “before calibration”.
+                  </Alert>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        );
+      }}
+    </Loaded>
+  );
+}
+
+function RatingBars({ reviews }: { readonly reviews: AboutData['reviews'] }): JSX.Element | null {
+  const first = reviews[0]?.form.sections
+    .flatMap((s) => s.questions)
+    .find((q) => q.type === 'scale');
+  if (first?.type !== 'scale') return null;
+  const counts = first.options
+    .map((o) => ({
+      label: o.label,
+      value: reviews.filter((r) => r.answers[first.id]?.value === o.value).length,
+    }))
+    .filter((p) => p.value > 0);
+  return <HorizontalBarChart label={first.prompt} data={counts} showValues />;
+}
+
+/* ------------------------------------------------------------- unlocks -- */
+
+export interface UnlocksData {
+  readonly rows: readonly {
+    readonly reviewId: string;
+    readonly by: string;
+    readonly review: string;
+    readonly cycle: string | null;
+    readonly reason: string;
+    readonly at: string;
+    readonly decided: string | null;
+  }[];
+}
+
+/** PF20: every unlock request, decided only by HR. */
+export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
+  const act = useAct(props);
+  const [declining, setDeclining] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  return (
+    <Loaded load={props.load} what="unlock requests">
+      {(data) => (
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            title="Unlock requests"
+            description="Only HR decides. An unlocked review keeps its submitted revision until it’s submitted again."
+          />
+          <Refusal error={act.error} />
+          <Card>
+            <CardContent className="overflow-x-auto">
+              {data.rows.length === 0 ? (
+                <EmptyState icon={<icons.unlocked aria-hidden />} title="No unlock requests" />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Asked by</TableHead>
+                      <TableHead>Review</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>When</TableHead>
+                      <TableHead>
+                        <span className="sr-only">Decision</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.rows.map((u) => (
+                      <TableRow key={u.reviewId}>
+                        <TableCell>
+                          <Person name={u.by} />
+                        </TableCell>
+                        <TableCell className="text-sm">{`${u.review}${u.cycle === null ? '' : ` · ${u.cycle}`}`}</TableCell>
+                        <TableCell className="text-sm text-fg-muted">{`“${u.reason}”`}</TableCell>
+                        <TableCell className="text-sm text-fg-muted">
+                          {u.at === '' ? '—' : when(u.at)}
+                        </TableCell>
+                        <TableCell>
+                          {u.decided === null ? (
+                            <span className="flex gap-1.5">
+                              <Button
+                                size="xs"
+                                variant="secondary"
+                                onClick={() => {
+                                  setDeclining(u.reviewId);
+                                }}
+                              >
+                                Decline
+                              </Button>
+                              <Button
+                                size="xs"
+                                loading={act.pending}
+                                onClick={() => {
+                                  act.run('DecidePerformanceUnlock', {
+                                    id: u.reviewId,
+                                    input: { approve: true, note: 'Unlocked' },
+                                  });
+                                }}
+                              >
+                                Unlock
+                              </Button>
+                            </span>
+                          ) : (
+                            <Badge size="sm" tone={u.decided === 'Unlocked' ? 'info' : 'neutral'}>
+                              {u.decided}
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+          <Modal
+            open={declining !== null}
+            onClose={() => {
+              setDeclining(null);
+            }}
+            title="Decline this unlock request?"
+            footer={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDeclining(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={note.trim() === ''}
+                  loading={act.pending}
+                  onClick={() => {
+                    if (declining !== null)
+                      act.run(
+                        'DecidePerformanceUnlock',
+                        { id: declining, input: { approve: false, note } },
+                        () => {
+                          setDeclining(null);
+                          setNote('');
+                        },
+                      );
+                  }}
+                >
+                  Decline
+                </Button>
+              </>
+            }
+          >
+            <Field required>
+              <FieldLabel>A note for the writer</FieldLabel>
+              <Input
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                }}
+              />
+            </Field>
+          </Modal>
+        </div>
+      )}
+    </Loaded>
+  );
+}
+
+/* --------------------------------------------------------- nominations -- */
+
+interface Pick {
+  readonly personId: string;
+  readonly name: string;
+  readonly title: string;
+}
+
+export interface NominateData {
+  readonly nomination: {
+    readonly id: string;
+    readonly state: string;
+    readonly subject: string;
+    readonly subjectId: string;
+    readonly picked: readonly string[];
+    readonly note: string | null;
+    readonly nominees: readonly {
+      readonly personId: string;
+      readonly name: string;
+      readonly state: string;
+      readonly reason: string | null;
+    }[];
+  };
+  readonly bounds: { readonly min: number; readonly max: number; readonly perReviewer: number };
+  readonly approver: string;
+  readonly team: readonly Pick[];
+  readonly worksWith: readonly Pick[];
+  readonly found: readonly Pick[];
+  readonly cycle: string;
+}
+
+/** PF9b and PF9c: pick peers (team first, then people they work with, then anyone), or approve them. */
+export function Nominate(props: ScreenProps<NominateData>): JSX.Element {
+  return (
+    <Loaded load={props.load} what="the nomination">
+      {(data) =>
+        data.nomination.state === 'waiting' ? (
+          <Approve data={data} {...props} />
+        ) : (
+          <Picker data={data} {...props} />
+        )
+      }
+    </Loaded>
+  );
+}
+
+function Picker({
+  data,
+  ...props
+}: ScreenProps<NominateData> & { readonly data: NominateData }): JSX.Element {
+  const act = useAct(props);
+  const [picked, setPicked] = useState<readonly string[]>(data.nomination.picked);
+  const [q, setQ] = useState(props.search?.['q'] ?? '');
+  const [note, setNote] = useState(data.nomination.note ?? '');
+  const known = useMemo(
+    () => new Map([...data.team, ...data.worksWith, ...data.found].map((p) => [p.personId, p])),
+    [data],
+  );
+  const toggle = (id: string, on: boolean): void => {
+    setPicked(on ? [...picked, id] : picked.filter((x) => x !== id));
+  };
+  const group = (title: string, list: readonly Pick[]): JSX.Element | null =>
+    list.length === 0 ? null : (
+      <div className="flex flex-col gap-1">
+        <p className="text-xs font-semibold text-fg-muted">{title}</p>
+        {list.map((p) => (
+          <Field key={p.personId} orientation="horizontal" className="py-1.5">
+            <FieldControl>
+              <Checkbox
+                checked={picked.includes(p.personId)}
+                onCheckedChange={(on) => {
+                  toggle(p.personId, on === true);
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>
+              <Person name={p.name} sub={p.title} />
+            </FieldLabel>
+          </Field>
+        ))}
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={`Pick ${String(data.bounds.min)} to ${String(data.bounds.max)} peers`}
+        description={`${data.cycle} · for ${data.nomination.subject}. ${data.approver} approves.`}
+      />
+      <Refusal error={act.error} />
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <SearchField
+            label="Search everyone"
+            placeholder="Search everyone at the company"
+            value={q}
+            onValueChange={setQ}
+            onSearch={(v) => {
+              props.onFilter?.({ q: v === '' ? null : v });
+            }}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {picked.map((id) => (
+              <Badge
+                key={id}
+                tone="accent"
+                onRemove={() => {
+                  toggle(id, false);
+                }}
+                removeLabel={`Remove ${known.get(id)?.name ?? ''}`}
+              >
+                {known.get(id)?.name ??
+                  data.nomination.nominees.find((n) => n.personId === id)?.name ??
+                  'Someone'}
+              </Badge>
+            ))}
+          </div>
+          {group('Search results', data.found)}
+          {group('Their team', data.team)}
+          {group('People they work with', data.worksWith)}
+          <Field>
+            <FieldLabel>{`Note to ${data.approver} (optional)`}</FieldLabel>
+            <Input
+              value={note}
+              onChange={(e) => {
+                setNote(e.target.value);
+              }}
+            />
+          </Field>
+          <p className="text-sm text-fg-muted">{`${plural(picked.length, 'person', 'people')} picked. You can’t pick ${data.nomination.subject}. Each reviewer writes at most ${String(data.bounds.perReviewer)} peer reviews in a cycle.`}</p>
+          <div>
+            <Button
+              disabled={picked.length < data.bounds.min || picked.length > data.bounds.max}
+              loading={act.pending}
+              onClick={() => {
+                act.run(
+                  'NominatePerformancePeers',
+                  {
+                    id: data.nomination.id,
+                    input: { people: picked, note: note === '' ? null : note },
+                  },
+                  () => {
+                    props.onNavigate?.('/performance/reviews');
+                  },
+                );
+              }}
+            >
+              {`Send ${plural(picked.length, 'nomination')}`}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Approve({
+  data,
+  ...props
+}: ScreenProps<NominateData> & { readonly data: NominateData }): JSX.Element {
+  const act = useAct(props);
+  const [declined, setDeclined] = useState<Readonly<Record<string, string>>>({});
+  const [replace, setReplace] = useState<string | null>(null);
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={`Approve ${data.nomination.subject}’s peers?`}
+        description={`${data.cycle} · ${String(data.bounds.min)} to ${String(data.bounds.max)} peers`}
+      />
+      <Refusal error={act.error} />
+      <Card>
+        <CardContent className="flex flex-col gap-3">
+          {data.nomination.nominees.map((n) => (
+            <div
+              key={n.personId}
+              className="flex flex-col gap-2 border-b border-[var(--reach-line)] pb-3 last:border-0"
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex-1">
+                  <Person name={n.name} />
+                </span>
+                <Field orientation="horizontal">
+                  <FieldControl>
+                    <Checkbox
+                      checked={n.personId in declined}
+                      onCheckedChange={(on) => {
+                        setDeclined(
+                          on === true
+                            ? { ...declined, [n.personId]: '' }
+                            : Object.fromEntries(
+                                Object.entries(declined).filter(([x]) => x !== n.personId),
+                              ),
+                        );
+                      }}
+                    />
+                  </FieldControl>
+                  <FieldLabel>Decline</FieldLabel>
+                </Field>
+              </span>
+              {n.personId in declined ? (
+                <Field required>
+                  <FieldLabel>{`Why decline ${n.name.split(' ')[0] ?? ''}`}</FieldLabel>
+                  <Input
+                    value={declined[n.personId] ?? ''}
+                    onChange={(e) => {
+                      setDeclined({ ...declined, [n.personId]: e.target.value });
+                    }}
+                  />
+                </Field>
+              ) : null}
+            </div>
+          ))}
+          {Object.keys(declined).length > 0 ? (
+            <Field>
+              <FieldLabel>Replace with</FieldLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {[...data.team, ...data.worksWith]
+                  .filter((p) => !data.nomination.nominees.some((x) => x.personId === p.personId))
+                  .slice(0, 8)
+                  .map((p) => (
+                    <Button
+                      key={p.personId}
+                      size="xs"
+                      variant={replace === p.personId ? 'primary' : 'secondary'}
+                      onClick={() => {
+                        setReplace(replace === p.personId ? null : p.personId);
+                      }}
+                    >
+                      {p.name}
+                    </Button>
+                  ))}
+              </div>
+              <FieldDescription>{`Or leave it to ${data.nomination.subject.split(' ')[0] ?? ''}: they get an Inbox task to pick someone else.`}</FieldDescription>
+            </Field>
+          ) : null}
+          <div>
+            <Button
+              disabled={Object.values(declined).some((r) => r.trim() === '')}
+              loading={act.pending}
+              onClick={() => {
+                act.run(
+                  'DecidePerformanceNominations',
+                  {
+                    id: data.nomination.id,
+                    input: {
+                      decisions: data.nomination.nominees.map((n) => ({
+                        personId: n.personId,
+                        approve: !(n.personId in declined),
+                        reason: declined[n.personId] ?? null,
+                      })),
+                      replacements: replace === null ? [] : [replace],
+                    },
+                  },
+                  () => {
+                    props.onNavigate?.('/performance/reviews');
+                  },
+                );
+              }}
+            >
+              {Object.keys(declined).length > 0 ? 'Approve with changes' : 'Approve'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

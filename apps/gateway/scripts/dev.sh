@@ -19,6 +19,7 @@ exec docker run --rm --name kithena-router-dev -p 4000:4000 \
   -e DOCUMENTS_API_TOKEN="${DOCUMENTS_API_TOKEN:-${INTERNAL_API_TOKEN:-dev-only-key}}" \
   -e RECRUITING_API_TOKEN="${RECRUITING_API_TOKEN:-${INTERNAL_API_TOKEN:-dev-only-key}}" \
   -e ONBOARDING_API_TOKEN="${ONBOARDING_API_TOKEN:-${INTERNAL_API_TOKEN:-dev-only-key}}" \
+  -e PERFORMANCE_API_TOKEN="${PERFORMANCE_API_TOKEN:-${INTERNAL_API_TOKEN:-dev-only-key}}" \
   -e ASSISTANT_API_TOKEN="${ASSISTANT_API_TOKEN:-dev-only-assistant-api-key}" \
   -e GRAPH_SIGN_KEY=unused-no-control-plane-00000000 \
   ghcr.io/wundergraph/cosmo/router:0.352.0@sha256:75d839c9a9792c2bdeccabbb15e6066c3bf2fc0852cd4c23e5fd6c2024582b7e

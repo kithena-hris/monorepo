@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ScanPerformanceSession($key: String!, $input: JSON!) {\n    scanPerformanceSession(idempotencyKey: $key, input: $input)\n  }"}

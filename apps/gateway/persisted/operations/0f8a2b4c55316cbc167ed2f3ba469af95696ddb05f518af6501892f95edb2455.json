@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DeclinePerformanceRequest($id: String!, $key: String!) {\n    declinePerformanceRequest(id: $id, idempotencyKey: $key)\n  }"}

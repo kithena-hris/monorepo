@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { cache } from 'react';
-import { people, timeOff } from './people';
+import { people, performance, timeOff } from './people';
 import { remoteNav } from './remote-manifest';
 import { AREAS, placesFor, type Area } from './remotes';
 import {
@@ -89,15 +89,26 @@ async function areaPlaces(
   area: Area,
   roles: Promise<ShellData['roles']>,
 ): Promise<AreaPlaces | null> {
-  const [found, held, viewer] = await Promise.all([
+  const [found, held, viewer, performer] = await Promise.all([
     remoteNav(area),
     roles,
     area === AREAS.timeoff
       ? timeOff<TimeOffViewer>('TimeOffViewer').then((a) => (a.ok ? a.data : null))
       : null,
+    // Performance says who the viewer is to it: HR, a manager, a calibrator (PRF-070).
+    area === AREAS.performance
+      ? performance<Readonly<Record<string, boolean>>>('PerformanceViewer').then((a) =>
+          a.ok ? a.data : null,
+        )
+      : null,
   ]);
   if (found === null) return null;
-  const places = placesFor(found.nav, timeOffRoles(held, viewer));
+  const places = placesFor(
+    found.nav,
+    performer === null
+      ? timeOffRoles(held, viewer)
+      : { ...held, ...performer, hr: held.hr || performer['hr'] === true },
+  );
   const counts = timeOffCounts(viewer, places.sections);
   return {
     ...places,
@@ -115,11 +126,7 @@ async function areaPlaces(
  * find them on their way.
  */
 function shellReads() {
-  return [
-    people<Overview>('Overview'),
-    people<ShellData['roles']>('Home'),
-    waitingFor(),
-  ] as const;
+  return [people<Overview>('Overview'), people<ShellData['roles']>('Home'), waitingFor()] as const;
 }
 
 /**
