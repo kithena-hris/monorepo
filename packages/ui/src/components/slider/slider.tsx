@@ -168,7 +168,14 @@ export function Slider({
 
   return (
     // The tip floats above the thumb, so a horizontal slider reserves its height.
-    <div className={cn(vertical ? 'w-auto' : 'w-full', tip && !vertical && 'pt-7.5')}>
+    // At a desk it stops at a field's width, like every field; under a thumb
+    // it fills the row.
+    <div
+      className={cn(
+        vertical ? 'w-auto' : 'w-full max-w-md touch:max-w-none',
+        tip && !vertical && 'pt-7.5',
+      )}
+    >
       {valueDisplay ? (
         <div className="mb-2 flex items-baseline justify-between gap-3">
           <span className="text-sm text-fg-muted">{label}</span>
