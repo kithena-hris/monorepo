@@ -313,6 +313,17 @@ Read-only copies: the requirements at
 https://claude.ai/artifact/CcpXLphRFuacM5NCed2BD6 and the tickets at
 https://claude.ai/artifact/RPvxsmE6skmpEaiAn7nhKa.
 
+**The Performance and Development module is specified and not yet built.** It
+will be built on the `performance` branch, a commit per concern, one pull
+request and one merge into `main`. Requirements are in `docs/performance-prd.md`
+(`performance` in `ModuleKey`; Goals and Learning live inside it). The tickets,
+`PRF-001` to `PRF-195`, are in `docs/performance-build-plan.md`, which is the
+record of progress. Screens `PF1`–`PF21` (web) and `PFM1`–`PFM9` (mobile) are
+not designed yet. Two AI decisions in PRD §22.2 and §22.3 need sign-off before
+Phase 3; the rest of PRD §36 is open for review. Read-only copies: the
+requirements at https://claude.ai/artifact/XizvxyfaS5jWHXz84vBSaj and the
+tickets at https://claude.ai/artifact/AoEcvVQBkZgwdpm57etTTg.
+
 ## Adding a module
 
 1. `services/<name>/module.manifest.ts` with `dependsOn: []`. If that array
