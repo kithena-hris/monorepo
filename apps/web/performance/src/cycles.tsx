@@ -1382,6 +1382,8 @@ export interface OverviewData {
   readonly released: number;
   readonly overdue: number;
   readonly rows: readonly OverviewRow[];
+  /** Away in the next month, from Time Off: personId → the last day away. */
+  readonly away?: Readonly<Record<string, string>>;
   readonly total: number;
   readonly page: number;
   readonly size: number;
@@ -1702,6 +1704,11 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                                   >
                                     {r.name}
                                   </To>
+                                  {data.away?.[r.personId] === undefined ? null : (
+                                    <Badge size="sm" tone="neutral" className="ml-2">
+                                      Away until {data.away[r.personId]}
+                                    </Badge>
+                                  )}
                                   <span className="block text-xs text-fg-muted">{r.title}</span>
                                 </TableCell>
                                 <TableCell className="text-sm text-fg-muted">

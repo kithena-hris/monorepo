@@ -21,7 +21,7 @@ import { drizzleUnitOfWork } from '../infrastructure/unit-of-work.js';
 /**
  * `… | pnpm --filter @kithena/documents seed` (DOC-026): Acme in Documents,
  * after identity's seed in `pnpm db:seed`, identity's events on stdin as Time
- * Off's seed has them — so Ada is Documents' HR. Then the fourteen document
+ * Off's seed has them — so Ada is Documents' HR. Then the fifteen document
  * types, the Platform team (the same accounts as Time Off's, so `just dev`
  * signs Adam in as Adam), and a few of the design's documents (B1).
  * Running it again changes nothing. Local only.

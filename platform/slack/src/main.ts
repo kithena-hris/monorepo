@@ -10,6 +10,7 @@ import {
   type Assistant,
   type Interaction,
   type People,
+  type Performance,
   type Recruiting,
   type TimeOff,
 } from './service.js';
@@ -42,6 +43,11 @@ import { memoryStore, postgresStore, type Store } from './store.js';
  *   (REC-137): digests into a job's channel, scorecard reminders, approvals
  *   and interviews to a person; its Approve comes back the same way. Its
  *   token opens `/internal/recruiting/` only.
+ * - `PERFORMANCE_URL`, `SLACK_PERFORMANCE_TOKEN` — Performance, likewise
+ *   (PRF-164): reminders, unlock requests and nominations with buttons that
+ *   run its own operations, and a request the assistant could not answer,
+ *   planned there for the asker to confirm. Its token opens
+ *   `/internal/performance/` only.
  *
  * Off production, `SLACK_BOT_TOKEN` and `SLACK_TENANT_ID` connect the
  * developer's own workspace to one company at start, since "Add to Slack"
@@ -59,6 +65,7 @@ const peopleUrl = (env['PEOPLE_URL'] ?? 'http://localhost:4001').replace(/\/$/, 
 const peopleToken = env['SLACK_PEOPLE_TOKEN'] ?? '';
 const timeOffToken = env['SLACK_TIMEOFF_TOKEN'] ?? '';
 const recruitingToken = env['SLACK_RECRUITING_TOKEN'] ?? '';
+const performanceToken = env['SLACK_PERFORMANCE_TOKEN'] ?? '';
 const devToken = production ? '' : (env['SLACK_BOT_TOKEN'] ?? '');
 const devTenant = production ? '' : (env['SLACK_TENANT_ID'] ?? '');
 
@@ -154,6 +161,28 @@ const recruiting: Recruiting = {
   },
 };
 
+const performanceUrl = (env['PERFORMANCE_URL'] ?? 'http://localhost:4007').replace(/\/$/, '');
+const performanceCall = async (path: string, body: unknown): Promise<unknown> => {
+  const response = await fetch(`${performanceUrl}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-internal-token': performanceToken },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    logger.error({ status: response.status, path }, 'performance refused a slack call');
+    throw new Error(`performance ${path}: ${String(response.status)}`);
+  }
+  return response.json();
+};
+const performance: Performance = {
+  relay: async (tenantId, value) =>
+    (await performanceCall('/internal/chat/relay', { tenantId, value })) as { text: string },
+  // Words are never logged: a request can name a person.
+  plan: async (tenantId, email, text) =>
+    (await performanceCall('/internal/chat/plan', { tenantId, email, text })) as never,
+};
+
 const clientId = env['SLACK_CLIENT_ID'] ?? '';
 const clientSecret = env['SLACK_CLIENT_SECRET'] ?? '';
 const authOrigin = env['AUTH_ORIGIN'] ?? '';
@@ -164,6 +193,7 @@ const service = slackService({
   assistant,
   timeOff,
   ...(recruitingToken === '' ? {} : { recruiting }),
+  ...(performanceToken === '' ? {} : { performance }),
   slack: api,
   command: env['SLACK_COMMAND'] ?? '/kithena',
   now: () => Date.now(),
@@ -364,6 +394,37 @@ async function recruitingRoute(
   return { status: 202, body: { sent } };
 }
 
+/** Performance's one route: a message to a person, with its buttons. */
+async function performanceRoute(
+  request: IncomingMessage,
+  pathname: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+  if (pathname !== '/internal/performance/message' || request.method !== 'POST')
+    return { status: 404, body: {} };
+  const tenantId = str(body['tenantId'], 36);
+  const email = str(body['email'], 320);
+  const text = str(body['text'], 2000);
+  const buttons = Array.isArray(body['buttons'])
+    ? (body['buttons'] as unknown[]).slice(0, 5).flatMap((b) => {
+        const r = b as Record<string, unknown>;
+        const label = str(r['label'], 60);
+        // Slack keeps a button's value to 2,000 characters.
+        const value = str(r['value'], 2000);
+        const style: 'primary' | 'danger' | undefined =
+          r['style'] === 'primary' || r['style'] === 'danger' ? r['style'] : undefined;
+        return label && value ? [{ label, value, ...(style === undefined ? {} : { style }) }] : [];
+      })
+    : [];
+  if (!tenantId || !email || !text) return { status: 400, body: {} };
+  const sent = await service.tellPerformance(tenantId, { email, text, buttons });
+  if (sent === 'not_connected')
+    return { status: 409, body: { sent, message: 'The company has not added Kithena to Slack.' } };
+  if (sent === 'not_in_slack')
+    return { status: 404, body: { sent, message: 'Slack has nobody at that address.' } };
+  return { status: 202, body: { sent } };
+}
+
 async function route(request: IncomingMessage): Promise<{ status: number; body: unknown }> {
   // For the container's healthcheck and the deploy: up, and nothing more.
   if (request.url === '/health' && request.method === 'GET')
@@ -371,13 +432,28 @@ async function route(request: IncomingMessage): Promise<{ status: number; body: 
   const path = new URL(request.url ?? '/', 'http://slack.internal');
   const timeOff = path.pathname.startsWith('/internal/timeoff/');
   const recruitingCall = path.pathname.startsWith('/internal/recruiting/');
-  const caller = timeOff ? 'Time Off' : recruitingCall ? 'Recruiting' : 'People';
-  if (!presents(request, timeOff ? timeOffToken : recruitingCall ? recruitingToken : peopleToken)) {
+  const performanceCallIn = path.pathname.startsWith('/internal/performance/');
+  const caller = timeOff
+    ? 'Time Off'
+    : recruitingCall
+      ? 'Recruiting'
+      : performanceCallIn
+        ? 'Performance'
+        : 'People';
+  const token = timeOff
+    ? timeOffToken
+    : recruitingCall
+      ? recruitingToken
+      : performanceCallIn
+        ? performanceToken
+        : peopleToken;
+  if (!presents(request, token)) {
     return { status: 401, body: { message: `Not ${caller}` } };
   }
   const body = request.method === 'GET' ? {} : await bodyOf(request);
   if (timeOff) return timeOffRoute(request, path.pathname, body);
   if (recruitingCall) return recruitingRoute(request, path.pathname, body);
+  if (performanceCallIn) return performanceRoute(request, path.pathname, body);
 
   if (path.pathname === '/internal/notify' && request.method === 'POST') {
     const tenantId = str(body['tenantId'], 36);

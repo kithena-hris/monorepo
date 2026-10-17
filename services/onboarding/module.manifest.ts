@@ -10,7 +10,7 @@ export default ModuleManifest.parse({
   key: 'onboarding',
   version: '0.1.0',
   dependsOn: [],
-  enrichedBy: ['people', 'recruiting', 'documents', 'timeoff'],
+  enrichedBy: ['people', 'recruiting', 'documents', 'timeoff', 'performance'],
   publishes: [
     'onboarding.activity.recorded',
     'onboarding.plan.started',
@@ -29,6 +29,7 @@ export default ModuleManifest.parse({
     'identity.tenant.administrator_named',
     'identity.tenant.administrator_removed',
     'identity.tenant.entitlements_changed',
+    'performance.review.released',
   ],
   entitlement: 'module.onboarding',
   requiresPeopleSource: 'either',

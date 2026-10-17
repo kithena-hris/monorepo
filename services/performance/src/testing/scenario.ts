@@ -6,6 +6,9 @@ import { expect } from 'vitest';
 import type { UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from '../http/caller.js';
 import { deliverWebhooks } from '../application/webhooks.js';
+import { capabilitiesHandler } from '../http/capabilities.js';
+import { chatHandler } from '../http/chat.js';
+import { chatFrom } from '../infrastructure/chat.js';
 import { performanceServer } from '../http/server.js';
 import { inProcessLive } from '../infrastructure/live.js';
 import { secretFor, signatureHeader, verifySignature } from '../infrastructure/webhooks.js';
@@ -63,6 +66,18 @@ export async function oneCycle(h: Harness): Promise<void> {
   };
   // A webhook receiver that keeps what it is sent.
   const posted: { url: string; headers: Record<string, string>; body: string }[] = [];
+  // A chat app that keeps what it is asked to send.
+  const chatted: { email: string; text: string; buttons: { label: string; value: string }[] }[] =
+    [];
+  const chat = chatFrom(
+    { SLACK_URL: 'http://slack.internal', SLACK_PERFORMANCE_TOKEN: 'chat-pair' },
+    (_url, init) => {
+      chatted.push(
+        JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as (typeof chatted)[number],
+      );
+      return Promise.resolve(new Response('{}', { status: 202 }));
+    },
+  );
   // And a mailbox that keeps what messaging would send.
   const mailed: {
     to: string;
@@ -75,6 +90,8 @@ export async function oneCycle(h: Harness): Promise<void> {
       live: inProcessLive(),
       callerFrom: withMember,
       clock,
+      ...(chat === undefined ? {} : { chat }),
+      chatToken: 'chat-pair',
       mailer: {
         send: (m) => {
           mailed.push(m);
@@ -316,7 +333,25 @@ export async function oneCycle(h: Harness): Promise<void> {
     (await call('adam', 'POST', `/reviews/${mgr.id}/unlock/decide`, { approve: true, note: 'yes' }))
       .status,
   ).toBe(403);
-  await data('ada', 'POST', `/reviews/${mgr.id}/unlock/decide`, { approve: true, note: 'Fine' });
+  // HR hears it in the chat app, and approves from there, as herself.
+  const asked = chatted.find((m) => m.email === 'ada@acme.example' && m.buttons.length === 2);
+  const approve = asked?.buttons.find((b) => b.label === 'Approve')?.value ?? '';
+  const relay = chatHandler(deps, 'chat-pair');
+  const pressed = await relay({
+    method: 'POST',
+    url: '/internal/chat/relay',
+    headers: { 'x-internal-token': 'chat-pair' },
+    body: JSON.stringify({ tenantId, value: approve }),
+  });
+  expect(pressed.body).toEqual({ text: 'Done. Kithena has it.' });
+  // A button nobody sealed runs nothing.
+  const forged = await relay({
+    method: 'POST',
+    url: '/internal/chat/relay',
+    headers: { 'x-internal-token': 'chat-pair' },
+    body: JSON.stringify({ tenantId, value: `${approve.split('.')[0] ?? ''}.forged` }),
+  });
+  expect(forged.body).toEqual({ text: 'That button is not one of Performance’s.' });
   await data('marco', 'POST', `/reviews/${mgr.id}/submit`, { confidential: null, confirm: [] });
 
   // Released to Adam, who reads it without the private questions, and acknowledges.
@@ -510,6 +545,24 @@ export async function oneCycle(h: Harness): Promise<void> {
   const before = posted.length;
   await deliverWebhooks(deps);
   expect(posted.length).toBe(before);
+
+  // The assistant asks as the person, and hears what their screens say, never review text.
+  const ask = capabilitiesHandler({ deps, callerFrom: withMember });
+  const catalogue = await ask({
+    method: 'GET',
+    url: '/internal/capabilities',
+    headers: { 'x-who': ids.ada.account },
+    body: '',
+  });
+  expect((catalogue.body as { serves: unknown[] }).serves).toHaveLength(6);
+  const cyclesNow = await ask({
+    method: 'POST',
+    url: '/internal/capabilities/performance.cycles',
+    headers: { 'x-who': ids.ada.account },
+    body: JSON.stringify({ limit: 25 }),
+  });
+  expect(cyclesNow.status).toBe(200);
+  expect(JSON.stringify(cyclesNow.body)).not.toContain('ledger migration');
 
   // A live session invites its learners to their calendars, and its cancellation follows.
   const session = {

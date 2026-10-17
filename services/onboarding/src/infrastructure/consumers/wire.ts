@@ -1,5 +1,10 @@
 import { Kafka } from 'kafkajs';
-import { CandidateHired, PersonHired, TenantAdministratorNamed } from '@kithena/contracts';
+import {
+  CandidateHired,
+  PersonHired,
+  ReviewReleased,
+  TenantAdministratorNamed,
+} from '@kithena/contracts';
 import { kafkaConfigFrom } from '@kithena/db-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
@@ -37,6 +42,7 @@ async function startConsumers(
     consume(new Kafka(kafka), 'onboarding', PersonHired.topic, handle),
     consume(new Kafka(kafka), 'onboarding-recruiting', CandidateHired.topic, handle),
     consume(new Kafka(kafka), 'onboarding-identity', TenantAdministratorNamed.topic, handle),
+    consume(new Kafka(kafka), 'onboarding-performance', ReviewReleased.topic, handle),
   ]);
   return {
     stop: async () => {

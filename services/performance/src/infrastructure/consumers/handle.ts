@@ -213,6 +213,7 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
           patch(tx, personId as PersonId, e.eventId, (m) => ({
             ...m,
             hiredOn: m.hiredOn ?? e.payload.startDate,
+            probationEnd: e.payload.probationEnd ?? m.probationEnd,
           })),
         );
       }

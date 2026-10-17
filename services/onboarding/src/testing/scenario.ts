@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   CandidateHired,
   PrehireCancelled,
+  ReviewReleased,
   TenantId,
   type CalendarDate,
   type PersonId,
@@ -229,6 +230,27 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
     plan: { probationEnd: string };
   };
   expect(moved.plan.probationEnd).toBe('2027-06-07');
+
+  // Performance releases the probation review: the task links to it; the decision stays here.
+  const yuki = randomUUID();
+  await h.uow.run(tenantId, async (tx) => {
+    const p = await tx.plans.get(planId);
+    if (p !== null) await tx.plans.save({ ...p, personId: yuki });
+  });
+  const cycleId = randomUUID();
+  const released = envelope(ReviewReleased.name, {
+    reviewId: randomUUID(),
+    cycleId,
+    subjectId: yuki,
+  });
+  expect(await consume(released)).toBe('applied');
+  expect(await consume(released)).toBe('unchanged');
+  const linked = value(await as('hr', (ctx) => planScreen(ctx, planId))) as {
+    tasks: { key: string; link: string | null }[];
+  };
+  expect(linked.tasks.find((t) => t.key === 'probation_review')?.link).toBe(
+    `/performance/cycles/${cycleId}/about/${yuki}`,
+  );
 
   // Probation: an extension past what the pack allows is refused; a pass is published.
   today = '2027-05-10';

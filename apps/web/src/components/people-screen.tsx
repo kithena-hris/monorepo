@@ -660,6 +660,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                     }
                   : {}),
               }),
+          // Performance's Give feedback, addressed to them, where the company has Performance.
+          ...(id === undefined || shell.remotes?.['performance'] === undefined
+            ? {}
+            : { giveFeedbackHref: `/performance/feedback?give=1&to=${encodeURIComponent(id)}` }),
           searchPeople: reads.searchPeople,
           historyHref: id === undefined ? '/people/me/history' : `/people/${id}/history`,
           onWithdraw: actions.withdrawPendingChange,

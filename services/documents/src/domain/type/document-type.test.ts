@@ -6,8 +6,8 @@ import { checkType, retentionEnds, retentionWords, SEEDED_TYPES } from './docume
 const d = (s: string) => s as CalendarDate;
 
 describe('the seeded types (S2)', () => {
-  it('are fourteen, each valid, five required for new starters', () => {
-    expect(SEEDED_TYPES).toHaveLength(14);
+  it('are fifteen, each valid, five required for new starters', () => {
+    expect(SEEDED_TYPES).toHaveLength(15);
     for (const type of SEEDED_TYPES) expect(checkType(type).ok, type.key).toBe(true);
     expect(SEEDED_TYPES.filter((t) => t.requiredFor === 'new_starters')).toHaveLength(5);
   });

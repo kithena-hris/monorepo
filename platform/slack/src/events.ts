@@ -97,6 +97,7 @@ export function helpText(command: string): string {
     `• \`${command} how many people are in Scranton, by department?\``,
     `• \`${command} who in my team is off next week?\``,
     `• \`${command} what is waiting for my approval?\``,
+    `• \`${command} which reviews do I still owe?\``,
   ].join('\n');
 }
 

@@ -257,6 +257,54 @@ const WAITING: Readonly<Record<string, Waiting>> = {
     none: 'You’re all caught up. No time off requests are waiting for you.',
     understood: 'What waits for your decision in Time Off',
   },
+  'documents.waiting': {
+    one: 'document is waiting for you',
+    many: 'documents are waiting for you',
+    none: 'You’re all caught up. Nothing in Documents is waiting for you.',
+    understood: 'What waits for you in Documents',
+  },
+  'documents.expiring': {
+    one: 'document expires in the next 60 days',
+    many: 'documents expire in the next 60 days',
+    none: 'No documents expire in the next 60 days.',
+    understood: 'What expires soon in Documents',
+  },
+  'performance.owed': {
+    one: 'review is yours to write',
+    many: 'reviews are yours to write',
+    none: 'You’re all caught up. You have no reviews to write.',
+    understood: 'The reviews you owe',
+  },
+  'performance.team_reviews': {
+    one: 'report has reviews in a running cycle',
+    many: 'reports have reviews in running cycles',
+    none: 'None of your reports has reviews in a running cycle.',
+    understood: 'Your team’s reviews',
+  },
+  'performance.goals': {
+    one: 'goal, with how it is going',
+    many: 'goals, with how they are going',
+    none: 'There are no goals set for you, and none at risk in your team.',
+    understood: 'Goals',
+  },
+  'performance.learning_due': {
+    one: 'learning item is due',
+    many: 'learning items are due',
+    none: 'No training is due.',
+    understood: 'Training due',
+  },
+  'performance.feedback_asked': {
+    one: 'request for your feedback is waiting',
+    many: 'requests for your feedback are waiting',
+    none: 'Nobody is waiting on feedback from you.',
+    understood: 'Feedback asked of you',
+  },
+  'performance.cycles': {
+    one: 'review cycle is running',
+    many: 'review cycles are running',
+    none: 'No review cycles are running.',
+    understood: 'Running review cycles',
+  },
 };
 
 /** The first ten of a queue, a line each. */

@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto';
 
 /**
  * The two secrets the Slack service handles: a workspace's bot token, kept
@@ -23,7 +29,10 @@ export interface TokenKey {
 export function tokenKeyFrom(encoded: string): TokenKey | null {
   const key = Buffer.from(encoded, 'base64');
   if (key.length !== 32) return null;
-  return { id: createHmac('sha256', key).update('kithena-slack-key-id').digest('hex').slice(0, 8), key };
+  return {
+    id: createHmac('sha256', key).update('kithena-slack-key-id').digest('hex').slice(0, 8),
+    key,
+  };
 }
 
 export function seal(key: TokenKey, plaintext: string): Buffer {
@@ -55,11 +64,7 @@ const STATE_LIFETIME_MS = 10 * 60 * 1000;
 const mac = (secret: Buffer, claims: string) =>
   createHmac('sha256', secret).update(`slack-state.${claims}`).digest('base64url');
 
-export function signState(
-  secret: Buffer,
-  claims: Omit<StateClaims, 'e'>,
-  now: number,
-): string {
+export function signState(secret: Buffer, claims: Omit<StateClaims, 'e'>, now: number): string {
   const body = Buffer.from(JSON.stringify({ ...claims, e: now + STATE_LIFETIME_MS })).toString(
     'base64url',
   );

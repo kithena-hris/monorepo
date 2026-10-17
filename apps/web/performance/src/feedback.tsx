@@ -137,7 +137,10 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
     requestId: string | null;
     templateId: string | null;
   } | null>(
-    props.search?.['give'] === '1' ? { to: null, requestId: null, templateId: null } : null,
+    // `?give=1`, and `&to=<person>` from another module (People's "Give feedback").
+    props.search?.['give'] === '1'
+      ? { to: props.search['to'] ?? null, requestId: null, templateId: null }
+      : null,
   );
   const [asking, setAsking] = useState(props.search?.['ask'] === '1');
   return (

@@ -161,7 +161,7 @@ describe('the module boots alone', () => {
     });
     if (answer === null) throw new Error('no answer');
     expect(answer.status).toBe(200);
-    expect((answer.body as { types: unknown[] }).types).toHaveLength(14);
+    expect((answer.body as { types: unknown[] }).types).toHaveLength(15);
   });
 
   it('learned its members and its HR from events', async () => {

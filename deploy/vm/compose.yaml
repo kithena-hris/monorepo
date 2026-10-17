@@ -88,6 +88,7 @@ services:
       PEOPLE_URL: http://people:4001
       TIMEOFF_URL: http://timeoff:4002
       RECRUITING_URL: http://recruiting:4005
+      PERFORMANCE_URL: http://performance:4007
       ASSISTANT_URL: http://assistant:4104
       SLACK_DATABASE_URL: postgres://svc_slack:${SLACK_DB_PASSWORD:?SLACK_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
     stop_grace_period: 15s
@@ -129,6 +130,8 @@ services:
       TIMEOFF_URL: http://timeoff:4002
       # Documents' capabilities (DOC-052): reached once ASSISTANT_DOCUMENTS_TOKEN is in both ends.
       DOCUMENTS_URL: http://documents:4003
+      # Performance's (PRF-194), likewise, once ASSISTANT_PERFORMANCE_TOKEN is in both ends.
+      PERFORMANCE_URL: http://performance:4007
     stop_grace_period: 20s
     healthcheck:
       test:
@@ -354,6 +357,8 @@ services:
       NODE_OPTIONS: --max-old-space-size=112
       KAFKA_BROKERS: redpanda:9092
       PERFORMANCE_DATABASE_URL: postgres://svc_performance:${PERFORMANCE_DB_PASSWORD:?PERFORMANCE_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
+      # The chat app (PRF-164), reached once SLACK_PERFORMANCE_TOKEN is in both ends.
+      SLACK_URL: http://slack:4102
     stop_grace_period: 30s
     healthcheck:
       test:

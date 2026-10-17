@@ -35,7 +35,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, day, useAct, words } from './shared';
+import { Refusal, StateBadge, To, day, useAct, words } from './shared';
 import type { Phase, PlanData, ScreenProps } from './types';
 
 /**
@@ -132,7 +132,13 @@ function PlanBody({
                       <span
                         className={`min-w-0 flex-1 font-medium ${t.state === 'done' ? 'text-fg-muted line-through' : ''}`}
                       >
-                        {t.title}
+                        {t.link === null ? (
+                          t.title
+                        ) : (
+                          <To href={t.link} onNavigate={props.onNavigate}>
+                            {t.title}
+                          </To>
+                        )}
                       </span>
                       <Badge size="sm">{owner(t.ownerRole)}</Badge>
                       <span className="w-24 text-sm text-fg-muted">{day(t.dueOn)}</span>

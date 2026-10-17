@@ -841,6 +841,7 @@ export async function remind(
         subject: `Reminder: ${c.name}`,
         text: `Hi ${name(a)}, you have reviews to write in ${c.name}. Open Kithena to continue.`,
         dedupeKey: `remind:${id}:${a}:${ctx.today}`,
+        ...(c.reminders.chat ? {} : { chat: false as const }),
       });
   }
   await audit(ctx, { kind: 'cycle',
