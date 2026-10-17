@@ -23,7 +23,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { FormView, Paragraphs } from './form-view';
+import { FormView, Paragraphs, paragraphs } from './form-view';
 import { Loaded } from './load';
 import {
   Choose,
@@ -117,11 +117,7 @@ export interface FeedbackData {
   };
 }
 
-const plain = (html: string): string =>
-  html
-    .replaceAll(/<[^>]*>/gu, ' ')
-    .replaceAll(/\s+/gu, ' ')
-    .trim();
+const plain = (html: string): string => paragraphs(html).join(' ');
 
 const audienceWords = (a: Audience, name: string): string =>
   a === 'recipient'

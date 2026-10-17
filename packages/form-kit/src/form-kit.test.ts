@@ -11,6 +11,7 @@ import {
   subjectView,
   validateAnswers,
   validateDefinition,
+  plainLines,
 } from './index.js';
 
 /** The element at an index, or the test fails here. */
@@ -265,5 +266,16 @@ describe('grade', () => {
     expect(
       grade(quiz, { a: { value: ['y'], comment: null }, b: { value: ['y'], comment: null } }),
     ).toEqual({ correct: 1, of: 2 });
+  });
+});
+
+describe('plainLines', () => {
+  it('reads rich text as lines of text, never as markup', () => {
+    expect(
+      plainLines('<p>Shipped &amp; <b>tested</b></p><ul><li>a &lt;b&gt;</li></ul>x<br/>y'),
+    ).toEqual(['Shipped & tested', 'a <b>', 'x', 'y']);
+    expect(plainLines('<p>ok</p><scr<script>ipt>alert(1)')).toEqual(['ok', 'ipt>alert(1)']);
+    expect(plainLines('unclosed <img src=x onerror=1')).toEqual(['unclosed']);
+    expect(plainLines('&unknown; stays')).toEqual(['&unknown; stays']);
   });
 });

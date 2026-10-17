@@ -42,20 +42,50 @@ import type {
  * markup a writer sent never reaches another reader's page as markup.
  */
 
+const ENTITIES: Readonly<Record<string, string>> = {
+  nbsp: ' ',
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  '#39': "'",
+};
+
+/**
+ * Rich text as lines of plain text, in one pass (form-kit's `plainLines`,
+ * copied: a remote imports no package of Kithena's): a tag is skipped whole,
+ * an entity decoded once, and an unclosed tag ends the text.
+ */
 export function paragraphs(html: string): string[] {
-  return html
-    .replaceAll(/<\/(p|li|h[1-6])>/giu, '\n')
-    .replaceAll(/<br\s*\/?>/giu, '\n')
-    .replaceAll(/<[^>]*>/gu, '')
-    .replaceAll('&nbsp;', ' ')
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&#39;', "'")
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l !== '');
+  const lines: string[] = [];
+  let line = '';
+  let i = 0;
+  while (i < html.length) {
+    const c = html.charAt(i);
+    if (c === '<') {
+      const end = html.indexOf('>', i);
+      if (end === -1) break;
+      const tag = html
+        .slice(i + 1, end)
+        .trim()
+        .toLowerCase();
+      if (/^(\/(p|li|h[1-6])|br)\b/u.test(tag)) {
+        lines.push(line);
+        line = '';
+      }
+      i = end + 1;
+    } else if (c === '&') {
+      const end = html.indexOf(';', i);
+      const decoded = end === -1 || end - i > 8 ? undefined : ENTITIES[html.slice(i + 1, end)];
+      line += decoded ?? c;
+      i = decoded === undefined ? i + 1 : end + 1;
+    } else {
+      line += c;
+      i += 1;
+    }
+  }
+  lines.push(line);
+  return lines.map((l) => l.trim()).filter((l) => l !== '');
 }
 
 export function Paragraphs({
