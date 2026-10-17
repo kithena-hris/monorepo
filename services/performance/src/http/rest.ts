@@ -227,6 +227,8 @@ const GoalIn = z.object({
   weight: z.int().min(0).max(100).nullable(),
   commitment: z.enum(['committed', 'aspirational']),
   keyResults: z.array(KeyResultIn).min(1).max(10),
+  /** Who sees it: the owner and their managers (the default), their team too, or everyone. */
+  visibility: z.enum(['owner', 'team', 'everyone']).optional(),
 });
 const ItemIn = z.object({
   title: text(200).min(1),
@@ -1056,6 +1058,15 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ id: Id }),
     body: GoalIn,
     run: (ctx, { params, body }) => goals.saveGoal(ctx, params.id, body),
+  }),
+  route({
+    name: 'setPerformanceGoalVisibility',
+    method: 'PUT',
+    path: `${V1}/goals/{id}/visibility`,
+    summary: 'Who sees a goal',
+    params: z.object({ id: Id }),
+    body: z.object({ visibility: z.enum(['owner', 'team', 'everyone']) }),
+    run: (ctx, { params, body }) => goals.setGoalVisibility(ctx, params.id, body.visibility),
   }),
   route({
     name: 'setPerformanceGoalStatus',

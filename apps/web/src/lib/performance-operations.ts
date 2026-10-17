@@ -333,6 +333,9 @@ export const OPERATIONS = {
   ScanPerformanceSession: `mutation ScanPerformanceSession($key: String!, $input: JSON!) {
     scanPerformanceSession(idempotencyKey: $key, input: $input)
   }`,
+  SetPerformanceGoalVisibility: `mutation SetPerformanceGoalVisibility($id: String!, $key: String!, $input: JSON!) {
+    setPerformanceGoalVisibility(id: $id, idempotencyKey: $key, input: $input)
+  }`,
   SetPerformanceGoalStatus: `mutation SetPerformanceGoalStatus($id: String!, $key: String!, $input: JSON!) {
     setPerformanceGoalStatus(id: $id, idempotencyKey: $key, input: $input)
   }`,

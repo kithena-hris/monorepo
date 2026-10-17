@@ -341,7 +341,7 @@ export async function oneCycle(h: Harness): Promise<void> {
 
   // A goal and its check-in.
   const goals = await data<{ periods: { id: string }[] }>('adam', 'GET', '/goals');
-  const { id: goalId } = await data<{ id: string }>('adam', 'POST', '/goals', {
+  const goal = {
     title: 'Cut payout latency p95 to 400 ms',
     description: '',
     ownerId: null,
@@ -362,7 +362,13 @@ export async function oneCycle(h: Harness): Promise<void> {
         linked: null,
       },
     ],
-  });
+  };
+  const { id: goalId } = await data<{ id: string }>('adam', 'POST', '/goals', goal);
+  // Private until made public: Marco, his manager, sees it; Omar, his peer, does not.
+  expect((await call('marco', 'GET', `/goals/${goalId}`)).status).toBe(200);
+  expect((await call('omar', 'GET', `/goals/${goalId}`)).status).toBe(404);
+  await data('adam', 'PUT', `/goals/${goalId}`, { ...goal, visibility: 'team' });
+  expect((await call('omar', 'GET', `/goals/${goalId}`)).status).toBe(200);
   expect(
     (
       await data<{ progress: number }>('adam', 'POST', `/goals/${goalId}/check-ins`, {

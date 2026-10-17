@@ -159,7 +159,7 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
-  """PF5h: PDFs"""
+  """PF5h: the reviews as one PDF, or a zip of a PDF each"""
   exportPerformanceCycle(
     id: String!
     idempotencyKey: String!
@@ -412,6 +412,13 @@ type Mutation {
   ): JSON
   """Complete, miss or cancel a goal"""
   setPerformanceGoalStatus(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """Who sees a goal"""
+  setPerformanceGoalVisibility(
     id: String!
     idempotencyKey: String!
     """The REST body"""

@@ -1748,6 +1748,8 @@ interface Goal {
     owner: string;
     progress: number;
     confidence: string;
+    /** Who sees it (§14.2): private to its owner and their managers until shared. */
+    visibility: string;
     keyResults: readonly {
       id: string;
       title: string;
@@ -1760,7 +1762,7 @@ interface Goal {
     }[];
   };
   readonly checkIns: readonly { at: string; by: string; confidence: string; note: string | null }[];
-  readonly may: { checkIn: boolean };
+  readonly may: { checkIn: boolean; edit: boolean };
 }
 
 /** PFM6b: a goal, its key results, and a check-in. */
@@ -1857,6 +1859,26 @@ export function PerformanceGoal({
               >
                 Check in
               </Button>
+            </>
+          ) : null}
+          {data.may.edit ? (
+            <>
+              <Heading title="Who can see it" />
+              <SegmentedControl
+                fullWidth
+                accessibilityLabel="Who can see it"
+                value={data.goal.visibility}
+                onValueChange={(visibility) => {
+                  write.run('SetPerformanceGoalVisibility', {
+                    id: data.goal.id,
+                    input: { visibility },
+                  });
+                }}
+              >
+                <SegmentedControlItem value="owner">Managers</SegmentedControlItem>
+                <SegmentedControlItem value="team">Team</SegmentedControlItem>
+                <SegmentedControlItem value="everyone">Everyone</SegmentedControlItem>
+              </SegmentedControl>
             </>
           ) : null}
           {data.checkIns.length === 0 ? null : <Heading title="Check-ins" />}

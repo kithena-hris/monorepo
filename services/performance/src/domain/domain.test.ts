@@ -20,7 +20,16 @@ import {
   undo,
   type Feedback,
 } from './feedback.js';
-import { checkIn, checkWeights, goalScore, krProgress, progress, type Goal } from './goals.js';
+import {
+  canSeeGoal,
+  checkIn,
+  checkWeights,
+  goalScore,
+  krProgress,
+  progress,
+  visibilityOf,
+  type Goal,
+} from './goals.js';
 import { complete, scan, type Assignment, type LearningItem } from './learning.js';
 import {
   access,
@@ -453,6 +462,45 @@ describe('goals', () => {
       note: null,
     });
     expect(c.ok && progress(c.value)).toBe(75);
+  });
+
+  describe('who sees a goal', () => {
+    // Adam reports to Marco; Omar is Adam's peer under Marco; Priya reports to Adam.
+    const owner = { managerId: 'marco' };
+    const reader = (personId: string, managerId: string | null, org: string[] = []) => ({
+      personId,
+      managerId,
+      hr: false,
+      org: new Set(org),
+    });
+    const adam = reader('adam', 'marco');
+    const marco = reader('marco', 'ceo', ['adam', 'omar', 'priya']);
+    const omar = reader('omar', 'marco');
+    const priya = reader('priya', 'adam');
+    const stranger = reader('zoe', 'someone');
+
+    it('is private until made public: the owner, their managers and HR', () => {
+      expect(visibilityOf(g)).toBe('owner');
+      for (const r of [adam, marco, { ...stranger, hr: true }])
+        expect(canSeeGoal(g, r, owner), r.personId).toBe(true);
+      for (const r of [omar, priya, stranger]) expect(canSeeGoal(g, r, owner), r.personId).toBe(false);
+    });
+
+    it('shows a team goal to the owner’s peers and reports too', () => {
+      const team = { ...g, visibility: 'team' as const };
+      expect([omar, priya, stranger].map((r) => canSeeGoal(team, r, owner))).toEqual([
+        true,
+        true,
+        false,
+      ]);
+    });
+
+    it('shows a public goal to everyone, and a company goal is public unless HR says otherwise', () => {
+      expect(canSeeGoal({ ...g, visibility: 'everyone' }, stranger, owner)).toBe(true);
+      const company = { ...g, ownerKind: 'company' as const, ownerId: null };
+      expect(visibilityOf(company)).toBe('everyone');
+      expect(canSeeGoal(company, stranger, null)).toBe(true);
+    });
   });
 });
 
