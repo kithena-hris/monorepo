@@ -51,6 +51,14 @@ import {
 } from './review.js';
 import { dueNow, dueOn, ownNotesDueOn } from './retention.js';
 import { position } from './sentiment.js';
+import {
+  afterSend,
+  liveVersions,
+  ready,
+  rotated,
+  subscribes,
+  type WebhookEndpoint,
+} from './webhook.js';
 
 /** The element at an index, or the test fails here. */
 const must = <T>(v: T | undefined): T => {
@@ -617,5 +625,52 @@ describe('retention', () => {
     expect(dueNow(leavers, new Set(['held']), rule, day('2026-10-17'))).toEqual([
       { personId: 'gone', leftOn: '2025-06-30', kinds: ['feedback', 'notes', 'ai'], ownNotes: true },
     ]);
+  });
+});
+
+describe('a webhook endpoint', () => {
+  const T0 = new Date('2026-10-17T10:00:00.000Z');
+  const at = (ms: number) => new Date(T0.getTime() + ms);
+  const endpoint: WebhookEndpoint = {
+    id: 'w',
+    url: 'https://hooks.example.com/kithena',
+    events: ['performance.review.released'],
+    version: 1,
+    previous: null,
+    createdAt: T0.toISOString(),
+    disabled: null,
+    cursor: { at: T0.toISOString(), id: '00000000-0000-0000-0000-000000000000' },
+    failing: null,
+    last: null,
+  };
+  const sent = (status: number) => ({ eventId: 'e1', writtenAt: '2026-10-17T10:00:05.000Z', status });
+
+  it('takes what it subscribes to, or everything for *', () => {
+    expect(subscribes(endpoint, 'performance.review.released')).toBe(true);
+    expect(subscribes(endpoint, 'performance.goal.checked_in')).toBe(false);
+    expect(subscribes({ events: ['*'] }, 'performance.goal.checked_in')).toBe(true);
+  });
+
+  it('moves on past a delivered event, and waits out a failed one before anything after it', () => {
+    expect(afterSend(endpoint, sent(204), T0).cursor.id).toBe('e1');
+    const failed = afterSend(endpoint, sent(500), T0);
+    expect(failed.cursor.id).not.toBe('e1');
+    expect(failed.failing).toMatchObject({ attempts: 1, retryAt: '2026-10-17T10:00:30.000Z' });
+    expect(ready(failed, at(10_000))).toBe(false);
+    expect(ready(failed, at(30_000))).toBe(true);
+    expect(afterSend(failed, sent(200), at(30_000)).failing).toBeNull();
+  });
+
+  it('is turned off after 24 hours of failures, saying why', () => {
+    const failing = afterSend(endpoint, sent(503), T0);
+    const off = afterSend(failing, sent(0), at(24 * 60 * 60 * 1000));
+    expect(off.disabled?.why).toContain('24 hours');
+    expect(ready(off, at(25 * 60 * 60 * 1000))).toBe(false);
+  });
+
+  it('signs with the old secret too for a day after a rotation', () => {
+    const next = rotated(endpoint, T0);
+    expect(liveVersions(next, at(60_000))).toEqual([2, 1]);
+    expect(liveVersions(next, at(25 * 60 * 60 * 1000))).toEqual([2]);
   });
 });

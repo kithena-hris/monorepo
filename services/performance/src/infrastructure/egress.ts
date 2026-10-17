@@ -1,0 +1,235 @@
+import { lookup as dnsLookup } from 'node:dns/promises';
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
+import { BlockList, isIP, type LookupFunction } from 'node:net';
+import { err, failure, ok, type Result } from '@kithena/domain-kit';
+
+import type { WebhookPoster } from '../application/ports.js';
+
+/**
+ * Where a webhook may be sent, checked where it matters: at the socket.
+ * People's (`services/people/src/infrastructure/webhooks/egress.ts`), copied,
+ * because a module does not import another; change both together.
+ *
+ * A tenant supplies the URL, so this is an SSRF boundary. Checking the
+ * hostname when the endpoint is registered is not enough — DNS can answer a
+ * public address on Monday and 169.254.169.254 on Tuesday. So every delivery
+ * resolves the name again, refuses if *any* answer is non-public, and then
+ * connects to exactly the address it checked (a pinned `lookup`), with SNI
+ * and Host still the original hostname so TLS verifies as normal.
+ *
+ * Redirects are never followed: a 3xx is an unsuccessful delivery. Following
+ * one would be a second, unvetted destination.
+ */
+
+// Two lists, not one: node's BlockList matches an IPv4 address against an
+// IPv6 `::ffff:0:0/96` rule, which would refuse every public IPv4 address.
+const blockedV4 = new BlockList();
+const blockedV6 = new BlockList();
+for (const [network, prefix] of [
+  ['0.0.0.0', 8], // "this network"
+  ['10.0.0.0', 8], // private
+  ['100.64.0.0', 10], // CGNAT
+  ['127.0.0.0', 8], // loopback
+  ['169.254.0.0', 16], // link-local, including cloud metadata
+  ['172.16.0.0', 12], // private
+  ['192.0.0.0', 24], // IETF protocol assignments
+  ['192.0.2.0', 24], // documentation
+  ['192.168.0.0', 16], // private
+  ['198.18.0.0', 15], // benchmarking
+  ['198.51.100.0', 24], // documentation
+  ['203.0.113.0', 24], // documentation
+  ['224.0.0.0', 4], // multicast
+  ['240.0.0.0', 4], // reserved and broadcast
+] as const) {
+  blockedV4.addSubnet(network, prefix, 'ipv4');
+}
+for (const [network, prefix] of [
+  ['::', 128], // unspecified
+  ['::1', 128], // loopback
+  ['::ffff:0:0', 96], // IPv4-mapped: refused whole, rather than trusting the v4 inside
+  ['64:ff9b::', 96], // NAT64
+  ['100::', 64], // discard
+  ['2001:db8::', 32], // documentation
+  ['fc00::', 7], // unique local (ULA)
+  ['fe80::', 10], // link-local
+  ['ff00::', 8], // multicast
+] as const) {
+  blockedV6.addSubnet(network, prefix, 'ipv6');
+}
+
+export function isPublicAddress(address: string): boolean {
+  const family = isIP(address);
+  if (family === 0) return false;
+  return family === 4 ? !blockedV4.check(address, 'ipv4') : !blockedV6.check(address, 'ipv6');
+}
+
+export interface ResolvedAddress {
+  readonly address: string;
+  readonly family: number;
+}
+
+export type Resolver = (hostname: string) => Promise<readonly ResolvedAddress[]>;
+
+export const systemResolver: Resolver = (hostname) =>
+  dnsLookup(hostname, { all: true, verbatim: true });
+
+export interface EgressPolicy {
+  readonly resolve: Resolver;
+  /** Plain http, for local development only. Never set in production. */
+  readonly allowHttp?: boolean;
+  /** Injected in tests that need a reachable local receiver; defaults to the real check. */
+  readonly isAllowed?: (address: string) => boolean;
+  /**
+   * Kithena's own domains. An endpoint is for a third-party tool: Kithena's
+   * own modules receive a module's events on its event stream, so a webhook
+   * back into Kithena is refused rather than a second, weaker copy of that.
+   */
+  readonly ownDomains?: readonly string[];
+}
+
+/** Kithena's own domains, unless `KITHENA_OWN_DOMAINS` (comma-separated) says otherwise. */
+export const OWN_DOMAINS: readonly string[] = ['kithena.com'];
+
+/** The host is one of these domains, or under one. */
+export function isOwnHost(host: string, domains: readonly string[]): boolean {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  return domains.some((d) => h === d || h.endsWith(`.${d}`));
+}
+
+/**
+ * The policy this process runs with, from its environment.
+ *
+ * Production (`NODE_ENV=production`) gets the real check and https only,
+ * whatever else is set. Off production two switches exist, each for a local
+ * receiver: `PERFORMANCE_WEBHOOKS_ALLOW_HTTP=1` for plain http, and
+ * `PERFORMANCE_WEBHOOKS_ALLOW_LOOPBACK=1` for 127.0.0.0/8 and ::1 — what the web
+ * acceptance suite's HTTPS receiver listens on, so no test posts to the
+ * internet. Loopback only: a private range, link-local or the metadata
+ * address stays refused even then.
+ */
+export function egressPolicyFrom(
+  env: Readonly<Record<string, string | undefined>>,
+  resolve: Resolver = systemResolver,
+): EgressPolicy {
+  const offProduction = env['NODE_ENV'] !== 'production';
+  const allowHttp = offProduction && env['PERFORMANCE_WEBHOOKS_ALLOW_HTTP'] === '1';
+  const ownDomains = (env['KITHENA_OWN_DOMAINS'] ?? '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter((d) => d !== '');
+  const own = { ownDomains: ownDomains.length === 0 ? OWN_DOMAINS : ownDomains };
+  if (!offProduction || env['PERFORMANCE_WEBHOOKS_ALLOW_LOOPBACK'] !== '1') {
+    return { resolve, allowHttp, ...own };
+  }
+  return { resolve, allowHttp, ...own, isAllowed: (a) => isPublicAddress(a) || isLoopback(a) };
+}
+
+// Two lists for the reason `blockedV4` and `blockedV6` are two: a v4 rule also
+// matches the IPv4-mapped form, and `::ffff:127.0.0.1` stays refused like
+// every mapped address.
+const loopbackV4 = new BlockList();
+loopbackV4.addSubnet('127.0.0.0', 8, 'ipv4');
+const loopbackV6 = new BlockList();
+loopbackV6.addAddress('::1', 'ipv6');
+
+function isLoopback(address: string): boolean {
+  const family = isIP(address);
+  if (family === 4) return loopbackV4.check(address, 'ipv4');
+  return family === 6 && loopbackV6.check(address, 'ipv6');
+}
+
+export interface VettedTarget {
+  readonly url: URL;
+  readonly address: string;
+  readonly family: number;
+}
+
+const refuse = (message: string) => err(failure('BAD_WEBHOOK_URL', message, ['url']));
+
+/** Parse, resolve and check. Every resolved address must be public, not just one. */
+export async function vet(value: string, policy: EgressPolicy): Promise<Result<VettedTarget>> {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return refuse('Not a URL');
+  }
+  const schemeOk =
+    url.protocol === 'https:' || (policy.allowHttp === true && url.protocol === 'http:');
+  if (!schemeOk) return refuse('A webhook URL is https');
+  if (url.username !== '' || url.password !== '')
+    return refuse('A webhook URL carries no credentials');
+
+  const allowed = policy.isAllowed ?? isPublicAddress;
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (isOwnHost(host, policy.ownDomains ?? OWN_DOMAINS)) {
+    return err(
+      failure(
+        'OWN_SYSTEM',
+        'This is a Kithena address. Kithena’s own modules receive Performance’s events already; an endpoint is for a third-party tool.',
+        ['url'],
+      ),
+    );
+  }
+
+  let answers: readonly ResolvedAddress[];
+  if (isIP(host) !== 0) {
+    answers = [{ address: host, family: isIP(host) }];
+  } else {
+    try {
+      answers = await policy.resolve(host);
+    } catch {
+      return refuse(`${host} does not resolve`);
+    }
+  }
+
+  const first = answers[0];
+  if (first === undefined) return refuse(`${host} does not resolve`);
+  if (answers.some((a) => !allowed(a.address))) {
+    return refuse(`${host} resolves to an address that is not on the public internet`);
+  }
+  return ok({ url, address: first.address, family: first.family });
+}
+
+export type Poster = WebhookPoster;
+
+/**
+ * POST to a vetted, pinned address.
+ *
+ * The `lookup` hands the socket the address `vet` just checked, whatever DNS
+ * would say a second time. Node's http client does not follow redirects, so
+ * a 3xx comes back as a status and is treated as a failed attempt.
+ */
+export function pinnedPoster(policy: EgressPolicy, timeoutMs = 10_000): Poster {
+  return async (value, { headers, body }) => {
+    const target = await vet(value, policy);
+    if (!target.ok) throw new Error(target.error.message);
+    const { url, address, family } = target.value;
+
+    const lookup: LookupFunction = (_hostname, options, callback) => {
+      if (options.all) callback(null, [{ address, family }]);
+      else callback(null, address, family);
+    };
+
+    const send = url.protocol === 'https:' ? httpsRequest : httpRequest;
+    return new Promise((resolve, reject) => {
+      const req = send(
+        url,
+        {
+          method: 'POST',
+          headers: { ...headers, 'content-length': String(Buffer.byteLength(body)) },
+          lookup,
+          timeout: timeoutMs,
+        },
+        (res) => {
+          res.resume();
+          resolve({ status: res.statusCode ?? 0 });
+        },
+      );
+      req.on('timeout', () => req.destroy(new Error('webhook timed out')));
+      req.on('error', reject);
+      req.end(body);
+    });
+  };
+}

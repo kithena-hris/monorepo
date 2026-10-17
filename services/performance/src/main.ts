@@ -3,6 +3,7 @@ import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import manifest from '../module.manifest.js';
 import { startSweep } from './application/launch.js';
+import { deliverWebhooks } from './application/webhooks.js';
 import { composePerformance } from './composition.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 
@@ -11,8 +12,23 @@ const { listener, storage } = composePerformance(process.env);
 wireConsumers(process.env, storage?.deps ?? null);
 if (storage !== null) {
   const stop = startSweep(storage.deps);
+  // Webhooks every 30 seconds, one pass at a time.
+  let delivering = false;
+  const webhooks = setInterval(() => {
+    if (delivering) return;
+    delivering = true;
+    deliverWebhooks(storage.deps)
+      .catch((error: unknown) => {
+        logger.warn({ module: manifest.key, err: String(error) }, 'webhook pass failed');
+      })
+      .finally(() => {
+        delivering = false;
+      });
+  }, 30_000);
+  webhooks.unref();
   onShutdown('performance sweep', () => {
     stop();
+    clearInterval(webhooks);
     return Promise.resolve();
   });
 }

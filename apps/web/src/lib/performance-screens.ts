@@ -142,6 +142,8 @@ export async function loadScreen(
       return read('PerformanceAiLog');
     case 'Retention':
       return read('PerformanceRetention');
+    case 'Webhooks':
+      return read('PerformanceWebhooks');
     case 'ConnectedTools':
       return read('PerformanceConnectedTools');
     default:

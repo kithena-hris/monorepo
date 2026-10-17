@@ -850,6 +850,9 @@ jobs:
           # assistant's model key. No bucket: a PDF is drawn on request.
           PERFORMANCE_API_TOKEN: ${{ secrets.PERFORMANCE_API_TOKEN }}
           MESSAGING_PERFORMANCE_TOKEN: ${{ secrets.MESSAGING_PERFORMANCE_TOKEN }}
+          # What every Performance webhook secret is derived from; unset, no
+          # endpoint can be added.
+          PERFORMANCE_WEBHOOK_KEY: ${{ secrets.PERFORMANCE_WEBHOOK_KEY }}
           # The calendar integrations' credentials (TOF-110), each its own
           # secret so adding one never means rewriting TIMEOFF_ENV. Unset, the
           # integration is not offered. The Google key is the service
@@ -968,6 +971,7 @@ jobs:
             if [ -n "$MESSAGING_PERFORMANCE_TOKEN" ]; then
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_PERFORMANCE_TOKEN=%s\n' "$MESSAGING_PERFORMANCE_TOKEN"
             fi
+            if [ -n "$PERFORMANCE_WEBHOOK_KEY" ]; then printf 'PERFORMANCE_WEBHOOK_KEY=%s\n' "$PERFORMANCE_WEBHOOK_KEY"; fi
           } | put performance.env
           # The router will not start with an empty header value, so an unset
           # ASSISTANT_API_TOKEN becomes a throwaway the assistant never holds.

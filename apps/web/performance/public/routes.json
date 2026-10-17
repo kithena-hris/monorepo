@@ -211,6 +211,10 @@
     {
       "path": "/settings/performance/connected-tools",
       "component": "ConnectedTools"
+    },
+    {
+      "path": "/settings/performance/webhooks",
+      "component": "Webhooks"
     }
   ],
   "actions": [],
@@ -537,6 +541,15 @@
         "admin"
       ],
       "description": "Calendars, chat and the tools people may let Kithena read.",
+      "icon": "link"
+    },
+    {
+      "path": "/settings/performance/webhooks",
+      "label": "Webhooks",
+      "for": [
+        "admin"
+      ],
+      "description": "Performance’s events sent to your own systems, signed.",
       "icon": "link"
     },
     {

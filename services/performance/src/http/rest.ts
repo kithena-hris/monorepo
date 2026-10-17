@@ -27,6 +27,7 @@ import * as pdf from '../application/pdf.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
 import * as retention from '../application/retention.js';
 import * as reviews from '../application/reviews.js';
+import * as webhooks from '../application/webhooks.js';
 import { aiOn, saveSection } from '../application/settings.js';
 import * as templates from '../application/templates.js';
 import type { CallerFrom } from './caller.js';
@@ -1443,6 +1444,59 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ id: Id }),
     body: z.object({}),
     run: (ctx, { params }) => retention.personExport(ctx, params.id),
+  }),
+
+  /* ----------------------------------------------------------- webhooks -- */
+  route({
+    name: 'performanceWebhooks',
+    method: 'GET',
+    path: `${V1}/webhooks`,
+    summary: 'S8b: webhook endpoints and their deliveries',
+    run: (ctx) => webhooks.webhooksScreen(ctx),
+  }),
+  route({
+    name: 'addPerformanceWebhook',
+    method: 'POST',
+    path: `${V1}/webhooks`,
+    summary: 'A webhook endpoint, its secret shown once',
+    status: 201,
+    body: z.object({ url: z.url().max(2000), events: z.array(text(80)).max(40) }),
+    run: (ctx, { body }) => webhooks.addWebhook(ctx, body),
+  }),
+  route({
+    name: 'changePerformanceWebhook',
+    method: 'PATCH',
+    path: `${V1}/webhooks/{id}`,
+    summary: 'A webhook endpoint’s events, or on or off',
+    params: z.object({ id: Id }),
+    body: z.object({ events: z.array(text(80)).max(40).optional(), on: z.boolean().optional() }),
+    run: (ctx, { params, body }) => webhooks.changeWebhook(ctx, params.id, body),
+  }),
+  route({
+    name: 'rotatePerformanceWebhook',
+    method: 'POST',
+    path: `${V1}/webhooks/{id}/rotate`,
+    summary: 'A new webhook secret; the old one signs for a day',
+    params: z.object({ id: Id }),
+    body: z.object({}),
+    run: (ctx, { params }) => webhooks.rotateWebhook(ctx, params.id),
+  }),
+  route({
+    name: 'testPerformanceWebhook',
+    method: 'POST',
+    path: `${V1}/webhooks/{id}/test`,
+    summary: 'Send a webhook endpoint a signed test',
+    params: z.object({ id: Id }),
+    body: z.object({}),
+    run: (ctx, { params }) => webhooks.testWebhook(ctx, params.id),
+  }),
+  route({
+    name: 'removePerformanceWebhook',
+    method: 'DELETE',
+    path: `${V1}/webhooks/{id}`,
+    summary: 'Remove a webhook endpoint',
+    params: z.object({ id: Id }),
+    run: (ctx, { params }) => webhooks.removeWebhook(ctx, params.id),
   }),
 
   /* ----------------------------------------------------------- settings -- */

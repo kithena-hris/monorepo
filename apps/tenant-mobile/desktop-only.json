@@ -120,5 +120,11 @@
   "ConfirmPerformanceRetention": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
   "PlacePerformanceHold": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
   "LiftPerformanceHold": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
-  "ExportPerformancePerson": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due."
+  "ExportPerformancePerson": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
+  "PerformanceWebhooks": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": webhooks are an administrator's, set up beside the system that receives them.",
+  "AddPerformanceWebhook": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": webhooks are an administrator's, set up beside the system that receives them.",
+  "ChangePerformanceWebhook": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": webhooks are an administrator's, set up beside the system that receives them.",
+  "RotatePerformanceWebhook": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": webhooks are an administrator's, set up beside the system that receives them.",
+  "TestPerformanceWebhook": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": webhooks are an administrator's, set up beside the system that receives them.",
+  "RemovePerformanceWebhook": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": webhooks are an administrator's, set up beside the system that receives them."
 }

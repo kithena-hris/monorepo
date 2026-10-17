@@ -32,6 +32,7 @@ import {
   Settings as SettingsScreen,
   AiLog as AiLogScreen,
   Retention as RetentionScreen,
+  Webhooks as WebhooksScreen,
   ConnectedTools as ConnectedToolsScreen,
 } from './settings';
 import {
@@ -70,4 +71,5 @@ export const Analytics = framed(AnalyticsScreen);
 export const Settings = framed(SettingsScreen);
 export const AiLog = framed(AiLogScreen);
 export const Retention = framed(RetentionScreen);
+export const Webhooks = framed(WebhooksScreen);
 export const ConnectedTools = framed(ConnectedToolsScreen);

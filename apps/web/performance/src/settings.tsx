@@ -1,8 +1,15 @@
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  RadioCard,
+  RadioGroup,
   CardContent,
   CardHeader,
   CardTitle,
@@ -970,5 +977,282 @@ function RetentionPage({
         </Field>
       </Modal>
     </div>
+  );
+}
+
+/* ----------------------------------------------------------- webhooks -- */
+
+export interface WebhooksData {
+  readonly available: boolean;
+  readonly events: readonly string[];
+  readonly rows: readonly {
+    readonly id: string;
+    readonly url: string;
+    readonly events: readonly string[];
+    readonly createdAt: string;
+    readonly disabled: { readonly at: string; readonly why: string } | null;
+    readonly failing: { readonly since: string; readonly status: number } | null;
+    readonly last: { readonly at: string; readonly status: number } | null;
+    readonly rotatedUntil: string | null;
+  }[];
+}
+
+/** `performance.review.released` → "Review released". */
+const eventWords = (name: string): string => words(name.split('.').slice(1).join(' '));
+
+/**
+ * S8b (PRD §31, PRF-058): signed webhooks for Performance's events. Each
+ * endpoint's secret is shown once, when it is added or rotated; every
+ * delivery carries `kithena-signature: v1=<hex>`, HMAC-SHA256 of the body.
+ */
+export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
+  const act = useAct(props);
+  const [adding, setAdding] = useState(false);
+  const [url, setUrl] = useState('');
+  const [which, setWhich] = useState('every');
+  const [chosen, setChosen] = useState<readonly string[]>([]);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [tested, setTested] = useState<string | null>(null);
+  return (
+    <Loaded load={props.load} what="webhooks">
+      {(data) => (
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            title="Webhooks"
+            description="Performance’s events sent to your own systems as they happen, in the order they happened, each signed so you can check it came from Kithena."
+            actions={
+              data.available ? (
+                <Button
+                  startIcon={<icons.add aria-hidden />}
+                  onClick={() => {
+                    setAdding(true);
+                  }}
+                >
+                  Add an endpoint
+                </Button>
+              ) : null
+            }
+          />
+          <Refusal error={act.error} />
+          {data.available ? null : (
+            <Alert tone="info">Webhooks aren’t set up here yet.</Alert>
+          )}
+          {tested === null ? null : <Alert tone="info">{tested}</Alert>}
+          <Card>
+            <CardContent className="overflow-x-auto">
+              {data.rows.length === 0 ? (
+                <EmptyState
+                  icon={<icons.link aria-hidden />}
+                  title="No endpoints"
+                  description="Add one to receive reviews released, cycles launched, ratings finalised and the rest."
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Endpoint</TableHead>
+                      <TableHead>Events</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last delivery</TableHead>
+                      <TableHead>
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.rows.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-mono text-sm">{r.url}</TableCell>
+                        <TableCell className="text-sm">
+                          {r.events.includes('*')
+                            ? 'Every event'
+                            : r.events.map(eventWords).join(', ')}
+                        </TableCell>
+                        <TableCell>
+                          {r.disabled !== null ? (
+                            <span className="flex flex-col gap-0.5">
+                              <Badge size="sm" tone="danger">
+                                Off
+                              </Badge>
+                              <span className="text-xs text-fg-muted">{r.disabled.why}</span>
+                            </span>
+                          ) : r.failing !== null ? (
+                            <Badge size="sm" tone="warning">
+                              {`Failing since ${when(r.failing.since)}`}
+                            </Badge>
+                          ) : (
+                            <Badge size="sm" tone="success">
+                              On
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-fg-muted">
+                          {r.last === null
+                            ? 'None yet'
+                            : `${when(r.last.at)} · ${r.last.status === 0 ? 'no answer' : String(r.last.status)}`}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                aria-label={`Actions for ${r.url}`}
+                                startIcon={<icons.more aria-hidden />}
+                              />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  act.run('TestPerformanceWebhook', { id: r.id, input: {} }, (d) => {
+                                    const status = (d as { status: number }).status;
+                                    setTested(
+                                      status >= 200 && status < 300
+                                        ? `The test reached ${r.url} (${String(status)}).`
+                                        : `The test did not reach ${r.url}: ${status === 0 ? 'no answer' : `it answered ${String(status)}`}.`,
+                                    );
+                                  });
+                                }}
+                              >
+                                Send a test
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  act.run('RotatePerformanceWebhook', { id: r.id, input: {} }, (d) => {
+                                    setSecret((d as { secret: string }).secret);
+                                  });
+                                }}
+                              >
+                                New secret
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  act.run('ChangePerformanceWebhook', {
+                                    id: r.id,
+                                    input: { on: r.disabled !== null },
+                                  });
+                                }}
+                              >
+                                {r.disabled === null ? 'Turn off' : 'Turn on'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  act.run('RemovePerformanceWebhook', { id: r.id });
+                                }}
+                              >
+                                Remove
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+          <Modal
+            open={adding}
+            onClose={() => {
+              setAdding(false);
+            }}
+            title="Add an endpoint"
+            description="An https address on the public internet. It is sent only what is written from now on."
+            footer={
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setAdding(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={url.trim() === '' || (which === 'choose' && chosen.length === 0)}
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run(
+                      'AddPerformanceWebhook',
+                      { input: { url: url.trim(), events: which === 'every' ? ['*'] : chosen } },
+                      (d) => {
+                        setSecret((d as { secret: string }).secret);
+                        setAdding(false);
+                        setUrl('');
+                        setChosen([]);
+                      },
+                    );
+                  }}
+                >
+                  Add
+                </Button>
+              </>
+            }
+          >
+            <Refusal error={act.error} />
+            <Field required>
+              <FieldLabel>Address</FieldLabel>
+              <Input
+                type="url"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                }}
+                placeholder="https://hooks.example.com/kithena"
+              />
+            </Field>
+            <RadioGroup aria-label="Which events" value={which} onValueChange={setWhich}>
+              <RadioCard value="every">Every event</RadioCard>
+              <RadioCard value="choose">Only these</RadioCard>
+            </RadioGroup>
+            {which === 'choose' ? (
+              <div className="flex flex-col gap-1.5">
+                {data.events.map((e) => (
+                  <Field key={e} orientation="horizontal">
+                    <Checkbox
+                      checked={chosen.includes(e)}
+                      onCheckedChange={(on) => {
+                        setChosen(on === true ? [...chosen, e] : chosen.filter((x) => x !== e));
+                      }}
+                    />
+                    <FieldLabel>{eventWords(e)}</FieldLabel>
+                  </Field>
+                ))}
+              </div>
+            ) : null}
+          </Modal>
+          <Modal
+            open={secret !== null}
+            onClose={() => {
+              setSecret(null);
+            }}
+            title="The endpoint’s secret"
+            description="Shown this once. Every delivery carries kithena-signature: v1=<hex>, the HMAC-SHA256 of the body with this secret. After a new secret, the old one also signs for a day."
+            footer={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (secret !== null) void navigator.clipboard.writeText(secret);
+                  }}
+                >
+                  Copy
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSecret(null);
+                  }}
+                >
+                  Done
+                </Button>
+              </>
+            }
+          >
+            <Input readOnly value={secret ?? ''} aria-label="Secret" className="font-mono" />
+          </Modal>
+        </div>
+      )}
+    </Loaded>
   );
 }

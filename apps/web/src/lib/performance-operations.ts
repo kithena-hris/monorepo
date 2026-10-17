@@ -10,6 +10,24 @@
  */
 
 export const OPERATIONS = {
+  PerformanceWebhooks: `query PerformanceWebhooks {
+    performanceWebhooks
+  }`,
+  AddPerformanceWebhook: `mutation AddPerformanceWebhook($key: String!, $input: JSON!) {
+    addPerformanceWebhook(idempotencyKey: $key, input: $input)
+  }`,
+  ChangePerformanceWebhook: `mutation ChangePerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
+    changePerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  RotatePerformanceWebhook: `mutation RotatePerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
+    rotatePerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  TestPerformanceWebhook: `mutation TestPerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
+    testPerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  RemovePerformanceWebhook: `mutation RemovePerformanceWebhook($id: String!, $key: String!) {
+    removePerformanceWebhook(id: $id, idempotencyKey: $key)
+  }`,
   PerformanceRetention: `query PerformanceRetention {
     performanceRetention
   }`,

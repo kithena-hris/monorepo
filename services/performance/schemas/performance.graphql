@@ -28,6 +28,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """A webhook endpoint, its secret shown once"""
+  addPerformanceWebhook(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Archive or unarchive"""
   archivePerformanceCycle(
     id: String!
@@ -64,6 +70,13 @@ type Mutation {
   ): JSON
   """PF19c: change a score"""
   changePerformanceScore(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """A webhook endpoint’s events, or on or off"""
+  changePerformanceWebhook(
     id: String!
     idempotencyKey: String!
     """The REST body"""
@@ -333,6 +346,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Remove a webhook endpoint"""
+  removePerformanceWebhook(id: String!, idempotencyKey: String!): JSON
   """PF14e: request feedback"""
   requestPerformanceFeedback(
     idempotencyKey: String!
@@ -363,6 +378,13 @@ type Mutation {
   ): JSON
   """Retry a failed launch"""
   retryPerformanceLaunch(id: String!, idempotencyKey: String!): JSON
+  """A new webhook secret; the old one signs for a day"""
+  rotatePerformanceWebhook(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """X6: run a confirmed plan, as the person"""
   runPerformanceAsk(
     idempotencyKey: String!
@@ -475,6 +497,13 @@ type Mutation {
   ): JSON
   """PF10b: summary with citations"""
   summarisePerformanceReview(id: String!, idempotencyKey: String!): JSON
+  """Send a webhook endpoint a signed test"""
+  testPerformanceWebhook(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF2e: translate a form"""
   translatePerformanceTemplate(
     id: String!
@@ -628,6 +657,8 @@ type Query {
   performanceUnlocks: JSON
   """Who the viewer is to Performance, for the shell"""
   performanceViewer: JSON
+  """S8b: webhook endpoints and their deliveries"""
+  performanceWebhooks: JSON
 }
 
 type Subscription {

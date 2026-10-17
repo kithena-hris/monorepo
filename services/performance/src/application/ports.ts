@@ -1,4 +1,4 @@
-import type { Clock, PendingEvent } from '@kithena/domain-kit';
+import type { Clock, PendingEvent, Result } from '@kithena/domain-kit';
 import type { CalendarDate, PersonId, TenantId } from '@kithena/contracts';
 
 import type { Automation } from '../domain/automation.js';
@@ -8,6 +8,7 @@ import type { Goal } from '../domain/goals.js';
 import type { Assignment, LearningItem } from '../domain/learning.js';
 import type { CalibrationSession, Nomination, Review } from '../domain/review.js';
 import type { Template } from '../domain/template.js';
+import type { WebhookEndpoint } from '../domain/webhook.js';
 
 /**
  * What Performance's use cases need from the world (PRF-004): one tenant's
@@ -93,6 +94,32 @@ export interface Grant {
   }[];
 }
 
+/**
+ * A plan Ask Kithena proposed in a chat app (PRF-164), held until the person
+ * presses Do it there, then run as them through the same routes. An hour.
+ */
+export interface ChatPlan {
+  readonly id: string;
+  readonly accountId: string;
+  readonly reply: string;
+  readonly steps: readonly {
+    readonly route: string;
+    readonly params: Readonly<Record<string, unknown>>;
+    readonly body: unknown;
+    readonly summary: string;
+  }[];
+  readonly until: string;
+  readonly ran: string | null;
+}
+
+/** An event the outbox holds, as written: what a webhook delivers. */
+export interface Written {
+  readonly eventId: string;
+  readonly eventName: string;
+  readonly writtenAt: string;
+  readonly envelope: unknown;
+}
+
 export interface SavedChart {
   readonly id: string;
   readonly owner: string;
@@ -129,6 +156,8 @@ export interface Tx {
   readonly grants: Store<Grant>;
   readonly orgUnits: Store<OrgUnit>;
   readonly charts: Store<SavedChart>;
+  readonly webhooks: Store<WebhookEndpoint>;
+  readonly chatPlans: Store<ChatPlan>;
   readonly settings: {
     get(key: string): Promise<unknown>;
     set(key: string, value: unknown): Promise<void>;
@@ -137,7 +166,11 @@ export interface Tx {
     get(key: string): Promise<{ requestHash: string; status: number; answer: unknown } | null>;
     put(key: string, requestHash: string, status: number, answer: unknown): Promise<void>;
   };
-  readonly outbox: { publish(events: readonly PendingEvent[]): Promise<void> };
+  readonly outbox: {
+    publish(events: readonly PendingEvent[]): Promise<void>;
+    /** What was written after `after`, oldest first, at most `limit`. */
+    since(after: { readonly at: string; readonly id: string }, limit: number): Promise<readonly Written[]>;
+  };
 }
 
 export interface UnitOfWork {
@@ -177,6 +210,22 @@ export interface Live {
   subscribe(tenantId: string, listener: (change: LiveChange) => void): () => void;
 }
 
+/** A webhook's POST; anything but an answer is status 0. */
+export type WebhookPoster = (
+  url: string,
+  request: { readonly headers: Record<string, string>; readonly body: string },
+) => Promise<{ readonly status: number }>;
+
+/** Signing and sending webhooks (`PERFORMANCE_WEBHOOK_KEY`); absent, no endpoint can be added. */
+export interface Webhooks {
+  /** An endpoint's secret at one rotation, derived, never stored. */
+  secret(tenantId: string, endpointId: string, version: number): string;
+  sign(body: string, secrets: readonly string[]): string;
+  /** Whether a URL may be sent to at all: https, public, not Kithena's own. */
+  vet(url: string): Promise<Result<true>>;
+  readonly post: WebhookPoster;
+}
+
 export interface Deps {
   readonly uow: UnitOfWork;
   readonly clock: Clock;
@@ -184,4 +233,5 @@ export interface Deps {
   readonly live: Live;
   readonly mailer?: Mailer;
   readonly model?: Model;
+  readonly webhooks?: Webhooks;
 }

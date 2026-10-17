@@ -143,6 +143,21 @@ export function memoryUnitOfWork(): MemoryWorld {
           t.outbox.push(...events);
           return done();
         },
+        // In the order written; the cursor is the last one delivered, or a time before the first.
+        since: (after, limit) => {
+          const from = t.outbox.findIndex((e) => e.eventId === after.id);
+          // A clock that stands still in a test writes everything at one instant: from it, then.
+          const later =
+            from === -1 ? t.outbox.filter((e) => e.occurredAt >= after.at) : t.outbox.slice(from + 1);
+          return Promise.resolve(
+            later.slice(0, limit).map((e) => ({
+              eventId: e.eventId,
+              eventName: e.eventName,
+              writtenAt: e.occurredAt,
+              envelope: { ...e, recordedAt: e.occurredAt },
+            })),
+          );
+        },
       },
     };
   };

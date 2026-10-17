@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { TenantId, type CalendarDate } from '@kithena/contracts';
-import { ok, type Clock } from '@kithena/domain-kit';
+import { err, failure, ok, type Clock } from '@kithena/domain-kit';
 import { expect } from 'vitest';
 
 import type { UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from '../http/caller.js';
+import { deliverWebhooks } from '../application/webhooks.js';
 import { performanceServer } from '../http/server.js';
 import { inProcessLive } from '../infrastructure/live.js';
+import { secretFor, signatureHeader, verifySignature } from '../infrastructure/webhooks.js';
 
 /**
  * One cycle end to end with every review activity (PRD §3 validation,
@@ -59,8 +61,29 @@ export async function oneCycle(h: Harness): Promise<void> {
     const m = await h.uow.run(tenantId, (tx) => tx.members.byAccount(asked.value.accountId));
     return ok({ ...asked.value, personId: m?.personId ?? null });
   };
-  const { rest } = performanceServer(
-    { uow: h.uow, live: inProcessLive(), callerFrom: withMember, clock },
+  // A webhook receiver that keeps what it is sent.
+  const posted: { url: string; headers: Record<string, string>; body: string }[] = [];
+  const { rest, deps } = performanceServer(
+    {
+      uow: h.uow,
+      live: inProcessLive(),
+      callerFrom: withMember,
+      clock,
+      webhooks: {
+        secret: (t, e, v) => secretFor('scenario-key', t, e, v),
+        sign: signatureHeader,
+        vet: (url) =>
+          Promise.resolve(
+            url.startsWith('https://')
+              ? ok(true as const)
+              : err(failure('BAD_WEBHOOK_URL', 'A webhook URL is https')),
+          ),
+        post: (url, request) => {
+          posted.push({ url, ...request });
+          return Promise.resolve({ status: 204 });
+        },
+      },
+    },
     randomUUID,
   );
   const call = async (who: keyof typeof ids, method: string, path: string, body?: unknown) => {
@@ -108,6 +131,17 @@ export async function oneCycle(h: Harness): Promise<void> {
       member('priya', 'marco', 'Recruiter'),
     ],
   });
+
+  // An integration takes reviews' releases, signed; plain http is refused.
+  expect(
+    (await call('ada', 'POST', '/webhooks', { url: 'http://hooks.example.com', events: ['*'] }))
+      .status,
+  ).toBe(422);
+  const hook = await data<{ id: string; secret: string }>('ada', 'POST', '/webhooks', {
+    url: 'https://hooks.example.com/kithena',
+    events: ['performance.review.released', 'performance.cycle.state_changed'],
+  });
+  expect((await call('marco', 'GET', '/webhooks')).status).toBe(403);
 
   // Templates arrive seeded and published.
   const templates = await data<{ rows: { id: string; name: string; state: string }[] }>(
@@ -444,6 +478,26 @@ export async function oneCycle(h: Harness): Promise<void> {
     .map((e) => e.payload as { action: string; outcome: string });
   expect(log.some((r) => r.action === 'Submitted a review')).toBe(true);
   expect(log.some((r) => r.outcome === 'refused')).toBe(true);
+
+  // The endpoint is sent what it took, in the order written, each signed with its secret:
+  // fifty events a pass, so a few passes drain the cycle's.
+  for (let pass = 0, seen = -1; pass < 20 && seen !== posted.length; pass += 1) {
+    seen = posted.length;
+    await deliverWebhooks(deps);
+  }
+  const delivered = posted.filter((p) => p.url === 'https://hooks.example.com/kithena');
+  const sent = delivered.map((p) => (JSON.parse(p.body) as { eventName: string }).eventName);
+  expect(sent).toContain('performance.review.released');
+  expect(sent.every((n) => n !== 'performance.feedback.given')).toBe(true);
+  expect(sent.indexOf('performance.cycle.state_changed')).toBeLessThan(
+    sent.indexOf('performance.review.released'),
+  );
+  for (const p of delivered)
+    expect(verifySignature(p.body, p.headers['kithena-signature'] ?? '', hook.secret)).toBe(true);
+  // Delivered once: a second pass sends nothing new.
+  const before = posted.length;
+  await deliverWebhooks(deps);
+  expect(posted.length).toBe(before);
 
   // Retention: Priya left in 2020, so her feedback is due; a legal hold keeps it.
   await data('omar', 'POST', '/feedback', {

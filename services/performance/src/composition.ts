@@ -12,6 +12,7 @@ import { inProcessLive } from './infrastructure/live.js';
 import { mailerFrom } from './infrastructure/messaging.js';
 import { modelFrom } from './infrastructure/model.js';
 import { drizzleUnitOfWork, performanceDatabase } from './infrastructure/unit-of-work.js';
+import { webhooksFrom } from './infrastructure/webhooks.js';
 
 /**
  * Performance's composition root (PRF-004), Onboarding's shape. With
@@ -52,6 +53,9 @@ export function composePerformance(env: NodeJS.ProcessEnv = process.env): Compos
   };
   const mailer = mailerFrom(env);
   const model = modelFrom(env);
+  const webhooks = webhooksFrom(env);
+  if (webhooks === undefined)
+    logger.info({ module: 'performance' }, 'PERFORMANCE_WEBHOOK_KEY unset; no webhooks');
   const { listener, deps } = performanceServer(
     {
       uow,
@@ -59,6 +63,7 @@ export function composePerformance(env: NodeJS.ProcessEnv = process.env): Compos
       callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
       ...(mailer === undefined ? {} : { mailer }),
       ...(model === undefined ? {} : { model }),
+      ...(webhooks === undefined ? {} : { webhooks }),
     },
     uuidv7,
   );

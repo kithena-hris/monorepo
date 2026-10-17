@@ -183,6 +183,20 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       publish: async (events) => {
         if (events.length > 0) await publish(tx, outbox, events);
       },
+      since: async (after, limit) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT event_id, event_name, created_at, envelope FROM performance.outbox
+              WHERE (created_at, event_id) > (${after.at}::timestamptz, ${after.id}::uuid)
+              ORDER BY created_at, event_id LIMIT ${limit}`,
+          )
+        ).map((r) => ({
+          eventId: String(r['event_id']),
+          eventName: String(r['event_name']),
+          writtenAt: str(r['created_at']) ?? '',
+          envelope: r['envelope'],
+        })),
     },
   };
 }
