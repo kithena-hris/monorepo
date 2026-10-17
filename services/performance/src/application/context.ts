@@ -14,7 +14,7 @@ import {
   type ModuleActivity,
 } from '@kithena/contracts';
 
-import type { Caller, Deps, Member, Tx } from './ports.js';
+import type { Caller, ChatButton, Deps, Member, Tx } from './ports.js';
 
 /**
  * What every use case starts from (PRF-004): who is asking, what they are to
@@ -33,6 +33,11 @@ export interface Outgoing {
   readonly dedupeKey: string;
   /** A session's calendar invitation (`invite.ics`). */
   readonly attachments?: readonly { readonly filename: string; readonly base64: string }[];
+  /**
+   * In the company's chat app too, by default; `false` for a cycle whose
+   * reminders keep out of it, `only` for a notice with buttons and no email.
+   */
+  readonly chat?: false | 'only' | { readonly buttons: readonly ChatButton[]; readonly only?: boolean };
 }
 
 export interface Viewer {
@@ -215,14 +220,60 @@ export async function names(ctx: Ctx): Promise<(id: string | null) => string> {
   return (id) => (id === null ? '—' : (byId.get(id) ?? 'Someone who left'));
 }
 
-/** Send what a transaction queued, after it committed; a failed email never undoes the work. */
+/**
+ * A button that runs one of Performance's routes as `accountId` when they
+ * press it in the chat app, good for a week; null without a chat app or an
+ * account to run it as.
+ */
+export function chatButton(
+  ctx: Pick<Ctx, 'deps' | 'caller' | 'at'>,
+  accountId: string | null,
+  button: {
+    readonly label: string;
+    readonly route: string;
+    readonly params?: Readonly<Record<string, unknown>>;
+    readonly body?: unknown;
+    readonly style?: 'primary' | 'danger';
+  },
+): ChatButton | null {
+  const chat = ctx.deps.chat;
+  if (chat === undefined || accountId === null) return null;
+  const until = new Date(Date.parse(ctx.at) + 7 * 24 * 60 * 60 * 1000).toISOString();
+  return {
+    label: button.label,
+    ...(button.style === undefined ? {} : { style: button.style }),
+    value: chat.seal({
+      kind: 'route',
+      tenantId: ctx.caller.tenantId,
+      accountId,
+      route: button.route,
+      params: button.params ?? {},
+      body: button.body ?? {},
+      until,
+    }),
+  };
+}
+
+/** Send what a transaction queued, after it committed; a failed send never undoes the work. */
 export async function deliver(
   deps: Deps,
   tenantId: Caller['tenantId'],
   mail: readonly Outgoing[],
 ): Promise<void> {
+  // The chat app hears what email does (PRF-164), with any buttons it carries.
+  if (deps.chat !== undefined)
+    for (const m of mail) {
+      if (m.chat === false) continue;
+      const buttons = typeof m.chat === 'object' ? m.chat.buttons : [];
+      try {
+        await deps.chat.send(tenantId, { email: m.to, text: `${m.subject}\n${m.text}`, buttons });
+      } catch {
+        // ponytail: a chat message lost is not retried; the email and the Inbox still have it.
+      }
+    }
   if (deps.mailer === undefined) return;
   for (const m of mail) {
+    if (m.chat === 'only' || (typeof m.chat === 'object' && m.chat.only === true)) continue;
     try {
       await deps.mailer.send({
         tenantId,

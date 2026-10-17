@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { approvalsMessage, fillView, noticeMessage, savedView, valuesOf, type Approval } from './blocks.js';
+import {
+  approvalsMessage,
+  fillView,
+  noticeMessage,
+  savedView,
+  valuesOf,
+  type Approval,
+} from './blocks.js';
 
 const approval = (id: string): Approval => ({
   id,
@@ -19,7 +26,9 @@ describe('approvalsMessage', () => {
   it('gives each change its own Approve and Reject, and never lets a name ping a channel', () => {
     const m = approvalsMessage([approval('a'), approval('b')], 'https://acme/approvals');
     expect(m.text).toBe('2 changes are waiting for your approval.');
-    expect(json(m.blocks)).toContain('"action_id":"approve","style":"primary","text":{"type":"plain_text","text":"Approve"');
+    expect(json(m.blocks)).toContain(
+      '"action_id":"approve","style":"primary","text":{"type":"plain_text","text":"Approve"',
+    );
     expect(json(m.blocks)).toContain('"value":"b"');
     // Plain text never pings; mrkdwn would, so a name there is escaped.
     const marked = m.blocks.filter((b) => b['type'] === 'section').map((b) => json(b['text']));
@@ -59,18 +68,49 @@ describe('fillView', () => {
     const view = fillView(
       {
         fields: [
-          { key: 'start', label: 'Start', description: null, dataType: 'date', options: [], required: true, requested: true, value: null },
-          { key: 'remote', label: 'Remote', description: 'Most days', dataType: 'boolean', options: [], required: false, requested: false, value: null },
-          { key: 'team', label: 'Team', description: null, dataType: 'select', options: [{ value: 's', label: 'Sales' }], required: false, requested: false, value: 's' },
+          {
+            key: 'start',
+            label: 'Start',
+            description: null,
+            dataType: 'date',
+            options: [],
+            required: true,
+            requested: true,
+            value: null,
+          },
+          {
+            key: 'remote',
+            label: 'Remote',
+            description: 'Most days',
+            dataType: 'boolean',
+            options: [],
+            required: false,
+            requested: false,
+            value: null,
+          },
+          {
+            key: 'team',
+            label: 'Team',
+            description: null,
+            dataType: 'select',
+            options: [{ value: 's', label: 'Sales' }],
+            required: false,
+            requested: false,
+            value: 's',
+          },
         ],
         elsewhere: ['Passport'],
       },
       'u',
     );
     const text = json(view);
-    expect(text).toContain('"block_id":"start","optional":false,"label":{"type":"plain_text","text":"Start (asked for)"');
+    expect(text).toContain(
+      '"block_id":"start","optional":false,"label":{"type":"plain_text","text":"Start (asked for)"',
+    );
     expect(text).toContain('"type":"datepicker"');
-    expect(text).toContain('"initial_option":{"text":{"type":"plain_text","text":"Sales","emoji":true},"value":"s"}');
+    expect(text).toContain(
+      '"initial_option":{"text":{"type":"plain_text","text":"Sales","emoji":true},"value":"s"}',
+    );
     expect(text).toContain('added in Kithena: Passport');
     expect(view['submit']).toBeDefined();
   });
@@ -98,7 +138,9 @@ describe('valuesOf', () => {
 
   it('reads nothing but field keys, so a crafted block id reaches no prototype', () => {
     const values = valuesOf(
-      JSON.parse('{"__proto__":{"value":{"value":"x"}},"constructor":{"value":{"value":"y"}},"Bad-Key":{"value":{"value":"z"}},"ok":{"value":{"value":"1"}}}') as never,
+      JSON.parse(
+        '{"__proto__":{"value":{"value":"x"}},"constructor":{"value":{"value":"y"}},"Bad-Key":{"value":{"value":"z"}},"ok":{"value":{"value":"1"}}}',
+      ) as never,
     );
     expect(values).toEqual({ ok: '1' });
     expect(({} as Record<string, unknown>)['value']).toBeUndefined();

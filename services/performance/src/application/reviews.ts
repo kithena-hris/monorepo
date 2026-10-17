@@ -22,6 +22,7 @@ import {
 } from '../domain/review.js';
 import {
   audit,
+  chatButton,
   event,
   forbidden,
   hrOnly,
@@ -539,6 +540,30 @@ export async function requestUnlockOf(
   const next = requestUnlock(r, reason, ctx.at);
   if (!next.ok) return next;
   await ctx.tx.reviews.save(next.value);
+  // HR hears it in the chat app with Approve and Decline, which decide as them (PRF-164).
+  const name = await names(ctx);
+  const hr = new Set(((await ctx.tx.settings.get('roles')) as { hr?: string[] } | null)?.hr ?? []);
+  for (const m of await ctx.members()) {
+    const isHr =
+      hr.has(m.personId) || (m.accountId !== null && (await ctx.tx.admins.has(m.accountId)));
+    if (!isHr || m.workEmail === null || m.personId === ctx.viewer.personId) continue;
+    const decide = (approve: boolean) =>
+      chatButton(ctx, m.accountId, {
+        label: approve ? 'Approve' : 'Decline',
+        route: 'decidePerformanceUnlock',
+        params: { id },
+        body: { approve, note: approve ? 'Approved in the chat app' : 'Declined in the chat app' },
+        ...(approve ? { style: 'primary' as const } : {}),
+      });
+    const buttons = [decide(true), decide(false)].filter((b) => b !== null);
+    ctx.mail.push({
+      to: m.workEmail,
+      subject: `${name(r.authorId)} asks to unlock a review`,
+      text: `${title(r.kind)} about ${name(r.subjectId)}: “${reason}”`,
+      dedupeKey: `unlock:${id}:${m.personId}:${ctx.at}`,
+      chat: { buttons, only: true },
+    });
+  }
   await audit(ctx, { kind: 'review',
     action: 'Asked HR to unlock a review',
     target: title(r.kind),
@@ -982,6 +1007,34 @@ export async function nominatePeers(
   await ctx.tx.nominations.save(done.value);
   if (done.value.state === 'approved' && c.state === 'in_progress')
     await reviewsFor(ctx, c, n.subjectId, { hidden: false });
+  // The approver hears it in the chat app, with Approve all (PRF-164).
+  const approver =
+    done.value.state === 'waiting' && done.value.approverId !== null
+      ? await ctx.tx.members.get(done.value.approverId)
+      : null;
+  if (approver !== null && approver.workEmail !== null) {
+    const name = await names(ctx);
+    const all = chatButton(ctx, approver.accountId, {
+      label: 'Approve all',
+      route: 'decidePerformanceNominations',
+      params: { id },
+      body: {
+        decisions: done.value.nominees.map((x) => ({
+          personId: x.personId,
+          approve: true,
+          reason: null,
+        })),
+      },
+      style: 'primary',
+    });
+    ctx.mail.push({
+      to: approver.workEmail,
+      subject: `${name(n.subjectId)}’s peer reviewers are waiting for you`,
+      text: `${c.name}: ${done.value.nominees.map((x) => name(x.personId)).join(', ')}.`,
+      dedupeKey: `nominations:${id}:${ctx.at}`,
+      chat: { buttons: all === null ? [] : [all], only: true },
+    });
+  }
   await audit(ctx, { kind: 'nomination',
     action: 'Nominated peers',
     target: `${c.name} · ${(await names(ctx))(n.subjectId)}`,

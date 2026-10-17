@@ -91,7 +91,9 @@ export function memoryStore(): Store {
   const installations = new Map<string, Installation>();
   return {
     companyOf: (teamId) =>
-      Promise.resolve([...installations.values()].find((i) => i.teamId === teamId)?.tenantId ?? null),
+      Promise.resolve(
+        [...installations.values()].find((i) => i.teamId === teamId)?.tenantId ?? null,
+      ),
     installation: (tenantId) => Promise.resolve(installations.get(tenantId) ?? null),
     install: (i) => {
       installations.set(i.tenantId, i);

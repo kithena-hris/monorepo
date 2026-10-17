@@ -22,7 +22,9 @@ import type { RestRequest, RestResponse } from './rest.js';
 
 export const CAPABILITIES_PREFIX = '/internal/capabilities';
 
-const BY_NAME = new Map(performanceCapabilities.map((c) => [c.name as string, c]));
+const BY_NAME = new Map<string, (typeof performanceCapabilities)[number]>(
+  performanceCapabilities.map((c) => [c.name, c]),
+);
 
 const refusal = (why: { code: string; message: string }, status: number): RestResponse => ({
   status,
@@ -59,7 +61,11 @@ export function capabilitiesHandler(rest: {
       );
     const result: Result<unknown> = await deps.uow
       .run(caller.value.tenantId, async (tx) =>
-        answer(await contextOf(deps, tx, { ...caller.value, via: 'Ask Kithena' }), capability.name, input.data),
+        answer(
+          await contextOf(deps, tx, { ...caller.value, via: 'Ask Kithena' }),
+          capability.name,
+          input.data,
+        ),
       )
       .catch(() => err(failure('UNAVAILABLE', 'Performance could not answer just now')));
     return result.ok

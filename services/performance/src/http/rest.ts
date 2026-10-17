@@ -1576,7 +1576,11 @@ const Step = z.object({
  * then each step runs as them, through the same routes, audited as "Ask
  * Kithena for …" (`runPlan`).
  */
-async function plan(ctx: Ctx, request: string, path: string | null): Promise<Result<unknown>> {
+export async function plan(
+  ctx: Ctx,
+  request: string,
+  path: string | null,
+): Promise<Result<unknown>> {
   const writes = ROUTES.filter((r) => r.method !== 'GET' && !r.path.includes('/ai/'));
   const directory = (await ctx.members()).map((m) => ({ id: m.personId, name: m.displayName }));
   const recentCycles = (await ctx.tx.cycles.find()).map((c) => ({
@@ -1885,6 +1889,41 @@ async function runPlan(rest: RestDeps, request: RestRequest): Promise<RestRespon
     if (!passed) break;
   }
   return { status: 200, body: { steps: done } };
+}
+
+/**
+ * One route, as a caller who is not asking through the router: a button
+ * pressed in the chat app (PRF-164). The same dispatch, so the same schemas,
+ * the same idempotency (a second press is the first's answer) and the same
+ * audit, the surface the caller's own.
+ */
+export async function runAs(
+  deps: Deps,
+  caller: Caller,
+  route: string,
+  params: Readonly<Record<string, unknown>>,
+  body: unknown,
+  key: string,
+): Promise<{ readonly ok: boolean; readonly message: string | null }> {
+  const r = ROUTES.find((x) => x.name === route && x.method !== 'GET');
+  if (r === undefined) return { ok: false, message: 'Not something Performance does from a chat app' };
+  const path = r.path.replaceAll(/\{([a-zA-Z]+)\}/gu, (_m, n: string) => {
+    const v = params[n];
+    return encodeURIComponent(typeof v === 'string' || typeof v === 'number' ? String(v) : '');
+  });
+  const answer = await restHandler({ deps, callerFrom: () => Promise.resolve(ok(caller)) })({
+    method: r.method,
+    url: path,
+    headers: { 'idempotency-key': key, ...(caller.via === undefined ? {} : { 'x-performance-via': caller.via }) },
+    body: r.body === null ? '' : JSON.stringify(body ?? {}),
+  });
+  const passed = answer !== null && answer.status < 400;
+  return {
+    ok: passed,
+    message: passed
+      ? null
+      : ((answer?.body as { error?: { message?: string } } | undefined)?.error?.message ?? 'Refused'),
+  };
 }
 
 export type { UnitOfWork };

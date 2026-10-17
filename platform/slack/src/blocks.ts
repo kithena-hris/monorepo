@@ -271,6 +271,36 @@ export function recruitingMessage(m: {
   };
 }
 
+/**
+ * A message of Performance's (PRF-164): its words, and buttons whose values
+ * are Performance's own, signed, passed back to it as they came when pressed
+ * (`performance_0`, `performance_1` …), so a press runs Performance's own
+ * operation as the person it was sent to.
+ */
+export function performanceMessage(m: {
+  readonly text: string;
+  readonly buttons?: readonly {
+    readonly label: string;
+    readonly value: string;
+    readonly style?: 'primary' | 'danger';
+  }[];
+}): Message {
+  const buttons = (m.buttons ?? []).slice(0, 5).map((b, i) => ({
+    type: 'button',
+    action_id: `performance_${String(i)}`,
+    text: plain(b.label),
+    value: b.value,
+    ...(b.style === undefined ? {} : { style: b.style }),
+  }));
+  return {
+    text: m.text,
+    blocks: [
+      { type: 'section', text: mrkdwn(escape(m.text)) },
+      ...(buttons.length === 0 ? [] : [{ type: 'actions', elements: buttons }]),
+    ],
+  };
+}
+
 /** A sentence, alone: what a pressed message becomes. */
 export function textMessage(text: string): Message {
   return { text, blocks: [{ type: 'section', text: mrkdwn(escape(text)) }] };

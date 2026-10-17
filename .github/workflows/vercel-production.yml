@@ -810,6 +810,8 @@ jobs:
           # Recruiting's pair with the Slack service (REC-137): digests,
           # reminders, approvals. Unset, Recruiting sends nothing to Slack.
           SLACK_RECRUITING_TOKEN: ${{ secrets.SLACK_RECRUITING_TOKEN }}
+          # The Slack–Performance pair (PRF-164): both ends, or neither.
+          SLACK_PERFORMANCE_TOKEN: ${{ secrets.SLACK_PERFORMANCE_TOKEN }}
           # The router–audit pair's secret (`docs/audit.md`, "Deploying"),
           # written into both ends from the one secret, as PEOPLE_API_TOKEN is.
           AUDIT_API_TOKEN: ${{ secrets.AUDIT_API_TOKEN }}
@@ -894,8 +896,8 @@ jobs:
             fi
             if [ -n "$ASSISTANT_PEOPLE_TOKEN" ]; then printf 'ASSISTANT_PEOPLE_TOKEN=%s\n' "$ASSISTANT_PEOPLE_TOKEN"; fi
           } | put people.env
-          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nSLACK_TIMEOFF_TOKEN=%s\nSLACK_RECRUITING_TOKEN=%s\nSLACK_ASSISTANT_TOKEN=%s\nAUTH_ORIGIN=https://auth.app.kithena.com\nSLACK_COMMAND=/kithena\n' \
-            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" "$SLACK_RECRUITING_TOKEN" "$SLACK_ASSISTANT_TOKEN" | put slack.env
+          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nSLACK_TIMEOFF_TOKEN=%s\nSLACK_RECRUITING_TOKEN=%s\nSLACK_PERFORMANCE_TOKEN=%s\nSLACK_ASSISTANT_TOKEN=%s\nAUTH_ORIGIN=https://auth.app.kithena.com\nSLACK_COMMAND=/kithena\n' \
+            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" "$SLACK_RECRUITING_TOKEN" "$SLACK_PERFORMANCE_TOKEN" "$SLACK_ASSISTANT_TOKEN" | put slack.env
           # Each unset piece leaves the assistant answering less, never the deploy red.
           assistant=(ASSISTANT_API_KEY TENANT_APP_BASE SLACK_ASSISTANT_TOKEN ASSISTANT_PEOPLE_TOKEN
                      ASSISTANT_TIMEOFF_TOKEN ASSISTANT_DOCUMENTS_TOKEN ASSISTANT_PERFORMANCE_TOKEN
@@ -975,6 +977,7 @@ jobs:
             if [ -n "$PERFORMANCE_WEBHOOK_KEY" ]; then printf 'PERFORMANCE_WEBHOOK_KEY=%s\n' "$PERFORMANCE_WEBHOOK_KEY"; fi
             # The assistant answers questions about Performance over this pair.
             if [ -n "$ASSISTANT_PERFORMANCE_TOKEN" ]; then printf 'ASSISTANT_PERFORMANCE_TOKEN=%s\n' "$ASSISTANT_PERFORMANCE_TOKEN"; fi
+            if [ -n "$SLACK_PERFORMANCE_TOKEN" ]; then printf 'SLACK_PERFORMANCE_TOKEN=%s\n' "$SLACK_PERFORMANCE_TOKEN"; fi
           } | put performance.env
           # The router will not start with an empty header value, so an unset
           # ASSISTANT_API_TOKEN becomes a throwaway the assistant never holds.

@@ -4,6 +4,7 @@ import {
   approvalsMessage,
   fillView,
   noticeMessage,
+  performanceMessage,
   recruitingMessage,
   savedView,
   textMessage,
@@ -63,7 +64,37 @@ export interface Assistant {
     question: string,
     /** Earlier questions in the same conversation, oldest first: never their answers. */
     earlier: readonly string[],
-  ): Promise<{ readonly text: string; readonly understood: string }>;
+  ): Promise<{ readonly text: string; readonly understood: string; readonly answered?: boolean }>;
+}
+
+/**
+ * Performance, over internal HTTP (PRF-164): a press on one of its buttons,
+ * passed on as it came; and a request the assistant could not answer as a
+ * question, which Performance may plan as actions for the person to confirm.
+ */
+export interface Performance {
+  relay(tenantId: string, value: string): Promise<{ text: string }>;
+  plan(
+    tenantId: string,
+    email: string,
+    text: string,
+  ): Promise<{
+    readonly reply: string;
+    readonly steps: readonly string[];
+    /** Do it's value, signed by Performance; absent when there is nothing to do. */
+    readonly run?: string;
+  } | null>;
+}
+
+/** What Performance sends: to a person by address, with its buttons. */
+export interface PerformanceMessage {
+  readonly email: string;
+  readonly text: string;
+  readonly buttons?: readonly {
+    readonly label: string;
+    readonly value: string;
+    readonly style?: 'primary' | 'danger';
+  }[];
 }
 
 /*
@@ -186,6 +217,7 @@ export interface Deps {
   readonly assistant: Assistant;
   readonly timeOff: TimeOff;
   readonly recruiting?: Recruiting;
+  readonly performance?: Performance;
   readonly slack: Slack;
   readonly command: string;
   readonly oauth: OAuth | null;
@@ -226,6 +258,10 @@ export interface SlackService {
     tenantId: string,
     message: RecruitingMessage,
   ): Promise<'sent' | 'not_connected' | 'not_in_slack' | 'not_in_channel'>;
+  tellPerformance(
+    tenantId: string,
+    message: PerformanceMessage,
+  ): Promise<'sent' | 'not_connected' | 'not_in_slack'>;
   interact(payload: Interaction): Promise<unknown>;
   status(
     tenantId: string,
@@ -289,6 +325,35 @@ export function slackService(deps: Deps): SlackService {
             : await deps.assistant
                 .ask(where.tenantId, email, q.text, key === null ? [] : kept.remember(key, q.text))
                 .catch(() => null);
+        // Not a question the assistant can answer: perhaps something to do in
+        // Performance, planned there and shown with Do it for the asker to confirm.
+        if (email !== null && answer?.answered === false && deps.performance !== undefined) {
+          const planned = await deps.performance
+            .plan(where.tenantId, email, q.text)
+            .catch(() => null);
+          if (planned !== null && planned.run !== undefined && planned.steps.length > 0) {
+            const message = performanceMessage({
+              text: [planned.reply, ...planned.steps.map((s) => `• ${s}`)].join('\n'),
+              buttons: [{ label: 'Do it', value: planned.run, style: 'primary' }],
+            });
+            // To the asker alone: a direct message, with a word where they asked.
+            const to = q.reply;
+            const sent = 'I’ve sent you what I would do, to confirm, in a direct message.';
+            await deps.slack.postBlocks(where.token, {
+              channel: to.via === 'channel' ? to.channel : q.user,
+              ...message,
+            });
+            if (to.via === 'response_url') await deps.slack.respond(to.url, sent);
+            else if (to.via === 'thread')
+              await deps.slack.postEphemeral(where.token, {
+                channel: to.channel,
+                user: q.user,
+                text: sent,
+                threadTs: to.threadTs,
+              });
+            return;
+          }
+        }
         text =
           email === null
             ? 'I could not read your email from Slack, so I cannot tell who you are in Kithena.'
@@ -355,6 +420,17 @@ export function slackService(deps: Deps): SlackService {
       return 'sent';
     },
 
+    /** Performance's notice, reminder or proposal, with its buttons. Says why when it is not sent. */
+    async tellPerformance(tenantId, message) {
+      const to = await recipient(tenantId, message.email);
+      if (typeof to === 'string') return to;
+      await deps.slack.postBlocks(to.token, {
+        channel: to.user,
+        ...performanceMessage(message),
+      });
+      return 'sent';
+    },
+
     /**
      * A button or a form. Returns what the acknowledgement carries — a form's
      * errors, or the view that replaces it — or undefined for a plain one.
@@ -374,15 +450,25 @@ export function slackService(deps: Deps): SlackService {
         return undefined;
       }
       if (
+        pressed?.action_id.startsWith('performance_') === true &&
+        pressed.value &&
+        deps.performance !== undefined
+      ) {
+        const answer = await deps.performance.relay(where.tenantId, pressed.value).catch(() => ({
+          text: 'Performance could not take that just now. Try again in a moment.',
+        }));
+        if (payload.response_url)
+          await deps.slack.replaceMessage(payload.response_url, textMessage(answer.text));
+        return undefined;
+      }
+      if (
         pressed?.action_id === 'recruiting_approve' &&
         pressed.value &&
         deps.recruiting !== undefined
       ) {
-        const answer = await deps.recruiting
-          .relay(where.tenantId, pressed.value)
-          .catch(() => ({
-            text: 'Recruiting could not take that just now. Try again in a moment.',
-          }));
+        const answer = await deps.recruiting.relay(where.tenantId, pressed.value).catch(() => ({
+          text: 'Recruiting could not take that just now. Try again in a moment.',
+        }));
         if (payload.response_url)
           await deps.slack.replaceMessage(payload.response_url, textMessage(answer.text));
         return undefined;

@@ -7,6 +7,7 @@ import {
   slackService,
   type Assistant,
   type People,
+  type Performance,
   type Slack,
   type Recruiting,
   type TimeOff,
@@ -65,7 +66,9 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       asked.push({ tenantId, email, question, earlier });
       return question === 'down'
         ? Promise.reject(new Error('ECONNREFUSED'))
-        : Promise.resolve({ text: '3 people are off today.', understood: 'Away today' });
+        : question.startsWith('give ')
+          ? Promise.resolve({ text: 'I can’t answer that.', understood: '', answered: false })
+          : Promise.resolve({ text: '3 people are off today.', understood: 'Away today' });
     },
   };
   const people: People = {
@@ -91,6 +94,19 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       return Promise.resolve({ text: 'Approved: the offer to Yuki Sato.' });
     },
   };
+  const performed: { tenantId: string; value: string }[] = [];
+  const performance: Performance = {
+    relay: (tenantId, value) => {
+      performed.push({ tenantId, value });
+      return Promise.resolve({ text: 'Done. Kithena has it.' });
+    },
+    plan: (_t, _e, text) =>
+      Promise.resolve({
+        reply: 'I can do that.',
+        steps: [`Give praise: ${text.slice(5)}`],
+        run: 'sealed-plan',
+      }),
+  };
   const secret = randomBytes(32);
   const clock = { ms: 1_000 };
   const service = slackService({
@@ -99,6 +115,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     assistant,
     timeOff,
     recruiting,
+    performance,
     slack,
     command: '/kithena',
     now: () => clock.ms,
@@ -117,6 +134,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     acted,
     relayed,
     recruited,
+    performed,
     said,
     asked,
     secret,
@@ -217,6 +235,49 @@ describe('Recruiting', () => {
     expect(w.recruited).toEqual([{ tenantId: TENANT, value: 'sealed' }]);
     expect(w.replaced[0]?.text).toBe('Approved: the offer to Yuki Sato.');
     expect(w.relayed).toEqual([]);
+  });
+});
+
+describe('Performance', () => {
+  it('passes its button to Performance as the workspace’s company, and shows its answer', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.interact({
+      type: 'block_actions',
+      team: { id: 'T1' },
+      user: { id: 'U1' },
+      response_url: 'https://hooks/r',
+      actions: [{ action_id: 'performance_0', value: 'sealed' }],
+    });
+    expect(w.performed).toEqual([{ tenantId: TENANT, value: 'sealed' }]);
+    expect(w.replaced[0]?.text).toBe('Done. Kithena has it.');
+  });
+
+  it('sends a person its message with its buttons', async () => {
+    const w = world();
+    await connect(w.store);
+    expect(
+      await w.service.tellPerformance(TENANT, {
+        email: 'pam@acme.example',
+        text: 'Marco asks to unlock a review',
+        buttons: [{ label: 'Approve', value: 'v1', style: 'primary' }],
+      }),
+    ).toBe('sent');
+    expect(JSON.stringify(w.posted[0])).toContain('performance_0');
+  });
+
+  it('plans what the assistant cannot answer, and asks the asker alone to confirm it', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.question({
+      team: 'T1',
+      user: 'U7',
+      text: 'give Ada praise for the launch',
+      reply: { via: 'response_url', url: 'https://hooks/c' },
+    });
+    expect(w.posted[0]?.channel).toBe('U7');
+    expect(JSON.stringify(w.posted[0])).toContain('sealed-plan');
+    expect(w.said[0]?.m['text']).toContain('direct message');
   });
 });
 

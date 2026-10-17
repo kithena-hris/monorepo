@@ -170,6 +170,7 @@ async function reveal(ctx: Ctx, c: Cycle): Promise<void> {
         subject: `You have reviews to write: ${c.name}`,
         text: `Hi ${name(author)}, ${c.name} has started. Your reviews are in Kithena, under Performance › My reviews.`,
         dedupeKey: `launch:${c.id}:${author}`,
+        ...(c.reminders.chat ? {} : { chat: false as const }),
       });
   }
 }
@@ -273,6 +274,7 @@ async function dailyReminders(ctx: Ctx): Promise<void> {
             days < 0 ? `Overdue: a review in ${c.name}` : `Due ${r.due}: a review in ${c.name}`,
           text: `Hi ${name(r.authorId)}, your review about ${name(r.subjectId)} in ${c.name} is due ${r.due}.`,
           dedupeKey: `reminder:${r.id}:${ctx.today}`,
+          ...(c.reminders.chat ? {} : { chat: false as const }),
         });
     }
   }

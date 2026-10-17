@@ -92,7 +92,9 @@ export async function answer(
           .filter((g) => g.ownerId !== null && g.ownerId === ctx.viewer.personId)
           .map((g) => ({
             name: me,
-            label: line(`${g.title} · ${String(progress(g))}% · ${CONFIDENCE[confidence(g)] ?? ''}`),
+            label: line(
+              `${g.title} · ${String(progress(g))}% · ${CONFIDENCE[confidence(g)] ?? ''}`,
+            ),
           })),
         ...live
           .filter(
@@ -101,7 +103,9 @@ export async function answer(
           )
           .map((g) => ({
             name: who(g.ownerId),
-            label: line(`${g.title} · ${String(progress(g))}% · ${CONFIDENCE[confidence(g)] ?? ''}`),
+            label: line(
+              `${g.title} · ${String(progress(g))}% · ${CONFIDENCE[confidence(g)] ?? ''}`,
+            ),
           })),
       ];
       break;
@@ -112,7 +116,11 @@ export async function answer(
         const reviews = await ctx.tx.reviews.find({ cycleId: c.id });
         for (const report of ctx.viewer.reports) {
           const about = reviews.filter(
-            (r) => r.subjectId === report && r.detached === null && !r.hidden && r.status !== 'cancelled',
+            (r) =>
+              r.subjectId === report &&
+              r.detached === null &&
+              !r.hidden &&
+              r.status !== 'cancelled',
           );
           if (about.length === 0) continue;
           const late = about.filter((r) => !isSubmitted(r) && r.due < ctx.today).length;
@@ -146,5 +154,9 @@ export async function answer(
     default:
       items = [];
   }
-  return ok({ kind: 'items', items: items.slice(0, Math.min(limit, ASSISTANT_LIMITS.listed)), total: items.length });
+  return ok({
+    kind: 'items',
+    items: items.slice(0, Math.min(limit, ASSISTANT_LIMITS.listed)),
+    total: items.length,
+  });
 }

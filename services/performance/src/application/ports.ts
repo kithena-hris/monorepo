@@ -228,6 +228,44 @@ export interface Webhooks {
   readonly post: WebhookPoster;
 }
 
+/** What a chat app's button does when pressed (PRF-164): a route as the person, or a plan they confirm. */
+export type ChatPress =
+  | {
+      readonly kind: 'route';
+      readonly tenantId: string;
+      readonly accountId: string;
+      readonly route: string;
+      readonly params: Readonly<Record<string, unknown>>;
+      readonly body: unknown;
+      readonly until: string;
+    }
+  | {
+      readonly kind: 'plan';
+      readonly tenantId: string;
+      readonly accountId: string;
+      readonly planId: string;
+      readonly until: string;
+    };
+
+export interface ChatButton {
+  readonly label: string;
+  /** Sealed by Performance; the chat app passes it back as it came. */
+  readonly value: string;
+  readonly style?: 'primary' | 'danger';
+}
+
+/** The company's chat app, through `platform/slack` (PRF-164); absent without its pair's secret. */
+export interface Chat {
+  send(
+    tenantId: string,
+    message: { readonly email: string; readonly text: string; readonly buttons: readonly ChatButton[] },
+  ): Promise<void>;
+  /** A button's value, signed so that only Performance's own buttons run. */
+  seal(press: ChatPress): string;
+  /** A pressed value back, or null for one Performance did not sign. */
+  open(value: string): ChatPress | null;
+}
+
 export interface Deps {
   readonly uow: UnitOfWork;
   readonly clock: Clock;
@@ -236,4 +274,5 @@ export interface Deps {
   readonly mailer?: Mailer;
   readonly model?: Model;
   readonly webhooks?: Webhooks;
+  readonly chat?: Chat;
 }

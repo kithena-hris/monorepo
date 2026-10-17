@@ -6,6 +6,7 @@ import type { Deps } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import type { CallerFrom } from './caller.js';
 import { CAPABILITIES_PREFIX, capabilitiesHandler } from './capabilities.js';
+import { CHAT_PREFIX, chatHandler } from './chat.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest, type RestResponse } from './rest.js';
 
@@ -36,6 +37,7 @@ export function performanceListener(
   graphql: Listener,
   rest?: RestDispatch,
   capabilities?: RestDispatch,
+  chat?: RestDispatch,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
@@ -51,9 +53,11 @@ export function performanceListener(
     const url = request.url ?? '';
     const dispatch = url.startsWith(CAPABILITIES_PREFIX)
       ? capabilities
-      : url.startsWith('/v1/')
-        ? rest
-        : undefined;
+      : url.startsWith(CHAT_PREFIX)
+        ? chat
+        : url.startsWith('/v1/')
+          ? rest
+          : undefined;
     if (dispatch === undefined) {
       graphql(request, response);
       return;
@@ -97,6 +101,9 @@ export interface PerformanceServerOptions {
   readonly webhooks?: Deps['webhooks'];
   /** The assistant's, over `ASSISTANT_PERFORMANCE_TOKEN`; without it its capabilities refuse everybody. */
   readonly assistantCallerFrom?: CallerFrom;
+  readonly chat?: Deps['chat'];
+  /** The chat app's pair secret (`SLACK_PERFORMANCE_TOKEN`); empty refuses it. */
+  readonly chatToken?: string;
 }
 
 /** Performance's transports over a unit of work. */
@@ -112,6 +119,7 @@ export function performanceServer(
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.model === undefined ? {} : { model: options.model }),
     ...(options.webhooks === undefined ? {} : { webhooks: options.webhooks }),
+    ...(options.chat === undefined ? {} : { chat: options.chat }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   const capabilities = capabilitiesHandler({
@@ -131,6 +139,7 @@ export function performanceServer(
       },
       rest,
       capabilities,
+      chatHandler(deps, options.chatToken ?? ''),
     ),
   };
 }
