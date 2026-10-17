@@ -13,6 +13,12 @@ import {
   validateDefinition,
 } from './index.js';
 
+/** The element at an index, or the test fails here. */
+const must = <T>(v: T | undefined): T => {
+  if (v === undefined) throw new Error('missing');
+  return v;
+};
+
 const five = DEFAULT_SCALE.map((o) => ({ ...o }));
 
 const form = (patch: Partial<FormDefinitionInput> = {}): FormDefinition =>
@@ -62,8 +68,11 @@ describe('validateDefinition', () => {
       ...f,
       sections: [
         {
-          ...f.sections[0]!,
-          questions: [f.sections[0]!.questions[0]!, f.sections[0]!.questions[0]!],
+          ...must(f.sections[0]),
+          questions: [
+            must(must(f.sections[0]).questions[0]),
+            must(must(f.sections[0]).questions[0]),
+          ],
         },
       ],
     };
@@ -73,7 +82,10 @@ describe('validateDefinition', () => {
 
   it('keeps the performance score alone in the last section', () => {
     const f = form();
-    const moved = { ...f, sections: [f.sections[2]!, f.sections[0]!, f.sections[1]!] };
+    const moved = {
+      ...f,
+      sections: [must(f.sections[2]), must(f.sections[0]), must(f.sections[1])],
+    };
     const r = validateDefinition(moved);
     expect(r.ok ? null : r.error.code).toBe('SCORE_NOT_LAST');
   });
@@ -85,9 +97,9 @@ describe('validateDefinition', () => {
 
   it('refuses a scale whose values do not rise', () => {
     const bad = form();
-    const q = bad.sections[0]!.questions[1]!;
+    const q = must(must(bad.sections[0]).questions[1]);
     if (q.type !== 'scale') throw new Error('scale');
-    q.options[1]!.value = 1;
+    must(q.options[1]).value = 1;
     const r = validateDefinition(bad);
     expect(r.ok ? null : r.error.code).toBe('SCALE_ORDER');
   });
@@ -99,9 +111,9 @@ describe('normalise', () => {
     const withEmpty = {
       ...f,
       sections: [
-        f.sections[0]!,
+        must(f.sections[0]),
         { id: 'e', title: 'Empty', description: null, questions: [] },
-        f.sections[1]!,
+        must(f.sections[1]),
       ],
     };
     const { definition, removed } = normalise(withEmpty);
@@ -195,9 +207,9 @@ describe('fingerprint and diff', () => {
   it('says what changed between two versions', () => {
     const a = form();
     const b = form();
-    b.sections[0]!.questions[0]!.prompt = 'What were the most important results?';
-    b.sections[1]!.questions.splice(1, 1);
-    b.sections[1]!.questions.push({
+    must(must(b.sections[0]).questions[0]).prompt = 'What were the most important results?';
+    must(b.sections[1]).questions.splice(1, 1);
+    must(b.sections[1]).questions.push({
       id: 'q5',
       type: 'text',
       prompt: 'Raises problems early',

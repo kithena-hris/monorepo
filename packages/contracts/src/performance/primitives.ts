@@ -42,7 +42,7 @@ export type CycleState = z.infer<typeof CycleState>;
 
 /**
  * §10.1. `in_review` is calibration's hold: a submitted, scored review while a
- * session compares it. `detached` is a review kept out of its cycle (§10.7).
+ * session compares it. Detaching (§10.7) is a flag on a review, not a status.
  */
 export const ReviewStatus = z
   .enum([
@@ -56,7 +56,6 @@ export const ReviewStatus = z
     'withdrawn',
     'completed',
     'cancelled',
-    'detached',
   ])
   .register(policy, asPublic());
 export type ReviewStatus = z.infer<typeof ReviewStatus>;
