@@ -1,8 +1,4 @@
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
   Alert,
   Badge,
   Button,
@@ -583,42 +579,40 @@ function Basics({
           />
         </FieldControl>
       </Field>
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <Field className="flex-1">
-          <FieldLabel>At</FieldLabel>
-          <FieldControl>
-            <TimePicker
-              label="At"
-              value={c.start.time}
-              onChange={(time) => {
-                if (time !== null) save({ start: { ...c.start, time } });
-              }}
-            />
-          </FieldControl>
-        </Field>
-        <Field className="flex-1">
-          <FieldLabel>Time zone</FieldLabel>
-          <Select
-            value={c.start.zone}
-            onValueChange={(v) => {
-              save({ start: { ...c.start, zone: v } });
+      <Field>
+        <FieldLabel>At</FieldLabel>
+        <FieldControl>
+          <TimePicker
+            label="At"
+            value={c.start.time}
+            onChange={(time) => {
+              if (time !== null) save({ start: { ...c.start, time } });
             }}
-          >
-            <FieldControl>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-            </FieldControl>
-            <SelectContent>
-              {[...new Set([c.start.zone, ...ZONES])].map((z) => (
-                <SelectItem key={z} value={z}>
-                  {z}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
+          />
+        </FieldControl>
+      </Field>
+      <Field>
+        <FieldLabel>Time zone</FieldLabel>
+        <Select
+          value={c.start.zone}
+          onValueChange={(v) => {
+            save({ start: { ...c.start, zone: v } });
+          }}
+        >
+          <FieldControl>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+          </FieldControl>
+          <SelectContent>
+            {[...new Set([c.start.zone, ...ZONES])].map((z) => (
+              <SelectItem key={z} value={z}>
+                {z}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
       <Alert
         tone="info"
         title={
@@ -790,95 +784,90 @@ function Participants({
           )}
         </CardContent>
       </Card>
-      <Accordion type="multiple">
-        <AccordionItem value="words">
-          <AccordionTrigger>Describe who, in words</AccordionTrigger>
-          <AccordionContent>
-            <div className="flex flex-col gap-3">
-              <Field>
-                <FieldLabel>Who should be in</FieldLabel>
-                <Input
-                  value={chat}
-                  placeholder="Product design and engineering, without anyone on leave"
-                  onChange={(e) => {
-                    setChat(e.target.value);
-                  }}
-                />
-              </Field>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="self-start"
-                startIcon={<icons.assistant aria-hidden />}
-                disabled={chat.trim().length < 3}
-                loading={act.pending}
-                onClick={() => {
-                  act.run(
-                    'PerformanceParticipantsInWords',
-                    { id: c.id, input: { text: chat } },
-                    (d) => {
-                      setProposal(d as typeof proposal);
-                    },
-                  );
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>Describe who, in words</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            <Field>
+              <FieldLabel>Who should be in</FieldLabel>
+              <Input
+                value={chat}
+                placeholder="Product design and engineering, without anyone on leave"
+                onChange={(e) => {
+                  setChat(e.target.value);
                 }}
-              >
-                Propose the change
-              </Button>
-              {proposal === null ? null : (
-                <Alert
-                  tone="info"
-                  title="Change who is in"
-                  action={
-                    <span className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          setProposal(null);
-                        }}
-                      >
-                        Discard
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setFilter(proposal.filter);
-                          setProposal(null);
-                        }}
-                      >
-                        Apply
-                      </Button>
-                    </span>
-                  }
-                >
-                  {proposal.summary.join(' · ')}
-                </Alert>
-              )}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="step">
-          <AccordionTrigger>Until it launches</AccordionTrigger>
-          <AccordionContent>
-            <SwitchRow
-              label="Keep in step"
-              hint="People who start matching are added; people who stop matching are listed for you to decide."
-              checked={c.participants.keepInStep}
-              onChange={(on) => {
-                save({ participants: { ...c.participants, keepInStep: on } });
+              />
+            </Field>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="self-start"
+              startIcon={<icons.assistant aria-hidden />}
+              disabled={chat.trim().length < 3}
+              loading={act.pending}
+              onClick={() => {
+                act.run(
+                  'PerformanceParticipantsInWords',
+                  { id: c.id, input: { text: chat } },
+                  (d) => {
+                    setProposal(d as typeof proposal);
+                  },
+                );
               }}
-            />
-            {p.noLongerMatches.length === 0 ? null : (
-              <div className="mt-3 flex flex-col gap-2">
-                <p className="text-sm font-semibold">{`No longer matches · ${String(p.noLongerMatches.length)}`}</p>
-                {p.noLongerMatches.map((n) => (
-                  <Person key={n.personId} name={n.name} sub={n.title} />
-                ))}
-              </div>
+            >
+              Propose the change
+            </Button>
+            {proposal === null ? null : (
+              <Alert
+                tone="info"
+                title="Change who is in"
+                action={
+                  <span className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setProposal(null);
+                      }}
+                    >
+                      Discard
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setFilter(proposal.filter);
+                        setProposal(null);
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </span>
+                }
+              >
+                {proposal.summary.join(' · ')}
+              </Alert>
             )}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+          </div>
+        </CardContent>
+      </Card>
+      <SwitchRow
+        label="Keep in step"
+        hint="People who start matching are added; people who stop matching are listed for you to decide."
+        checked={c.participants.keepInStep}
+        onChange={(on) => {
+          save({ participants: { ...c.participants, keepInStep: on } });
+        }}
+      />
+      {p.noLongerMatches.length === 0 ? null : (
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-sm font-semibold">{`No longer matches · ${String(p.noLongerMatches.length)}`}</p>
+          {p.noLongerMatches.map((n) => (
+            <Person key={n.personId} name={n.name} sub={n.title} />
+          ))}
+        </div>
+      )}
       <Modal
         open={excluding !== null}
         onClose={() => {
@@ -934,7 +923,7 @@ function Participants({
   );
 }
 
-/** Which reviews, each with its form and when it is due; goals; the details folded away. */
+/** Which reviews, each with its form, when it is due and its settings; goals; reminders. */
 function Reviews({
   c,
   data,
@@ -967,8 +956,8 @@ function Reviews({
                 }}
               />
               {a.on ? (
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <Field className="flex-1">
+                <>
+                  <Field>
                     <FieldLabel>Form</FieldLabel>
                     <Select
                       value={a.templateId ?? ''}
@@ -990,107 +979,94 @@ function Reviews({
                       </SelectContent>
                     </Select>
                   </Field>
-                  <div className="sm:w-56">
-                    <NumberField
-                      label={`Due, days after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`}
-                      hint={`Works out to ${day(data.due[k])}`}
-                      value={d.days ?? 14}
-                      min={0}
-                      max={365}
-                      onChange={(v) => {
-                        if (v !== null)
-                          activity(k, {
-                            due: { kind: 'relative', days: v, from: d.from ?? 'start' },
-                          });
-                      }}
-                    />
-                  </div>
-                </div>
+                  <NumberField
+                    label={`Due, days after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`}
+                    hint={`Works out to ${day(data.due[k])}`}
+                    value={d.days ?? 14}
+                    min={0}
+                    max={365}
+                    onChange={(v) => {
+                      if (v !== null)
+                        activity(k, {
+                          due: { kind: 'relative', days: v, from: d.from ?? 'start' },
+                        });
+                    }}
+                  />
+                </>
               ) : null}
               {k === 'peer' && a.on ? (
-                <Accordion type="multiple">
-                  <AccordionItem value="peers">
-                    <AccordionTrigger>Who reviews, and how they are chosen</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="flex flex-col gap-4">
-                        <SwitchRow
-                          label="Every teammate"
-                          hint={`The person’s team (same manager), up to ${String(c.peer.max)}. Off: peers are nominated.`}
-                          checked={c.peer.all}
-                          onChange={(on) => {
-                            save({ peer: { ...c.peer, all: on } });
+                <>
+                  <SwitchRow
+                    label="Every teammate"
+                    hint={`The person’s team (same manager), up to ${String(c.peer.max)}. Off: peers are nominated.`}
+                    checked={c.peer.all}
+                    onChange={(on) => {
+                      save({ peer: { ...c.peer, all: on } });
+                    }}
+                  />
+                  {c.peer.all ? null : (
+                    <>
+                      <Field>
+                        <FieldLabel>Who nominates</FieldLabel>
+                        <SegmentedControl
+                          value={c.peer.picker}
+                          onValueChange={(v) => {
+                            save({ peer: { ...c.peer, picker: v } });
                           }}
-                        />
-                        {c.peer.all ? null : (
-                          <>
-                            <Field>
-                              <FieldLabel>Who nominates</FieldLabel>
-                              <SegmentedControl
-                                value={c.peer.picker}
-                                onValueChange={(v) => {
-                                  save({ peer: { ...c.peer, picker: v } });
-                                }}
-                              >
-                                <SegmentedControlItem value="subject">
-                                  The person
-                                </SegmentedControlItem>
-                                <SegmentedControlItem value="manager">
-                                  Their manager
-                                </SegmentedControlItem>
-                                <SegmentedControlItem value="hr">HR</SegmentedControlItem>
-                              </SegmentedControl>
-                            </Field>
-                            <NumberField
-                              label="Nominations due, days after the start"
-                              hint={`Works out to ${day(data.due['nominations'])}`}
-                              value={c.nominations.days ?? 3}
-                              min={0}
-                              max={90}
-                              onChange={(v) => {
-                                if (v !== null)
-                                  save({
-                                    nominations: { kind: 'relative', days: v, from: 'start' },
-                                  });
-                              }}
-                            />
-                            <SwitchRow
-                              label="The manager approves nominations"
-                              checked={c.peer.approval}
-                              onChange={(on) => {
-                                save({ peer: { ...c.peer, approval: on } });
-                              }}
-                            />
-                          </>
-                        )}
-                        <NumberField
-                          label="At least"
-                          value={c.peer.min}
-                          min={0}
-                          max={20}
-                          onChange={(v) => {
-                            if (v !== null) save({ peer: { ...c.peer, min: v } });
-                          }}
-                        />
-                        <NumberField
-                          label="At most"
-                          value={c.peer.max}
-                          min={1}
-                          max={20}
-                          onChange={(v) => {
-                            if (v !== null) save({ peer: { ...c.peer, max: v } });
-                          }}
-                        />
-                        <SwitchRow
-                          label="A reviewer can decline, and is replaced"
-                          checked={c.peer.declineReplace}
-                          onChange={(on) => {
-                            save({ peer: { ...c.peer, declineReplace: on } });
-                          }}
-                        />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                        >
+                          <SegmentedControlItem value="subject">The person</SegmentedControlItem>
+                          <SegmentedControlItem value="manager">Their manager</SegmentedControlItem>
+                          <SegmentedControlItem value="hr">HR</SegmentedControlItem>
+                        </SegmentedControl>
+                      </Field>
+                      <NumberField
+                        label="Nominations due, days after the start"
+                        hint={`Works out to ${day(data.due['nominations'])}`}
+                        value={c.nominations.days ?? 3}
+                        min={0}
+                        max={90}
+                        onChange={(v) => {
+                          if (v !== null)
+                            save({
+                              nominations: { kind: 'relative', days: v, from: 'start' },
+                            });
+                        }}
+                      />
+                      <SwitchRow
+                        label="The manager approves nominations"
+                        checked={c.peer.approval}
+                        onChange={(on) => {
+                          save({ peer: { ...c.peer, approval: on } });
+                        }}
+                      />
+                    </>
+                  )}
+                  <NumberField
+                    label="At least"
+                    value={c.peer.min}
+                    min={0}
+                    max={20}
+                    onChange={(v) => {
+                      if (v !== null) save({ peer: { ...c.peer, min: v } });
+                    }}
+                  />
+                  <NumberField
+                    label="At most"
+                    value={c.peer.max}
+                    min={1}
+                    max={20}
+                    onChange={(v) => {
+                      if (v !== null) save({ peer: { ...c.peer, max: v } });
+                    }}
+                  />
+                  <SwitchRow
+                    label="A reviewer can decline, and is replaced"
+                    checked={c.peer.declineReplace}
+                    onChange={(on) => {
+                      save({ peer: { ...c.peer, declineReplace: on } });
+                    }}
+                  />
+                </>
               ) : null}
             </CardContent>
           </Card>
@@ -1118,53 +1094,51 @@ function Reviews({
           </RadioCard>
         </RadioGroup>
       </Field>
-      <Accordion type="multiple">
-        <AccordionItem value="reminders">
-          <AccordionTrigger>Reminders</AccordionTrigger>
-          <AccordionContent>
-            <div className="flex flex-col gap-3">
-              <ChipRow aria-label="When">
-                {REMINDERS.map(([v, l]) => (
-                  <Chip
-                    key={v}
-                    selected={rules.includes(v)}
-                    onClick={() => {
-                      save({
-                        reminders: {
-                          ...c.reminders,
-                          rules: rules.includes(v) ? rules.filter((x) => x !== v) : [...rules, v],
-                        },
-                      });
-                    }}
-                  >
-                    {l}
-                  </Chip>
-                ))}
-              </ChipRow>
-              <SwitchRow label="Inbox" hint="Always" checked locked="Always on" />
-              <SwitchRow
-                label="Email"
-                hint="By each person’s preference"
-                checked={c.reminders.email}
-                onChange={(on) => {
-                  save({ reminders: { ...c.reminders, email: on } });
-                }}
-              />
-              <SwitchRow
-                label="Chat app"
-                hint="By each person’s preference, when connected"
-                checked={c.reminders.chat}
-                onChange={(on) => {
-                  save({ reminders: { ...c.reminders, chat: on } });
-                }}
-              />
-              <p className="text-sm text-fg-muted">
-                A review’s reminders stop once it is submitted.
-              </p>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>Reminders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            <ChipRow aria-label="When">
+              {REMINDERS.map(([v, l]) => (
+                <Chip
+                  key={v}
+                  selected={rules.includes(v)}
+                  onClick={() => {
+                    save({
+                      reminders: {
+                        ...c.reminders,
+                        rules: rules.includes(v) ? rules.filter((x) => x !== v) : [...rules, v],
+                      },
+                    });
+                  }}
+                >
+                  {l}
+                </Chip>
+              ))}
+            </ChipRow>
+            <SwitchRow label="Inbox" hint="Always" checked locked="Always on" />
+            <SwitchRow
+              label="Email"
+              hint="By each person’s preference"
+              checked={c.reminders.email}
+              onChange={(on) => {
+                save({ reminders: { ...c.reminders, email: on } });
+              }}
+            />
+            <SwitchRow
+              label="Chat app"
+              hint="By each person’s preference, when connected"
+              checked={c.reminders.chat}
+              onChange={(on) => {
+                save({ reminders: { ...c.reminders, chat: on } });
+              }}
+            />
+            <p className="text-sm text-fg-muted">A review’s reminders stop once it is submitted.</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1175,7 +1149,7 @@ const NAMES = [
   ['writer', 'The writer chooses'],
 ] as const;
 
-/** How it ends (release), the details of who sees what folded away, and what stops a launch. */
+/** How it ends (release), who sees what, and what stops a launch. */
 function Launch({
   c,
   data,
@@ -1289,54 +1263,54 @@ function Launch({
           </FieldControl>
         </Field>
       ) : null}
-      <Accordion type="multiple">
-        <AccordionItem value="visibility">
-          <AccordionTrigger>Names and what the subject can do</AccordionTrigger>
-          <AccordionContent>
-            <div className="flex flex-col gap-4">
-              {names('Peer reviews: the writers’ names', v.peerNames, 'peerNames')}
-              {names('Upward reviews: the writers’ names', v.upwardNames, 'upwardNames')}
-              <p className="text-sm text-fg-muted">
-                The subject’s manager and HR always see who wrote what.
-              </p>
-              <SwitchRow
-                label="Ask for an acknowledgement"
-                hint="“I’ve read this” is not agreement."
-                checked={v.acknowledge}
-                onChange={(on) => {
-                  set({ acknowledge: on });
-                }}
-              />
-              <SwitchRow
-                label="Let the subject comment"
-                hint="Shown to the manager and HR"
-                checked={v.subjectComment}
-                onChange={(on) => {
-                  set({ subjectComment: on });
-                }}
-              />
-              <SwitchRow
-                label="Share the peer summary"
-                hint="Peer answers, without names"
-                checked={v.peerSummary}
-                onChange={(on) => {
-                  set({ peerSummary: on });
-                }}
-              />
-              <NumberField
-                label="Response minimum"
-                hint="Confidential answers show only once this many are in."
-                value={v.minimum}
-                min={1}
-                max={20}
-                onChange={(n) => {
-                  if (n !== null) set({ minimum: n });
-                }}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>Names and what the subject can do</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            {names('Peer reviews: the writers’ names', v.peerNames, 'peerNames')}
+            {names('Upward reviews: the writers’ names', v.upwardNames, 'upwardNames')}
+            <p className="text-sm text-fg-muted">
+              The subject’s manager and HR always see who wrote what.
+            </p>
+            <SwitchRow
+              label="Ask for an acknowledgement"
+              hint="“I’ve read this” is not agreement."
+              checked={v.acknowledge}
+              onChange={(on) => {
+                set({ acknowledge: on });
+              }}
+            />
+            <SwitchRow
+              label="Let the subject comment"
+              hint="Shown to the manager and HR"
+              checked={v.subjectComment}
+              onChange={(on) => {
+                set({ subjectComment: on });
+              }}
+            />
+            <SwitchRow
+              label="Share the peer summary"
+              hint="Peer answers, without names"
+              checked={v.peerSummary}
+              onChange={(on) => {
+                set({ peerSummary: on });
+              }}
+            />
+            <NumberField
+              label="Response minimum"
+              hint="Confidential answers show only once this many are in."
+              value={v.minimum}
+              min={1}
+              max={20}
+              onChange={(n) => {
+                if (n !== null) set({ minimum: n });
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
