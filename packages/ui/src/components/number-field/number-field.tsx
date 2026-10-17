@@ -143,7 +143,16 @@ export function NumberField({
   const atMax = max !== undefined && value !== null && value >= max;
 
   return (
-    <div className={cn('group/field flex flex-col gap-1.5', floatRoot, className)}>
+    // A number is short: at a desk the field stops at 20rem however wide its
+    // container, so the steppers stay beside the value. Under a thumb it
+    // fills the row like every field.
+    <div
+      className={cn(
+        'group/field flex max-w-xs flex-col gap-1.5 touch:max-w-none',
+        floatRoot,
+        className,
+      )}
+    >
       <label htmlFor={id} className={cn(fieldLabelClass, floatLabel)}>
         {label}
       </label>
@@ -224,7 +233,9 @@ export function NumberField({
         ) : null}
 
         {!hideSteppers ? (
-          <span className="flex shrink-0 items-center gap-0.5 ps-1.5">
+          // One small raised pill, − | +, on the field's fill: it reads as
+          // one control rather than two stray glyphs.
+          <span className="ms-1.5 flex shrink-0 items-center self-center rounded-lg bg-surface p-0.5 ring-1 ring-border ring-inset">
             <Stepper
               label={`Decrease ${label}`}
               disabled={disabled || readOnly || atMin}
@@ -234,6 +245,7 @@ export function NumberField({
             >
               <Minus aria-hidden />
             </Stepper>
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
             <Stepper
               label={`Increase ${label}`}
               disabled={disabled || readOnly || atMax}
@@ -275,14 +287,14 @@ function Stepper({
       disabled={disabled}
       onClick={onPress}
       className={cn(
-        // A round, quiet button inside the fill, centred on the field's
-        // height. Out of the tab order (see above), so no target floor: the
-        // keyboard steps and the field itself is the tap target.
-        'grid size-8 shrink-0 place-items-center self-center rounded-full text-fg-muted touch:size-10',
+        // A half of the pill, centred on the field's height. Out of the tab
+        // order (see above), so no target floor: the keyboard steps and the
+        // field itself is the tap target.
+        'grid size-7 shrink-0 place-items-center rounded-md text-fg-muted touch:size-9',
         'transition-colors duration-(--animate-duration-fast)',
-        'hover:bg-surface-active hover:text-fg active:bg-surface-active',
+        'hover:bg-surface-hover hover:text-fg active:bg-surface-active',
         'disabled:pointer-events-none disabled:opacity-40',
-        '[&_svg]:size-4',
+        '[&_svg]:size-3.5 touch:[&_svg]:size-4',
       )}
     >
       {children}

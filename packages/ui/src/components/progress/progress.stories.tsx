@@ -275,7 +275,7 @@ export const Segments: Story = {
   render: () => (
     <div className="flex max-w-sm flex-col gap-6">
       <Card padded>
-        <CardContent className="flex flex-col gap-2.5 p-0">
+        <CardContent className="flex flex-col gap-2.5 p-0 first:pt-0 touch:first:pt-0">
           <p className="text-sm font-medium text-fg-muted">Allowance</p>
           <p className="font-display text-3xl font-bold tabular-nums">19</p>
           <Progress
