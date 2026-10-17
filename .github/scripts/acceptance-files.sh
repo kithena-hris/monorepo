@@ -12,7 +12,7 @@
 # A file of an area runs when that area changed: People's (`services/people`,
 # its remote), Time Off's, Documents'. Anything else the stack is built from
 # (the shell, identity, the router, packages, migrations, shared config) runs
-# every file. The Recruiting and Onboarding remotes reach none: the stack
+# every file. The Recruiting, Onboarding and Performance remotes reach none: the stack
 # never builds them (`apps/web/acceptance/build.ts`). A file not named below
 # runs on any change that reaches the stack, so a new one is never left out.
 set -euo pipefail
@@ -29,7 +29,7 @@ case "$mode" in
   none) ;;
   diff)
     beyond_areas="$(printf '%s\n' "$changed" |
-      grep -Ev '^(services/(people|timeoff|documents)/|apps/web/(people|timeoff|documents|recruiting|onboarding)/)' || true)"
+      grep -Ev '^(services/(people|timeoff|documents)/|apps/web/(people|timeoff|documents|recruiting|onboarding|performance)/)' || true)"
     if printf '%s\n' "$beyond_areas" | grep -Eq "${SHARED:?}|^(apps/web/|platform/identity/|apps/gateway/|packages/|migrations/)"; then
       core=true
     fi

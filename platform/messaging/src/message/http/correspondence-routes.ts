@@ -9,7 +9,7 @@ import { STATUS, refusalOf } from './messaging-routes.js';
 /**
  * `POST /api/internal/messaging/correspondence` — a module sending an email
  * it wrote (Recruiting's candidate thread, Onboarding's welcome). One secret
- * per module, `MESSAGING_RECRUITING_TOKEN` and `MESSAGING_ONBOARDING_TOKEN`:
+ * per module, `MESSAGING_RECRUITING_TOKEN`, `MESSAGING_ONBOARDING_TOKEN` and `MESSAGING_PERFORMANCE_TOKEN`:
  * a leak from People cannot write to a candidate. Absent, every request is
  * refused.
  */

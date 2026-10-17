@@ -87,6 +87,7 @@ const routes = compose({
   documentsNoticeToken: process.env['MESSAGING_DOCUMENTS_TOKEN'],
   recruitingToken: process.env['MESSAGING_RECRUITING_TOKEN'],
   onboardingToken: process.env['MESSAGING_ONBOARDING_TOKEN'],
+  performanceToken: process.env['MESSAGING_PERFORMANCE_TOKEN'],
   // Defaulted to the local app only in development; see `selectTenantAppBase`.
   tenantAppBase: process.env['TENANT_APP_BASE'],
   allowLogTransport: process.env['NODE_ENV'] !== 'production',

@@ -108,7 +108,7 @@ jobs:
               *" web "*) .github/scripts/acceptance-files.sh none ;;
               *) .github/scripts/acceptance-files.sh all ;;
             esac
-            echo 'standalone=["people","timeoff","documents","recruiting","onboarding"]' >> "$GITHUB_OUTPUT"
+            echo 'standalone=["people","timeoff","documents","recruiting","onboarding","performance"]' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
@@ -131,7 +131,7 @@ jobs:
           # Which modules must prove they still boot alone: their own service,
           # or anything every module is built from.
           booting=()
-          for module in people timeoff documents recruiting onboarding; do
+          for module in people timeoff documents recruiting onboarding performance; do
             if any "$shared" || any '^(packages/|migrations/)' || any "^services/$module/"; then booting+=("\"$module\""); fi
           done
           echo "standalone=[$(IFS=,; echo "${booting[*]}")]" >> "$GITHUB_OUTPUT"
@@ -381,7 +381,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        module: [people, timeoff, documents, recruiting, onboarding]
+        module: [people, timeoff, documents, recruiting, onboarding, performance]
     # Every module keeps its job, so the required checks keep their names
     # (`standalone (people)`); one whose service, packages and migrations are
     # untouched runs no step.
