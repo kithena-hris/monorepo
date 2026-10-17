@@ -1,1 +1,0 @@
-{"version":1,"body":"query PerformanceAudit($ai: String, $q: String, $refused: String) {\n    performanceAudit(ai: $ai, q: $q, refused: $refused)\n  }"}

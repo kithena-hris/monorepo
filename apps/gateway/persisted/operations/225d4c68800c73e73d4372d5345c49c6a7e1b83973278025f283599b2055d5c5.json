@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AddPerformanceWebhook($key: String!, $input: JSON!) {\n    addPerformanceWebhook(idempotencyKey: $key, input: $input)\n  }"}

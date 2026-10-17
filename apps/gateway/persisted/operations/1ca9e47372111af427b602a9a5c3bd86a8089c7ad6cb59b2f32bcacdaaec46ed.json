@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ConfirmPerformanceRetention($key: String!, $input: JSON!) {\n    confirmPerformanceRetention(idempotencyKey: $key, input: $input)\n  }"}

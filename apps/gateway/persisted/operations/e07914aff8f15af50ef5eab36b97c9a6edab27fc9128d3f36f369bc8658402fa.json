@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PlacePerformanceHold($key: String!, $input: JSON!) {\n    placePerformanceHold(idempotencyKey: $key, input: $input)\n  }"}
