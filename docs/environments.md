@@ -1518,9 +1518,12 @@ reaches the router over SSE, the first subgraph subscription. No bucket: a PDF
 is drawn on request. In order:
 
 1. **Environment secrets** in `production`: `PERFORMANCE_API_TOKEN` (the
-   router–Performance pair) and, optionally, `MESSAGING_PERFORMANCE_TOKEN`
-   (the Performance–messaging pair, in messaging's settings too) for its
-   emails. Without the first the deploy skips Performance. Its AI features
+   router–Performance pair), `MESSAGING_PERFORMANCE_TOKEN` (the
+   Performance–messaging pair, in messaging's settings too) for its emails
+   and session invitations, and `PERFORMANCE_WEBHOOK_KEY` (32 random bytes,
+   base64), which every webhook endpoint's secret is derived from: unset, no
+   endpoint can be added, and rotating it changes every endpoint's secret.
+   All three are set. Without the first the deploy skips Performance. Its AI features
    read the assistant's model key, `ASSISTANT_API_KEY`; unset, they are off.
 2. **The remote**: `VERCEL_PROJECT_ID_PERFORMANCE_REMOTE_PRODUCTION`,
    `PERFORMANCE_REMOTE_URL_PRODUCTION`, `PERFORMANCE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`
