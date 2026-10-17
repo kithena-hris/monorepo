@@ -2158,7 +2158,7 @@ export function restHandler(
         input,
       );
       if (result.ok)
-        await recordActivity(deps, caller.value, r, params.value as Record<string, unknown>);
+        await recordActivity(deps, caller.value, r, params.value);
       return answer(r, result);
     } catch (error) {
       if (!(error instanceof Raced)) throw error;

@@ -1,7 +1,7 @@
 import * as z from 'zod';
 
 import { asFreeText, asIdentity, asInternal, asPublic, policy } from '../classification.js';
-import { defineEvent } from '../event.js';
+import { defineEvent, type EventDefinition } from '../event.js';
 
 /**
  * One line of a module's activity, for the company's one activity log
@@ -47,7 +47,9 @@ export const ModuleActivity = z.object({
 export type ModuleActivity = z.infer<typeof ModuleActivity>;
 
 /** `<module>.activity.recorded`, on the module's own topic. */
-export const activityRecorded = <M extends string>(module: M) =>
+export const activityRecorded = <M extends string>(
+  module: M,
+): EventDefinition<`${M}.activity.recorded`, typeof ModuleActivity> =>
   defineEvent(`${module}.activity.recorded`, 1, ModuleActivity);
 
 /**

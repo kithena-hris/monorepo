@@ -2141,7 +2141,7 @@ export function restHandler(
       caller,
       (ctx) => r.run(ctx, input),
       key,
-      key === null ? null : routeActivity(r, params.value as Record<string, unknown>),
+      key === null ? null : routeActivity(r, params.value),
     );
     if ('status' in answer) return answer;
     return answer.ok ? { status: r.status, body: answer.value } : refused(answer.error);
