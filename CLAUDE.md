@@ -46,18 +46,18 @@ than quietly working around it.
   live in `packages/ui/src/brand`, because a mark is presentation and nothing
   else.
 
-  **Reach is used internally for now**, but its three sites are public:
+  **Reach is used internally**, and its three sites are private:
   `design.kithena.com`, `storybook.kithena.com` and
-  `storybook-mobile.kithena.com`. That is not the preference —
-  Vercel's Hobby plan cannot protect a production deployment or a custom domain
-  at all, and the API refuses `ssoProtection` on production outright. Assume
-  anything in `apps/docs` or a non-excluded story, web or mobile, is
-  world-readable, because it is.
+  `storybook-mobile.kithena.com` sit behind Vercel Authentication on every
+  URL, production domains included (`ssoProtection: all`, since the move to
+  Pro on 18 Oct 2026), so only members of the Vercel team can open them.
+  Before that they were world-readable for months, so treat anything already
+  published there as seen.
 
-  This is exactly why `pnpm docs:brand-leak` is a merge gate rather than a
-  convention, and why `.storybook/main.ts` excludes the mark's stories: the two
-  checks are the only thing standing between an unreviewed example and the
-  Kithena brand on a public URL. Selling Reach separately stays a live option,
+  `pnpm docs:brand-leak` stays a merge gate and `.storybook/main.ts` still
+  excludes the mark's stories: the sites are private by a project setting
+  anyone with access can switch off, and Reach being sellable on its own does
+  not depend on who can read the docs today. Selling Reach separately stays a live option,
   which is also why the naming rule holds — the dependency boundary is expensive
   to reverse and stays regardless, and the naming rule costs nothing while it is
   cheap. The day the docs start saying "Kithena", separation stops being a
