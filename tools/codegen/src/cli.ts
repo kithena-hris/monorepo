@@ -20,6 +20,7 @@ import {
   documentsEvents,
   recruitingEvents,
   onboardingEvents,
+  performanceEvents,
   identityEvents,
   policy,
   peopleEvents,
@@ -33,6 +34,7 @@ const allEvents = [
   ...documentsEvents,
   ...recruitingEvents,
   ...onboardingEvents,
+  ...performanceEvents,
 ];
 
 function jsonSchemas(): Record<string, unknown> {

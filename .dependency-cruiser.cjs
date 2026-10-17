@@ -126,6 +126,25 @@ module.exports = {
       to: { path: 'node_modules/(react-dom|@radix-ui/|lucide-react/)' },
     },
     {
+      name: 'form-kit-is-pure',
+      severity: 'error',
+      comment:
+        'packages/form-kit is pure logic over the forms contract (Performance PRD ' +
+        '§11.1): it imports the contracts, the domain kit and decimal.js, and ' +
+        'nothing that does I/O, so every module that stores forms can trust it.',
+      from: { path: '^packages/form-kit/' },
+      to: {
+        path: '^(packages/(?!(form-kit|contracts|domain-kit)/)|services/|platform/|apps/)',
+      },
+    },
+    {
+      name: 'form-kit-does-no-io',
+      severity: 'error',
+      comment: 'packages/form-kit is pure: no Node built-in, so no file, socket or process.',
+      from: { path: '^packages/form-kit/' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
       name: 'no-design-system-in-services',
       severity: 'error',
       comment:

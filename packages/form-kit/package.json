@@ -1,0 +1,28 @@
+{
+  "name": "@kithena/form-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kithena/contracts": "workspace:*",
+    "@kithena/domain-kit": "workspace:*",
+    "decimal.js": "^10.6.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.3"
+  }
+}
