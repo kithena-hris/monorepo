@@ -7,21 +7,22 @@ import { asPublic, policy } from '../classification.js';
  * and a review's states, and the activity kinds a cycle is made of.
  */
 
-const id = <B extends string>() => z.uuid().brand<B>().register(policy, asPublic());
-
-export const CycleId = id<'CycleId'>();
+export const CycleId = z.uuid().brand<'CycleId'>().register(policy, asPublic());
 export type CycleId = z.infer<typeof CycleId>;
-export const ReviewId = id<'ReviewId'>();
+export const ReviewId = z.uuid().brand<'ReviewId'>().register(policy, asPublic());
 export type ReviewId = z.infer<typeof ReviewId>;
-export const FormTemplateId = id<'FormTemplateId'>();
+export const FormTemplateId = z.uuid().brand<'FormTemplateId'>().register(policy, asPublic());
 export type FormTemplateId = z.infer<typeof FormTemplateId>;
-export const GoalId = id<'GoalId'>();
+export const GoalId = z.uuid().brand<'GoalId'>().register(policy, asPublic());
 export type GoalId = z.infer<typeof GoalId>;
-export const FeedbackId = id<'FeedbackId'>();
+export const FeedbackId = z.uuid().brand<'FeedbackId'>().register(policy, asPublic());
 export type FeedbackId = z.infer<typeof FeedbackId>;
-export const LearningItemId = id<'LearningItemId'>();
+export const LearningItemId = z.uuid().brand<'LearningItemId'>().register(policy, asPublic());
 export type LearningItemId = z.infer<typeof LearningItemId>;
-export const CalibrationSessionId = id<'CalibrationSessionId'>();
+export const CalibrationSessionId = z
+  .uuid()
+  .brand<'CalibrationSessionId'>()
+  .register(policy, asPublic());
 export type CalibrationSessionId = z.infer<typeof CalibrationSessionId>;
 
 /** §7, §8.7. `launch_failed` keeps what was created; a retry continues from it. */
