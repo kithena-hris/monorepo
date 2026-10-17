@@ -1,9 +1,10 @@
 /**
  * Which deploy targets a commit actually changes, per environment.
  *
- * The Vercel Hobby plan allows 100 deployments a day, and shipping every
- * project on every merge spent that by lunchtime. So each deploy workflow asks
- * this first and runs only the steps whose target is affected.
+ * Shipping every project on every merge is slow and, on Vercel Hobby before
+ * the move to Pro, ran out the 100 deployments a day by lunchtime. So each
+ * deploy workflow asks this first and runs only the steps whose target is
+ * affected.
  *
  * "Affected" is measured against what the environment is running, not against
  * the previous commit: a lightweight tag `deployed/<env>/<target>` is moved to
@@ -163,10 +164,11 @@ export function owners(
 }
 
 /**
- * A deferred target waits for a deploy that names it or for the weekly run,
- * rather than going out on every merge. The Reach sites are deferred on merges
- * (`vercel-production.yml`): a design-system change touched every one of them,
- * and Vercel Hobby's 100 deployments a day ran out twice in a week.
+ * A deferred target waits for a deploy that names it (`--force`) rather than
+ * going out on every run that affects it. Nothing passes `--defer` today: no
+ * workflow defers a target, so the Reach sites go out with any change that
+ * reaches them, and there is no weekly run. It is here for a target worth
+ * holding back again.
  */
 export const held = (
   target: Target,

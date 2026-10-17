@@ -7,8 +7,9 @@ name: vercel-production
 # twice in two days (2026-10-16, 2026-10-17); a deploy now ships everything
 # merged since the last one, once.
 #
-# Only what changed ships. The Hobby plan allows 100 deployments a day, and
-# eight projects a merge spent that before the day was out. `plan` diffs this
+# Only what changed ships: a merge that touches one module should not rebuild
+# and redeploy a dozen projects (and on Hobby, before the move to Pro, it ran
+# out the 100 deployments a day). `plan` diffs this
 # commit against `deployed/production/<target>`, the tag each target's last
 # successful deploy left, and every job below is gated on its target; `mark`
 # moves the tags once a run succeeds. docs/environments.md, "What a deploy
