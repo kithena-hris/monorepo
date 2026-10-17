@@ -1,4 +1,5 @@
 import { documentsCapabilities } from './documents.js';
+import { performanceCapabilities } from './performance.js';
 import { peopleCapabilities } from './people.js';
 import { timeoffCapabilities } from './timeoff.js';
 
@@ -6,6 +7,7 @@ export * from './capability.js';
 export * from './people.js';
 export * from './timeoff.js';
 export * from './documents.js';
+export * from './performance.js';
 export * from './plan.js';
 export * from './catalogue.js';
 
@@ -17,4 +19,5 @@ export const allCapabilities = [
   ...peopleCapabilities,
   ...timeoffCapabilities,
   ...documentsCapabilities,
+  ...performanceCapabilities,
 ] as const;

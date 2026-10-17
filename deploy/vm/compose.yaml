@@ -129,6 +129,8 @@ services:
       TIMEOFF_URL: http://timeoff:4002
       # Documents' capabilities (DOC-052): reached once ASSISTANT_DOCUMENTS_TOKEN is in both ends.
       DOCUMENTS_URL: http://documents:4003
+      # Performance's (PRF-194), likewise, once ASSISTANT_PERFORMANCE_TOKEN is in both ends.
+      PERFORMANCE_URL: http://performance:4007
     stop_grace_period: 20s
     healthcheck:
       test:

@@ -789,6 +789,7 @@ jobs:
           ASSISTANT_PEOPLE_TOKEN: ${{ secrets.ASSISTANT_PEOPLE_TOKEN }}
           ASSISTANT_TIMEOFF_TOKEN: ${{ secrets.ASSISTANT_TIMEOFF_TOKEN }}
           ASSISTANT_DOCUMENTS_TOKEN: ${{ secrets.ASSISTANT_DOCUMENTS_TOKEN }}
+          ASSISTANT_PERFORMANCE_TOKEN: ${{ secrets.ASSISTANT_PERFORMANCE_TOKEN }}
           ASSISTANT_IDENTITY_TOKEN: ${{ secrets.ASSISTANT_IDENTITY_TOKEN }}
           # The router–assistant pair's (AST-035): `ask` for the web, written
           # into `router.env` and `assistant.env`. Unset, the router is given a
@@ -897,8 +898,8 @@ jobs:
             "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" "$SLACK_RECRUITING_TOKEN" "$SLACK_ASSISTANT_TOKEN" | put slack.env
           # Each unset piece leaves the assistant answering less, never the deploy red.
           assistant=(ASSISTANT_API_KEY TENANT_APP_BASE SLACK_ASSISTANT_TOKEN ASSISTANT_PEOPLE_TOKEN
-                     ASSISTANT_TIMEOFF_TOKEN ASSISTANT_DOCUMENTS_TOKEN ASSISTANT_IDENTITY_TOKEN
-                     ASSISTANT_API_TOKEN)
+                     ASSISTANT_TIMEOFF_TOKEN ASSISTANT_DOCUMENTS_TOKEN ASSISTANT_PERFORMANCE_TOKEN
+                     ASSISTANT_IDENTITY_TOKEN ASSISTANT_API_TOKEN)
           for name in "${assistant[@]}"; do
             [ -n "${!name}" ] || echo "::warning::$name is unset: the assistant answers less, or not at all (docs/environments.md, \"The assistant's settings\")"
           done
@@ -972,6 +973,8 @@ jobs:
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_PERFORMANCE_TOKEN=%s\n' "$MESSAGING_PERFORMANCE_TOKEN"
             fi
             if [ -n "$PERFORMANCE_WEBHOOK_KEY" ]; then printf 'PERFORMANCE_WEBHOOK_KEY=%s\n' "$PERFORMANCE_WEBHOOK_KEY"; fi
+            # The assistant answers questions about Performance over this pair.
+            if [ -n "$ASSISTANT_PERFORMANCE_TOKEN" ]; then printf 'ASSISTANT_PERFORMANCE_TOKEN=%s\n' "$ASSISTANT_PERFORMANCE_TOKEN"; fi
           } | put performance.env
           # The router will not start with an empty header value, so an unset
           # ASSISTANT_API_TOKEN becomes a throwaway the assistant never holds.

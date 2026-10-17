@@ -6,6 +6,7 @@ import { expect } from 'vitest';
 import type { UnitOfWork } from '../application/ports.js';
 import type { CallerFrom } from '../http/caller.js';
 import { deliverWebhooks } from '../application/webhooks.js';
+import { capabilitiesHandler } from '../http/capabilities.js';
 import { performanceServer } from '../http/server.js';
 import { inProcessLive } from '../infrastructure/live.js';
 import { secretFor, signatureHeader, verifySignature } from '../infrastructure/webhooks.js';
@@ -510,6 +511,24 @@ export async function oneCycle(h: Harness): Promise<void> {
   const before = posted.length;
   await deliverWebhooks(deps);
   expect(posted.length).toBe(before);
+
+  // The assistant asks as the person, and hears what their screens say, never review text.
+  const ask = capabilitiesHandler({ deps, callerFrom: withMember });
+  const catalogue = await ask({
+    method: 'GET',
+    url: '/internal/capabilities',
+    headers: { 'x-who': ids.ada.account },
+    body: '',
+  });
+  expect((catalogue.body as { serves: unknown[] }).serves).toHaveLength(6);
+  const cyclesNow = await ask({
+    method: 'POST',
+    url: '/internal/capabilities/performance.cycles',
+    headers: { 'x-who': ids.ada.account },
+    body: JSON.stringify({ limit: 25 }),
+  });
+  expect(cyclesNow.status).toBe(200);
+  expect(JSON.stringify(cyclesNow.body)).not.toContain('ledger migration');
 
   // A live session invites its learners to their calendars, and its cancellation follows.
   const session = {

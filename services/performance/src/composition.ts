@@ -64,6 +64,11 @@ export function composePerformance(env: NodeJS.ProcessEnv = process.env): Compos
       ...(mailer === undefined ? {} : { mailer }),
       ...(model === undefined ? {} : { model }),
       ...(webhooks === undefined ? {} : { webhooks }),
+      // The assistant's secret for its pair (assistant PRD §15.3); empty refuses it.
+      assistantCallerFrom: withMember(
+        callerFromHeaders(env['ASSISTANT_PERFORMANCE_TOKEN'] ?? '', recorded),
+        uow,
+      ),
     },
     uuidv7,
   );
