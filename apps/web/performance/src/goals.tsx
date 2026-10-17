@@ -481,7 +481,7 @@ function NewGoal({
                   }}
                 />
                 {k.measure === 'done' ? null : (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col gap-4">
                     <NumberField
                       label="Start"
                       value={k.start}
@@ -581,7 +581,11 @@ function NewGoal({
           {ownerKind === 'company' ? (
             <p className="text-sm text-fg-muted">A company goal is visible to everyone.</p>
           ) : (
-            <RadioGroup aria-label="Who can see it" value={visibility} onValueChange={setVisibility}>
+            <RadioGroup
+              aria-label="Who can see it"
+              value={visibility}
+              onValueChange={setVisibility}
+            >
               {VISIBILITY.map(([v, label]) => (
                 <RadioCard key={v} value={v}>
                   {label}

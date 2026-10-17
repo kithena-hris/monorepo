@@ -243,7 +243,7 @@ function SettingsPage({
         </Alert>
       ) : null}
       <Card>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="flex flex-col gap-4">
           {keys.map((k) => (
             <Value
               key={k}
@@ -370,7 +370,7 @@ function Value({
   }
   if (isObj(value))
     return (
-      <div className="flex flex-col gap-1 border-t border-[var(--reach-line)] pt-3">
+      <div className="flex flex-col gap-4 border-t border-[var(--reach-line)] pt-4">
         <p className="text-sm font-semibold">{words(name)}</p>
         {Object.entries(value).map(([k, v]) => (
           <Value
@@ -408,9 +408,10 @@ function Scale({
       {value.map((o, i) => (
         <div
           key={`${String(o.value)}-${String(i)}`}
-          className="grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,2fr)] items-end gap-2"
+          className="grid max-w-3xl grid-cols-[5rem_minmax(0,14rem)_minmax(0,1fr)] items-end gap-3 touch:grid-cols-1"
         >
           <NumberField
+            hideSteppers
             label="Value"
             value={o.value}
             disabled={disabled}
@@ -611,7 +612,11 @@ export interface RetentionData {
     readonly personId: string;
     readonly name: string;
     readonly leftOn: string;
-    readonly what: readonly { readonly kind: string; readonly label: string; readonly count: number }[];
+    readonly what: readonly {
+      readonly kind: string;
+      readonly label: string;
+      readonly count: number;
+    }[];
   }[];
   readonly upcoming: readonly {
     readonly personId: string;
@@ -670,7 +675,7 @@ function RetentionPage({
           <CardTitle level={2}>After someone leaves</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-4">
             {data.kinds.map((k) => {
               const key = YEARS_OF[k.kind] ?? k.kind;
               return (
@@ -767,7 +772,9 @@ function RetentionPage({
                   setConfirming(true);
                 }}
               >
-                {chosen.length === 0 ? 'Delete' : `Delete ${plural(chosen.length, 'person’s', 'people’s')} records`}
+                {chosen.length === 0
+                  ? 'Delete'
+                  : `Delete ${plural(chosen.length, 'person’s', 'people’s')} records`}
               </Button>
             </>
           )}
@@ -1034,9 +1041,7 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
             }
           />
           <Refusal error={act.error} />
-          {data.available ? null : (
-            <Alert tone="info">Webhooks aren’t set up here yet.</Alert>
-          )}
+          {data.available ? null : <Alert tone="info">Webhooks aren’t set up here yet.</Alert>}
           {tested === null ? null : <Alert tone="info">{tested}</Alert>}
           <Card>
             <CardContent className="overflow-x-auto">
@@ -1104,23 +1109,31 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
                                 onSelect={() => {
-                                  act.run('TestPerformanceWebhook', { id: r.id, input: {} }, (d) => {
-                                    const status = (d as { status: number }).status;
-                                    setTested(
-                                      status >= 200 && status < 300
-                                        ? `The test reached ${r.url} (${String(status)}).`
-                                        : `The test did not reach ${r.url}: ${status === 0 ? 'no answer' : `it answered ${String(status)}`}.`,
-                                    );
-                                  });
+                                  act.run(
+                                    'TestPerformanceWebhook',
+                                    { id: r.id, input: {} },
+                                    (d) => {
+                                      const status = (d as { status: number }).status;
+                                      setTested(
+                                        status >= 200 && status < 300
+                                          ? `The test reached ${r.url} (${String(status)}).`
+                                          : `The test did not reach ${r.url}: ${status === 0 ? 'no answer' : `it answered ${String(status)}`}.`,
+                                      );
+                                    },
+                                  );
                                 }}
                               >
                                 Send a test
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() => {
-                                  act.run('RotatePerformanceWebhook', { id: r.id, input: {} }, (d) => {
-                                    setSecret((d as { secret: string }).secret);
-                                  });
+                                  act.run(
+                                    'RotatePerformanceWebhook',
+                                    { id: r.id, input: {} },
+                                    (d) => {
+                                      setSecret((d as { secret: string }).secret);
+                                    },
+                                  );
                                 }}
                               >
                                 New secret

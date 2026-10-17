@@ -28,7 +28,7 @@ export function Campaign({ load }: { readonly load: Loadable<CampaignData> }): J
               description={`Version ${String(c.version)} · sent ${shortDate(c.sentAt)}${c.dueOn === null ? '' : ` · due ${shortDate(c.dueOn)}`}`}
             />
             <Card padded className="max-w-2xl">
-              <CardContent className="flex flex-col gap-3 p-0">
+              <CardContent className="flex flex-col gap-3 p-0 first:pt-0 touch:first:pt-0">
                 <span className="text-2xl font-semibold tabular-nums">{`${String(c.done)} of ${String(c.of)} done`}</span>
                 <Progress
                   value={c.of === 0 ? 0 : (c.done / c.of) * 100}

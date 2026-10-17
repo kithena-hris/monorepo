@@ -347,7 +347,7 @@ function AutomationDialog({
             </RadioCard>
           </RadioGroup>
           {t.kind === 'event' ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-4">
               <Choose
                 label="After"
                 value={t.event}
@@ -413,7 +413,7 @@ function AutomationDialog({
               />
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex flex-col gap-4">
               <Choose
                 label="Every"
                 value={t.every}
@@ -494,7 +494,7 @@ function AutomationDialog({
                     }}
                   />
                   {on && k !== 'goals' ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-4">
                       <Choose
                         label="Form"
                         value={a.templates[k] ?? 'default'}

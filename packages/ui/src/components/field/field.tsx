@@ -87,6 +87,12 @@ export interface FieldProps extends ComponentPropsWithoutRef<'div'> {
    *   error under the control. For a desk form whose labels line up down the
    *   page. Under a thumb it stacks like `vertical`, because a phone has no
    *   room for a label column.
+   *
+   * At a desk a field is never as wide as whatever holds it: a text field
+   * stops at 28rem, a text area at 42rem, a label-and-switch row at 42rem, so
+   * a field in a wide card or dialog is the width of what goes in it, and a
+   * switch stays within reach of its label. Under a thumb it fills the row.
+   * `className` widens one that needs it (`max-w-none`).
    */
   orientation?: 'vertical' | 'horizontal' | 'columns';
 }
@@ -123,12 +129,13 @@ export function Field({
         data-disabled={disabled || undefined}
         className={cn(
           'group/field flex gap-1.5',
-          orientation === 'vertical' && cn('flex-col', floatRoot),
+          orientation === 'vertical' &&
+            cn('max-w-md flex-col has-[textarea]:max-w-2xl touch:max-w-none', floatRoot),
           // A control beside its label is a row a thumb has to hit on its own;
           // at the tap floor, two rows' hit areas never overlap.
           orientation === 'horizontal' &&
-            'flex-row items-center justify-between gap-4 touch:min-h-tap',
-          orientation === 'columns' && fieldColumns,
+            'max-w-2xl flex-row items-center justify-between gap-4 touch:min-h-tap touch:max-w-none',
+          orientation === 'columns' && cn(fieldColumns, 'max-w-2xl touch:max-w-none'),
           className,
         )}
         {...props}

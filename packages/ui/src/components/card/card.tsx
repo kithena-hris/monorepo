@@ -125,8 +125,19 @@ export function CardDescription({
   return <p className={cn('mt-1 text-sm text-fg-muted', className)} {...props} />;
 }
 
+/**
+ * The card's body. Under a `CardHeader` the header's own bottom padding is the
+ * gap; as the card's first child it takes the same top padding a header
+ * would, so a card without a title never puts its first field against its
+ * edge.
+ */
 export function CardContent({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
-  return <div className={cn('px-5 pb-5 touch:px-4 touch:pb-4', className)} {...props} />;
+  return (
+    <div
+      className={cn('px-5 pb-5 first:pt-5 touch:px-4 touch:pb-4 touch:first:pt-4', className)}
+      {...props}
+    />
+  );
 }
 
 export function CardFooter({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
