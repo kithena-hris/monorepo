@@ -499,7 +499,7 @@ export function saveType(
   });
 }
 
-/** The fourteen types, for a company that has none yet. Idempotent. */
+/** The starter types a company does not have yet. Idempotent. */
 export async function seedTypes(deps: Deps, tenantId: Caller['tenantId']): Promise<void> {
   await deps.uow.run(tenantId, async (tx) => {
     const have = new Set((await tx.types.list()).map((t) => t.key as string));

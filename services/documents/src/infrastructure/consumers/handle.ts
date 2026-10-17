@@ -18,6 +18,8 @@ import {
 } from '@kithena/contracts';
 import { logger } from '@kithena/telemetry';
 
+import { SEEDED_TYPES } from '../../domain/type/document-type.js';
+
 import type { Member, Tx, UnitOfWork } from '../../application/ports.js';
 
 /**
@@ -221,6 +223,12 @@ export function documentsConsumer(uow: UnitOfWork): (raw: unknown) => Promise<Ou
             entitlements: [...event.payload.entitlements],
             asOf: event.occurredAt,
           });
+          // A company with Documents starts with its starter types, and gains any added since.
+          if (event.payload.entitlements.includes('module.documents')) {
+            const have = new Set((await tx.types.list()).map((t) => t.key as string));
+            for (const type of SEEDED_TYPES)
+              if (!have.has(type.key)) await tx.types.save(type, false);
+          }
           return 'applied';
         });
       }

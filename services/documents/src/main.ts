@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import manifest from '../module.manifest.js';
-import { sweepTrash } from './application/organise.js';
+import { seedTypes, sweepTrash } from './application/organise.js';
 import { composeDocuments } from './composition.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 import { tenantsWithDocuments } from './infrastructure/unit-of-work.js';
@@ -24,6 +24,13 @@ if (storage !== null) {
       }
     }
   };
+  // Every company Documents knows has the starter types, and any added since: at boot, idempotent.
+  void (async () => {
+    for (const tenantId of await tenantsWithDocuments(storage.db))
+      await seedTypes(storage.deps, tenantId).catch((error: unknown) => {
+        logger.error({ err: error, tenantId }, 'starter types not seeded');
+      });
+  })();
   const timer = setInterval(() => void sweep(), 6 * 60 * 60 * 1000);
   timer.unref();
   onShutdown('trash sweep', () => {

@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { performance } from './people';
+import { performance, timeOff } from './people';
+import { currentPerson } from './session';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
 import type { OperationName } from './performance-operations';
 
@@ -21,6 +22,42 @@ async function read(
     : answer.code === 'UNREACHABLE'
       ? { status: 'error', message: answer.message, unreachable: true }
       : { status: 'error', message: answer.message, code: answer.code };
+}
+
+interface Timeline {
+  readonly timeOffCalendarTimeline: {
+    readonly entries: readonly {
+      readonly personId: string;
+      readonly status: string;
+      readonly span: { readonly from: string; readonly to: string };
+    }[];
+  };
+}
+
+/**
+ * Who is away in the next month, from Time Off, as the person signed in sees
+ * it there (PRF-190): when they are back, never why. Time Off refusing (a
+ * manager it shows only their team, say) just means no badges.
+ */
+/** Leave that is happening: agreed, taken, or agreed and being changed. */
+const AWAY = new Set(['approved', 'taken', 'change_pending']);
+
+async function awayNow(): Promise<Record<string, string>> {
+  const today = new Date().toISOString().slice(0, 10);
+  const to = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+  const answer = await timeOff<Timeline>('TimeOffCalendarTimeline', {
+    from: today,
+    to,
+    scope: 'company',
+  });
+  const away: Record<string, string> = {};
+  if (!answer.ok) return away;
+  for (const e of answer.data.timeOffCalendarTimeline.entries)
+    if (AWAY.has(e.status) && e.span.from <= to && e.span.to >= today) {
+      const until = away[e.personId];
+      if (until === undefined || e.span.to > until) away[e.personId] = e.span.to;
+    }
+  return away;
 }
 
 const opt = (v: string | undefined): string | null => (v === undefined || v === '' ? null : v);
@@ -55,21 +92,37 @@ export async function loadScreen(
       return read('PerformancePicker', { id, q: opt(s['q']) });
     case 'Cycles':
       return read('PerformanceCycles', { q: opt(s['q']), state: opt(s['state']) });
-    case 'Overview':
-      return read('PerformanceCycle', {
-        id,
-        q: opt(s['q']),
-        page: int(s['page']),
-        size: int(s['size']),
-        tab: opt(s['tab']),
-      });
+    case 'Overview': {
+      const [done, person] = await Promise.all([
+        read('PerformanceCycle', {
+          id,
+          q: opt(s['q']),
+          page: int(s['page']),
+          size: int(s['size']),
+          tab: opt(s['tab']),
+        }),
+        currentPerson(),
+      ]);
+      if (done.status !== 'ready' || person?.entitlements.includes('module.timeoff') !== true)
+        return done;
+      return { ...done, data: { ...(done.data as object), away: await awayNow() } };
+    }
     case 'Setup':
       return read('PerformanceCycleSetup', { id, q: opt(s['q']) });
-    case 'About':
-      return read('PerformanceReviewsAbout', {
-        cycleId: query.params['cycleId'] ?? '',
-        subjectId: query.params['subjectId'] ?? '',
-      });
+    case 'About': {
+      const [done, person] = await Promise.all([
+        read('PerformanceReviewsAbout', {
+          cycleId: query.params['cycleId'] ?? '',
+          subjectId: query.params['subjectId'] ?? '',
+        }),
+        currentPerson(),
+      ]);
+      // Filing the review to the person needs Documents beside Performance (PRD §20).
+      const documents = person?.entitlements.includes('module.documents') === true;
+      return done.status === 'ready'
+        ? { ...done, data: { ...(done.data as object), documents } }
+        : done;
+    }
     case 'Unlocks':
       return read('PerformanceUnlocks');
     case 'Templates':

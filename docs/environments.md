@@ -1523,7 +1523,11 @@ is drawn on request. In order:
    and session invitations, and `PERFORMANCE_WEBHOOK_KEY` (32 random bytes,
    base64), which every webhook endpoint's secret is derived from: unset, no
    endpoint can be added, and rotating it changes every endpoint's secret.
-   All three are set. Without the first the deploy skips Performance. Its AI features
+   `ASSISTANT_PERFORMANCE_TOKEN` (the assistant → Performance's
+   `/internal/capabilities*`) and `SLACK_PERFORMANCE_TOKEN` (the Slack app →
+   Performance's `/internal/chat/*`, and the key its buttons are sealed with:
+   rotating it voids every button already sent) are the other two pairs.
+   All five are set. Without the first the deploy skips Performance. Its AI features
    read the assistant's model key, `ASSISTANT_API_KEY`; unset, they are off.
 2. **The remote**: `VERCEL_PROJECT_ID_PERFORMANCE_REMOTE_PRODUCTION`,
    `PERFORMANCE_REMOTE_URL_PRODUCTION`, `PERFORMANCE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`

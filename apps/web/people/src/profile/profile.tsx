@@ -212,6 +212,8 @@ export interface ProfileProps {
   readonly onAsk?: (input: AskInput) => Promise<Outcome>;
   /** Send them a document to keep, acknowledge or sign (H3). HR's. */
   readonly onSendDocument?: (file: File, input: SendInput) => Promise<Outcome>;
+  /** Performance's Give feedback, addressed to this person, when the company has Performance. */
+  readonly giveFeedbackHref?: string;
   /** Their Documents (D2, F1), read when the record is shown; and one opened. */
   readonly onDocuments?: () => Promise<readonly ProfileDocument[]>;
   readonly onOpenDocument?: (id: string) => Promise<Outcome>;
@@ -282,6 +284,7 @@ function Record({
   onRequest,
   onAsk,
   onSendDocument,
+  giveFeedbackHref,
   onDocuments,
   onOpenDocument,
   onChangeDated,
@@ -542,6 +545,7 @@ function Record({
                               setOpened('send-document');
                             },
                           })}
+                      {...(giveFeedbackHref === undefined ? {} : { giveFeedbackHref })}
                       viewAsLabel={viewAs === undefined ? null : `View as ${firstName}`}
                       onViewAs={() => {
                         setOpened('view-as');
@@ -1245,9 +1249,12 @@ function RecordActions({
   viewAsLabel,
   onViewAs,
   onSendDocument,
+  giveFeedbackHref,
 }: {
   /** H3: send them a document, where HR may. */
   readonly onSendDocument?: () => void;
+  /** Performance's Give feedback for them, where the company has Performance. */
+  readonly giveFeedbackHref?: string;
   /** "View as Alan", where it is offered; null elsewhere. */
   readonly viewAsLabel: string | null;
   readonly onViewAs: () => void;
@@ -1292,6 +1299,14 @@ function RecordActions({
       <DropdownMenuItem key="send-document" onSelect={onSendDocument}>
         <icons.file aria-hidden />
         Send a document
+      </DropdownMenuItem>
+    ),
+    giveFeedbackHref === undefined ? null : (
+      <DropdownMenuItem key="give-feedback" asChild>
+        <a href={giveFeedbackHref}>
+          <icons.message aria-hidden />
+          Give feedback
+        </a>
       </DropdownMenuItem>
     ),
     historyHref === undefined ? null : (

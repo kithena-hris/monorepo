@@ -87,7 +87,7 @@ export function retentionEnds(
 
 const key = (k: string) => k as DocumentTypeKey;
 
-/** The fourteen types a company starts with (S2, MS2): five required for new starters. */
+/** The fifteen types a company starts with (S2, MS2): five required for new starters. */
 export const SEEDED_TYPES: readonly DocumentType[] = [
   {
     key: key('employment_contract'),
@@ -275,6 +275,25 @@ export const SEEDED_TYPES: readonly DocumentType[] = [
     retention: { kind: 'until_leaving', plusYears: 1 },
     aiReads: ['expiry date'],
     aiEnabled: true,
+  },
+  {
+    // Filed by Performance through the shell (Performance PRD §20): a released review.
+    key: key('performance_review'),
+    name: 'Performance and development',
+    kind: 'Letter',
+    filedTo: 'person',
+    audience: 'subject',
+    confidential: true,
+    medical: false,
+    signers: [],
+    acknowledge: false,
+    requiredFor: null,
+    requiredBy: 0,
+    expiryReminders: [],
+    retention: { kind: 'after_leaving', years: 3 },
+    // What a review says is read only inside Performance.
+    aiReads: [],
+    aiEnabled: false,
   },
   {
     key: key('policy'),

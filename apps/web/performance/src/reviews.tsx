@@ -1423,6 +1423,8 @@ export interface AboutData {
     readonly beforeCalibration: boolean;
     readonly may: boolean;
   };
+  /** The company has Documents: the manager review can be filed to the person (PRD §20). */
+  readonly documents?: boolean;
 }
 
 /** PF11: the manager reads everything about a report, with names, then releases. */
@@ -1430,6 +1432,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
   const act = useAct(props);
   const [kind, setKind] = useState('manager');
   const [ack, setAck] = useState(true);
+  const [filed, setFiled] = useState(false);
   return (
     <Loaded load={props.load} what="the reviews">
       {(data) => {
@@ -1437,7 +1440,31 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
         const kinds = [...new Set(data.reviews.map((r) => r.kind))];
         return (
           <div className="flex flex-col gap-4">
-            <PageHeader title={`${data.subject.name}’s reviews`} description={data.cycle.name} />
+            <PageHeader
+              title={`${data.subject.name}’s reviews`}
+              description={data.cycle.name}
+              actions={
+                data.documents === true && data.release.manager?.at != null ? (
+                  <Button
+                    variant="secondary"
+                    startIcon={<icons.file aria-hidden />}
+                    loading={act.pending}
+                    disabled={filed}
+                    onClick={() => {
+                      act.run(
+                        'FilePerformanceReviewToDocuments',
+                        { id: data.release.manager?.id, subjectPersonId: data.subject.personId },
+                        () => {
+                          setFiled(true);
+                        },
+                      );
+                    }}
+                  >
+                    {filed ? 'Filed to Documents' : 'File to Documents'}
+                  </Button>
+                ) : null
+              }
+            />
             <Refusal error={act.error} />
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
               <div className="flex flex-col gap-3">

@@ -274,7 +274,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       renewal, the attendance report. PRD §15.5.
 - [ ] **PRF-163** `LearningProvider` port and LinkedIn Learning, Udemy Business
       and Pluralsight adapters; the xAPI endpoint; CSV import. PRD §15.7.
-- [ ] **PRF-164** Chat apps for the work: reminders, nominations, feedback and
+- [x] **PRF-164** Chat apps for the work: reminders, nominations, feedback and
       praise, notes, unlocks. PRD §23.2.
 - [x] **PRF-165** **Gate**: the decision in PRD §22.3 signed off. Accepted by
       the owner on 2026-10-17; the legal review per launch country is a
@@ -294,13 +294,14 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 ## Phase 5 — with the suite
 
 - [ ] **PRF-190** Time Off's absences and holidays through the shell:
-      reminders, deadline checks, goal pro-rating. PRD §26.
-- [ ] **PRF-191** Documents: the Performance and development type and filing
+      reminders, deadline checks, goal pro-rating. PRD §26. So far the cycle
+      overview marks who is away in the next month ("Away until", never why).
+- [x] **PRF-191** Documents: the Performance and development type and filing
       with `subjectRef`. PRD §20.
 - [ ] **PRF-192** Onboarding: probation dates from its events and its task
       linking to the review. PRD §16.3.
-- [ ] **PRF-193** People: "Give feedback" on the person page. PRD §26.
-- [ ] **PRF-194** Assistant capabilities in
+- [x] **PRF-193** People: "Give feedback" on the person page. PRD §26.
+- [x] **PRF-194** Assistant capabilities in
       `packages/contracts/src/assistant/performance.ts`. PRD §22.10.
 - [x] **PRF-195** Phone screens PFM1–PFM9 and the `desktop-only.json` reasons.
       PRD §27.3.
@@ -361,11 +362,14 @@ otherwise, the item says what was built instead.
     shows a person as "Someone".
 14. **Done: on the phone a session's code is scanned with the camera**
     (expo-camera); typing it stays as the fallback.
-15. **Not built yet**: the works council gate (PRF-049), the AI Act file
-    (PRF-143, parked to launch prep), Phase 4's provider integrations, chat
-    apps for the work (PRF-164), the assistant's capabilities (PRF-194) and
-    the links to Time Off, Documents, Onboarding and People (PRF-190 to
-    PRF-193): the next pull request.
+15. **Done: chat apps for the work, the assistant's capabilities, the
+    Documents type and filing, and "Give feedback" on the person page**
+    (PRF-164, PRF-191, PRF-193, PRF-194). A review's PDF is filed to the
+    person as "Performance and development", which Documents seeds for every
+    company. **Not built yet**: the works council gate (PRF-049), the AI Act
+    file (PRF-143, parked to launch prep), Phase 4's provider integrations,
+    Onboarding's probation dates (PRF-192), and Time Off's absences beyond
+    the overview's "Away until" (PRF-190).
 16. **A super administrator administers every module.** A People
     administrator, however they became one, is named administrator of every
     module the company has, whenever either happened (identity). People's
