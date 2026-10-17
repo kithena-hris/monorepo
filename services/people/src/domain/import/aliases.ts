@@ -69,6 +69,16 @@ const ALIASES: Readonly<Record<string, readonly string[]>> = {
   job_title: ['job title', 'title', 'position', 'job'],
   manager_id: ['manager', 'manager email', 'reports to', 'line manager', 'supervisor'],
   location_id: ['location', 'work location', 'office location'],
+  org_unit_id: [
+    'department',
+    'dept',
+    'team',
+    'division',
+    'business unit',
+    'org unit',
+    'organisational unit',
+    'organizational unit',
+  ],
   legal_entity_id: ['legal entity', 'employer', 'employing entity'],
   employment_type: [
     'employment type',

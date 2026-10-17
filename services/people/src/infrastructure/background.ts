@@ -44,6 +44,7 @@ import { retakeEvidence } from '../application/person/flagged.js';
 import { drizzlePendingChangeStore } from '../application/person/pending-store.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { foldSections } from '../application/schema/fold-sections.js';
+import { departmentField } from '../application/schema/department-field.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -264,7 +265,7 @@ export async function startBackground(
   ];
 
   const peopleBase = (env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
-  const fold = foldSections({
+  const repairs = {
     schema,
     draft: drizzleDraftWriter(),
     publisher: publishSchema({
@@ -275,14 +276,30 @@ export async function startBackground(
       calendars: org,
     }),
     clock: systemClock,
-    artifactUrl: (version) => `${peopleBase}/v1/schema/versions/${String(version)}`,
+    artifactUrl: (version: number) => `${peopleBase}/v1/schema/versions/${String(version)}`,
+  };
+  const fold = foldSections(repairs);
+  const departments = departmentField({
+    ...repairs,
+    departments: async (tx, tenantId) => (await org.orgUnits(tx, tenantId)).length,
   });
+  // Departments picked from the company's own list (`department-field.ts`).
+  jobs.push(
+    every(24 * HOUR, () =>
+      forEachTenant('department-field', async (tenantId) => {
+        const done = await inTenant(tenantId, (scope) =>
+          departments(scope.tx, tenantId, randomUUID()),
+        );
+        if (!done.ok) logger.warn({ tenantId, code: done.error.code }, 'department field not set');
+        else if (done.value.version !== null)
+          logger.info({ tenantId, version: done.value.version }, 'department field set');
+      }),
+    ),
+  );
   jobs.push(
     every(24 * HOUR, () =>
       forEachTenant('fold-sections', async (tenantId) => {
-        const folded = await inTenant(tenantId, (scope) =>
-          fold(scope.tx, tenantId, randomUUID()),
-        );
+        const folded = await inTenant(tenantId, (scope) => fold(scope.tx, tenantId, randomUUID()));
         if (!folded.ok) {
           logger.warn({ tenantId, code: folded.error.code }, 'duplicate sections not merged');
         } else if (folded.value.folds.length > 0) {
@@ -451,7 +468,10 @@ export async function startBackground(
           finishedAt: run.next === null ? Date.now() : null,
         });
         for (const f of run.failed) {
-          logger.error({ err: f.error, tenantId, personId: f.personId }, 'retention erasure failed');
+          logger.error(
+            { err: f.error, tenantId, personId: f.personId },
+            'retention erasure failed',
+          );
         }
         if (run.erased > 0 || run.waiting > 0) {
           // Counts only: who was erased is on each person's own event.

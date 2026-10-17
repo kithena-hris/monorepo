@@ -4,8 +4,9 @@
 -- they had none to offer, and no department filter worked.
 --
 -- For each such company, once: a department per value in use, named by the
--- option's label (or the value, made readable, where the option has none),
--- and each person placed in theirs. The field itself is left as it is. The
+-- option's label where the field is a select, else the value as typed, and
+-- each person placed in theirs. The field itself is left for People to
+-- retire (`department-field.ts`), once these exist. The
 -- company is then due its snapshot, so every module hears of the departments
 -- and who is in them after the deploy, as `20261017190000` arranged.
 --
@@ -25,12 +26,19 @@ BEGIN
                AND d.type_config ->> 'kind' = 'select'
                AND o ->> 'value' = used.value
              LIMIT 1),
-           initcap(replace(used.value, '_', ' ')))), 200) AS name
+           -- A key, `field_sales`, reads as words; anything else is kept as typed.
+           CASE WHEN used.value ~ '^[a-z0-9_]+$' THEN initcap(replace(used.value, '_', ' '))
+                ELSE used.value END)), 200) AS name
     FROM (SELECT DISTINCT p.tenant_id, p.custom ->> 'department' AS value
             FROM people.person p
            WHERE jsonb_typeof(p.custom -> 'department') = 'string'
              AND btrim(p.custom ->> 'department') <> ''
              AND NOT EXISTS (SELECT FROM people.org_unit u WHERE u.tenant_id = p.tenant_id)) used;
+
+  -- One company's field had "HR" for one person beside "People" for the
+  -- rest: one department, People, as the company asked (18 Oct 2026).
+  UPDATE department_from_field SET name = 'People'
+   WHERE tenant_id = 'f7cd0fb6-b509-4547-83a9-25b14774a29f' AND name = 'HR';
 
   -- Two values with the same label are one department.
   INSERT INTO people.org_unit (tenant_id, id, name)
