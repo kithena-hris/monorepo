@@ -2,13 +2,43 @@ import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 /**
- * Everybody People holds at one company, as `people.person.snapshot`, written
+ * Everybody People holds at one company, as `people.person.snapshot`, and
+ * every department, as `people.org_unit.updated` restating it, written
  * to People's outbox in the caller's transaction: what a module switched on
  * later needs to know everyone already there, whoever was hired before it
  * listened. One statement. A record without a name and a work address is
  * nobody a module can show yet, and is left out.
  */
 export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string): Promise<number> {
+  // Its departments first, each restated as it is, `fieldsChanged` empty: a
+  // module names a person's department from these.
+  await tx.execute(sql`
+  INSERT INTO people.outbox
+    (event_id, tenant_id, event_name, event_version, aggregate_type, aggregate_id,
+     partition_key, envelope)
+  SELECT e.id, u.tenant_id, 'people.org_unit.updated', '1', 'OrgUnit', u.id::text,
+         u.tenant_id::text || ':' || u.id::text,
+         jsonb_build_object(
+           'eventId', e.id,
+           'eventName', 'people.org_unit.updated',
+           'eventVersion', 1,
+           'tenantId', u.tenant_id,
+           'occurredAt', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+           'recordedAt', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+           'effectiveFrom', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD'),
+           'aggregate', jsonb_build_object('type', 'OrgUnit', 'id', u.id::text, 'version', 0),
+           'actor', jsonb_build_object('kind', 'system', 'process', 'people.snapshot'),
+           'correlationId', gen_random_uuid(),
+           'causationId', NULL,
+           'payload', jsonb_build_object(
+             'orgUnitId', u.id,
+             'name', u.name,
+             'parentId', u.parent_id,
+             'archived', u.archived_at IS NOT NULL,
+             'fieldsChanged', '[]'::jsonb))
+    FROM people.org_unit u
+   CROSS JOIN LATERAL (SELECT uuidv7() AS id) e
+   WHERE u.tenant_id = ${tenantId}::uuid`);
   const rows = await tx.execute(sql`
   INSERT INTO people.outbox
     (event_id, tenant_id, event_name, event_version, aggregate_type, aggregate_id,
