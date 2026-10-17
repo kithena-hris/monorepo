@@ -103,7 +103,7 @@ export const choiceField = (
 /**
  * Somebody's department: one of the company's own (Settings › Organisation),
  * picked from a list, never typed, so every module groups people the same
- * way. Existing companies get it from `departmentField`.
+ * way. Existing companies get it from `pickedFields`.
  */
 export const DEPARTMENT_FIELD: AttributeDefinitionInput = field({
   key: 'org_unit_id',

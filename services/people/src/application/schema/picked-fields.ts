@@ -7,10 +7,12 @@ import { SchemaDraft } from '../../domain/schema/draft.js';
 import type { FoldSectionsDeps } from './fold-sections.js';
 
 /**
- * Departments as a list to pick from, for a company set up before People had
- * the field: the version in force gains the core Department field, and a
- * company's own free-text `department` field is retired once the company has
- * departments of its own, so a department can no longer be typed. Published
+ * A department and a manager are picked, never typed. For a company set up
+ * before People had the Department field, the version in force gains it, and
+ * a company's own free-text `department` field is retired once the company
+ * has departments of its own. A company's own field standing in for the
+ * manager ("Manager Employee Number", "Supervisor ID") is retired at once:
+ * Manager is a core field every company has, picked by name. Published
  * by the system with its reason, as `foldSections` publishes, and the stored
  * draft is changed the same way so an administrator's next publish keeps it.
  *
@@ -18,11 +20,14 @@ import type { FoldSectionsDeps } from './fold-sections.js';
  * values stay in history and in exports. Idempotent, so it runs every day.
  */
 
-export const DEPARTMENT_REASON = 'Departments are picked from the company’s own list';
-const ACTOR: Actor = { kind: 'system', process: 'people-department-field' };
+export const PICKED_REASON = 'Departments and managers are picked, not typed';
+const ACTOR: Actor = { kind: 'system', process: 'people-picked-fields' };
 const OWN = 'department';
+/** A company's own field for the manager, by its key: `supervisor_id`, `manager_employee_number`. */
+const MANAGER_STAND_IN =
+  /^(manager|supervisor|reports_to|line_manager)(_(id|number|email|name|employee_(number|id)))?$/u;
 
-export interface DepartmentFieldDeps extends FoldSectionsDeps {
+export interface PickedFieldsDeps extends FoldSectionsDeps {
   /** How many departments the company has. */
   readonly departments: (tx: PostgresJsDatabase, tenantId: string) => Promise<number>;
 }
@@ -31,21 +36,25 @@ export interface DepartmentFieldDeps extends FoldSectionsDeps {
 function apply(
   draft: SchemaDraft,
   retire: boolean,
-  deps: DepartmentFieldDeps,
-): { readonly added: boolean; readonly retired: boolean } {
+  deps: PickedFieldsDeps,
+): { readonly added: boolean; readonly retired: readonly string[] } {
   const added =
     draft.attribute(DEPARTMENT_FIELD.key) === undefined && draft.addAttribute(DEPARTMENT_FIELD).ok;
-  const own = draft.attribute(OWN);
-  const retired =
-    retire &&
-    own !== undefined &&
-    own.origin !== 'core' &&
-    own.deprecatedAt === null &&
-    draft.archiveAttribute(OWN, deps.clock).ok;
+  const retired = draft
+    .liveAttributes()
+    .filter(
+      (a) =>
+        a.origin !== 'core' &&
+        a.dataType !== 'person_ref' &&
+        a.dataType !== 'org_unit_ref' &&
+        ((retire && a.key === OWN) || MANAGER_STAND_IN.test(a.key)),
+    )
+    .map((a) => a.key)
+    .filter((key) => draft.archiveAttribute(key, deps.clock).ok);
   return { added, retired };
 }
 
-export function departmentField(deps: DepartmentFieldDeps) {
+export function pickedFields(deps: PickedFieldsDeps) {
   return async (
     tx: PostgresJsDatabase,
     tenantId: string,
@@ -64,7 +73,7 @@ export function departmentField(deps: DepartmentFieldDeps) {
 
     // The version first: a refusal returns before any draft row is written.
     let version: number | null = null;
-    if (changed.added || changed.retired) {
+    if (changed.added || changed.retired.length > 0) {
       const published = await deps.publisher.publish(tx, {
         tenantId,
         actor: ACTOR,
@@ -72,17 +81,14 @@ export function departmentField(deps: DepartmentFieldDeps) {
         correlationId,
         artifactUrl: deps.artifactUrl(current.version + 1),
         draft: inForce,
-        reason: DEPARTMENT_REASON,
+        reason: PICKED_REASON,
       });
       if (!published.ok) return published;
       version = published.value.version.version;
     }
     const draft = SchemaDraft.rehydrate(stored.sections, stored.attributes);
     const drafted = apply(draft, retire, deps);
-    for (const key of [
-      ...(drafted.added ? [DEPARTMENT_FIELD.key] : []),
-      ...(drafted.retired ? [OWN] : []),
-    ]) {
+    for (const key of [...(drafted.added ? [DEPARTMENT_FIELD.key] : []), ...drafted.retired]) {
       const attribute = draft.attribute(key);
       if (attribute !== undefined) await deps.draft.saveAttribute(tx, tenantId, attribute);
     }

@@ -44,7 +44,7 @@ import { retakeEvidence } from '../application/person/flagged.js';
 import { drizzlePendingChangeStore } from '../application/person/pending-store.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { foldSections } from '../application/schema/fold-sections.js';
-import { departmentField } from '../application/schema/department-field.js';
+import { pickedFields } from '../application/schema/picked-fields.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -279,20 +279,18 @@ export async function startBackground(
     artifactUrl: (version: number) => `${peopleBase}/v1/schema/versions/${String(version)}`,
   };
   const fold = foldSections(repairs);
-  const departments = departmentField({
+  const picked = pickedFields({
     ...repairs,
     departments: async (tx, tenantId) => (await org.orgUnits(tx, tenantId)).length,
   });
-  // Departments picked from the company's own list (`department-field.ts`).
+  // Departments and managers picked, never typed (`picked-fields.ts`).
   jobs.push(
     every(24 * HOUR, () =>
-      forEachTenant('department-field', async (tenantId) => {
-        const done = await inTenant(tenantId, (scope) =>
-          departments(scope.tx, tenantId, randomUUID()),
-        );
-        if (!done.ok) logger.warn({ tenantId, code: done.error.code }, 'department field not set');
+      forEachTenant('picked-fields', async (tenantId) => {
+        const done = await inTenant(tenantId, (scope) => picked(scope.tx, tenantId, randomUUID()));
+        if (!done.ok) logger.warn({ tenantId, code: done.error.code }, 'picked fields not set');
         else if (done.value.version !== null)
-          logger.info({ tenantId, version: done.value.version }, 'department field set');
+          logger.info({ tenantId, version: done.value.version }, 'picked fields set');
       }),
     ),
   );

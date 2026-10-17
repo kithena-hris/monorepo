@@ -5,7 +5,7 @@ import { CORE_PACK, DEPARTMENT_FIELD } from '../../country-packs/core.js';
 import { SchemaDraft, type Attribute } from '../../domain/schema/draft.js';
 import type { PublishSchema } from './publish-schema.js';
 import type { DraftWriter, SchemaRepository } from './schema-repository.js';
-import { departmentField } from './department-field.js';
+import { pickedFields } from './picked-fields.js';
 
 const clock = {
   instant: () => '2026-10-18T10:00:00.000Z',
@@ -18,20 +18,25 @@ function before(): SchemaDraft {
   for (const s of CORE_PACK.sections) expect(draft.addSection(s).ok).toBe(true);
   const text = CORE_PACK.attributes.find((a) => a.key === 'preferred_name');
   if (text === undefined) throw new Error('no text field in the core pack');
-  const own = draft.addAttribute({
-    ...text,
-    key: 'department',
-    sectionKey: 'employment',
-    label: { default: 'Department', translations: {} },
-    origin: 'tenant',
-  });
-  expect(own.ok).toBe(true);
+  for (const [key, label] of [
+    ['department', 'Department'],
+    ['manager_employee_number', 'Manager Employee Number'],
+  ] as const) {
+    const own = draft.addAttribute({
+      ...text,
+      key,
+      sectionKey: 'employment',
+      label: { default: label, translations: {} },
+      origin: 'tenant',
+    });
+    expect(own.ok).toBe(true);
+  }
   return draft;
 }
 
 const every = (d: SchemaDraft): readonly Attribute[] => [
   ...d.liveAttributes(),
-  ...['department', DEPARTMENT_FIELD.key].flatMap((k) => {
+  ...['department', 'manager_employee_number', DEPARTMENT_FIELD.key].flatMap((k) => {
     const a = d.attribute(k);
     return a !== undefined && a.deprecatedAt !== null ? [a] : [];
   }),
@@ -63,7 +68,7 @@ function company(departments: number) {
       return Promise.resolve();
     },
   } as unknown as DraftWriter;
-  const run = departmentField({
+  const run = pickedFields({
     schema,
     draft,
     publisher,
@@ -78,14 +83,15 @@ function company(departments: number) {
   };
 }
 
-describe('departments picked from a list', () => {
+describe('departments and managers picked, never typed', () => {
   it('adds Department and retires the free-text field once the company has departments', async () => {
     const c = company(15);
     const done = await c.run();
     expect(done).toEqual(ok({ version: 2 }));
     expect(c.now().attribute('org_unit_id')?.dataType).toBe('org_unit_ref');
     expect(c.now().attribute('department')?.deprecatedAt).not.toBeNull();
-    expect(c.saved.toSorted()).toEqual(['department', 'org_unit_id']);
+    expect(c.now().attribute('manager_employee_number')?.deprecatedAt).not.toBeNull();
+    expect(c.saved.toSorted()).toEqual(['department', 'manager_employee_number', 'org_unit_id']);
     // Again: nothing left to do, nothing published.
     expect(await c.run()).toEqual(ok({ version: null }));
   });
@@ -95,5 +101,7 @@ describe('departments picked from a list', () => {
     await c.run();
     expect(c.now().attribute('org_unit_id')).toBeDefined();
     expect(c.now().attribute('department')?.deprecatedAt).toBeNull();
+    // A typed stand-in for the manager goes whatever: Manager is always there to pick.
+    expect(c.now().attribute('manager_employee_number')?.deprecatedAt).not.toBeNull();
   });
 });
