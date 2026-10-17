@@ -40,6 +40,7 @@ export default ModuleManifest.parse({
   ],
   consumes: [
     'people.person.hired',
+    'people.person.snapshot',
     'people.person.terminated',
     'people.person.manager_changed',
     'people.person.org_changed',

@@ -2,6 +2,7 @@ import type * as z from 'zod';
 import {
   CandidateHired,
   PersonHired,
+  PersonSnapshot,
   PersonIdentityLinked,
   PersonTerminated,
   PrehireCancelled,
@@ -112,6 +113,22 @@ export function onboardingConsumer(deps: Deps): (raw: unknown) => Promise<Outcom
           cancelForHire(ctx, 'recruiting', event.payload.applicationId),
         );
         return done.ok && done.value !== null ? 'applied' : 'ignored';
+      }
+      // Everything People holds of a person: a member, never a new onboarding plan.
+      case PersonSnapshot.name: {
+        const event = parse(PersonSnapshot, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        const member: Member = {
+          personId: p.personId,
+          accountId: p.identityAccountId,
+          displayName: `${p.name.preferred ?? p.name.given} ${p.name.family}`,
+          workEmail: p.workEmail,
+          managerPersonId: p.managerId,
+          status: p.status === 'terminated' ? 'terminated' : 'active',
+        };
+        await deps.uow.run(event.tenantId, (tx) => tx.members.upsert(member, event.eventId));
+        return 'applied';
       }
       case PersonHired.name: {
         const event = parse(PersonHired, raw);

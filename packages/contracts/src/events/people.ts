@@ -293,6 +293,36 @@ export const PersonHired = defineEvent(
   }),
 );
 
+/**
+ * A person as People holds them now: the facts every module's member list is
+ * made of, in one event, for a module that missed the ones that built them.
+ *
+ * People writes one for everybody when a company's modules change, so a module
+ * switched on later learns everyone already there, whenever they were hired;
+ * a consumer upserts its member from it, idempotent by person. Never a value
+ * beyond those facts: no pay, no special-category field, no custom field but
+ * the job title.
+ */
+export const PersonSnapshot = defineEvent(
+  'people.person.snapshot',
+  1,
+  z.object({
+    personId: PersonId,
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
+    name: PersonName,
+    workEmail: z.email().register(policy, asContact()),
+    status: EmploymentStatus.register(policy, asPublic()),
+    hireDate: CalendarDate.nullable(),
+    lastWorkingDay: CalendarDate.nullable(),
+    managerId: PersonId.nullable(),
+    orgUnitId: z.uuid().nullable().register(policy, asPublic()),
+    locationId: z.uuid().nullable().register(policy, asPublic()),
+    legalEntityId: LegalEntityId.nullable(),
+    /** Titles are free text somebody typed, so they are treated as such. */
+    title: z.string().max(300).nullable().register(policy, asFreeText()),
+  }),
+);
+
 export const PersonProfileUpdated = defineEvent(
   'people.person.profile_updated',
   1,
@@ -1364,6 +1394,7 @@ export const SettingsActivityRecorded = defineEvent(
 );
 
 export const peopleEvents = [
+  PersonSnapshot,
   SectionCreated,
   SectionUpdated,
   SectionArchived,

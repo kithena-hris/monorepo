@@ -36,6 +36,8 @@ export function filterFor(
   envelope: StoredEnvelope,
   allowlist: readonly string[],
 ): StoredEnvelope | null {
+  // A snapshot is how Kithena's own modules catch up, not news: it never leaves.
+  if (envelope.eventName === 'people.person.snapshot') return null;
   const allowed = new Set(allowlist);
   const payload = record(envelope.payload);
 

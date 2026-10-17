@@ -8,6 +8,7 @@ import {
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
+  PersonSnapshot,
   PersonOrgChanged,
   PersonProfileUpdated,
   PersonStatusChanged,
@@ -207,6 +208,33 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
             hireDate: p.employment.from,
             terminationDate: p.employment.to,
             status,
+          });
+          return upsertIn(tx, deps, fields, appliedBy(event));
+        });
+        return settled(outcome(result, event), event, p.personId);
+      }
+
+      /* Everything People holds of a person: one hired before Time Off listened. A member, nothing more. */
+      case PersonSnapshot.name: {
+        const event = parse(PersonSnapshot, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        const result = await transact(deps, event.tenantId, async (tx) => {
+          const existing = await tx.members.get(p.personId);
+          const teamKey = p.orgUnitId === null ? null : teamKeyOf(p.orgUnitId);
+          const fields = MemberFields.parse({
+            ...(existing === null ? {} : fieldsOf(existing)),
+            personId: p.personId,
+            accountId: p.identityAccountId ?? existing?.accountId ?? null,
+            displayName: `${p.name.preferred ?? p.name.given} ${p.name.family}`,
+            firstName: p.name.preferred ?? p.name.given,
+            workEmail: p.workEmail,
+            managerPersonId: p.managerId,
+            teamKey,
+            teamName: existing !== null && existing.teamKey === teamKey ? existing.teamName : null,
+            hireDate: p.hireDate ?? existing?.hireDate ?? null,
+            terminationDate: p.lastWorkingDay,
+            status: statusOf(p.status) ?? 'active',
           });
           return upsertIn(tx, deps, fields, appliedBy(event));
         });

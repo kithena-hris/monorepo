@@ -7,6 +7,7 @@ import {
   PersonJobChanged,
   PersonManagerChanged,
   PersonOrgChanged,
+  PersonSnapshot,
   PersonTerminated,
   PlanStarted,
   ProbationReviewed,
@@ -94,6 +95,28 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
             orgUnitId: p.orgUnitId,
             legalEntityId: p.legalEntityId,
             hiredOn: p.employment.from,
+          })),
+        );
+      }
+      // Everything People holds of a person, for one hired before Performance listened.
+      case PersonSnapshot.name: {
+        const e = parse(PersonSnapshot, raw);
+        if (!e) return 'rejected';
+        const p = e.payload;
+        return deps.uow.run(e.tenantId, (tx) =>
+          patch(tx, p.personId, e.eventId, (m) => ({
+            ...m,
+            accountId: p.identityAccountId ?? m.accountId,
+            displayName: `${p.name.preferred ?? p.name.given} ${p.name.family}`.trim(),
+            workEmail: p.workEmail,
+            managerPersonId: p.managerId,
+            status: p.status === 'terminated' ? 'terminated' : 'active',
+            title: p.title ?? m.title,
+            orgUnitId: p.orgUnitId,
+            locationId: p.locationId,
+            legalEntityId: p.legalEntityId,
+            hiredOn: p.hireDate ?? m.hiredOn,
+            leftOn: p.lastWorkingDay ?? m.leftOn ?? null,
           })),
         );
       }

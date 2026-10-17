@@ -21,6 +21,7 @@ export default ModuleManifest.parse({
   ],
   consumes: [
     'people.person.hired',
+    'people.person.snapshot',
     'people.person.terminated',
     'people.person.identity_linked',
     'recruiting.candidate.hired',
