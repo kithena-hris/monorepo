@@ -86,6 +86,7 @@ import { hashEnrolmentToken } from './credential/domain/enrolment-token.js';
 import {
   nameAdministrator,
   setEntitlements,
+  spreadSuperAdministrators,
   type ModulesDeps,
 } from './tenancy/application/set-entitlements.js';
 import { effectiveEntitlements } from './tenancy/domain/entitlements.js';
@@ -845,6 +846,13 @@ export async function compose(config: Config): Promise<RequestHandler> {
            WHERE platform.module_role_report.as_of <= EXCLUDED.as_of
         `);
         return true;
+      }).then(async (known) => {
+        // Whoever People now calls an administrator administers every module.
+        if (known && entitlement === 'module.people') {
+          const spread = await spreadSuperAdministrators(modules)(tenantId);
+          if (spread.length > 0) logger.info({ tenantId, named: spread.length }, 'super administrators named everywhere');
+        }
+        return known;
       }),
   });
 
@@ -1460,6 +1468,27 @@ export async function compose(config: Config): Promise<RequestHandler> {
             );
           },
           administrators: () => namedAdministrators(tx, tenantId),
+          superAdministrators: async () => {
+            // Named for People by the back office, or reported by People as
+            // holding its administrator role: either way, every module's.
+            const rows = await tx.execute(sql`
+              SELECT DISTINCT acc.id AS account_id
+                FROM platform.account acc
+               WHERE acc.tenant_id = ${tenantId}::uuid
+                 AND acc.status IN ('provisioned', 'invited', 'active')
+                 AND (EXISTS (SELECT 1 FROM platform.tenant_administrator a
+                               WHERE a.tenant_id = acc.tenant_id AND a.account_id = acc.id
+                                 AND a.entitlement = 'module.people')
+                      OR EXISTS (SELECT 1 FROM platform.module_role_report r,
+                                        jsonb_array_elements(r.holders) h
+                                  WHERE r.tenant_id = acc.tenant_id
+                                    AND r.entitlement = 'module.people'
+                                    AND h ->> 'accountId' = acc.id::text
+                                    AND h -> 'roles' ? 'people_admin'))
+               ORDER BY acc.id
+            `);
+            return [...rows].map((r) => text(r['account_id']));
+          },
           name: (administrator, namedBy, announce) =>
             nameAdministratorIn(
               tx,

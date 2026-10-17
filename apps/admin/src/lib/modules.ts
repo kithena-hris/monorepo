@@ -21,6 +21,10 @@ const WORDS: Record<string, { label: string; description: string }> = {
     label: 'Recruiting',
     description: 'Job ads, the public job site, candidates, interviews and offers.',
   },
+  'module.onboarding': {
+    label: 'Onboarding',
+    description: 'New hires’ plans, tasks for HR and IT, buddies, check-ins and probation.',
+  },
   'module.performance': {
     label: 'Performance',
     description: 'Review cycles, feedback, goals, learning and calibration.',

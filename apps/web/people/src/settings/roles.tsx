@@ -45,6 +45,10 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 
 export type TenantRole = 'hr' | 'finance' | 'people_admin';
 
+/** What a person holds, an administrator's HR and Finance included. */
+const has = (person: { readonly roles: readonly string[] }, role: TenantRole): boolean =>
+  person.roles.includes(role) || (role !== 'people_admin' && person.roles.includes('people_admin'));
+
 export interface RolesPerson {
   readonly accountId: string;
   readonly personId: string | null;
@@ -146,7 +150,8 @@ function Roles({
   );
   const everyHolder = state.holders ?? state.people;
   const admins = everyHolder.filter((p) => p.roles.includes('people_admin')).length;
-  const holders = (role: TenantRole) => everyHolder.filter((p) => p.roles.includes(role));
+  // An administrator holds HR's and Finance's too: counted, and shown ticked.
+  const holders = (role: TenantRole) => everyHolder.filter((p) => has(p, role));
   // Held while what they read holds, so typing in the search or a page
   // landing redraws only the rows that changed.
   const viewer = state.viewerAccountId;
@@ -183,21 +188,29 @@ function Roles({
           const who = nameOf(person);
           const me = person.accountId === viewer;
           const held = person.roles.includes(role);
+          // HR and Finance come with administrator: ticked, and not theirs to untick here.
+          const included = !held && has(person, role);
           // Nobody grants themselves a role, and the last
           // administrator cannot be removed: People refuses both,
           // and the control says so before anybody tries.
           const locked =
-            !canManage || (me && !held) || (held && role === 'people_admin' && admins === 1);
+            !canManage ||
+            included ||
+            (me && !held) ||
+            (held && role === 'people_admin' && admins === 1);
           return canManage ? (
             <Checkbox
-              checked={held}
+              checked={held || included}
               disabled={locked}
-              aria-label={`${label} for ${who}`}
+              title={included ? 'Included with People administrator' : undefined}
+              aria-label={
+                included ? `${label} for ${who}, included with People administrator` : `${label} for ${who}`
+              }
               onCheckedChange={(on) => {
                 setPending({ person, role, grant: on === true });
               }}
             />
-          ) : held ? (
+          ) : held || has(person, role) ? (
             <Badge tone="accent">{label}</Badge>
           ) : (
             <span className="text-fg-muted" aria-label={`Not ${label}`}>
@@ -224,9 +237,10 @@ function Roles({
         title="Roles"
         description="Who has administrator, HR and finance access. Managers and employees get theirs from the org chart, not from here."
       />
-      {/* What was granted is what is listed; an administrator's rights reach further (decided 2026-09-29). */}
+      {/* An administrator's HR and Finance are listed as held (the owner, 17 October 2026). */}
       <p className="text-sm text-fg-muted">
-        A People administrator also has everything HR and Finance have, without holding those roles.
+        A People administrator has everything HR and Finance have, so both are ticked for them, and
+        administers every other module the company has.
       </p>
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change who holds a role.</Alert>
@@ -261,8 +275,8 @@ function Roles({
         })}
       </ul>
       {holders('finance').length === 0 ? (
-        <Alert tone="warning" title="Nobody is granted Finance">
-          People administrators have Finance’s access until someone is added.
+        <Alert tone="warning" title="Nobody has Finance">
+          Add someone, or name a People administrator: they have Finance’s access too.
         </Alert>
       ) : null}
       {state.people.length === 0 && needle === '' ? (

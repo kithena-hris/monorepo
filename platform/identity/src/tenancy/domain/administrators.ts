@@ -112,6 +112,29 @@ export function administratorChanges(
   return ok({ named, removed });
 }
 
+/**
+ * A company's super administrators (a People administrator, however they came
+ * to be one) administer every module it has: the namings that makes true,
+ * for every administered module switched on that does not yet name them. Run
+ * whenever either changes, so it holds whenever somebody became one and
+ * whenever a module was switched on.
+ */
+export function everywhere(
+  effective: readonly ModuleEntitlement[],
+  current: Readonly<Record<string, readonly string[]>>,
+  superAdministrators: readonly string[],
+): NamedAdministrator[] {
+  const out: NamedAdministrator[] = [];
+  for (const entitlement of ADMINISTERED_MODULES) {
+    if (!effective.includes(entitlement)) continue;
+    const had = new Set(current[entitlement] ?? []);
+    for (const accountId of new Set(superAdministrators)) {
+      if (!had.has(accountId)) out.push({ entitlement, accountId });
+    }
+  }
+  return out;
+}
+
 /** An account that can still sign in, or will once it enrols. */
 export function mayAdminister(status: string): boolean {
   return status === 'provisioned' || status === 'invited' || status === 'active';

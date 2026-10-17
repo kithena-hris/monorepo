@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { administratorChanges, mayAdminister } from './administrators.js';
+import { administratorChanges, everywhere, mayAdminister } from './administrators.js';
 
 const ADA = '00000000-0000-4000-8000-0000000000a1';
 const GRACE = '00000000-0000-4000-8000-0000000000a2';
@@ -97,5 +97,32 @@ describe('who administers a module, when it is switched on (PEO-112)', () => {
   it('lets an account administer only while it can still sign in', () => {
     expect(['provisioned', 'invited', 'active'].every(mayAdminister)).toBe(true);
     expect(['suspended', 'terminated', 'nonsense'].some(mayAdminister)).toBe(false);
+  });
+});
+
+describe('a super administrator administers every module the company has', () => {
+  const ADA = '00000000-0000-4000-8000-0000000000a1';
+  const BOB = '00000000-0000-4000-8000-0000000000b2';
+
+  it('is named wherever they are not yet, and nowhere the company lacks', () => {
+    expect(
+      everywhere(
+        ['module.people', 'module.performance', 'module.timeoff'],
+        { 'module.people': [ADA], 'module.performance': [BOB] },
+        [ADA],
+      ),
+    ).toEqual([
+      { entitlement: 'module.timeoff', accountId: ADA },
+      { entitlement: 'module.performance', accountId: ADA },
+    ]);
+  });
+
+  it('names nobody twice, and nobody when every module has them', () => {
+    expect(
+      everywhere(['module.people', 'module.documents'], {
+        'module.people': [ADA],
+        'module.documents': [ADA],
+      }, [ADA, ADA]),
+    ).toEqual([]);
   });
 });

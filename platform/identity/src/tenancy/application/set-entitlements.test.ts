@@ -28,6 +28,8 @@ function registry(defaults: ModuleEntitlement[] = []) {
             id === ADA || id === GRACE ? 'invited' : id === LEFT ? 'terminated' : null,
           ),
         administrators: () => Promise.resolve(structuredClone(held)),
+        // The People administrators the back office named: the super administrators here.
+        superAdministrators: () => Promise.resolve([...(held['module.people'] ?? [])]),
         save: (entitlements) => {
           stored = entitlements;
           writes.push(entitlements);
@@ -232,5 +234,37 @@ describe('naming who administers People (PEO-112)', () => {
       `module.people ${GRACE} ${OPERATOR}`,
     ]);
     expect(r.held['module.people']).toEqual([ADA, GRACE]);
+  });
+});
+
+describe('a super administrator, whenever they became one (the owner, 17 October 2026)', () => {
+  it('administers a module switched on later, beside whoever the operator names', async () => {
+    const r = registry();
+    await r.set(ACME, { entitlements: ['module.people'], administrators: { 'module.people': ADA } });
+    const set = await r.set(ACME, {
+      entitlements: ['module.people', 'module.performance'],
+      administrators: { 'module.performance': GRACE },
+      namedBy: OPERATOR,
+    });
+    expect(set.ok).toBe(true);
+    expect(r.held['module.performance']).toEqual([GRACE, ADA]);
+  });
+
+  it('administers every module the company has once named for People', async () => {
+    const r = registry(['module.people', 'module.timeoff', 'module.documents']);
+    await r.name(ACME, { entitlement: 'module.people', accountId: GRACE, namedBy: OPERATOR });
+    expect(r.held['module.timeoff']).toEqual([GRACE]);
+    expect(r.held['module.documents']).toEqual([GRACE]);
+  });
+
+  it('is not put back where the operator just removed them', async () => {
+    const r = registry(['module.people', 'module.timeoff']);
+    await r.name(ACME, { entitlement: 'module.people', accountId: ADA });
+    await r.name(ACME, { entitlement: 'module.timeoff', accountId: GRACE });
+    await r.set(ACME, {
+      entitlements: ['module.people', 'module.timeoff'],
+      administrators: { 'module.timeoff': [GRACE] },
+    });
+    expect(r.held['module.timeoff']).toEqual([GRACE]);
   });
 });
