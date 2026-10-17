@@ -1,5 +1,6 @@
 import {
   DatePicker,
+  Dropzone,
   Alert,
   Badge,
   Button,
@@ -9,6 +10,8 @@ import {
   CardTitle,
   Checkbox,
   EmptyState,
+  List,
+  ListItem,
   Field,
   FieldControl,
   FieldLabel,
@@ -288,7 +291,7 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
           ) : null}
           {data.tab === 'sessions' ? (
             <Card>
-              <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
+              <CardContent>
                 {data.sessions.length === 0 ? (
                   <EmptyState
                     icon={<icons.calendar aria-hidden />}
@@ -296,23 +299,29 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                     description="Live sessions, in a room or online, are listed with who is going."
                   />
                 ) : (
-                  data.sessions.map((s) => (
-                    <div key={s.sessionId} className="flex flex-wrap items-center gap-3 py-3">
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="font-medium">{s.title}</span>
-                        <span className="text-sm text-fg-muted">{`${when(s.start)} · ${s.place ?? s.online ?? 'Online'} · ${plural(s.going, 'person', 'people')} going`}</span>
-                      </span>
-                      {data.hr ? (
-                        <Button size="sm" variant="secondary" asChild>
-                          <a
-                            href={`/performance/learning/items/${s.itemId}/sessions/${s.sessionId}`}
-                          >
-                            Attendance
-                          </a>
-                        </Button>
-                      ) : null}
-                    </div>
-                  ))
+                  <List>
+                    {data.sessions.map((s) => (
+                      <ListItem
+                        key={s.sessionId}
+                        icon={<icons.meeting />}
+                        description={`${when(s.start)} · ${s.place ?? s.online ?? 'Online'}`}
+                        meta={`${plural(s.going, 'person', 'people')} going`}
+                        trailing={
+                          data.hr ? (
+                            <Button size="sm" variant="secondary" asChild>
+                              <a
+                                href={`/performance/learning/items/${s.itemId}/sessions/${s.sessionId}`}
+                              >
+                                Attendance
+                              </a>
+                            </Button>
+                          ) : null
+                        }
+                      >
+                        {s.title}
+                      </ListItem>
+                    ))}
+                  </List>
                 )}
               </CardContent>
             </Card>
@@ -597,6 +606,15 @@ function ImportCompletions({
       }
     >
       <Refusal error={act.error} />
+      <Dropzone
+        label="Drop a CSV file, or choose one"
+        hint="Or paste the rows below."
+        accept=".csv,text/csv"
+        rejectMessage="Only a CSV file"
+        onFiles={(files) => {
+          void files[0]?.text().then(setCsv);
+        }}
+      />
       <Textarea
         aria-label="Completions"
         className="font-mono"
@@ -758,45 +776,52 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
               <CardHeader>
                 <CardTitle level={2}>Sessions</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
-                {item.sessions.map((s) => {
-                  const mine = a?.attendance.find((x) => x.sessionId === s.id);
-                  return (
-                    <div key={s.id} className="flex flex-wrap items-center gap-3 py-3">
-                      <span className="min-w-0 flex-1">
-                        <span className="font-medium">{when(s.start)}</span>
-                        <span className="block text-sm text-fg-muted">
-                          {s.place ?? s.online ?? 'Online'}
-                        </span>
-                      </span>
-                      {a === null ? null : (
-                        <SegmentedControl
-                          size="sm"
-                          aria-label={`Going on ${when(s.start)}`}
-                          value={mine?.invitation ?? ''}
-                          onValueChange={(v) => {
-                            act.run('RespondPerformanceSession', {
-                              id: a.id,
-                              sessionId: s.id,
-                              input: { invitation: v },
-                            });
-                          }}
-                        >
-                          <SegmentedControlItem value="accepted">Going</SegmentedControlItem>
-                          <SegmentedControlItem value="tentative">Maybe</SegmentedControlItem>
-                          <SegmentedControlItem value="declined">Not going</SegmentedControlItem>
-                        </SegmentedControl>
-                      )}
-                      {hr ? (
-                        <Button size="sm" variant="secondary" asChild>
-                          <a href={`/performance/learning/items/${item.id}/sessions/${s.id}`}>
-                            Attendance
-                          </a>
-                        </Button>
-                      ) : null}
-                    </div>
-                  );
-                })}
+              <CardContent>
+                <List>
+                  {item.sessions.map((s) => {
+                    const mine = a?.attendance.find((x) => x.sessionId === s.id);
+                    return (
+                      <ListItem
+                        key={s.id}
+                        icon={<icons.meeting />}
+                        description={s.place ?? s.online ?? 'Online'}
+                        trailing={
+                          <span className="flex flex-wrap items-center gap-2">
+                            {a === null ? null : (
+                              <SegmentedControl
+                                size="sm"
+                                aria-label={`Going on ${when(s.start)}`}
+                                value={mine?.invitation ?? ''}
+                                onValueChange={(v) => {
+                                  act.run('RespondPerformanceSession', {
+                                    id: a.id,
+                                    sessionId: s.id,
+                                    input: { invitation: v },
+                                  });
+                                }}
+                              >
+                                <SegmentedControlItem value="accepted">Going</SegmentedControlItem>
+                                <SegmentedControlItem value="tentative">Maybe</SegmentedControlItem>
+                                <SegmentedControlItem value="declined">
+                                  Not going
+                                </SegmentedControlItem>
+                              </SegmentedControl>
+                            )}
+                            {hr ? (
+                              <Button size="sm" variant="secondary" asChild>
+                                <a href={`/performance/learning/items/${item.id}/sessions/${s.id}`}>
+                                  Attendance
+                                </a>
+                              </Button>
+                            ) : null}
+                          </span>
+                        }
+                      >
+                        {when(s.start)}
+                      </ListItem>
+                    );
+                  })}
+                </List>
               </CardContent>
             </Card>
           )}

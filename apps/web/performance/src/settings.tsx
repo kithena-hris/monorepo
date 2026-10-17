@@ -219,13 +219,9 @@ function SettingsPage({
           Every AI feature is unavailable until one is, whatever these say.
         </Alert>
       ) : null}
-      <Card>
-        <CardContent>
-          <FormSections>
-            <Body page={page} ui={ui} data={data} act={act} />
-          </FormSections>
-        </CardContent>
-      </Card>
+      <FormSections>
+        <Body page={page} ui={ui} data={data} act={act} />
+      </FormSections>
       <FormSaveBar
         open={dirty && data.admin}
         saving={act.pending}
@@ -1305,58 +1301,50 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
             description="What Kithena may read of your own work to suggest evidence for reviews about you and by you. Off stops it at once and drops what was read."
           />
           <Refusal error={act.error} />
-          <Card>
-            <CardContent>
-              <FormSections>
-                <FormSection
-                  title="Tools"
-                  description="Each is read only for reviews about you or by you."
-                >
-                  <List>
-                    {data.sources.map((s) => (
-                      <ListItem
-                        key={s.source}
-                        description={
-                          s.at === null
-                            ? 'Never turned on'
-                            : `${s.on ? 'On' : 'Off'} since ${when(s.at)}`
-                        }
-                        trailing={
-                          <Switch
-                            aria-label={SOURCE[s.source] ?? s.source}
-                            checked={s.on}
-                            disabled={act.pending}
-                            onCheckedChange={(on) => {
-                              act.run('SetPerformanceGrant', { source: s.source, input: { on } });
-                            }}
-                          />
-                        }
-                      >
-                        {SOURCE[s.source] ?? s.source}
-                      </ListItem>
-                    ))}
-                  </List>
-                </FormSection>
-                <FormSection title="Recent reads" description="Every time Kithena read something.">
-                  {data.reads.length === 0 ? (
-                    <p className="text-sm text-fg-muted">Nothing has been read.</p>
-                  ) : (
-                    <List>
-                      {data.reads.map((r) => (
-                        <ListItem
-                          key={`${r.source}-${r.at}`}
-                          description={r.purpose}
-                          meta={when(r.at)}
-                        >
-                          {SOURCE[r.source] ?? r.source}
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                </FormSection>
-              </FormSections>
-            </CardContent>
-          </Card>
+          <FormSections>
+            <FormSection
+              title="Tools"
+              description="Each is read only for reviews about you or by you."
+            >
+              <List>
+                {data.sources.map((s) => (
+                  <ListItem
+                    key={s.source}
+                    description={
+                      s.at === null
+                        ? 'Never turned on'
+                        : `${s.on ? 'On' : 'Off'} since ${when(s.at)}`
+                    }
+                    trailing={
+                      <Switch
+                        aria-label={SOURCE[s.source] ?? s.source}
+                        checked={s.on}
+                        disabled={act.pending}
+                        onCheckedChange={(on) => {
+                          act.run('SetPerformanceGrant', { source: s.source, input: { on } });
+                        }}
+                      />
+                    }
+                  >
+                    {SOURCE[s.source] ?? s.source}
+                  </ListItem>
+                ))}
+              </List>
+            </FormSection>
+            <FormSection title="Recent reads" description="Every time Kithena read something.">
+              {data.reads.length === 0 ? (
+                <p className="text-sm text-fg-muted">Nothing has been read.</p>
+              ) : (
+                <List>
+                  {data.reads.map((r) => (
+                    <ListItem key={`${r.source}-${r.at}`} description={r.purpose} meta={when(r.at)}>
+                      {SOURCE[r.source] ?? r.source}
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </FormSection>
+          </FormSections>
         </div>
       )}
     </Loaded>

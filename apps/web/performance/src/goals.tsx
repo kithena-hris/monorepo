@@ -26,6 +26,10 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  Timeline,
+  TimelineItem,
+  TreeView,
+  type TreeViewNode,
   TrendChart,
   icons,
 } from '@reach/ui';
@@ -275,6 +279,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
 }
 
 /** Company goals at the top, everything aligned to them beneath (§14.4). */
+/** The period's goals as Reach's tree: arrow keys move and open, Enter opens the goal. */
 function Tree({
   rows,
   onNavigate,
@@ -283,36 +288,38 @@ function Tree({
   readonly onNavigate?: ((to: string) => void) | undefined;
 }): JSX.Element {
   const ids = new Set(rows.map((r) => r.id));
-  const roots = rows.filter((r) => r.parentId === null || !ids.has(r.parentId));
-  const branch = (g: GoalRow, depth: number): JSX.Element => (
-    <li key={g.id} className="flex flex-col gap-2">
-      <span
-        className="flex flex-wrap items-center gap-3"
-        style={{ paddingInlineStart: `${String(depth * 1.5)}rem` }}
-      >
-        <To href={`/performance/goals/${g.id}`} onNavigate={onNavigate}>
-          {g.title}
-        </To>
-        <span className="text-sm text-fg-muted">{g.owner}</span>
-        <span className="w-32">
-          <Progress value={g.progress} label={`${g.title}: ${String(g.progress)}%`} />
+  const node = (g: GoalRow): TreeViewNode => {
+    const children = rows.filter((c) => c.parentId === g.id).map(node);
+    return {
+      id: g.id,
+      label: g.title,
+      ...(children.length === 0 ? {} : { children }),
+      meta: (
+        <span className="flex items-center gap-3">
+          <span className="text-sm text-fg-muted">{g.owner}</span>
+          <span className="w-24">
+            <Progress value={g.progress} label={`${g.title}: ${String(g.progress)}%`} />
+          </span>
+          <ConfidenceBadge value={g.confidence} />
         </span>
-        <ConfidenceBadge value={g.confidence} />
-      </span>
-      {rows.some((c) => c.parentId === g.id) ? (
-        <ul className="flex flex-col gap-2">
-          {rows.filter((c) => c.parentId === g.id).map((c) => branch(c, depth + 1))}
-        </ul>
-      ) : null}
-    </li>
-  );
+      ),
+    };
+  };
+  const roots = rows.filter((r) => r.parentId === null || !ids.has(r.parentId)).map(node);
   return (
     <Card>
       <CardContent>
         {roots.length === 0 ? (
           <p className="text-sm text-fg-muted">No goals in this period yet.</p>
         ) : (
-          <ul className="flex flex-col gap-3">{roots.map((r) => branch(r, 0))}</ul>
+          <TreeView
+            label="Goals"
+            items={roots}
+            defaultExpanded={rows.map((r) => r.id)}
+            onSelectedChange={(id) => {
+              onNavigate?.(`/performance/goals/${id}`);
+            }}
+          />
         )}
       </CardContent>
     </Card>
@@ -737,19 +744,28 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                   <CardHeader>
                     <CardTitle level={2}>History</CardTitle>
                   </CardHeader>
-                  <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
+                  <CardContent>
                     {data.checkIns.length === 0 ? (
                       <p className="text-sm text-fg-muted">No check-ins yet.</p>
                     ) : (
-                      data.checkIns.map((c) => (
-                        <div key={c.at} className="flex flex-col gap-1 py-2.5">
-                          <span className="flex items-center gap-2 text-sm">
-                            <span className="font-medium">{`${c.by} · ${day(c.at)}`}</span>
-                            <ConfidenceBadge value={c.confidence} />
-                          </span>
-                          {c.note === null ? null : <p className="text-sm">{c.note}</p>}
-                        </div>
-                      ))
+                      <Timeline>
+                        {data.checkIns.map((c, i) => (
+                          <TimelineItem
+                            key={c.at}
+                            title={
+                              <span className="flex items-center gap-2">
+                                {c.by}
+                                <ConfidenceBadge value={c.confidence} />
+                              </span>
+                            }
+                            timestamp={day(c.at)}
+                            tone={CONFIDENCE[c.confidence]?.[1] ?? 'success'}
+                            last={i === data.checkIns.length - 1}
+                          >
+                            {c.note}
+                          </TimelineItem>
+                        ))}
+                      </Timeline>
                     )}
                   </CardContent>
                 </Card>

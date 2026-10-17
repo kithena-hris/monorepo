@@ -6,6 +6,8 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  List,
+  ListItem,
   PageHeader,
   Progress,
   Stat,
@@ -150,27 +152,29 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                     description="Reviews to write, nominations and learning due land here and in your Inbox."
                   />
                 ) : (
-                  <ul className="flex flex-col divide-y divide-[var(--reach-line)]">
+                  <List>
                     {data.tasks.map((t) => (
-                      <li key={t.id} className="flex items-center gap-3 py-3">
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <To href={t.link} onNavigate={props.onNavigate}>
-                            {t.title}
-                          </To>
-                          <span className="text-sm text-fg-muted">
-                            {[t.summary, t.due === null ? null : `due ${day(t.due)}`]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </span>
-                        </span>
-                        {t.tone === 'danger' ? (
-                          <Badge size="sm" tone="danger">
-                            Overdue
-                          </Badge>
-                        ) : null}
-                      </li>
+                      <ListItem
+                        key={t.id}
+                        asChild
+                        chevron
+                        description={[t.summary, t.due === null ? null : `due ${day(t.due)}`]
+                          .filter(Boolean)
+                          .join(' · ')}
+                        trailing={
+                          t.tone === 'danger' ? (
+                            <Badge size="sm" tone="danger">
+                              Overdue
+                            </Badge>
+                          ) : null
+                        }
+                      >
+                        <To href={t.link} onNavigate={props.onNavigate}>
+                          {t.title}
+                        </To>
+                      </ListItem>
                     ))}
-                  </ul>
+                  </List>
                 )}
               </CardContent>
             </Card>
@@ -182,21 +186,23 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                     All
                   </To>
                 </CardHeader>
-                <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
+                <CardContent>
                   {data.owed.length === 0 ? (
                     <p className="text-sm text-fg-muted">
                       Nobody is writing about you in a running cycle.
                     </p>
                   ) : (
-                    data.owed.map((o) => (
-                      <div key={o.id} className="flex items-center gap-3 py-2.5">
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="font-medium">{`${kindLabel(o.kind)}${o.from === null ? '' : ` · ${o.from}`}`}</span>
-                          <span className="text-sm text-fg-muted">{`${o.cycle} · ${o.released === null ? 'You see it when it is released' : `Released ${day(o.released)}`}`}</span>
-                        </span>
-                        <ReviewBadge state={o.state} />
-                      </div>
-                    ))
+                    <List>
+                      {data.owed.map((o) => (
+                        <ListItem
+                          key={o.id}
+                          description={`${o.cycle} · ${o.released === null ? 'You see it when it is released' : `Released ${day(o.released)}`}`}
+                          trailing={<ReviewBadge state={o.state} />}
+                        >
+                          {`${kindLabel(o.kind)}${o.from === null ? '' : ` · ${o.from}`}`}
+                        </ListItem>
+                      ))}
+                    </List>
                   )}
                 </CardContent>
               </Card>
@@ -253,36 +259,35 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                     description="Start one from Cycles; it updates here as reviews come in."
                   />
                 ) : (
-                  <ul className="flex flex-col divide-y divide-[var(--reach-line)]">
+                  <List>
                     {data.running.map((c) => (
-                      <li
+                      <ListItem
                         key={c.id}
-                        className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 py-3"
+                        asChild
+                        chevron
+                        description={`${c.who} · from ${day(c.start)}`}
+                        meta={<CycleBadge state={c.state} />}
+                        trailing={
+                          c.state === 'in_progress' ? (
+                            <span className="w-32">
+                              <Progress
+                                value={c.progress}
+                                label={`${c.name}: ${String(c.progress)}% submitted`}
+                              />
+                            </span>
+                          ) : (
+                            <span className="text-sm">
+                              {c.state === 'launch_failed' ? 'Retry launch' : words(c.state)}
+                            </span>
+                          )
+                        }
                       >
-                        <span className="flex min-w-0 flex-col gap-1">
-                          <span className="flex items-center gap-2">
-                            <To href={`/performance/cycles/${c.id}`} onNavigate={props.onNavigate}>
-                              {c.name}
-                            </To>
-                            <CycleBadge state={c.state} />
-                          </span>
-                          <span className="text-sm text-fg-muted">{`${c.who} · from ${day(c.start)}`}</span>
-                        </span>
-                        {c.state === 'in_progress' ? (
-                          <Progress
-                            value={c.progress}
-                            label={`${c.name}: ${String(c.progress)}% submitted`}
-                          />
-                        ) : c.state === 'launch_failed' ? (
-                          <Button size="sm" variant="secondary" asChild>
-                            <a href={`/performance/cycles/${c.id}`}>Retry launch</a>
-                          </Button>
-                        ) : (
-                          <span className="text-sm text-fg-muted">{words(c.state)}</span>
-                        )}
-                      </li>
+                        <To href={`/performance/cycles/${c.id}`} onNavigate={props.onNavigate}>
+                          {c.name}
+                        </To>
+                      </ListItem>
                     ))}
-                  </ul>
+                  </List>
                 )}
               </CardContent>
             </Card>

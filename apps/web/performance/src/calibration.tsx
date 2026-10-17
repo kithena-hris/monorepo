@@ -10,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  List,
+  ListItem,
   Field,
   FieldLabel,
   Input,
@@ -377,29 +379,35 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                     : `${plural(proposals.length, 'proposal')}, for you to accept or leave`
                 }
               >
-                <ul className="flex flex-col gap-2">
+                <List className="mt-2">
                   {proposals.map((p) => {
                     const row = data.rows.find((r) => r.personId === p.personId);
                     return (
-                      <li key={p.personId} className="flex flex-wrap items-center gap-2">
-                        <span>{`${row?.name ?? 'Someone'}: ${score(row?.now)} → ${score(p.now)}. ${p.reason}`}</span>
-                        <Button
-                          size="xs"
-                          variant="secondary"
-                          loading={act.pending}
-                          onClick={() => {
-                            act.run('ChangePerformanceScore', {
-                              id: data.session.id,
-                              input: { personId: p.personId, now: p.now, reason: p.reason },
-                            });
-                          }}
-                        >
-                          Accept
-                        </Button>
-                      </li>
+                      <ListItem
+                        key={p.personId}
+                        description={p.reason}
+                        meta={`${score(row?.now)} → ${score(p.now)}`}
+                        trailing={
+                          <Button
+                            size="xs"
+                            variant="secondary"
+                            loading={act.pending}
+                            onClick={() => {
+                              act.run('ChangePerformanceScore', {
+                                id: data.session.id,
+                                input: { personId: p.personId, now: p.now, reason: p.reason },
+                              });
+                            }}
+                          >
+                            Accept
+                          </Button>
+                        }
+                      >
+                        {row?.name ?? 'Someone'}
+                      </ListItem>
                     );
                   })}
-                </ul>
+                </List>
               </Alert>
             )}
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
