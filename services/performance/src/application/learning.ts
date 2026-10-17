@@ -326,7 +326,7 @@ export async function saveItem(
     })),
   };
   await ctx.tx.items.save(item);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'learning',
     action: id === null ? 'Added a learning item' : 'Edited a learning item',
     target: item.title,
     targetId: item.id,
@@ -393,7 +393,7 @@ export async function assign(
     });
     assigned += 1;
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'learning',
     action: 'Assigned learning',
     target: `${i.title} · ${String(assigned)} people`,
     targetId: itemId,
@@ -431,7 +431,7 @@ async function saveDone(
         { itemId: after.itemId, personId: after.personId },
       ),
     );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'assignment',
     action:
       after.completedAt !== null && before.completedAt === null
         ? 'Completed learning'
@@ -525,7 +525,7 @@ export async function respondSession(
       },
     ],
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'assignment',
     action: 'Answered a session invitation',
     target: got.value.i.title,
     targetId: assignmentId,

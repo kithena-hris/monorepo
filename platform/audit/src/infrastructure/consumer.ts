@@ -1,5 +1,13 @@
 import { Kafka } from 'kafkajs';
-import { SettingsActivityRecorded, SupportSessionStarted } from '@kithena/contracts';
+import {
+  DocumentsActivityRecorded,
+  OnboardingActivityRecorded,
+  PerformanceActivityRecorded,
+  RecruitingActivityRecorded,
+  SettingsActivityRecorded,
+  SupportSessionStarted,
+  TimeOffActivityRecorded,
+} from '@kithena/contracts';
 import type { KafkaClientConfig } from '@kithena/db-kit';
 import { logger } from '@kithena/telemetry';
 
@@ -7,13 +15,21 @@ import { logger } from '@kithena/telemetry';
  * The topics the log is fed from, consumed as People consumes identity's
  * (`services/people/src/infrastructure/consumers/wire.ts`).
  *
- * Topics are per publishing module, so `kithena.people.v1` and
- * `kithena.identity.v1` carry every event of theirs and the handler ignores
+ * Topics are per publishing module, so `kithena.people.v1`,
+ * `kithena.identity.v1` and each module's carry every event of theirs and the handler ignores
  * what the log does not keep. From the beginning, which only matters the first
  * time the group exists: every entry is idempotent by its event id, and an
  * event published before this service first ran is still a line of the log.
  */
-export const TOPICS = [SettingsActivityRecorded.topic, SupportSessionStarted.topic] as const;
+export const TOPICS = [
+  SettingsActivityRecorded.topic,
+  SupportSessionStarted.topic,
+  TimeOffActivityRecorded.topic,
+  DocumentsActivityRecorded.topic,
+  RecruitingActivityRecorded.topic,
+  OnboardingActivityRecorded.topic,
+  PerformanceActivityRecorded.topic,
+] as const;
 
 export async function startConsumer(
   kafka: KafkaClientConfig,

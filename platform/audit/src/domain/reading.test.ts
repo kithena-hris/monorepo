@@ -2,16 +2,32 @@ import { describe, expect, it } from 'vitest';
 
 import { dayBounds, mayRead, retentionCutoff } from './reading.js';
 
+const nobody = new Set<string>();
+
 describe('who reads the log', () => {
   it('is People administrators and HR, and Kithena support at the company', () => {
-    expect(mayRead({ roles: new Set(['people_admin']), support: false })).toBe(true);
-    expect(mayRead({ roles: new Set(['hr']), support: false })).toBe(true);
-    expect(mayRead({ roles: new Set(), support: true })).toBe(true);
+    expect(
+      mayRead({ roles: new Set(['people_admin']), support: false, administers: nobody }, null),
+    ).toBe(true);
+    expect(mayRead({ roles: new Set(['hr']), support: false, administers: nobody }, null)).toBe(
+      true,
+    );
+    expect(mayRead({ roles: nobody, support: true, administers: nobody }, null)).toBe(true);
   });
 
   it('is nobody else, finance included', () => {
-    expect(mayRead({ roles: new Set(['finance']), support: false })).toBe(false);
-    expect(mayRead({ roles: new Set(), support: false })).toBe(false);
+    expect(mayRead({ roles: new Set(['finance']), support: false, administers: nobody }, null)).toBe(
+      false,
+    );
+    expect(mayRead({ roles: nobody, support: false, administers: nobody }, null)).toBe(false);
+  });
+
+  it('lets a module’s administrators read that module’s activity, and only that', () => {
+    const performance = { roles: nobody, support: false, administers: new Set(['performance']) };
+    expect(mayRead(performance, 'performance')).toBe(true);
+    expect(mayRead(performance, 'timeoff')).toBe(false);
+    // The whole log is still People administrators', HR's and support's.
+    expect(mayRead(performance, null)).toBe(false);
   });
 });
 

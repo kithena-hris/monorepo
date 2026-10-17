@@ -1408,12 +1408,6 @@ export interface OverviewData {
     readonly late: boolean;
   }[];
   readonly bounds: { readonly min: number; readonly max: number };
-  readonly changes: readonly {
-    readonly at: string;
-    readonly who: string;
-    readonly action: string;
-    readonly target: string;
-  }[];
   readonly settings: {
     readonly visibility: { readonly minimum: number; readonly release: { readonly mode: string } };
     readonly peer: { readonly all: boolean; readonly min: number; readonly max: number };
@@ -1816,32 +1810,19 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
             ) : null}
             {tab === 'nominations' ? <Nominations data={data} act={act} id={id} /> : null}
             {tab === 'changes' ? (
-              <Card>
-                <CardContent className="overflow-x-auto">
-                  {data.changes.length === 0 ? (
-                    <EmptyState title="No changes yet" />
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>When</TableHead>
-                          <TableHead>Who</TableHead>
-                          <TableHead>What</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data.changes.map((e) => (
-                          <TableRow key={`${e.at}-${e.action}`}>
-                            <TableCell className="text-sm text-fg-muted">{when(e.at)}</TableCell>
-                            <TableCell>{e.who}</TableCell>
-                            <TableCell className="text-sm">{`${e.action} · ${e.target}`}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              // Every change is a line of the company's activity log, filtered to this cycle.
+              <EmptyState
+                icon={<icons.history />}
+                title="Changes are in the activity log"
+                description="Who changed this cycle, and when, with the fields by name and never their values."
+                action={
+                  <Button asChild variant="outline">
+                    <a href={`/settings/activity?module=performance&subject=${id}`}>
+                      Open this cycle’s activity
+                    </a>
+                  </Button>
+                }
+              />
             ) : null}
             {tab === 'settings' ? (
               <Card>

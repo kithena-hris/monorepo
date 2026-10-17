@@ -34,8 +34,10 @@ beforeAll(async () => {
   adminClient = postgres(pg.url, { max: 1 });
   admin = drizzle(adminClient);
   await admin.execute(sql`CREATE ROLE svc_audit LOGIN PASSWORD 'svc_audit' NOBYPASSRLS`);
-  const path = new URL('../../../../migrations/20260929160000_audit.sql', import.meta.url);
-  await admin.execute(sql.raw(await readFile(path, 'utf8')));
+  for (const file of ['20260929160000_audit.sql', '20261017180000_audit_modules.sql']) {
+    const path = new URL(`../../../../migrations/${file}`, import.meta.url);
+    await admin.execute(sql.raw(await readFile(path, 'utf8')));
+  }
   const asService = new URL(pg.url);
   asService.username = 'svc_audit';
   asService.password = 'svc_audit';
@@ -70,11 +72,15 @@ function entry(over: Partial<Entry> = {}): Entry {
     actor: { kind: 'person', accountId: ADA, onBehalfOf: null, operatorLabel: null },
     subject: { kind: 'setting', id: null, label: 'Work phone' },
     reason: null,
+    outcome: 'done',
+    via: null,
+    ai: false,
     ...over,
   };
 }
 
 const ALL: Filter = {
+  module: null,
   areas: [],
   actorKind: null,
   actor: null,
@@ -85,6 +91,44 @@ const ALL: Filter = {
 };
 
 describe('the log in Postgres', () => {
+  it('keeps a module’s act with its surface, and narrows to one module', async () => {
+    const store = drizzleEntryStore(inTenant);
+    await store.append(
+      entry({
+        tenantId: GLOBEX,
+        module: 'performance',
+        area: 'records',
+        action: 'Launched a cycle',
+        subject: { kind: 'cycle', id: 'c1', label: 'H2 2026' },
+        outcome: 'refused',
+        via: 'Slack',
+        ai: true,
+      }),
+    );
+    await store.append(entry({ tenantId: GLOBEX, action: 'A People change' }));
+    const only = await store.page(GLOBEX, {
+      filter: { ...ALL, module: 'performance' },
+      before: null,
+      limit: 10,
+    });
+    expect(only.map((e) => [e.action, e.outcome, e.via, e.ai, e.subject?.kind])).toEqual([
+      ['Launched a cycle', 'refused', 'Slack', true, 'cycle'],
+    ]);
+  });
+
+  it('knows who administers a module, the latest word winning', async () => {
+    const store = drizzleEntryStore(inTenant);
+    const at = (h: number) => `2026-10-17T${String(h).padStart(2, '0')}:00:00.000Z`;
+    await store.administrator(ACME, { module: 'performance', accountId: ADA, named: true, at: at(9) });
+    await store.administrator(ACME, { module: 'performance', accountId: ADA, named: false, at: at(11) });
+    // A redelivered naming from before the removal changes nothing.
+    await store.administrator(ACME, { module: 'performance', accountId: ADA, named: true, at: at(10) });
+    expect([...(await store.administers(ACME, ADA))]).toEqual([]);
+    await store.administrator(ACME, { module: 'timeoff', accountId: ADA, named: true, at: at(12) });
+    expect([...(await store.administers(ACME, ADA))]).toEqual(['timeoff']);
+    expect([...(await store.administers(GLOBEX, ADA))]).toEqual([]);
+  });
+
   it('holds a redelivered event once', async () => {
     const store = drizzleEntryStore(inTenant);
     const once = entry();

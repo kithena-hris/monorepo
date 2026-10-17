@@ -177,7 +177,7 @@ export async function saveGoal(
   if (goal.keyResults.length === 0)
     return err(failure('NO_KR', 'A goal needs at least one key result'));
   await ctx.tx.goals.save(goal);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'goal',
     action: id === null ? 'Created a goal' : 'Edited a goal',
     target: input.title,
     targetId: goal.id,
@@ -200,7 +200,7 @@ export async function setGoalStatus(
   )
     return err(forbidden());
   await ctx.tx.goals.save({ ...g, status });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'goal',
     action: 'Changed a goal’s status',
     target: g.title,
     targetId: id,
@@ -243,7 +243,7 @@ export async function checkInGoal(
       { goalId: id, owner: g.ownerId ?? who.value, progress: p, confidence: input.confidence },
     ),
   );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'goal',
     action: 'Checked in on a goal',
     target: g.title,
     targetId: id,
@@ -284,7 +284,7 @@ export async function attachGoals(
       }
     }
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Attached goals to a cycle',
     target: c.name,
     targetId: cycleId,

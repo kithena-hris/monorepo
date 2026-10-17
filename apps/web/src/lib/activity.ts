@@ -15,8 +15,31 @@ export const AREAS = [
   { value: 'imports_exports', label: 'Imports and exports' },
   { value: 'sensitive_access', label: 'Sensitive access' },
   { value: 'sign_in', label: 'Sign-in and support' },
+  { value: 'settings', label: 'Settings' },
+  { value: 'records', label: 'Records' },
+  { value: 'access', label: 'Reads and exports' },
+  { value: 'ai', label: 'AI' },
 ] as const;
 export type Area = (typeof AREAS)[number]['value'];
+
+/** The areas a module's own activity falls in (`<module>.activity.recorded`). */
+export const MODULE_AREAS: readonly Area[] = ['settings', 'records', 'access', 'ai', 'integrations'];
+
+/** Whose activity: every module that keeps a log, and identity's sign-ins. */
+export const MODULES = [
+  { value: 'people', label: 'People' },
+  { value: 'identity', label: 'Sign-in' },
+  { value: 'timeoff', label: 'Time Off' },
+  { value: 'documents', label: 'Documents' },
+  { value: 'recruiting', label: 'Recruiting' },
+  { value: 'onboarding', label: 'Onboarding' },
+  { value: 'performance', label: 'Performance' },
+] as const;
+export type Module = (typeof MODULES)[number]['value'];
+
+/** A module's name as a sentence says it. */
+export const moduleName = (module: string): string =>
+  MODULES.find((m) => m.value === module)?.label ?? module;
 
 export const WHO = [
   { value: 'person', label: 'People' },
@@ -27,6 +50,8 @@ export const WHO = [
 export type Who = (typeof WHO)[number]['value'];
 
 export interface ActivityFilters {
+  /** One module's activity (`?module=`), as that module's own Activity log shows it. */
+  readonly module: Module | null;
   readonly areas: readonly Area[];
   readonly by: Who | null;
   readonly actor: string | null;
@@ -47,7 +72,7 @@ const matching = (v: string | undefined, shape: RegExp): string | null =>
   v !== undefined && shape.test(v) ? v : null;
 
 /**
- * The address's filters: `area` (comma-separated), `by`, `actor`, `subject`,
+ * The address's filters: `module`, `area` (comma-separated), `by`, `actor`, `subject`,
  * `from`, `to`, `tz` (the reader's zone, which the page adds with a date)
  * and `q`. Which page is not among them: the address opens the newest, and
  * older entries load as the reader scrolls.
@@ -59,6 +84,7 @@ export function activityFilters(search: Readonly<Record<string, string>>): Activ
   );
   const by = WHO.find((w) => w.value === search['by'])?.value ?? null;
   return {
+    module: MODULES.find((m) => m.value === search['module'])?.value ?? null,
     areas,
     by,
     actor: matching(search['actor'], UUID),
@@ -81,6 +107,7 @@ export function activityVariables(
 ): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries({
+      module: f.module,
       areas: f.areas.length === 0 ? null : f.areas,
       by: f.by,
       actor: f.actor,
@@ -111,6 +138,12 @@ export interface ActivityEntry {
   readonly subjectId: string | null;
   readonly subjectLabel: string | null;
   readonly reason: string | null;
+  /** `refused` for an attempt the module turned down. */
+  readonly outcome: string;
+  /** The surface a module's act came from: Web, Phone, API, Slack, Ask Kithena. */
+  readonly via: string | null;
+  /** Proposed by AI and confirmed by the person. */
+  readonly ai: boolean;
   readonly supportSignIn: {
     readonly entryId: string;
     readonly at: string;

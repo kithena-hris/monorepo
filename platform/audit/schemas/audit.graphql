@@ -15,6 +15,8 @@ type AuditEntry {
   action: String
   actorAccountId: ID
   actorKind: String
+  """Proposed by AI and confirmed by the person."""
+  ai: Boolean
   area: String
   detail: String
   id: ID
@@ -26,12 +28,18 @@ type AuditEntry {
   How the log names that operator: their work address, from the support sign-in.
   """
   operatorLabel: String
+  """done, or refused."""
+  outcome: String
   reason: String
   recordedAt: String
   subjectId: ID
   subjectKind: String
   subjectLabel: String
   supportSignIn: AuditSupportSignIn
+  """
+  The surface a module’s act came from: Web, Phone, API, Slack, Ask Kithena.
+  """
+  via: String
 }
 
 """The Kithena support sign-in an action by support happened in."""
@@ -44,7 +52,7 @@ type AuditSupportSignIn {
 type Query {
   _service: _Service!
   """
-  Who did what, across every module this company has. People administrators, HR and Kithena support.
+  Who did what, across every module this company has. People administrators, HR and Kithena support; one module’s, for its administrators too.
   """
   auditActivity(
     """One account’s acts."""
@@ -56,6 +64,10 @@ type Query {
     by: String
     """The first day, YYYY-MM-DD, on the reader’s clock."""
     from: String
+    """
+    One module’s activity: people, identity, timeoff, documents, recruiting, onboarding, performance.
+    """
+    module: String
     search: String
     """Whose record, or what it was done to."""
     subject: ID

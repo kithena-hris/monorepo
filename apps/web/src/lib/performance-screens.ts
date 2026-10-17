@@ -138,12 +138,6 @@ export async function loadScreen(
         ? { ...done, data: { ...(done.data as object), page: last(path) } }
         : done;
     }
-    case 'AuditLog':
-      return read('PerformanceAudit', {
-        q: opt(s['q']),
-        refused: opt(s['refused']),
-        ai: opt(s['ai']),
-      });
     case 'AiLog':
       return read('PerformanceAiLog');
     case 'ConnectedTools':

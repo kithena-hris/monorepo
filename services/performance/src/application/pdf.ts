@@ -133,7 +133,7 @@ export async function reviewPdf(
   if (!loaded.ok) return loaded;
   const page = await pageOf(ctx, loaded.value.review, loaded.value.access === 'subject');
   if (page === null) return err(notFound('form'));
-  await audit(ctx, { action: 'Downloaded a review as PDF', target: page.title, targetId: id });
+  await audit(ctx, { kind: 'review', action: 'Downloaded a review as PDF', target: page.title, targetId: id });
   return ok({
     filename: `${page.title.replaceAll(/[^\w -]+/gu, '')}.pdf`,
     base64: (await draw([page])).toString('base64'),
@@ -161,7 +161,7 @@ export async function cyclePdf(
     const p = await pageOf(ctx, r, !input.full);
     if (p !== null) pages.push(p);
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: input.full
       ? 'Exported full reviews (sensitive read)'
       : 'Exported reviews as subjects see them',

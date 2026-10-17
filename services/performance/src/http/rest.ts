@@ -1408,19 +1408,6 @@ export const ROUTES: readonly Route[] = [
     run: (ctx) => ai.aiLogScreen(ctx),
   }),
   route({
-    name: 'performanceAudit',
-    method: 'GET',
-    path: `${V1}/audit`,
-    summary: 'S11: the audit log',
-    params: z.object({ q: z.string().max(100).optional(), refused: flag, ai: flag }),
-    run: (ctx, { params }) =>
-      home.auditScreen(ctx, {
-        ...(params.q === undefined ? {} : { q: params.q }),
-        refused: params.refused === 'true',
-        ai: params.ai === 'true',
-      }),
-  }),
-  route({
     name: 'performanceConnectedTools',
     method: 'GET',
     path: `${V1}/me/tools`,

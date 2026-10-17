@@ -12,6 +12,7 @@ export default ModuleManifest.parse({
   dependsOn: [],
   enrichedBy: ['people', 'recruiting', 'documents', 'timeoff'],
   publishes: [
+    'onboarding.activity.recorded',
     'onboarding.plan.started',
     'onboarding.task.completed',
     'onboarding.plan.completed',

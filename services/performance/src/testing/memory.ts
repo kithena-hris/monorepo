@@ -1,7 +1,7 @@
 import type { PendingEvent } from '@kithena/domain-kit';
 import type { TenantId } from '@kithena/contracts';
 
-import type { AuditEntry, Member, Store, Tx, UnitOfWork } from '../application/ports.js';
+import type { Member, Store, Tx, UnitOfWork } from '../application/ports.js';
 import { COLUMNS, fits, STORES, type Kind } from '../infrastructure/records.js';
 
 /**
@@ -15,7 +15,6 @@ interface Tenant {
   members: Map<string, Member & { lastEventId: string }>;
   admins: Set<string>;
   records: Map<string, { kind: Kind; value: Record<string, unknown>; at: number }>;
-  audit: AuditEntry[];
   settings: Map<string, unknown>;
   idempotency: Map<string, { requestHash: string; status: number; answer: unknown }>;
   outbox: PendingEvent[];
@@ -25,7 +24,6 @@ const fresh = (): Tenant => ({
   members: new Map(),
   admins: new Set(),
   records: new Map(),
-  audit: [],
   settings: new Map(),
   idempotency: new Map(),
   outbox: [],
@@ -35,7 +33,6 @@ const copy = (t: Tenant): Tenant => ({
   members: new Map(t.members),
   admins: new Set(t.admins),
   records: new Map(t.records),
-  audit: [...t.audit],
   settings: new Map(t.settings),
   idempotency: new Map(t.idempotency),
   outbox: [...t.outbox],
@@ -48,7 +45,6 @@ const strip = ({ lastEventId: _l, ...rest }: Member & { lastEventId: string }): 
 export interface MemoryWorld {
   readonly uow: UnitOfWork;
   readonly outbox: (tenantId: string) => readonly PendingEvent[];
-  readonly audit: (tenantId: string) => readonly AuditEntry[];
 }
 
 export function memoryUnitOfWork(): MemoryWorld {
@@ -128,26 +124,6 @@ export function memoryUnitOfWork(): MemoryWorld {
           return done();
         },
       },
-      audit: {
-        record: (e) => {
-          t.audit.push(e);
-          return done();
-        },
-        list: (f) =>
-          Promise.resolve(
-            t.audit
-              .filter(
-                (e) =>
-                  f.q === undefined ||
-                  f.q === '' ||
-                  `${e.action} ${e.target} ${e.as}`.toLowerCase().includes(f.q.toLowerCase()),
-              )
-              .filter((e) => f.refused !== true || e.outcome === 'refused')
-              .filter((e) => f.ai !== true || e.ai)
-              .toReversed()
-              .slice(0, f.limit),
-          ),
-      },
       settings: {
         get: (k) => Promise.resolve(t.settings.has(k) ? clone(t.settings.get(k)) : null),
         set: (k, v) => {
@@ -189,6 +165,5 @@ export function memoryUnitOfWork(): MemoryWorld {
   return {
     uow,
     outbox: (id) => tenants.get(id)?.outbox ?? [],
-    audit: (id) => tenants.get(id)?.audit ?? [],
   };
 }

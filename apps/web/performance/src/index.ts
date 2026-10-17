@@ -30,7 +30,6 @@ import {
 } from './reviews';
 import {
   Settings as SettingsScreen,
-  AuditLog as AuditLogScreen,
   AiLog as AiLogScreen,
   ConnectedTools as ConnectedToolsScreen,
 } from './settings';
@@ -68,6 +67,5 @@ export const Calibrations = framed(CalibrationsScreen);
 export const Calibration = framed(CalibrationScreen);
 export const Analytics = framed(AnalyticsScreen);
 export const Settings = framed(SettingsScreen);
-export const AuditLog = framed(AuditLogScreen);
 export const AiLog = framed(AiLogScreen);
 export const ConnectedTools = framed(ConnectedToolsScreen);

@@ -19,9 +19,6 @@ export const OPERATIONS = {
   PerformanceAttachGoals: `query PerformanceAttachGoals($id: String!) {
     performanceAttachGoals(id: $id)
   }`,
-  PerformanceAudit: `query PerformanceAudit($ai: String, $q: String, $refused: String) {
-    performanceAudit(ai: $ai, q: $q, refused: $refused)
-  }`,
   PerformanceAutomation: `query PerformanceAutomation($id: String!) {
     performanceAutomation(id: $id)
   }`,

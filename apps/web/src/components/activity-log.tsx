@@ -35,8 +35,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type React
 
 import {
   AREAS,
+  MODULES,
+  MODULE_AREAS,
   WHO,
   changesIn,
+  moduleName,
   type ActivityEntry,
   type ActivityFilters,
   type ActivityPage,
@@ -117,6 +120,25 @@ function who(e: ActivityEntry, named: Named): { name: string; avatar: ReactNode 
   }
 }
 
+/**
+ * Where a module's record opens, by what the entry says it was done to; a
+ * kind not here has no page of its own to go to.
+ */
+const OPENS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  performance: {
+    cycle: '/performance/cycles/',
+    review: '/performance/reviews/',
+    template: '/performance/templates/',
+    goal: '/performance/goals/',
+    learning: '/performance/learning/items/',
+    automation: '/performance/automations/',
+    calibration: '/performance/calibration/',
+  },
+  documents: { document: '/documents/' },
+  recruiting: { job: '/recruiting/jobs/', candidate: '/recruiting/candidates/' },
+  onboarding: { plan: '/onboarding/plans/' },
+};
+
 /** What it was done to, in words: a label, or the person's name as the reader may see it. */
 function whom(e: ActivityEntry, named: Named): string | null {
   if (e.subjectLabel !== null) return e.subjectLabel;
@@ -178,6 +200,10 @@ export function ActivityLog({
   }, [query]);
 
   const readerZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // One module's log keeps to the areas a module's activity falls in.
+  const own = filters.module !== null && filters.module !== 'people' && filters.module !== 'identity';
+  const areas = own ? AREAS.filter((a) => MODULE_AREAS.includes(a.value)) : AREAS;
+  const title = filters.module === null ? 'Activity' : `${moduleName(filters.module)} activity`;
   const actorName = filters.actor === null ? null : (named[filters.actor]?.name ?? 'one person');
   const subjectName =
     filters.subject === null ? null : (named[filters.subject]?.name ?? 'one record');
@@ -192,14 +218,30 @@ export function ActivityLog({
                 <BreadcrumbLink href="/settings">Settings</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Activity</BreadcrumbPage>
-              </BreadcrumbItem>
+              {filters.module === null ? (
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Activity</BreadcrumbPage>
+                </BreadcrumbItem>
+              ) : (
+                <>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink href="/settings/activity">Activity</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{moduleName(filters.module)}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
             </BreadcrumbList>
           </Breadcrumb>
         }
-        title="Activity"
-        description="Who did what, and when, across your company’s workspace. Never the values themselves."
+        title={title}
+        description={
+          filters.module === null
+            ? 'Who did what, and when, across your company’s workspace. Never the values themselves.'
+            : `Who did what in ${moduleName(filters.module)}, and when. Never the values themselves.`
+        }
       />
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
@@ -248,6 +290,26 @@ export function ActivityLog({
           </ChipGroup>
         </div>
         <ChipGroup
+          type="single"
+          scroll
+          aria-label="Module"
+          value={filters.module ?? 'any'}
+          onValueChange={(v) => {
+            // A module's areas are not another's: the area filter starts again.
+            go({ module: v === '' || v === 'any' ? null : v, area: null });
+          }}
+          className="min-w-0 gap-1.5"
+        >
+          <ChipGroupItem value="any" variant="view">
+            Every module
+          </ChipGroupItem>
+          {MODULES.map((m) => (
+            <ChipGroupItem key={m.value} value={m.value} variant="view">
+              {m.label}
+            </ChipGroupItem>
+          ))}
+        </ChipGroup>
+        <ChipGroup
           type="multiple"
           scroll
           aria-label="Areas"
@@ -257,7 +319,7 @@ export function ActivityLog({
           }}
           className="min-w-0 gap-1.5"
         >
-          {AREAS.map((a) => (
+          {areas.map((a) => (
             <ChipGroupItem key={a.value} value={a.value}>
               {a.label}
             </ChipGroupItem>
@@ -308,9 +370,10 @@ export function ActivityLog({
             zone={zone}
             open={params.get('entry')}
             onMore={onMore}
-            filtered={Object.values({ ...filters, zone: null }).some(
+            filtered={Object.values({ ...filters, zone: null, module: null }).some(
               (v) => v !== null && !(Array.isArray(v) && v.length === 0),
             )}
+            everyModule={filters.module === null}
             onFilter={go}
           />
         )}
@@ -335,8 +398,10 @@ function Entries({
   open,
   onMore,
   filtered,
+  everyModule,
   onFilter,
 }: {
+  readonly everyModule: boolean;
   readonly page: ActivityPage;
   readonly named: Named;
   readonly zone: string | undefined;
@@ -404,12 +469,27 @@ function Entries({
         header: 'What',
         cell: (e) => {
           const target = whom(e, named);
-          return target === null ? (
-            e.action
-          ) : (
-            <>
-              {e.action}: <span className="font-semibold">{target}</span>
-            </>
+          return (
+            <span className="flex flex-wrap items-center gap-2">
+              <span>
+                {e.action}
+                {target === null ? null : (
+                  <>
+                    : <span className="font-semibold">{target}</span>
+                  </>
+                )}
+              </span>
+              {e.outcome === 'refused' ? (
+                <Badge size="sm" tone="danger">
+                  Refused
+                </Badge>
+              ) : null}
+              {e.ai ? (
+                <Badge size="sm" tone="assistant">
+                  AI
+                </Badge>
+              ) : null}
+            </span>
           );
         },
       },
@@ -417,10 +497,16 @@ function Entries({
         id: 'area',
         header: 'Area',
         cardTrailing: true,
-        cell: (e) => <Badge>{AREA_NAME[e.area] ?? e.area}</Badge>,
+        cell: (e) => (
+          <Badge>
+            {everyModule && e.module !== 'people'
+              ? `${moduleName(e.module)} · ${AREA_NAME[e.area] ?? e.area}`
+              : (AREA_NAME[e.area] ?? e.area)}
+          </Badge>
+        ),
       },
     ],
-    [named, when],
+    [named, when, everyModule],
   );
 
   if (page.entries.length === 0) {
@@ -511,6 +597,21 @@ function Detail({
           <span className="font-semibold">Reason:</span> {e.reason}
         </p>
       )}
+      {e.outcome === 'refused' ? (
+        <p className="text-sm text-fg-muted">
+          {moduleName(e.module)} refused it: nothing was changed.
+        </p>
+      ) : null}
+      {e.via === null && !e.ai ? null : (
+        <p className="text-sm text-fg-muted">
+          {[
+            e.via === null ? null : `From ${e.via === 'Kithena' ? 'Kithena itself' : e.via}.`,
+            e.ai ? 'Proposed by AI and confirmed by them.' : null,
+          ]
+            .filter((x) => x !== null)
+            .join(' ')}
+        </p>
+      )}
       {e.actorKind === 'support' ? (
         <p className="text-sm text-fg-muted">
           {e.area === 'sign_in'
@@ -543,6 +644,13 @@ function Detail({
             }}
           >
             Only {WHO.find((w) => w.value === e.actorKind)?.label ?? actor}
+          </Button>
+        )}
+        {e.subjectId === null || e.subjectKind === null || OPENS[e.module]?.[e.subjectKind] === undefined ? null : (
+          <Button size="sm" variant="ghost" asChild>
+            <a href={`${OPENS[e.module]?.[e.subjectKind] ?? ''}${e.subjectId}`}>
+              Open {e.subjectLabel ?? `the ${e.subjectKind}`}
+            </a>
           </Button>
         )}
         {record === null || e.subjectId === null ? null : (

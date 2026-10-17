@@ -291,11 +291,11 @@ export const OPERATIONS = {
    * but reached the same way, through the router, and listed here because this
    * is the tenant app's one list of operations.
    */
-  Activity: `query Activity($areas: [String!], $by: String, $actor: ID, $subject: ID, $from: String, $to: String, $zone: String, $search: String, $before: ID) {
-    auditActivity(areas: $areas, by: $by, actor: $actor, subject: $subject, from: $from, to: $to, zone: $zone, search: $search, before: $before) {
+  Activity: `query Activity($module: String, $areas: [String!], $by: String, $actor: ID, $subject: ID, $from: String, $to: String, $zone: String, $search: String, $before: ID) {
+    auditActivity(module: $module, areas: $areas, by: $by, actor: $actor, subject: $subject, from: $from, to: $to, zone: $zone, search: $search, before: $before) {
       entries {
         id occurredAt module area action detail actorKind actorAccountId onBehalfOf operatorLabel
-        subjectKind subjectId subjectLabel reason supportSignIn { entryId at reason }
+        subjectKind subjectId subjectLabel reason outcome via ai supportSignIn { entryId at reason }
       }
       next
     }

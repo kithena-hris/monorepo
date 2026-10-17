@@ -21,7 +21,7 @@ export interface Caller {
   readonly accountId: string;
   readonly personId: string | null;
   readonly correlationId: string;
-  /** "Web", "Phone", "Slack", "Ask Kithena": where the audit says it came from. */
+  /** "Web", "Phone", "Slack", "Ask Kithena": where the activity log says it came from. */
   readonly via?: string;
 }
 
@@ -99,24 +99,6 @@ export interface SavedChart {
   readonly at: string;
 }
 
-/** One line of the audit log (§24.1): what was done to what, never a value. */
-export interface AuditEntry {
-  readonly id: string;
-  readonly at: string;
-  readonly actorPersonId: string | null;
-  readonly actorAccountId: string;
-  /** "Himself", "Ask Kithena for Ada", "HR". */
-  readonly as: string;
-  readonly action: string;
-  readonly target: string;
-  readonly targetId: string | null;
-  readonly where: string;
-  readonly outcome: 'done' | 'refused';
-  /** The fields changed, by name only. */
-  readonly fields: readonly string[];
-  readonly ai: boolean;
-}
-
 export interface Tx {
   readonly members: {
     get(personId: string): Promise<Member | null>;
@@ -145,15 +127,6 @@ export interface Tx {
   readonly grants: Store<Grant>;
   readonly orgUnits: Store<OrgUnit>;
   readonly charts: Store<SavedChart>;
-  readonly audit: {
-    record(entry: AuditEntry): Promise<void>;
-    list(filter: {
-      readonly q?: string;
-      readonly refused?: boolean;
-      readonly ai?: boolean;
-      readonly limit: number;
-    }): Promise<readonly AuditEntry[]>;
-  };
   readonly settings: {
     get(key: string): Promise<unknown>;
     set(key: string, value: unknown): Promise<void>;

@@ -274,7 +274,7 @@ export async function saveSection(
       ),
     );
   await ctx.tx.settings.set(section, parsed.data);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'setting',
     action: 'Changed settings',
     target: `Settings › ${section}`,
     fields: Object.keys(parsed.data),

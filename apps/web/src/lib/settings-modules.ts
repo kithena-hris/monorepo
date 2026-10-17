@@ -1,5 +1,21 @@
 import type { SettingsModule } from '../components/settings-index';
+import { moduleName } from './activity';
 import type { ShellData } from './shell-data';
+
+type Place = SettingsModule['settings'][number];
+
+/**
+ * A module's own Activity log, last among its settings: the company's log
+ * (`docs/audit.md`) filtered to that module, which its administrators read.
+ */
+const activityOf = (module: string): Place => ({
+  path: `/settings/activity?module=${module}`,
+  label: 'Activity log',
+  description: `Who did what in ${moduleName(module)}, and when. Never the values themselves.`,
+  icon: 'history',
+  now: null,
+  attention: null,
+});
 
 /**
  * The Settings page's modules, in order: People's settings where this viewer
@@ -43,14 +59,17 @@ export function settingsModules(
       title: 'Time off',
       description:
         'Leave types, holidays and attendance: how time off is earned, asked for and approved.',
-      settings: timeOff.map((place) => ({
-        path: place.path,
-        label: place.label,
-        description: place.description,
-        icon: place.icon,
-        now: null,
-        attention: null,
-      })),
+      settings: [
+        ...timeOff.map((place) => ({
+          path: place.path,
+          label: place.label,
+          description: place.description,
+          icon: place.icon,
+          now: null,
+          attention: null,
+        })),
+        activityOf('timeoff'),
+      ],
     });
   }
 
@@ -79,6 +98,7 @@ export function settingsModules(
           now: null,
           attention: null,
         })),
+        ...(docs.length > 0 ? [activityOf('documents')] : []),
       ],
     });
   }
@@ -91,14 +111,17 @@ export function settingsModules(
       title: 'Recruiting',
       description:
         'How hiring runs: entities, pipelines, scorecards, pay bands, benefits and the careers page.',
-      settings: recruiting.map((place) => ({
-        path: place.path,
-        label: place.label,
-        description: place.description,
-        icon: place.icon,
-        now: null,
-        attention: null,
-      })),
+      settings: [
+        ...recruiting.map((place) => ({
+          path: place.path,
+          label: place.label,
+          description: place.description,
+          icon: place.icon,
+          now: null,
+          attention: null,
+        })),
+        activityOf('recruiting'),
+      ],
     });
   }
 
@@ -110,14 +133,17 @@ export function settingsModules(
       title: 'Onboarding',
       description:
         'Who does HR’s and IT’s onboarding tasks, holidays, and the country of a People hire.',
-      settings: onboarding.map((place) => ({
-        path: place.path,
-        label: place.label,
-        description: place.description,
-        icon: place.icon,
-        now: null,
-        attention: null,
-      })),
+      settings: [
+        ...onboarding.map((place) => ({
+          path: place.path,
+          label: place.label,
+          description: place.description,
+          icon: place.icon,
+          now: null,
+          attention: null,
+        })),
+        activityOf('onboarding'),
+      ],
     });
   }
 
@@ -129,14 +155,17 @@ export function settingsModules(
       title: 'Performance',
       description:
         'The scale, reviews, feedback, goals, learning, calibration, AI and who sees what.',
-      settings: performanceSettings.map((place) => ({
-        path: place.path,
-        label: place.label,
-        description: place.description,
-        icon: place.icon,
-        now: null,
-        attention: null,
-      })),
+      settings: [
+        ...performanceSettings.map((place) => ({
+          path: place.path,
+          label: place.label,
+          description: place.description,
+          icon: place.icon,
+          now: null,
+          attention: null,
+        })),
+        activityOf('performance'),
+      ],
     });
   }
 

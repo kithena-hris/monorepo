@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import type { EntryStore, StoredEntry } from '../application/ports.js';
-import type { ActorKind, Area, Entry, EntrySubject } from '../domain/entry.js';
+import type { ActorKind, Area, Entry } from '../domain/entry.js';
 import { SUPPORT_SESSION_HOURS } from '../domain/reading.js';
 
 /**
@@ -35,6 +35,9 @@ type Row = {
   subject_id: string | null;
   subject_label: string | null;
   reason: string | null;
+  outcome: string;
+  via: string | null;
+  ai: boolean;
   sign_in_id: string | null;
   sign_in_at: Date | string | null;
   sign_in_reason: string | null;
@@ -55,12 +58,12 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
             (tenant_id, source_event_id, occurred_at, recorded_at, module, area, action, detail,
              actor_kind, actor_account_id, on_behalf_of, operator_label, subject_kind, subject_id,
              subject_label,
-             reason)
+             reason, outcome, via, ai)
           VALUES (${e.tenantId}::uuid, ${e.sourceEventId}::uuid, ${e.occurredAt}::timestamptz,
                   ${e.recordedAt}::timestamptz, ${e.module}, ${e.area}, ${e.action}, ${e.detail},
                   ${e.actor.kind}, ${e.actor.accountId}::uuid, ${e.actor.onBehalfOf}::uuid, ${e.actor.operatorLabel},
                   ${e.subject?.kind ?? null}, ${e.subject?.id ?? null}, ${e.subject?.label ?? null},
-                  ${e.reason})
+                  ${e.reason}, ${e.outcome}, ${e.via}, ${e.ai})
           ON CONFLICT (tenant_id, source_event_id) DO NOTHING
           RETURNING id`);
         return [...rows].length > 0;
@@ -85,6 +88,7 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
                LIMIT 1
             ) s ON true
            WHERE e.tenant_id = ${tenantId}::uuid
+             AND (${f.module}::text IS NULL OR e.module = ${f.module})
              AND (${f.areas.join(',')} = '' OR e.area = ANY (string_to_array(${f.areas.join(',')}, ',')))
              AND (${f.actorKind}::text IS NULL OR e.actor_kind = ${f.actorKind})
              AND (${f.actor}::uuid IS NULL OR e.actor_account_id = ${f.actor}::uuid)
@@ -119,16 +123,37 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
             r.subject_kind === null
               ? null
               : {
-                  kind: r.subject_kind as EntrySubject['kind'],
+                  kind: r.subject_kind,
                   id: r.subject_id,
                   label: r.subject_label,
                 },
           reason: r.reason,
+          outcome: r.outcome === 'refused' ? 'refused' : 'done',
+          via: r.via,
+          ai: r.ai,
           supportSignIn:
             r.sign_in_id === null || r.sign_in_at === null
               ? null
               : { entryId: r.sign_in_id, at: iso(r.sign_in_at), reason: r.sign_in_reason },
         }));
+      }),
+
+    administrator: (tenantId, c) =>
+      inTenant(tenantId, async (tx) => {
+        await tx.execute(sql`
+          INSERT INTO audit.module_admin (tenant_id, module, account_id, named, as_of)
+          VALUES (${tenantId}::uuid, ${c.module}, ${c.accountId}::uuid, ${c.named}, ${c.at}::timestamptz)
+          ON CONFLICT (tenant_id, module, account_id) DO UPDATE
+            SET named = EXCLUDED.named, as_of = EXCLUDED.as_of
+            WHERE audit.module_admin.as_of < EXCLUDED.as_of`);
+      }),
+
+    administers: (tenantId, accountId) =>
+      inTenant(tenantId, async (tx) => {
+        const rows = await tx.execute<{ module: string }>(sql`
+          SELECT module FROM audit.module_admin
+           WHERE tenant_id = ${tenantId}::uuid AND account_id = ${accountId}::uuid AND named`);
+        return new Set([...rows].map((r) => r.module));
       }),
   };
 }

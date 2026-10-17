@@ -525,8 +525,6 @@ type Query {
   performanceAnalytics(cycleId: String, personId: String, tab: String): JSON
   """PF18f: goals in a cycle"""
   performanceAttachGoals(id: String!): JSON
-  """S11: the audit log"""
-  performanceAudit(ai: String, q: String, refused: String): JSON
   """PF16c: one automation"""
   performanceAutomation(id: String!): JSON
   """PF16: automations"""

@@ -2,6 +2,7 @@ import * as z from 'zod';
 
 import { asInternal, asPublic, policy } from '../classification.js';
 import { defineEvent } from '../event.js';
+import { activityRecorded } from './activity.js';
 import { CalendarDate } from '../primitives.js';
 import {
   ActivityKind,
@@ -112,7 +113,11 @@ export const RatingFinalized = defineEvent(
   }),
 );
 
+/** Every act in Performance, in words, for the company's activity log (`docs/audit.md`). */
+export const PerformanceActivityRecorded = activityRecorded('performance');
+
 export const performanceEvents = [
+  PerformanceActivityRecorded,
   CycleStateChanged,
   ReviewStatusChanged,
   ReviewReleased,

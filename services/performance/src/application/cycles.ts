@@ -309,7 +309,7 @@ export async function createCycle(
       { cycleId: id, from: null, to: 'draft', reviews: 0 },
     ),
   );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: input.copyFrom === null ? 'Created a cycle' : 'Copied a cycle',
     target: input.name,
     targetId: id,
@@ -353,7 +353,7 @@ export async function saveCycle(
       changed.push(k);
     }
   await ctx.tx.cycles.save(next);
-  await audit(ctx, { action: 'Edited a cycle', target: c.name, targetId: id, fields: changed });
+  await audit(ctx, { kind: 'cycle', action: 'Edited a cycle', target: c.name, targetId: id, fields: changed });
   ctx.touched.add(id);
   return ok({ version: next.version });
 }
@@ -392,7 +392,7 @@ export async function scheduleOrLaunch(
     await ctx.tx.cycles.save(scheduled.value);
     await openNominations(ctx, scheduled.value);
     await stateEvent(ctx, c, 'scheduled');
-    await audit(ctx, { action: 'Scheduled a cycle', target: c.name, targetId: id });
+    await audit(ctx, { kind: 'cycle', action: 'Scheduled a cycle', target: c.name, targetId: id });
     ctx.touched.add(id);
     return ok({ state: 'scheduled' });
   }
@@ -425,7 +425,7 @@ export async function beginLaunch(ctx: Ctx, c: Cycle): Promise<Result<{ state: C
   await ctx.tx.cycles.save(next);
   await openNominations(ctx, next);
   await stateEvent(ctx, c, 'launching');
-  await audit(ctx, { action: 'Launched a cycle', target: c.name, targetId: c.id });
+  await audit(ctx, { kind: 'cycle', action: 'Launched a cycle', target: c.name, targetId: c.id });
   ctx.touched.add(c.id);
   return ok({ state: 'launching' });
 }
@@ -496,7 +496,7 @@ export async function unschedule(ctx: Ctx, id: string): Promise<Result<{ ok: tru
   if (!back.ok) return back;
   await ctx.tx.cycles.save(back.value);
   await stateEvent(ctx, c, 'draft');
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action:
       c.state === 'launch_failed' ? 'Moved a failed launch back to draft' : 'Unscheduled a cycle',
     target: c.name,
@@ -517,7 +517,7 @@ export async function retryLaunch(ctx: Ctx, id: string): Promise<Result<{ state:
   const again = move(c, 'launching');
   if (!again.ok) return again;
   await ctx.tx.cycles.save({ ...again.value, launch: { ...c.launch, error: null } });
-  await audit(ctx, { action: 'Retried a launch', target: c.name, targetId: id });
+  await audit(ctx, { kind: 'cycle', action: 'Retried a launch', target: c.name, targetId: id });
   ctx.touched.add(id);
   return ok({ state: 'launching' });
 }
@@ -570,7 +570,7 @@ export async function closeCycle(
   if (!closed.ok) return closed;
   await ctx.tx.cycles.save({ ...closed.value, closedAt: ctx.at });
   await stateEvent(ctx, c, 'closed');
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Closed a cycle',
     target: c.name,
     targetId: id,
@@ -593,7 +593,7 @@ export async function archiveCycle(
   if (!next.ok) return next;
   await ctx.tx.cycles.save(next.value);
   await stateEvent(ctx, c, next.value.state);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: archived ? 'Archived a cycle' : 'Unarchived a cycle',
     target: c.name,
     targetId: id,
@@ -718,7 +718,7 @@ export async function addParticipant(
       dueFloor: addDays(ctx.today, 7),
     });
   } else await ctx.tx.cycles.save(next);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Added someone to a cycle',
     target: c.name,
     targetId: id,
@@ -761,7 +761,7 @@ export async function removeParticipant(
         ? null
         : { ...c.snapshot, subjects: c.snapshot.subjects.filter((s) => s !== personId) },
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Removed someone from a cycle',
     target: c.name,
     targetId: id,
@@ -795,7 +795,7 @@ export async function extendDeadline(
       version: c.version + 1,
       snapshot: { ...c.snapshot, due: { ...c.snapshot.due, [input.kind]: input.due } },
     });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Extended a deadline',
     target: `${c.name} · ${label(input.kind)}`,
     targetId: id,
@@ -843,7 +843,7 @@ export async function remind(
         dedupeKey: `remind:${id}:${a}:${ctx.today}`,
       });
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Sent reminders',
     target: `${c.name} · ${String(authors.size)} people`,
     targetId: id,
@@ -877,7 +877,7 @@ export async function releaseFor(
     );
     released += 1;
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'cycle',
     action: 'Released reviews',
     target: `${c.name} · ${String(released)}`,
     targetId: id,
@@ -897,7 +897,7 @@ export async function handOver(
   const r = await ctx.tx.reviews.get(reviewId);
   if (r === null || r.kind !== 'manager') return err(notFound('manager review'));
   if (input.choice === 'old_finishes') {
-    await audit(ctx, {
+    await audit(ctx, { kind: 'review',
       action: 'Kept a manager review with its writer',
       target: 'Manager review',
       targetId: reviewId,
@@ -930,7 +930,7 @@ export async function handOver(
         }),
       );
   }
-  await audit(ctx, {
+  await audit(ctx, { kind: 'review',
     action: 'Handed over a manager review',
     target: 'Manager review',
     targetId: reviewId,
@@ -1083,15 +1083,6 @@ export async function overviewScreen(
         late: n.state === 'draft' && due.nominations !== undefined && due.nominations < ctx.today,
       })),
     bounds: { min: c.peer.min, max: c.peer.max },
-    changes:
-      opts.tab === 'changes'
-        ? (await ctx.tx.audit.list({ q: c.name, limit: 100 })).map((e) => ({
-            at: e.at,
-            who: e.as,
-            action: e.action,
-            target: e.target,
-          }))
-        : [],
     settings: { visibility: c.visibility, peer: c.peer, reminders: c.reminders, goals: c.goals },
     hr: ctx.viewer.hr,
   });

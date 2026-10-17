@@ -13,6 +13,7 @@ export default ModuleManifest.parse({
   dependsOn: [],
   enrichedBy: ['people', 'onboarding', 'timeoff', 'documents', 'compensation'],
   publishes: [
+    'performance.activity.recorded',
     'performance.cycle.state_changed',
     'performance.review.status_changed',
     'performance.review.released',

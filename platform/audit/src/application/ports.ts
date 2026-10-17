@@ -24,6 +24,21 @@ export interface EntryStore {
     tenantId: string,
     query: { readonly filter: Filter; readonly before: string | null; readonly limit: number },
   ): Promise<readonly StoredEntry[]>;
+  /**
+   * A module's administrator named or removed, as identity says it: kept only
+   * when it is newer than what is held, so a redelivery cannot undo a later one.
+   */
+  administrator(
+    tenantId: string,
+    change: {
+      readonly module: string;
+      readonly accountId: string;
+      readonly named: boolean;
+      readonly at: string;
+    },
+  ): Promise<void>;
+  /** The modules an account administers at a company. */
+  administers(tenantId: string, accountId: string): Promise<ReadonlySet<string>>;
 }
 
 /** The tenant relations an account holds, from the platform's authorization (OpenFGA). */

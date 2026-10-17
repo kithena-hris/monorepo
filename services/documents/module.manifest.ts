@@ -13,6 +13,7 @@ export default ModuleManifest.parse({
   dependsOn: [],
   enrichedBy: ['people', 'timeoff'],
   publishes: [
+    'documents.activity.recorded',
     'documents.document.filed',
     'documents.document.versioned',
     'documents.document.shared',

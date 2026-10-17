@@ -1,6 +1,7 @@
 import type * as z from 'zod';
 import type {
   Actor,
+  ModuleActivity,
   ExportCompleted,
   FullValuesDecided,
   FullValuesIssued,
@@ -34,6 +35,11 @@ export const AREAS = [
   'imports_exports',
   'sensitive_access',
   'sign_in',
+  // Every module's own activity (`<module>.activity.recorded`).
+  'settings',
+  'records',
+  'access',
+  'ai',
 ] as const;
 export type Area = (typeof AREAS)[number];
 
@@ -55,7 +61,8 @@ export interface EntryActor {
 }
 
 export interface EntrySubject {
-  readonly kind: 'person' | 'account' | 'setting' | 'export' | 'import' | 'request' | 'session';
+  /** `person`, `account`, `setting` … or a module's own: `cycle`, `document`, `job`. */
+  readonly kind: string;
   readonly id: string | null;
   /** Its name at the time, in words. Never a person's value. */
   readonly label: string | null;
@@ -67,14 +74,35 @@ export interface Entry {
   readonly sourceEventId: string;
   readonly occurredAt: string;
   readonly recordedAt: string;
-  readonly module: 'people' | 'identity';
+  readonly module: Module;
   readonly area: Area;
   readonly action: string;
   readonly detail: string | null;
   readonly actor: EntryActor;
   readonly subject: EntrySubject | null;
   readonly reason: string | null;
+  /** A refused attempt is a line of the log too. */
+  readonly outcome: 'done' | 'refused';
+  /** The surface a module's act came from ("Web", "Slack", "Ask Kithena"); null for People's and identity's. */
+  readonly via: string | null;
+  /** Proposed by AI, and confirmed by the person. */
+  readonly ai: boolean;
 }
+
+/** Who the log hears from: identity, and every module that keeps an activity log. */
+export const MODULES = [
+  'people',
+  'identity',
+  'timeoff',
+  'documents',
+  'recruiting',
+  'onboarding',
+  'performance',
+] as const;
+export type Module = (typeof MODULES)[number];
+
+/** The modules that raise `<module>.activity.recorded`. */
+const ACTIVITY_MODULES = ['timeoff', 'documents', 'recruiting', 'onboarding', 'performance'] as const;
 
 /** An envelope, already parsed against its contract. */
 export interface SourceEvent {
@@ -113,7 +141,23 @@ const plural = (n: number, one: string, many = `${one}s`): string =>
 
 /** What an event says, before the envelope's facts are put around it. */
 type Said = Pick<Entry, 'module' | 'area' | 'action'> &
-  Partial<Pick<Entry, 'detail' | 'subject' | 'reason' | 'actor'>>;
+  Partial<Pick<Entry, 'detail' | 'subject' | 'reason' | 'actor' | 'outcome' | 'via' | 'ai'>>;
+
+/** A module's own act, in its own words: the payload is already the log's shape. */
+const activity =
+  (module: Module) =>
+  (p: ModuleActivity): Said => ({
+    module,
+    area: p.area,
+    action: p.action,
+    detail: p.detail,
+    subject:
+      p.subjectKind === null ? null : { kind: p.subjectKind, id: p.subjectId, label: p.subjectLabel },
+    reason: p.reason,
+    outcome: p.outcome,
+    via: p.via,
+    ai: p.ai,
+  });
 
 /** Each event the log keeps, and how it reads. Anything not here is not the log's. */
 const SAYS: Readonly<Record<string, (payload: never) => Said>> = {
@@ -255,6 +299,8 @@ const SAYS: Readonly<Record<string, (payload: never) => Said>> = {
     accountId: string;
     removedBy: string | null;
   }) => administrator('Removed', p.entitlement, p.accountId, p.removedBy),
+
+  ...Object.fromEntries(ACTIVITY_MODULES.map((m) => [`${m}.activity.recorded`, activity(m)])),
 };
 
 const viewedSpecial = (visible: boolean): string =>
@@ -265,6 +311,9 @@ const viewedSpecial = (visible: boolean): string =>
 /** A module as a sentence names it, where its key alone would read wrong. */
 const MODULE_NAMES: Readonly<Record<string, string>> = { people: 'People', timeoff: 'Time Off' };
 
+/** The administrators of a module the back office names: `module.performance` → `performance`. */
+export const moduleOf = (entitlement: string): string => entitlement.replace(/^module\./, '');
+
 /** The back office naming or removing a module's administrator: Kithena support, when it says who. */
 function administrator(
   verb: 'Named' | 'Removed',
@@ -272,7 +321,7 @@ function administrator(
   accountId: string,
   operator: string | null,
 ): Said {
-  const key = entitlement.replace(/^module\./, '');
+  const key = moduleOf(entitlement);
   const name = MODULE_NAMES[key] ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
   return {
     module: 'identity',
@@ -312,5 +361,8 @@ export function entryFrom(event: SourceEvent): Entry | null {
     actor: said.actor ?? actorOf(event.actor),
     subject: said.subject ?? null,
     reason: said.reason ?? null,
+    outcome: said.outcome ?? 'done',
+    via: said.via ?? null,
+    ai: said.ai ?? false,
   };
 }

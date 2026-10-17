@@ -1,6 +1,14 @@
 import { createHash } from 'node:crypto';
 import * as z from 'zod';
-import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  ok,
+  type DomainFailure,
+  type PendingEvent,
+  type Result,
+} from '@kithena/domain-kit';
+import { logger } from '@kithena/telemetry';
 import {
   AttendanceWorkModel,
   CalendarDate,
@@ -19,7 +27,9 @@ import {
   PunchInput,
   PunchKind,
   RequestStatus,
+  routeActivity,
   TeamKey,
+  TimeOffActivityRecorded,
 } from '@kithena/contracts';
 
 import {
@@ -1986,6 +1996,39 @@ function keyed(uow: UnitOfWork, key: string, stored: (value: unknown) => StoredK
 
 const KEY_REUSED = failure('IDEMPOTENCY_KEY_REUSED', 'This key was used for a different request');
 
+/**
+ * A write that stood, as the company's activity log words it
+ * (`docs/audit.md`): `timeoff.activity.recorded`, after the write committed,
+ * as People's settings log is written. A line that cannot be written is said
+ * here and the write still stands; a replayed key never reaches this, so a
+ * retried write is one line.
+ */
+async function recordActivity(
+  deps: Deps,
+  caller: Caller,
+  r: Route,
+  params: Readonly<Record<string, unknown>>,
+): Promise<void> {
+  const event: PendingEvent = {
+    eventId: deps.newId(),
+    eventName: TimeOffActivityRecorded.name,
+    eventVersion: 1,
+    tenantId: caller.tenantId,
+    occurredAt: deps.clock.instant(),
+    effectiveFrom: deps.clock.date('UTC'),
+    aggregate: { type: 'activity', id: deps.newId(), version: 0 },
+    actor: { kind: 'user', userId: caller.accountId },
+    correlationId: caller.correlationId,
+    causationId: null,
+    payload: routeActivity(r, params),
+  };
+  try {
+    await deps.uow.run(caller.tenantId, (tx) => tx.outbox.publish([event]));
+  } catch (error) {
+    logger.warn({ module: 'timeoff', err: String(error) }, 'activity not recorded');
+  }
+}
+
 export function restHandler(
   rest: RestDeps,
 ): (request: RestRequest) => Promise<RestResponse | null> {
@@ -2114,6 +2157,8 @@ export function restHandler(
         caller.value,
         input,
       );
+      if (result.ok)
+        await recordActivity(deps, caller.value, r, params.value as Record<string, unknown>);
       return answer(r, result);
     } catch (error) {
       if (!(error instanceof Raced)) throw error;

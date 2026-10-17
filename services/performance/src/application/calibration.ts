@@ -187,7 +187,7 @@ export async function createSession(
     potentialQuestionId: null,
     at: ctx.at,
   });
-  await audit(ctx, { action: 'Opened a calibration session', target: input.name, targetId: id });
+  await audit(ctx, { kind: 'calibration', action: 'Opened a calibration session', target: input.name, targetId: id });
   ctx.touched.add(c.id);
   return ok({ id, held });
 }
@@ -217,7 +217,7 @@ export async function changeCalibratedScore(
   });
   if (!next.ok) return next;
   await ctx.tx.calibrations.save(next.value);
-  await audit(ctx, {
+  await audit(ctx, { kind: 'calibration',
     action: 'Changed a score in calibration',
     target: `${s.name} · ${(await names(ctx))(input.personId)}`,
     targetId: id,
@@ -285,7 +285,7 @@ export async function finaliseSession(
     finalised += 1;
   }
   await ctx.tx.calibrations.save({ ...s, state: 'finalised' });
-  await audit(ctx, { action: 'Finalised a calibration session', target: s.name, targetId: id });
+  await audit(ctx, { kind: 'calibration', action: 'Finalised a calibration session', target: s.name, targetId: id });
   ctx.touched.add(c.id);
   return ok({ finalised });
 }
@@ -308,6 +308,6 @@ export async function removeFromSession(
     subjects: s.subjects.filter((x) => x !== personId),
     changes: s.changes.filter((x) => x.personId !== personId),
   });
-  await audit(ctx, { action: 'Took someone out of calibration', target: s.name, targetId: id });
+  await audit(ctx, { kind: 'calibration', action: 'Took someone out of calibration', target: s.name, targetId: id });
   return ok({ ok: true });
 }

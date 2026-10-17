@@ -547,7 +547,7 @@ export async function newTemplate(
   });
   if (!made.ok) return made;
   await ctx.tx.templates.save(made.value);
-  await audit(ctx, { action: 'Created a template', target: input.name, targetId: made.value.id });
+  await audit(ctx, { kind: 'template', action: 'Created a template', target: input.name, targetId: made.value.id });
   return ok({ id: made.value.id });
 }
 
@@ -588,7 +588,7 @@ export async function publishTemplate(ctx: Ctx, id: string): Promise<Result<{ ve
       { templateId: id, version: v },
     ),
   );
-  await audit(ctx, {
+  await audit(ctx, { kind: 'template',
     action: 'Published a template',
     target: `${t.name} v${String(v)}`,
     targetId: id,
@@ -617,7 +617,7 @@ export async function archiveTemplate(
           : v,
     ),
   });
-  await audit(ctx, {
+  await audit(ctx, { kind: 'template',
     action: archived ? 'Archived a template' : 'Unarchived a template',
     target: t.name,
     targetId: id,
@@ -635,7 +635,7 @@ export async function deleteTemplate(ctx: Ctx, id: string): Promise<Result<{ ok:
   const allowed = mayDelete(t);
   if (!allowed.ok) return allowed;
   await ctx.tx.templates.remove(id);
-  await audit(ctx, { action: 'Deleted a template', target: t.name, targetId: id });
+  await audit(ctx, { kind: 'template', action: 'Deleted a template', target: t.name, targetId: id });
   return ok({ ok: true });
 }
 

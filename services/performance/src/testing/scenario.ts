@@ -408,8 +408,10 @@ export async function oneCycle(h: Harness): Promise<void> {
   expect(rating.scoreHundredths).toBe(420);
   expect(JSON.stringify(events)).not.toContain('ledger migration');
 
-  // And the audit log has the work and the refusal.
-  const log = await data<{ rows: { action: string; outcome: string }[] }>('ada', 'GET', '/audit');
-  expect(log.rows.some((r) => r.action === 'Submitted a review')).toBe(true);
-  expect(log.rows.some((r) => r.outcome === 'refused')).toBe(true);
+  // And the company's activity log hears the work and the refusal, never a value.
+  const log = events
+    .filter((e) => e.eventName === 'performance.activity.recorded')
+    .map((e) => e.payload as { action: string; outcome: string });
+  expect(log.some((r) => r.action === 'Submitted a review')).toBe(true);
+  expect(log.some((r) => r.outcome === 'refused')).toBe(true);
 }

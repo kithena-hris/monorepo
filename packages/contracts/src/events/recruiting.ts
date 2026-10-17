@@ -2,6 +2,7 @@ import * as z from 'zod';
 
 import { asInternal, asPublic, policy } from '../classification.js';
 import { defineEvent } from '../event.js';
+import { activityRecorded } from './activity.js';
 import { CalendarDate, Instant, LegalEntityId, Money } from '../primitives.js';
 import {
   ApplicationId,
@@ -227,7 +228,11 @@ export const CandidateDeleted = defineEvent(
   z.object({ candidateId: CandidateId }),
 );
 
+/** Every act in Recruiting, in words, for the company's activity log (`docs/audit.md`). */
+export const RecruitingActivityRecorded = activityRecorded('recruiting');
+
 export const recruitingEvents = [
+  RecruitingActivityRecorded,
   RequisitionSubmitted,
   RequisitionDecided,
   JobOpened,

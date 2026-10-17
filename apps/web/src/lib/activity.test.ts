@@ -27,6 +27,13 @@ describe('the activity log’s address', () => {
     });
   });
 
+  it('reads one module’s log, and nothing it does not know', () => {
+    expect(activityVariables(activityFilters({ module: 'performance' }))).toEqual({
+      module: 'performance',
+    });
+    expect(activityVariables(activityFilters({ module: 'payroll' }))).toEqual({});
+  });
+
   it('treats anything garbled as not there, and sends nothing for an untouched page', () => {
     const f = activityFilters({
       area: 'payroll,<script>',
@@ -52,6 +59,9 @@ describe('what a page needs named', () => {
       operatorLabel: null,
       subjectLabel: null,
       reason: null,
+      outcome: 'done',
+      via: null,
+      ai: false,
       supportSignIn: null,
     };
     expect(

@@ -1,5 +1,6 @@
 export * from './classification.js';
 export * from './event.js';
+export * from './events/activity.js';
 export * from './module.js';
 export * from './entitlements.js';
 export * from './primitives.js';

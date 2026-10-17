@@ -11,14 +11,18 @@ import {
   PublicationTarget,
   Rating,
   Recommendation,
+  RecruitingActivityRecorded,
+  routeActivity,
   TenantId,
   WorkMode,
+  type ModuleActivity,
 } from '@kithena/contracts';
 
 import { overview, offerAcceptance, chart, speed, timeInStage } from '../application/analytics.js';
 import {
   contextOf,
   deliver,
+  event,
   PUBLIC_ACCOUNT,
   recruiterOnly,
   type Ctx,
@@ -2023,6 +2027,8 @@ async function inTransaction(
   caller: Caller,
   run: (ctx: Ctx) => Promise<Result<unknown>>,
   key: { readonly key: string; readonly hash: string; readonly status: number } | null,
+  /** The write as the activity log words it (`docs/audit.md`), raised once it stands. */
+  act: ModuleActivity | null = null,
 ): Promise<RestResponse | Result<unknown>> {
   const mail: Outgoing[] = [];
   const held: { replay: RestResponse | null } = { replay: null };
@@ -2039,7 +2045,13 @@ async function inTransaction(
         return ok(null);
       }
     }
-    const answer = await run(await contextOf(deps, tx, caller, mail));
+    const ctx = await contextOf(deps, tx, caller, mail);
+    const answer = await run(ctx);
+    // In the write's own transaction, and only a first one: a replay returned above.
+    if (answer.ok && act !== null)
+      await tx.outbox.publish([
+        event(ctx, RecruitingActivityRecorded.name, { type: 'activity', id: deps.newId() }, act),
+      ]);
     if (answer.ok && key !== null)
       await tx.idempotency.put(
         key.key,
@@ -2124,7 +2136,13 @@ export function restHandler(
         key = { key: given, hash, status: r.status };
       }
     }
-    const answer = await inTransaction(deps, caller, (ctx) => r.run(ctx, input), key);
+    const answer = await inTransaction(
+      deps,
+      caller,
+      (ctx) => r.run(ctx, input),
+      key,
+      key === null ? null : routeActivity(r, params.value as Record<string, unknown>),
+    );
     if ('status' in answer) return answer;
     return answer.ok ? { status: r.status, body: answer.value } : refused(answer.error);
   };

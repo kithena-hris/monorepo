@@ -27,7 +27,10 @@ describe('settingsModules', () => {
       'Negative balance',
       'Attendance',
       'Approvals',
+      // Its own activity, the company's log filtered to Time Off.
+      'Activity log',
     ]);
+    expect(group?.settings.at(-1)?.path).toBe('/settings/activity?module=timeoff');
   });
 
   it('has no Time off group for somebody who may change none of it', () => {

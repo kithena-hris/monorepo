@@ -61,7 +61,7 @@ async function ask<T>(
     outcome: 'Shown',
     at: ctx.at,
   });
-  await audit(ctx, { action: `Used AI: ${feature}`, target: log.on, targetId: id });
+  await audit(ctx, { kind: 'ai_output', action: `Used AI: ${feature}`, target: log.on, targetId: id });
   return ok({ answer: answer.data, logId: id });
 }
 

@@ -12,6 +12,7 @@ export default ModuleManifest.parse({
   dependsOn: [],
   enrichedBy: ['people'],
   publishes: [
+    'timeoff.activity.recorded',
     'timeoff.request.requested',
     'timeoff.request.approved',
     'timeoff.request.rejected',

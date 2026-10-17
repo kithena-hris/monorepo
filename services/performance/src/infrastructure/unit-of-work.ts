@@ -5,13 +5,13 @@ import { outboxTable, publish, withTenant } from '@kithena/db-kit';
 import type { PersonId, TenantId } from '@kithena/contracts';
 import { logger, onShutdown } from '@kithena/telemetry';
 
-import type { AuditEntry, Member, Store, Tx, UnitOfWork, Where } from '../application/ports.js';
+import type { Member, Store, Tx, UnitOfWork, Where } from '../application/ports.js';
 import { COLUMNS, STORES, type Kind } from './records.js';
 
 /**
  * One tenant, one transaction, every store (PRF-036), over
- * `migrations/*_performance_core.sql`: the member projection, the audit log
- * and settings in tables of their own, every aggregate a row of
+ * `migrations/*_performance_core.sql`: the member projection and settings in
+ * tables of their own (the activity log is the company's, `docs/audit.md`), every aggregate a row of
  * `performance.record`. Onboarding's raw-SQL shape.
  */
 
@@ -99,23 +99,6 @@ function store<T extends { readonly id: string }>(
   };
 }
 
-function auditOf(r: Row): AuditEntry {
-  return {
-    id: String(r['id']),
-    at: str(r['at']) ?? '',
-    actorPersonId: str(r['actor_person_id']),
-    actorAccountId: String(r['actor_account_id']),
-    as: String(r['acting_as']),
-    action: String(r['action']),
-    target: String(r['target']),
-    targetId: str(r['target_id']),
-    where: String(r['via']),
-    outcome: r['outcome'] === 'refused' ? 'refused' : 'done',
-    fields: (r['fields'] as string[] | null) ?? [],
-    ai: r['ai'] === true,
-  };
-}
-
 function storesIn(tx: PostgresJsDatabase, T: string): Tx {
   const stores = Object.fromEntries(
     Object.entries(STORES).map(([name, kind]) => [name, store(tx, T, kind)]),
@@ -163,27 +146,6 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       },
       remove: async (a) => {
         await tx.execute(sql`DELETE FROM performance.admin WHERE account_id = ${a}`);
-      },
-    },
-    audit: {
-      record: async (e) => {
-        await tx.execute(sql`INSERT INTO performance.audit (tenant_id, id, at, actor_person_id, actor_account_id, acting_as, action, target, target_id, via, outcome, fields, ai)
-          VALUES (${T}, ${e.id}, ${e.at}, ${e.actorPersonId}, ${e.actorAccountId}, ${e.as}, ${e.action}, ${e.target}, ${e.targetId}, ${e.where}, ${e.outcome}, ${J(e.fields)}, ${e.ai})`);
-      },
-      list: async (f) => {
-        const parts: SQL[] = [sql`true`];
-        if (f.q !== undefined && f.q !== '')
-          parts.push(
-            sql`(action ILIKE ${`%${f.q}%`} OR target ILIKE ${`%${f.q}%`} OR acting_as ILIKE ${`%${f.q}%`})`,
-          );
-        if (f.refused === true) parts.push(sql`outcome = 'refused'`);
-        if (f.ai === true) parts.push(sql`ai`);
-        return (
-          await rows(
-            tx,
-            sql`SELECT * FROM performance.audit WHERE ${sql.join(parts, sql` AND `)} ORDER BY at DESC LIMIT ${f.limit}`,
-          )
-        ).map(auditOf);
       },
     },
     settings: {

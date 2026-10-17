@@ -26,7 +26,7 @@ export interface ActivityPage {
 
 export const Forbidden = failure(
   'FORBIDDEN',
-  'The activity log is for People administrators and HR',
+  'The activity log is for People administrators and HR, and a module’s for its administrators',
 );
 
 export function readActivity(deps: {
@@ -38,10 +38,13 @@ export function readActivity(deps: {
 ) => Promise<Result<ActivityPage>> {
   return async (reader, query) => {
     const support = reader.supportOperator !== null;
-    const roles = support
-      ? new Set<string>()
-      : await deps.readers.roles(reader.tenantId, reader.accountId);
-    if (!mayRead({ roles, support })) return err(Forbidden);
+    const [roles, administers] = support
+      ? [new Set<string>(), new Set<string>()]
+      : await Promise.all([
+          deps.readers.roles(reader.tenantId, reader.accountId),
+          deps.store.administers(reader.tenantId, reader.accountId),
+        ]);
+    if (!mayRead({ roles, support, administers }, query.filter.module)) return err(Forbidden);
     const rows = await deps.store.page(reader.tenantId, { ...query, limit: PAGE + 1 });
     const entries = rows.slice(0, PAGE);
     return ok({ entries, next: rows.length > PAGE ? (entries.at(-1)?.id ?? null) : null });

@@ -6,9 +6,15 @@ import {
   type PendingEvent,
   type Result,
 } from '@kithena/domain-kit';
-import type { CalendarDate, Instant } from '@kithena/contracts';
+import {
+  PerformanceActivityRecorded,
+  type ActivityArea,
+  type CalendarDate,
+  type Instant,
+  type ModuleActivity,
+} from '@kithena/contracts';
 
-import type { AuditEntry, Caller, Deps, Member, Tx } from './ports.js';
+import type { Caller, Deps, Member, Tx } from './ports.js';
 
 /**
  * What every use case starts from (PRF-004): who is asking, what they are to
@@ -129,9 +135,22 @@ export function event(
 export const publish = (ctx: Ctx, ...events: PendingEvent[]): Promise<void> =>
   ctx.tx.outbox.publish(events);
 
+/** Where an act falls in the activity log, from how it is worded, unless the call says. */
+function areaOf(action: string): ActivityArea {
+  if (/^(Read |Tried to read|Downloaded|Exported)/u.test(action)) return 'access';
+  if (action.startsWith('Used AI')) return 'ai';
+  if (action.includes('connected tool')) return 'integrations';
+  if (action === 'Changed settings') return 'settings';
+  return 'records';
+}
+
 /**
- * One line of the audit log (§24.1): every action, sensitive read and refused
- * attempt, with what it touched and the fields by name, never a value.
+ * One line of the company's activity log (§24.1, `docs/audit.md`): every
+ * action, sensitive read and refused attempt, with what it touched and the
+ * fields by name, never a value. Raised as `performance.activity.recorded` in
+ * the act's own transaction, so a retried command is one line and a rolled
+ * back one none; `platform/audit` keeps it under Performance's name, and
+ * Settings › Performance › Activity log reads it there.
  */
 export async function audit(
   ctx: Ctx,
@@ -139,31 +158,36 @@ export async function audit(
     readonly action: string;
     readonly target: string;
     readonly targetId?: string | null;
+    /** What `targetId` is: `cycle`, `review`, `goal` … */
+    readonly kind?: string;
     readonly fields?: readonly string[];
     readonly outcome?: 'done' | 'refused';
+    readonly reason?: string | null;
+    readonly area?: ActivityArea;
   },
 ): Promise<void> {
   const via = ctx.caller.via ?? 'Web';
-  const record: AuditEntry = {
-    id: ctx.deps.newId(),
-    at: ctx.at,
-    actorPersonId: ctx.viewer.personId,
-    actorAccountId: ctx.caller.accountId,
-    as:
-      ctx.caller.accountId === SYSTEM
-        ? 'Kithena'
-        : via === 'Ask Kithena'
-          ? `Ask Kithena for ${ctx.viewer.name}`
-          : ctx.viewer.name,
-    action: entry.action,
-    target: entry.target,
-    targetId: entry.targetId ?? null,
-    where: via,
+  const fields = entry.fields ?? [];
+  const id = entry.targetId ?? null;
+  const payload: ModuleActivity = {
+    area: entry.area ?? areaOf(entry.action),
+    action: entry.action.slice(0, 200),
+    detail:
+      fields.length === 0
+        ? null
+        : `${entry.outcome === 'refused' ? 'Why' : 'Fields'}: ${fields.join(', ')}.`.slice(0, 500),
+    subjectKind: id === null ? null : (entry.kind ?? null),
+    subjectId: id === null ? null : id.slice(0, 64),
+    subjectLabel: entry.target.slice(0, 300),
+    reason: entry.reason?.slice(0, 500) ?? null,
     outcome: entry.outcome ?? 'done',
-    fields: entry.fields ?? [],
+    via: ctx.caller.accountId === SYSTEM ? 'Kithena' : via.slice(0, 40),
     ai: via === 'Ask Kithena',
   };
-  await ctx.tx.audit.record(record);
+  await publish(
+    ctx,
+    event(ctx, PerformanceActivityRecorded.name, { type: 'activity', id: ctx.deps.newId() }, payload),
+  );
 }
 
 export const notFound = (what = 'that'): DomainFailure => failure('NOT_FOUND', `No such ${what}`);

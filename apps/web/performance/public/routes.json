@@ -205,10 +205,6 @@
       "component": "Settings"
     },
     {
-      "path": "/settings/performance/activity",
-      "component": "AuditLog"
-    },
-    {
       "path": "/settings/performance/ai-log",
       "component": "AiLog"
     },
@@ -509,13 +505,6 @@
       "for": ["hr", "admin"],
       "description": "Who is HR to Performance.",
       "icon": "permission"
-    },
-    {
-      "path": "/settings/performance/activity",
-      "label": "Activity log",
-      "for": ["hr", "admin"],
-      "description": "Every read of a review and every change, without values.",
-      "icon": "history"
     },
     {
       "path": "/settings/performance/ai-log",
