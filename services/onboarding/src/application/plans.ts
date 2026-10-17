@@ -102,6 +102,7 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
         hireId,
         personId: plan.personId,
         startDate: plan.startDate,
+        probationEnd: plan.probationEnd,
         tasks: plan.tasks.length,
       },
       plan.startDate,

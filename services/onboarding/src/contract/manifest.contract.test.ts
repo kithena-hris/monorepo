@@ -81,9 +81,15 @@ describe('the module stays sellable alone', () => {
     // People's events an external provider fills, identity's every deployment
     // has, and Recruiting's handover, which another ATS replaces with
     // `POST /v1/onboarding/hires`: nothing consumed is something only a
-    // sibling could produce.
+    // sibling could produce. Performance's released review is the exception
+    // that proves it: it only links the probation task to the review, and
+    // without Performance the task is simply done by hand.
     for (const name of manifest.consumes) {
-      expect(['people.', 'identity.', 'recruiting.'].some((p) => name.startsWith(p))).toBe(true);
+      expect(
+        ['people.', 'identity.', 'recruiting.', 'performance.review.released'].some((p) =>
+          name.startsWith(p),
+        ),
+      ).toBe(true);
     }
   });
 });

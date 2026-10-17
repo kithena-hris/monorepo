@@ -6,6 +6,7 @@ import {
   PersonIdentityLinked,
   PersonTerminated,
   PrehireCancelled,
+  ReviewReleased,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
   TenantEntitlementsChanged,
@@ -200,6 +201,27 @@ export function onboardingConsumer(deps: Deps): (raw: unknown) => Promise<Outcom
           return (await tx.members.upsert({ ...m, status: 'terminated' }, event.eventId))
             ? 'applied'
             : 'unchanged';
+        });
+      }
+      // Performance wrote the probation review: the task links to it (Performance PRD §16.3).
+      // The decision stays here, with the manager or HR.
+      case ReviewReleased.name: {
+        const event = parse(ReviewReleased, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        return deps.uow.run(event.tenantId, async (tx) => {
+          const plan = (await tx.plans.list()).find(
+            (x) => x.personId === p.subjectId && x.state !== 'cancelled',
+          );
+          const task = plan?.tasks.find((t) => t.key === 'probation_review' && t.state === 'open');
+          if (plan === undefined || task === undefined) return 'ignored';
+          const link = `/performance/cycles/${p.cycleId}/about/${p.subjectId}`;
+          if (task.link === link) return 'unchanged';
+          await tx.plans.save({
+            ...plan,
+            tasks: plan.tasks.map((t) => (t.id === task.id ? { ...t, link } : t)),
+          });
+          return 'applied';
         });
       }
       case TenantAdministratorNamed.name:

@@ -298,7 +298,7 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       overview marks who is away in the next month ("Away until", never why).
 - [x] **PRF-191** Documents: the Performance and development type and filing
       with `subjectRef`. PRD §20.
-- [ ] **PRF-192** Onboarding: probation dates from its events and its task
+- [x] **PRF-192** Onboarding: probation dates from its events and its task
       linking to the review. PRD §16.3.
 - [x] **PRF-193** People: "Give feedback" on the person page. PRD §26.
 - [x] **PRF-194** Assistant capabilities in
@@ -368,8 +368,10 @@ otherwise, the item says what was built instead.
     person as "Performance and development", which Documents seeds for every
     company. **Not built yet**: the works council gate (PRF-049), the AI Act
     file (PRF-143, parked to launch prep), Phase 4's provider integrations,
-    Onboarding's probation dates (PRF-192), and Time Off's absences beyond
-    the overview's "Away until" (PRF-190).
+    and Time Off's absences beyond the overview's "Away until" (PRF-190).
+    Onboarding now says when probation ends as a plan starts, and its
+    probation task links to the review once Performance releases it
+    (PRF-192).
 16. **A super administrator administers every module.** A People
     administrator, however they became one, is named administrator of every
     module the company has, whenever either happened (identity). People's

@@ -29,6 +29,8 @@ export const PlanStarted = defineEvent(
     hireId: HireId,
     personId: memberId().nullable(),
     startDate: CalendarDate,
+    /** When probation ends, for a probation review in Performance; absent from older events. */
+    probationEnd: CalendarDate.nullable().optional(),
     tasks: z.int().nonnegative().register(policy, asInternal()),
   }),
 );
