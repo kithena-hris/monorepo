@@ -1,4 +1,6 @@
 import {
+  FieldControl,
+  DatePicker,
   Alert,
   Badge,
   BarChart,
@@ -265,13 +267,15 @@ function NewSession({
         <div className="flex flex-col gap-3">
           <Field>
             <FieldLabel>Meets on</FieldLabel>
-            <Input
-              type="date"
-              value={meetsOn}
-              onChange={(e) => {
-                setMeetsOn(e.target.value);
-              }}
-            />
+            <FieldControl>
+              <DatePicker
+                label="Meets on"
+                value={meetsOn === '' ? null : meetsOn}
+                onChange={(date) => {
+                  setMeetsOn(date ?? '');
+                }}
+              />
+            </FieldControl>
           </Field>
           <Alert tone="info" title="Scores are held from release">
             {`Submitted manager reviews in ${cycleName}${department === '' ? '' : `, ${department}`} are held until the session is finalised. ${plural(calibrators.length, 'calibrator')} besides HR.`}

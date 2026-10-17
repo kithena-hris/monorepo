@@ -445,7 +445,7 @@ function NewGoal({
           {data.may.company ? (
             <RadioGroup
               aria-label="Whose goal"
-              className="grid gap-2 sm:grid-cols-2"
+              className="flex flex-col gap-2"
               value={ownerKind}
               onValueChange={(v) => {
                 setOwnerKind(v === 'company' ? 'company' : 'person');
@@ -893,7 +893,7 @@ function CheckIn({
       )}
       <RadioGroup
         aria-label="Confidence"
-        className="grid gap-2 sm:grid-cols-3"
+        className="flex flex-col gap-2"
         value={confidence}
         onValueChange={setConfidence}
       >

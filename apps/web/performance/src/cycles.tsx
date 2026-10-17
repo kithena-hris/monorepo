@@ -1,4 +1,8 @@
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Alert,
   Badge,
   Button,
@@ -9,6 +13,8 @@ import {
   Checkbox,
   Chip,
   ChipRow,
+  Combobox,
+  DatePicker,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -43,6 +49,7 @@ import {
   TableHeader,
   TableRow,
   TertiaryNav,
+  TimePicker,
   icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -53,6 +60,7 @@ import {
   Live,
   Modal,
   Person,
+  PersonPicker,
   Refusal,
   ReviewBadge,
   Search,
@@ -309,13 +317,15 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
             </Field>
             <Field>
               <FieldLabel>Starts</FieldLabel>
-              <Input
-                type="date"
-                value={start}
-                onChange={(e) => {
-                  setStart(e.target.value);
-                }}
-              />
+              <FieldControl>
+                <DatePicker
+                  label="Starts"
+                  value={start === '' ? null : start}
+                  onChange={(date) => {
+                    setStart(date ?? '');
+                  }}
+                />
+              </FieldControl>
               <FieldDescription>
                 A start today launches it when you confirm; a later one schedules it.
               </FieldDescription>
@@ -434,7 +444,8 @@ export interface SetupData {
   readonly action: 'launch' | 'schedule' | 'past';
 }
 
-const STEPS = ['Basics', 'Participants', 'Activities', 'Release', 'Review'];
+/** Four steps, each one thing: when, who, which reviews, and how it ends. */
+const STEPS = ['Basics', 'People', 'Reviews', 'Launch'];
 const ZONES = [
   'Europe/Madrid',
   'Europe/London',
@@ -515,15 +526,9 @@ function SetupDialog({
       >
         <Refusal error={act.error} />
         {step === 0 ? <Basics c={c} save={save} action={data.action} /> : null}
-        {step === 1 ? <Participants c={c} data={data} save={save} act={act} {...props} /> : null}
-        {step === 2 ? (
-          <div className="flex flex-col gap-6">
-            <Activities c={c} data={data} save={save} activity={activity} />
-            <Deadlines c={c} data={data} save={save} activity={activity} />
-          </div>
-        ) : null}
-        {step === 3 ? <Visibility c={c} save={save} /> : null}
-        {step === 4 ? <Checks c={c} data={data} /> : null}
+        {step === 1 ? <Participants c={c} data={data} save={save} act={act} /> : null}
+        {step === 2 ? <Reviews c={c} data={data} save={save} activity={activity} /> : null}
+        {step === 3 ? <Launch c={c} data={data} save={save} /> : null}
       </StepDialog>
     </div>
   );
@@ -558,6 +563,7 @@ function Basics({
         <FieldLabel>Description, shown to participants</FieldLabel>
         <Input
           value={description}
+          placeholder="Optional"
           onChange={(e) => {
             setDescription(e.target.value);
           }}
@@ -566,28 +572,32 @@ function Basics({
           }}
         />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field>
-          <FieldLabel>Starts</FieldLabel>
-          <Input
-            type="date"
+      <Field>
+        <FieldLabel>Starts</FieldLabel>
+        <FieldControl>
+          <DatePicker
+            label="Starts"
             value={c.start.date}
-            onChange={(e) => {
-              if (e.target.value !== '') save({ start: { ...c.start, date: e.target.value } });
+            onChange={(date) => {
+              if (date !== null) save({ start: { ...c.start, date } });
             }}
           />
-        </Field>
-        <Field>
+        </FieldControl>
+      </Field>
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <Field className="flex-1">
           <FieldLabel>At</FieldLabel>
-          <Input
-            type="time"
-            value={c.start.time}
-            onChange={(e) => {
-              if (e.target.value !== '') save({ start: { ...c.start, time: e.target.value } });
-            }}
-          />
+          <FieldControl>
+            <TimePicker
+              label="At"
+              value={c.start.time}
+              onChange={(time) => {
+                if (time !== null) save({ start: { ...c.start, time } });
+              }}
+            />
+          </FieldControl>
         </Field>
-        <Field>
+        <Field className="flex-1">
           <FieldLabel>Time zone</FieldLabel>
           <Select
             value={c.start.zone}
@@ -614,56 +624,31 @@ function Basics({
         tone="info"
         title={
           action === 'launch'
-            ? 'Starts today, so this cycle launches when you confirm'
-            : 'Starts in the future, so this cycle will be scheduled'
+            ? 'Starts today, so it launches when you confirm'
+            : action === 'past'
+              ? 'That start has passed: choose today or later'
+              : 'Starts later, so it will be scheduled'
         }
-      >
-        A start today or earlier launches it as soon as you confirm. Nominations open at the start.
-      </Alert>
-      <Field>
-        <FieldLabel>Goals in this cycle</FieldLabel>
-        <RadioGroup
-          aria-label="Goals in this cycle"
-          className="grid gap-2 sm:grid-cols-3"
-          value={c.goals}
-          onValueChange={(v) => {
-            save({ goals: v as CycleSetup['goals'] });
-          }}
-        >
-          <RadioCard value="none">Not included</RadioCard>
-          <RadioCard
-            value="context"
-            description="Reviewers see each person’s goals beside the form."
-          >
-            Shown as context
-          </RadioCard>
-          <RadioCard
-            value="scored"
-            description="Kithena adds a generated section with each goal and its score."
-          >
-            Scored in a goals section
-          </RadioCard>
-        </RadioGroup>
-      </Field>
+      />
     </div>
   );
 }
 
+/** The filter's departments, as many as wanted, and whether people on leave are in. */
 function Participants({
   c,
   data,
   save,
   act,
-  ...props
-}: ScreenProps<SetupData> & {
+}: {
   readonly c: CycleSetup;
   readonly data: SetupData;
   readonly save: (p: Partial<CycleSetup>) => void;
   readonly act: Act;
 }): JSX.Element {
-  const [dept, setDept] = useState('');
   const [excluding, setExcluding] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [adding, setAdding] = useState<readonly string[]>([]);
   const [chat, setChat] = useState('');
   const [proposal, setProposal] = useState<{
     filter: { field: string; value: string }[];
@@ -674,119 +659,99 @@ function Participants({
   const setFilter = (next: readonly { field: string; value: string }[]): void => {
     save({ participants: { ...c.participants, filter: next } });
   };
+  const departments = filter.filter((f) => f.field === 'department').map((f) => f.value);
+  const onLeave = filter.some((f) => f.field === 'status' && f.value === 'on_leave');
+  // Anything else the filter holds (set in words, or before) is kept as it was.
+  const others = filter.filter((f) => f.field !== 'department' && f.field !== 'status');
+  const statuses = (leave: boolean) => [
+    { field: 'status', value: 'active' },
+    ...(leave ? [{ field: 'status', value: 'on_leave' }] : []),
+  ];
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <p className="text-sm font-semibold">Who’s in</p>
-        <div className="flex flex-wrap items-center gap-2">
-          {filter.map((f, i) => (
-            <Chip
-              key={`${f.field}-${f.value}`}
-              selected
-              onRemove={() => {
-                setFilter(filter.filter((_, j) => j !== i));
+      <Field>
+        <FieldLabel>Departments</FieldLabel>
+        {data.fields.departments.length === 0 ? (
+          <FieldDescription>
+            No departments yet. Everyone active is in; add people by name below.
+          </FieldDescription>
+        ) : (
+          <FieldControl>
+            <Combobox
+              label="Departments"
+              multiple
+              chips
+              clearable
+              placeholder="Every department"
+              searchPlaceholder="Find a department"
+              options={data.fields.departments.map((d) => ({ value: d, label: d }))}
+              value={departments}
+              onChange={(v) => {
+                const chosen = Array.isArray(v) ? v : v === null ? [] : [v];
+                setFilter([
+                  ...chosen.map((value) => ({ field: 'department', value: String(value) })),
+                  ...statuses(onLeave),
+                  ...others,
+                ]);
               }}
-              removeLabel={`Remove ${f.field} ${f.value}`}
-            >
-              {`${f.field === 'startedBefore' ? 'Started before' : words(f.field)} is ${f.value}`}
-            </Chip>
-          ))}
-          <Select
-            value={dept}
-            onValueChange={(v) => {
-              setDept('');
-              setFilter([...filter, { field: 'department', value: v }]);
-            }}
-          >
-            <SelectTrigger aria-label="Add a department" className="w-56">
-              <SelectValue placeholder="Add a department" />
-            </SelectTrigger>
-            <SelectContent>
-              {data.fields.departments.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {d}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 rounded-md bg-surface-sunken p-3">
-        <Field>
-          <FieldLabel>Or say it in words</FieldLabel>
-          <Input
-            value={chat}
-            placeholder="Add product design too, but leave out anyone on leave"
-            onChange={(e) => {
-              setChat(e.target.value);
-            }}
-          />
-        </Field>
-        <div>
-          <Button
-            size="sm"
-            variant="secondary"
-            startIcon={<icons.assistant aria-hidden />}
-            disabled={chat.trim().length < 3}
-            loading={act.pending}
-            onClick={() => {
-              act.run(
-                'PerformanceParticipantsInWords',
-                { id: c.id, input: { text: chat } },
-                (d) => {
-                  setProposal(d as typeof proposal);
-                },
-              );
-            }}
-          >
-            Propose the change
-          </Button>
-        </div>
-        {proposal === null ? null : (
-          <Alert
-            tone="info"
-            title="Change the participants"
-            action={
-              <span className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    setProposal(null);
-                  }}
-                >
-                  Discard
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setFilter(proposal.filter);
-                    setProposal(null);
-                  }}
-                >
-                  Apply to the draft
-                </Button>
-              </span>
-            }
-          >
-            {proposal.summary.join(' · ')}
-          </Alert>
+            />
+          </FieldControl>
         )}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Card>
-          <CardHeader>
-            <CardTitle level={3}>{plural(p.count, 'person', 'people')}</CardTitle>
-            <p className="text-sm text-fg-muted">{`${String(p.fromFilter)} from the filter, ${String(p.included)} by hand, ${String(p.excluded)} excluded`}</p>
-          </CardHeader>
-          <CardContent className="max-h-80 overflow-auto">
+      </Field>
+      <SwitchRow
+        label="Include people on leave"
+        hint="Off: only people working now are reviewed."
+        checked={onLeave}
+        onChange={(on) => {
+          setFilter([
+            ...departments.map((value) => ({ field: 'department', value })),
+            ...statuses(on),
+            ...others,
+          ]);
+        }}
+      />
+      <Field>
+        <FieldLabel>Add someone by name</FieldLabel>
+        <PersonPicker
+          act={act}
+          label="Add someone by name"
+          value={adding}
+          onChange={(ids) => {
+            setAdding([]);
+            const id = ids[0];
+            if (id === undefined || c.participants.include.some((x) => x.personId === id)) return;
+            save({
+              participants: {
+                ...c.participants,
+                include: [
+                  ...c.participants.include,
+                  { personId: id, reason: null, by: 'You', at: new Date().toISOString() },
+                ],
+                exclude: c.participants.exclude.filter((x) => x.personId !== id),
+              },
+            });
+          }}
+        />
+      </Field>
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>{plural(p.count, 'person', 'people')}</CardTitle>
+          <p className="text-sm text-fg-muted">{`${String(p.fromFilter)} from the filter, ${String(p.included)} added by name, ${String(p.excluded)} left out`}</p>
+        </CardHeader>
+        <CardContent className="max-h-80 overflow-auto">
+          {p.rows.length === 0 ? (
+            <EmptyState
+              title="Nobody yet"
+              description="Choose a department, or add people by name."
+            />
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Person</TableHead>
                   <TableHead>Manager</TableHead>
                   <TableHead>
-                    <span className="sr-only">Note</span>
+                    <span className="sr-only">Leave out</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -808,7 +773,7 @@ function Participants({
                             setExcluding(r.personId);
                           }}
                         >
-                          Exclude
+                          Leave out
                         </Button>
                       ) : (
                         <Badge
@@ -823,46 +788,105 @@ function Participants({
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-        <div className="flex flex-col gap-3">
-          <Card>
-            <CardContent>
-              <SwitchRow
-                label="Keep in step until launch"
-                hint="People who start matching are added; people who stop matching are listed below."
-                checked={c.participants.keepInStep}
-                onChange={(on) => {
-                  save({ participants: { ...c.participants, keepInStep: on } });
+          )}
+        </CardContent>
+      </Card>
+      <Accordion type="multiple">
+        <AccordionItem value="words">
+          <AccordionTrigger>Describe who, in words</AccordionTrigger>
+          <AccordionContent>
+            <div className="flex flex-col gap-3">
+              <Field>
+                <FieldLabel>Who should be in</FieldLabel>
+                <Input
+                  value={chat}
+                  placeholder="Product design and engineering, without anyone on leave"
+                  onChange={(e) => {
+                    setChat(e.target.value);
+                  }}
+                />
+              </Field>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="self-start"
+                startIcon={<icons.assistant aria-hidden />}
+                disabled={chat.trim().length < 3}
+                loading={act.pending}
+                onClick={() => {
+                  act.run(
+                    'PerformanceParticipantsInWords',
+                    { id: c.id, input: { text: chat } },
+                    (d) => {
+                      setProposal(d as typeof proposal);
+                    },
+                  );
                 }}
-              />
-            </CardContent>
-          </Card>
-          {p.noLongerMatches.length === 0 ? null : (
-            <Card>
-              <CardHeader>
-                <CardTitle
-                  level={3}
-                >{`No longer matches · ${String(p.noLongerMatches.length)}`}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2">
+              >
+                Propose the change
+              </Button>
+              {proposal === null ? null : (
+                <Alert
+                  tone="info"
+                  title="Change who is in"
+                  action={
+                    <span className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setProposal(null);
+                        }}
+                      >
+                        Discard
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setFilter(proposal.filter);
+                          setProposal(null);
+                        }}
+                      >
+                        Apply
+                      </Button>
+                    </span>
+                  }
+                >
+                  {proposal.summary.join(' · ')}
+                </Alert>
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="step">
+          <AccordionTrigger>Until it launches</AccordionTrigger>
+          <AccordionContent>
+            <SwitchRow
+              label="Keep in step"
+              hint="People who start matching are added; people who stop matching are listed for you to decide."
+              checked={c.participants.keepInStep}
+              onChange={(on) => {
+                save({ participants: { ...c.participants, keepInStep: on } });
+              }}
+            />
+            {p.noLongerMatches.length === 0 ? null : (
+              <div className="mt-3 flex flex-col gap-2">
+                <p className="text-sm font-semibold">{`No longer matches · ${String(p.noLongerMatches.length)}`}</p>
                 {p.noLongerMatches.map((n) => (
                   <Person key={n.personId} name={n.name} sub={n.title} />
                 ))}
-              </CardContent>
-            </Card>
-          )}
-          <Alert tone="neutral" title="Exclusions need a reason">
-            The reason is kept with the exclusion and shown in the audit log.
-          </Alert>
-        </div>
-      </div>
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
       <Modal
         open={excluding !== null}
         onClose={() => {
           setExcluding(null);
         }}
-        title="Exclude from this cycle?"
+        title="Leave them out of this cycle?"
+        description="The reason is kept with the decision, in the activity log."
         footer={
           <>
             <Button
@@ -891,7 +915,7 @@ function Participants({
                 setReason('');
               }}
             >
-              Exclude
+              Leave out
             </Button>
           </>
         }
@@ -907,12 +931,12 @@ function Participants({
           />
         </Field>
       </Modal>
-      {props.search === undefined ? null : null}
     </div>
   );
 }
 
-function Activities({
+/** Which reviews, each with its form and when it is due; goals; the details folded away. */
+function Reviews({
   c,
   data,
   save,
@@ -923,176 +947,57 @@ function Activities({
   readonly save: (p: Partial<CycleSetup>) => void;
   readonly activity: (k: Kind, p: Partial<ActivityConfig>) => void;
 }): JSX.Element {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-fg-muted">
-        Each activity is a review kind with its own form. Off kinds are skipped.
-      </p>
-      {KINDS.map((k) => {
-        const a = c.activities[k];
-        const options = data.templates.filter(
-          (t) =>
-            t.published !== null &&
-            (k === 'goals' || t.purpose.includes(k) || t.purpose.length === 0),
-        );
-        return (
-          <Card key={k}>
-            <CardContent className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="min-w-40 flex-1 font-semibold">{kindLabel(k)}</span>
-                {a.on && k !== 'goals' ? (
-                  <Select
-                    value={a.templateId ?? ''}
-                    onValueChange={(v) => {
-                      activity(k, { templateId: v });
-                    }}
-                  >
-                    <SelectTrigger aria-label={`${kindLabel(k)} form`} className="w-72">
-                      <SelectValue placeholder="Pick a published form" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(options.length === 0
-                        ? data.templates.filter((t) => t.published !== null)
-                        : options
-                      ).map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {`${t.name} · v${String(t.published ?? 1)}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : null}
-                <Switch
-                  aria-label={`${kindLabel(k)} on`}
-                  checked={a.on}
-                  onCheckedChange={(on) => {
-                    activity(k, { on });
-                  }}
-                />
-              </div>
-              {k === 'peer' && a.on ? (
-                <div className="grid gap-3 rounded-md bg-surface-sunken p-3 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel>Who picks peers</FieldLabel>
-                    <SegmentedControl
-                      value={c.peer.picker}
-                      onValueChange={(v) => {
-                        save({ peer: { ...c.peer, picker: v } });
-                      }}
-                    >
-                      <SegmentedControlItem value="subject">The person</SegmentedControlItem>
-                      <SegmentedControlItem value="manager">Their manager</SegmentedControlItem>
-                      <SegmentedControlItem value="hr">HR</SegmentedControlItem>
-                    </SegmentedControl>
-                  </Field>
-                  <div className="grid grid-cols-2 gap-2">
-                    <NumberField
-                      label="At least"
-                      value={c.peer.min}
-                      min={0}
-                      max={20}
-                      onChange={(v) => {
-                        if (v !== null) save({ peer: { ...c.peer, min: v } });
-                      }}
-                    />
-                    <NumberField
-                      label="At most"
-                      value={c.peer.max}
-                      min={1}
-                      max={20}
-                      onChange={(v) => {
-                        if (v !== null) save({ peer: { ...c.peer, max: v } });
-                      }}
-                    />
-                  </div>
-                  <SwitchRow
-                    label="Manager approves nominations"
-                    checked={c.peer.approval}
-                    onChange={(on) => {
-                      save({ peer: { ...c.peer, approval: on } });
-                    }}
-                  />
-                  <SwitchRow
-                    label="Reviewers can decline, and the person replaces them"
-                    checked={c.peer.declineReplace}
-                    onChange={(on) => {
-                      save({ peer: { ...c.peer, declineReplace: on } });
-                    }}
-                  />
-                  <SwitchRow
-                    label="All peers instead"
-                    hint={`The person’s team (same manager), capped at ${String(c.peer.max)}, chosen the same way each time. Anyone else joins by nomination.`}
-                    checked={c.peer.all}
-                    onChange={(on) => {
-                      save({ peer: { ...c.peer, all: on } });
-                    }}
-                  />
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
-
-function Deadlines({
-  c,
-  data,
-  save,
-  activity,
-}: {
-  readonly c: CycleSetup;
-  readonly data: SetupData;
-  readonly save: (p: Partial<CycleSetup>) => void;
-  readonly activity: (k: Kind, p: Partial<ActivityConfig>) => void;
-}): JSX.Element {
-  const on = KINDS.filter((k) => c.activities[k].on);
   const rules = c.reminders.rules;
   return (
     <div className="flex flex-col gap-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Activity</TableHead>
-            <TableHead>Due, days after</TableHead>
-            <TableHead>Works out to</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {c.activities.peer.on && !c.peer.all ? (
-            <TableRow>
-              <TableCell className="font-medium">Peer nominations</TableCell>
-              <TableCell>
-                <NumberField
-                  label="Days after the start"
-                  value={c.nominations.days ?? 3}
-                  min={0}
-                  max={90}
-                  size="sm"
-                  onChange={(v) => {
-                    if (v !== null)
-                      save({ nominations: { kind: 'relative', days: v, from: 'start' } });
-                  }}
-                />
-              </TableCell>
-              <TableCell>{day(data.due['nominations'])}</TableCell>
-            </TableRow>
-          ) : null}
-          {on.map((k) => {
-            const d = c.activities[k].due;
-            return (
-              <TableRow key={k}>
-                <TableCell className="font-medium">{kindLabel(k)}</TableCell>
-                <TableCell>
-                  {d.kind === 'relative' ? (
+      {KINDS.filter((k) => k !== 'goals').map((k) => {
+        const a = c.activities[k];
+        const published = data.templates.filter((t) => t.published !== null);
+        const fitting = published.filter((t) => t.purpose.includes(k) || t.purpose.length === 0);
+        const options = fitting.length === 0 ? published : fitting;
+        const d = a.due;
+        return (
+          <Card key={k}>
+            <CardContent className="flex flex-col gap-4">
+              <SwitchRow
+                label={kindLabel(k)}
+                hint={a.on ? 'Part of this cycle' : 'Not in this cycle'}
+                checked={a.on}
+                onChange={(on) => {
+                  activity(k, { on });
+                }}
+              />
+              {a.on ? (
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <Field className="flex-1">
+                    <FieldLabel>Form</FieldLabel>
+                    <Select
+                      value={a.templateId ?? ''}
+                      onValueChange={(v) => {
+                        activity(k, { templateId: v });
+                      }}
+                    >
+                      <FieldControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a published form" />
+                        </SelectTrigger>
+                      </FieldControl>
+                      <SelectContent>
+                        {options.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {`${t.name} · v${String(t.published ?? 1)} · ${plural(t.questions, 'question')}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <div className="sm:w-56">
                     <NumberField
-                      label={`Days after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`}
+                      label={`Due, days after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`}
+                      hint={`Works out to ${day(data.due[k])}`}
                       value={d.days ?? 14}
                       min={0}
                       max={365}
-                      size="sm"
                       onChange={(v) => {
                         if (v !== null)
                           activity(k, {
@@ -1100,68 +1005,167 @@ function Deadlines({
                           });
                       }}
                     />
-                  ) : (
-                    <Input
-                      type="date"
-                      aria-label={`${kindLabel(k)} due`}
-                      value={d.date ?? ''}
-                      onChange={(e) => {
-                        activity(k, { due: { kind: 'exact', date: e.target.value } });
-                      }}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>{day(data.due[k])}</TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-      <Card>
-        <CardHeader>
-          <CardTitle level={3}>Reminders</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <ChipRow aria-label="Reminders">
-            {REMINDERS.map(([v, l]) => (
-              <Chip
-                key={v}
-                selected={rules.includes(v)}
-                onClick={() => {
-                  save({
-                    reminders: {
-                      ...c.reminders,
-                      rules: rules.includes(v) ? rules.filter((x) => x !== v) : [...rules, v],
-                    },
-                  });
+                  </div>
+                </div>
+              ) : null}
+              {k === 'peer' && a.on ? (
+                <Accordion type="multiple">
+                  <AccordionItem value="peers">
+                    <AccordionTrigger>Who reviews, and how they are chosen</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="flex flex-col gap-4">
+                        <SwitchRow
+                          label="Every teammate"
+                          hint={`The person’s team (same manager), up to ${String(c.peer.max)}. Off: peers are nominated.`}
+                          checked={c.peer.all}
+                          onChange={(on) => {
+                            save({ peer: { ...c.peer, all: on } });
+                          }}
+                        />
+                        {c.peer.all ? null : (
+                          <>
+                            <Field>
+                              <FieldLabel>Who nominates</FieldLabel>
+                              <SegmentedControl
+                                value={c.peer.picker}
+                                onValueChange={(v) => {
+                                  save({ peer: { ...c.peer, picker: v } });
+                                }}
+                              >
+                                <SegmentedControlItem value="subject">
+                                  The person
+                                </SegmentedControlItem>
+                                <SegmentedControlItem value="manager">
+                                  Their manager
+                                </SegmentedControlItem>
+                                <SegmentedControlItem value="hr">HR</SegmentedControlItem>
+                              </SegmentedControl>
+                            </Field>
+                            <NumberField
+                              label="Nominations due, days after the start"
+                              hint={`Works out to ${day(data.due['nominations'])}`}
+                              value={c.nominations.days ?? 3}
+                              min={0}
+                              max={90}
+                              onChange={(v) => {
+                                if (v !== null)
+                                  save({
+                                    nominations: { kind: 'relative', days: v, from: 'start' },
+                                  });
+                              }}
+                            />
+                            <SwitchRow
+                              label="The manager approves nominations"
+                              checked={c.peer.approval}
+                              onChange={(on) => {
+                                save({ peer: { ...c.peer, approval: on } });
+                              }}
+                            />
+                          </>
+                        )}
+                        <NumberField
+                          label="At least"
+                          value={c.peer.min}
+                          min={0}
+                          max={20}
+                          onChange={(v) => {
+                            if (v !== null) save({ peer: { ...c.peer, min: v } });
+                          }}
+                        />
+                        <NumberField
+                          label="At most"
+                          value={c.peer.max}
+                          min={1}
+                          max={20}
+                          onChange={(v) => {
+                            if (v !== null) save({ peer: { ...c.peer, max: v } });
+                          }}
+                        />
+                        <SwitchRow
+                          label="A reviewer can decline, and is replaced"
+                          checked={c.peer.declineReplace}
+                          onChange={(on) => {
+                            save({ peer: { ...c.peer, declineReplace: on } });
+                          }}
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : null}
+            </CardContent>
+          </Card>
+        );
+      })}
+      <Field>
+        <FieldLabel>Goals</FieldLabel>
+        <RadioGroup
+          aria-label="Goals"
+          className="flex flex-col gap-2"
+          value={c.goals}
+          onValueChange={(v) => {
+            save({ goals: v as CycleSetup['goals'] });
+          }}
+        >
+          <RadioCard value="none">Not part of this cycle</RadioCard>
+          <RadioCard
+            value="context"
+            description="Reviewers see each person’s goals beside the form."
+          >
+            Shown beside the review
+          </RadioCard>
+          <RadioCard value="scored" description="A section is added with each goal and its score.">
+            Scored in the review
+          </RadioCard>
+        </RadioGroup>
+      </Field>
+      <Accordion type="multiple">
+        <AccordionItem value="reminders">
+          <AccordionTrigger>Reminders</AccordionTrigger>
+          <AccordionContent>
+            <div className="flex flex-col gap-3">
+              <ChipRow aria-label="When">
+                {REMINDERS.map(([v, l]) => (
+                  <Chip
+                    key={v}
+                    selected={rules.includes(v)}
+                    onClick={() => {
+                      save({
+                        reminders: {
+                          ...c.reminders,
+                          rules: rules.includes(v) ? rules.filter((x) => x !== v) : [...rules, v],
+                        },
+                      });
+                    }}
+                  >
+                    {l}
+                  </Chip>
+                ))}
+              </ChipRow>
+              <SwitchRow label="Inbox" hint="Always" checked locked="Always on" />
+              <SwitchRow
+                label="Email"
+                hint="By each person’s preference"
+                checked={c.reminders.email}
+                onChange={(on) => {
+                  save({ reminders: { ...c.reminders, email: on } });
                 }}
-              >
-                {l}
-              </Chip>
-            ))}
-          </ChipRow>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <SwitchRow label="Inbox" hint="Always" checked locked="Always on" />
-            <SwitchRow
-              label="Email"
-              hint="By each person’s preference"
-              checked={c.reminders.email}
-              onChange={(on) => {
-                save({ reminders: { ...c.reminders, email: on } });
-              }}
-            />
-            <SwitchRow
-              label="Chat app"
-              hint="By preference, when connected"
-              checked={c.reminders.chat}
-              onChange={(on) => {
-                save({ reminders: { ...c.reminders, chat: on } });
-              }}
-            />
-          </div>
-          <p className="text-sm text-fg-muted">Reminders stop for a review once it’s submitted.</p>
-        </CardContent>
-      </Card>
+              />
+              <SwitchRow
+                label="Chat app"
+                hint="By each person’s preference, when connected"
+                checked={c.reminders.chat}
+                onChange={(on) => {
+                  save({ reminders: { ...c.reminders, chat: on } });
+                }}
+              />
+              <p className="text-sm text-fg-muted">
+                A review’s reminders stop once it is submitted.
+              </p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
@@ -1172,17 +1176,21 @@ const NAMES = [
   ['writer', 'The writer chooses'],
 ] as const;
 
-function Visibility({
+/** How it ends (release), the details of who sees what folded away, and what stops a launch. */
+function Launch({
   c,
+  data,
   save,
 }: {
   readonly c: CycleSetup;
+  readonly data: SetupData;
   readonly save: (p: Partial<CycleSetup>) => void;
 }): JSX.Element {
   const v = c.visibility;
   const set = (patch: Partial<CycleSetup['visibility']>): void => {
     save({ visibility: { ...v, ...patch } });
   };
+  const blocks = data.checks.filter((i) => i.level === 'block').length;
   const names = (label: string, value: string, key: 'peerNames' | 'upwardNames'): JSX.Element => (
     <Field>
       <FieldLabel>{label}</FieldLabel>
@@ -1209,147 +1217,127 @@ function Visibility({
   );
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {names('Peer reviews: names shown to the subject', v.peerNames, 'peerNames')}
-        {names('Upward reviews: names shown to the subject', v.upwardNames, 'upwardNames')}
-      </div>
+      {data.checks.map((i) => (
+        <Alert
+          key={`${i.level}-${i.title}`}
+          tone={i.level === 'block' ? 'danger' : i.level === 'warn' ? 'warning' : 'success'}
+          title={i.title}
+        >
+          {i.detail}
+        </Alert>
+      ))}
       <p className="text-sm text-fg-muted">
-        The subject’s manager and HR always see who wrote what. Confidential answers show only once
-        the minimum is in.
+        {blocks === 0
+          ? 'Nothing stops this cycle. Warnings don’t.'
+          : `${plural(blocks, 'issue')} ${blocks === 1 ? 'stops' : 'stop'} it. Warnings don’t.`}
       </p>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Field>
-          <FieldLabel>Release to the subject</FieldLabel>
-          <RadioGroup
-            aria-label="Release"
-            value={v.release.mode}
-            onValueChange={(mode) => {
-              set({ release: { ...v.release, mode } });
-            }}
-          >
-            <RadioCard
-              value="close"
-              description="Once calibration is finalised, when the cycle follows one."
-            >
-              When the cycle closes
-            </RadioCard>
-            <RadioCard value="hr_date" description="Everyone at once.">
-              On a date
-            </RadioCard>
-            <RadioCard
-              value="manager"
-              description="The manager releases each one once it is submitted."
-            >
-              As each is submitted
-            </RadioCard>
-          </RadioGroup>
-          {v.release.mode === 'hr_date' ? (
-            <Input
-              type="date"
-              aria-label="Release date"
-              value={v.release.date ?? ''}
-              onChange={(e) => {
-                set({
-                  release: { ...v.release, date: e.target.value === '' ? null : e.target.value },
-                });
-              }}
-            />
-          ) : null}
-        </Field>
-        <div className="flex flex-col gap-1">
-          <SwitchRow
-            label="Ask for an acknowledgement"
-            hint="“I’ve read this” is not agreement."
-            checked={v.acknowledge}
-            onChange={(on) => {
-              set({ acknowledge: on });
-            }}
-          />
-          <SwitchRow
-            label="Let the subject comment"
-            hint="Shown to the manager and HR"
-            checked={v.subjectComment}
-            onChange={(on) => {
-              set({ subjectComment: on });
-            }}
-          />
-          <SwitchRow
-            label="Share the peer summary"
-            hint="Peer answers, without names"
-            checked={v.peerSummary}
-            onChange={(on) => {
-              set({ peerSummary: on });
-            }}
-          />
-          <NumberField
-            label="Response minimum"
-            hint="For confidential answers. Below it, answers are held back and the reason is shown."
-            value={v.minimum}
-            min={1}
-            max={20}
-            onChange={(n) => {
-              if (n !== null) set({ minimum: n });
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Checks({ c, data }: { readonly c: CycleSetup; readonly data: SetupData }): JSX.Element {
-  const blocks = data.checks.filter((i) => i.level === 'block').length;
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <div className="flex flex-col gap-2">
-        {data.checks.map((i) => (
-          <Alert
-            key={`${i.level}-${i.title}`}
-            tone={i.level === 'block' ? 'danger' : i.level === 'warn' ? 'warning' : 'success'}
-            title={i.title}
-          >
-            {i.detail}
-          </Alert>
-        ))}
-        <p className="text-sm text-fg-muted">
-          {blocks === 0
-            ? 'Nothing blocks this cycle. Warnings don’t.'
-            : `${plural(blocks, 'issue')} ${blocks === 1 ? 'blocks' : 'block'} it. Warnings don’t.`}
-        </p>
-      </div>
       <Card>
         <CardContent>
           <KeyValues
             layout="split"
             items={[
-              { label: 'Participants', value: plural(data.participants.count, 'person', 'people') },
+              { label: 'People', value: plural(data.participants.count, 'person', 'people') },
               {
-                label: 'Activities',
-                value: KINDS.filter((k) => c.activities[k].on)
-                  .map(kindLabel)
-                  .join(', '),
+                label: 'Reviews',
+                value:
+                  KINDS.filter((k) => k !== 'goals' && c.activities[k].on)
+                    .map(kindLabel)
+                    .join(', ') || 'None',
               },
               { label: 'Starts', value: `${day(c.start.date)}, ${c.start.time} ${c.start.zone}` },
-              {
-                label: 'Nominations',
-                value:
-                  c.activities.peer.on && !c.peer.all
-                    ? `Open at the start, due ${day(data.due['nominations'])}`
-                    : 'None',
-              },
-              {
-                label: 'Release',
-                value:
-                  c.visibility.release.mode === 'manager'
-                    ? 'Each manager'
-                    : c.visibility.release.mode === 'hr_date'
-                      ? `HR on ${day(c.visibility.release.date)}`
-                      : 'When the cycle closes',
-              },
             ]}
           />
         </CardContent>
       </Card>
+      <Field>
+        <FieldLabel>The subject sees their reviews</FieldLabel>
+        <RadioGroup
+          aria-label="Release"
+          className="flex flex-col gap-2"
+          value={v.release.mode}
+          onValueChange={(mode) => {
+            set({ release: { ...v.release, mode } });
+          }}
+        >
+          <RadioCard
+            value="manager"
+            description="The manager releases each one once it is submitted."
+          >
+            As each is submitted
+          </RadioCard>
+          <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
+            On a date
+          </RadioCard>
+          <RadioCard
+            value="close"
+            description="When the cycle closes, after calibration if it has one."
+          >
+            When the cycle closes
+          </RadioCard>
+        </RadioGroup>
+      </Field>
+      {v.release.mode === 'hr_date' ? (
+        <Field>
+          <FieldLabel>Release on</FieldLabel>
+          <FieldControl>
+            <DatePicker
+              label="Release on"
+              value={v.release.date}
+              onChange={(date) => {
+                set({ release: { ...v.release, date } });
+              }}
+            />
+          </FieldControl>
+        </Field>
+      ) : null}
+      <Accordion type="multiple">
+        <AccordionItem value="visibility">
+          <AccordionTrigger>Names and what the subject can do</AccordionTrigger>
+          <AccordionContent>
+            <div className="flex flex-col gap-4">
+              {names('Peer reviews: the writers’ names', v.peerNames, 'peerNames')}
+              {names('Upward reviews: the writers’ names', v.upwardNames, 'upwardNames')}
+              <p className="text-sm text-fg-muted">
+                The subject’s manager and HR always see who wrote what.
+              </p>
+              <SwitchRow
+                label="Ask for an acknowledgement"
+                hint="“I’ve read this” is not agreement."
+                checked={v.acknowledge}
+                onChange={(on) => {
+                  set({ acknowledge: on });
+                }}
+              />
+              <SwitchRow
+                label="Let the subject comment"
+                hint="Shown to the manager and HR"
+                checked={v.subjectComment}
+                onChange={(on) => {
+                  set({ subjectComment: on });
+                }}
+              />
+              <SwitchRow
+                label="Share the peer summary"
+                hint="Peer answers, without names"
+                checked={v.peerSummary}
+                onChange={(on) => {
+                  set({ peerSummary: on });
+                }}
+              />
+              <NumberField
+                label="Response minimum"
+                hint="Confidential answers show only once this many are in."
+                value={v.minimum}
+                min={1}
+                max={20}
+                onChange={(n) => {
+                  if (n !== null) set({ minimum: n });
+                }}
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
@@ -2050,13 +2038,15 @@ function ExtendDialog({
       </Field>
       <Field required>
         <FieldLabel>New deadline</FieldLabel>
-        <Input
-          type="date"
-          value={due}
-          onChange={(e) => {
-            setDue(e.target.value);
-          }}
-        />
+        <FieldControl>
+          <DatePicker
+            label="New deadline"
+            value={due === '' ? null : due}
+            onChange={(date) => {
+              setDue(date ?? '');
+            }}
+          />
+        </FieldControl>
       </Field>
       <Field required>
         <FieldLabel>Reason, kept in the audit log</FieldLabel>

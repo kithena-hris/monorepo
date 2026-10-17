@@ -1,4 +1,5 @@
 import {
+  DatePicker,
   Alert,
   Badge,
   Button,
@@ -409,13 +410,15 @@ function Assign({
         <div className="flex flex-col gap-3">
           <Field>
             <FieldLabel>Due</FieldLabel>
-            <Input
-              type="date"
-              value={due}
-              onChange={(e) => {
-                setDue(e.target.value);
-              }}
-            />
+            <FieldControl>
+              <DatePicker
+                label="Due"
+                value={due === '' ? null : due}
+                onChange={(date) => {
+                  setDue(date ?? '');
+                }}
+              />
+            </FieldControl>
           </Field>
           <p className="text-sm text-fg-muted">
             An item that recurs is assigned again when it expires, on the item’s own schedule.
