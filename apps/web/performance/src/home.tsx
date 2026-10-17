@@ -14,7 +14,17 @@ import {
 import type { JSX } from 'react';
 
 import { Loaded } from './load';
-import { CycleBadge, Live, ReviewBadge, To, day, kindLabel, words } from './shared';
+import {
+  CycleBadge,
+  Live,
+  Refusal,
+  ReviewBadge,
+  To,
+  day,
+  kindLabel,
+  useAct,
+  words,
+} from './shared';
 import type { ScreenProps } from './types';
 
 /**
@@ -74,6 +84,7 @@ export const CONFIDENCE: Readonly<
 };
 
 export function Home(props: ScreenProps<HomeData>): JSX.Element {
+  const act = useAct(props);
   return (
     <Loaded load={props.load} what="Performance">
       {(data) => (
@@ -87,8 +98,22 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                   <a href="/performance/feedback?give=1">Give feedback</a>
                 </Button>
                 {data.hr ? (
-                  <Button asChild>
-                    <a href="/performance/cycles?new=1">New cycle</a>
+                  <Button
+                    loading={act.pending}
+                    onClick={() => {
+                      // Straight into setup: its Basics step names the cycle and sets its start.
+                      act.run(
+                        'CreatePerformanceCycle',
+                        { input: { name: 'New cycle', start: null, copyFrom: null } },
+                        (d) => {
+                          props.onNavigate?.(
+                            `/performance/cycles/${(d as { id: string }).id}/setup`,
+                          );
+                        },
+                      );
+                    }}
+                  >
+                    New cycle
                   </Button>
                 ) : (
                   <Button asChild>
@@ -98,6 +123,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
               </>
             }
           />
+          <Refusal error={act.error} />
           {data.stats.length === 0 ? null : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {data.stats.map((s) => (

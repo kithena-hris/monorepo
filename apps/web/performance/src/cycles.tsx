@@ -108,20 +108,14 @@ const STATES = [
 
 export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
   const act = useAct(props);
-  const [creating, setCreating] = useState(props.search?.['new'] === '1');
   const [copying, setCopying] = useState(false);
-  const [name, setName] = useState('');
-  const [start, setStart] = useState('');
   const [from, setFrom] = useState('');
   const state = props.search?.['state'] ?? '';
-  const create = (copyFrom: string | null): void => {
-    act.run(
-      'CreatePerformanceCycle',
-      { input: { name, start: start === '' ? null : start, copyFrom } },
-      (d) => {
-        props.onNavigate?.(`/performance/cycles/${(d as { id: string }).id}/setup`);
-      },
-    );
+  // Straight into setup: its Basics step names the cycle and sets its start.
+  const create = (name: string, copyFrom: string | null): void => {
+    act.run('CreatePerformanceCycle', { input: { name, start: null, copyFrom } }, (d) => {
+      props.onNavigate?.(`/performance/cycles/${(d as { id: string }).id}/setup`);
+    });
   };
   return (
     <Loaded load={props.load} what="cycles">
@@ -144,8 +138,9 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                   </Button>
                   <Button
                     startIcon={<icons.add aria-hidden />}
+                    loading={act.pending && !copying}
                     onClick={() => {
-                      setCreating(true);
+                      create('New cycle', null);
                     }}
                   >
                     New cycle
@@ -154,6 +149,7 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
               ) : undefined
             }
           />
+          {copying ? null : <Refusal error={act.error} />}
           <Card>
             <CardContent className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-3">
@@ -250,29 +246,28 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
             </CardContent>
           </Card>
           <Modal
-            open={creating || copying}
+            open={copying}
             onClose={() => {
-              setCreating(false);
               setCopying(false);
             }}
-            title={copying ? 'Copy a cycle' : 'New cycle'}
-            description="Setup opens next, in six steps; every step saves as it changes."
+            title="Copy a cycle"
+            description="Its settings are copied; setup opens next, where you name it and set its start."
             footer={
               <>
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    setCreating(false);
                     setCopying(false);
                   }}
                 >
                   Cancel
                 </Button>
                 <Button
-                  disabled={name.trim() === '' || (copying && from === '')}
+                  disabled={from === ''}
                   loading={act.pending}
                   onClick={() => {
-                    create(copying ? from : null);
+                    const source = data.rows.find((c) => c.id === from);
+                    create(`Copy of ${source?.name ?? 'a cycle'}`, from);
                   }}
                 >
                   Continue to setup
@@ -281,49 +276,22 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
             }
           >
             <Refusal error={act.error} />
-            {copying ? (
-              <Field required>
-                <FieldLabel>Copy settings from</FieldLabel>
-                <Select value={from} onValueChange={setFrom}>
-                  <FieldControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pick a cycle" />
-                    </SelectTrigger>
-                  </FieldControl>
-                  <SelectContent>
-                    {data.rows.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            ) : null}
             <Field required>
-              <FieldLabel>Name</FieldLabel>
-              <Input
-                value={name}
-                placeholder="H2 2026 performance review"
-                onChange={(e) => {
-                  setName(e.target.value);
-                }}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Starts</FieldLabel>
-              <FieldControl>
-                <DatePicker
-                  label="Starts"
-                  value={start === '' ? null : start}
-                  onChange={(date) => {
-                    setStart(date ?? '');
-                  }}
-                />
-              </FieldControl>
-              <FieldDescription>
-                A start today launches it when you confirm; a later one schedules it.
-              </FieldDescription>
+              <FieldLabel>Copy settings from</FieldLabel>
+              <Select value={from} onValueChange={setFrom}>
+                <FieldControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pick a cycle" />
+                  </SelectTrigger>
+                </FieldControl>
+                <SelectContent>
+                  {data.rows.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </Modal>
         </div>
