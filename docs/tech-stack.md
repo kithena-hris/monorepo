@@ -227,3 +227,32 @@ Recruiting:
 - A model never moves, rejects or contacts a candidate. A person does.
 - Every assessment is logged with the model, prompt version, masked input's
   hash, output and the human decision that followed (AI Act art. 12).
+
+## Performance
+
+### A model may read reviews, feedback and a person's granted tools
+
+Accepted by the owner on 2026-10-17 (Performance PRD §22.2, §22.3, §36). The
+third place a model reads content, after Documents and Recruiting, because
+summarising a year of reviews and feedback, and drafting from it, is the
+feature. The limits, enforced in Performance:
+
+- Only for someone who may read the item in Performance, for that request.
+  What is kept is the output, the ids read and a hash of the text sent.
+- Confidential authors are renamed before any text leaves, and a summary meant
+  for the subject is written only from what the subject may see; private
+  questions are never sent for it. Special-category data is masked.
+- Connected tools (chat apps, meeting notes, code, work tracking, wikis) are
+  read only after the person grants each one explicitly; nothing is on by
+  default. Grants are revocable, read through the person's own token, limited
+  to the subject and the review period, and never stored beyond links and the
+  draft.
+- AI can run every operation the person could, as that person, with every write
+  confirmed. It suggests numeric answers, the performance score and
+  calibration changes with reasons; a person confirms each before anything is
+  submitted or finalised. The domain computes every derived number.
+- Content is never used to train a model; processing stays in the EU where the
+  provider offers it, through the AI gateway.
+- Every AI output and every action is logged and audited, with the model,
+  prompt version, input hash, output and what the person did (AI Act art. 12;
+  PRD §24.1).

@@ -31,8 +31,9 @@ one merge, so Vercel deploys once.
 - Screens are built from Reach; what Reach lacks is added to Reach first.
 - Authorization in the application layer, never only in a resolver.
 - Every filter and view in the URL; server-rendered first page; no polling.
-- The domain computes every number; a model never answers a numeric question
-  (PRD §22.1).
+- AI can run every operation as the person, with writes confirmed; it suggests
+  numeric answers and calibration changes, and a person confirms each. The
+  domain computes every derived number (PRD §22.1).
 - No event carries review text, an answer, feedback text, a note or a comment.
 
 ---
@@ -132,7 +133,8 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       chat app through `platform/slack`, by the person's notification
       preferences; stop on submit. PRD §8.4.
 - [ ] **PRF-044** Reviews: autosave patches with revision checks, submit,
-      unlock requests and decisions with Inbox tasks. PRD §10.2–§10.4.
+      unlock requests and decisions with Inbox tasks, decided by HR only.
+      PRD §10.2–§10.4.
 - [ ] **PRF-045** Feedback, requests and notes.
 - [ ] **PRF-046** Retention sweeper, legal holds, DSAR export (no private
       questions, no confidential writers) and deletion. PRD §30.
@@ -142,6 +144,11 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       (BullMQ), with the subject's view applied. PRD §20.
 - [ ] **PRF-049** Works council gate per legal entity and the description
       export. PRD §23.4.
+- [ ] **PRF-050** Audit: `performance.activity.recorded` in the same
+      transaction as every action, refused attempt and sensitive read, with
+      actor, as whom, AI output id, action, target, fields changed, reason
+      link, surface, request, IP and user agent, outcome; no values.
+      `platform/audit` consumes `kithena.performance.v1`. PRD §24.1.
 
 ### Transports
 
@@ -222,8 +229,9 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 
 ## Phase 3 — AI
 
-- [ ] **PRF-130** **Gate**: the decision in PRD §22.2 signed off and recorded in
-      `docs/tech-stack.md` and `CLAUDE.md`. Nothing below starts before it.
+- [x] **PRF-130** **Gate**: the decision in PRD §22.2 signed off and recorded in
+      `docs/tech-stack.md` and `CLAUDE.md`. Accepted by the owner on
+      2026-10-17.
 - [ ] **PRF-131** Masking: confidential authors renamed, private questions
       dropped for the subject's summaries, special-category masking. Pure,
       tests first. PRD §22.2.
@@ -233,7 +241,9 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       translate. PRD §11.9.
 - [ ] **PRF-134** Review summaries with citation checks. PRD §13.2, §13.4.
 - [ ] **PRF-135** Sentence sentiment and the computed position. PRD §13.6.
-- [ ] **PRF-136** Prefill of text answers only, with draft marks. PRD §13.4.
+- [ ] **PRF-136** Prefill of the whole review: cited text, and suggested
+      numeric answers and performance score with reasons, marked until
+      confirmed; submit asks to confirm each. PRD §13.4, §13.7.
 - [ ] **PRF-137** Writing checks and "how it will read". PRD §13.7.
 - [ ] **PRF-138** Tone check on feedback. PRD §12.5.
 - [ ] **PRF-139** Cycle setup and participants by chat, as diffs. PRD §8.2.
@@ -244,6 +254,12 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       `docs/recruiting-ai-act.md`, and the DPIA template. PRD §22.7, §22.8.
 - [ ] **PRF-144** Fairness view by group, with and without AI prefill.
       PRD §22.9.
+- [ ] **PRF-145** The AI panel on every PF screen and in chat apps: plans any
+      operation the person could run, shows each write as a proposed action
+      with its effect, runs it as the person on confirmation, audited with the
+      AI marked. PRD §22.1.
+- [ ] **PRF-146** AI calibration suggestions with reasons, applied only by a
+      calibrator. PRD §17.
 
 ## Phase 4 — integrations
 
@@ -257,15 +273,19 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       and Pluralsight adapters; the xAPI endpoint; CSV import. PRD §15.7.
 - [ ] **PRF-164** Chat apps for the work: reminders, nominations, feedback and
       praise, notes, unlocks. PRD §23.2.
-- [ ] **PRF-165** **Gate**: the decision in PRD §22.3 signed off, and the legal
-      review of work-tool evidence per launch country done.
+- [x] **PRF-165** **Gate**: the decision in PRD §22.3 signed off. Accepted by
+      the owner on 2026-10-17; the legal review per launch country is a
+      launch-prep task (PRF-168), not a gate.
 - [ ] **PRF-166** `EvidenceSource` port and adapters: Slack (Real-time Search),
       Teams, Google Chat, meeting notes, GitHub, GitLab, Linear, Jira,
-      Confluence. PRD §13.5, §23.1.
+      Confluence. Each read only on the person.s own explicit, revocable,
+      audited grant, per source, off by default (My connected tools). PRD
+      §13.5, §22.3, §23.1.
 - [ ] **PRF-167** Key results that follow a Linear project or a Jira epic.
       PRD §14.5.
 - [ ] **PRF-168** Business tasks: Slack Marketplace listing, Google OAuth
-      verification, GitHub App, Atlassian app, Frontend Masters enquiry.
+      verification, GitHub App, Atlassian app, Frontend Masters enquiry. At launch prep, a legal review of
+      reading connected tools per launch country.
       PRD §36.
 
 ## Phase 5 — with the suite
@@ -285,6 +305,12 @@ NOBYPASSRLS` and RLS on `tenant_id`.
 ## Progress notes
 
 - **2026-10-17.** Requirements written and proposed. Nothing is built.
-  Decisions open for review are in PRD §36, with three open questions for the
+  Decisions open for review are in PRD §36, with two open questions for the
   owner. The `in_review` review state is the calibration hold, decided by the
   owner: built in Phase 1 in the contract and domain, used from PRF-111.
+- **2026-10-17, later.** The owner decided: AI does everything a person can,
+  numbers included as suggestions a person confirms (PRF-136, PRF-145,
+  PRF-146); connected tools are read only on each person's explicit grant,
+  never by default (PRF-166); only HR approves an unlock (PRF-044); every
+  action is audited with all its details (PRF-050). Both AI gates are ticked on
+  this record.

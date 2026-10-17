@@ -22,25 +22,29 @@ analytics, the employee's file in Documents and, later, Compensation.
   restate them: no cross-module imports, Zod as the single schema source,
   `occurredAt` and `effectiveFrom` on every event, money in minor units,
   calendar dates as `date`, no `new Date()` in the domain, screens from Reach.
-- **Two decisions need sign-off before any AI ships** (§22.2, §22.3): a model
-  reading reviews and feedback, and a model reading a writer's own messages and
-  work in connected tools. Everything in Phases 1 and 2 works without either.
+- **AI can do everything a person can** in the module, as that person (§22.1).
+  The owner accepted both reading decisions on 2026-10-17 (§22.2, §22.3): a
+  model reads reviews and feedback, and a model reads a person's connected
+  tools only after that person grants it, source by source. Nothing is read
+  from a tool by default.
+- **Every action is audited** with who, as whom, what, on which record, why,
+  when and through which surface, AI-assisted actions included (§24.1).
 
 The questions the request raised, answered here with the reasoning in place so
 the answer can be argued with:
 
-| Question                                                         | Answer                                                                                                                                                                                                                     | Where      |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Which module is this?                                            | `performance`, already in `ModuleKey`. Product name **Performance and development**. Goals and Learning live inside it                                                                                                     | §5         |
-| How can form templates serve surveys and other modules?          | The form's shape, its answers and its rules are a shared contract (`packages/contracts/src/forms`) and a pure kit (`packages/form-kit`). Each module stores its own templates. No module imports another                   | §11.1      |
-| How does a cycle's status reach the screen without polling?      | A GraphQL subscription over server-sent events, served by the Cosmo Router from a Redpanda topic the outbox already feeds (`apps/gateway/config.yaml`, `events.providers.kafka`)                                           | §8.7       |
-| What happens to a launched cycle when its template is edited?    | Nothing. Every edit makes a new version. A cycle pins the version it launched with; draft and scheduled cycles follow the latest published version until they launch                                                       | §11.7      |
-| What is an activity?                                             | One unit of work in a cycle: a review kind, goals or learning. New kinds (a 1:1, a development plan) are new activity kinds, not a new cycle shape                                                                         | §9         |
-| Can a model draft a review from Slack, GitHub, Linear and so on? | Yes, under limits: only the writer's own connected accounts, only what the writer can already see, only about the person being reviewed, only for the review period, and only when the writer asks. Needs sign-off         | §22.3, §23 |
-| Can attendance be taken automatically from a live session?       | Yes for Google Meet (Workspace Events API join events) and Microsoft Teams (Graph meeting call events and the attendance report). Zoom is parked with the rest of Zoom                                                     | §15.5      |
-| Which learning platforms can feed completions?                   | LinkedIn Learning, Udemy Business and Pluralsight have reporting APIs for enterprise customers. Frontend Masters has no public API, so completion is self-reported with a certificate or imported                          | §15.7      |
-| Does AI give anyone a rating?                                    | Never. A model drafts text and labels sentences. It never fills a scale, a performance score, a calibration or a goal score. A person decides every number about a person                                                  | §22.1      |
-| How will Compensation use this?                                  | It consumes `performance.rating.finalized`, effective-dated to the review period, with calibrated values and `supersedes` on a correction. Performance never imports Compensation, and Compensation never reads its tables | §25        |
+| Question                                                         | Answer                                                                                                                                                                                                                                                                | Where      |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Which module is this?                                            | `performance`, already in `ModuleKey`. Product name **Performance and development**. Goals and Learning live inside it                                                                                                                                                | §5         |
+| How can form templates serve surveys and other modules?          | The form's shape, its answers and its rules are a shared contract (`packages/contracts/src/forms`) and a pure kit (`packages/form-kit`). Each module stores its own templates. No module imports another                                                              | §11.1      |
+| How does a cycle's status reach the screen without polling?      | A GraphQL subscription over server-sent events, served by the Cosmo Router from a Redpanda topic the outbox already feeds (`apps/gateway/config.yaml`, `events.providers.kafka`)                                                                                      | §8.7       |
+| What happens to a launched cycle when its template is edited?    | Nothing. Every edit makes a new version. A cycle pins the version it launched with; draft and scheduled cycles follow the latest published version until they launch                                                                                                  | §11.7      |
+| What is an activity?                                             | One unit of work in a cycle: a review kind, goals or learning. New kinds (a 1:1, a development plan) are new activity kinds, not a new cycle shape                                                                                                                    | §9         |
+| Can a model draft a review from Slack, GitHub, Linear and so on? | Yes, under limits: only the writer's own connected accounts, only what the writer can already see, only about the person being reviewed and the review period, and only from sources the writer has granted. Accepted by the owner                                    | §22.3, §23 |
+| Can attendance be taken automatically from a live session?       | Yes for Google Meet (Workspace Events API join events) and Microsoft Teams (Graph meeting call events and the attendance report). Zoom is parked with the rest of Zoom                                                                                                | §15.5      |
+| Which learning platforms can feed completions?                   | LinkedIn Learning, Udemy Business and Pluralsight have reporting APIs for enterprise customers. Frontend Masters has no public API, so completion is self-reported with a certificate or imported                                                                     | §15.7      |
+| Does AI give anyone a rating?                                    | AI suggests them: every scale, choice and binary answer, goal ratings, the performance score and calibration changes, each with its reasons and citations. A suggestion is marked until a person confirms or changes it, and nothing is submitted without that person | §22.1      |
+| How will Compensation use this?                                  | It consumes `performance.rating.finalized`, effective-dated to the review period, with calibrated values and `supersedes` on a correction. Performance never imports Compensation, and Compensation never reads its tables                                            | §25        |
 
 ---
 
@@ -77,7 +81,7 @@ Culture Amp, Leapsome, 15Five, Personio, Workday):
    below a minimum number of responses. Calibration keeps every change and its
    reason. Rater analytics show which managers rate high or low. Leave is
    taken into account in goals and deadlines. The domain computes every
-   number. A person decides every rating.
+   derived number. AI suggests answers, and a person confirms every rating.
 4. **It runs itself.** Recurring cycles and probation cycles are created by
    automations, in words or with filters, with deadlines relative to the start.
    HR checks a scheduled cycle and does nothing else.
@@ -694,10 +698,11 @@ From a locked review, **Request unlock** asks for a **reason**, required, at
 least 10 characters. It creates an Inbox task for the cycle's owners (HR)
 (`performance:unlock:<id>`), with the reason, the review and the person. HR
 approves (the review becomes `unlocked` and the reviewer is told) or declines
-with a note (back to `locked`). A tenant setting lets the subject's manager
-approve unlock requests for reviews of their reports, beside HR (off by default;
-§36, open question 2). Nothing can be unlocked after the cycle closes. HR can also
-unlock a review without a request, with a reason.
+with a note (back to `locked`). **Only HR approves an unlock**, always: no
+setting gives the decision to a manager, and a manager who wants a report's
+review reopened asks HR the same way. Nothing can be unlocked after the cycle
+closes. HR can also unlock a review without a request, with a reason. Every
+request, decision and reason is audited (§24.1).
 
 ### 10.5 Revisions
 
@@ -1038,19 +1043,23 @@ draft the self review's text answers from these on request.
 - The **peer reviews** about the subject, each with its own sentiment and the
   reviewer's name (the manager always sees names, §8.5), filterable to positive
   or negative so the manager can pick what to use.
-- **Prefill with AI**: on request, the model drafts every text answer of the
-  manager review from the self review, peer reviews, feedback and goals, each
-  sentence with citations. The draft is clearly marked, every AI-written answer
-  carries an "AI draft" chip until the manager edits it, and submit asks once
-  more if any answer is still an unedited draft. **Prefill never answers a
-  scale, a choice, a binary, a goal rating or the performance score** (§22.1).
+- **Prefill with AI**: on request, the model fills the whole manager review
+  from the self review, peer reviews, feedback, goals and granted tools: every
+  text answer, with each sentence cited, and every **scale, choice and binary
+  answer, goal rating and the performance score**, each with a one-line reason
+  citing what it rests on. Every AI answer carries an "AI draft" or "AI
+  suggestion" chip until the manager edits or confirms it, and the submit modal
+  lists every suggested number still unconfirmed and asks for each to be
+  confirmed (§13.7, §22.1).
 
 ### 13.5 Evidence from connected tools
 
-With the company's connections on (§23) and the writer's own accounts linked,
-the panel offers **Find evidence in my tools**. The writer chooses which tools and
-the period (the cycle's review period by default). Kithena then searches, **as
-the writer**, only what the writer can already see:
+Nothing here happens until the writer grants it. With the company.s
+connections on (§23), each person turns on, source by source, the tools AI may
+read for them (§22.3); nothing is on by default. Once granted, the panel
+searches those tools whenever it summarises or drafts, over the cycle.s review
+period, and the writer can narrow a request to fewer tools or a shorter period.
+Kithena searches **as the writer**, only what the writer can already see:
 
 - chat apps: messages and threads with or about the subject (Slack, Microsoft
   Teams, Google Chat);
@@ -1088,6 +1097,10 @@ The submit modal (§10.3) adds:
 - **how it will read**: a short paragraph the model writes on how the subject (or
   the manager, for an upward review) is likely to take it, and any sentences
   likely to be read differently from what was meant;
+- **AI suggestions to confirm**: every scale, choice, binary, goal rating and
+  the performance score the AI suggested and the person has not yet confirmed
+  or changed, each with its reason; Submit stays disabled until each is
+  confirmed or changed (one "Confirm all" is offered after the list is shown);
 - **checks** (advisory): answers that describe personality rather than behaviour,
   gendered or age-coded wording, claims with no example, evidence only from the
   last six weeks of a twelve-month period (recency), and a score that does not
@@ -1368,6 +1381,11 @@ Not in the request, and expected by every buyer of a mid-size or larger tool.
 - Moving a person to another score is a **calibration change** with a required
   reason, recorded as an event that supersedes the manager's value. The manager's
   original stays visible. The subject never sees calibration notes.
+- **AI calibration suggestions**: with AI on, the session can ask for proposed
+  changes ("bring this group nearer the guide distribution", "who looks rated
+  out of line with their evidence"). Each proposal names the person, the score,
+  the reason and its evidence, and becomes a calibration change only when a
+  calibrator applies it, with the reason recorded.
 - Optional **guide distribution** (for example "about 15% in the top two
   scores"): shown as a target line, never enforced.
 - **Finalise** closes the session: the scores become final, the reviews return
@@ -1519,19 +1537,44 @@ retention (§30).
 
 ### 22.1 The rule
 
-**The domain computes every number. A model reads what the asker may read,
-cites it, labels sentences, plans charts, filters and automations by name, and
-drafts text. A person decides every rating.** No model output sets a scale, a
-choice, a binary, a goal rating, a goal score, a performance score or a
-calibration change, sends feedback, submits a review or assigns anything without
-a person pressing a button. Every AI feature degrades to a working screen
-without the key; CI runs the standalone suite with and without it.
+**AI can do everything a person can do in Performance, as that person. The
+domain computes every derived number. AI suggests numeric answers, and a person
+confirms every rating.**
 
-### 22.2 The proposed decision: a model may read reviews and feedback
+- **Every operation is available to AI.** An AI panel on every Performance
+  screen (and the chat apps, §23.2) can run any operation the asker could run
+  by hand: build a template, set up, schedule, launch or close a cycle, add and
+  exclude people, nominate and approve nominations, attach goals and training,
+  send reminders, give, request and draft feedback, write notes, check in on a
+  goal, assign learning, request an unlock and, for HR, decide one, release
+  results, build an automation, ask for a chart, export. It runs the module's
+  own operation through the same authorization, so AI can never do what the
+  asker could not.
+- **Writes are confirmed.** Reads answer at once. Every write is shown first as
+  a proposed action with its effect in words and a diff where there is one
+  ("Schedule _H2 2026_ for 1 Jan: 412 people, 1,604 reviews"), and runs when the
+  person confirms. A person can confirm a batch of proposed actions at once.
+- **AI does numbers too, and a person confirms them.** A model can answer
+  every scale, choice and binary question, rate goals, suggest the performance
+  score and propose calibration changes. Each suggested number shows its reason
+  and the evidence it cites, is marked "AI suggestion" until the person confirms
+  or changes it, and is never submitted, finalised or released on the model.s
+  word alone: submitting a review or finalising a calibration asks the person to
+  confirm every AI-suggested number still unconfirmed. The domain still
+  computes every derived number (goal scores, sentiment positions, analytics)
+  from those answers. The audit records whether the final value is the AI.s
+  suggestion or the person.s change (§24.1), and §22.9 compares outcomes with
+  and without AI suggestions. AI-drafted text is marked until the person edits
+  it.
+- Every AI action is audited as the person, with the AI marked (§24.1).
+- Every AI feature degrades to a working screen without the key; CI runs the
+  standalone suite with and without it.
+
+### 22.2 The decision: a model may read reviews and feedback
 
 Everywhere except Documents and Recruiting, a model sees field names and never a
 value (`docs/tech-stack.md`). Summaries, prefill and sentiment are reading by
-definition, so this PRD **proposes** a third exception, with limits enforced in
+definition, so Performance is the third exception, with limits enforced in
 Performance:
 
 1. A model reads a review, feedback, goal or note only for a person who may read
@@ -1550,60 +1593,74 @@ Performance:
 6. Content is never used to train a model; processing stays in the EU where the
    provider offers it; every prompt leaves through the AI gateway
    (`packages/telemetry/src/ai-gateway.ts`).
-7. The domain computes every number (§22.1).
+7. The domain computes every derived number; a model.s numeric answers are
+   suggestions a person confirms (§22.1).
 8. Every AI output is logged with the model, the prompt version, the input hash,
    the output, and what the person did with it (AI Act art. 12).
 
-Needs the owner's sign-off, then a record in `docs/tech-stack.md` and
-`CLAUDE.md` beside Documents' and Recruiting's (§36, decision 1).
+**Accepted by the owner on 2026-10-17** (§36, decision 1). Recorded in
+`docs/tech-stack.md` and `CLAUDE.md` beside Documents' and Recruiting's.
 
-### 22.3 The proposed decision: a model may read the writer's own work tools
+### 22.3 The decision: a model may read a person's connected tools, once they grant it
 
 Drafting from Slack, Teams, Google Chat, meeting notes, GitHub, GitLab, Linear,
-Jira and Confluence means a model reads workplace messages. That is employee
-monitoring in most of Europe's eyes unless it is narrow. So, enforced in
-Performance:
+Jira and Confluence means a model reads workplace messages. **The permission is
+the person's own, given explicitly, source by source. Nothing is read by
+default.** Enforced in Performance:
 
-1. **Only the writer's own linked accounts** (user OAuth, never a workspace-wide
-   token for this), and so only what the writer can already see in that tool.
-2. **Only on request**, per review, choosing the tools and the period. Nothing
-   is fetched in the background, nothing is indexed, and nothing is searched for
-   people who are not the subject.
-3. **Only about the subject and the review period**: the search filters on the
-   subject's account in that tool and the dates.
-4. What is kept: links, the one-line summaries the writer included, and the
+1. **Nothing until the person grants it.** Each person sees **Settings ›
+   Performance › My connected tools**: every tool the company has connected,
+   each off. Turning one on links their account (user OAuth, never a
+   workspace-wide token for this) and records an explicit grant: who, which
+   tool, which scopes, when, and the words they agreed to ("Kithena's AI may
+   read what I can see in Slack to help me write reviews and feedback"). The
+   grant is audited (§24.1).
+2. **Revocable at any time**, from the same page or by unlinking in the tool.
+   Revoking stops all reading at once and is audited. A grant also ends when the
+   person leaves or the company disconnects the tool.
+3. **Once granted, AI uses it without asking again** whenever it drafts or
+   answers for that person: a review, feedback, a self review, a note. The
+   person can narrow any one request to fewer tools or a shorter period.
+4. **Only what the person can already see** in that tool, through their own
+   token, and nothing is fetched in the background or indexed.
+5. **Only about the subject and the review period** when drafting about
+   someone: the search filters on the subject's account in that tool and the
+   dates.
+6. What is kept: links, the one-line summaries the person included, and the
    draft. The fetched content is discarded after the request.
-5. **The subject is told**: a released review drafted with tool evidence says
+7. **The subject is told**: a released review drafted with tool evidence says
    which tools were used ("Drafted with help from Slack and GitHub"), and the
    subject can see the linked items they can access.
-6. **Off by default** for every company, switched on per tool by an admin, and
-   off for an entity under a works council until agreed (§23.4).
-7. Never used for a rating, never for ranking people, never across people
-   ("who sends the fewest messages") — the module offers no such query.
+8. **The company connects the tool first** (an admin, §23.1), and the works
+   council gate keeps grants unavailable for an entity until agreed (§23.4).
+9. Never used for a rating, never for ranking people, never across people
+   ("who sends the fewest messages"): the module offers no such query.
 
-Needs the owner's sign-off, and a legal review of the employee-monitoring
-position per launch country before Phase 4 ships (§36, decision 1).
+**Accepted by the owner on 2026-10-17** (§36, decision 1). A legal review of
+the employee-monitoring position per launch country remains a launch-prep task
+(§36), not a gate on building it.
 
 ### 22.4 Features
 
-| Feature                         | Screen     | The domain does                                                                | The model does                                           |
-| ------------------------------- | ---------- | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| Participants by chat            | PF4        | Resolves names to ids; computes the list                                       | Plans a filter and cycle changes by field name           |
-| Cycle setup by chat             | PF4        | Validates; shows a diff; applies on confirm                                    | Plans activities, forms, deadlines by name               |
-| Write a template                | PF2        | Validates with the kit; rejects invalid output                                 | Drafts sections and questions                            |
-| Question suggestions and checks | PF2        | Applies on confirm                                                             | Suggests, rewrites, flags wording                        |
-| Review summary                  | PF10       | Selects what the writer may read; masks; checks every citation exists          | Summarises with citations                                |
-| Peer and self summaries         | PF10, PF11 | Same                                                                           | Same                                                     |
-| Sentiment                       | PF10, PF12 | Computes the overall position from labels                                      | Labels sentences with quotes                             |
-| Prefill a manager review        | PF10       | Text answers only; marks drafts; checks citations                              | Drafts text answers                                      |
-| Evidence from tools             | PF10       | Searches as the writer; filters to subject and period; keeps links             | Summarises items in one line; drafts from included items |
-| Writing checks                  | PF12       | Recency check from evidence dates; score-text mismatch from computed sentiment | Flags personality, coded wording, unsupported claims     |
-| How it will read                | PF12       | —                                                                              | Writes a short paragraph                                 |
-| Tone check on feedback          | PF14       | —                                                                              | Labels sentences with suggestions                        |
-| Ask for a chart, insights       | PF7, PF8   | Validates the plan; computes; finds differences                                | Plans by name; words insights from computed numbers      |
-| Automation in words             | PF16       | Validates; previews occurrences and people                                     | Plans an automation by name                              |
-| Learning suggestions            | PF15       | Picks candidate items by skill tags                                            | Ranks the candidates against the review's text           |
-| Performance assistant           | Chat apps  | Runs each capability as the asker (Assistant PRD)                              | Plans which capabilities to call (§22.10)                |
+| Feature                         | Screen                     | The domain does                                                                       | The model does                                                  |
+| ------------------------------- | -------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Participants by chat            | PF4                        | Resolves names to ids; computes the list                                              | Plans a filter and cycle changes by field name                  |
+| Cycle setup by chat             | PF4                        | Validates; shows a diff; applies on confirm                                           | Plans activities, forms, deadlines by name                      |
+| Write a template                | PF2                        | Validates with the kit; rejects invalid output                                        | Drafts sections and questions                                   |
+| Question suggestions and checks | PF2                        | Applies on confirm                                                                    | Suggests, rewrites, flags wording                               |
+| Review summary                  | PF10                       | Selects what the writer may read; masks; checks every citation exists                 | Summarises with citations                                       |
+| Peer and self summaries         | PF10, PF11                 | Same                                                                                  | Same                                                            |
+| Sentiment                       | PF10, PF12                 | Computes the overall position from labels                                             | Labels sentences with quotes                                    |
+| Prefill a manager review        | PF10                       | Marks drafts and suggestions; checks citations; asks to confirm each number on submit | Drafts text answers; suggests every numeric answer with reasons |
+| Evidence from tools             | PF10                       | Searches as the writer; filters to subject and period; keeps links                    | Summarises items in one line; drafts from included items        |
+| Writing checks                  | PF12                       | Recency check from evidence dates; score-text mismatch from computed sentiment        | Flags personality, coded wording, unsupported claims            |
+| How it will read                | PF12                       | —                                                                                     | Writes a short paragraph                                        |
+| Tone check on feedback          | PF14                       | —                                                                                     | Labels sentences with suggestions                               |
+| Ask for a chart, insights       | PF7, PF8                   | Validates the plan; computes; finds differences                                       | Plans by name; words insights from computed numbers             |
+| Automation in words             | PF16                       | Validates; previews occurrences and people                                            | Plans an automation by name                                     |
+| Learning suggestions            | PF15                       | Picks candidate items by skill tags                                                   | Ranks the candidates against the review's text                  |
+| Performance assistant           | Chat apps                  | Runs each capability as the asker (Assistant PRD)                                     | Plans which capabilities to call (§22.10)                       |
+| Do it for me                    | Every PF screen, chat apps | Runs the module's own operation as the person after they confirm; audits it           | Plans the operations and their inputs by name (§22.1)           |
 
 A citation that does not resolve to an item the asker may read is dropped, with
 the sentence that used it.
@@ -1617,14 +1674,16 @@ check is stored with the output.
 ### 22.6 Switches
 
 Settings › Performance › AI: each feature in §22.4 on or off, per company and per
-entity. Defaults: on for builder help, summaries, sentiment, charts and chat
-setup; **off** for prefill, evidence from tools and learning suggestions.
+entity. Every feature is **on** by default, because AI is meant to do everything
+(§22.1). Evidence from tools is the exception that a company switch cannot turn
+on for anyone: it also needs each person's own grant (§22.3).
 
 ### 22.7 The EU AI Act
 
 AI used to evaluate the performance and behaviour of workers is high-risk (Annex
 III, point 4(b)). Summaries and drafts that a manager uses to write an
-evaluation are within reach of that, even though a person decides. Kithena
+evaluation are within reach of that, and AI-suggested scores more so, even though a person
+confirms each. Kithena
 treats the module's AI as high-risk, as Recruiting does: the provider's risk
 management file and technical documentation (as `docs/recruiting-ai-act.md`),
 logging (§22.2 point 8), instructions for use for the deployer, human oversight
@@ -1639,8 +1698,11 @@ module offers nothing that infers emotion from a meeting recording.
 The module processes personal data about performance on the employer's
 legitimate interest or the employment contract, never on consent. A data
 protection impact assessment template ships with the module (art. 35), because
-evaluation with AI and work-tool evidence meets the criteria. Art. 22 does not
-apply because a person makes every decision, and the screens say so. Subjects
+evaluation with AI and work-tool evidence meets the criteria. A person.s tool grant (§22.3) is a
+control they hold over their own accounts, not the legal basis. Art. 22 does
+not apply because a person confirms every AI-suggested number and can change
+it, with the reasons and evidence in front of them, so the confirmation is a
+review and not a formality; the screens say so. Subjects
 can export everything about them except private questions and confidential
 authors (§30).
 
@@ -1745,6 +1807,49 @@ any transport; a subject cannot identify a confidential reviewer below the
 minimum; a peer cannot read another peer's review; a manager cannot read reviews
 of someone who is not their report; an assistant answer never contains review
 text.
+
+### 24.1 Audit
+
+**Every action in Performance is audited**, by people and by AI, on every
+transport (web, phone, REST, GraphQL, chat apps, webhooks in, automations and
+workflows). It goes to the company's one activity log, `platform/audit`, the way
+People's actions do (`docs/audit.md`): Performance writes a
+`performance.activity.recorded` event to its outbox in the same transaction as
+the action, only when the action is new (a retried command is one entry), and
+`platform/audit` consumes `kithena.performance.v1`. **Settings › Activity**
+shows it, filterable to Performance.
+
+Each entry holds:
+
+| Detail      | What                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Who         | The person, or `system` for a workflow, timer or automation (with the automation's id)                                               |
+| As whom     | The person an action ran for, when it was not the actor: support impersonation, HR acting for a manager                              |
+| AI          | Whether AI proposed it, and the AI output's id (model, prompt version, the plan, the person's confirmation), from `ai_output` (§29)  |
+| What        | The action, by name (`cycle.scheduled`, `review.unlock_decided`, `feedback.writer_revealed`, `tool_grant.given`)                     |
+| On what     | The record's kind and id, and the people it is about (subject, reviewer, receiver)                                                   |
+| Which parts | The fields or questions changed, by name; before and after for settings and configuration (a deadline, a filter, a weight, a switch) |
+| Why         | The reason when the action takes one (unlock, reveal, calibration change, removal), stored in Performance and linked by id           |
+| When        | `occurredAt`, and `effectiveFrom` where the action is effective-dated                                                                |
+| Where       | Surface (screen id, API, chat app), request id, IP address and user agent, session                                                   |
+| Outcome     | Done, refused (with the authorization reason) or failed                                                                              |
+
+**What is audited**: every write (templates and versions, cycles and every
+state change, participants, nominations, reviews from first save to close,
+unlocks, detaching and deleting, release, acknowledgement and response,
+feedback, notes, goals and check-ins, learning and attendance corrections,
+calibration, automations, settings, AI switches, tool grants and revocations),
+every refused attempt, and the reads that matter: opening someone else's review,
+reading a private question, revealing a feedback writer, every export and PDF,
+every AI read of reviews, feedback or a connected tool (which items, for whom).
+
+**An entry never holds a value**, as `docs/audit.md` requires: not an answer, a
+score, feedback text or a message from a tool. It names what changed and links
+to Performance's own revision, which keeps the content under Performance's
+access rules. So the log can show who changed Adam's manager review at 10:42 and
+which questions, without showing a reader of the log what the review says.
+HR reads Performance's entries; the person an entry is about can ask for their
+own through a DSAR (§30).
 
 ---
 
@@ -2024,13 +2129,14 @@ well:
 - **Phase 2 — goals, learning, automations, calibration**: PF15, PF16, PF18,
   PF19, PF21; sessions with `.ics`; learning items without providers;
   probation automations; rater analytics, N-box, timeline.
-- **Phase 3 — AI**, after §22.2 is signed off: builder help, summaries,
-  sentiment, prefill, writing checks, tone check, chat setup and automations in
-  words, ask for a chart PF8 and insights; the AI Act file.
+- **Phase 3 — AI** (§22.2 accepted): the AI panel that runs every operation
+  with confirmation, builder help, summaries, sentiment, prefill, writing
+  checks, tone check, chat setup and automations in words, ask for a chart PF8
+  and insights; the AI Act file.
 - **Phase 4 — integrations**: calendars and attendance (Meet, Teams), learning
   platforms (LinkedIn Learning, Udemy Business, Pluralsight, xAPI), chat apps for
-  the work, and, after §22.3 is signed off and the legal review is done,
-  evidence from work tools.
+  the work, and evidence from work tools with each person's grant (§22.3
+  accepted).
 - **Phase 5 — with the suite**: §26's flows: Time Off in reminders, deadlines
   and goals, Documents filing, Onboarding probation links, the Inbox source,
   assistant capabilities, People's "Give feedback", the Compensation event;
@@ -2046,9 +2152,10 @@ Proposed on 2026-10-17. Each follows common practice in the products §34
 compares against, and each is **open for review**: changing one is a commit,
 not a redesign.
 
-1. **A model may read reviews and feedback** (§22.2) and **a writer's own work
-   tools** (§22.3): **proposed, needs sign-off.** Until then Phases 1 and 2 ship
-   without them, and every screen works.
+1. **A model may read reviews and feedback** (§22.2), and **a person's
+   connected tools once they grant it, source by source, never by default**
+   (§22.3): **accepted by the owner on 2026-10-17**, and recorded in
+   `docs/tech-stack.md` and `CLAUDE.md`.
 2. **Goals and Learning are inside `performance`** (§5.5), built as separate
    bounded contexts so either can become its own `ModuleKey`.
 3. **Forms are a contract and a pure kit, stored per module** (§5.6), not a
@@ -2066,20 +2173,27 @@ not a redesign.
 8. **One company-wide performance score scale is recommended** (§11.5) so
    Compensation receives one scale; per-template scales remain possible.
 9. **Probation cycles group by week** (§16.3).
-10. **A model never answers a numeric question** (§22.1), including in prefill.
+10. **AI suggests numeric answers, a person confirms them** (§22.1): scales,
+    choices, binaries, goal ratings, the performance score and calibration
+    changes, each with reasons; decided by the owner on 2026-10-17.
 11. **`in_review` is the calibration hold** (§10.1), decided by the owner on
     2026-10-17: in the contract and the domain from Phase 1, reachable from no
     screen until calibration ships.
+12. **AI can do everything a person can**, as that person, with every write
+    confirmed (§22.1), decided by the owner on 2026-10-17. Numbers are
+    included, as suggestions the person confirms (decision 10).
+13. **Only HR approves an unlock**, always (§10.4), decided by the owner on
+    2026-10-17.
+14. **Every action is audited** with all its details, through `platform/audit`
+    (§24.1), decided by the owner on 2026-10-17.
 
 Open questions for the owner:
 
-1. **Who approves an unlock**: the request says both "the manager can unlock"
-   and "an inbox task for HR". This document makes HR the approver, with a setting
-   to let managers approve for their reports (§10.4). Which should be the
-   default?
-2. **Peers**: same manager by default, widened to same team by a setting
+1. **Peers**: same manager by default, widened to same team by a setting
    (§9.3). Should cross-team peers (people who work together often) be a third
    option once work tools are connected?
-3. **Business tasks** for Phase 4: Slack Marketplace listing, Google OAuth
+2. **Business tasks** for Phase 4: Slack Marketplace listing, Google OAuth
    verification, the GitHub App and Atlassian app, and asking Frontend Masters
    about a teams API. Entra and Zoom stay parked with the existing decision.
+   At launch preparation, a legal review of reading connected tools per launch
+   country (§22.3).
