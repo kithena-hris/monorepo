@@ -193,6 +193,13 @@ const AREAS: readonly {
     built: true,
     module: 'module.onboarding',
   },
+  {
+    label: 'Performance',
+    icon: <icons.goal />,
+    href: '/performance',
+    built: true,
+    module: 'module.performance',
+  },
 ];
 
 /**
@@ -493,6 +500,12 @@ export function AppShell({
     timeOff !== undefined && isCurrent('/time-off', pathname)
       ? (matchPath(timeOff.routes, pathname)?.path ?? null)
       : null;
+  // Performance's, the same way: its sections differ by role (PRF-070).
+  const perf = shell.remotes?.['performance'];
+  const perfRoute =
+    perf !== undefined && isCurrent('/performance', pathname)
+      ? (matchPath(perf.routes, pathname)?.path ?? null)
+      : null;
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const keys = useShortcutsFor({
@@ -520,8 +533,9 @@ export function AppShell({
     (path: string) =>
       HOST_PAGES.has(path) ||
       matchPath(shell.routes, path) !== undefined ||
-      (timeOff !== undefined && matchPath(timeOff.routes, path) !== undefined),
-    [shell.routes, timeOff],
+      (timeOff !== undefined && matchPath(timeOff.routes, path) !== undefined) ||
+      (perf !== undefined && matchPath(perf.routes, path) !== undefined),
+    [shell.routes, timeOff, perf],
   );
   useInAppLinks(isPage);
   // The other tabs of this page's place, fetched whole once it has settled.
@@ -531,8 +545,11 @@ export function AppShell({
       ...(timeOff === undefined
         ? []
         : [{ places: [...timeOff.sections, ...timeOff.settings], routes: timeOff.routes }]),
+      ...(perf === undefined
+        ? []
+        : [{ places: [...perf.sections, ...perf.settings], routes: perf.routes }]),
     ],
-    [shell, timeOff],
+    [shell, timeOff, perf],
   );
   useWarmPages(pathname, warmAreas);
   /*
@@ -644,7 +661,19 @@ export function AppShell({
                                   ),
                                   expanded: isCurrent(area.href, pathname),
                                 }
-                              : {})}
+                              : area.href === '/performance' && perf !== undefined
+                                ? {
+                                    subnav: (
+                                      <PeopleSubnav
+                                        sections={perf.sections}
+                                        route={perfRoute}
+                                        counts={perf.counts ?? {}}
+                                        label="Performance sections"
+                                      />
+                                    ),
+                                    expanded: isCurrent(area.href, pathname),
+                                  }
+                                : {})}
                         >
                           {/* Where the area's address redirects (`firstUnder`, as the
                               server does), so a press is one round trip, not two. */}
@@ -655,7 +684,9 @@ export function AppShell({
                                   ? shell.sections
                                   : area.href === '/time-off'
                                     ? (timeOff?.sections ?? [])
-                                    : [],
+                                    : area.href === '/performance'
+                                      ? (perf?.sections ?? [])
+                                      : [],
                                 area.href,
                               ) ?? (area.href === '/inbox' ? '/inbox/todo' : area.href)) as Route
                             }
