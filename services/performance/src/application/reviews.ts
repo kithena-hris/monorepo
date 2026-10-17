@@ -92,7 +92,7 @@ export async function load(
 
 /* ---------------------------------------------------------- my reviews -- */
 
-const stateFor = (r: Review, today: string): string => {
+export const stateFor = (r: Review, today: string): string => {
   if (r.detached !== null) return 'detached';
   if (r.released !== null && r.acknowledged !== null) return 'ack';
   if (r.status === 'unlock_requested') return 'unlock';
@@ -166,7 +166,7 @@ export async function myReviews(ctx: Ctx, tab: string): Promise<Result<unknown>>
   return ok({
     tab,
     counts: { toWrite: toWrite.length, written: written.length },
-    rows: (tab === 'written' ? written : toWrite).map(row),
+    rows: tab === 'nominations' ? [] : (tab === 'written' ? written : toWrite).map(row),
     nominations,
     about: tab === 'about' ? await aboutMe(ctx, who.value) : null,
   });

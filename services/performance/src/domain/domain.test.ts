@@ -348,7 +348,7 @@ describe('calibration', () => {
 
 describe('feedback', () => {
   it('offers the audiences the company allows, and praise is always named', () => {
-    expect(audiences(DEFAULT_FEEDBACK, false)).toEqual(['recipient', 'recipient_manager']);
+    expect(audiences(DEFAULT_FEEDBACK, false)).toEqual(['recipient_manager', 'manager_only']);
     const praise = checkGive(DEFAULT_FEEDBACK, {
       from: 'a',
       to: 'b',

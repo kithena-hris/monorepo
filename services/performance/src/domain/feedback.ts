@@ -61,7 +61,8 @@ export function audiences(settings: FeedbackSettings, praise: boolean): Audience
     return settings.praise.public
       ? ['everyone', 'recipient_manager', 'recipient']
       : ['recipient_manager', 'recipient'];
-  return settings.sees === 'recipient' ? ['recipient'] : ['recipient', 'recipient_manager'];
+  // Design PF14c v2: "Omar and his manager" or "Only his manager".
+  return settings.sees === 'recipient' ? ['recipient'] : ['recipient_manager', 'manager_only'];
 }
 
 export function checkGive(

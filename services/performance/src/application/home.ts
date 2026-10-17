@@ -7,6 +7,7 @@ import { stateOf } from '../domain/learning.js';
 import { isSubmitted } from '../domain/review.js';
 import { adminOnly, audit, hrOnly, me, names, type Ctx } from './context.js';
 import { countsOf } from './cycles.js';
+import { stateFor } from './reviews.js';
 import { people, search, subtitle } from './members.js';
 import { EVIDENCE_SOURCES, settingsOf } from './settings.js';
 import { ensureSeeded } from './templates.js';
@@ -118,9 +119,32 @@ export async function homeScreen(ctx: Ctx): Promise<Result<unknown>> {
           .toSorted((a, b) => b.at.localeCompare(a.at))
           .slice(0, 3)
           .map((f) => ({ id: f.id, from: name(f.from), text: f.body, at: f.at }));
+  // PF1 v2, "Owed to you": who is writing about me in a running cycle, and when I see it.
+  const live = new Map(cycles.filter((c) => c.state === 'in_progress').map((c) => [c.id, c]));
+  const owed =
+    personId === null
+      ? []
+      : (await ctx.tx.reviews.find({ subjectId: personId }))
+          .filter(
+            (r) =>
+              r.cycleId !== null &&
+              live.has(r.cycleId) &&
+              r.kind !== 'self' &&
+              !r.hidden &&
+              r.status !== 'cancelled',
+          )
+          .map((r) => ({
+            id: r.id,
+            kind: r.kind,
+            from: r.kind === 'peer' || r.kind === 'upward' ? null : name(r.authorId),
+            state: stateFor(r, ctx.today),
+            cycle: live.get(r.cycleId ?? '')?.name ?? '',
+            released: r.released?.at ?? null,
+          }));
   return ok({
     hr: ctx.viewer.hr,
     name: ctx.viewer.name,
+    owed,
     stats,
     tasks,
     running,
@@ -246,7 +270,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         summary: `${a.why} · ${stateOf(a, i).replace('_', ' ')}`,
         at: a.at as InboxItem['at'],
         due: a.due,
-        link: `/performance/learning/${i.id}`,
+        link: `/performance/learning/items/${i.id}`,
       });
     }
     for (const r of await ctx.tx.reviews.find({ subjectId: personId }))

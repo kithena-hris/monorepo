@@ -746,7 +746,7 @@ export const ROUTES: readonly Route[] = [
     method: 'GET',
     path: `${V1}/reviews`,
     summary: 'PF13: my reviews',
-    params: z.object({ tab: z.enum(['write', 'about', 'written']).optional() }),
+    params: z.object({ tab: z.enum(['write', 'about', 'written', 'nominations']).optional() }),
     run: (ctx, { params }) => reviews.myReviews(ctx, params.tab ?? 'write'),
   }),
   route({

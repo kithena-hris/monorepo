@@ -157,5 +157,5 @@ export const DEFAULT_SCALE: CompanyScale = [
   { label: 'Partly meets', description: null, value: 2 },
   { label: 'Meets', description: null, value: 3 },
   { label: 'Exceeds', description: null, value: 4 },
-  { label: 'Outstanding', description: null, value: 5 },
+  { label: 'Exceptional', description: null, value: 5 },
 ];

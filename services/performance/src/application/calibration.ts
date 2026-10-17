@@ -26,9 +26,9 @@ import { settingsOf } from './settings.js';
  */
 
 export const BOXES = [
-  { key: 'lowPotential', label: 'Low perf, high pot' },
-  { key: 'corePotential', label: 'Core, high potential' },
-  { key: 'star', label: 'Star' },
+  { key: 'lowPotential', label: 'Rising star' },
+  { key: 'corePotential', label: 'Growth' },
+  { key: 'star', label: 'Key talent' },
   { key: 'inconsistent', label: 'Inconsistent' },
   { key: 'core', label: 'Core' },
   { key: 'high', label: 'High performer' },
