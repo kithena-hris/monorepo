@@ -5,10 +5,8 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
  * Everybody People holds at one company, as `people.person.snapshot`, written
  * to People's outbox in the caller's transaction: what a module switched on
  * later needs to know everyone already there, whoever was hired before it
- * listened. Built in one statement, as
- * `migrations/20261017190000_people_person_snapshot.sql` builds it for every
- * company once; change both together. A record without a name and a work
- * address is nobody a module can show yet, and is left out.
+ * listened. One statement. A record without a name and a work address is
+ * nobody a module can show yet, and is left out.
  */
 export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string): Promise<number> {
   const rows = await tx.execute(sql`
@@ -52,4 +50,19 @@ export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string)
      AND p.tenant_id = ${tenantId}::uuid
   RETURNING event_id`);
   return [...rows].length;
+}
+
+/**
+ * A company marked due (`people.snapshot_due`, by
+ * `migrations/20261017190000_people_person_snapshot.sql`) is written once the
+ * time has come, then unmarked. True when it wrote.
+ */
+export async function snapshotIfDue(tx: PostgresJsDatabase, tenantId: string): Promise<boolean> {
+  const due = await tx.execute(sql`
+    DELETE FROM people.snapshot_due
+     WHERE tenant_id = ${tenantId}::uuid AND due_at <= now()
+    RETURNING tenant_id`);
+  if ([...due].length === 0) return false;
+  await snapshotEveryone(tx, tenantId);
+  return true;
 }

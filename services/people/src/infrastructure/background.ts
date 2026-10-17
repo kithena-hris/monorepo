@@ -53,6 +53,7 @@ import {
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
 import { NO_TENANT_APP_BASE, tenantAppBase, tenantCompanies } from './tenant-origin.js';
+import { snapshotIfDue } from './snapshot.js';
 import { knownTenants } from './tenants.js';
 import { drizzleSecretStore, secretRotation } from './secret-store.js';
 import { claimRotation, drizzleUniqueClaims } from './unique.js';
@@ -198,6 +199,14 @@ export async function startBackground(
     secretStore === undefined ? undefined : (tx, where) => secretStore.revealAll(tx, where);
 
   const jobs = [
+    // A company due its people's snapshots (`snapshot.ts`): every five minutes.
+    every(5 * 60_000, () =>
+      forEachTenant('member snapshot', async (tenantId) => {
+        const wrote = await inTenant(tenantId, (scope) => snapshotIfDue(scope.tx, tenantId));
+        if (wrote) logger.info({ tenantId }, 'people snapshot written for every module');
+      }),
+    ),
+
     // The boot load, then hourly as a safety net for an event this process
     // missed. The consumer above is what makes a publish take effect promptly.
     every(HOUR, async () => wirePolicyRegistry(inTenant, await knownTenants(db), registry)),
