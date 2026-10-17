@@ -8,6 +8,7 @@ import {
   documentsEvents,
   recruitingEvents,
   onboardingEvents,
+  performanceEvents,
   type DefinedEvent,
 } from '@kithena/contracts';
 import { classifiedFieldsOf } from '@kithena/testing';
@@ -32,6 +33,7 @@ const REGISTRY: readonly DefinedEvent[] = [
   ...documentsEvents,
   ...recruitingEvents,
   ...onboardingEvents,
+  ...performanceEvents,
 ];
 const nameOf = (event: DefinedEvent): string => event.name;
 
