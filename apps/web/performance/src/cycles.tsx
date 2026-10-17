@@ -65,7 +65,6 @@ import {
   plural,
   score,
   useAct,
-  when,
   words,
   type Act,
 } from './shared';

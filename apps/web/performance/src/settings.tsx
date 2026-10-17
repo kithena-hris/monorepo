@@ -1,13 +1,10 @@
 import {
   Alert,
-  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  Chip,
-  ChipRow,
   EmptyState,
   Field,
   FieldLabel,
@@ -25,7 +22,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { Choose, Refusal, Search, SwitchRow, useAct, when } from './shared';
+import { Choose, Refusal, SwitchRow, useAct, when } from './shared';
 import type { ScaleOption, ScreenProps } from './types';
 
 /**
