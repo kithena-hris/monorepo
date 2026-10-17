@@ -37,6 +37,7 @@ import {
   TabsTrigger,
   Textarea,
   icons,
+  DatePicker,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -195,11 +196,11 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
           <Field required>
             <FieldLabel>Start date</FieldLabel>
             <FieldControl>
-              <Input
-                type="date"
-                value={start}
-                onChange={(e) => {
-                  setStart(e.target.value);
+              <DatePicker
+                label="Start date"
+                value={start === '' ? null : start}
+                onChange={(d) => {
+                  setStart(d ?? '');
                 }}
               />
             </FieldControl>
@@ -207,11 +208,11 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
           <Field required>
             <FieldLabel>Offer expires</FieldLabel>
             <FieldControl>
-              <Input
-                type="date"
-                value={expires}
-                onChange={(e) => {
-                  setExpires(e.target.value);
+              <DatePicker
+                label="Offer expires"
+                value={expires === '' ? null : expires}
+                onChange={(d) => {
+                  setExpires(d ?? '');
                 }}
               />
             </FieldControl>
@@ -594,11 +595,11 @@ function Composer({
             <Field>
               <FieldLabel>Ends on</FieldLabel>
               <FieldControl>
-                <Input
-                  type="date"
-                  value={answers.contractEnd ?? ''}
-                  onChange={(e) => {
-                    set({ contractEnd: e.target.value === '' ? null : e.target.value });
+                <DatePicker
+                  label="Ends on"
+                  value={answers.contractEnd ?? null}
+                  onChange={(d) => {
+                    set({ contractEnd: d });
                   }}
                 />
               </FieldControl>
@@ -1103,11 +1104,11 @@ function DatesTab({
         <Field required>
           <FieldLabel>Start date</FieldLabel>
           <FieldControl>
-            <Input
-              type="date"
-              value={start}
-              onChange={(e) => {
-                setStart(e.target.value);
+            <DatePicker
+              label="Start date"
+              value={start === '' ? null : start}
+              onChange={(d) => {
+                setStart(d ?? '');
               }}
             />
           </FieldControl>
@@ -1115,11 +1116,11 @@ function DatesTab({
         <Field required>
           <FieldLabel>Offer expires</FieldLabel>
           <FieldControl>
-            <Input
-              type="date"
-              value={expires}
-              onChange={(e) => {
-                setExpires(e.target.value);
+            <DatePicker
+              label="Offer expires"
+              value={expires === '' ? null : expires}
+              onChange={(d) => {
+                setExpires(d ?? '');
               }}
             />
           </FieldControl>
@@ -1433,11 +1434,11 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                       <Field required>
                         <FieldLabel>Date of the second signature</FieldLabel>
                         <FieldControl>
-                          <Input
-                            type="date"
-                            value={signedOn}
-                            onChange={(e) => {
-                              setSignedOn(e.target.value);
+                          <DatePicker
+                            label="Date of the second signature"
+                            value={signedOn === '' ? null : signedOn}
+                            onChange={(d) => {
+                              setSignedOn(d ?? '');
                             }}
                           />
                         </FieldControl>

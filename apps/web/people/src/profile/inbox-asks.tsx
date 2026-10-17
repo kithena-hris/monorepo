@@ -20,7 +20,6 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
-  Input,
   List,
   ListItem,
   RadioCard,
@@ -28,6 +27,7 @@ import {
   Switch,
   Textarea,
   icons,
+  DatePicker,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -144,11 +144,11 @@ export function AskDialog({
           <Field>
             <FieldLabel>Due</FieldLabel>
             <FieldControl>
-              <Input
-                type="date"
-                value={due}
-                onChange={(e) => {
-                  setDue(e.target.value);
+              <DatePicker
+                label="Due"
+                value={due === '' ? null : due}
+                onChange={(d) => {
+                  setDue(d ?? '');
                 }}
               />
             </FieldControl>
@@ -312,11 +312,11 @@ export function SendDocumentDialog({
             <Field>
               <FieldLabel>Due</FieldLabel>
               <FieldControl>
-                <Input
-                  type="date"
-                  value={due}
-                  onChange={(e) => {
-                    setDue(e.target.value);
+                <DatePicker
+                  label="Due"
+                  value={due === '' ? null : due}
+                  onChange={(d) => {
+                    setDue(d ?? '');
                   }}
                 />
               </FieldControl>

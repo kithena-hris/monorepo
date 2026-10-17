@@ -10,6 +10,7 @@ import { isSubmitted, standing } from '../domain/review.js';
 import { audit, forbidden, hrOnly, names, notFound, type Ctx } from './context.js';
 import { metric, COHORT } from './analytics.js';
 import { formOf } from './forms.js';
+import { people } from './members.js';
 import { load } from './reviews.js';
 import { aiOn, settingsOf, type AiFeature } from './settings.js';
 
@@ -61,7 +62,12 @@ async function ask<T>(
     outcome: 'Shown',
     at: ctx.at,
   });
-  await audit(ctx, { kind: 'ai_output', action: `Used AI: ${feature}`, target: log.on, targetId: id });
+  await audit(ctx, {
+    kind: 'ai_output',
+    action: `Used AI: ${feature}`,
+    target: log.on,
+    targetId: id,
+  });
   return ok({ answer: answer.data, logId: id });
 }
 
@@ -451,8 +457,9 @@ export async function toneCheck(ctx: Ctx, text: string): Promise<Result<unknown>
 /* --------------------------------------------------------- setup in words -- */
 
 const Condition = z.object({
-  field: z.enum(['department', 'status', 'startedBefore', 'manager', 'title', 'legalEntity']),
+  field: z.enum(['department', 'status', 'hiredOn', 'manager', 'title', 'legalEntity', 'location']),
   value: z.string().max(120),
+  op: z.enum(['is', 'not', 'contains', 'before', 'after']),
 });
 
 /** §8.2: participants changed in words, returned as a diff HR applies. */
@@ -466,19 +473,30 @@ export async function participantsInWords(
   const c = await ctx.tx.cycles.get(cycleId);
   if (c === null) return err(notFound('cycle'));
   const departments = [...new Set((await ctx.tx.orgUnits.find()).map((u) => u.name))];
+  const members = await people(ctx);
   const got = await ask(
     ctx,
     'setupByChat',
     {
       version: '1',
       instruction:
-        'Change a participant filter as asked. Fields: department, status, startedBefore (YYYY-MM-DD), title. Return JSON {"filter":[{"field","value"}],"summary":["one line per change"]}.',
+        'Change a participant filter as asked. Conditions are {"field","op","value"}: department (one of `departments`, op is or not; several "is" on one field are alternatives), location (an id from `locations`, op is or not), manager (an id from `managers`, op is or not), status (active, on_leave, notice or pre_hire, op is or not), title (op contains), hiredOn (YYYY-MM-DD, op before or after). Return JSON {"filter":[{"field","op","value"}],"summary":["one line per change"]}.',
       answer: z.object({
         filter: z.array(Condition).max(20),
         summary: z.array(z.string().max(200)).max(10),
       }),
     },
-    { request: text, current: c.participants.filter, departments },
+    {
+      request: text,
+      current: c.participants.filter,
+      departments,
+      locations: [
+        ...new Set(members.flatMap((m) => (m.locationId === null ? [] : [m.locationId]))),
+      ],
+      managers: [
+        ...new Set(members.flatMap((m) => (m.managerId === null ? [] : [m.managerId]))),
+      ].map((id) => ({ id, name: members.find((m) => m.personId === id)?.name ?? null })),
+    },
     { on: c.name },
   );
   if (!got.ok) return got;

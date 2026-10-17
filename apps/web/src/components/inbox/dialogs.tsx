@@ -25,6 +25,8 @@ import {
   SignaturePad,
   Textarea,
   icons,
+  DatePicker,
+  TimePicker,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
@@ -265,12 +267,24 @@ export function SnoozeDialog({
       <Field>
         <FieldLabel>When</FieldLabel>
         <FieldControl>
-          <Input
-            type="datetime-local"
-            value={at}
-            {...(item.due === null ? {} : { max: `${item.due}T23:59` })}
-            onChange={(e) => {
-              setAt(e.target.value);
+          <DatePicker
+            label="When"
+            {...(item.due === null ? {} : { max: item.due })}
+            value={at === '' ? null : at.slice(0, 10)}
+            onChange={(d) => {
+              setAt(d === null ? '' : `${d}T${at.slice(11, 16) || '09:00'}`);
+            }}
+          />
+        </FieldControl>
+      </Field>
+      <Field>
+        <FieldLabel>At</FieldLabel>
+        <FieldControl>
+          <TimePicker
+            label="At"
+            value={at === '' ? null : at.slice(11, 16)}
+            onChange={(t) => {
+              if (t !== null && at !== '') setAt(`${at.slice(0, 10)}T${t}`);
             }}
           />
         </FieldControl>
@@ -312,11 +326,11 @@ export function DueDialog({
       <Field>
         <FieldLabel>Due</FieldLabel>
         <FieldControl>
-          <Input
-            type="date"
-            value={day}
-            onChange={(e) => {
-              setDay(e.target.value);
+          <DatePicker
+            label="Due"
+            value={day === '' ? null : day}
+            onChange={(d) => {
+              setDay(d ?? '');
             }}
           />
         </FieldControl>
@@ -609,11 +623,11 @@ export function HandOverDialog({
         <Field required>
           <FieldLabel>From</FieldLabel>
           <FieldControl>
-            <Input
-              type="date"
-              value={from}
-              onChange={(e) => {
-                setFrom(e.target.value);
+            <DatePicker
+              label="From"
+              value={from === '' ? null : from}
+              onChange={(d) => {
+                setFrom(d ?? '');
               }}
             />
           </FieldControl>
@@ -621,11 +635,11 @@ export function HandOverDialog({
         <Field required>
           <FieldLabel>Until</FieldLabel>
           <FieldControl>
-            <Input
-              type="date"
-              value={to}
-              onChange={(e) => {
-                setTo(e.target.value);
+            <DatePicker
+              label="Until"
+              value={to === '' ? null : to}
+              onChange={(d) => {
+                setTo(d ?? '');
               }}
             />
           </FieldControl>

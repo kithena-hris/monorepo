@@ -89,9 +89,11 @@ describe('What changed (AI5)', () => {
         onPeriodChange={onPeriodChange}
       />,
     );
-    const from = screen.getByLabelText('From');
+    // The first day through Reach's date picker: opened, and typed.
+    await user.click(screen.getByRole('button', { name: /^From:/ }));
+    const from = await screen.findByLabelText('Type from');
     await user.clear(from);
-    await user.type(from, '2026-09-10');
+    await user.type(from, '10/09/2026{Enter}');
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(onPeriodChange).toHaveBeenLastCalledWith({
       kind: 'custom',

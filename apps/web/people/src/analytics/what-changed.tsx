@@ -31,6 +31,7 @@ import {
   TrendChart,
   icons,
   type ChartPoint,
+  DatePicker,
 } from '@reach/ui';
 import { useEffect, useId, useState, type SyntheticEvent, type JSX } from 'react';
 
@@ -542,14 +543,14 @@ function PeriodControl({
           <Field>
             <FieldLabel htmlFor={`${id}-from`}>From</FieldLabel>
             <FieldControl>
-              <Input
+              <DatePicker
+                label="From"
                 id={`${id}-from`}
-                type="date"
                 size="sm"
-                value={from}
-                max={to}
-                onChange={(e) => {
-                  setFrom(e.target.value);
+                {...(to === '' ? {} : { max: to })}
+                value={from === '' ? null : from}
+                onChange={(d) => {
+                  setFrom(d ?? '');
                 }}
               />
             </FieldControl>
@@ -557,14 +558,14 @@ function PeriodControl({
           <Field>
             <FieldLabel htmlFor={`${id}-to`}>To</FieldLabel>
             <FieldControl>
-              <Input
+              <DatePicker
+                label="To"
                 id={`${id}-to`}
-                type="date"
                 size="sm"
-                value={to}
-                min={from}
-                onChange={(e) => {
-                  setTo(e.target.value);
+                {...(from === '' ? {} : { min: from })}
+                value={to === '' ? null : to}
+                onChange={(d) => {
+                  setTo(d ?? '');
                 }}
               />
             </FieldControl>

@@ -7,10 +7,14 @@ import {
   checks,
   draftCycle,
   dueDates,
+  matches,
   move,
+  remindersFor,
+  remindsOn,
   startAction,
   subjectsOf,
   type Cycle,
+  type Filterable,
 } from './cycle.js';
 import {
   audiences,
@@ -171,6 +175,7 @@ describe('a cycle', () => {
         title: null,
         hiredOn: null,
         legalEntityId: null,
+        locationId: null,
       },
       {
         personId: 'b',
@@ -180,6 +185,7 @@ describe('a cycle', () => {
         title: null,
         hiredOn: null,
         legalEntityId: null,
+        locationId: null,
       },
       {
         personId: 'c',
@@ -189,6 +195,7 @@ describe('a cycle', () => {
         title: null,
         hiredOn: null,
         legalEntityId: null,
+        locationId: null,
       },
     ];
     const c = cycle({
@@ -200,6 +207,91 @@ describe('a cycle', () => {
       },
     });
     expect(subjectsOf(c, people).toSorted()).toEqual(['a', 'b']);
+  });
+});
+
+describe('reminders, each kind of review its own', () => {
+  it('reads a kind’s own reminders, else the cycle’s', () => {
+    const base = cycle();
+    const c: Cycle = {
+      ...base,
+      activities: {
+        ...base.activities,
+        manager: {
+          ...base.activities.manager,
+          reminders: { rules: ['before:7'], email: true, chat: false },
+        },
+      },
+    };
+    expect(remindersFor(c, 'manager')).toEqual({ rules: ['before:7'], email: true, chat: false });
+    expect(remindersFor(c, 'self')).toEqual(c.reminders);
+  });
+
+  it('reminds before, on and after the deadline, by the rules', () => {
+    expect(remindsOn(['before:3'], 3)).toBe(true);
+    expect(remindsOn(['before:3'], 2)).toBe(false);
+    expect(remindsOn(['on_day'], 0)).toBe(true);
+    // Every two days when late, three times at most.
+    expect([-1, -2, -4, -6, -8].map((d) => remindsOn(['late:2'], d))).toEqual([
+      false,
+      true,
+      true,
+      true,
+      false,
+    ]);
+  });
+});
+
+describe('the participant filter, as the directory builds it', () => {
+  const ana: Filterable = {
+    personId: 'ana',
+    status: 'active',
+    department: 'Engineering',
+    managerPersonId: 'max',
+    title: 'Backend engineer',
+    hiredOn: '2024-03-01',
+    legalEntityId: 'us',
+    locationId: 'chicago',
+  };
+  const bo: Filterable = {
+    ...ana,
+    personId: 'bo',
+    department: 'Sales',
+    title: 'Account executive',
+    hiredOn: '2026-09-01',
+    locationId: 'london',
+  };
+
+  it('reads “is any of” as alternatives and different fields as all holding', () => {
+    const filter = [
+      { field: 'department', value: 'Engineering', op: 'is' },
+      { field: 'department', value: 'sales', op: 'is' },
+      { field: 'location', value: 'chicago', op: 'is' },
+    ] as const;
+    expect([ana, bo].filter((m) => matches(m, filter)).map((m) => m.personId)).toEqual(['ana']);
+  });
+
+  it('reads “is none of”, “contains”, and a start date before or after', () => {
+    expect(matches(bo, [{ field: 'department', value: 'Engineering', op: 'not' }])).toBe(true);
+    expect(matches(ana, [{ field: 'department', value: 'Engineering', op: 'not' }])).toBe(false);
+    expect(matches(ana, [{ field: 'title', value: 'engineer', op: 'contains' }])).toBe(true);
+    expect(matches(bo, [{ field: 'hiredOn', value: '2025-01-01', op: 'after' }])).toBe(true);
+    expect(matches(ana, [{ field: 'hiredOn', value: '2025-01-01', op: 'before' }])).toBe(true);
+    // A filter saved before operators: `startedBefore`, and a bare value meaning "is".
+    expect(matches(ana, [{ field: 'startedBefore', value: '2025-01-01' }])).toBe(true);
+    expect(matches(ana, [{ field: 'legalEntity', value: 'us' }])).toBe(true);
+  });
+
+  it('holds when any one condition does, with “any”', () => {
+    const filter = [
+      { field: 'location', value: 'london', op: 'is' },
+      { field: 'title', value: 'backend', op: 'contains' },
+    ] as const;
+    expect([ana, bo].filter((m) => matches(m, filter, 'any')).map((m) => m.personId)).toEqual([
+      'ana',
+      'bo',
+    ]);
+    expect([ana, bo].filter((m) => matches(m, filter)).map((m) => m.personId)).toEqual([]);
   });
 });
 
@@ -493,7 +585,8 @@ describe('goals', () => {
       expect(visibilityOf(g)).toBe('owner');
       for (const r of [adam, marco, { ...stranger, hr: true }])
         expect(canSeeGoal(g, r, owner), r.personId).toBe(true);
-      for (const r of [omar, priya, stranger]) expect(canSeeGoal(g, r, owner), r.personId).toBe(false);
+      for (const r of [omar, priya, stranger])
+        expect(canSeeGoal(g, r, owner), r.personId).toBe(false);
     });
 
     it('shows a team goal to the owner’s peers and reports too', () => {
@@ -624,7 +717,12 @@ describe('retention', () => {
       { personId: 'recent', leftOn: day('2026-10-01') },
     ];
     expect(dueNow(leavers, new Set(['held']), rule, day('2026-10-17'))).toEqual([
-      { personId: 'gone', leftOn: '2025-06-30', kinds: ['feedback', 'notes', 'ai'], ownNotes: true },
+      {
+        personId: 'gone',
+        leftOn: '2025-06-30',
+        kinds: ['feedback', 'notes', 'ai'],
+        ownNotes: true,
+      },
     ]);
   });
 });
@@ -644,7 +742,11 @@ describe('a webhook endpoint', () => {
     failing: null,
     last: null,
   };
-  const sent = (status: number) => ({ eventId: 'e1', writtenAt: '2026-10-17T10:00:05.000Z', status });
+  const sent = (status: number) => ({
+    eventId: 'e1',
+    writtenAt: '2026-10-17T10:00:05.000Z',
+    status,
+  });
 
   it('takes what it subscribes to, or everything for *', () => {
     expect(subscribes(endpoint, 'performance.review.released')).toBe(true);

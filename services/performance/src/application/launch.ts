@@ -2,7 +2,7 @@ import { dateFormat } from '@kithena/domain-kit';
 import type { TenantId } from '@kithena/contracts';
 import { logger } from '@kithena/telemetry';
 
-import { move, type Cycle } from '../domain/cycle.js';
+import { move, remindersFor, remindsOn, type Cycle } from '../domain/cycle.js';
 import { isSubmitted } from '../domain/review.js';
 import {
   contextOf,
@@ -246,8 +246,10 @@ async function dailyReminders(ctx: Ctx): Promise<void> {
   const name = await names(ctx);
   const members = await ctx.members();
   for (const c of await ctx.tx.cycles.find({ state: 'in_progress' })) {
-    if (!c.reminders.email) continue;
     for (const r of await ctx.tx.reviews.find({ cycleId: c.id })) {
+      // Each kind of review by its own reminders, else the cycle's (§8.4).
+      const rules = remindersFor(c, r.kind);
+      if (!rules.email && !rules.chat) continue;
       if (
         isSubmitted(r) ||
         r.hidden ||
@@ -256,16 +258,7 @@ async function dailyReminders(ctx: Ctx): Promise<void> {
       )
         continue;
       const days = Math.round((Date.parse(r.due) - Date.parse(ctx.today)) / 86_400_000);
-      const due = c.reminders.rules.some((rule) => {
-        const [kind, n] = rule.split(':');
-        if (kind === 'before') return days === Number(n);
-        if (kind === 'on_day') return days === 0;
-        if (kind === 'late')
-          return (
-            days < 0 && -days % Math.max(1, Number(n)) === 0 && -days <= Math.max(1, Number(n)) * 3
-          );
-        return false;
-      });
+      const due = remindsOn(rules.rules, days);
       const email = members.find((m) => m.personId === r.authorId)?.workEmail;
       if (due && email)
         ctx.mail.push({
@@ -274,7 +267,11 @@ async function dailyReminders(ctx: Ctx): Promise<void> {
             days < 0 ? `Overdue: a review in ${c.name}` : `Due ${r.due}: a review in ${c.name}`,
           text: `Hi ${name(r.authorId)}, your review about ${name(r.subjectId)} in ${c.name} is due ${r.due}.`,
           dedupeKey: `reminder:${r.id}:${ctx.today}`,
-          ...(c.reminders.chat ? {} : { chat: false as const }),
+          ...(rules.chat
+            ? rules.email
+              ? {}
+              : { chat: 'only' as const }
+            : { chat: false as const }),
         });
     }
   }

@@ -30,6 +30,7 @@ import {
   TableRow,
   Textarea,
   icons,
+  TimePicker,
 } from '@reach/ui';
 import { encode } from 'uqr';
 import { useState, type JSX } from 'react';
@@ -531,16 +532,32 @@ function NewItem({
       </Field>
       <NumberField label="Length" suffix="min" value={minutes} min={0} onChange={setMinutes} />
       {kind === 'session' ? (
-        <Field required>
-          <FieldLabel>Starts</FieldLabel>
-          <Input
-            type="datetime-local"
-            value={start}
-            onChange={(e) => {
-              setStart(e.target.value);
-            }}
-          />
-        </Field>
+        <>
+          <Field required>
+            <FieldLabel>Starts</FieldLabel>
+            <FieldControl>
+              <DatePicker
+                label="Starts"
+                value={start === '' ? null : start.slice(0, 10)}
+                onChange={(d) => {
+                  setStart(d === null ? '' : `${d}T${start.slice(11, 16) || '09:00'}`);
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field required>
+            <FieldLabel>At</FieldLabel>
+            <FieldControl>
+              <TimePicker
+                label="At"
+                value={start === '' ? null : start.slice(11, 16)}
+                onChange={(t) => {
+                  if (t !== null && start !== '') setStart(`${start.slice(0, 10)}T${t}`);
+                }}
+              />
+            </FieldControl>
+          </Field>
+        </>
       ) : (
         <Field>
           <FieldLabel>Link</FieldLabel>

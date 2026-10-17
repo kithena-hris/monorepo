@@ -9,6 +9,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  DatePicker,
   Input,
 } from '@reach/ui';
 import { useActionState, useState, type JSX } from 'react';
@@ -59,6 +60,7 @@ export interface InviteEmployeeFormProps {
 export function InviteEmployeeForm({ action, companyName }: InviteEmployeeFormProps): JSX.Element {
   const [state, submit, pending] = useActionState(action, null);
   const [showDates, setShowDates] = useState(false);
+  const [start, setStart] = useState<string | null>(null);
 
   const refused = state !== null && !state.ok;
   const domain = companyName.toLowerCase().replaceAll(/[^a-z0-9]+/g, '');
@@ -83,12 +85,19 @@ export function InviteEmployeeForm({ action, companyName }: InviteEmployeeFormPr
           {state !== null && !state.ok ? <FieldError>{state.message}</FieldError> : null}
         </Field>
 
+        {/* Reach's picker has no form name: the chosen day travels in this. */}
+        <input type="hidden" name="employmentStart" value={start ?? ''} />
         {showDates ? (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel>Start date</FieldLabel>
               <FieldControl>
-                <Input type="date" name="employmentStart" disabled={pending} />
+                <DatePicker
+                  label="Start date"
+                  value={start}
+                  disabled={pending}
+                  onChange={setStart}
+                />
               </FieldControl>
               <FieldDescription>
                 They cannot set up a passkey before this. Defaults to today.

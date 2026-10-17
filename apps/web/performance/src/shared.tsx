@@ -25,6 +25,7 @@ import {
   SelectValue,
   Stepper,
   Switch,
+  cn,
 } from '@reach/ui';
 import { useState, useTransition, type JSX, type MouseEvent, type ReactNode } from 'react';
 
@@ -338,7 +339,14 @@ export function StepDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className={wide === true ? 'max-w-4xl' : 'max-w-2xl'}>
+      {/* One height for every step, so the dialog never jumps between them: the
+          body scrolls inside it. Under a thumb the dialog is the screen. */}
+      <DialogContent
+        className={cn(
+          wide === true ? 'max-w-4xl' : 'max-w-2xl',
+          'h-[min(48rem,calc(100dvh-4rem))] touch:h-auto',
+        )}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
@@ -454,9 +462,7 @@ export function download(file: {
   readonly mediaType?: string;
 }): void {
   const bytes = Uint8Array.from(atob(file.base64), (c) => c.charCodeAt(0));
-  const url = URL.createObjectURL(
-    new Blob([bytes], { type: file.mediaType ?? 'application/pdf' }),
-  );
+  const url = URL.createObjectURL(new Blob([bytes], { type: file.mediaType ?? 'application/pdf' }));
   const a = document.createElement('a');
   a.href = url;
   a.download = file.filename;

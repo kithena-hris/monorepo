@@ -9,7 +9,6 @@ import {
   Checkbox,
   Chip,
   ChipRow,
-  Combobox,
   DatePicker,
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +17,6 @@ import {
   EmptyState,
   Field,
   FieldControl,
-  FieldDescription,
   FieldLabel,
   Input,
   KeyValues,
@@ -47,8 +45,13 @@ import {
   TertiaryNav,
   TimePicker,
   icons,
+  FilterBuilder,
+  isConditionComplete,
+  type FilterCondition,
+  type FilterField,
+  type FilterGroup,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useRef, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import {
@@ -316,6 +319,21 @@ interface ActivityConfig {
   readonly pinnedVersion: number | null;
   readonly due: Deadline;
   readonly afterOthers?: boolean;
+  /** This kind's own reminders; absent, the cycle's. */
+  readonly reminders?: Reminders;
+}
+
+interface Reminders {
+  readonly rules: readonly string[];
+  readonly email: boolean;
+  readonly chat: boolean;
+}
+
+/** One condition of who is in, as Performance stores it. */
+interface Cond {
+  readonly field: string;
+  readonly value: string;
+  readonly op?: string;
 }
 
 interface CycleSetup {
@@ -326,7 +344,8 @@ interface CycleSetup {
   readonly start: { readonly date: string; readonly time: string; readonly zone: string };
   readonly goals: 'none' | 'context' | 'scored';
   readonly participants: {
-    readonly filter: readonly { readonly field: string; readonly value: string }[];
+    readonly filter: readonly Cond[];
+    readonly match?: 'all' | 'any';
     readonly include: readonly {
       readonly personId: string;
       readonly reason: string | null;
@@ -398,6 +417,14 @@ export interface SetupData {
   readonly fields: {
     readonly departments: readonly string[];
     readonly statuses: readonly string[];
+    readonly locations?: readonly string[];
+    readonly legalEntities?: readonly string[];
+    readonly managers?: readonly { readonly value: string; readonly label: string }[];
+  };
+  /** Work location and legal entity names, from People when the company has it (the shell). */
+  readonly places?: {
+    readonly locations: Readonly<Record<string, string>>;
+    readonly entities: Readonly<Record<string, string>>;
   };
   readonly due: Readonly<Record<string, string>>;
   readonly checks: readonly {
@@ -596,7 +623,110 @@ function Basics({
   );
 }
 
-/** The filter's departments, as many as wanted, and whether people on leave are in. */
+const IS = [
+  { id: 'is', label: 'is any of', value: 'options' },
+  { id: 'not', label: 'is none of', value: 'options' },
+] as const;
+const STATUS_LABEL: Readonly<Record<string, string>> = {
+  active: 'Active',
+  on_leave: 'On leave',
+  notice: 'On notice',
+  pre_hire: 'Starting soon',
+};
+
+/** What the People step filters on: what Performance knows of each person. */
+function filterFields(data: SetupData): FilterField[] {
+  const f = data.fields;
+  const named = (
+    ids: readonly string[] | undefined,
+    names: Readonly<Record<string, string>> | undefined,
+  ) =>
+    (ids ?? [])
+      .map((id) => ({ value: id, label: names?.[id] ?? id }))
+      .toSorted((a, b) => a.label.localeCompare(b.label));
+  return [
+    {
+      id: 'department',
+      label: 'Department',
+      operators: IS,
+      options: f.departments.map((d) => ({ value: d, label: d })),
+    },
+    {
+      id: 'location',
+      label: 'Work location',
+      operators: IS,
+      options: named(f.locations, data.places?.locations),
+    },
+    {
+      id: 'legalEntity',
+      label: 'Legal entity',
+      operators: IS,
+      options: named(f.legalEntities, data.places?.entities),
+    },
+    { id: 'manager', label: 'Manager', operators: IS, options: f.managers ?? [] },
+    {
+      id: 'status',
+      label: 'Status',
+      operators: IS,
+      options: f.statuses.map((x) => ({ value: x, label: STATUS_LABEL[x] ?? x })),
+    },
+    {
+      id: 'title',
+      label: 'Job title',
+      operators: [{ id: 'contains', label: 'contains', value: 'text' }],
+    },
+    {
+      id: 'hiredOn',
+      label: 'Start date',
+      operators: [
+        { id: 'before', label: 'is before', value: 'date' },
+        { id: 'after', label: 'is after', value: 'date' },
+        { id: 'between', label: 'is between', value: 'date-range' },
+      ],
+    },
+  ];
+}
+
+/** Stored conditions as the builder shows them: one row per field and operator. */
+function groupOf(filter: readonly Cond[], match: 'all' | 'any'): FilterGroup {
+  const conditions: FilterCondition[] = [];
+  for (const x of filter) {
+    const field = x.field === 'startedBefore' ? 'hiredOn' : x.field;
+    const op =
+      x.op ?? (x.field === 'startedBefore' ? 'before' : x.field === 'title' ? 'contains' : 'is');
+    const same = conditions.findIndex(
+      (c) => c.field === field && c.operator === op && (op === 'is' || op === 'not'),
+    );
+    const at = conditions[same];
+    if (at !== undefined) conditions[same] = { ...at, values: [...at.values, x.value] };
+    else
+      conditions.push({
+        id: `${field}-${op}-${String(conditions.length)}`,
+        field,
+        operator: op,
+        values: [x.value],
+      });
+  }
+  return { match, conditions };
+}
+
+/** The builder's rows as Performance stores them: a start date "between" is an after and a before. */
+function conditionsOf(group: FilterGroup): Cond[] {
+  return group.conditions.flatMap((c): Cond[] => {
+    if (c.operator === 'between') {
+      const [from = '', to = ''] = c.values;
+      return [
+        ...(from === '' ? [] : [{ field: 'hiredOn', op: 'after', value: from }]),
+        ...(to === '' ? [] : [{ field: 'hiredOn', op: 'before', value: to }]),
+      ];
+    }
+    return c.values
+      .filter((v) => v !== '')
+      .map((value) => ({ field: c.field, op: c.operator, value }));
+  });
+}
+
+/** Who is in: in words, by filters like the directory's, and by name; left out with a reason. */
 function Participants({
   c,
   data,
@@ -613,64 +743,108 @@ function Participants({
   const [adding, setAdding] = useState<readonly string[]>([]);
   const [chat, setChat] = useState('');
   const [proposal, setProposal] = useState<{
-    filter: { field: string; value: string }[];
+    filter: Cond[];
     summary: string[];
   } | null>(null);
   const p = data.participants;
-  const filter = c.participants.filter;
-  const setFilter = (next: readonly { field: string; value: string }[]): void => {
-    save({ participants: { ...c.participants, filter: next } });
+  const match = c.participants.match ?? 'all';
+  const fields = filterFields(data);
+  const [group, setGroup] = useState<FilterGroup>(() => groupOf(c.participants.filter, match));
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Only complete conditions are saved, and typing settles first.
+  const change = (next: FilterGroup): void => {
+    setGroup(next);
+    const done = {
+      ...next,
+      conditions: next.conditions.filter((x) => isConditionComplete(fields, x)),
+    };
+    const filter = conditionsOf(done);
+    if (JSON.stringify(filter) === JSON.stringify(c.participants.filter) && done.match === match)
+      return;
+    if (pending.current !== null) clearTimeout(pending.current);
+    pending.current = setTimeout(() => {
+      save({ participants: { ...c.participants, filter, match: done.match } });
+    }, 400);
   };
-  const departments = filter.filter((f) => f.field === 'department').map((f) => f.value);
-  const onLeave = filter.some((f) => f.field === 'status' && f.value === 'on_leave');
-  // Anything else the filter holds (set in words, or before) is kept as it was.
-  const others = filter.filter((f) => f.field !== 'department' && f.field !== 'status');
-  const statuses = (leave: boolean) => [
-    { field: 'status', value: 'active' },
-    ...(leave ? [{ field: 'status', value: 'on_leave' }] : []),
-  ];
   return (
     <div className="flex flex-col gap-4">
-      <Field>
-        <FieldLabel>Departments</FieldLabel>
-        {data.fields.departments.length === 0 ? (
-          <FieldDescription>
-            No departments yet. Everyone active is in; add people by name below.
-          </FieldDescription>
-        ) : (
-          <FieldControl>
-            <Combobox
-              label="Departments"
-              multiple
-              chips
-              clearable
-              placeholder="Every department"
-              searchPlaceholder="Find a department"
-              options={data.fields.departments.map((d) => ({ value: d, label: d }))}
-              value={departments}
-              onChange={(v) => {
-                const chosen = Array.isArray(v) ? v : v === null ? [] : [v];
-                setFilter([
-                  ...chosen.map((value) => ({ field: 'department', value: String(value) })),
-                  ...statuses(onLeave),
-                  ...others,
-                ]);
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>Describe who, in words</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            <Field>
+              <FieldLabel>Who should be in</FieldLabel>
+              <Input
+                value={chat}
+                placeholder="Engineering and Product in Chicago, without anyone on leave"
+                onChange={(e) => {
+                  setChat(e.target.value);
+                }}
+              />
+            </Field>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="self-start"
+              startIcon={<icons.assistant aria-hidden />}
+              disabled={chat.trim().length < 3}
+              loading={act.pending}
+              onClick={() => {
+                act.run(
+                  'PerformanceParticipantsInWords',
+                  { id: c.id, input: { text: chat } },
+                  (d) => {
+                    setProposal(d as typeof proposal);
+                  },
+                );
               }}
-            />
-          </FieldControl>
-        )}
-      </Field>
-      <SwitchRow
-        label="Include people on leave"
-        hint="Off: only people working now are reviewed."
-        checked={onLeave}
-        onChange={(on) => {
-          setFilter([
-            ...departments.map((value) => ({ field: 'department', value })),
-            ...statuses(on),
-            ...others,
-          ]);
-        }}
+            >
+              Propose the filters
+            </Button>
+            {proposal === null ? null : (
+              <Alert
+                tone="info"
+                title="Change who is in"
+                action={
+                  <span className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setProposal(null);
+                      }}
+                    >
+                      Discard
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setGroup(groupOf(proposal.filter, match));
+                        save({ participants: { ...c.participants, filter: proposal.filter } });
+                        setProposal(null);
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </span>
+                }
+              >
+                {proposal.summary.join(' · ')}
+              </Alert>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      <FilterBuilder
+        label="Who is in"
+        title="Filters"
+        emptyDescription="Nobody is chosen by a filter. Add one, or add people by name."
+        fields={fields}
+        value={group}
+        onChange={change}
+        maxConditions={20}
       />
       <Field>
         <FieldLabel>Add someone by name</FieldLabel>
@@ -751,74 +925,6 @@ function Participants({
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle level={3}>Describe who, in words</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            <Field>
-              <FieldLabel>Who should be in</FieldLabel>
-              <Input
-                value={chat}
-                placeholder="Product design and engineering, without anyone on leave"
-                onChange={(e) => {
-                  setChat(e.target.value);
-                }}
-              />
-            </Field>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="self-start"
-              startIcon={<icons.assistant aria-hidden />}
-              disabled={chat.trim().length < 3}
-              loading={act.pending}
-              onClick={() => {
-                act.run(
-                  'PerformanceParticipantsInWords',
-                  { id: c.id, input: { text: chat } },
-                  (d) => {
-                    setProposal(d as typeof proposal);
-                  },
-                );
-              }}
-            >
-              Propose the change
-            </Button>
-            {proposal === null ? null : (
-              <Alert
-                tone="info"
-                title="Change who is in"
-                action={
-                  <span className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setProposal(null);
-                      }}
-                    >
-                      Discard
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setFilter(proposal.filter);
-                        setProposal(null);
-                      }}
-                    >
-                      Apply
-                    </Button>
-                  </span>
-                }
-              >
-                {proposal.summary.join(' · ')}
-              </Alert>
-            )}
-          </div>
         </CardContent>
       </Card>
       <SwitchRow
@@ -904,7 +1010,6 @@ function Reviews({
   readonly save: (p: Partial<CycleSetup>) => void;
   readonly activity: (k: Kind, p: Partial<ActivityConfig>) => void;
 }): JSX.Element {
-  const rules = c.reminders.rules;
   // The peer range while a thumb is held; saved when it is let go.
   const [dragging, setDragging] = useState<readonly [number, number] | null>(null);
   const peers = dragging ?? ([c.peer.min, c.peer.max] as const);
@@ -1020,6 +1125,7 @@ function Reviews({
                     min={0}
                     max={20}
                     showTicks
+                    labels={Array.from({ length: 21 }, (_, i) => String(i))}
                     value={[...peers]}
                     onValueChange={([lo = peers[0], hi = peers[1]]) => {
                       setDragging([lo, Math.max(1, hi)]);
@@ -1038,6 +1144,15 @@ function Reviews({
                     }}
                   />
                 </>
+              ) : null}
+              {a.on ? (
+                <ReminderOptions
+                  kind={kindLabel(k)}
+                  value={a.reminders ?? c.reminders}
+                  onChange={(reminders) => {
+                    activity(k, { reminders });
+                  }}
+                />
               ) : null}
             </CardContent>
           </Card>
@@ -1065,51 +1180,10 @@ function Reviews({
           </RadioCard>
         </RadioGroup>
       </Field>
-      <Card>
-        <CardHeader>
-          <CardTitle level={3}>Reminders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            <ChipRow aria-label="When">
-              {REMINDERS.map(([v, l]) => (
-                <Chip
-                  key={v}
-                  selected={rules.includes(v)}
-                  onClick={() => {
-                    save({
-                      reminders: {
-                        ...c.reminders,
-                        rules: rules.includes(v) ? rules.filter((x) => x !== v) : [...rules, v],
-                      },
-                    });
-                  }}
-                >
-                  {l}
-                </Chip>
-              ))}
-            </ChipRow>
-            <SwitchRow label="Inbox" hint="Always" checked locked="Always on" />
-            <SwitchRow
-              label="Email"
-              hint="By each person’s preference"
-              checked={c.reminders.email}
-              onChange={(on) => {
-                save({ reminders: { ...c.reminders, email: on } });
-              }}
-            />
-            <SwitchRow
-              label="Chat app"
-              hint="By each person’s preference, when connected"
-              checked={c.reminders.chat}
-              onChange={(on) => {
-                save({ reminders: { ...c.reminders, chat: on } });
-              }}
-            />
-            <p className="text-sm text-fg-muted">A review’s reminders stop once it is submitted.</p>
-          </div>
-        </CardContent>
-      </Card>
+      <p className="text-sm text-fg-muted">
+        Each kind of review is reminded by its own rules; a review’s reminders stop once it is
+        submitted.
+      </p>
     </div>
   );
 }
@@ -1119,6 +1193,57 @@ const NAMES = [
   ['shown', 'Shown to the subject'],
   ['writer', 'The writer chooses'],
 ] as const;
+
+/** One kind of review's reminders: when, and by which channels besides the Inbox. */
+function ReminderOptions({
+  kind,
+  value,
+  onChange,
+}: {
+  readonly kind: string;
+  readonly value: Reminders;
+  readonly onChange: (next: Reminders) => void;
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-2 border-t border-[var(--reach-line)] pt-3">
+      <p className="text-sm font-semibold">Reminders</p>
+      <ChipRow aria-label={`When ${kind.toLowerCase()} are reminded`}>
+        {REMINDERS.map(([v, l]) => (
+          <Chip
+            key={v}
+            selected={value.rules.includes(v)}
+            onClick={() => {
+              onChange({
+                ...value,
+                rules: value.rules.includes(v)
+                  ? value.rules.filter((x) => x !== v)
+                  : [...value.rules, v],
+              });
+            }}
+          >
+            {l}
+          </Chip>
+        ))}
+      </ChipRow>
+      <SwitchRow
+        label="Email"
+        hint="By each person’s preference; the Inbox always"
+        checked={value.email}
+        onChange={(email) => {
+          onChange({ ...value, email });
+        }}
+      />
+      <SwitchRow
+        label="Chat app"
+        hint="By each person’s preference, when connected"
+        checked={value.chat}
+        onChange={(chat) => {
+          onChange({ ...value, chat });
+        }}
+      />
+    </div>
+  );
+}
 
 /** How it ends (release), who sees what, and what stops a launch. */
 function Launch({

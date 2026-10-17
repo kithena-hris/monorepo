@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
   icons,
+  DatePicker,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -161,13 +162,13 @@ export function HolidayCalendar({
             <Field>
               <FieldLabel>Date</FieldLabel>
               <FieldControl>
-                <Input
-                  type="date"
-                  value={date}
+                <DatePicker
+                  label="Date"
                   min={`${String(year)}-01-01`}
                   max={`${String(year)}-12-31`}
-                  onChange={(e) => {
-                    setDate(e.target.value);
+                  value={date === '' ? null : date}
+                  onChange={(d) => {
+                    setDate(d ?? '');
                   }}
                 />
               </FieldControl>

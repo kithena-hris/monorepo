@@ -72,7 +72,11 @@ describe('holiday calendars', () => {
     fireEvent.change(dialog.getByRole('textbox', { name: /^Name/ }), {
       target: { value: 'Valencia city' },
     });
-    fireEvent.change(dialog.getByLabelText('Date'), { target: { value: '2026-03-19' } });
+    // The day through Reach's date picker: opened, and typed.
+    fireEvent.click(dialog.getByRole('button', { name: /^Date:/ }));
+    const typed = await screen.findByLabelText('Type date');
+    fireEvent.change(typed, { target: { value: '19/03/2026' } });
+    fireEvent.keyDown(typed, { key: 'Enter' });
     fireEvent.change(dialog.getByRole('textbox', { name: /^Holiday/ }), {
       target: { value: 'San José' },
     });

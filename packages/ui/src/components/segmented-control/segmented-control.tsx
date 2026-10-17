@@ -39,7 +39,9 @@ const root = cva(
   'relative isolate inline-flex items-center gap-0.5 rounded-full bg-surface-sunken p-[3px]',
   {
     variants: {
-      fullWidth: { true: 'flex w-full [&>[role=radio]]:flex-1', false: '' },
+      // As wide as its segments, never stretched by a column it sits in (a
+      // field's label above it), unless asked to fill the row.
+      fullWidth: { true: 'flex w-full [&>[role=radio]]:flex-1', false: 'self-start' },
     },
     defaultVariants: { fullWidth: false },
   },
