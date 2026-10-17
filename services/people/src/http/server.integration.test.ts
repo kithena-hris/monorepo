@@ -1268,9 +1268,12 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
         ? 'existing'
         : x.reason === 'Kithena creates this'
           ? 'kithena'
-          : proposedFor.has(x.index)
-            ? 'new'
-            : `${x.status}: ${x.reason ?? ''}`;
+          : // Another name for a field a better column fills: "Manager Email" for the manager.
+            x.reason?.startsWith('read from') === true
+            ? 'existing'
+            : proposedFor.has(x.index)
+              ? 'new'
+              : `${x.status}: ${x.reason ?? ''}`;
     expect(
       columns
         .filter((x) => !['existing', 'kithena', 'new'].includes(where(x)))

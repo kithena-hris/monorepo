@@ -2,7 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition, AttributeDefinitionInput } from '@kithena/contracts';
 
 import { canWrite, type ViewerRelations } from '../../domain/access/field-access.js';
-import { aliasOf } from '../../domain/import/aliases.js';
+import { aliasOf, aliasRank } from '../../domain/import/aliases.js';
 import { KITHENA_CREATES, kithenaCreates } from '../../domain/import/identifiers.js';
 import type { Attribute, SchemaDraft } from '../../domain/schema/draft.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -196,6 +196,17 @@ export async function proposeMapping(input: ProposeInput): Promise<readonly Colu
         )
       : new Map<string, ColumnJudgment>();
 
+  // Several columns that are names for one field: the best is read, the
+  // rest are shown as read from it. Anything else claiming a taken field is
+  // HR's to decide.
+  const rank = (p: ColumnMapping): number =>
+    p.source === 'alias' ? 2 + aliasRank(p.header) / 100 : p.source === 'label' ? 1 : 0;
+  const best = new Map<string, ColumnMapping>();
+  for (const p of proposed) {
+    if (p?.status !== 'mapped' || p.key === null) continue;
+    const held = best.get(p.key);
+    if (held === undefined || rank(p) < rank(held)) best.set(p.key, p);
+  }
   const seen = new Set<string>();
   return proposed.map((p, index): ColumnMapping => {
     const header = input.file.headers[index] ?? '';
@@ -205,6 +216,15 @@ export async function proposeMapping(input: ProposeInput): Promise<readonly Colu
     if (kithenaCreates(mapping.key)) return createdHere(mapping);
 
     const key = mapping.key;
+    const winner = key === null ? undefined : best.get(key);
+    if (
+      mapping.status === 'mapped' &&
+      winner !== undefined &&
+      winner.index !== mapping.index &&
+      mapping.source === 'alias'
+    ) {
+      return { ...mapping, status: 'ignored', reason: `read from “${winner.header}”` };
+    }
     if (mapping.status === 'mapped' && key !== null) {
       if (seen.has(key)) {
         mapping = {
