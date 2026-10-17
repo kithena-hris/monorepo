@@ -38,6 +38,8 @@ export interface Member {
   readonly legalEntityId: string | null;
   readonly hiredOn: CalendarDate | null;
   readonly probationEnd: CalendarDate | null;
+  /** Their last working day, once they leave: where retention counts from (§30). */
+  readonly leftOn?: CalendarDate | null;
 }
 
 /** The columns a record is found by; the rest is its JSON. */

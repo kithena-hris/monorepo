@@ -31,6 +31,7 @@ import {
 import {
   Settings as SettingsScreen,
   AiLog as AiLogScreen,
+  Retention as RetentionScreen,
   ConnectedTools as ConnectedToolsScreen,
 } from './settings';
 import {
@@ -68,4 +69,5 @@ export const Calibration = framed(CalibrationScreen);
 export const Analytics = framed(AnalyticsScreen);
 export const Settings = framed(SettingsScreen);
 export const AiLog = framed(AiLogScreen);
+export const Retention = framed(RetentionScreen);
 export const ConnectedTools = framed(ConnectedToolsScreen);

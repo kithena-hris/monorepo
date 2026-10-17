@@ -25,6 +25,7 @@ import * as learning from '../application/learning.js';
 import { importMembers } from '../application/import.js';
 import * as pdf from '../application/pdf.js';
 import type { Caller, Deps, UnitOfWork } from '../application/ports.js';
+import * as retention from '../application/retention.js';
 import * as reviews from '../application/reviews.js';
 import { aiOn, saveSection } from '../application/settings.js';
 import * as templates from '../application/templates.js';
@@ -293,6 +294,8 @@ const MemberIn = z.object({
   title: text(200).nullable(),
   department: text(120).nullable(),
   hiredOn: CalendarDate.nullable(),
+  /** A leaver's last working day, where retention counts from. */
+  leftOn: CalendarDate.nullable().optional(),
 });
 
 const RunBody = z.object({
@@ -1396,6 +1399,50 @@ export const ROUTES: readonly Route[] = [
     summary: 'Save a chart to the dashboard',
     body: z.object({ title: text(120).min(1), plan: z.unknown() }),
     run: (ctx, { body }) => ai.saveChart(ctx, body),
+  }),
+
+  /* ---------------------------------------------------------- retention -- */
+  route({
+    name: 'performanceRetention',
+    method: 'GET',
+    path: `${V1}/retention`,
+    summary: 'S10: what is due to go, the holds and what comes next',
+    run: (ctx) => retention.retentionScreen(ctx),
+  }),
+  route({
+    name: 'confirmPerformanceRetention',
+    method: 'POST',
+    path: `${V1}/retention/delete`,
+    summary: 'HR confirms a batch: the due records of these people go',
+    body: z.object({ personIds: z.array(Id).min(1).max(500) }),
+    run: (ctx, { body }) => retention.confirmRetention(ctx, body.personIds),
+  }),
+  route({
+    name: 'placePerformanceHold',
+    method: 'POST',
+    path: `${V1}/holds`,
+    summary: 'A legal hold on a person’s records',
+    status: 201,
+    body: z.object({ personId: Id, reason: text(300).min(1) }),
+    run: (ctx, { body }) => retention.placeHold(ctx, body.personId, body.reason),
+  }),
+  route({
+    name: 'liftPerformanceHold',
+    method: 'POST',
+    path: `${V1}/holds/{id}/lift`,
+    summary: 'Lift a legal hold',
+    params: z.object({ id: Id }),
+    body: z.object({ reason: text(300).nullable() }),
+    run: (ctx, { params, body }) => retention.liftHold(ctx, params.id, body.reason),
+  }),
+  route({
+    name: 'exportPerformancePerson',
+    method: 'POST',
+    path: `${V1}/people/{id}/export`,
+    summary: 'A person’s data, for their request (DSAR)',
+    params: z.object({ id: Id }),
+    body: z.object({}),
+    run: (ctx, { params }) => retention.personExport(ctx, params.id),
   }),
 
   /* ----------------------------------------------------------- settings -- */

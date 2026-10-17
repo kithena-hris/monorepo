@@ -115,5 +115,10 @@
   "TranslatePerformanceTemplate": "Performance Mobile v2 PFM10: \"Building forms is desktop only\": the builder's two panes and live preview need the desk's width.",
   "UnschedulePerformanceCycle": "Performance Mobile v2 PFM10: \"Setting up a cycle is desktop only\": five steps of participants, activities and release settings.",
   "WritePerformanceTemplate": "Performance Mobile v2 PFM10: \"Building forms is desktop only\": the builder's two panes and live preview need the desk's width.",
-  "PerformanceLive": "The web's live stream redraws a cycle's overview as it moves; the phone reads again when a screen is opened."
+  "PerformanceLive": "The web's live stream redraws a cycle's overview as it moves; the phone reads again when a screen is opened.",
+  "PerformanceRetention": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
+  "ConfirmPerformanceRetention": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
+  "PlacePerformanceHold": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
+  "LiftPerformanceHold": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due.",
+  "ExportPerformancePerson": "Performance Mobile v2 PFM10: \"Company settings and the logs are desktop only\": retention, legal holds and a person's data export are HR's, in Settings › Performance › Retention, beside the table of who is due."
 }

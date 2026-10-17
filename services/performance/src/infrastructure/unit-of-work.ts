@@ -49,6 +49,7 @@ function memberOf(r: Row): Member {
     legalEntityId: str(r['legal_entity_id']),
     hiredOn: day(r['hired_on']) as Member['hiredOn'],
     probationEnd: day(r['probation_end']) as Member['probationEnd'],
+    leftOn: day(r['left_on']) as Member['probationEnd'],
   };
 }
 
@@ -122,12 +123,13 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       upsert: async (m, eventId) => {
         const written = await rows(
           tx,
-          sql`INSERT INTO performance.member (tenant_id, person_id, account_id, display_name, work_email, manager_person_id, status, title, org_unit_id, location_id, legal_entity_id, hired_on, probation_end, last_event_id)
-            VALUES (${T}, ${m.personId}, ${m.accountId}, ${m.displayName}, ${m.workEmail}, ${m.managerPersonId}, ${m.status}, ${m.title}, ${m.orgUnitId}, ${m.locationId}, ${m.legalEntityId}, ${m.hiredOn}, ${m.probationEnd}, ${eventId})
+          sql`INSERT INTO performance.member (tenant_id, person_id, account_id, display_name, work_email, manager_person_id, status, title, org_unit_id, location_id, legal_entity_id, hired_on, probation_end, left_on, last_event_id)
+            VALUES (${T}, ${m.personId}, ${m.accountId}, ${m.displayName}, ${m.workEmail}, ${m.managerPersonId}, ${m.status}, ${m.title}, ${m.orgUnitId}, ${m.locationId}, ${m.legalEntityId}, ${m.hiredOn}, ${m.probationEnd}, ${m.leftOn ?? null}, ${eventId})
             ON CONFLICT (tenant_id, person_id) DO UPDATE SET account_id = EXCLUDED.account_id, display_name = EXCLUDED.display_name,
               work_email = EXCLUDED.work_email, manager_person_id = EXCLUDED.manager_person_id, status = EXCLUDED.status,
               title = EXCLUDED.title, org_unit_id = EXCLUDED.org_unit_id, location_id = EXCLUDED.location_id,
               legal_entity_id = EXCLUDED.legal_entity_id, hired_on = EXCLUDED.hired_on, probation_end = EXCLUDED.probation_end,
+              left_on = EXCLUDED.left_on,
               last_event_id = EXCLUDED.last_event_id, updated_at = now()
             WHERE performance.member.last_event_id <> EXCLUDED.last_event_id
             RETURNING person_id`,

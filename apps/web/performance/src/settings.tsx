@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   CardContent,
   CardHeader,
   CardTitle,
@@ -22,7 +23,18 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { Choose, Refusal, SwitchRow, useAct, when } from './shared';
+import {
+  Choose,
+  Modal,
+  PersonPicker,
+  Refusal,
+  SwitchRow,
+  day,
+  download,
+  plural,
+  useAct,
+  when,
+} from './shared';
 import type { ScaleOption, ScreenProps } from './types';
 
 /**
@@ -570,5 +582,393 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
         </div>
       )}
     </Loaded>
+  );
+}
+
+/* ---------------------------------------------------------- retention -- */
+
+type Rule = Readonly<Record<string, number>>;
+
+export interface RetentionData {
+  readonly rule: Rule;
+  readonly privacy: Obj;
+  readonly admin: boolean;
+  readonly kinds: readonly { readonly kind: string; readonly label: string }[];
+  readonly holds: readonly {
+    readonly personId: string;
+    readonly name: string;
+    readonly reason: string;
+    readonly at: string;
+  }[];
+  readonly due: readonly {
+    readonly personId: string;
+    readonly name: string;
+    readonly leftOn: string;
+    readonly what: readonly { readonly kind: string; readonly label: string; readonly count: number }[];
+  }[];
+  readonly upcoming: readonly {
+    readonly personId: string;
+    readonly name: string;
+    readonly leftOn: string;
+    readonly next: string;
+  }[];
+}
+
+const YEARS_OF: Readonly<Record<string, string>> = {
+  reviews: 'reviewsYears',
+  feedback: 'feedbackYears',
+  notes: 'notesYears',
+  learning: 'learningYears',
+  ai: 'aiYears',
+};
+
+/**
+ * S10 (PRD §30): how long each kind of record is kept after someone leaves,
+ * what is due to go now, for HR to confirm, legal holds, and a person's data
+ * for their request.
+ */
+export function Retention(props: ScreenProps<RetentionData>): JSX.Element {
+  const act = useAct(props);
+  return (
+    <Loaded load={props.load} what="retention">
+      {(data) => <RetentionPage data={data} act={act} />}
+    </Loaded>
+  );
+}
+
+function RetentionPage({
+  data,
+  act,
+}: {
+  readonly data: RetentionData;
+  readonly act: ReturnType<typeof useAct>;
+}): JSX.Element {
+  const [rule, setRule] = useState<Rule>(data.rule);
+  const [chosen, setChosen] = useState<readonly string[]>([]);
+  const [confirming, setConfirming] = useState(false);
+  const [holding, setHolding] = useState(false);
+  const [holdFor, setHoldFor] = useState<readonly string[]>([]);
+  const [reason, setReason] = useState('');
+  const [whose, setWhose] = useState<readonly string[]>([]);
+  const changed = Object.keys(rule).some((k) => rule[k] !== data.rule[k]);
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Retention"
+        description="How long each kind of record is kept after someone leaves. Nothing is deleted until HR confirms, and a legal hold keeps everything of the person it names."
+      />
+      <Refusal error={act.error} />
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>After someone leaves</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {data.kinds.map((k) => {
+              const key = YEARS_OF[k.kind] ?? k.kind;
+              return (
+                <NumberField
+                  key={k.kind}
+                  label={k.label}
+                  suffix="years"
+                  min={1}
+                  max={30}
+                  value={rule[key] ?? null}
+                  disabled={!data.admin}
+                  onChange={(v) => {
+                    setRule({ ...rule, [key]: v ?? 1 });
+                  }}
+                />
+              );
+            })}
+          </div>
+          <p className="text-sm text-fg-muted">
+            A leaver’s own notes go 30 days after their last day, whatever is set here.
+          </p>
+          {data.admin ? (
+            <Button
+              className="self-start"
+              disabled={!changed}
+              loading={act.pending}
+              onClick={() => {
+                act.run('SavePerformanceSettings', {
+                  section: 'privacy',
+                  input: { ...data.privacy, retention: rule },
+                });
+              }}
+            >
+              Save
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>Due to go</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 overflow-x-auto">
+          {data.due.length === 0 ? (
+            <EmptyState
+              icon={<icons.archive aria-hidden />}
+              title="Nothing is due"
+              description="Records appear here once their time after someone leaves has passed."
+            />
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <span className="sr-only">Choose</span>
+                    </TableHead>
+                    <TableHead>Person</TableHead>
+                    <TableHead>Left</TableHead>
+                    <TableHead>What goes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.due.map((d) => (
+                    <TableRow key={d.personId}>
+                      <TableCell>
+                        <Checkbox
+                          aria-label={`Delete ${d.name}’s due records`}
+                          checked={chosen.includes(d.personId)}
+                          onCheckedChange={(on) => {
+                            setChosen(
+                              on === true
+                                ? [...chosen, d.personId]
+                                : chosen.filter((x) => x !== d.personId),
+                            );
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>{d.name}</TableCell>
+                      <TableCell>{day(d.leftOn)}</TableCell>
+                      <TableCell className="text-sm">
+                        {d.what.map((w) => `${w.label}: ${String(w.count)}`).join(' · ')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Button
+                className="self-start"
+                variant="destructive"
+                disabled={chosen.length === 0}
+                onClick={() => {
+                  setConfirming(true);
+                }}
+              >
+                {chosen.length === 0 ? 'Delete' : `Delete ${plural(chosen.length, 'person’s', 'people’s')} records`}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>Legal holds</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {data.holds.length === 0 ? (
+            <p className="text-sm text-fg-muted">No one’s records are held.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Why</TableHead>
+                  <TableHead>Since</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Lift</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.holds.map((h) => (
+                  <TableRow key={h.personId}>
+                    <TableCell>{h.name}</TableCell>
+                    <TableCell className="text-sm">{h.reason}</TableCell>
+                    <TableCell>{day(h.at)}</TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        loading={act.pending}
+                        onClick={() => {
+                          act.run('LiftPerformanceHold', {
+                            id: h.personId,
+                            input: { reason: null },
+                          });
+                        }}
+                      >
+                        Lift
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          <Button
+            className="self-start"
+            variant="secondary"
+            startIcon={<icons.add aria-hidden />}
+            onClick={() => {
+              setHolding(true);
+            }}
+          >
+            Place a hold
+          </Button>
+        </CardContent>
+      </Card>
+
+      {data.upcoming.length === 0 ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle level={2}>Coming up</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Left</TableHead>
+                  <TableHead>Next due</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.upcoming.map((u) => (
+                  <TableRow key={u.personId}>
+                    <TableCell>{u.name}</TableCell>
+                    <TableCell>{day(u.leftOn)}</TableCell>
+                    <TableCell>{day(u.next)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>A person’s data</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-fg-muted">
+            For a request to see or take their data: everything about them in Performance, without
+            the private questions about them or the names of anyone who wrote in confidence.
+          </p>
+          <PersonPicker act={act} label="Whose data" value={whose} onChange={setWhose} />
+          <Button
+            className="self-start"
+            variant="secondary"
+            startIcon={<icons.download aria-hidden />}
+            disabled={whose.length === 0}
+            loading={act.pending}
+            onClick={() => {
+              act.run('ExportPerformancePerson', { id: whose[0], input: {} }, (d) => {
+                download(d as { filename: string; base64: string; mediaType: string });
+              });
+            }}
+          >
+            Export their data
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Modal
+        open={confirming}
+        onClose={() => {
+          setConfirming(false);
+        }}
+        title="Delete these records?"
+        description="They are gone for good: reviews, feedback, notes, learning and AI output whose time has passed. The activity log keeps that you did it."
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConfirming(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              loading={act.pending}
+              onClick={() => {
+                act.run('ConfirmPerformanceRetention', { input: { personIds: chosen } }, () => {
+                  setChosen([]);
+                  setConfirming(false);
+                });
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <Alert tone="warning">
+          {data.due
+            .filter((d) => chosen.includes(d.personId))
+            .map((d) => d.name)
+            .join(', ')}
+        </Alert>
+      </Modal>
+
+      <Modal
+        open={holding}
+        onClose={() => {
+          setHolding(false);
+        }}
+        title="Place a legal hold"
+        description="Nothing of this person’s is deleted until the hold is lifted, whatever the retention periods say."
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setHolding(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={holdFor.length === 0 || reason.trim() === ''}
+              loading={act.pending}
+              onClick={() => {
+                act.run(
+                  'PlacePerformanceHold',
+                  { input: { personId: holdFor[0], reason: reason.trim() } },
+                  () => {
+                    setHolding(false);
+                    setHoldFor([]);
+                    setReason('');
+                  },
+                );
+              }}
+            >
+              Place the hold
+            </Button>
+          </>
+        }
+      >
+        <PersonPicker act={act} label="Whose records" value={holdFor} onChange={setHoldFor} />
+        <Field required>
+          <FieldLabel>Why</FieldLabel>
+          <Input
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value);
+            }}
+            placeholder="A tribunal claim, an investigation"
+          />
+        </Field>
+      </Modal>
+    </div>
   );
 }

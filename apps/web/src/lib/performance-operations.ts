@@ -10,6 +10,21 @@
  */
 
 export const OPERATIONS = {
+  PerformanceRetention: `query PerformanceRetention {
+    performanceRetention
+  }`,
+  ConfirmPerformanceRetention: `mutation ConfirmPerformanceRetention($key: String!, $input: JSON!) {
+    confirmPerformanceRetention(idempotencyKey: $key, input: $input)
+  }`,
+  PlacePerformanceHold: `mutation PlacePerformanceHold($key: String!, $input: JSON!) {
+    placePerformanceHold(idempotencyKey: $key, input: $input)
+  }`,
+  LiftPerformanceHold: `mutation LiftPerformanceHold($id: String!, $key: String!, $input: JSON!) {
+    liftPerformanceHold(id: $id, idempotencyKey: $key, input: $input)
+  }`,
+  ExportPerformancePerson: `mutation ExportPerformancePerson($id: String!, $key: String!, $input: JSON!) {
+    exportPerformancePerson(id: $id, idempotencyKey: $key, input: $input)
+  }`,
   PerformanceAiLog: `query PerformanceAiLog {
     performanceAiLog
   }`,

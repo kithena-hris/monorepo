@@ -159,6 +159,7 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
           const done = await patch(tx, e.payload.personId, e.eventId, (m) => ({
             ...m,
             status: 'terminated',
+            leftOn: e.payload.lastWorkingDay,
           }));
           for (const r of await tx.reviews.find({ ownerId: e.payload.personId }))
             if (!isSubmitted(r) && ['not_started', 'in_progress'].includes(r.status))

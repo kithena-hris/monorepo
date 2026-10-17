@@ -43,7 +43,8 @@ interface Page {
   readonly score: string | null;
 }
 
-const answerText = (def: FormDefinition, id: string, answers: FormAnswers): string => {
+/** One answer in words, as a reader of the PDF or an export sees it. */
+export const answerText = (def: FormDefinition, id: string, answers: FormAnswers): string => {
   const q = def.sections.flatMap((s) => s.questions).find((x) => x.id === id);
   const v = answers[id]?.value;
   if (q === undefined || v === undefined || v === null) return '—';

@@ -140,6 +140,8 @@ export async function loadScreen(
     }
     case 'AiLog':
       return read('PerformanceAiLog');
+    case 'Retention':
+      return read('PerformanceRetention');
     case 'ConnectedTools':
       return read('PerformanceConnectedTools');
     default:

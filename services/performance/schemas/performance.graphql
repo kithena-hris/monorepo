@@ -85,6 +85,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """HR confirms a batch: the due records of these people go"""
+  confirmPerformanceRetention(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Confirm a suggested answer"""
   confirmPerformanceSuggestion(id: String!, idempotencyKey: String!, questionId: String!): JSON
   """PF16b: a new automation"""
@@ -166,6 +172,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """A person’s data, for their request (DSAR)"""
+  exportPerformancePerson(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF5b: extend a deadline"""
   extendPerformanceDeadline(
     id: String!
@@ -202,6 +215,13 @@ type Mutation {
   ): JSON
   """PF10f: keep or delete"""
   keepPerformanceDetached(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """Lift a legal hold"""
+  liftPerformanceHold(
     id: String!
     idempotencyKey: String!
     """The REST body"""
@@ -263,6 +283,12 @@ type Mutation {
   ): JSON
   """PF14b: tone check"""
   performanceToneCheck(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """A legal hold on a person’s records"""
+  placePerformanceHold(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
@@ -578,6 +604,8 @@ type Query {
   performanceRecipient(personId: String!): JSON
   """PF11b: a released review"""
   performanceReleased(id: String!): JSON
+  """S10: what is due to go, the holds and what comes next"""
+  performanceRetention: JSON
   """PF10: write a review"""
   performanceReview(id: String!): JSON
   """A review as PDF"""

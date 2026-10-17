@@ -444,4 +444,47 @@ export async function oneCycle(h: Harness): Promise<void> {
     .map((e) => e.payload as { action: string; outcome: string });
   expect(log.some((r) => r.action === 'Submitted a review')).toBe(true);
   expect(log.some((r) => r.outcome === 'refused')).toBe(true);
+
+  // Retention: Priya left in 2020, so her feedback is due; a legal hold keeps it.
+  await data('omar', 'POST', '/feedback', {
+    to: ids.priya.person,
+    kind: 'praise',
+    body: '<p>Thanks for the referral.</p>',
+    audience: 'recipient',
+    showName: true,
+    value: null,
+    templateId: null,
+    answers: null,
+    requestId: null,
+  });
+  await data('ada', 'POST', '/members/import', {
+    members: [
+      { ...member('priya', 'marco', 'Recruiter'), status: 'terminated', leftOn: '2020-01-31' },
+    ],
+  });
+  type Retention = { due: { personId: string; what: { kind: string; count: number }[] }[] };
+  const dueNow = async () => (await data<Retention>('ada', 'GET', '/retention')).due;
+  expect((await dueNow()).map((d) => d.personId)).toEqual([ids.priya.person]);
+  expect((await call('marco', 'GET', '/retention')).status).toBe(403);
+  await data('ada', 'POST', '/holds', { personId: ids.priya.person, reason: 'Tribunal claim' });
+  expect(await dueNow()).toEqual([]);
+  await data('ada', 'POST', `/holds/${ids.priya.person}/lift`, { reason: 'Settled' });
+  // Her data, before it goes: what she received, by name where the writer allowed it.
+  const exported = await data<{ base64: string; mediaType: string }>(
+    'ada',
+    'POST',
+    `/people/${ids.priya.person}/export`,
+    {},
+  );
+  const person = JSON.parse(Buffer.from(exported.base64, 'base64').toString('utf8')) as {
+    feedbackReceived: { from: string; text: string }[];
+  };
+  expect(person.feedbackReceived).toContainEqual(
+    expect.objectContaining({ from: 'Omar', text: 'Thanks for the referral.' }),
+  );
+  const gone = await data<{ deleted: number }>('ada', 'POST', '/retention/delete', {
+    personIds: [ids.priya.person],
+  });
+  expect(gone.deleted).toBeGreaterThan(0);
+  expect(await dueNow()).toEqual([]);
 }

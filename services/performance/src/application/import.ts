@@ -21,6 +21,7 @@ export async function importMembers(
     readonly title: string | null;
     readonly department: string | null;
     readonly hiredOn: CalendarDate | null;
+    readonly leftOn?: CalendarDate | null | undefined;
   }[],
 ): Promise<Result<{ imported: number }>> {
   const may = hrOnly(ctx);
@@ -58,6 +59,7 @@ export async function importMembers(
         legalEntityId: old?.legalEntityId ?? null,
         hiredOn: m.hiredOn,
         probationEnd: old?.probationEnd ?? null,
+        leftOn: m.leftOn ?? old?.leftOn ?? null,
       },
       eventId,
     );

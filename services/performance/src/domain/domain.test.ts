@@ -49,6 +49,7 @@ import {
   type Nomination,
   type Review,
 } from './review.js';
+import { dueNow, dueOn, ownNotesDueOn } from './retention.js';
 import { position } from './sentiment.js';
 
 /** The element at an index, or the test fails here. */
@@ -593,5 +594,28 @@ describe('sentiment', () => {
         { sentence: 'Late.', label: -1 },
       ]),
     ).toBe(50);
+  });
+});
+
+describe('retention', () => {
+  const rule = { reviewsYears: 3, feedbackYears: 1, notesYears: 1, learningYears: 2, aiYears: 1 };
+  const day = (d: string) => d as CalendarDate;
+
+  it('counts each kind’s years from the last working day, and a leaver’s own notes 30 days', () => {
+    expect(dueOn(day('2024-02-29'), 'reviews', rule)).toBe('2027-03-01');
+    expect(dueOn(day('2025-03-31'), 'feedback', rule)).toBe('2026-03-31');
+    expect(ownNotesDueOn(day('2026-09-15'))).toBe('2026-10-15');
+  });
+
+  it('is due once the day comes, never for a leaver on hold or without a date', () => {
+    const leavers = [
+      { personId: 'gone', leftOn: day('2025-06-30') },
+      { personId: 'held', leftOn: day('2020-01-01') },
+      { personId: 'undated', leftOn: null },
+      { personId: 'recent', leftOn: day('2026-10-01') },
+    ];
+    expect(dueNow(leavers, new Set(['held']), rule, day('2026-10-17'))).toEqual([
+      { personId: 'gone', leftOn: '2025-06-30', kinds: ['feedback', 'notes', 'ai'], ownNotes: true },
+    ]);
   });
 });
