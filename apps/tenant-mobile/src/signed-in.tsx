@@ -87,6 +87,24 @@ import { todayHere } from './timeoff/time';
 import { More, MoreModules } from './more';
 import { OnboardingPlan, OnboardingTasks } from './onboarding/screens';
 import {
+  PerformanceAsk,
+  PerformanceCycle,
+  PerformanceFeedback,
+  PerformanceGive,
+  PerformanceGoal,
+  PerformanceGoals,
+  PerformanceItem,
+  PerformanceLearning,
+  PerformanceNominate,
+  PerformanceReleased,
+  PerformanceRequest,
+  PerformanceReviews,
+  PerformanceTeam,
+  PerformanceTools,
+  PerformanceUnlocks,
+  PerformanceWrite,
+} from './performance/screens';
+import {
   RecruitingAnalytics,
   RecruitingApprovals,
   RecruitingBoard,
@@ -204,6 +222,22 @@ const TabStack = memo(function TabStack({
           <Stack_.Screen name="RecruitingAnalytics" component={RecruitingAnalytics} />
           <Stack_.Screen name="OnboardingTasks" component={OnboardingTasks} />
           <Stack_.Screen name="OnboardingPlan" component={OnboardingPlan} />
+          <Stack_.Screen name="Performance" component={PerformanceReviews} />
+          <Stack_.Screen name="PerformanceWrite" component={PerformanceWrite} />
+          <Stack_.Screen name="PerformanceReleased" component={PerformanceReleased} />
+          <Stack_.Screen name="PerformanceNominate" component={PerformanceNominate} />
+          <Stack_.Screen name="PerformanceFeedback" component={PerformanceFeedback} />
+          <Stack_.Screen name="PerformanceGive" component={PerformanceGive} />
+          <Stack_.Screen name="PerformanceRequest" component={PerformanceRequest} />
+          <Stack_.Screen name="PerformanceGoals" component={PerformanceGoals} />
+          <Stack_.Screen name="PerformanceGoal" component={PerformanceGoal} />
+          <Stack_.Screen name="PerformanceLearning" component={PerformanceLearning} />
+          <Stack_.Screen name="PerformanceItem" component={PerformanceItem} />
+          <Stack_.Screen name="PerformanceTeam" component={PerformanceTeam} />
+          <Stack_.Screen name="PerformanceCycle" component={PerformanceCycle} />
+          <Stack_.Screen name="PerformanceUnlocks" component={PerformanceUnlocks} />
+          <Stack_.Screen name="PerformanceAsk" component={PerformanceAsk} />
+          <Stack_.Screen name="PerformanceTools" component={PerformanceTools} />
         </Stack_.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
@@ -346,16 +380,18 @@ export function SignedIn({
       clearTimeout(timer);
     };
   }, [signed]);
-  // Recruiting and Onboarding (REC-145, ONB-013): with either, the last tab
-  // is More, and Documents moves into it beside them. Asked as Documents is.
+  // Recruiting, Onboarding and Performance (REC-145, ONB-013, PRF-080): with
+  // any, the last tab is More, and Documents moves into it beside them.
+  // Asked as Documents is.
   const [recruiting, setRecruiting] = useState(false);
   const [onboarding, setOnboarding] = useState(false);
+  const [performance, setPerformance] = useState(false);
   useEffect(() => {
     let live = true;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const check = (
       operation: string,
-      area: 'recruiting' | 'onboarding',
+      area: 'recruiting' | 'onboarding' | 'performance',
       set: (on: boolean) => void,
     ): void => {
       void read(signed, operation, {}, area).then((answer) => {
@@ -371,15 +407,16 @@ export function SignedIn({
     };
     check('RecruitingHome', 'recruiting', setRecruiting);
     check('OnboardingTasks', 'onboarding', setOnboarding);
+    check('PerformanceViewer', 'performance', setPerformance);
     return () => {
       live = false;
       for (const t of timers) clearTimeout(t);
     };
   }, [signed]);
-  const more = recruiting || onboarding;
+  const more = recruiting || onboarding || performance;
   const modules = useMemo(
-    () => ({ recruiting, documents, onboarding }),
-    [recruiting, documents, onboarding],
+    () => ({ recruiting, documents, onboarding, performance }),
+    [recruiting, documents, onboarding, performance],
   );
   // The Inbox's notifications on the phone (INB-051): a press opens the item.
   useInboxNotifications(
