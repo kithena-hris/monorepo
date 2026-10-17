@@ -1,5 +1,4 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { TenantId } from '@kithena/contracts';
 import { logger } from '@kithena/telemetry';
 
 import manifest from '../../module.manifest.js';
@@ -256,7 +255,7 @@ export async function deliverWebhooks(deps: Deps): Promise<void> {
       }
       if (at === e) continue;
       const kept = at;
-      await deps.uow.run(tenantId as TenantId, async (tx) => {
+      await deps.uow.run(tenantId, async (tx) => {
         // Only over what it was: an administrator's change meanwhile wins, and is read next pass.
         const now_ = await tx.webhooks.get(kept.id);
         if (now_ !== null && now_.version === e.version && now_.url === e.url)

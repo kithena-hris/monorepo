@@ -87,7 +87,10 @@ async function invite(
     ctx.mail.push({
       to: email,
       subject: `${method === 'CANCEL' ? 'Cancelled' : 'Invitation'}: ${item.title}, ${when} UTC`,
-      text: `${method === 'CANCEL' ? `${item.title} on ${when} (UTC) is cancelled.` : `You are invited to ${item.title} on ${when} (UTC)${where === null ? '' : `, ${where}`}. The invitation is attached for your calendar.`}`,
+      text:
+        method === 'CANCEL'
+          ? `${item.title} on ${when} (UTC) is cancelled.`
+          : `You are invited to ${item.title} on ${when} (UTC)${where === null ? '' : `, ${where}`}. The invitation is attached for your calendar.`,
       dedupeKey: `performance-invite:${session.id}:${personId}:${String(sequence)}:${method}`,
       attachments: [
         { filename: 'invite.ics', base64: Buffer.from(ics, 'utf8').toString('base64') },

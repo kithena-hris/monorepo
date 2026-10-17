@@ -84,7 +84,7 @@ async function due(ctx: Ctx): Promise<readonly Due[]> {
   const settings = await settingsOf(ctx);
   const leavers = (await ctx.members())
     .filter((m) => m.status === 'terminated')
-    .map((m) => ({ personId: m.personId as string, leftOn: m.leftOn ?? null }));
+    .map((m) => ({ personId: m.personId, leftOn: m.leftOn ?? null }));
   return dueNow(
     leavers,
     new Set(settings.privacy.holds.map((h) => h.personId)),
@@ -123,7 +123,7 @@ export async function retentionScreen(ctx: Ctx): Promise<Result<unknown>> {
       ]
         .filter((d) => d > ctx.today)
         .toSorted()[0];
-      return { personId: m.personId as string, name: m.displayName, leftOn, next: next ?? null };
+      return { personId: m.personId, name: m.displayName, leftOn, next: next ?? null };
     })
     .filter((u) => u.next !== null)
     .toSorted((a, b) => (a.next ?? '').localeCompare(b.next ?? ''))
