@@ -41,7 +41,6 @@ import {
   SelectTrigger,
   SelectValue,
   Stat,
-  Switch,
   Table,
   TableBody,
   TableCell,

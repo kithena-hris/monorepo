@@ -50,6 +50,7 @@ import {
   type Review,
 } from './review.js';
 import { dueNow, dueOn, ownNotesDueOn } from './retention.js';
+import { invitation } from './calendar.js';
 import { position } from './sentiment.js';
 import {
   afterSend,
@@ -672,5 +673,43 @@ describe('a webhook endpoint', () => {
     const next = rotated(endpoint, T0);
     expect(liveVersions(next, at(60_000))).toEqual([2, 1]);
     expect(liveVersions(next, at(25 * 60 * 60 * 1000))).toEqual([2]);
+  });
+});
+
+describe('a session’s calendar invitation', () => {
+  const base = {
+    uid: 's1@performance.kithena.com',
+    sequence: 1,
+    method: 'REQUEST' as const,
+    start: '2026-11-03T09:00:00.000Z',
+    end: '2026-11-03T10:30:00.000Z',
+    title: 'Giving feedback, well',
+    description: 'Bring one example; we practise, in pairs.',
+    location: 'Room 4, Madrid',
+    url: null,
+    organizer: { name: 'Acme', email: 'no-reply@kithena.com' },
+    attendee: { name: 'Ada Lovelace', email: 'ada@acme.example' },
+    stamp: '2026-10-17T08:00:00.000Z',
+  };
+
+  it('is one event a calendar can add, with times in UTC and text escaped', () => {
+    const ics = invitation(base);
+    expect(ics).toContain('METHOD:REQUEST\r\n');
+    expect(ics).toContain('DTSTART:20261103T090000Z');
+    expect(ics).toContain('DESCRIPTION:Bring one example\\; we practise\\, in pairs.');
+    expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
+    expect(ics.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75)).toBe(true);
+  });
+
+  it('cancels the same event, by its UID', () => {
+    const ics = invitation({ ...base, method: 'CANCEL', sequence: 2 });
+    expect(ics).toContain('UID:s1@performance.kithena.com');
+    expect(ics).toContain('STATUS:CANCELLED');
+    expect(ics).toContain('SEQUENCE:2');
+  });
+
+  it('folds a long line rather than letting a calendar cut it', () => {
+    const ics = invitation({ ...base, description: 'x'.repeat(200) });
+    expect(ics).toContain('\r\n x');
   });
 });

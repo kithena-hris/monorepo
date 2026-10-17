@@ -3,6 +3,7 @@ import { FormDefinition, type CalendarDate, type FormAnswers } from '@kithena/co
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { grade, validateAnswers } from '@kithena/form-kit';
 
+import { invitation } from '../domain/calendar.js';
 import { addDays, matches, type Condition } from '../domain/cycle.js';
 import {
   complete,
@@ -11,9 +12,11 @@ import {
   stateOf,
   type Assignment,
   type LearningItem,
+  type Session,
 } from '../domain/learning.js';
 import {
   audit,
+  emailOf,
   event,
   forbidden,
   hrOnly,
@@ -36,6 +39,62 @@ import { settingsOf } from './settings.js';
  */
 
 const code = (): string => randomBytes(9).toString('base64url');
+
+/**
+ * A session's calendar invitation to each of these learners (PRD §15.4): an
+ * `.ics` beside the email, sent once the change commits, so their calendar
+ * holds the session, moves it when it moves, and drops it when it is
+ * cancelled. Only for a session still to come; a learner without a work
+ * address gets the Inbox alone.
+ */
+async function invite(
+  ctx: Ctx,
+  item: LearningItem,
+  session: Session,
+  personIds: readonly string[],
+  method: 'REQUEST' | 'CANCEL',
+): Promise<void> {
+  if (session.start <= ctx.at || personIds.length === 0) return;
+  const name = await names(ctx);
+  // Rises with every change, so a calendar keeps the newest copy.
+  const sequence = Math.floor(Date.parse(ctx.at) / 1000);
+  const when = new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(session.start));
+  const where = session.place ?? session.online;
+  for (const personId of personIds) {
+    const email = await emailOf(ctx, personId);
+    if (email === null) continue;
+    const ics = invitation({
+      uid: `${session.id}@performance.kithena.com`,
+      sequence,
+      method,
+      start: session.start,
+      end: session.end,
+      title: item.title,
+      description:
+        method === 'CANCEL'
+          ? 'This session is cancelled.'
+          : `${item.title}. Accepting adds it to your calendar; Kithena marks you present when you scan the code at the door.`,
+      location: where,
+      url: session.online,
+      organizer: { name: 'Kithena', email: 'no-reply@kithena.com' },
+      attendee: { name: name(personId), email },
+      stamp: ctx.at,
+    });
+    ctx.mail.push({
+      to: email,
+      subject: `${method === 'CANCEL' ? 'Cancelled' : 'Invitation'}: ${item.title}, ${when} UTC`,
+      text: `${method === 'CANCEL' ? `${item.title} on ${when} (UTC) is cancelled.` : `You are invited to ${item.title} on ${when} (UTC)${where === null ? '' : `, ${where}`}. The invitation is attached for your calendar.`}`,
+      dedupeKey: `performance-invite:${session.id}:${personId}:${String(sequence)}:${method}`,
+      attachments: [
+        { filename: 'invite.ics', base64: Buffer.from(ics, 'utf8').toString('base64') },
+      ],
+    });
+  }
+}
 
 /** A new company's first items, so the catalogue is not empty on day one. */
 async function ensureCatalogue(ctx: Ctx): Promise<void> {
@@ -326,7 +385,52 @@ export async function saveItem(
     })),
   };
   await ctx.tx.items.save(item);
-  await audit(ctx, { kind: 'learning',
+  // Sessions added, moved or dropped reach the people already assigned, in their calendars.
+  if (old !== null) {
+    const learners = (await ctx.tx.assignments.find()).filter(
+      (a) => a.itemId === item.id && a.completedAt === null,
+    );
+    const same = (a: Session, b: Session) =>
+      a.start === b.start && a.end === b.end && a.place === b.place && a.online === b.online;
+    for (const s of item.sessions) {
+      const before = old.sessions.find((x) => x.id === s.id);
+      if (before === undefined) {
+        for (const a of learners)
+          await ctx.tx.assignments.save({
+            ...a,
+            attendance: [
+              ...a.attendance,
+              { sessionId: s.id, invitation: 'invited', attended: null },
+            ],
+          });
+        await invite(
+          ctx,
+          item,
+          s,
+          learners.map((a) => a.personId),
+          'REQUEST',
+        );
+      } else if (!same(before, s)) {
+        await invite(
+          ctx,
+          item,
+          s,
+          learners.map((a) => a.personId),
+          'REQUEST',
+        );
+      }
+    }
+    for (const gone of old.sessions.filter((x) => !item.sessions.some((s) => s.id === x.id)))
+      await invite(
+        ctx,
+        item,
+        gone,
+        learners.map((a) => a.personId),
+        'CANCEL',
+      );
+  }
+  await audit(ctx, {
+    kind: 'learning',
     action: id === null ? 'Added a learning item' : 'Edited a learning item',
     target: item.title,
     targetId: item.id,
@@ -369,6 +473,7 @@ export async function assign(
       .map((a) => a.personId),
   );
   let assigned = 0;
+  const fresh: string[] = [];
   for (const p of targets) {
     if (existing.has(p)) continue;
     await ctx.tx.assignments.save({
@@ -392,8 +497,11 @@ export async function assign(
       at: ctx.at,
     });
     assigned += 1;
+    fresh.push(p);
   }
-  await audit(ctx, { kind: 'learning',
+  for (const session of i.sessions) await invite(ctx, i, session, fresh, 'REQUEST');
+  await audit(ctx, {
+    kind: 'learning',
     action: 'Assigned learning',
     target: `${i.title} · ${String(assigned)} people`,
     targetId: itemId,
@@ -431,7 +539,8 @@ async function saveDone(
         { itemId: after.itemId, personId: after.personId },
       ),
     );
-  await audit(ctx, { kind: 'assignment',
+  await audit(ctx, {
+    kind: 'assignment',
     action:
       after.completedAt !== null && before.completedAt === null
         ? 'Completed learning'
@@ -525,7 +634,8 @@ export async function respondSession(
       },
     ],
   });
-  await audit(ctx, { kind: 'assignment',
+  await audit(ctx, {
+    kind: 'assignment',
     action: 'Answered a session invitation',
     target: got.value.i.title,
     targetId: assignmentId,

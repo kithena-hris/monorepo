@@ -63,12 +63,24 @@ export async function oneCycle(h: Harness): Promise<void> {
   };
   // A webhook receiver that keeps what it is sent.
   const posted: { url: string; headers: Record<string, string>; body: string }[] = [];
+  // And a mailbox that keeps what messaging would send.
+  const mailed: {
+    to: string;
+    subject: string;
+    attachments?: readonly { filename: string; base64: string }[];
+  }[] = [];
   const { rest, deps } = performanceServer(
     {
       uow: h.uow,
       live: inProcessLive(),
       callerFrom: withMember,
       clock,
+      mailer: {
+        send: (m) => {
+          mailed.push(m);
+          return Promise.resolve();
+        },
+      },
       webhooks: {
         secret: (t, e, v) => secretFor('scenario-key', t, e, v),
         sign: signatureHeader,
@@ -498,6 +510,46 @@ export async function oneCycle(h: Harness): Promise<void> {
   const before = posted.length;
   await deliverWebhooks(deps);
   expect(posted.length).toBe(before);
+
+  // A live session invites its learners to their calendars, and its cancellation follows.
+  const session = {
+    id: null,
+    start: '2026-11-03T09:00:00.000Z',
+    end: '2026-11-03T10:30:00.000Z',
+    place: 'Room 4',
+    online: null,
+  };
+  const item = {
+    title: 'Giving feedback, well',
+    kind: 'session',
+    provider: 'In person',
+    minutes: 90,
+    parts: [],
+    acknowledgement: null,
+    quiz: null,
+    recursMonths: null,
+    certificateYears: null,
+    sessions: [session],
+    skills: [],
+    url: null,
+  };
+  const { id: itemId } = await data<{ id: string }>('ada', 'POST', '/learning', item);
+  await data('ada', 'POST', `/learning/${itemId}/assign`, {
+    people: [ids.omar.person],
+    filter: [],
+    cycleId: null,
+    due: null,
+    why: 'Required',
+  });
+  const invited = mailed.find((m) => m.to === 'omar@acme.example' && m.attachments !== undefined);
+  expect(invited?.subject).toContain('Invitation: Giving feedback, well');
+  const ics = Buffer.from(invited?.attachments?.[0]?.base64 ?? '', 'base64').toString('utf8');
+  expect(ics).toContain('METHOD:REQUEST');
+  await data('ada', 'PUT', `/learning/${itemId}`, { ...item, sessions: [] });
+  const cancelled = mailed.filter((m) => m.to === 'omar@acme.example').at(-1);
+  expect(
+    Buffer.from(cancelled?.attachments?.[0]?.base64 ?? '', 'base64').toString('utf8'),
+  ).toContain('METHOD:CANCEL');
 
   // Retention: Priya left in 2020, so her feedback is due; a legal hold keeps it.
   await data('omar', 'POST', '/feedback', {

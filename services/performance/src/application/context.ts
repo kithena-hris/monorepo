@@ -31,6 +31,8 @@ export interface Outgoing {
   readonly subject: string;
   readonly text: string;
   readonly dedupeKey: string;
+  /** A session's calendar invitation (`invite.ics`). */
+  readonly attachments?: readonly { readonly filename: string; readonly base64: string }[];
 }
 
 export interface Viewer {
@@ -228,6 +230,7 @@ export async function deliver(
         subject: m.subject,
         text: m.text,
         dedupeKey: m.dedupeKey,
+        ...(m.attachments === undefined ? {} : { attachments: m.attachments }),
       });
     } catch {
       // ponytail: a lost reminder is not retried; the Inbox still has it. A delivery queue when one is missed.
