@@ -119,6 +119,11 @@ describe('naming who administers People', () => {
     expect(refused.status).toBe(422);
     expect(refused.body).toMatchObject({ code: 'MODULE_NOT_ENABLED' });
   });
+  const sorted = (byModule: unknown): Record<string, string[]> =>
+    Object.fromEntries(
+      Object.entries(byModule as Record<string, string[]>).map(([k, v]) => [k, [...v].sort()]),
+    );
+
   it('keeps several administrators per module, adds and removes them, and never the last', async () => {
     const created = await identity.call(
       'POST',
@@ -155,13 +160,15 @@ describe('naming who administers People', () => {
         operatorId: OPERATOR,
       });
 
-    // Grace off People, Alan on; Time off untouched.
+    // Grace off People, Alan on. A People administrator administers every
+    // module, so Alan is added to Time Off; nobody is taken off it.
     const changed = await put({ 'module.people': [ada, alan] });
     expect(changed.status, JSON.stringify(changed.body)).toBe(200);
-    expect(changed.body['administrators']).toEqual({
-      'module.people': [ada, alan],
-      'module.timeoff': [ada, grace],
-    });
+    const after = {
+      'module.people': [ada, alan].sort(),
+      'module.timeoff': [ada, grace, alan].sort(),
+    };
+    expect(sorted(changed.body['administrators'])).toEqual(after);
     const removed = await identity.sql<{ payload: Record<string, unknown> }[]>`
       SELECT envelope -> 'payload' AS payload FROM platform.outbox
        WHERE tenant_id = ${id}::uuid AND event_name = 'identity.tenant.administrator_removed'`;
@@ -180,10 +187,7 @@ describe('naming who administers People', () => {
       code: 'LAST_ADMINISTRATOR',
       path: ['administrators', 'module.people'],
     });
-    expect(await detail()).toEqual({
-      'module.people': [ada, alan],
-      'module.timeoff': [ada, grace],
-    });
+    expect(sorted(await detail())).toEqual(after);
   });
 
   it('forgets a naming when the invitation behind it is withdrawn', async () => {
