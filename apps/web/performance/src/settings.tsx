@@ -3,28 +3,43 @@ import {
   Badge,
   Button,
   Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Checkbox,
+  Combobox,
+  CopyField,
+  DatePicker,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  RadioCard,
-  RadioGroup,
-  CardContent,
-  CardHeader,
-  CardTitle,
   EmptyState,
   Field,
+  FieldControl,
+  FieldDescription,
   FieldLabel,
+  FormSaveBar,
+  FormSection,
+  FormSections,
   Input,
+  List,
+  ListItem,
   NumberField,
   PageHeader,
+  RadioCard,
+  RadioGroup,
+  SegmentedControl,
+  SegmentedControlItem,
+  Slider,
+  Switch,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  TagsInput,
   icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -35,7 +50,6 @@ import {
   Modal,
   PersonPicker,
   Refusal,
-  SwitchRow,
   day,
   download,
   plural,
@@ -142,27 +156,10 @@ const PAGES: Readonly<
   },
 };
 
-const OPTIONS: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
-  release: [
-    ['close', 'When the cycle closes, after calibration'],
-    ['hr_date', 'On a date HR sets'],
-    ['manager', 'As each is submitted'],
-  ],
-  who: [
-    ['anyone', 'Anyone, to anyone'],
-    ['team', 'Within their team'],
-    ['nobody', 'Nobody: feedback is off'],
-  ],
-  sees: [
-    ['recipient', 'Only the receiver'],
-    ['recipient_manager', 'The receiver and their manager'],
-    ['recipient_manager_hr', 'The receiver, their manager and HR'],
-  ],
-  names: [
-    ['never', 'Always hidden'],
-    ['always', 'Always shown'],
-    ['writer', 'The writer chooses'],
-  ],
+const GENERAL = {
+  title: 'General',
+  description: 'The company’s rating scale, its scores, and the parts of Performance it uses.',
+  section: 'general',
 };
 
 const words = (key: string): string => {
@@ -197,198 +194,933 @@ function SettingsPage({
   readonly data: SettingsData;
 }): JSX.Element {
   const act = useAct(props);
-  const meta = PAGES[page] ?? PAGES['general'];
-  const section = meta?.section ?? 'general';
-  const [value, setValue] = useState<Obj>(data.settings[section] ?? {});
-  const [saved, setSaved] = useState(false);
-  const set = (key: string, v: Json): void => {
-    setValue({ ...value, [key]: v });
-    setSaved(false);
+  const meta = PAGES[page] ?? GENERAL;
+  const [saved, setSaved] = useState<Obj>(data.settings[meta.section] ?? {});
+  const [value, setValue] = useState<Obj>(saved);
+  const dirty = JSON.stringify(value) !== JSON.stringify(saved);
+  const ui: Ui = {
+    get: (...path) => at(value, path),
+    set: (path, v) => {
+      setValue(put(value, path, v));
+    },
+    off: !data.admin,
   };
-  const keys = Object.keys(value).filter((k) => meta?.only === undefined || meta.only.includes(k));
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
-        title={meta?.title ?? 'Settings'}
-        description={meta?.description ?? ''}
-        actions={
-          data.admin ? (
-            <Button
-              loading={act.pending}
-              onClick={() => {
-                act.run('SavePerformanceSettings', { section, input: value }, () => {
-                  setSaved(true);
-                });
-              }}
-            >
-              Save
-            </Button>
-          ) : null
-        }
-      />
+    <div className="flex flex-col gap-4 pb-16">
+      <PageHeader title={meta.title} description={meta.description} />
       <Refusal error={act.error} />
-      {saved ? (
-        <Alert tone="success" title="Saved">
-          New cycles, feedback and goals follow it from now on.
-        </Alert>
-      ) : null}
       {data.admin ? null : (
         <Alert tone="info" title="Read only">
           Only an administrator changes Performance’s settings.
         </Alert>
       )}
-      {section === 'ai' && !data.model ? (
+      {meta.section === 'ai' && !data.model ? (
         <Alert tone="warning" title="No model is connected">
           Every AI feature is unavailable until one is, whatever these say.
         </Alert>
       ) : null}
-      <Card>
-        <CardContent className="flex flex-col gap-4">
-          {keys.map((k) => (
-            <Value
-              key={k}
-              name={k}
-              value={value[k] ?? null}
-              onChange={(v) => {
-                set(k, v);
-              }}
-              disabled={!data.admin}
-              data={data}
-            />
-          ))}
-        </CardContent>
-      </Card>
+      <FormSections>
+        <Body page={page} ui={ui} data={data} act={act} />
+      </FormSections>
+      <FormSaveBar
+        open={dirty && data.admin}
+        saving={act.pending}
+        message="New cycles, feedback and goals follow these once saved."
+        onDiscard={() => {
+          setValue(saved);
+        }}
+        onSave={() => {
+          act.run('SavePerformanceSettings', { section: meta.section, input: value }, () => {
+            setSaved(value);
+          });
+        }}
+      />
     </div>
   );
 }
 
-/** One stored value, drawn by its shape. */
-function Value({
-  name,
-  value,
-  onChange,
-  disabled,
-  data,
+/* ------------------------------------------------------- the settings -- */
+
+type Path = readonly string[];
+
+/** One page's values, read and written by path, and whether the viewer may change them. */
+interface Ui {
+  readonly get: (...path: Path) => Json;
+  readonly set: (path: Path, v: Json) => void;
+  readonly off: boolean;
+}
+
+const at = (o: Json, path: Path): Json =>
+  path.reduce<Json>((v, k) => (isObj(v) ? (v[k] ?? null) : null), o);
+
+function put(o: Obj, path: Path, v: Json): Obj {
+  const [k, ...rest] = path;
+  if (k === undefined) return o;
+  const inner = o[k] ?? null;
+  return { ...o, [k]: rest.length === 0 ? v : put(isObj(inner) ? inner : {}, rest, v) };
+}
+
+/** A stored list, as the rows it holds; anything else is none. */
+const list = (v: Json): readonly unknown[] => (isList(v) ? v : []);
+const num = (v: Json): number | null => (typeof v === 'number' ? v : null);
+const str = (v: Json): string => (typeof v === 'string' ? v : '');
+
+/** Settings that are each on or off, in one group: a row each, its switch at the end. */
+function Switches({
+  ui,
+  items,
 }: {
-  readonly name: string;
-  readonly value: Json;
-  readonly onChange: (v: Json) => void;
-  readonly disabled: boolean;
+  readonly ui: Ui;
+  readonly items: readonly {
+    readonly path: Path;
+    readonly label: string;
+    readonly hint?: string;
+  }[];
+}): JSX.Element {
+  return (
+    <List>
+      {items.map((i) => (
+        <ListItem
+          key={i.path.join('.')}
+          description={i.hint}
+          trailing={
+            <Switch
+              aria-label={i.label}
+              checked={ui.get(...i.path) === true}
+              disabled={ui.off}
+              onCheckedChange={(on) => {
+                ui.set(i.path, on);
+              }}
+            />
+          }
+        >
+          {i.label}
+        </ListItem>
+      ))}
+    </List>
+  );
+}
+
+/** One of a few choices, each with a line on what it means. */
+function Choice({
+  ui,
+  path,
+  label,
+  options,
+}: {
+  readonly ui: Ui;
+  readonly path: Path;
+  readonly label: string;
+  readonly options: readonly (readonly [string, string, string?])[];
+}): JSX.Element {
+  return (
+    <RadioGroup
+      aria-label={label}
+      className="flex max-w-2xl flex-col gap-2 touch:max-w-none"
+      value={str(ui.get(...path))}
+      disabled={ui.off}
+      onValueChange={(v) => {
+        ui.set(path, v);
+      }}
+    >
+      {options.map(([v, l, d]) => (
+        <RadioCard key={v} value={v} description={d}>
+          {l}
+        </RadioCard>
+      ))}
+    </RadioGroup>
+  );
+}
+
+function Count({
+  ui,
+  path,
+  label,
+  hint,
+  min,
+  max,
+  suffix,
+}: {
+  readonly ui: Ui;
+  readonly path: Path;
+  readonly label: string;
+  readonly hint?: string;
+  readonly min: number;
+  readonly max: number;
+  readonly suffix?: string;
+}): JSX.Element {
+  return (
+    <NumberField
+      label={label}
+      hint={hint}
+      min={min}
+      max={max}
+      suffix={suffix}
+      value={num(ui.get(...path))}
+      disabled={ui.off}
+      onChange={(v) => {
+        if (v !== null) ui.set(path, v);
+      }}
+    />
+  );
+}
+
+const ZONES = [...new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])].map((z) => ({
+  value: z,
+  label: z.replaceAll('_', ' '),
+}));
+
+const KINDS_WITH_FORMS = [
+  ['self', 'Self reviews'],
+  ['manager', 'Manager reviews'],
+  ['peer', 'Peer reviews'],
+  ['upward', 'Upward reviews'],
+  ['skip', 'Skip-level reviews'],
+] as const;
+
+const CADENCE = [
+  ['weekly', 'Weekly'],
+  ['fortnightly', 'Every two weeks'],
+  ['monthly', 'Monthly'],
+  ['none', 'No check-ins'],
+] as const;
+
+const NINE_BOX = [
+  ['star', 'Star', 'High performance, high potential'],
+  ['high', 'High performer', 'High performance, moderate potential'],
+  ['trusted', 'Trusted professional', 'High performance, low potential'],
+  ['corePotential', 'Rising talent', 'Moderate performance, high potential'],
+  ['core', 'Core player', 'Moderate performance, moderate potential'],
+  ['effective', 'Effective', 'Moderate performance, low potential'],
+  ['inconsistent', 'Inconsistent', 'Low performance, high potential'],
+  ['lowPotential', 'Dilemma', 'Low performance, moderate potential'],
+  ['under', 'Underperformer', 'Low performance, low potential'],
+] as const;
+
+const AI_FEATURES = [
+  ['builder', 'Form builder', 'Drafts a form’s questions from a description.'],
+  ['summaries', 'Summaries', 'Summarises what was written about a person, for their manager.'],
+  [
+    'sentiment',
+    'Sentiment',
+    'Reads the tone of feedback for analytics, in groups of five or more.',
+  ],
+  ['prefill', 'Prefill', 'Suggests a first draft of a review from the year’s evidence.'],
+  ['writingChecks', 'Writing checks', 'Flags vague or biased wording while someone writes.'],
+  ['toneCheck', 'Tone check', 'Flags feedback that may land badly before it is sent.'],
+  ['setupByChat', 'Set up in words', 'Builds a cycle’s setup from a description.'],
+  ['automationsInWords', 'Automations in words', 'Turns a sentence into an automation.'],
+  ['charts', 'Charts in words', 'Draws the analytics chart someone asks for.'],
+  ['learningSuggestions', 'Learning suggestions', 'Suggests courses from a review’s outcome.'],
+  [
+    'calibrationSuggestions',
+    'Calibration suggestions',
+    'Proposes moves in a session, each for a person to accept.',
+  ],
+  ['panel', 'Ask Kithena', 'The assistant panel on every Performance screen.'],
+] as const;
+
+const CONNECTIONS = [
+  ['google', 'Google Workspace', 'Calendar invitations for sessions and 1:1s.'],
+  ['microsoft', 'Microsoft 365', 'Calendar invitations for sessions and 1:1s.'],
+  ['slack', 'Slack', 'Reminders, praise and asking Kithena in the chat app.'],
+  ['teams', 'Microsoft Teams', 'Reminders and praise in Teams.'],
+  ['gchat', 'Google Chat', 'Reminders and praise in Google Chat.'],
+] as const;
+
+/** What each settings page holds, laid out as sections of one form. */
+function Body({
+  page,
+  ui,
+  data,
+  act,
+}: {
+  readonly page: string;
+  readonly ui: Ui;
   readonly data: SettingsData;
-}): JSX.Element | null {
-  if (typeof value === 'boolean')
-    return (
-      <SwitchRow label={words(name)} checked={value} disabled={disabled} onChange={onChange} />
-    );
-  if (typeof value === 'number')
-    return (
-      <NumberField
-        label={words(name)}
-        value={value}
-        disabled={disabled}
-        onChange={(v) => {
-          if (v !== null) onChange(v);
-        }}
-      />
-    );
-  if (typeof value === 'string') {
-    const options = OPTIONS[name];
-    if (options !== undefined)
-      return <Choose label={words(name)} value={value} options={options} onChange={onChange} />;
-    return (
-      <Field>
-        <FieldLabel>{words(name)}</FieldLabel>
-        <Input
-          value={value}
-          disabled={disabled}
-          onChange={(e) => {
-            onChange(e.target.value);
+  readonly act: ReturnType<typeof useAct>;
+}): JSX.Element {
+  switch (page) {
+    case 'release':
+      return (
+        <>
+          <FormSection
+            title="When people see their reviews"
+            description="Where a new cycle starts; each cycle can change it."
+          >
+            <Choice
+              ui={ui}
+              path={['release']}
+              label="Release"
+              options={[
+                [
+                  'manager',
+                  'As each is submitted',
+                  'The manager releases each review once it is in.',
+                ],
+                ['hr_date', 'On a date', 'HR sets one day, and everyone sees theirs then.'],
+                ['close', 'When the cycle closes', 'After calibration, if the cycle has one.'],
+              ]}
+            />
+          </FormSection>
+          <FormSection
+            title="Confidentiality"
+            description="Peer and upward answers stay unread until enough are in."
+          >
+            <Count
+              ui={ui}
+              path={['minimum']}
+              label="Response minimum"
+              hint="Confidential answers show only once this many are in."
+              min={1}
+              max={20}
+              suffix="responses"
+            />
+          </FormSection>
+          <FormSection title="Workload" description="What a cycle’s launch checks warn about.">
+            <Count
+              ui={ui}
+              path={['perReviewer']}
+              label="Peer reviews one person writes, at most"
+              min={1}
+              max={50}
+              suffix="reviews"
+            />
+            <Count
+              ui={ui}
+              path={['workload']}
+              label="Warn when someone has more than"
+              hint="Listed by name before launch."
+              min={1}
+              max={100}
+              suffix="reviews"
+            />
+          </FormSection>
+          <FormSection title="After release" description="What the person reviewed can do.">
+            <Switches
+              ui={ui}
+              items={[
+                {
+                  path: ['acknowledge'],
+                  label: 'Ask for an acknowledgement',
+                  hint: '“I’ve read this” is not agreement.',
+                },
+                {
+                  path: ['subjectComment'],
+                  label: 'Let them comment',
+                  hint: 'Shown to their manager and HR.',
+                },
+              ]}
+            />
+          </FormSection>
+          <FormSection
+            title="Default forms"
+            description="The form each kind of review starts with in a new cycle."
+          >
+            {KINDS_WITH_FORMS.map(([kind, label]) => (
+              <Choose
+                key={kind}
+                label={label}
+                value={str(ui.get('templates', kind)) || 'default'}
+                options={[
+                  ['default', 'Kithena’s default'],
+                  ...data.templates
+                    .filter((t) => t.purpose.length === 0 || t.purpose.includes(kind))
+                    .map((t) => [t.id, t.name] as const),
+                ]}
+                onChange={(v) => {
+                  ui.set(['templates', kind], v === 'default' ? null : v);
+                }}
+              />
+            ))}
+          </FormSection>
+        </>
+      );
+    case 'feedback':
+      return (
+        <>
+          <FormSection title="Who gives feedback">
+            <Choice
+              ui={ui}
+              path={['who']}
+              label="Who gives feedback"
+              options={[
+                ['anyone', 'Anyone, to anyone'],
+                ['team', 'Within their team'],
+                ['nobody', 'Nobody', 'Feedback is off; praise and reviews are not.'],
+              ]}
+            />
+          </FormSection>
+          <FormSection title="Who sees it" description="Unless the writer narrows it.">
+            <Choice
+              ui={ui}
+              path={['sees']}
+              label="Who sees it"
+              options={[
+                ['recipient', 'Only the receiver'],
+                ['recipient_manager', 'The receiver and their manager'],
+                ['recipient_manager_hr', 'The receiver, their manager and HR'],
+              ]}
+            />
+          </FormSection>
+          <FormSection title="Writers’ names">
+            <Choice
+              ui={ui}
+              path={['names']}
+              label="Writers’ names"
+              options={[
+                ['never', 'Always hidden', 'Shown as “Someone at the company”.'],
+                ['always', 'Always shown'],
+                ['writer', 'The writer chooses'],
+              ]}
+            />
+          </FormSection>
+          <FormSection title="Praise" description="Thanks in public, tagged with a company value.">
+            <Switches
+              ui={ui}
+              items={[
+                {
+                  path: ['praise', 'public'],
+                  label: 'Praise is public',
+                  hint: 'On the company’s praise wall.',
+                },
+                {
+                  path: ['praise', 'chat'],
+                  label: 'Post praise to the chat app',
+                  hint: 'When the chat app is connected.',
+                },
+              ]}
+            />
+            <TagsInput
+              label="Company values"
+              hint="Enter or a comma adds one."
+              max={20}
+              disabled={ui.off}
+              value={list(ui.get('praise', 'values')) as readonly string[]}
+              onChange={(v) => {
+                ui.set(['praise', 'values'], v);
+              }}
+            />
+          </FormSection>
+          <FormSection title="Writing help">
+            <Switches
+              ui={ui}
+              items={[
+                {
+                  path: ['toneCheck'],
+                  label: 'Check the tone before sending',
+                  hint: 'The writer decides; nothing is changed for them.',
+                },
+                { path: ['templates'], label: 'Offer feedback templates' },
+              ]}
+            />
+          </FormSection>
+        </>
+      );
+    case 'goals':
+      return <GoalsSettings ui={ui} />;
+    case 'learning': {
+      const providers = list(ui.get('providers')) as readonly {
+        readonly name: string;
+        readonly connected: boolean;
+        readonly items: number;
+      }[];
+      const share = num(ui.get('attendanceShare')) ?? 75;
+      return (
+        <>
+          <FormSection
+            title="Learning platforms"
+            description="Completions arrive on their own from a connected platform."
+          >
+            <List>
+              {providers.map((p) => (
+                <ListItem
+                  key={p.name}
+                  description={p.connected ? plural(p.items, 'course') : 'Not connected yet'}
+                  trailing={
+                    <Badge size="sm" tone={p.connected ? 'success' : 'neutral'}>
+                      {p.connected ? 'Connected' : 'Off'}
+                    </Badge>
+                  }
+                >
+                  {p.name}
+                </ListItem>
+              ))}
+            </List>
+          </FormSection>
+          <FormSection title="Completion">
+            <Slider
+              label="Attendance that completes a live session"
+              valueDisplay={`${String(share)}%`}
+              min={5}
+              max={100}
+              step={5}
+              disabled={ui.off}
+              value={[share]}
+              onValueChange={([v = share]) => {
+                ui.set(['attendanceShare'], v);
+              }}
+            />
+            <Count
+              ui={ui}
+              path={['certificatesYears']}
+              label="Certificates stay valid for"
+              hint="0: they never expire."
+              min={0}
+              max={20}
+              suffix="years"
+            />
+          </FormSection>
+        </>
+      );
+    }
+    case 'calibration': {
+      const total = NINE_BOX.reduce((n, [k]) => n + (num(ui.get('guide', k)) ?? 0), 0);
+      return (
+        <>
+          <FormSection
+            title="Nine-box guide"
+            description="The share of people expected in each box: a guide for the session, never a quota."
+          >
+            {NINE_BOX.map(([k, label, hint]) => (
+              <Count
+                key={k}
+                ui={ui}
+                path={['guide', k]}
+                label={label}
+                hint={hint}
+                min={0}
+                max={100}
+                suffix="%"
+              />
+            ))}
+            <p className="flex items-center gap-2 text-sm">
+              <Badge size="sm" tone={total === 100 ? 'success' : 'warning'}>
+                {`${String(total)}%`}
+              </Badge>
+              {total === 100 ? 'Adds up to the whole company.' : 'Should add up to 100%.'}
+            </p>
+          </FormSection>
+          <FormSection title="In a session" description="What calibrators see.">
+            <Switches
+              ui={ui}
+              items={[
+                {
+                  path: ['managersOwnOnly'],
+                  label: 'Managers see only their own people',
+                  hint: 'HR and the session’s owner see everyone in it.',
+                },
+                {
+                  path: ['peerNames'],
+                  label: 'Show peer reviewers’ names',
+                },
+              ]}
+            />
+          </FormSection>
+        </>
+      );
+    }
+    case 'ai':
+      return (
+        <FormSection
+          title="Features"
+          description="Each on or off for the whole company. Every output is logged, and a person confirms every number."
+        >
+          <Switches
+            ui={ui}
+            items={AI_FEATURES.map(([k, label, hint]) => ({
+              path: ['features', k],
+              label,
+              hint,
+            }))}
+          />
+        </FormSection>
+      );
+    case 'connections':
+      return (
+        <>
+          <FormSection title="Calendars and chat">
+            <Switches
+              ui={ui}
+              items={CONNECTIONS.map(([k, label, hint]) => ({
+                path: ['connections', k],
+                label,
+                hint,
+              }))}
+            />
+          </FormSection>
+          <FormSection
+            title="Tools people may connect"
+            description="Each person still decides for their own work, in My connected tools; off here, nobody can."
+          >
+            <Switches
+              ui={ui}
+              items={Object.entries(SOURCE).map(([k, label]) => ({
+                path: ['evidence', k],
+                label,
+              }))}
+            />
+          </FormSection>
+        </>
+      );
+    case 'works-councils':
+      return (
+        <FormSection
+          title="Legal entities"
+          description="Until a works council agrees, people in that entity are left out of cycles, and AI and connected tools are off for them."
+        >
+          {data.legalEntities.length === 0 ? (
+            <p className="text-sm text-fg-muted">
+              The company has no legal entities in People yet.
+            </p>
+          ) : (
+            data.legalEntities.map((entity) => {
+              const agreed = ui.get('worksCouncil', entity, 'agreed');
+              return (
+                <div key={entity} className="flex max-w-2xl flex-col gap-3 touch:max-w-none">
+                  <Switches
+                    ui={ui}
+                    items={[
+                      { path: ['worksCouncil', entity, 'on'], label: entity, hint: 'Agreed' },
+                    ]}
+                  />
+                  {ui.get('worksCouncil', entity, 'on') === true ? (
+                    <Field>
+                      <FieldLabel>Agreed on</FieldLabel>
+                      <FieldControl>
+                        <DatePicker
+                          label={`${entity} agreed on`}
+                          value={typeof agreed === 'string' ? agreed : null}
+                          onChange={(d) => {
+                            ui.set(['worksCouncil', entity, 'agreed'], d);
+                          }}
+                        />
+                      </FieldControl>
+                    </Field>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </FormSection>
+      );
+    case 'access':
+      return <AccessSettings ui={ui} data={data} act={act} />;
+    default:
+      return <GeneralSettings ui={ui} />;
+  }
+}
+
+function GeneralSettings({ ui }: { readonly ui: Ui }): JSX.Element {
+  return (
+    <>
+      <FormSection
+        title="Rating scale"
+        description="Every performance score is computed on it. Changing it changes no score already submitted."
+      >
+        <Scale
+          value={list(ui.get('scale')) as readonly ScaleOption[]}
+          disabled={ui.off}
+          onChange={(s) => {
+            ui.set(['scale'], s as unknown as Json);
           }}
         />
-      </Field>
-    );
-  }
-  if (name === 'scale' && isList(value))
-    return (
-      <Scale
-        value={value as unknown as readonly ScaleOption[]}
-        disabled={disabled}
-        onChange={(s) => {
-          onChange(s as unknown as Json);
-        }}
-      />
-    );
-  if (name === 'hr' && isList(value))
-    return (
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold">HR to Performance</p>
-        <p className="text-sm">
-          {data.hrPeople.length === 0
-            ? 'Only the company’s administrators.'
-            : data.hrPeople.map((p) => p.name).join(', ')}
-        </p>
-      </div>
-    );
-  if (isList(value)) {
-    if (value.every((v) => typeof v === 'string'))
-      return (
+      </FormSection>
+      <FormSection title="Scores">
         <Field>
-          <FieldLabel>{words(name)}</FieldLabel>
+          <FieldLabel>Decimal places</FieldLabel>
+          <SegmentedControl
+            value={String(num(ui.get('decimals')) ?? 1)}
+            onValueChange={(v) => {
+              if (!ui.off && v !== '') ui.set(['decimals'], Number(v));
+            }}
+          >
+            <SegmentedControlItem value="1">3.4</SegmentedControlItem>
+            <SegmentedControlItem value="2">3.42</SegmentedControlItem>
+          </SegmentedControl>
+        </Field>
+        <Field>
+          <FieldLabel>Company time zone</FieldLabel>
+          <FieldControl>
+            <Combobox
+              label="Company time zone"
+              options={ZONES}
+              value={str(ui.get('zone'))}
+              searchPlaceholder="Find a zone"
+              onChange={(v) => {
+                if (!ui.off && typeof v === 'string') ui.set(['zone'], v);
+              }}
+            />
+          </FieldControl>
+          <FieldDescription>
+            Cycles start and fall due in it unless one says otherwise.
+          </FieldDescription>
+        </Field>
+      </FormSection>
+      <FormSection title="Parts of Performance" description="Off hides the part for everyone.">
+        <Switches
+          ui={ui}
+          items={[
+            { path: ['parts', 'goals'], label: 'Goals', hint: 'Goals, key results and check-ins.' },
+            {
+              path: ['parts', 'learning'],
+              label: 'Learning',
+              hint: 'Courses, sessions and attendance.',
+            },
+            {
+              path: ['parts', 'calibration'],
+              label: 'Calibration',
+              hint: 'Sessions over a cycle’s scores, and the nine-box.',
+            },
+            {
+              path: ['parts', 'automations'],
+              label: 'Automations',
+              hint: 'Cycles made on a calendar or after an event.',
+            },
+          ]}
+        />
+      </FormSection>
+    </>
+  );
+}
+
+interface PeriodRow {
+  readonly id: string;
+  readonly name: string;
+  readonly from: string;
+  readonly to: string;
+  readonly cadence: string;
+}
+
+function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
+  const periods = list(ui.get('periods')) as readonly PeriodRow[];
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState<PeriodRow>({
+    id: '',
+    name: '',
+    from: '',
+    to: '',
+    cadence: 'fortnightly',
+  });
+  const cadence = (c: string): string => (CADENCE.find(([v]) => v === c)?.[1] ?? c).toLowerCase();
+  return (
+    <>
+      <FormSection
+        title="Periods"
+        description="What a goal is set for, and how often its owner checks in."
+      >
+        <List>
+          {periods.map((p) => (
+            <ListItem
+              key={p.id}
+              description={`${day(p.from)} to ${day(p.to)} · check-ins ${cadence(p.cadence)}`}
+              trailing={
+                ui.off ? undefined : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Remove ${p.name}`}
+                    startIcon={<icons.delete aria-hidden />}
+                    onClick={() => {
+                      ui.set(['periods'], periods.filter((x) => x.id !== p.id) as unknown as Json);
+                    }}
+                  />
+                )
+              }
+            >
+              {p.name}
+            </ListItem>
+          ))}
+        </List>
+        {ui.off ? null : (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="self-start"
+            startIcon={<icons.add aria-hidden />}
+            onClick={() => {
+              setAdding(true);
+            }}
+          >
+            Add a period
+          </Button>
+        )}
+      </FormSection>
+      <FormSection title="Goals">
+        <Switches
+          ui={ui}
+          items={[
+            {
+              path: ['weighted'],
+              label: 'Weighted goals',
+              hint: 'A person’s goals for a period add up to 100%.',
+            },
+            {
+              path: ['rollUp'],
+              label: 'Parent goals take their children’s progress',
+              hint: 'Off: the parent’s owner updates it.',
+            },
+            {
+              path: ['follow'],
+              label: 'Key results can follow a Linear project or Jira epic',
+              hint: 'Once those tools are connected.',
+            },
+          ]}
+        />
+      </FormSection>
+      <Modal
+        open={adding}
+        onClose={() => {
+          setAdding(false);
+        }}
+        title="Add a period"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setAdding(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                draft.name.trim() === '' ||
+                draft.from === '' ||
+                draft.to === '' ||
+                draft.to < draft.from
+              }
+              onClick={() => {
+                const id = `${draft.name
+                  .trim()
+                  .toLowerCase()
+                  .replaceAll(/[^a-z0-9]+/gu, '-')}-${String(periods.length + 1)}`.slice(0, 40);
+                ui.set(['periods'], [
+                  ...periods,
+                  { ...draft, id, name: draft.name.trim() },
+                ] as unknown as Json);
+                setAdding(false);
+                setDraft({ id: '', name: '', from: '', to: '', cadence: 'fortnightly' });
+              }}
+            >
+              Add
+            </Button>
+          </>
+        }
+      >
+        <Field required>
+          <FieldLabel>Name</FieldLabel>
           <Input
-            value={value.join(', ')}
-            disabled={disabled}
+            value={draft.name}
+            placeholder="Q1 2027"
             onChange={(e) => {
-              onChange(
-                e.target.value
-                  .split(',')
-                  .map((x) => x.trim())
-                  .filter(Boolean),
-              );
+              setDraft({ ...draft, name: e.target.value });
             }}
           />
         </Field>
-      );
-    return (
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold">{words(name)}</p>
-        {value.length === 0 ? (
-          <p className="text-sm text-fg-muted">None</p>
-        ) : (
-          value.map((v, i) => (
-            <p key={`${name}-${String(i)}`} className="text-sm">
-              {isObj(v)
-                ? Object.values(v)
-                    .filter((x) => typeof x !== 'object')
-                    .map(String)
-                    .join(' · ')
-                : JSON.stringify(v)}
-            </p>
-          ))
-        )}
-      </div>
-    );
-  }
-  if (isObj(value))
-    return (
-      <div className="flex flex-col gap-4 border-t border-[var(--reach-line)] pt-4">
-        <p className="text-sm font-semibold">{words(name)}</p>
-        {Object.entries(value).map(([k, v]) => (
-          <Value
-            key={k}
-            name={k}
-            value={v}
-            disabled={disabled}
-            data={data}
-            onChange={(x) => {
-              onChange({ ...value, [k]: x });
-            }}
-          />
-        ))}
-      </div>
-    );
-  return null;
+        <Field required>
+          <FieldLabel>From</FieldLabel>
+          <FieldControl>
+            <DatePicker
+              label="From"
+              value={draft.from === '' ? null : draft.from}
+              onChange={(d) => {
+                setDraft({ ...draft, from: d ?? '' });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Field required>
+          <FieldLabel>To</FieldLabel>
+          <FieldControl>
+            <DatePicker
+              label="To"
+              value={draft.to === '' ? null : draft.to}
+              onChange={(d) => {
+                setDraft({ ...draft, to: d ?? '' });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Choose
+          label="Check-ins"
+          value={draft.cadence}
+          options={CADENCE}
+          onChange={(v) => {
+            setDraft({ ...draft, cadence: v });
+          }}
+        />
+      </Modal>
+    </>
+  );
 }
 
+function AccessSettings({
+  ui,
+  data,
+  act,
+}: {
+  readonly ui: Ui;
+  readonly data: SettingsData;
+  readonly act: ReturnType<typeof useAct>;
+}): JSX.Element {
+  const ids = list(ui.get('hr')) as readonly string[];
+  const [named, setNamed] = useState<Readonly<Record<string, string>>>(
+    Object.fromEntries(data.hrPeople.map((p) => [p.personId, p.name])),
+  );
+  return (
+    <FormSection
+      title="HR to Performance"
+      description="They run cycles and calibration and read every review, beyond the company’s administrators, who always can."
+    >
+      {ids.length === 0 ? (
+        <p className="text-sm text-fg-muted">Only the company’s administrators.</p>
+      ) : (
+        <List>
+          {ids.map((id) => (
+            <ListItem
+              key={id}
+              trailing={
+                ui.off ? undefined : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Remove ${named[id] ?? 'this person'}`}
+                    startIcon={<icons.delete aria-hidden />}
+                    onClick={() => {
+                      ui.set(
+                        ['hr'],
+                        ids.filter((x) => x !== id),
+                      );
+                    }}
+                  />
+                )
+              }
+            >
+              {named[id] ?? 'Someone who left'}
+            </ListItem>
+          ))}
+        </List>
+      )}
+      {ui.off ? null : (
+        <PersonPicker
+          act={act}
+          label="Add someone"
+          value={[]}
+          onChange={(picked, people) => {
+            const id = picked[0];
+            if (id === undefined || ids.includes(id)) return;
+            setNamed({ ...named, ...Object.fromEntries(people.map((p) => [p.personId, p.name])) });
+            ui.set(['hr'], [...ids, id]);
+          }}
+        />
+      )}
+    </FormSection>
+  );
+}
+
+/** The company's scale: a row per level, its value, its name and what it means. */
 function Scale({
   value,
   disabled,
@@ -398,17 +1130,15 @@ function Scale({
   readonly disabled: boolean;
   readonly onChange: (s: readonly ScaleOption[]) => void;
 }): JSX.Element {
+  const change = (i: number, patch: Partial<ScaleOption>): void => {
+    onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  };
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-semibold">Rating scale</p>
-      <p className="text-sm text-fg-muted">
-        Every performance score is computed on this scale. Changing it changes no score already
-        submitted.
-      </p>
+    <div className="flex max-w-3xl flex-col gap-3 touch:max-w-none">
       {value.map((o, i) => (
         <div
-          key={`${String(o.value)}-${String(i)}`}
-          className="grid max-w-3xl grid-cols-[5rem_minmax(0,14rem)_minmax(0,1fr)] items-end gap-3 touch:grid-cols-1"
+          key={`level-${String(i)}`}
+          className="grid grid-cols-[5rem_minmax(0,14rem)_minmax(0,1fr)_auto] items-end gap-3 touch:grid-cols-1"
         >
           <NumberField
             hideSteppers
@@ -416,7 +1146,7 @@ function Scale({
             value={o.value}
             disabled={disabled}
             onChange={(v) => {
-              if (v !== null) onChange(value.map((x, j) => (j === i ? { ...x, value: v } : x)));
+              if (v !== null) change(i, { value: v });
             }}
           />
           <Field>
@@ -425,28 +1155,46 @@ function Scale({
               value={o.label}
               disabled={disabled}
               onChange={(e) => {
-                onChange(value.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)));
+                change(i, { label: e.target.value });
               }}
             />
           </Field>
           <Field>
-            <FieldLabel>Description</FieldLabel>
+            <FieldLabel>What it means</FieldLabel>
             <Input
               value={o.description ?? ''}
+              placeholder="Optional"
               disabled={disabled}
               onChange={(e) => {
-                onChange(
-                  value.map((x, j) =>
-                    j === i
-                      ? { ...x, description: e.target.value === '' ? null : e.target.value }
-                      : x,
-                  ),
-                );
+                change(i, { description: e.target.value === '' ? null : e.target.value });
               }}
             />
           </Field>
+          <Button
+            variant="ghost"
+            aria-label={`Remove ${o.label || 'this level'}`}
+            startIcon={<icons.delete aria-hidden />}
+            disabled={disabled || value.length <= 2}
+            onClick={() => {
+              onChange(value.filter((_, j) => j !== i));
+            }}
+          />
         </div>
       ))}
+      {disabled || value.length >= 10 ? null : (
+        <Button
+          size="sm"
+          variant="secondary"
+          className="self-start"
+          startIcon={<icons.add aria-hidden />}
+          onClick={() => {
+            const top = value.reduce((n, o) => Math.max(n, o.value), 0);
+            onChange([...value, { value: top + 1, label: '', description: null }]);
+          }}
+        >
+          Add a level
+        </Button>
+      )}
     </div>
   );
 }
@@ -553,40 +1301,50 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
             description="What Kithena may read of your own work to suggest evidence for reviews about you and by you. Off stops it at once and drops what was read."
           />
           <Refusal error={act.error} />
-          <Card>
-            <CardContent className="flex flex-col">
-              {data.sources.map((s) => (
-                <SwitchRow
-                  key={s.source}
-                  label={SOURCE[s.source] ?? s.source}
-                  hint={
-                    s.at === null ? 'Never turned on' : `${s.on ? 'On' : 'Off'} since ${when(s.at)}`
-                  }
-                  checked={s.on}
-                  disabled={act.pending}
-                  onChange={(on) => {
-                    act.run('SetPerformanceGrant', { source: s.source, input: { on } });
-                  }}
-                />
-              ))}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>Recent reads</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-1 text-sm">
+          <FormSections>
+            <FormSection
+              title="Tools"
+              description="Each is read only for reviews about you or by you."
+            >
+              <List>
+                {data.sources.map((s) => (
+                  <ListItem
+                    key={s.source}
+                    description={
+                      s.at === null
+                        ? 'Never turned on'
+                        : `${s.on ? 'On' : 'Off'} since ${when(s.at)}`
+                    }
+                    trailing={
+                      <Switch
+                        aria-label={SOURCE[s.source] ?? s.source}
+                        checked={s.on}
+                        disabled={act.pending}
+                        onCheckedChange={(on) => {
+                          act.run('SetPerformanceGrant', { source: s.source, input: { on } });
+                        }}
+                      />
+                    }
+                  >
+                    {SOURCE[s.source] ?? s.source}
+                  </ListItem>
+                ))}
+              </List>
+            </FormSection>
+            <FormSection title="Recent reads" description="Every time Kithena read something.">
               {data.reads.length === 0 ? (
-                <p className="text-fg-muted">Nothing has been read.</p>
+                <p className="text-sm text-fg-muted">Nothing has been read.</p>
               ) : (
-                data.reads.map((r) => (
-                  <p
-                    key={`${r.source}-${r.at}`}
-                  >{`${when(r.at)} · ${SOURCE[r.source] ?? r.source} · ${r.purpose}`}</p>
-                ))
+                <List>
+                  {data.reads.map((r) => (
+                    <ListItem key={`${r.source}-${r.at}`} description={r.purpose} meta={when(r.at)}>
+                      {SOURCE[r.source] ?? r.source}
+                    </ListItem>
+                  ))}
+                </List>
               )}
-            </CardContent>
-          </Card>
+            </FormSection>
+          </FormSections>
         </div>
       )}
     </Loaded>
@@ -664,7 +1422,7 @@ function RetentionPage({
   const [whose, setWhose] = useState<readonly string[]>([]);
   const changed = Object.keys(rule).some((k) => rule[k] !== data.rule[k]);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-16">
       <PageHeader
         title="Retention"
         description="How long each kind of record is kept after someone leaves. Nothing is deleted until HR confirms, and a legal hold keeps everything of the person it names."
@@ -697,21 +1455,19 @@ function RetentionPage({
           <p className="text-sm text-fg-muted">
             A leaver’s own notes go 30 days after their last day, whatever is set here.
           </p>
-          {data.admin ? (
-            <Button
-              className="self-start"
-              disabled={!changed}
-              loading={act.pending}
-              onClick={() => {
-                act.run('SavePerformanceSettings', {
-                  section: 'privacy',
-                  input: { ...data.privacy, retention: rule },
-                });
-              }}
-            >
-              Save
-            </Button>
-          ) : null}
+          <FormSaveBar
+            open={changed && data.admin}
+            saving={act.pending}
+            onDiscard={() => {
+              setRule(data.rule);
+            }}
+            onSave={() => {
+              act.run('SavePerformanceSettings', {
+                section: 'privacy',
+                input: { ...data.privacy, retention: rule },
+              });
+            }}
+          />
         </CardContent>
       </Card>
 
@@ -1243,26 +1999,16 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
             title="The endpoint’s secret"
             description="Shown this once. Every delivery carries kithena-signature: v1=<hex>, the HMAC-SHA256 of the body with this secret. After a new secret, the old one also signs for a day."
             footer={
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    if (secret !== null) void navigator.clipboard.writeText(secret);
-                  }}
-                >
-                  Copy
-                </Button>
-                <Button
-                  onClick={() => {
-                    setSecret(null);
-                  }}
-                >
-                  Done
-                </Button>
-              </>
+              <Button
+                onClick={() => {
+                  setSecret(null);
+                }}
+              >
+                Done
+              </Button>
             }
           >
-            <Input readOnly value={secret ?? ''} aria-label="Secret" className="font-mono" />
+            <CopyField value={secret ?? ''} label="Copy the secret" />
           </Modal>
         </div>
       )}

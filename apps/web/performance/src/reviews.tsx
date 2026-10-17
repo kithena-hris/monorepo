@@ -8,6 +8,8 @@ import {
   CardTitle,
   Checkbox,
   EmptyState,
+  List,
+  ListItem,
   Field,
   FieldControl,
   FieldDescription,
@@ -130,7 +132,7 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
           />
           {data.tab === 'nominations' ? (
             <Card>
-              <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
+              <CardContent>
                 {data.nominations.length === 0 ? (
                   <EmptyState
                     icon={<icons.people aria-hidden />}
@@ -138,27 +140,28 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
                     description="When a cycle asks you to pick peers, or approve someone’s, it shows here."
                   />
                 ) : (
-                  data.nominations.map((n) => (
-                    <div key={n.id} className="flex flex-wrap items-center gap-3 py-2.5">
-                      <span className="min-w-0 flex-1">
-                        <span className="font-medium">
+                  <List>
+                    {data.nominations.map((n) => (
+                      <ListItem
+                        key={n.id}
+                        asChild
+                        chevron
+                        icon={n.kind === 'approve' ? <icons.approve /> : <icons.people />}
+                        description={`${n.cycle}${n.due === null ? '' : ` · due ${day(n.due)}`}`}
+                        trailing={
+                          <Badge size="sm" tone={n.kind === 'approve' ? 'accent' : 'neutral'}>
+                            {n.kind === 'approve' ? 'To review' : 'To pick'}
+                          </Badge>
+                        }
+                      >
+                        <a href={`/performance/nominations/${n.id}`}>
                           {n.kind === 'nominate'
                             ? `Pick ${String(n.min)} to ${String(n.max)} peers for ${n.subject}`
                             : `Approve ${n.subject}’s peers`}
-                        </span>
-                        <span className="block text-sm text-fg-muted">{`${n.cycle}${n.due === null ? '' : ` · due ${day(n.due)}`}`}</span>
-                      </span>
-                      <Button
-                        size="sm"
-                        variant={n.kind === 'approve' ? 'primary' : 'secondary'}
-                        asChild
-                      >
-                        <a href={`/performance/nominations/${n.id}`}>
-                          {n.kind === 'approve' ? 'Review' : 'Pick peers'}
                         </a>
-                      </Button>
-                    </div>
-                  ))
+                      </ListItem>
+                    ))}
+                  </List>
                 )}
               </CardContent>
             </Card>
@@ -1801,23 +1804,28 @@ function Picker({
   };
   const group = (title: string, list: readonly Pick[]): JSX.Element | null =>
     list.length === 0 ? null : (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1.5">
         <p className="text-xs font-semibold text-fg-muted">{title}</p>
-        {list.map((p) => (
-          <Field key={p.personId} orientation="horizontal" className="py-1.5">
-            <FieldControl>
-              <Checkbox
-                checked={picked.includes(p.personId)}
-                onCheckedChange={(on) => {
-                  toggle(p.personId, on === true);
-                }}
-              />
-            </FieldControl>
-            <FieldLabel>
-              <Person name={p.name} sub={p.title} />
-            </FieldLabel>
-          </Field>
-        ))}
+        <List>
+          {list.map((p) => (
+            <ListItem
+              key={p.personId}
+              selected={picked.includes(p.personId)}
+              leading={
+                <Checkbox
+                  aria-label={`Pick ${p.name}`}
+                  checked={picked.includes(p.personId)}
+                  onCheckedChange={(on) => {
+                    toggle(p.personId, on === true);
+                  }}
+                />
+              }
+              description={p.title}
+            >
+              {p.name}
+            </ListItem>
+          ))}
+        </List>
       </div>
     );
   return (

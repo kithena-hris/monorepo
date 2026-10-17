@@ -27,6 +27,11 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  Timeline,
+  TimelineItem,
+  SortableList,
+  FieldRow,
+  ChangeDiff,
   icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -541,6 +546,15 @@ const blank = (type: Question['type'], scale: readonly ScaleOption[]): Question 
   return { ...base, type: 'text', guidance: null };
 };
 
+/** Each kind of question's glyph, for its row in the builder. */
+const QUESTION_ICON: Readonly<Record<string, JSX.Element>> = {
+  text: <icons.message aria-hidden />,
+  scale: <icons.assessment aria-hidden />,
+  binary: <icons.approve aria-hidden />,
+  choice: <icons.list aria-hidden />,
+  performance_score: <icons.analytics aria-hidden />,
+};
+
 const TYPES = [
   ['text', 'Text'],
   ['scale', 'Scale'],
@@ -752,50 +766,79 @@ function Building({
                   ) : null}
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
-                  {s.questions.map((q) =>
-                    selected === q.id && q.type !== 'performance_score' ? (
-                      <QuestionEditor
-                        key={q.id}
-                        question={q}
-                        onChange={(next) => {
-                          if (next.private && !q.private && data.purpose.includes('self'))
-                            setWarnPrivate(q.id);
-                          setQuestion(q.id, next);
-                        }}
-                        onRemove={() => {
-                          removeQuestion(si, q.id);
-                        }}
-                        onDone={() => {
-                          setSelected(null);
-                        }}
-                        scale={data.scale}
-                      />
-                    ) : (
-                      <Button
-                        key={q.id}
-                        variant="ghost"
-                        className="h-auto justify-start whitespace-normal text-left"
-                        disabled={q.type === 'performance_score'}
-                        onClick={() => {
-                          setSelected(q.id);
-                        }}
-                      >
-                        <span className="flex flex-col items-start">
-                          <span className="font-medium">{q.prompt}</span>
-                          <span className="text-xs text-fg-muted">
-                            {[
-                              TYPES.find(([t]) => t === q.type)?.[1] ??
-                                (q.type === 'performance_score' ? 'Performance score' : q.type),
-                              q.required ? 'Required' : 'Optional',
-                              q.private ? 'Private' : null,
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </span>
-                        </span>
-                      </Button>
-                    ),
-                  )}
+                  <SortableList
+                    label={`Questions in ${s.title || 'this section'}`}
+                    items={s.questions.map((q) => ({
+                      id: q.id,
+                      locked: q.type === 'performance_score',
+                      q,
+                    }))}
+                    activator="handle"
+                    moveButtons="on-focus"
+                    itemLabel={(i) => i.q.prompt}
+                    onReorder={(move) => {
+                      const byId = new Map(s.questions.map((q) => [q.id, q]));
+                      setSection(si, {
+                        questions: move.order.flatMap((id) => {
+                          const q = byId.get(id);
+                          return q === undefined ? [] : [q];
+                        }),
+                      });
+                    }}
+                  >
+                    {({ q }) =>
+                      selected === q.id && q.type !== 'performance_score' ? (
+                        <QuestionEditor
+                          key={q.id}
+                          question={q}
+                          onChange={(next) => {
+                            if (next.private && !q.private && data.purpose.includes('self'))
+                              setWarnPrivate(q.id);
+                            setQuestion(q.id, next);
+                          }}
+                          onRemove={() => {
+                            removeQuestion(si, q.id);
+                          }}
+                          onDone={() => {
+                            setSelected(null);
+                          }}
+                          scale={data.scale}
+                        />
+                      ) : (
+                        <FieldRow
+                          icon={QUESTION_ICON[q.type] ?? <icons.list aria-hidden />}
+                          title={q.prompt}
+                          badges={
+                            <>
+                              {q.required ? (
+                                <Badge size="sm" variant="outline">
+                                  Required
+                                </Badge>
+                              ) : null}
+                              {q.private ? (
+                                <Badge size="sm" tone="warning">
+                                  Private
+                                </Badge>
+                              ) : null}
+                            </>
+                          }
+                          description={
+                            TYPES.find(([t]) => t === q.type)?.[1] ??
+                            (q.type === 'performance_score'
+                              ? 'Performance score, computed'
+                              : q.type)
+                          }
+                          {...(q.type === 'performance_score'
+                            ? {}
+                            : {
+                                onOpen: () => {
+                                  setSelected(q.id);
+                                },
+                              })}
+                        />
+                      )
+                    }
+                  </SortableList>
                   {locked ? null : (
                     <Button
                       size="sm"
@@ -1315,52 +1358,86 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
             description="Every version, who made it and what changed. A published version is never edited."
           />
           <Refusal error={act.error} />
-          {data.changes.map((v) => (
-            <Card key={v.version}>
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-                <CardTitle
-                  level={2}
-                >{`v${String(v.version)} · ${v.state === 'draft' ? 'Draft' : v.state === 'published' ? 'Published' : 'Superseded'}`}</CardTitle>
-                <span className="flex gap-2">
-                  <Button size="sm" variant="secondary" asChild>
-                    <a href={`/performance/templates/${id}/preview?version=${String(v.version)}`}>
-                      Preview
-                    </a>
-                  </Button>
-                  {v.state === 'draft' ? null : (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      loading={act.pending}
-                      onClick={() => {
-                        act.run(
-                          'RestorePerformanceVersion',
-                          { id, input: { version: v.version } },
-                          () => {
-                            props.onNavigate?.(`/performance/templates/${id}`);
-                          },
-                        );
-                      }}
+          <Card>
+            <CardContent>
+              <Timeline>
+                {data.changes.map((v, i) => {
+                  const edited = v.changes.filter((c) => c.was !== null);
+                  const other = v.changes.filter((c) => c.was === null);
+                  return (
+                    <TimelineItem
+                      key={v.version}
+                      title={`v${String(v.version)} · ${v.state === 'draft' ? 'Draft' : v.state === 'published' ? 'Published' : 'Superseded'}`}
+                      timestamp={`${v.by} · ${when(v.at)}`}
+                      tone={
+                        v.state === 'published'
+                          ? 'success'
+                          : v.state === 'draft'
+                            ? 'accent'
+                            : 'neutral'
+                      }
+                      status={v.state === 'draft' ? 'current' : 'past'}
+                      last={i === data.changes.length - 1}
                     >
-                      Restore into a new draft
-                    </Button>
-                  )}
-                </span>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-1 text-sm">
-                <p className="text-fg-muted">{`${v.by} · ${when(v.at)}`}</p>
-                {v.changes.length === 0 ? (
-                  <p>{v.version === 1 ? 'The first version.' : 'No question changed.'}</p>
-                ) : (
-                  v.changes.map((c) => (
-                    <p
-                      key={`${c.kind}-${c.questionId}`}
-                    >{`${c.kind.charAt(0).toUpperCase()}${c.kind.slice(1)}: ${c.prompt}${c.was === null ? '' : ` (was “${c.was}”)`}`}</p>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                      <div className="flex flex-col gap-3">
+                        {v.changes.length === 0 ? (
+                          <p className="text-sm">
+                            {v.version === 1 ? 'The first version.' : 'No question changed.'}
+                          </p>
+                        ) : null}
+                        {other.length === 0 ? null : (
+                          <ul className="flex flex-col gap-1 text-sm">
+                            {other.map((c) => (
+                              <li key={`${c.kind}-${c.questionId}`}>
+                                {`${c.kind.charAt(0).toUpperCase()}${c.kind.slice(1)}: ${c.prompt}`}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {edited.length === 0 ? null : (
+                          <ChangeDiff
+                            items={edited.map((c) => ({
+                              id: c.questionId,
+                              label: 'Question',
+                              before: c.was,
+                              after: c.prompt,
+                            }))}
+                          />
+                        )}
+                        <span className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="secondary" asChild>
+                            <a
+                              href={`/performance/templates/${id}/preview?version=${String(v.version)}`}
+                            >
+                              Preview
+                            </a>
+                          </Button>
+                          {v.state === 'draft' ? null : (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              loading={act.pending}
+                              onClick={() => {
+                                act.run(
+                                  'RestorePerformanceVersion',
+                                  { id, input: { version: v.version } },
+                                  () => {
+                                    props.onNavigate?.(`/performance/templates/${id}`);
+                                  },
+                                );
+                              }}
+                            >
+                              Restore into a new draft
+                            </Button>
+                          )}
+                        </span>
+                      </div>
+                    </TimelineItem>
+                  );
+                })}
+              </Timeline>
+            </CardContent>
+          </Card>
         </div>
       )}
     </Loaded>

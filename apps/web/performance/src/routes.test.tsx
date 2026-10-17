@@ -74,11 +74,11 @@ const home: HomeData = {
 describe('PF1, home', () => {
   it('shows what the person owes, what is owed to them, and the cycles HR owns', async () => {
     const { container } = render(<screens.Home load={ready(home)} />);
-    expect(screen.getByRole('link', { name: 'Self review' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: /^Self review/ }).getAttribute('href')).toBe(
       '/performance/reviews/r1',
     );
     expect(screen.getByText('Manager review · Marco Ruiz')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'H2 2026' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: /^H2 2026/ }).getAttribute('href')).toBe(
       '/performance/cycles/c1',
     );
     expect(await axeViolations(container)).toEqual([]);

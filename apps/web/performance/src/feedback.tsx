@@ -11,6 +11,8 @@ import {
   Chip,
   ChipRow,
   EmptyState,
+  List,
+  ListItem,
   Field,
   FieldLabel,
   Input,
@@ -179,7 +181,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
             </Alert>
           )}
           {data.tab === 'received' ? (
-            <List
+            <Posts
               empty="Feedback you receive shows here."
               rows={data.received.map((f) => ({
                 id: f.id,
@@ -279,25 +281,34 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                 <CardHeader>
                   <CardTitle level={2}>You asked</CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
+                <CardContent>
                   {data.asked.length === 0 ? (
                     <p className="text-sm text-fg-muted">
                       Ask people you work with how something went.
                     </p>
                   ) : (
-                    data.asked.map((r) => (
-                      <div key={r.id} className="py-3">
-                        <p className="font-medium">{r.topic ?? `About ${r.about}`}</p>
-                        <p className="text-sm text-fg-muted">{`${r.to.join(', ')} · ${String(r.answered)} of ${String(r.of)} answered`}</p>
-                      </div>
-                    ))
+                    <List>
+                      {data.asked.map((r) => (
+                        <ListItem
+                          key={r.id}
+                          description={r.to.join(', ')}
+                          trailing={
+                            <Badge size="sm" tone={r.answered === r.of ? 'success' : 'neutral'}>
+                              {`${String(r.answered)} of ${String(r.of)}`}
+                            </Badge>
+                          }
+                        >
+                          {r.topic ?? `About ${r.about}`}
+                        </ListItem>
+                      ))}
+                    </List>
                   )}
                 </CardContent>
               </Card>
             </div>
           ) : null}
           {data.tab === 'praise' ? (
-            <List
+            <Posts
               empty="Praise given in public shows here, for everyone."
               rows={data.praise.map((p) => ({
                 id: p.id,
@@ -334,7 +345,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
   );
 }
 
-function List({
+function Posts({
   rows,
   empty,
 }: {

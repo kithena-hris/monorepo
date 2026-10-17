@@ -30,6 +30,7 @@ import {
   RadioGroup,
   SearchField,
   SegmentedControl,
+  Slider,
   SegmentedControlItem,
   Select,
   SelectContent,
@@ -904,6 +905,9 @@ function Reviews({
   readonly activity: (k: Kind, p: Partial<ActivityConfig>) => void;
 }): JSX.Element {
   const rules = c.reminders.rules;
+  // The peer range while a thumb is held; saved when it is let go.
+  const [dragging, setDragging] = useState<readonly [number, number] | null>(null);
+  const peers = dragging ?? ([c.peer.min, c.peer.max] as const);
   return (
     <div className="flex flex-col gap-4">
       {KINDS.filter((k) => k !== 'goals').map((k) => {
@@ -1009,22 +1013,21 @@ function Reviews({
                       />
                     </>
                   )}
-                  <NumberField
-                    label="At least"
-                    value={c.peer.min}
+                  <Slider
+                    label="Peer reviewers per person"
+                    thumbLabels={['At least', 'At most']}
+                    valueDisplay={`${String(peers[0])} to ${String(peers[1])}`}
                     min={0}
                     max={20}
-                    onChange={(v) => {
-                      if (v !== null) save({ peer: { ...c.peer, min: v } });
+                    showTicks
+                    value={[...peers]}
+                    onValueChange={([lo = peers[0], hi = peers[1]]) => {
+                      setDragging([lo, Math.max(1, hi)]);
                     }}
-                  />
-                  <NumberField
-                    label="At most"
-                    value={c.peer.max}
-                    min={1}
-                    max={20}
-                    onChange={(v) => {
-                      if (v !== null) save({ peer: { ...c.peer, max: v } });
+                    // Saved once, when the thumb is let go, not at every step of the drag.
+                    onValueCommit={([lo = peers[0], hi = peers[1]]) => {
+                      setDragging(null);
+                      save({ peer: { ...c.peer, min: lo, max: Math.max(1, hi) } });
                     }}
                   />
                   <SwitchRow
