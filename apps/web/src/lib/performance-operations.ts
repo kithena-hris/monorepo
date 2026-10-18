@@ -70,8 +70,8 @@ export const OPERATIONS = {
   PerformanceCycle: `query PerformanceCycle($id: String!, $page: Int, $q: String, $size: Int, $tab: String, $filter: String, $match: String, $group: String) {
     performanceCycle(id: $id, page: $page, q: $q, size: $size, tab: $tab, filter: $filter, match: $match, group: $group)
   }`,
-  PerformanceCycleSetup: `query PerformanceCycleSetup($id: String!, $q: String) {
-    performanceCycleSetup(id: $id, q: $q)
+  PerformanceCycleSetup: `query PerformanceCycleSetup($id: String!, $page: Int, $q: String, $size: Int) {
+    performanceCycleSetup(id: $id, page: $page, q: $q, size: $size)
   }`,
   PerformanceCycles: `query PerformanceCycles($q: String, $state: String) {
     performanceCycles(q: $q, state: $state)

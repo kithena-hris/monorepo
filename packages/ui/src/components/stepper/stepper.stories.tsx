@@ -227,3 +227,21 @@ export const OnAPhone: Story = {
     </div>
   ),
 };
+
+export const Compact: Story = {
+  args: { steps, current: 2, label: 'Setting up', variant: 'compact', free: true },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'One line, to sit beside a heading: small markers joined by short rails, and only the current step named. The others are read out, and named on hover.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="flex items-center gap-4">
+      <h3 className="font-display text-xl font-bold text-fg">H2 2026 reviews</h3>
+      <Stepper {...args} onStepChange={() => undefined} />
+    </div>
+  ),
+};

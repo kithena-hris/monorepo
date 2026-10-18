@@ -143,16 +143,11 @@ export function NumberField({
   const atMax = max !== undefined && value !== null && value >= max;
 
   return (
-    // A number is short: at a desk the field stops at 20rem however wide its
-    // container, so the steppers stay beside the value. Under a thumb it
-    // fills the row like every field.
-    <div
-      className={cn(
-        'group/field flex max-w-xs flex-col gap-1.5 touch:max-w-none',
-        floatRoot,
-        className,
-      )}
-    >
+    // A number is short: at a desk its box stops at 12rem however wide its
+    // container (nine digits, a unit and the steppers side by side); the label
+    // and hint keep the row's width. Under a thumb it fills the row like every
+    // field.
+    <div className={cn('group/field flex flex-col gap-1.5', floatRoot, className)}>
       <label htmlFor={id} className={cn(fieldLabelClass, floatLabel)}>
         {label}
       </label>
@@ -174,7 +169,7 @@ export function NumberField({
         aria-disabled={disabled || undefined}
         className={cn(
           fieldShell({ size }),
-          'items-stretch gap-0',
+          'max-w-48 items-stretch gap-0 touch:max-w-none',
           !hideSteppers && 'pe-1 touch:pe-1.5',
           float && floatShell,
           readOnly && 'bg-transparent ring-1 ring-border ring-inset',

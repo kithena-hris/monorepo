@@ -83,3 +83,38 @@ export const Divided: Story = {
     </Card>
   ),
 };
+
+export const ChartKey: Story = {
+  name: 'A chart’s key, in words',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The chart tones, for a list that names the series a chart beside it draws: each tile in its series’ colour, so the two read as one.',
+      },
+    },
+  },
+  render: () => (
+    <Card padded className="max-w-170 py-1.5">
+      <IconList divided>
+        <IconListItem
+          icon={<CalendarClock />}
+          tone="chart-1"
+          description="Due 14 days after the start."
+        >
+          First series
+        </IconListItem>
+        <IconListItem
+          icon={<TrendingUp />}
+          tone="chart-2"
+          description="Due 21 days after the start."
+        >
+          Second series
+        </IconListItem>
+        <IconListItem icon={<Layers />} tone="chart-3" description="Due when the first closes.">
+          Third series
+        </IconListItem>
+      </IconList>
+    </Card>
+  ),
+};

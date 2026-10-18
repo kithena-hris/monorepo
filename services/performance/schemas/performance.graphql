@@ -607,7 +607,7 @@ type Query {
   """PF5: the overview"""
   performanceCycle(filter: String, group: String, id: String!, match: String, page: Int, q: String, size: Int, tab: String): JSON
   """PF4: setup"""
-  performanceCycleSetup(id: String!, q: String): JSON
+  performanceCycleSetup(id: String!, page: Int, q: String, size: Int): JSON
   """PF6: cycles"""
   performanceCycles(q: String, state: String): JSON
   """People to pick"""

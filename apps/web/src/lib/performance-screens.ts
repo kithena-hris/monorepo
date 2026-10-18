@@ -123,9 +123,19 @@ export async function loadScreen(
       ]);
       if (done.status !== 'ready') return done;
       // Who is away, from Time Off; and the places the filters and groups name, from People.
-      const [away, places] = await Promise.all([
+      // On the Analytics tab, each view of this cycle's analytics; one refused is left out.
+      const views = ['cycle', 'raters', 'fairness', 'trends', 'ask'] as const;
+      const [away, places, analytics] = await Promise.all([
         person?.entitlements.includes('module.timeoff') === true ? awayNow() : undefined,
         person?.entitlements.includes('module.people') === true ? placesNamed() : undefined,
+        s['tab'] === 'analytics'
+          ? Promise.all(
+              views.map(async (tab) => {
+                const got = await read('PerformanceAnalytics', { tab, cycleId: id });
+                return got.status === 'ready' ? [[tab, got.data] as const] : [];
+              }),
+            ).then((pairs) => Object.fromEntries(pairs.flat()))
+          : undefined,
       ]);
       return {
         ...done,
@@ -133,12 +143,13 @@ export async function loadScreen(
           ...(done.data as object),
           ...(away === undefined ? {} : { away }),
           ...(places === undefined ? {} : { places }),
+          ...(analytics === undefined ? {} : { analytics }),
         },
       };
     }
     case 'Setup': {
       const [done, person] = await Promise.all([
-        read('PerformanceCycleSetup', { id, q: opt(s['q']) }),
+        read('PerformanceCycleSetup', { id, q: opt(s['q']), size: int(s['size']) }),
         currentPerson(),
       ]);
       // The filters name work locations and legal entities, which People holds.
@@ -213,14 +224,6 @@ export async function loadScreen(
       return read('PerformanceCalibrations');
     case 'Calibration':
       return read('PerformanceCalibration', { id });
-    case 'Analytics': {
-      const tab = last(path);
-      return read('PerformanceAnalytics', {
-        tab: ['raters', 'trends', 'fairness', 'ask'].includes(tab) ? tab : 'cycle',
-        cycleId: opt(s['cycle']),
-        personId: opt(s['person']),
-      });
-    }
     case 'Settings': {
       // One screen for every settings page; which page is the address's last part.
       const done = await read('PerformanceSettings');

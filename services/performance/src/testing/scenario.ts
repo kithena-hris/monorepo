@@ -221,6 +221,21 @@ export async function oneCycle(h: Harness): Promise<void> {
       keepInStep: true,
     },
   });
+  // Who is in comes a page at a time, searched by name or title.
+  type Who = { rows: { name: string; title: string }[]; total: number; count: number };
+  const who = (query: string) =>
+    data<{ participants: Who }>('ada', 'GET', `/cycles/${cycleId}/setup?${query}`).then(
+      (d) => d.participants,
+    );
+  const firstPage = await who('size=10');
+  expect(firstPage.total).toBe(firstPage.count);
+  expect(firstPage.rows).toHaveLength(Math.min(10, firstPage.total));
+  const title = firstPage.rows[0]?.title ?? '';
+  const searched = await who(`q=${encodeURIComponent(title)}`);
+  expect(searched.rows.length).toBeGreaterThan(0);
+  expect(
+    searched.rows.every((r) => `${r.name} ${r.title}`.toLowerCase().includes(title.toLowerCase())),
+  ).toBe(true);
   expect((await data<{ state: string }>('ada', 'POST', `/cycles/${cycleId}/start`)).state).toBe(
     'launching',
   );
