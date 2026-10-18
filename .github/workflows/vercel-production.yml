@@ -862,9 +862,10 @@ jobs:
           # endpoint can be added.
           PERFORMANCE_WEBHOOK_KEY: ${{ secrets.PERFORMANCE_WEBHOOK_KEY }}
           # The GitHub App a person links to read their own work (PRD §22.3); optional.
-          GITHUB_APP_CLIENT_ID: ${{ secrets.GITHUB_APP_CLIENT_ID }}
-          GITHUB_APP_CLIENT_SECRET: ${{ secrets.GITHUB_APP_CLIENT_SECRET }}
-          GITHUB_APP_SLUG: ${{ vars.GITHUB_APP_SLUG }}
+          # Stored as GH_APP_*: GitHub refuses a secret or variable named GITHUB_*.
+          GITHUB_APP_CLIENT_ID: ${{ secrets.GH_APP_CLIENT_ID }}
+          GITHUB_APP_CLIENT_SECRET: ${{ secrets.GH_APP_CLIENT_SECRET }}
+          GITHUB_APP_SLUG: ${{ vars.GH_APP_SLUG }}
           # The calendar integrations' credentials (TOF-110), each its own
           # secret so adding one never means rewriting TIMEOFF_ENV. Unset, the
           # integration is not offered. The Google key is the service
