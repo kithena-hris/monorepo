@@ -161,15 +161,21 @@ function PersonPicker({
     let live = true;
     const timer = setTimeout(() => {
       setLoading(true);
-      void ask<{ options: { value: string; label: string }[] }>(signed, 'PeoplePicker', {
-        search: search.slice(0, 200),
-      }).then((answer) => {
+      void ask<{ options: { value: string; label: string; description: string | null }[] }>(
+        signed,
+        'PeoplePicker',
+        { search: search.slice(0, 200) },
+      ).then((answer) => {
         if (!live) return;
         setLoading(false);
         if (answer.ok) {
-          // Whoever is chosen stays nameable while the list shows others.
+          // Whoever is chosen stays nameable while the list shows others; job
+          // title and department beneath each name tell two of one name apart.
           const chosen = field.options.filter((o) => o.value === value);
-          setOptions([...chosen, ...answer.data.options.filter((o) => o.value !== value)]);
+          const found = answer.data.options
+            .filter((o) => o.value !== value)
+            .map(({ description, ...o }) => (description === null ? o : { ...o, description }));
+          setOptions([...chosen, ...found]);
         }
       });
     }, 250);

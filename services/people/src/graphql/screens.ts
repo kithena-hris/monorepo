@@ -1218,10 +1218,22 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       next: t.exposeString('next', { nullable: true }),
     }),
   });
+  const PickerOption = builder
+    .objectRef<PickerView['options'][number]>('PeoplePickerOption')
+    .implement({
+      fields: (t) => ({
+        value: t.exposeString('value'),
+        label: t.exposeString('label'),
+        description: t.exposeString('description', {
+          nullable: true,
+          description: 'Their job title and department, so two people of one name differ.',
+        }),
+      }),
+    });
   const Picker = builder.objectRef<PickerView>('PeoplePicker').implement({
     description: 'People to pick from, a keyset page at a time (PEO-122).',
     fields: (t) => ({
-      options: t.field({ type: [OptionRef], resolve: (v) => list(v.options) }),
+      options: t.field({ type: [PickerOption], resolve: (v) => list(v.options) }),
       next: t.exposeString('next', { nullable: true }),
     }),
   });

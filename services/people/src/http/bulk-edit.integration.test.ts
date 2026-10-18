@@ -129,6 +129,9 @@ beforeAll(async () => {
         define({ key: 'nickname', ownership: ['employee'] }),
         // PEO-077: a change waits for a second HR member, unless HR applies it without.
         define({ key: 'pay_grade', requiresApproval: true }),
+        define({ key: 'given_name' }),
+        define({ key: 'family_name' }),
+        define({ key: 'buddy', dataType: 'person_ref', typeConfig: { kind: 'person_ref' } }),
       ]),
       [],
       '2026-09-01',
@@ -253,6 +256,28 @@ describe('bulk edit (PEO-071)', () => {
     expect(
       ((await read.json()) as { attributes: Record<string, unknown> }).attributes,
     ).not.toHaveProperty('job_title');
+  });
+
+  it('names the person a person field holds, never their id', async () => {
+    const named = await post(
+      '',
+      {
+        personIds: [MARCO],
+        values: { given_name: 'Marco', family_name: 'Rossi' },
+        effectiveFrom: ON,
+      },
+      hr,
+      'bulk-name',
+    );
+    expect(outcomes(named.body.rows)).toEqual([[MARCO, 'changed', null]]);
+    const seen = await post('/preview', {
+      personIds: [ADA],
+      values: { buddy: MARCO },
+      effectiveFrom: ON,
+    });
+    expect(seen.body.rows[0]?.changes).toEqual([
+      expect.objectContaining({ key: 'buddy', before: null, after: 'Marco Rossi' }),
+    ]);
   });
 
   it('is atomic per person: a value one person claims first is refused for the next, in the preview and the commit alike', async () => {

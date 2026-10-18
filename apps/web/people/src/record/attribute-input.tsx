@@ -110,7 +110,7 @@ function lineProps(
 
 const text = (value: AttributeValue): string => (typeof value === 'string' ? value : '');
 
-type Option = { readonly value: string; readonly label: string };
+type Option = { readonly value: string; readonly label: string; readonly description?: string };
 
 /**
  * Finds people by name, a page at a time, as the viewer may read them
