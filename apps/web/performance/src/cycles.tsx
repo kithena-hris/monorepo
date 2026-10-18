@@ -42,6 +42,10 @@ import {
   Stat,
   TertiaryNav,
   TimelineChart,
+  type RowAction,
+  type TimelineEntry,
+  type TimelineMove,
+  type TimelineRow,
   TimePicker,
   usePages,
   icons,
@@ -53,7 +57,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
-import { addDays, planRows, resolveDue, type Plan } from './cycle-plan';
+import { addDays, planItem, planRows, resolveDue, type Plan } from './cycle-plan';
 import { Loaded } from './load';
 import {
   CycleBadge,
@@ -186,6 +190,7 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
               <DataTable
                 label="Cycles"
                 rows={data.rows}
+                endLabel={`That’s every cycle · ${String(data.rows.length)}`}
                 rowId={(c) => c.id}
                 describeRow={(c) => c.name}
                 estimateRowHeight={57}
@@ -1420,18 +1425,280 @@ function RemindersStep({
           />
         </CardContent>
       </Card>
-      <CyclePlan c={c} />
+      <CyclePlan c={c} edit={{ mode: 'setup', c, save }} />
     </div>
   );
 }
 
-/** The whole cycle on one axis: each review's window, its deadline and its reminders pinned. */
-function CyclePlan({ c, today }: { readonly c: Plan; readonly today?: string }): JSX.Element {
+/** What may be changed on the plan: a draft's setup, or a running cycle's deadlines. */
+type PlanEdit =
+  | {
+      readonly mode: 'setup';
+      readonly c: CycleSetup;
+      readonly save: (p: Partial<CycleSetup>) => void;
+    }
+  | {
+      readonly mode: 'live';
+      /** Opens the extend dialog for everyone, at that kind and date. */
+      readonly extend: (kind: string, due: string) => void;
+      readonly remind: () => void;
+    };
+
+/** A change asked about before it is made; with `date`, the date is chosen in it. */
+interface PlanAsk {
+  readonly title: string;
+  readonly description: string;
+  readonly confirm: string;
+  readonly destructive?: boolean;
+  readonly date?: string;
+  readonly run: (date: string) => void;
+}
+
+/**
+ * The whole cycle on one axis: each review's window, its deadline and its
+ * reminders pinned in its colour. Zoom by dragging across the dates. Where it
+ * can be changed, a bar's end drags to a new due date and the bar to a new
+ * start, and a right-click offers the rest; every change is asked about first.
+ */
+function CyclePlan({
+  c,
+  today,
+  edit,
+}: {
+  readonly c: Plan;
+  readonly today?: string;
+  readonly edit?: PlanEdit;
+}): JSX.Element {
+  const [ask, setAsk] = useState<PlanAsk | null>(null);
+  const [date, setDate] = useState('');
+  const open = (a: PlanAsk): void => {
+    setDate(a.date ?? '');
+    setAsk(a);
+  };
   const rows = planRows(c, kindLabel, day);
+  const dueOf = (k: string): string => {
+    const a = c.activities[k];
+    return a === undefined ? c.start.date : resolveDue(c, a.due);
+  };
+  const name = (k: string): string => `${kindLabel(k)}s`;
+
+  const setup = edit?.mode === 'setup' ? edit : null;
+  const askDue = (k: string, to: string): void => {
+    if (setup === null) return;
+    open({
+      title: `When are ${name(k).toLowerCase()} due?`,
+      description: `Counted from ${setup.c.activities[k as Kind].due.from === 'nominations' ? 'when nominations close' : 'the start'}, so it moves with it.`,
+      confirm: 'Change the due date',
+      date: to,
+      run: (d) => {
+        const a = setup.c.activities[k as Kind];
+        const from = a.due.from ?? 'start';
+        const base =
+          from === 'nominations' ? resolveDue(setup.c, setup.c.nominations) : setup.c.start.date;
+        setup.save({
+          activities: {
+            ...setup.c.activities,
+            [k]: { ...a, due: { kind: 'relative', days: Math.max(0, daysBetween(base, d)), from } },
+          },
+        });
+      },
+    });
+  };
+  const askStart = (to: string): void => {
+    if (setup === null) return;
+    open({
+      title: 'When does the cycle start?',
+      description:
+        'Every deadline and reminder is counted from the start, so they all move with it.',
+      confirm: 'Move the start',
+      date: to,
+      run: (d) => {
+        setup.save({ start: { ...setup.c.start, date: d } });
+      },
+    });
+  };
+  const askNominations = (to: string): void => {
+    if (setup === null) return;
+    open({
+      title: 'When do nominations close?',
+      description: 'Peer reviews counted from when nominations close move with it.',
+      confirm: 'Change when they close',
+      date: to,
+      run: (d) => {
+        setup.save({
+          nominations: {
+            kind: 'relative',
+            days: Math.max(0, daysBetween(setup.c.start.date, d)),
+            from: 'start',
+          },
+        });
+      },
+    });
+  };
+  const askRelease = (to: string): void => {
+    if (setup === null) return;
+    open({
+      title: 'When are reviews released?',
+      description: 'Everyone sees their reviews on this day.',
+      confirm: 'Change the release date',
+      date: to,
+      run: (d) => {
+        const v = setup.c.visibility;
+        setup.save({ visibility: { ...v, release: { ...v.release, date: d } } });
+      },
+    });
+  };
+
+  const moved = (move: TimelineMove): void => {
+    const item = planItem(move.id);
+    if (item === null || edit === undefined) return;
+    if (edit.mode === 'live') {
+      // A running cycle's starts stand; its deadlines can be extended.
+      if (item.what === 'open' && move.mode === 'resize-end' && move.to.end !== undefined)
+        edit.extend(item.kind, move.to.end);
+      else if (item.what === 'due') edit.extend(item.kind, move.to.start);
+      return;
+    }
+    const shift = daysBetween(move.from.start, move.to.start);
+    if (item.what === 'open' || item.what === 'nominations') {
+      if (move.mode === 'resize-end' && move.to.end !== undefined) {
+        if (item.what === 'open') askDue(item.kind, move.to.end);
+        else askNominations(move.to.end);
+      } else if (shift !== 0 && setup !== null) askStart(addDays(setup.c.start.date, shift));
+    } else if (item.what === 'due') askDue(item.kind, move.to.start);
+    else if (item.what === 'nominations-due') askNominations(move.to.start);
+    else if (item.what === 'release') askRelease(move.to.start);
+  };
+
+  const actions = (entry: TimelineEntry): RowAction[] => {
+    const item = planItem(entry.id);
+    if (item === null || edit === undefined) return [];
+    if (edit.mode === 'live')
+      return item.what === 'open' || item.what === 'due'
+        ? [
+            {
+              id: 'extend',
+              label: 'Extend the deadline…',
+              onSelect: () => {
+                edit.extend(item.kind, dueOf(item.kind));
+              },
+            },
+            {
+              id: 'remind',
+              label: 'Remind everyone who has not submitted…',
+              onSelect: () => {
+                open({
+                  title: 'Remind everyone who has not submitted?',
+                  description:
+                    'By the cycle’s channels: the Inbox, and email or chat where they are on.',
+                  confirm: 'Remind them',
+                  run: () => {
+                    edit.remind();
+                  },
+                });
+              },
+            },
+          ]
+        : [];
+    const v = edit.c.visibility;
+    switch (item.what) {
+      case 'open':
+      case 'due':
+        return [
+          {
+            id: 'due',
+            label: 'Change the due date…',
+            onSelect: () => {
+              askDue(item.kind, dueOf(item.kind));
+            },
+          },
+          {
+            id: 'start',
+            label: 'Move the cycle’s start…',
+            onSelect: () => {
+              askStart(edit.c.start.date);
+            },
+          },
+          {
+            id: 'remove',
+            label: `Take ${name(item.kind).toLowerCase()} out of this cycle…`,
+            destructive: true,
+            onSelect: () => {
+              open({
+                title: `Take ${name(item.kind).toLowerCase()} out of this cycle?`,
+                description: 'Its form and due date are kept: turn it back on in Reviews.',
+                confirm: 'Take it out',
+                destructive: true,
+                run: () => {
+                  const a = edit.c.activities[item.kind as Kind];
+                  edit.save({
+                    activities: { ...edit.c.activities, [item.kind]: { ...a, on: false } },
+                  });
+                },
+              });
+            },
+          },
+        ];
+      case 'nominations':
+      case 'nominations-due':
+        return [
+          {
+            id: 'close',
+            label: 'Change when nominations close…',
+            onSelect: () => {
+              askNominations(resolveDue(edit.c, edit.c.nominations));
+            },
+          },
+        ];
+      case 'remind':
+        return [
+          {
+            id: 'stop',
+            label: `Stop reminding “${(REMINDER_LABEL[item.rule] ?? item.rule).toLowerCase()}”…`,
+            destructive: true,
+            onSelect: () => {
+              open({
+                title: `Stop reminding “${(REMINDER_LABEL[item.rule] ?? item.rule).toLowerCase()}”?`,
+                description: 'For every review in the cycle: one set of reminders serves them all.',
+                confirm: 'Stop it',
+                destructive: true,
+                run: () => {
+                  edit.save({
+                    reminders: {
+                      ...edit.c.reminders,
+                      rules: edit.c.reminders.rules.filter((r) => r !== item.rule),
+                    },
+                  });
+                },
+              });
+            },
+          },
+        ];
+      case 'release':
+        return v.release.date === null
+          ? []
+          : [
+              {
+                id: 'release',
+                label: 'Change the release date…',
+                onSelect: () => {
+                  askRelease(v.release.date ?? today ?? c.start.date);
+                },
+              },
+            ];
+    }
+  };
+
   return (
     <ChartCard
       title="The cycle at a glance"
-      description="Bars are when each review is open. Red pins are deadlines, amber pins reminders."
+      description={
+        edit === undefined
+          ? 'Bars are when each review is open; pins in its colour are its due date and, outlined, its reminders. Drag across the dates to zoom.'
+          : edit.mode === 'setup'
+            ? 'Drag a bar’s end or its pin to change when it is due, or the bar to move the start. Right-click for more, and drag across the dates to zoom.'
+            : 'Drag a due date later to extend it for everyone, or right-click a review to remind or extend. Drag across the dates to zoom.'
+      }
     >
       <TimelineChart
         label="The cycle’s plan"
@@ -1439,9 +1706,65 @@ function CyclePlan({ c, today }: { readonly c: Plan; readonly today?: string }):
         unit="week"
         separator="line"
         formatDate={day}
+        zoomable
         {...(today === undefined ? {} : { today })}
+        {...(edit === undefined
+          ? {}
+          : {
+              editable: true,
+              // Along its own lane only: a review never becomes another kind.
+              canMove: (_item: TimelineEntry, from: TimelineRow, to: TimelineRow) =>
+                from.label === to.label,
+              onItemMove: moved,
+              itemActions: actions,
+            })}
         empty={<p className="text-sm text-fg-muted">Turn a review on to see its plan.</p>}
       />
+      <Modal
+        open={ask !== null}
+        onClose={() => {
+          setAsk(null);
+        }}
+        title={ask?.title ?? ''}
+        description={ask?.description ?? ''}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setAsk(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={ask?.destructive === true ? 'danger' : 'primary'}
+              disabled={ask?.date !== undefined && date === ''}
+              onClick={() => {
+                ask?.run(date);
+                setAsk(null);
+              }}
+            >
+              {ask?.confirm ?? 'Confirm'}
+            </Button>
+          </>
+        }
+      >
+        {ask?.date === undefined ? null : (
+          <Field>
+            <FieldLabel>Date</FieldLabel>
+            <FieldControl>
+              <DatePicker
+                label="Date"
+                value={date === '' ? null : date}
+                onChange={(d) => {
+                  setDate(d ?? '');
+                }}
+              />
+            </FieldControl>
+          </Field>
+        )}
+      </Modal>
     </ChartCard>
   );
 }
@@ -1519,7 +1842,7 @@ function Launch({
           />
         </CardContent>
       </Card>
-      <CyclePlan c={c} />
+      <CyclePlan c={c} edit={{ mode: 'setup', c, save }} />
       <Field>
         <FieldLabel>The subject sees their reviews</FieldLabel>
         <RadioGroup
@@ -1831,6 +2154,7 @@ function OverviewTable({
       stickyHeader
       {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
       loadingMore={pages.loading}
+      endLabel={`That’s everyone · ${plural(data.total, 'person', 'people')}`}
       {...(data.hr
         ? {
             selectable: true,
@@ -1905,6 +2229,8 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
   const act = useAct(props);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [dialog, setDialog] = useState<Dialog>(null);
+  // An extension started from the plan: for everyone, at that kind and date.
+  const [preset, setPreset] = useState<{ kind: string; due: string } | null>(null);
   const tab = props.search?.['tab'] ?? 'overview';
   return (
     <Loaded load={props.load} what="the cycle">
@@ -2160,7 +2486,25 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                     {...(data.overdue > 0 ? { sentiment: 'negative' as const } : {})}
                   />
                 </div>
-                <CyclePlan c={data.plan} today={data.today} />
+                <CyclePlan
+                  c={data.plan}
+                  today={data.today}
+                  {...(data.hr && c.state === 'in_progress'
+                    ? {
+                        edit: {
+                          mode: 'live' as const,
+                          extend: (kind: string, due: string) => {
+                            setSelected(new Set());
+                            setPreset({ kind, due });
+                            setDialog('extend');
+                          },
+                          remind: () => {
+                            run('RemindPerformanceCycle', { personIds: [] });
+                          },
+                        },
+                      }
+                    : {})}
+                />
                 <Card>
                   <CardContent className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-3">
@@ -2288,8 +2632,10 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                 kinds={c.kinds}
                 people={chosen}
                 act={act}
+                {...(preset === null ? {} : { preset })}
                 onDone={() => {
                   setDialog(null);
+                  setPreset(null);
                   setSelected(new Set());
                 }}
                 id={id}
@@ -2349,21 +2695,26 @@ function ExtendDialog({
   act,
   onDone,
   id,
+  preset,
 }: {
   readonly kinds: readonly string[];
+  /** Whose reviews; none is everyone's. */
   readonly people: readonly string[];
   readonly act: Act;
   readonly onDone: () => void;
   readonly id: string;
+  /** Where the plan's drag or menu left it: the kind and the new date. */
+  readonly preset?: { readonly kind: string; readonly due: string };
 }): JSX.Element {
-  const [kind, setKind] = useState(kinds.find((k) => k !== 'goals') ?? 'self');
-  const [due, setDue] = useState('');
+  const [kind, setKind] = useState(preset?.kind ?? kinds.find((k) => k !== 'goals') ?? 'self');
+  const [due, setDue] = useState(preset?.due ?? '');
+  const who = people.length === 0 ? 'everyone' : plural(people.length, 'person', 'people');
   const [reason, setReason] = useState('');
   return (
     <Modal
       open
       onClose={onDone}
-      title={`Extend the deadline for ${plural(people.length, 'person', 'people')}?`}
+      title={`Extend the deadline for ${who}?`}
       footer={
         <>
           <Button variant="secondary" onClick={onDone}>
@@ -2380,7 +2731,7 @@ function ExtendDialog({
               );
             }}
           >
-            {`Extend for ${String(people.length)}`}
+            {`Extend for ${people.length === 0 ? 'everyone' : String(people.length)}`}
           </Button>
         </>
       }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { planRows, reminderDates, resolveDue } from './cycle-plan';
+import { planItem, planRows, reminderDates, resolveDue } from './cycle-plan';
 
 const plan = {
   start: { date: '2026-11-02' },
@@ -38,5 +38,16 @@ describe('cycle plan', () => {
     const peer = rows[2]?.items ?? [];
     expect(peer[0]).toMatchObject({ start: '2026-11-05', end: '2026-11-15' });
     expect(peer.filter((i) => i.label === 'Reminder')).toHaveLength(4);
+  });
+
+  it('pins each review’s deadline and reminders in its own colour, and names what each mark is', () => {
+    const rows = planRows(plan, (k) => k);
+    const self = rows[1]?.items ?? [];
+    expect(new Set(self.map((i) => i.tone))).toEqual(new Set(['chart-1']));
+    const remind = self.find((i) => i.label === 'Reminder');
+    expect(remind).toMatchObject({ tentative: true, locked: true });
+    expect(planItem(remind?.id ?? '')).toEqual({ what: 'remind', kind: 'self', rule: 'before:3' });
+    expect(planItem('self-due')).toEqual({ what: 'due', kind: 'self' });
+    expect(planItem('release')).toEqual({ what: 'release' });
   });
 });

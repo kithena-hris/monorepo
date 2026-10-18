@@ -624,6 +624,8 @@ export const Rescheduling: Story = {
           '',
           'A resize can never take an end past its own start: a bar that finishes before it begins is not a shorter bar. It is a broken record.',
           '',
+          '`itemActions` gives each bar and mark a menu on right-click, a long-press or the menu key: here, Remove.',
+          '',
           'Without a pointer, focus a bar and use `Shift` with the arrows. `Alt` as well to change the end date. The result is announced in a live region, because a gesture whose outcome only exists in pixels is one nobody using a screen reader can steer.',
         ].join('\n'),
       },
@@ -647,6 +649,23 @@ export const Rescheduling: Story = {
               {...args}
               rows={plan}
               canMove={(_item, _from, to) => !to.label.includes('Whitfield')}
+              // Right-click, long-press or the menu key on a bar: what it offers.
+              itemActions={(item) => [
+                {
+                  id: 'remove',
+                  label: `Remove “${item.label}”`,
+                  destructive: true,
+                  onSelect: () => {
+                    setPlan((current) =>
+                      current.map((row) => ({
+                        ...row,
+                        items: row.items.filter((x) => x.id !== item.id),
+                      })),
+                    );
+                    setLog((current) => [`${item.id}: removed`, ...current].slice(0, 6));
+                  },
+                },
+              ]}
               onItemMove={(move) => {
                 args.onItemMove?.(move);
                 setPlan((current) =>
