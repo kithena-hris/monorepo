@@ -59,6 +59,8 @@ export interface Tenant {
   readonly branding: TenantBranding;
   /** Null where the company was created before an address was asked for. */
   readonly location: TenantLocation | null;
+  /** Whether its sign-in page offers Google beside the passkey. */
+  readonly googleSignIn: boolean;
 }
 
 /**

@@ -540,20 +540,24 @@ jobs:
       # deployment's modules, the router's `KITHENA_ENTITLEMENTS` too. Either
       # unset is a warning, never a failure: without the token the assistant
       # cannot say who is asking; without the modules a company with none
-      # recorded looks as if it had none.
+      # recorded looks as if it had none. The Google pair is the OAuth client
+      # signing in with Google uses (docs/environments.md); unset, Google is
+      # off at every company.
       - name: deploy identity
         id: deploy
         env:
           VERCEL_PROJECT_ID: prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
           ASSISTANT_IDENTITY_TOKEN: ${{ secrets.ASSISTANT_IDENTITY_TOKEN }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_PRODUCTION }}
+          GOOGLE_SIGN_IN_CLIENT_ID: ${{ secrets.GOOGLE_SIGN_IN_CLIENT_ID }}
+          GOOGLE_SIGN_IN_CLIENT_SECRET: ${{ secrets.GOOGLE_SIGN_IN_CLIENT_SECRET }}
         run: |
           args=(--prod --yes --archive=tgz --token "$VERCEL_TOKEN")
-          for name in ASSISTANT_IDENTITY_TOKEN KITHENA_ENTITLEMENTS; do
+          for name in ASSISTANT_IDENTITY_TOKEN KITHENA_ENTITLEMENTS GOOGLE_SIGN_IN_CLIENT_ID GOOGLE_SIGN_IN_CLIENT_SECRET; do
             if [ -n "${!name}" ]; then
               args+=(--env "$name=${!name}")
             else
-              echo "::warning::$name is unset for identity (docs/environments.md, \"The assistant's settings\")"
+              echo "::warning::$name is unset for identity (docs/environments.md)"
             fi
           done
           npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy "${args[@]}"

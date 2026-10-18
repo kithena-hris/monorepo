@@ -16,6 +16,7 @@ const acme: Tenant = {
     accentColor: null,
   },
   location: null,
+  googleSignIn: false,
 };
 
 /** A repository that knows two tenants and nothing else. */

@@ -464,6 +464,10 @@ is the **proxy pattern**: one fixed callback, with the tenant carried in `state`
 
 ### The recommended flow
 
+Built (18 Oct 2026), per company behind a back-office switch; the setup is in
+`docs/environments.md`, "Signing in with Google". The auth origin is
+`auth.app.kithena.com`, a sibling of each company's host.
+
 ```
 apple.app.kithena.com/login          ← branded, SSR, tenant from Host header
    │

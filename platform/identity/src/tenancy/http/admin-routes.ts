@@ -123,6 +123,8 @@ export interface TenantDetail {
    * meant the one field a client depends on was the one field nothing checked.
    */
   readonly brandingPublic: boolean;
+  /** Whether its sign-in page offers Google beside the passkey. */
+  readonly googleSignIn: boolean;
   readonly address: {
     readonly country: string;
     readonly line1: string;
@@ -445,6 +447,9 @@ export function adminRoutes({
           // and defaulting a missing value to "hidden" would quietly un-brand
           // every company whose client forgot the field.
           brandingPublic: asked['brandingPublic'] !== false,
+          ...(typeof asked['googleSignIn'] === 'boolean'
+            ? { googleSignIn: asked['googleSignIn'] }
+            : {}),
           // Absent keeps the address held: an edit that leaves it alone.
           ...(asked['address'] === undefined
             ? {}

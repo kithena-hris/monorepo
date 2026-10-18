@@ -36,6 +36,8 @@ export interface TenantContext {
    * be hidden from its own employees.
    */
   readonly location: { city: string; country: string } | null;
+  /** Whether the sign-in page offers Google beside the passkey. */
+  readonly googleSignIn: boolean;
 }
 
 const NOTHING: Branding = {
@@ -73,7 +75,7 @@ export const currentTenant = cache(async (): Promise<TenantContext | null> => {
         },
       ),
     );
-    if (!response.ok) return { id, slug, branding: NOTHING, location: null };
+    if (!response.ok) return { id, slug, branding: NOTHING, location: null, googleSignIn: false };
 
     const body: unknown = await response.json();
     const branding =
@@ -110,8 +112,10 @@ export const currentTenant = cache(async (): Promise<TenantContext | null> => {
         place !== null && typeof place['city'] === 'string' && typeof place['country'] === 'string'
           ? { city: place['city'], country: place['country'] }
           : null,
+      googleSignIn:
+        body !== null && typeof body === 'object' && Reflect.get(body, 'googleSignIn') === true,
     };
   } catch {
-    return { id, slug, branding: NOTHING, location: null };
+    return { id, slug, branding: NOTHING, location: null, googleSignIn: false };
   }
 });

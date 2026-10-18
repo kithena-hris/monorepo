@@ -27,6 +27,8 @@ export interface AmendRequest {
   readonly coverImageUrl: string | null;
   /** Whether the mark may appear on a page nobody has authenticated to. */
   readonly brandingPublic: boolean;
+  /** Whether its people may sign in with Google too. Absent keeps what is held. */
+  readonly googleSignIn?: boolean;
   /**
    * The postal address, when the edit changes it. Absent keeps the one held:
    * a new theme or logo is not refused over an address saved before a rule

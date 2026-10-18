@@ -53,6 +53,7 @@ export interface CompanyDetailTabsProps {
   readonly addressCard: ReactNode;
   readonly people: readonly DetailPerson[];
   readonly brandingPublic: boolean;
+  readonly googleSignIn: boolean;
   readonly hasLogo: boolean;
   readonly hasCover: boolean;
   readonly theme: DetailTheme | null;
@@ -86,6 +87,7 @@ export function CompanyDetailTabs({
   addressCard,
   people,
   brandingPublic,
+  googleSignIn,
   hasLogo,
   hasCover,
   theme,
@@ -234,7 +236,7 @@ export function CompanyDetailTabs({
                 </span>
               </div>
 
-              <dl className="grid gap-3 sm:grid-cols-3">
+              <dl className="grid gap-3 sm:grid-cols-4">
                 <Asset label="Logo" present={hasLogo} />
                 <Asset label="Cover image" present={hasCover} />
                 <div>
@@ -242,6 +244,14 @@ export function CompanyDetailTabs({
                   <dd className="mt-1">
                     <Badge tone={brandingPublic ? 'success' : 'neutral'} dot>
                       {brandingPublic ? 'Yes' : 'Hidden'}
+                    </Badge>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-fg-muted text-xs">Sign in with Google</dt>
+                  <dd className="mt-1">
+                    <Badge tone={googleSignIn ? 'success' : 'neutral'} dot>
+                      {googleSignIn ? 'On' : 'Off'}
                     </Badge>
                   </dd>
                 </div>
