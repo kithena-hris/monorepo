@@ -510,8 +510,10 @@ const Flag = z.object({
   sentence: z.string().max(600),
   level: z.enum(['danger', 'warning', 'info']),
   title: z.string().max(200),
-  advice: z.string().max(600).nullable(),
-  rewrite: z.string().max(800).nullable(),
+  // Asked for, never required: a model that leaves one out, or still says
+  // "suggestion", loses that line rather than the whole reading.
+  advice: z.string().max(600).nullish().transform((v) => v ?? null),
+  rewrite: z.string().max(800).nullish().transform((v) => v ?? null),
 });
 
 /** How a flag's two lines are asked for: advice to the writer, and the sentence itself mended. */
