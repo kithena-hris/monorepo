@@ -5,6 +5,8 @@ static/
 .next/
 # The renderer process's bundle (apps/web/scripts/build-renderer.mjs).
 .renderer/
+# The shared federation runtime, built by apps/web/scripts/build-renderer.mjs.
+apps/web/public/_mf/
 .turbo/
 coverage/
 # A domain folder, not a test report: Time Off's team minimums (TOF-018).
