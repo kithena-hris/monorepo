@@ -335,7 +335,8 @@ export async function connectedTools(ctx: Ctx): Promise<Result<unknown>> {
   return ok({
     sources: EVIDENCE_SOURCES.filter((s) => offered[s] !== false).map((s) => ({
       source: s,
-      on: grant?.sources[s]?.on ?? false,
+      // On means linked and reading: a switch turned on before linking existed reads nothing.
+      on: (grant?.sources[s]?.on ?? false) && (grant?.sources[s]?.account ?? null) !== null,
       at: grant?.sources[s]?.at ?? null,
       // Which tools can be linked here yet, and as whom each one is.
       available: ctx.deps.tools?.[s] !== undefined,
