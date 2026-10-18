@@ -18,7 +18,16 @@ import {
 } from '@reach/ui';
 import { TimeOffApprovalDetail } from '@kithena/contracts';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState, useTransition, type JSX, type ReactNode } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import {
   LANE_OF,
@@ -40,9 +49,14 @@ import {
 } from '../../app/(app)/inbox/actions';
 import { Waking } from '../waking';
 import { InboxDetail } from './detail';
-import { BulkDecideDialog, HandOverDialog, type Candidate } from './dialogs';
+import { BulkDecideDialog, type Candidate } from './dialogs';
 import { shortDay } from './format';
 import { InboxRow } from './rows';
+
+// Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
+const HandOverDialog = lazy(() =>
+  import('./dated-dialogs').then((m) => ({ default: m.HandOverDialog })),
+);
 
 /**
  * The Inbox (INB-030 to INB-039): To do, Updates, My requests and Done, each
@@ -579,27 +593,29 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
         />
       ) : null}
       {dialog?.kind === 'handover' ? (
-        <HandOverDialog
-          candidates={dialog.candidates}
-          current={dialog.current}
-          onClose={() => {
-            setDialog(null);
-          }}
-          onStop={() => {
-            const approverId = dialog.approverId;
-            setDialog(null);
-            start(async () => {
-              await handOver(approverId, null);
-            });
-          }}
-          onSave={(input) => {
-            const approverId = dialog.approverId;
-            setDialog(null);
-            start(async () => {
-              await handOver(approverId, input);
-            });
-          }}
-        />
+        <Suspense fallback={null}>
+          <HandOverDialog
+            candidates={dialog.candidates}
+            current={dialog.current}
+            onClose={() => {
+              setDialog(null);
+            }}
+            onStop={() => {
+              const approverId = dialog.approverId;
+              setDialog(null);
+              start(async () => {
+                await handOver(approverId, null);
+              });
+            }}
+            onSave={(input) => {
+              const approverId = dialog.approverId;
+              setDialog(null);
+              start(async () => {
+                await handOver(approverId, input);
+              });
+            }}
+          />
+        </Suspense>
       ) : null}
     </div>
   );

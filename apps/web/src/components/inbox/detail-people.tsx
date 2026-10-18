@@ -42,7 +42,7 @@ import {
   PeopleReviewDetail,
   type InboxField,
 } from '@kithena/contracts';
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type JSX } from 'react';
 
 import {
   actOnDocument,
@@ -60,8 +60,11 @@ import {
 } from '../../app/(app)/inbox/actions';
 import { checkIdentifiers, saveOwnSection } from '../../app/(app)/people/actions';
 import { Actions, type BodyProps } from './pane';
-import { ConfirmDialog, DueDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
+import { ConfirmDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';
+
+// Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
+const DueDialog = lazy(() => import('./dated-dialogs').then((m) => ({ default: m.DueDialog })));
 
 /**
  * People's kinds in the detail pane (INB-020 to INB-029): details to fill in,
@@ -687,18 +690,20 @@ function Asked({ item, act }: BodyProps): JSX.Element {
         </Actions>
       ) : null}
       {dialog === 'due' ? (
-        <DueDialog
-          due={item.due}
-          onClose={() => {
-            setDialog(null);
-          }}
-          onPick={(dueOn) => {
-            setDialog(null);
-            act.run(() => changeAskBatch(d.batchId, 'due', { dueOn }), {
-              title: 'Due date changed',
-            });
-          }}
-        />
+        <Suspense fallback={null}>
+          <DueDialog
+            due={item.due}
+            onClose={() => {
+              setDialog(null);
+            }}
+            onPick={(dueOn) => {
+              setDialog(null);
+              act.run(() => changeAskBatch(d.batchId, 'due', { dueOn }), {
+                title: 'Due date changed',
+              });
+            }}
+          />
+        </Suspense>
       ) : null}
       {cancelling === null ? null : (
         <NoteDialog
