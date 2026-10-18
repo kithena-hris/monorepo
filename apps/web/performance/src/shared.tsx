@@ -402,6 +402,12 @@ export function StepDialog({
           wide === true ? 'max-w-4xl' : 'max-w-2xl',
           'h-[min(48rem,calc(100dvh-4rem))] touch:h-auto',
         )}
+        // Focus opens on the dialog itself, not its first step, which drew a
+        // focus ring round Basics nobody had asked for. Tab reaches it first.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement | null)?.focus();
+        }}
       >
         <DialogHeader>
           <div className="flex min-w-0 items-center gap-4">
