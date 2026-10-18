@@ -64,6 +64,14 @@ const allowlistOf = (url: string) => {
 };
 
 describe('Integrations', () => {
+  it('opens a card’s tab by its address, so it works before the screen hydrates', () => {
+    render(<Integrations {...props({ tabsAt: '/settings/people/integrations' })} />);
+    expect(screen.getByRole('link', { name: 'Manage: Webhooks' })).toHaveAttribute(
+      'href',
+      '/settings/people/integrations/webhooks',
+    );
+  });
+
   it('shows each endpoint, its health and what it receives', async () => {
     const { container } = render(<Integrations {...props()} />);
     await openWebhooks();
