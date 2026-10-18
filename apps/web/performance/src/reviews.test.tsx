@@ -122,7 +122,8 @@ describe('<Write>', () => {
                     sentence: 'She is bossy.',
                     level: 'warning',
                     title: 'About the person, not the work',
-                    suggestion: 'She sets direction firmly in planning.',
+                    advice: 'Describe what she did, not who she is.',
+                    rewrite: 'She sets direction firmly in planning.',
                   },
                 ],
                 sentiment: { position: 62, counts: { positive: 1, negative: 1, neutral: 0 } },
@@ -135,7 +136,7 @@ describe('<Write>', () => {
       ),
     );
     render(<Write load={{ status: 'ready', data: withText }} onAct={onAct} />);
-    const use = await screen.findByRole('button', { name: 'Use suggestion' }, { timeout: 3000 });
+    const use = await screen.findByRole('button', { name: 'Use the rewrite' }, { timeout: 3000 });
     fireEvent.click(use);
     await waitFor(
       () => {
@@ -146,6 +147,120 @@ describe('<Write>', () => {
       },
       { timeout: 3000 },
     );
-    expect(screen.queryByRole('button', { name: 'Use suggestion' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use the rewrite' })).toBeNull();
+  });
+
+  // A rating chosen by mistake could not be taken back (§10.2).
+  it('clears a rating when the chosen one is pressed again', async () => {
+    const onAct = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        data: { revision: 4, savedAt: '2026-10-18T10:01:00.000Z', missing: ['q1'], score: null },
+      }),
+    );
+    render(
+      <Write
+        load={{
+          status: 'ready',
+          data: { ...data, answers: { q1: { value: 4, comment: null } }, missing: [] },
+        }}
+        onAct={onAct}
+      />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /Exceeds/u }));
+    await waitFor(
+      () => {
+        expect(onAct).toHaveBeenCalledWith('SavePerformanceAnswers', {
+          id: 'r1',
+          input: { revision: 3, answers: { q1: { value: null, comment: null } } },
+        });
+      },
+      { timeout: 3000 },
+    );
+    expect(screen.getByRole('radio', { name: /Exceeds/u })).not.toBeChecked();
+  });
+
+  // Said again in the tones chosen, seen before it is used, its link kept.
+  it('rephrases an answer in the tones chosen and uses it on Use this', async () => {
+    const rephrased =
+      '<p>She leads planning firmly. <a href="https://x.test/pr/1">Ships</a> on time.</p>';
+    const onAct = vi.fn((name: string) =>
+      Promise.resolve(
+        name === 'RephrasePerformanceAnswer'
+          ? { ok: true as const, data: { html: rephrased } }
+          : name === 'PerformanceHowItReads'
+            ? { ok: true as const, data: { reads: null, flags: [], sentiment: null } }
+            : {
+                ok: true as const,
+                data: {
+                  revision: 4,
+                  savedAt: '2026-10-18T10:01:00.000Z',
+                  missing: [],
+                  score: null,
+                },
+              },
+      ),
+    );
+    // As the editor writes a link, so the answer is not rewritten on mount.
+    const html =
+      '<p>She is bossy. <a target="_blank" rel="noopener noreferrer nofollow" href="https://x.test/pr/1">Ships</a> on time.</p>';
+    render(
+      <Write
+        load={{
+          status: 'ready',
+          data: {
+            ...data,
+            form: {
+              ...data.form,
+              sections: [
+                {
+                  id: 's1',
+                  title: 'Results',
+                  description: null,
+                  questions: [
+                    {
+                      id: 't1',
+                      type: 'text',
+                      prompt: 'What went well?',
+                      help: null,
+                      required: false,
+                      allowComment: false,
+                      private: false,
+                    },
+                  ],
+                },
+              ],
+            },
+            answers: { t1: { value: html, comment: null } },
+            missing: [],
+            ai: { writingChecks: true },
+          },
+        }}
+        onAct={onAct}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Rephrase' }, { timeout: 3000 }));
+    fireEvent.click(await screen.findByRole('button', { name: 'More concise' }));
+    const go = screen
+      .getAllByRole('button', { name: 'Rephrase' })
+      .find((b) => b.closest('[role="dialog"]') !== null);
+    expect(go).toBeDefined();
+    if (go !== undefined) fireEvent.click(go);
+    await waitFor(() => {
+      expect(onAct).toHaveBeenCalledWith('RephrasePerformanceAnswer', {
+        id: 'r1',
+        input: { html, tones: ['clearer', 'concise'] },
+      });
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Use this' }));
+    await waitFor(
+      () => {
+        const saved = onAct.mock.calls
+          .filter(([name]) => name === 'SavePerformanceAnswers')
+          .map((call) => JSON.stringify(call));
+        expect(saved.some((c) => c.includes('She leads planning firmly.'))).toBe(true);
+      },
+      { timeout: 3000 },
+    );
   });
 });

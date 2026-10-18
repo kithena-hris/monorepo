@@ -35,4 +35,22 @@ describe('<SegmentedControl>', () => {
     expect(onValueChange).toHaveBeenCalledWith('month');
     expect(screen.getByRole('radio', { name: 'Month' })).toHaveAttribute('aria-checked', 'true');
   });
+
+  it('clears the choice when the chosen segment is pressed again, if deselectable', async () => {
+    const onValueChange = vi.fn();
+    render(
+      <SegmentedControl
+        aria-label="Answer"
+        deselectable
+        defaultValue="yes"
+        onValueChange={onValueChange}
+      >
+        <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
+        <SegmentedControlItem value="no">No</SegmentedControlItem>
+      </SegmentedControl>,
+    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Yes' }));
+    expect(onValueChange).toHaveBeenCalledWith('');
+    expect(screen.getByRole('radio', { name: 'Yes' })).toHaveAttribute('aria-checked', 'false');
+  });
 });

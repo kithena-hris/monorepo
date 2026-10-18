@@ -355,6 +355,15 @@ type Mutation {
   ): JSON
   """Remove a webhook endpoint"""
   removePerformanceWebhook(id: String!, idempotencyKey: String!): JSON
+  """
+  PF10c: an answer rephrased in the tones asked for, links and formatting kept
+  """
+  rephrasePerformanceAnswer(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF14e: request feedback"""
   requestPerformanceFeedback(
     idempotencyKey: String!

@@ -655,18 +655,19 @@ function Writing({
   const keep = (f: Flag): void => {
     setKept((k) => new Set([...k, f.sentence]));
   };
-  // The suggestion put in the sentence's place, in the answer it is in, and saved.
+  // The sentence rewritten put in its place, in the answer it is in, and
+  // saved. Only ever the rewrite: the advice is for the writer to read.
   const takeSuggestion = (f: Flag): void => {
     const q = whereIs(f);
     const html = q === null ? null : answers[q]?.value;
     const was = escapeHtml(f.sentence);
-    if (q === null || typeof html !== 'string' || f.suggestion === null || !html.includes(was)) {
+    if (q === null || typeof html !== 'string' || f.rewrite === null || !html.includes(was)) {
       setNotFound(f.sentence);
       return;
     }
     setNotFound(null);
     change(q, {
-      value: html.replace(was, escapeHtml(f.suggestion)),
+      value: html.replace(was, escapeHtml(f.rewrite)),
       comment: answers[q]?.comment ?? null,
     });
     keep(f);
@@ -741,62 +742,66 @@ function Writing({
         }
       />
       {/* Who it is about, how far it has got and the way to finish stay in
-          view however long the form is. */}
-      <Card className="sticky top-2 z-20 bg-surface/85 backdrop-blur-md">
-        <CardContent className="grid grid-cols-1 items-center gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <Person
-            name={data.review.subject.name}
-            sub={[
-              kindLabel(data.review.kind),
-              data.review.subject.title,
-              `due ${day(data.review.due)}`,
-            ]
-              .filter((x) => x !== '')
-              .join(' · ')}
-          />
-          <AnswerProgress done={required - missing.length} total={required} />
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <span className="text-sm text-fg-muted" aria-live="polite">
-              {badge}
-            </span>
-            {unconfirmed.length > 0 ? (
-              <Badge tone="accent">{`${plural(unconfirmed.length, 'suggestion')} to confirm`}</Badge>
-            ) : null}
-            {checks ? (
-              <ReadsChip
-                reads={reads}
-                reading={reading}
-                flags={flags.length}
-                subject={subject}
-                onRetry={() => {
-                  readNow(wordsOf(answers));
-                }}
-              />
-            ) : null}
-            <Button
-              variant="ghost"
-              startIcon={<icons.info aria-hidden />}
-              aria-pressed={panelOpen}
-              onClick={() => {
-                setPanelOpen((open) => !open);
-              }}
-            >
-              Details
-            </Button>
-            {writing ? (
+          view however long the form is. Pinned from the very top on the
+          page's own colour, solid, so nothing scrolling under it shows above
+          it, through it or past its corners. */}
+      <div className="sticky top-0 z-20 -mt-2 bg-canvas pt-2 pb-2">
+        <Card className="bg-surface">
+          <CardContent className="grid grid-cols-1 items-center gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <Person
+              name={data.review.subject.name}
+              sub={[
+                kindLabel(data.review.kind),
+                data.review.subject.title,
+                `due ${day(data.review.due)}`,
+              ]
+                .filter((x) => x !== '')
+                .join(' · ')}
+            />
+            <AnswerProgress done={required - missing.length} total={required} />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="text-sm text-fg-muted" aria-live="polite">
+                {badge}
+              </span>
+              {unconfirmed.length > 0 ? (
+                <Badge tone="accent">{`${plural(unconfirmed.length, 'suggestion')} to confirm`}</Badge>
+              ) : null}
+              {checks ? (
+                <ReadsChip
+                  reads={reads}
+                  reading={reading}
+                  flags={flags.length}
+                  subject={subject}
+                  onRetry={() => {
+                    readNow(wordsOf(answers));
+                  }}
+                />
+              ) : null}
               <Button
+                variant="ghost"
+                startIcon={<icons.info aria-hidden />}
+                aria-pressed={panelOpen}
                 onClick={() => {
-                  void flush().then(() => {
-                    setDialog('submit');
-                  });
+                  setPanelOpen((open) => !open);
                 }}
               >
-                Submit
+                Details
               </Button>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+              {writing ? (
+                <Button
+                  onClick={() => {
+                    void flush().then(() => {
+                      setDialog('submit');
+                    });
+                  }}
+                >
+                  Submit
+                </Button>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       <Refusal error={act.error} />
       {saving.state === 'stale' ? (
         <Alert
@@ -870,7 +875,20 @@ function Writing({
             missing={missing}
             {...(data.scale === undefined ? {} : { scale: data.scale })}
             {...(checks
-              ? { below: (q: string) => flagList(flags.filter((f) => whereIs(f) === q)) }
+              ? {
+                  below: (q: string) => flagList(flags.filter((f) => whereIs(f) === q)),
+                  // Said again in the tones chosen; what was typed is saved first.
+                  onRephrase: async (_q: string, html: string, tones: readonly string[]) => {
+                    await flush();
+                    const d = await act.call('RephrasePerformanceAnswer', {
+                      id: data.review.id,
+                      input: { html, tones },
+                    });
+                    return d.ok
+                      ? { ok: true as const, html: (d.data as { html: string }).html }
+                      : { ok: false as const, message: d.message };
+                  },
+                }
               : {})}
           />
         </div>
@@ -1020,7 +1038,10 @@ interface Reads {
     readonly sentence: string;
     readonly level: string;
     readonly title: string;
-    readonly suggestion: string | null;
+    /** What to change, for the writer to read. */
+    readonly advice: string | null;
+    /** The sentence itself, mended, to stand in its place; [brackets] for what only the writer knows. */
+    readonly rewrite: string | null;
   }[];
   readonly sentiment: {
     readonly position: number | null;
@@ -1078,14 +1099,14 @@ function ReadFlags({
           title={f.title}
           action={
             <span className="flex flex-wrap gap-2">
-              {f.suggestion === null ? null : (
+              {f.rewrite === null ? null : (
                 <Button
                   size="sm"
                   onClick={() => {
                     onUse(f);
                   }}
                 >
-                  Use suggestion
+                  Use the rewrite
                 </Button>
               )}
               <Button
@@ -1102,8 +1123,14 @@ function ReadFlags({
         >
           <span className="flex flex-col gap-1">
             <span>{`“${f.sentence}”`}</span>
-            {f.suggestion === null ? null : (
-              <span className="text-fg">{`Instead: “${f.suggestion}”`}</span>
+            {f.advice === null ? null : <span className="text-fg-muted">{f.advice}</span>}
+            {f.rewrite === null ? null : (
+              <span className="text-fg">
+                {`Instead: “${f.rewrite}”`}
+                {/\[[^\]]+\]/u.test(f.rewrite) ? (
+                  <span className="text-fg-muted"> Fill in the parts in brackets.</span>
+                ) : null}
+              </span>
             )}
             {notFound === f.sentence ? (
               <span className="text-fg-muted">

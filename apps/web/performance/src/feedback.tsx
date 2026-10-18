@@ -402,7 +402,7 @@ function Give({
   const [showName, setShowName] = useState(data.settings.names !== 'never');
   const [tone, setTone] = useState<{
     verdict: string;
-    flags: readonly { sentence: string; title: string; suggestion: string }[];
+    flags: readonly { sentence: string; title: string; advice: string | null }[];
   } | null>(null);
   const template = data.templates.find((t) => t.id === templateId);
   const send = (): void => {
@@ -542,7 +542,9 @@ function Give({
                       title={tone.verdict}
                     >
                       {tone.flags.map((f) => (
-                        <p key={f.sentence}>{`“${f.sentence}”: ${f.title}. ${f.suggestion}`}</p>
+                        <p
+                          key={f.sentence}
+                        >{`“${f.sentence}”: ${f.title}.${f.advice === null ? '' : ` ${f.advice}`}`}</p>
                       ))}
                     </Alert>
                   )}

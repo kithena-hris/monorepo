@@ -299,3 +299,35 @@ export const CardsWithIcons: Story = {
     );
   },
 };
+
+export const Deselectable: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`deselectable`: pressing the chosen option again clears the choice, by click, tap or Space. For an answer that may be left blank, where a radio group otherwise has no way back to nothing.',
+      },
+    },
+  },
+  render: function Render() {
+    const [value, setValue] = useState('meets');
+    return (
+      <div className="flex max-w-lg flex-col gap-2">
+        <RadioGroup
+          aria-label="Rating"
+          deselectable
+          value={value}
+          onValueChange={setValue}
+          className="grid-cols-3"
+        >
+          <RadioCard value="partly">Partly meets</RadioCard>
+          <RadioCard value="meets">Meets</RadioCard>
+          <RadioCard value="exceeds">Exceeds</RadioCard>
+        </RadioGroup>
+        <p className="text-sm text-fg-muted">
+          {value === '' ? 'Not answered' : `Chosen: ${value}`}
+        </p>
+      </div>
+    );
+  },
+};

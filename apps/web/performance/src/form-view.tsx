@@ -1,4 +1,5 @@
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -6,10 +7,15 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
+  Chip,
+  ChipRow,
   Field,
   FieldControl,
   FieldLabel,
   NumberField,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Progress,
   RadioCard,
   RadioGroup,
@@ -18,8 +24,9 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Textarea,
+  icons,
 } from '@reach/ui';
-import type { JSX, ReactNode } from 'react';
+import { useState, type JSX, type ReactNode } from 'react';
 
 import type {
   Answer,
@@ -141,6 +148,138 @@ export interface FormViewProps {
   readonly only?: number;
   /** Anything to say under a question's answer: how a sentence in it will read. */
   readonly below?: (questionId: string) => ReactNode;
+  /** A text answer said again in the tones chosen, its links and formatting kept. */
+  readonly onRephrase?: (
+    questionId: string,
+    html: string,
+    tones: readonly string[],
+  ) => Promise<{ ok: true; html: string } | { ok: false; message: string }>;
+}
+
+/** The tones an answer can be rephrased in, several at once (the server's `REPHRASE_TONES`). */
+const TONES = [
+  ['clearer', 'Clearer'],
+  ['concise', 'More concise'],
+  ['specific', 'More specific'],
+  ['warmer', 'Warmer'],
+  ['direct', 'More direct'],
+  ['formal', 'More formal'],
+  ['constructive', 'More constructive'],
+  ['confident', 'More confident'],
+] as const;
+
+/**
+ * Rephrase, at the end of a text answer's toolbar: choose one tone or several,
+ * see the answer said again (links and formatting as they were), then use it,
+ * try again, or leave the answer as it is. Nothing changes until Use this.
+ */
+function Rephrase({
+  html,
+  onRephrase,
+  onUse,
+}: {
+  readonly html: string;
+  readonly onRephrase: (
+    html: string,
+    tones: readonly string[],
+  ) => Promise<{ ok: true; html: string } | { ok: false; message: string }>;
+  readonly onUse: (html: string) => void;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [tones, setTones] = useState<readonly string[]>(['clearer']);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const empty = paragraphs(html).length === 0;
+  const run = (): void => {
+    setBusy(true);
+    setError(null);
+    void onRephrase(html, tones).then((r) => {
+      setBusy(false);
+      if (r.ok) setResult(r.html);
+      else setError(r.message);
+    });
+  };
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setResult(null);
+          setError(null);
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          size="xs"
+          variant="ghost"
+          startIcon={<icons.assistant aria-hidden />}
+          disabled={empty}
+          {...(empty ? { title: 'Write something to rephrase first' } : {})}
+        >
+          Rephrase
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" aria-label="Rephrase" className="flex w-[26rem] flex-col gap-3">
+        <div>
+          <p className="text-sm font-semibold">Rephrase this answer</p>
+          <p className="text-xs text-fg-muted">
+            Choose one or more tones. The meaning, links, lists and formatting stay.
+          </p>
+        </div>
+        <ChipRow aria-label="Tones">
+          {TONES.map(([v, l]) => (
+            <Chip
+              key={v}
+              selected={tones.includes(v)}
+              onClick={() => {
+                setTones((t) => (t.includes(v) ? t.filter((x) => x !== v) : [...t, v]));
+              }}
+            >
+              {l}
+            </Chip>
+          ))}
+        </ChipRow>
+        {result === null ? null : (
+          <div className="max-h-64 overflow-y-auto">
+            <RichTextEditor aria-label="Rephrased answer" readOnly value={result} toolbar={[]} />
+          </div>
+        )}
+        {error === null ? null : <Alert tone="danger" title={error} />}
+        <div className="flex justify-end gap-2">
+          {result === null ? (
+            <Button size="sm" loading={busy} disabled={tones.length === 0} onClick={run}>
+              Rephrase
+            </Button>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={busy}
+                disabled={tones.length === 0}
+                onClick={run}
+              >
+                Try again
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onUse(result);
+                  setOpen(false);
+                  setResult(null);
+                }}
+              >
+                Use this
+              </Button>
+            </>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export function FormView(props: FormViewProps): JSX.Element {
@@ -189,6 +328,7 @@ export function QuestionBlock({
   missing,
   scale = [],
   below,
+  onRephrase,
 }: FormViewProps & { readonly number: string; readonly question: Question }): JSX.Element {
   const a = answers[q.id];
   const s = suggestions?.[q.id];
@@ -229,6 +369,19 @@ export function QuestionBlock({
         minHeight="5rem"
         showCount
         countUnit="words"
+        {...(onRephrase === undefined
+          ? {}
+          : {
+              toolbarEnd: (
+                <Rephrase
+                  html={typeof a?.value === 'string' ? a.value : ''}
+                  onRephrase={(html, tones) => onRephrase(q.id, html, tones)}
+                  onUse={(html) => {
+                    set(html);
+                  }}
+                />
+              ),
+            })}
       />
     );
   } else if (q.type === 'scale' || q.type === 'goals') {
@@ -238,12 +391,14 @@ export function QuestionBlock({
         {q.type === 'goals' && q.progress !== null ? (
           <Progress value={q.progress} label={`Progress ${String(q.progress)}%`} showValue />
         ) : null}
+        {/* Pressing the chosen rating again leaves the question unanswered. */}
         <RadioGroup
           aria-labelledby={`q-${q.id}`}
           className="grid gap-2 sm:grid-cols-[repeat(auto-fit,minmax(7rem,1fr))]"
+          deselectable
           value={typeof a?.value === 'number' ? String(a.value) : ''}
           onValueChange={(v) => {
-            set(Number(v));
+            set(v === '' ? null : Number(v));
           }}
         >
           {options.map((o) => (
@@ -271,9 +426,10 @@ export function QuestionBlock({
     control = (
       <SegmentedControl
         aria-labelledby={`q-${q.id}`}
+        deselectable
         value={a?.value === true ? 'yes' : a?.value === false ? 'no' : ''}
         onValueChange={(v) => {
-          set(v === 'yes');
+          set(v === '' ? null : v === 'yes');
         }}
       >
         <SegmentedControlItem value="yes">{q.yes}</SegmentedControlItem>
@@ -287,9 +443,10 @@ export function QuestionBlock({
     control = (
       <RadioGroup
         aria-labelledby={`q-${q.id}`}
+        deselectable
         value={picked}
         onValueChange={(v) => {
-          set([v]);
+          set(v === '' ? null : [v]);
         }}
       >
         {q.options.map((o) => (
