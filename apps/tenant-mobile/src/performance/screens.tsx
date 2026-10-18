@@ -551,6 +551,8 @@ interface Write {
     cycle: { names: string } | null;
     handover: { from: string; note: string | null } | null;
     unlock: { reason: string; decided: { approved: boolean } | null } | null;
+    /** They stopped being the subject's manager while writing it (§8.8): `to` writes theirs. */
+    formerManager?: { at: string; to: string | null } | null;
   };
   readonly form: {
     sections: readonly { id: string; title: string; questions: readonly Question[] }[];
@@ -760,7 +762,8 @@ function Writing({
   const [evidence, setEvidence] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [hideName, setHideName] = useState(true);
-  const [asking, setAsking] = useState<'unlock' | 'decline' | null>(null);
+  const [asking, setAsking] = useState<'unlock' | 'decline' | 'discard' | null>(null);
+  const former = data.review.formerManager ?? null;
   const [reason, setReason] = useState('');
   const write = useWrite(reload);
   const current = questions[at];
@@ -829,7 +832,7 @@ function Writing({
           ) : (
             <Button
               variant="primary"
-              disabled={!data.may.write}
+              disabled={!data.may.write || former !== null}
               onPress={() => {
                 setSubmitting(true);
               }}
@@ -842,6 +845,22 @@ function Writing({
     >
       <Text tone="muted">{`${data.review.subject.name} · ${current.section} · ${String(at + 1)} of ${String(questions.length)}`}</Text>
       <Progress label="Questions" value={((at + 1) / questions.length) * 100} />
+      {former === null ? null : (
+        <>
+          <Alert tone="warning">{`You are no longer ${data.review.subject.name}’s manager, so this review cannot be submitted; ${former.to ?? 'their new manager'} writes theirs. It stays here for you to read until you delete it.`}</Alert>
+          {data.may.write ? (
+            <Button
+              size="sm"
+              variant="danger"
+              onPress={() => {
+                setAsking('discard');
+              }}
+            >
+              Delete this review
+            </Button>
+          ) : null}
+        </>
+      )}
       {data.review.handover === null ? null : (
         <Alert tone="info">{`Handed over from ${data.review.handover.from}${data.review.handover.note === null ? '' : `: ${data.review.handover.note}`}`}</Alert>
       )}
@@ -995,7 +1014,42 @@ function Writing({
           I can’t review them
         </Button>
       ) : null}
-      {asking === null ? null : (
+      {asking === 'discard' ? (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setAsking(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete this review?</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <Text tone="muted">{`What you wrote about ${data.review.subject.name} is deleted, and nobody sees it. This cannot be undone.`}</Text>
+            </DialogBody>
+            <DialogFooter>
+              <Button
+                onPress={() => {
+                  setAsking(null);
+                }}
+              >
+                Keep it
+              </Button>
+              <Button
+                variant="danger"
+                onPress={() => {
+                  write.run('DiscardPerformanceReview', { id: data.review.id }, onDone);
+                  setAsking(null);
+                }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {asking === null || asking === 'discard' ? null : (
         <Dialog
           open
           onOpenChange={(o) => {

@@ -594,6 +594,17 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             saveBase64(file);
             return { ok: true as const };
           },
+          // A new manager is confirmed first, with what it touches elsewhere (Performance).
+          ...(id === undefined
+            ? {}
+            : {
+                managerChange: {
+                  questions: (managerId: string | null) =>
+                    actions.managerChangeQuestions(id, managerId),
+                  apply: (managerId: string | null, answers: Readonly<Record<string, string>>) =>
+                    actions.applyManagerChange(id, managerId, answers),
+                },
+              }),
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: (file: File) => uploadPhoto(id ?? null, file),
           // A file for an image or document field; the form's Save keeps it.

@@ -178,6 +178,25 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
   if (personId !== null) {
     for (const r of await ctx.tx.reviews.find({ ownerId: personId })) {
       const c = r.cycleId === null ? undefined : cycles.get(r.cycleId);
+      // Theirs no more (§8.8): an update for a month, never a task.
+      const former = r.formerManager ?? null;
+      if (former !== null) {
+        if (c?.state !== 'in_progress' || r.hidden || isSubmitted(r)) continue;
+        if (Date.parse(ctx.at) - Date.parse(former.at) > 30 * 86_400_000) continue;
+        items.push({
+          ...base,
+          id: `performance:manager-changed:${r.id}`,
+          lane: 'update',
+          kind: PERFORMANCE_INBOX_KINDS.managerChanged,
+          icon: 'people',
+          tone: 'neutral',
+          title: `You no longer write ${name(r.subjectId)}’s manager review`,
+          summary: `${c.name} · ${former.to === null ? 'They no longer report to you' : `They report to ${name(former.to)} now`}; nothing to submit${r.status === 'cancelled' ? '' : ', your draft stays to read'}`,
+          at: former.at as InboxItem['at'],
+          link: r.status === 'cancelled' ? '/performance/reviews' : `/performance/reviews/${r.id}`,
+        });
+        continue;
+      }
       if (
         r.hidden ||
         r.detached !== null ||
@@ -198,7 +217,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
           r.kind === 'self'
             ? 'Write your self review'
             : `${cap(label(r.kind))}: ${name(r.subjectId)}`,
-        summary: `${c.name}${r.status === 'in_progress' ? ' · draft saved' : ''}`,
+        summary: `${c.name}${r.status === 'in_progress' ? ' · draft saved' : ''}${r.handover === null ? '' : ` · handed to you from ${name(r.handover.from)}`}`,
         at: r.createdAt as InboxItem['at'],
         due: r.due,
         link: `/performance/reviews/${r.id}`,

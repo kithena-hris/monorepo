@@ -68,6 +68,12 @@ export interface Review {
   /** A peer who declined to write it, with why. */
   readonly declined: { readonly reason: string; readonly at: string } | null;
   readonly handover: { readonly from: string; readonly note: string | null } | null;
+  /**
+   * Its writer stopped being the subject's manager while it was in progress
+   * (§8.8): kept for them to read or delete, never submitted. `to` is the new
+   * manager, who has a review of their own.
+   */
+  readonly formerManager?: { readonly at: string; readonly to: string | null } | null;
   /** Created hidden while the cycle launches, shown together at in progress (§8.7). */
   readonly hidden: boolean;
   /** A score changed in calibration, beside the reviewer's (§17). */
@@ -120,6 +126,20 @@ export function newReview(input: {
   };
 }
 
+/**
+ * What a subject's manager changing does to one of their manager reviews in a
+ * running cycle (§8.8). A submitted one is kept beside the new manager's; one
+ * not started is removed; one in progress stays its writer's to read or
+ * delete, and can no longer be submitted. Anything else is left alone.
+ */
+export type ManagerChange = 'keep' | 'remove' | 'outdate';
+export function onManagerChange(r: Review, managerId: string | null): ManagerChange {
+  if (r.kind !== 'manager' || r.authorId === managerId) return 'keep';
+  if (r.detached !== null || r.status === 'cancelled' || isSubmitted(r)) return 'keep';
+  if (r.status === 'not_started') return 'remove';
+  return r.status === 'in_progress' ? 'outdate' : 'keep';
+}
+
 /** The key that makes creating a review idempotent (§8.7). */
 export const reviewKey = (
   cycleId: string,
@@ -169,6 +189,13 @@ export const unconfirmed = (r: Review): string[] =>
 
 export function submit(r: Review, at: string, scoreHundredths: number | null): Result<Review> {
   if (!writable(r)) return err(failure('LOCKED', 'This review is already submitted'));
+  if (r.formerManager !== undefined && r.formerManager !== null)
+    return err(
+      failure(
+        'NOT_THE_MANAGER',
+        'You are no longer their manager, so this review cannot be submitted. Their new manager writes theirs.',
+      ),
+    );
   const waiting = unconfirmed(r);
   if (waiting.length > 0)
     return err(

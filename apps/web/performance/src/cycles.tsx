@@ -2294,6 +2294,13 @@ interface OverviewRow {
   readonly upward: string;
   readonly managerReview: string;
   readonly managerReviewId: string | null;
+  /** Manager reviews by someone they no longer report to (§8.8); `main` is the one the row shows. */
+  readonly formerManagerReviews?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly state: string;
+    readonly main: boolean;
+  }[];
   /** Where peers are nominated for them; null before nominations open. */
   readonly nominationId: string | null;
   readonly release: string;
@@ -2979,14 +2986,33 @@ function OverviewTable({
       ? [
           {
             id: 'managerReview',
-            width: '10rem',
+            width: '13rem',
             header: 'Manager review',
-            cell: (r: OverviewRow) =>
-              r.managerReview === '—' ? (
+            cell: (r: OverviewRow) => {
+              // A former manager's review is said so: the row's own, or one kept beside it.
+              const former = r.formerManagerReviews ?? [];
+              const main = former.find((f) => f.main);
+              return r.managerReview === '—' ? (
                 <span className="text-fg-muted">—</span>
               ) : (
-                <ReviewBadge state={r.managerReview} />
-              ),
+                <span className="flex flex-col items-start gap-1">
+                  <ReviewBadge state={r.managerReview} />
+                  {main === undefined ? null : (
+                    <span className="text-xs text-warning-fg">{`By ${main.name}, their former manager`}</span>
+                  )}
+                  {former
+                    .filter((f) => !f.main)
+                    .map((f) => (
+                      <span key={f.id} className="flex items-center gap-1.5 text-xs text-fg-muted">
+                        <Badge size="sm" tone="warning">
+                          Former manager
+                        </Badge>
+                        {`${f.name} · ${REVIEW_STATES.find((x) => x.value === f.state)?.label ?? words(f.state)}`}
+                      </span>
+                    ))}
+                </span>
+              );
+            },
           },
         ]
       : []),

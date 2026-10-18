@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@reach/ui';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -262,5 +263,41 @@ describe('<Write>', () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  // A manager replaced mid-cycle keeps their draft to read, never to submit (§8.8).
+  it('turns Submit off for a former manager, says why, and lets them delete it', async () => {
+    const onAct = vi.fn(() => Promise.resolve({ ok: true as const, data: { ok: true } }));
+    const onNavigate = vi.fn();
+    render(
+      <Write
+        load={{
+          status: 'ready',
+          data: {
+            ...data,
+            review: {
+              ...data.review,
+              kind: 'manager',
+              formerManager: { at: '2026-11-20T09:00:00Z', to: 'Priya Shah' },
+            },
+          },
+        }}
+        onAct={onAct}
+        onNavigate={onNavigate}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /Why Submit is off: .*Priya Shah writes theirs/u }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete this review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(onAct).toHaveBeenCalledWith('DiscardPerformanceReview', { id: 'r1' });
+    });
+    await waitFor(() => {
+      expect(onNavigate).toHaveBeenCalledWith('/performance/reviews');
+    });
   });
 });

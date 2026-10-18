@@ -227,7 +227,37 @@ export interface ProfileProps {
     readonly values: Values;
     readonly effectiveFrom: string;
   }) => Promise<Outcome>;
+  /**
+   * A new manager, confirmed before it is saved. The host asks what else it
+   * touches (Performance's manager reviews in a running cycle, say) as
+   * questions with choices; once saved, it carries out the answers. Absent, a
+   * manager is saved like any field.
+   */
+  readonly managerChange?: {
+    readonly questions: (managerId: string | null) => Promise<readonly ChangeQuestion[]>;
+    readonly apply: (
+      managerId: string | null,
+      answers: Readonly<Record<string, string>>,
+    ) => Promise<Outcome>;
+  };
 }
+
+/** Something a change touches beyond the record, asked before it is made, with its choices. */
+export interface ChangeQuestion {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly options: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly description: string;
+  }[];
+  /** The choice made unless HR picks another. */
+  readonly value: string;
+}
+
+/** The reporting line's attribute: a change to it is confirmed first. */
+const MANAGER_KEY = 'manager_id';
 
 export type PhotoOutcome =
   | { readonly ok: true; readonly avatarUrl: string | null }
@@ -288,6 +318,7 @@ function Record({
   onDocuments,
   onOpenDocument,
   onChangeDated,
+  managerChange,
   editing: heldEditing,
   onEditingChange,
   open: heldOpen,
@@ -302,6 +333,24 @@ function Record({
       : (state.sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly))?.key ??
         null);
   const [editingHeld, setEditing] = useHeld<string | null>(heldEditing, onEditingChange, null);
+  // A new manager waiting on HR's confirmation, and what came of carrying it out.
+  const [asking, setAsking] = useState<{
+    readonly questions: readonly ChangeQuestion[] | null;
+    readonly resolve: (answers: Readonly<Record<string, string>> | null) => void;
+  } | null>(null);
+  const [afterManager, setAfterManager] = useState<string | null>(null);
+  const confirmManager = (managerId: string | null) =>
+    new Promise<Readonly<Record<string, string>> | null>((resolve) => {
+      setAsking({ questions: null, resolve });
+      void (managerChange?.questions(managerId) ?? Promise.resolve([])).then(
+        (questions) => {
+          setAsking((a) => (a === null ? a : { ...a, questions }));
+        },
+        () => {
+          setAsking((a) => (a === null ? a : { ...a, questions: [] }));
+        },
+      );
+    });
   const editing = editingHeld ?? sectionOf(focusField);
   const [focus, setFocus] = useState<string | undefined>(focusField);
   const [opened, setOpened] = useHeld<string | null>(heldOpen, onOpenChange, null);
@@ -852,7 +901,30 @@ function Record({
                           </Button>
                         }
                         onSave={async (key, changed) => {
+                          // A new manager is confirmed first, with whatever else it touches.
+                          const manager = changed[MANAGER_KEY];
+                          const moving =
+                            managerChange !== undefined &&
+                            MANAGER_KEY in changed &&
+                            (manager ?? null) !== (values[MANAGER_KEY] ?? null);
+                          const next =
+                            typeof manager === 'string' && manager !== '' ? manager : null;
+                          const answers = moving ? await confirmManager(next) : {};
+                          if (answers === null)
+                            return {
+                              ok: false,
+                              message: 'Not saved: the change of manager was cancelled.',
+                            };
                           const outcome = await onSave(key, changed);
+                          // Carried out once the change is the record's, not while it waits for approval.
+                          const held = (outcome.ok ? (outcome.held ?? []) : []).includes(
+                            section.fields.find((f) => f.key === MANAGER_KEY)?.label ?? MANAGER_KEY,
+                          );
+                          const done =
+                            outcome.ok && moving && !held
+                              ? await managerChange.apply(next, answers)
+                              : undefined;
+                          if (done !== undefined) setAfterManager(done.ok ? null : done.message);
                           if (outcome.ok) {
                             // A value sent for approval is not the record's yet (PEO-077).
                             const waiting = new Set(outcome.held ?? []);
@@ -921,8 +993,104 @@ function Record({
             )}
           </Stack>
         </div>
+        {afterManager === null ? null : (
+          <Alert tone="warning" title="The manager changed; the rest did not">
+            {afterManager}
+          </Alert>
+        )}
       </Stack>
+      {asking === null ? null : (
+        <ManagerChangeConfirm
+          firstName={firstName}
+          questions={asking.questions}
+          onDone={(answers) => {
+            asking.resolve(answers);
+            setAsking(null);
+          }}
+        />
+      )}
     </LegalName>
+  );
+}
+
+/**
+ * A new manager, confirmed: what else it touches (Performance's manager
+ * reviews in a running cycle, say), each as a choice, the host's suggestion
+ * picked. Cancel saves nothing.
+ */
+function ManagerChangeConfirm({
+  firstName,
+  questions,
+  onDone,
+}: {
+  readonly firstName: string;
+  readonly questions: readonly ChangeQuestion[] | null;
+  readonly onDone: (answers: Readonly<Record<string, string>> | null) => void;
+}): JSX.Element {
+  const [answers, setAnswers] = useState<Readonly<Record<string, string>>>({});
+  const chosen = (q: ChangeQuestion): string => answers[q.id] ?? q.value;
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onDone(null);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{`Change ${firstName}’s manager?`}</DialogTitle>
+          <DialogDescription>
+            They report to the person you chose from now on, and who may see their record follows.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="flex flex-col gap-5">
+          {questions === null ? (
+            <p className="text-sm text-fg-muted" aria-live="polite">
+              Checking what else this touches…
+            </p>
+          ) : (
+            questions.map((q) => (
+              <Field key={q.id}>
+                <FieldLabel>{q.title}</FieldLabel>
+                <p className="text-sm text-fg-muted">{q.description}</p>
+                <RadioGroup
+                  aria-label={q.title}
+                  className="flex flex-col gap-2"
+                  value={chosen(q)}
+                  onValueChange={(v) => {
+                    setAnswers((a) => ({ ...a, [q.id]: v }));
+                  }}
+                >
+                  {q.options.map((o) => (
+                    <RadioCard key={o.id} value={o.id} description={o.description}>
+                      {o.label}
+                    </RadioCard>
+                  ))}
+                </RadioGroup>
+              </Field>
+            ))
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              onDone(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={questions === null}
+            onClick={() => {
+              onDone(Object.fromEntries((questions ?? []).map((q) => [q.id, chosen(q)] as const)));
+            }}
+          >
+            Change manager
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

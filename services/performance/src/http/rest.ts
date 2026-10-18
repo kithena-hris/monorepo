@@ -901,6 +901,33 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params, body }) => reviews.declineReview(ctx, params.id, body.reason),
   }),
   route({
+    name: 'performanceManagerChangeImpact',
+    method: 'GET',
+    path: `${V1}/people/{personId}/manager-change`,
+    summary: '§8.8: what changing their manager would do to their manager reviews, asked first',
+    params: z.object({ personId: Id, managerId: Id.optional() }),
+    run: (ctx, { params }) =>
+      cycles.managerChangeImpact(ctx, params.personId, params.managerId ?? null),
+  }),
+  route({
+    name: 'applyPerformanceManagerChange',
+    method: 'POST',
+    path: `${V1}/people/{personId}/manager-change`,
+    summary: '§8.8: HR hands their manager reviews to the new manager',
+    params: z.object({ personId: Id }),
+    body: z.object({ managerId: Id.nullable() }),
+    run: (ctx, { params, body }) =>
+      cycles.applyManagerChange(ctx, { personId: params.personId, managerId: body.managerId }),
+  }),
+  route({
+    name: 'discardPerformanceReview',
+    method: 'POST',
+    path: `${V1}/reviews/{id}/discard`,
+    summary: '§8.8: a former manager deletes the review they can no longer submit',
+    params: z.object({ id: Id }),
+    run: (ctx, { params }) => reviews.discardReview(ctx, params.id),
+  }),
+  route({
     name: 'keepPerformanceDetached',
     method: 'POST',
     path: `${V1}/reviews/{id}/detached`,
