@@ -460,20 +460,22 @@ acts as each person who links it, and sees only repositories both the
 installation and that person can.
 
 1. **github.com → Settings → Developer settings → GitHub Apps → New**: name
-   Kithena, callback URL exactly `https://auth.app.kithena.com/tools/github/done`,
+   Kithena HR (`Kithena` is reserved by another account; the app is
+   `kithena-hr` under `kithena-hris`), callback URL exactly `https://auth.app.kithena.com/tools/github/done`,
    _Request user authorization (OAuth) during installation_ off, webhook off.
    Repository permissions, read-only: _Pull requests_, _Issues_, _Metadata_.
    Account permissions: none. _Any account_ may install it.
 2. Generate a client secret, and store the pair and the app's slug:
 
    ```bash
-   gh secret set GITHUB_APP_CLIENT_ID --env Production
-   gh secret set GITHUB_APP_CLIENT_SECRET --env Production
-   gh variable set GITHUB_APP_SLUG --env Production
+   gh secret set GH_APP_CLIENT_ID --env Production
+   gh secret set GH_APP_CLIENT_SECRET --env Production
+   gh variable set GH_APP_SLUG --env Production
    gh workflow run vercel-production.yml --ref main
    ```
 
-   Unset, GitHub shows as _Not available yet_. Its tokens are sealed under a key
+   `GH_`, not `GITHUB_`: GitHub refuses those names. The deploy hands them to
+   Performance as `GITHUB_APP_*`. Unset, GitHub shows as _Not available yet_. Its tokens are sealed under a key
    derived from `PERFORMANCE_WEBHOOK_KEY`, so that has to be set too; an
    expiring token is renewed as it is used.
 
