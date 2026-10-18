@@ -4,7 +4,7 @@ import { canWrite } from '../../domain/access/field-access.js';
 import { LIFECYCLE_KEYS } from '../person/core.js';
 import { inTenantResult, type Asking } from '../person/person-access.js';
 import { run, type PeopleService } from '../person/service.js';
-import { DIRECTORY_PAGE, type PlacementView } from './people.js';
+import { DIRECTORY_PAGE, nameEach, type PlacementView } from './people.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { FormValue, IdentifierFindingView, RecordSection } from './model.js';
 import {
@@ -323,7 +323,30 @@ async function rows(
       findings: warnings(byKey, written.value.saved.findings ?? []),
     });
   }
-  return ok(out);
+  // A person field holds somebody: shown by name, as this viewer reads them, never as an id.
+  const isPerson = (key: string) => byKey.get(key)?.typeConfig.kind === 'person_ref';
+  const names = new Map<string, string>();
+  await nameEach(
+    deps,
+    tx,
+    asking,
+    out.flatMap((r) =>
+      r.changes
+        .filter((c) => isPerson(c.key))
+        .flatMap((c) => [c.before, c.after])
+        .filter((v): v is string => typeof v === 'string'),
+    ),
+    names,
+  );
+  const named = (v: FormValue) => (typeof v === 'string' ? (names.get(v) ?? 'Unnamed') : v);
+  return ok(
+    out.map((r) => ({
+      ...r,
+      changes: r.changes.map((c) =>
+        isPerson(c.key) ? { ...c, before: named(c.before), after: named(c.after) } : c,
+      ),
+    })),
+  );
 }
 
 /**

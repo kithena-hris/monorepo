@@ -124,7 +124,12 @@ function referenced(
 export const PICKER_PAGE = 20;
 
 export interface PickerView {
-  readonly options: readonly { readonly value: string; readonly label: string }[];
+  /** `description`: their job title and department, so two people of one name can be told apart. */
+  readonly options: readonly {
+    readonly value: string;
+    readonly label: string;
+    readonly description: string | null;
+  }[];
   /** The cursor for the page after this one; null on the last page. */
   readonly next: string | null;
 }
@@ -147,7 +152,31 @@ export async function pickerView(
       limit: PICKER_PAGE,
     });
     if (!listed.ok) return listed;
-    return ok({ options: pickable(listed.value.items), next: listed.value.next });
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    const department = version?.document.attributes.find((d) => d.key === 'department');
+    const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+    const about = (p: PersonView): string | null => {
+      const team = text(p.attributes['department']);
+      const parts = [
+        text(p.attributes['job_title']),
+        team === null || department === undefined
+          ? null
+          : department.typeConfig.kind === 'select'
+            ? (optionLabel(department, team) ?? team)
+            : department.typeConfig.kind === 'text'
+              ? team
+              : null,
+      ].filter((x): x is string => x !== null);
+      return parts.length === 0 ? null : parts.join(' · ');
+    };
+    const people = new Map(listed.value.items.map((p) => [p.id, p]));
+    return ok({
+      options: pickable(listed.value.items).map((o) => {
+        const person = people.get(o.value);
+        return { ...o, description: person === undefined ? null : about(person) };
+      }),
+      next: listed.value.next,
+    });
   });
 }
 
@@ -1983,7 +2012,7 @@ function cellOf(
  * A person column (a manager) names somebody who may not be on the page:
  * each one is read as this viewer may read them, and named where they may.
  */
-async function nameEach(
+export async function nameEach(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,

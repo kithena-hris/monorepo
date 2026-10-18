@@ -343,13 +343,18 @@ export async function commitBulkHire(hires: BulkHirePage): Promise<BulkEdited> {
  * person signed in may read them (PEO-122). The picker's first page: typing
  * more narrows it.
  */
-export async function searchPeople(
-  text: string,
-): Promise<readonly { readonly value: string; readonly label: string }[]> {
-  const answer = await people<{ options: { value: string; label: string }[] }>('PeoplePicker', {
-    search: text.slice(0, 200),
-  });
-  return answer.ok ? answer.data.options : [];
+export async function searchPeople(text: string): Promise<
+  readonly { readonly value: string; readonly label: string; readonly description?: string }[]
+> {
+  const answer = await people<{
+    options: { value: string; label: string; description: string | null }[];
+  }>('PeoplePicker', { search: text.slice(0, 200) });
+  // Job title and department beneath the name, so two of one name can be told apart.
+  return answer.ok
+    ? answer.data.options.map(({ description, ...o }) =>
+        description === null ? o : { ...o, description },
+      )
+    : [];
 }
 
 /* --------------------------------------------------------------- setup -- */

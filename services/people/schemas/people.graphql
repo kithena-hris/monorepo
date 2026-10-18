@@ -2120,7 +2120,14 @@ type PeoplePhotoSaved {
 """People to pick from, a keyset page at a time (PEO-122)."""
 type PeoplePicker {
   next: String
-  options: [FieldOption!]
+  options: [PeoplePickerOption!]
+}
+
+type PeoplePickerOption {
+  """Their job title and department, so two people of one name differ."""
+  description: String
+  label: String
+  value: String
 }
 
 type PeopleProfile {

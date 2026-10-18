@@ -232,7 +232,13 @@ describe('Profile', () => {
       ],
       values: { manager_id: 'g' },
     };
-    const searchPeople = vi.fn(() => Promise.resolve([{ value: 'z', label: 'Zoë Person 49999' }]));
+    // Two of one name, told apart by what each does.
+    const searchPeople = vi.fn(() =>
+      Promise.resolve([
+        { value: 'y', label: 'Zoë Person 49999', description: 'Engineer · Platform' },
+        { value: 'z', label: 'Zoë Person 49999', description: 'Designer · Brand' },
+      ]),
+    );
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     const { container } = render(
       <Profile
@@ -248,7 +254,10 @@ describe('Profile', () => {
     expect(await axeViolations(container)).toEqual([]);
     await user.click(picker);
     await user.type(screen.getByRole('combobox', { name: 'Manager search' }), '49999');
-    await user.click(await screen.findByRole('option', { name: 'Zoë Person 49999' }));
+    const found = await screen.findAllByRole('option', { name: /Zoë Person 49999/ });
+    expect(found[0]).toHaveTextContent('Engineer · Platform');
+    expect(found[1]).toHaveTextContent('Designer · Brand');
+    await user.click(found[1] as HTMLElement);
     await user.click(within(form).getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith('work', { manager_id: 'z' });
   });

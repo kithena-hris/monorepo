@@ -379,7 +379,7 @@ export const OPERATIONS = {
 
   PeoplePicker: `query PeoplePicker($search: String, $after: ID) {
     peoplePicker(search: $search, after: $after) {
-      options { value label }
+      options { value label description }
       next
     }
   }`,
