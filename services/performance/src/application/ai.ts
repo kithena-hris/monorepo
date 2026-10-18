@@ -14,6 +14,7 @@ import { formOf } from './forms.js';
 import { people, subtitle } from './members.js';
 import type { EvidenceItem } from './ports.js';
 import { load } from './reviews.js';
+import { involved } from './cycles.js';
 import { aiOn, settingsOf, type AiFeature } from './settings.js';
 
 /**
@@ -614,6 +615,84 @@ export async function participantsInWords(
     summary: got.value.answer.summary,
     logId: got.value.logId,
   });
+}
+
+const OverviewCondition = z.object({
+  field: z.enum([
+    'department',
+    'status',
+    'hiredOn',
+    'manager',
+    'title',
+    'legalEntity',
+    'location',
+    'self',
+    'managerReview',
+    'overdue',
+  ]),
+  value: z.string().max(120),
+  op: z.enum(['is', 'not', 'contains', 'before', 'after']),
+});
+
+/**
+ * The cycle's people table filtered in words: who they are (department,
+ * place, entity, manager, status, title, start date) and where their reviews
+ * stand, and how to group them. Returned for the screen to show and apply;
+ * nothing is read here but the names the table already shows.
+ */
+export async function overviewInWords(
+  ctx: Ctx,
+  cycleId: string,
+  input: {
+    readonly text: string;
+    readonly current: readonly unknown[];
+    readonly places: {
+      readonly locations: Record<string, string>;
+      readonly entities: Record<string, string>;
+    };
+  },
+): Promise<Result<unknown>> {
+  const c = await ctx.tx.cycles.get(cycleId);
+  if (c === null) return err(notFound('cycle'));
+  if (!ctx.viewer.hr && !(await involved(ctx, c))) return err(notFound('cycle'));
+  const members = await people(ctx);
+  const got = await ask(
+    ctx,
+    'setupByChat',
+    {
+      version: '1',
+      instruction:
+        'Filter a table of the people in a review cycle as asked. Conditions are {"field","op","value"}: ' +
+        'department (one of `departments`, op is or not), location (an id from `locations`, which maps ids to names, op is or not), ' +
+        'legalEntity (an id from `entities`, op is or not), manager (an id from `managers`, op is or not), ' +
+        'status (active, on_leave, notice or pre_hire), title (op contains), hiredOn (YYYY-MM-DD, op before or after), ' +
+        'self and managerReview (the state of their self review and of their manager review: none, not_started, draft, overdue, submitted, released, ack, unlock or unlocked; op is or not), ' +
+        'overdue (yes or no: any of their reviews late). Several "is" on one field are alternatives. ' +
+        'match is "all" unless the request says either/or across fields. group is one of department, location, legalEntity, manager, or null. ' +
+        'Return JSON {"filter":[{"field","op","value"}],"match":"all"|"any","group":string|null,"summary":["one line per condition, in words"]}.',
+      answer: z.object({
+        filter: z.array(OverviewCondition).max(20),
+        match: z.enum(['all', 'any']),
+        group: z.enum(['department', 'location', 'legalEntity', 'manager']).nullable(),
+        summary: z.array(z.string().max(200)).max(10),
+      }),
+    },
+    {
+      request: input.text,
+      current: input.current,
+      departments: [
+        ...new Set(members.flatMap((m) => (m.department === null ? [] : [m.department]))),
+      ],
+      locations: input.places.locations,
+      entities: input.places.entities,
+      managers: [
+        ...new Set(members.flatMap((m) => (m.managerId === null ? [] : [m.managerId]))),
+      ].map((id) => ({ id, name: members.find((m) => m.personId === id)?.name ?? null })),
+    },
+    { on: c.name },
+  );
+  if (!got.ok) return got;
+  return ok({ ...got.value.answer, logId: got.value.logId });
 }
 
 const AutomationDraft = z.object({

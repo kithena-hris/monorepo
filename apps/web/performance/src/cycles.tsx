@@ -752,7 +752,10 @@ const STATUS_LABEL: Readonly<Record<string, string>> = {
 };
 
 /** What the People step filters on: what Performance knows of each person. */
-function filterFields(data: SetupData): FilterField[] {
+function filterFields(data: {
+  readonly fields: SetupData['fields'];
+  readonly places?: SetupData['places'] | undefined;
+}): FilterField[] {
   const f = data.fields;
   const named = (
     ids: readonly string[] | undefined,
@@ -1943,6 +1946,9 @@ interface OverviewRow {
   readonly personId: string;
   readonly name: string;
   readonly title: string;
+  readonly department?: string | null;
+  readonly locationId?: string | null;
+  readonly legalEntityId?: string | null;
   readonly manager: { readonly id: string; readonly name: string } | null;
   readonly self: string;
   readonly peers: string;
@@ -1984,6 +1990,10 @@ export interface OverviewData {
   readonly released: number;
   readonly overdue: number;
   readonly rows: readonly OverviewRow[];
+  /** What the people table filters by: the values among the cycle's people. */
+  readonly fields?: SetupData['fields'];
+  /** Work location and legal entity names, from People when the company has it. */
+  readonly places?: SetupData['places'];
   /** Away in the next month, from Time Off: personId → the last day away. */
   readonly away?: Readonly<Record<string, string>>;
   readonly total: number;
@@ -2027,6 +2037,216 @@ const GOALS_LABEL: Readonly<Record<string, string>> = {
 const daysBetween = (from: string, to: string): number =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
+const REVIEW_STATES = [
+  { value: 'not_started', label: 'Not started' },
+  { value: 'draft', label: 'In progress' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'released', label: 'Released' },
+  { value: 'ack', label: 'Acknowledged' },
+  { value: 'unlock', label: 'Unlock requested' },
+  { value: 'none', label: 'None' },
+];
+const GROUPS = [
+  ['', 'No grouping'],
+  ['department', 'Department'],
+  ['location', 'Work location'],
+  ['legalEntity', 'Legal entity'],
+  ['manager', 'Manager'],
+] as const;
+
+/** A row's group heading: the name of what it is grouped by. */
+function groupLabel(data: OverviewData, group: string, r: OverviewRow): string {
+  switch (group) {
+    case 'department':
+      return r.department ?? 'No department';
+    case 'location':
+      return r.locationId == null
+        ? 'No work location'
+        : (data.places?.locations[r.locationId] ?? r.locationId);
+    case 'legalEntity':
+      return r.legalEntityId == null
+        ? 'No legal entity'
+        : (data.places?.entities[r.legalEntityId] ?? r.legalEntityId);
+    case 'manager':
+      return r.manager?.name ?? 'No manager';
+    default:
+      return '';
+  }
+}
+
+/**
+ * The people table's search, filters, grouping and the same in words, all in
+ * the address: a filter is shareable and survives a reload, and the table
+ * reads it from there (`OverviewTable`).
+ */
+function PeopleToolbar({
+  data,
+  act,
+  ...props
+}: ScreenProps<OverviewData> & { readonly data: OverviewData; readonly act: Act }): JSX.Element {
+  const match: 'all' | 'any' = props.search?.['match'] === 'any' ? 'any' : 'all';
+  const stored = ((): Cond[] => {
+    try {
+      const parsed: unknown = JSON.parse(props.search?.['filter'] ?? '[]');
+      return Array.isArray(parsed) ? (parsed as Cond[]) : [];
+    } catch {
+      return [];
+    }
+  })();
+  const fields: FilterField[] = [
+    ...(data.fields === undefined
+      ? []
+      : filterFields({ fields: data.fields, places: data.places })),
+    { id: 'self', label: 'Self review', operators: IS, options: REVIEW_STATES },
+    { id: 'managerReview', label: 'Manager review', operators: IS, options: REVIEW_STATES },
+    {
+      id: 'overdue',
+      label: 'Anything overdue',
+      operators: [{ id: 'is', label: 'is', value: 'options' }],
+      options: [
+        { value: 'yes', label: 'Yes' },
+        { value: 'no', label: 'No' },
+      ],
+    },
+  ];
+  const [group, setGroup] = useState<FilterGroup>(() => groupOf(stored, match));
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [words, setWords] = useState('');
+  const [said, setSaid] = useState<readonly string[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const apply = (
+    filter: readonly Cond[],
+    m: 'all' | 'any',
+    extra: Record<string, string | null> = {},
+  ): void => {
+    props.onFilter?.({
+      filter: filter.length === 0 ? null : JSON.stringify(filter),
+      match: m === 'any' ? 'any' : null,
+      page: null,
+      ...extra,
+    });
+  };
+  // Only complete conditions reach the address, and typing settles first.
+  const change = (next: FilterGroup): void => {
+    setGroup(next);
+    setSaid([]);
+    const done = {
+      ...next,
+      conditions: next.conditions.filter((x) => isConditionComplete(fields, x)),
+    };
+    if (pending.current !== null) clearTimeout(pending.current);
+    pending.current = setTimeout(() => {
+      apply(conditionsOf(done), done.match);
+    }, 400);
+  };
+  const ask = (): void => {
+    setAsking(true);
+    setRefused(null);
+    void act
+      .call('PerformanceOverviewInWords', {
+        id: data.cycle.id,
+        input: {
+          text: words,
+          current: stored,
+          places: data.places ?? { locations: {}, entities: {} },
+        },
+      })
+      .then((d) => {
+        setAsking(false);
+        if (!d.ok) {
+          setRefused(d.message);
+          return;
+        }
+        const got = d.data as {
+          filter: Cond[];
+          match: 'all' | 'any';
+          group: string | null;
+          summary: string[];
+        };
+        setGroup(groupOf(got.filter, got.match));
+        setSaid(got.summary);
+        apply(got.filter, got.match, { group: got.group });
+      });
+  };
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Search
+            label="Search people"
+            placeholder={`Search ${String(data.total)} people`}
+            initial={props.search?.['q'] ?? ''}
+            onSearch={(q) => {
+              props.onFilter?.({ q: q === '' ? null : q, page: null });
+            }}
+          />
+          <Select
+            value={props.search?.['group'] ?? ''}
+            onValueChange={(v) => {
+              props.onFilter?.({ group: v === '' ? null : v, page: null });
+            }}
+          >
+            <SelectTrigger aria-label="Group by" className="w-48">
+              <SelectValue placeholder="Group by" />
+            </SelectTrigger>
+            <SelectContent>
+              {GROUPS.map(([v, l]) => (
+                <SelectItem key={v === '' ? 'none' : v} value={v}>
+                  {v === '' ? l : `Group by ${l.toLowerCase()}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="ml-auto text-sm text-fg-muted">
+            {plural(data.total, 'person', 'people')}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <Field className="min-w-64 flex-1">
+            <FieldLabel>Filter in words</FieldLabel>
+            <Input
+              value={words}
+              placeholder="Engineering in London whose self review is overdue, by manager"
+              onChange={(e) => {
+                setWords(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && words.trim().length >= 3) ask();
+              }}
+            />
+          </Field>
+          <Button
+            variant="secondary"
+            startIcon={<icons.assistant aria-hidden />}
+            disabled={words.trim().length < 3}
+            loading={asking}
+            onClick={ask}
+          >
+            Filter
+          </Button>
+        </div>
+        <Refusal error={refused} />
+        {said.length === 0 ? null : (
+          <p className="text-sm text-fg-muted" aria-live="polite">
+            {said.join(' · ')}
+          </p>
+        )}
+        <FilterBuilder
+          label="Filter the people"
+          title="Filters"
+          emptyDescription="Everyone in the cycle. Add a filter, or describe who in words."
+          fields={fields}
+          value={group}
+          onChange={change}
+          maxConditions={20}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 /**
  * Everyone in the cycle, as People's directory lists people: the next page
  * arrives as the end comes near, and only the rows in view are mounted.
@@ -2035,6 +2255,7 @@ function OverviewTable({
   data,
   act,
   q,
+  view,
   selected,
   onSelected,
   onNavigate,
@@ -2045,6 +2266,12 @@ function OverviewTable({
   readonly data: OverviewData;
   readonly act: Act;
   readonly q: string | null;
+  /** The filter, its match and the grouping, as the address has them. */
+  readonly view: {
+    readonly filter: string | null;
+    readonly match: string | null;
+    readonly group: string | null;
+  };
   readonly selected: readonly string[];
   readonly onSelected: (ids: readonly string[]) => void;
   readonly onNavigate?: ((to: string) => void) | undefined;
@@ -2059,7 +2286,15 @@ function OverviewTable({
     data.page * data.size < data.total ? String(data.page + 1) : null,
     async (cursor) => {
       const page = Number(cursor);
-      const d = await act.call('PerformanceCycle', { id, q, page, size: data.size });
+      const d = await act.call('PerformanceCycle', {
+        id,
+        q,
+        page,
+        size: data.size,
+        filter: view.filter,
+        match: view.match,
+        group: view.group,
+      });
       if (!d.ok) return null;
       const more = d.data as Pick<OverviewData, 'rows' | 'total' | 'size'>;
       return {
@@ -2150,8 +2385,12 @@ function OverviewTable({
       columns={columns}
       describeRow={(r) => r.name}
       estimateRowHeight={57}
-      containerClassName="page-fill max-h-dvh min-h-96"
+      // The page's one scroll: the header pins to the window's top.
+      scroll="page"
       stickyHeader
+      {...(view.group === null
+        ? {}
+        : { groupBy: (r: OverviewRow) => groupLabel(data, view.group ?? '', r) })}
       {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
       loadingMore={pages.loading}
       endLabel={`That’s everyone · ${plural(data.total, 'person', 'people')}`}
@@ -2505,67 +2744,58 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                       }
                     : {})}
                 />
-                <Card>
-                  <CardContent className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Search
-                        label="Search people"
-                        placeholder={`Search ${String(data.total)} people`}
-                        initial={props.search?.['q'] ?? ''}
-                        onSearch={(q) => {
-                          props.onFilter?.({ q: q === '' ? null : q, page: null });
+                <PeopleToolbar data={data} act={act} {...props} />
+                <OverviewTable
+                  data={data}
+                  act={act}
+                  q={props.search?.['q'] ?? null}
+                  view={{
+                    filter: props.search?.['filter'] ?? null,
+                    match: props.search?.['match'] ?? null,
+                    group: props.search?.['group'] ?? null,
+                  }}
+                  selected={chosen}
+                  onSelected={(ids) => {
+                    setSelected(new Set(ids));
+                  }}
+                  onNavigate={props.onNavigate}
+                  run={run}
+                  onDialog={(d, personId) => {
+                    setSelected(new Set([personId]));
+                    setDialog(d);
+                  }}
+                  bulk={
+                    <>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          run('RemindPerformanceCycle', { personIds: chosen });
                         }}
-                      />
-                      <span className="ml-auto text-sm text-fg-muted">{`${String(data.total)} people`}</span>
-                    </div>
-                    <OverviewTable
-                      data={data}
-                      act={act}
-                      q={props.search?.['q'] ?? null}
-                      selected={chosen}
-                      onSelected={(ids) => {
-                        setSelected(new Set(ids));
-                      }}
-                      onNavigate={props.onNavigate}
-                      run={run}
-                      onDialog={(d, personId) => {
-                        setSelected(new Set([personId]));
-                        setDialog(d);
-                      }}
-                      bulk={
-                        <>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              run('RemindPerformanceCycle', { personIds: chosen });
-                            }}
-                          >
-                            Remind
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              setDialog('extend');
-                            }}
-                          >
-                            Extend deadline
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              run('ReleasePerformanceCycle', { personIds: chosen });
-                            }}
-                          >
-                            Release
-                          </Button>
-                        </>
-                      }
-                    />
-                  </CardContent>
-                </Card>
+                      >
+                        Remind
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setDialog('extend');
+                        }}
+                      >
+                        Extend deadline
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          run('ReleasePerformanceCycle', { personIds: chosen });
+                        }}
+                      >
+                        Release
+                      </Button>
+                    </>
+                  }
+                />
               </>
             ) : null}
             {tab === 'changes' ? (

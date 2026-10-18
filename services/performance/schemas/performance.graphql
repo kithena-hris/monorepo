@@ -281,6 +281,13 @@ type Mutation {
   performanceHowItReads(id: String!, idempotencyKey: String!): JSON
   """Learning suggestions"""
   performanceLearningSuggestions(idempotencyKey: String!, personId: String!): JSON
+  """PF5: the people table filtered in words"""
+  performanceOverviewInWords(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF4h: participants in words"""
   performanceParticipantsInWords(
     id: String!
@@ -598,7 +605,7 @@ type Query {
   """S12: my connected tools"""
   performanceConnectedTools: JSON
   """PF5: the overview"""
-  performanceCycle(id: String!, page: Int, q: String, size: Int, tab: String): JSON
+  performanceCycle(filter: String, group: String, id: String!, match: String, page: Int, q: String, size: Int, tab: String): JSON
   """PF4: setup"""
   performanceCycleSetup(id: String!, q: String): JSON
   """PF6: cycles"""

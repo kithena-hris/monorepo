@@ -552,6 +552,9 @@ export const ROUTES: readonly Route[] = [
       page: z.coerce.number().int().min(1).optional(),
       size: z.coerce.number().int().min(10).max(200).optional(),
       tab: z.string().max(20).optional(),
+      filter: z.string().max(4000).optional(),
+      match: z.enum(['all', 'any']).optional(),
+      group: z.enum(['department', 'location', 'legalEntity', 'manager']).optional(),
     }),
     run: (ctx, { params }) =>
       cycles.overviewScreen(ctx, params.id, {
@@ -559,6 +562,9 @@ export const ROUTES: readonly Route[] = [
         ...(params.page === undefined ? {} : { page: params.page }),
         ...(params.size === undefined ? {} : { size: params.size }),
         ...(params.tab === undefined ? {} : { tab: params.tab }),
+        ...(params.filter === undefined ? {} : { filter: params.filter }),
+        ...(params.match === undefined ? {} : { match: params.match }),
+        ...(params.group === undefined ? {} : { group: params.group }),
       }),
   }),
   route({
@@ -726,6 +732,24 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ id: Id }),
     body: z.object({ text: text(1000).min(3) }),
     run: (ctx, { params, body }) => ai.participantsInWords(ctx, params.id, body.text),
+  }),
+  route({
+    name: 'performanceOverviewInWords',
+    method: 'POST',
+    path: `${V1}/ai/cycles/{id}/overview`,
+    summary: 'PF5: the people table filtered in words',
+    params: z.object({ id: Id }),
+    body: z.object({
+      text: text(1000).min(3),
+      current: z.array(z.unknown()).max(30).default([]),
+      places: z
+        .object({
+          locations: z.record(z.string(), z.string().max(200)),
+          entities: z.record(z.string(), z.string().max(200)),
+        })
+        .default({ locations: {}, entities: {} }),
+    }),
+    run: (ctx, { params, body }) => ai.overviewInWords(ctx, params.id, body),
   }),
 
   /* ------------------------------------------------------- nominations -- */

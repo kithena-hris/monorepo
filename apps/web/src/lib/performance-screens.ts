@@ -115,12 +115,26 @@ export async function loadScreen(
           page: int(s['page']),
           size: int(s['size']),
           tab: opt(s['tab']),
+          filter: opt(s['filter']),
+          match: opt(s['match']),
+          group: opt(s['group']),
         }),
         currentPerson(),
       ]);
-      if (done.status !== 'ready' || person?.entitlements.includes('module.timeoff') !== true)
-        return done;
-      return { ...done, data: { ...(done.data as object), away: await awayNow() } };
+      if (done.status !== 'ready') return done;
+      // Who is away, from Time Off; and the places the filters and groups name, from People.
+      const [away, places] = await Promise.all([
+        person?.entitlements.includes('module.timeoff') === true ? awayNow() : undefined,
+        person?.entitlements.includes('module.people') === true ? placesNamed() : undefined,
+      ]);
+      return {
+        ...done,
+        data: {
+          ...(done.data as object),
+          ...(away === undefined ? {} : { away }),
+          ...(places === undefined ? {} : { places }),
+        },
+      };
     }
     case 'Setup': {
       const [done, person] = await Promise.all([

@@ -1,3 +1,4 @@
+import * as z from 'zod';
 import type { ActivityKind, CalendarDate, CycleState } from '@kithena/contracts';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
@@ -10,10 +11,12 @@ import {
   editable,
   KINDS,
   label,
+  matches,
   move,
   REVIEW_KINDS,
   startAction,
   subjectsOf,
+  type Condition,
   type Cycle,
   type Filterable,
   type Issue,
@@ -153,7 +156,7 @@ const stateGroup = (state: CycleState, wanted: string): boolean =>
       : state === wanted;
 
 /** Whether the viewer has anything to do with a cycle: a review of theirs, or one about their reports. */
-async function involved(ctx: Ctx, c: Cycle): Promise<boolean> {
+export async function involved(ctx: Ctx, c: Cycle): Promise<boolean> {
   const me = ctx.viewer.personId;
   if (me === null) return false;
   const reviews = await ctx.tx.reviews.find({ cycleId: c.id });
@@ -1009,11 +1012,52 @@ const reviewState = (r: Review | undefined, today: CalendarDate): string => {
       : r.status;
 };
 
+/** The overview's own conditions, beside a person's: each review's state, and lateness. */
+const REVIEW_FIELDS = new Set(['self', 'managerReview', 'overdue']);
+const OverviewCond = z.object({
+  field: z.enum([
+    'department',
+    'status',
+    'hiredOn',
+    'manager',
+    'title',
+    'legalEntity',
+    'location',
+    'self',
+    'managerReview',
+    'overdue',
+  ]),
+  op: z.enum(['is', 'not', 'contains', 'before', 'after']).optional(),
+  value: z.string().max(120),
+});
+type Cond = z.infer<typeof OverviewCond>;
+
+/** The filter from the address, or none when it does not read as one. */
+function overviewFilter(raw: string | undefined): Cond[] {
+  if (raw === undefined || raw === '') return [];
+  try {
+    const parsed = z.array(OverviewCond).max(30).safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
+
 /** PF5: header, tiles per activity, and one row per subject the viewer may see, paged. */
 export async function overviewScreen(
   ctx: Ctx,
   id: string,
-  opts: { q?: string; page?: number; size?: number; tab?: string },
+  opts: {
+    q?: string;
+    page?: number;
+    size?: number;
+    tab?: string;
+    /** Conditions as JSON: a person's fields (`matches`) and their reviews' states. */
+    filter?: string;
+    match?: 'all' | 'any';
+    /** Rows in runs of one key: department, location, legalEntity or manager. */
+    group?: string;
+  },
 ): Promise<Result<unknown>> {
   const c = await ctx.tx.cycles.get(id);
   if (c === null) return err(notFound('cycle'));
@@ -1026,22 +1070,76 @@ export async function overviewScreen(
     (s) => ctx.viewer.hr || ctx.viewer.org.has(s),
   );
   const nominations = await ctx.tx.nominations.find({ cycleId: id });
+  const subjectPeople = subjects
+    .map((s) => byId.get(s))
+    .filter((p): p is Person => p !== undefined);
   const needle = (opts.q ?? '').toLowerCase();
+  const asked = overviewFilter(opts.filter);
+  const match = opts.match ?? 'all';
+  const bySubject = Map.groupBy(reviews, (r) => r.subjectId);
+  const stateOf = (p: Person, field: string): string => {
+    const about = bySubject.get(p.personId) ?? [];
+    const kind = field === 'self' ? 'self' : 'manager';
+    if (field === 'managerReview' && p.managerId === null) return 'none';
+    if (field === 'overdue')
+      return about.some(
+        (r) =>
+          !isSubmitted(r) && r.due < ctx.today && ['not_started', 'in_progress'].includes(r.status),
+      )
+        ? 'yes'
+        : 'no';
+    return reviewState(
+      about.find((r) => r.kind === kind),
+      ctx.today,
+    );
+  };
+  const reviewHolds = (p: Person, cond: Cond): boolean => {
+    const have = stateOf(p, cond.field);
+    return cond.op === 'not' ? have !== cond.value : have === cond.value;
+  };
+  const personConds = asked.filter((x) => !REVIEW_FIELDS.has(x.field)) as Condition[];
+  const reviewConds = asked.filter((x) => REVIEW_FIELDS.has(x.field));
+  const wanted = (p: Person): boolean => {
+    if (asked.length === 0) return true;
+    const person = personConds.length === 0 ? null : matches(filterable(p), personConds, match);
+    const states = reviewConds.map((x) => reviewHolds(p, x));
+    if (match === 'any') return person === true || states.some(Boolean);
+    return (person ?? true) && states.every(Boolean);
+  };
+  const groupKey = (p: Person): string =>
+    opts.group === 'department'
+      ? (p.department ?? '')
+      : opts.group === 'location'
+        ? (p.locationId ?? '')
+        : opts.group === 'legalEntity'
+          ? (p.legalEntityId ?? '')
+          : opts.group === 'manager'
+            ? p.managerId === null
+              ? ''
+              : (byId.get(p.managerId)?.name ?? '')
+            : '';
   const shown = subjects
     .map((s) => byId.get(s))
     .filter((p): p is Person => p !== undefined)
     .filter(
       (p) =>
         needle === '' ||
-        p.name.toLowerCase().includes(needle) ||
-        (p.department ?? '').toLowerCase().includes(needle),
+        [p.name, p.department, p.title].some((x) => (x ?? '').toLowerCase().includes(needle)),
     )
-    .toSorted((a, b) => a.name.localeCompare(b.name));
+    .filter(wanted)
+    // In runs of the group, those with none last, so a page never splits a run
+    // it could keep together; by name within each.
+    .toSorted(
+      (a, b) =>
+        Number(groupKey(a) === '') - Number(groupKey(b) === '') ||
+        groupKey(a).localeCompare(groupKey(b)) ||
+        a.name.localeCompare(b.name),
+    );
   const size = Math.min(200, Math.max(10, opts.size ?? 50));
   const page = Math.max(1, opts.page ?? 1);
   const slice = shown.slice((page - 1) * size, page * size);
   const rows = slice.map((p) => {
-    const about = reviews.filter((r) => r.subjectId === p.personId);
+    const about = bySubject.get(p.personId) ?? [];
     const peers = about.filter(
       (r) => r.kind === 'peer' && r.detached === null && r.status !== 'cancelled',
     );
@@ -1051,6 +1149,10 @@ export async function overviewScreen(
       personId: p.personId,
       name: p.name,
       title: subtitle(p),
+      // What a row is grouped by, as its keys: names for the shell to put to them.
+      department: p.department,
+      locationId: p.locationId,
+      legalEntityId: p.legalEntityId,
       manager:
         p.managerId === null
           ? null
@@ -1170,6 +1272,26 @@ export async function overviewScreen(
         late: n.state === 'draft' && due.nominations !== undefined && due.nominations < ctx.today,
       })),
     bounds: { min: c.peer.min, max: c.peer.max },
+    // What the table filters by: the values present among the cycle's people.
+    fields: {
+      departments: [
+        ...new Set(subjectPeople.flatMap((p) => (p.department === null ? [] : [p.department]))),
+      ].toSorted(),
+      locations: [
+        ...new Set(subjectPeople.flatMap((p) => (p.locationId === null ? [] : [p.locationId]))),
+      ],
+      legalEntities: [
+        ...new Set(
+          subjectPeople.flatMap((p) => (p.legalEntityId === null ? [] : [p.legalEntityId])),
+        ),
+      ],
+      managers: [
+        ...new Set(subjectPeople.flatMap((p) => (p.managerId === null ? [] : [p.managerId]))),
+      ]
+        .map((m) => ({ value: m, label: byId.get(m)?.name ?? 'Someone' }))
+        .toSorted((a, b) => a.label.localeCompare(b.label)),
+      statuses: [...new Set(subjectPeople.map((p) => p.status))],
+    },
     settings: { visibility: c.visibility, peer: c.peer, reminders: c.reminders, goals: c.goals },
     hr: ctx.viewer.hr,
   });
