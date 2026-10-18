@@ -423,10 +423,11 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
     ctx,
     'prefill',
     {
-      version: '2',
+      version: '3',
       instruction:
         'Draft an answer to every question of this review form. Ground each in the sources and cite their ids. ' +
         'Where the sources say nothing about a question, or there are none, write what is typical of good work in this role by common industry standards, phrased as a draft for the writer to make specific, and cite nothing. ' +
+        'Never invent facts: no project names, numbers, percentages or amounts the sources do not give; put a short placeholder in square brackets instead, such as [project] or [result]. ' +
         'For text questions write 2–4 sentences. For scale, goals, choice, binary and number questions suggest a value with a one-line reason. ' +
         'Return JSON {"text":[{"questionId","text","cites"}],"values":[{"questionId","value","reason"}]}.',
       answer: Prefill,
