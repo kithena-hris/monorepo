@@ -2075,8 +2075,10 @@ function Launch({
         <CardHeader>
           <CardTitle level={3}>
             {blocks === 0
-              ? 'Ready to launch'
-              : `${plural(blocks, 'thing')} to fix before it can launch`}
+              ? data.action === 'schedule'
+                ? 'Ready to schedule'
+                : 'Ready to launch'
+              : `${plural(blocks, 'thing')} to fix before it can ${data.action === 'schedule' ? 'be scheduled' : 'launch'}`}
           </CardTitle>
           <p className="text-sm text-fg-muted">
             {blocks === 0 && warns === 0
