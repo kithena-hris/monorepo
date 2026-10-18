@@ -43,6 +43,8 @@ export interface StatProps extends ComponentPropsWithoutRef<'div'> {
   /** One line of context under everything else. */
   description?: ReactNode;
   icon?: ReactNode;
+  /** `start` sets the icon before the label, as its marker; `end` at the far side. */
+  iconPosition?: 'start' | 'end';
   /**
    * A tile inside a card, a row of counts under a headline: it sits on the
    * card's sunken fill with no shadow of its own, so it reads as part of the
@@ -82,6 +84,7 @@ export function Stat({
   chart,
   description,
   icon,
+  iconPosition = 'end',
   inset = false,
   children,
   ...props
@@ -101,10 +104,17 @@ export function Stat({
       )}
       {...props}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium text-fg-muted">{label}</p>
-        {icon ? <span className="shrink-0 text-fg-subtle [&_svg]:size-4">{icon}</span> : null}
-      </div>
+      {icon && iconPosition === 'start' ? (
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-fg-subtle [&_svg]:size-4">{icon}</span>
+          <p className="text-sm font-medium text-fg-muted">{label}</p>
+        </div>
+      ) : (
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium text-fg-muted">{label}</p>
+          {icon ? <span className="shrink-0 text-fg-subtle [&_svg]:size-4">{icon}</span> : null}
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <p

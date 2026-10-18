@@ -2111,6 +2111,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                       <Stat
                         key={t.kind}
                         icon={<Icon aria-hidden />}
+                        iconPosition="start"
                         label={`${kindLabel(t.kind)}s`}
                         value={String(t.submitted)}
                         unit={`of ${String(t.total)} in`}
@@ -2141,6 +2142,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                   })}
                   <Stat
                     icon={<icons.visible aria-hidden />}
+                    iconPosition="start"
                     label="Released"
                     value={String(data.released)}
                     unit="manager reviews"
@@ -2148,6 +2150,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                   />
                   <Stat
                     icon={<icons.warning aria-hidden />}
+                    iconPosition="start"
                     label="Overdue"
                     value={String(data.overdue)}
                     unit={data.overdue === 1 ? 'review' : 'reviews'}
