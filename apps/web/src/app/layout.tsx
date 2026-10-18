@@ -11,6 +11,7 @@ import { EARLY_PRESSES_SCRIPT } from '../lib/early-presses';
 import { THEME_KEY } from '../lib/theme';
 
 import './globals.css';
+import { MF_IMPORT_MAP } from '../lib/mf-runtime';
 
 export const metadata: Metadata = {
   title: 'Kithena',
@@ -72,6 +73,8 @@ export default async function RootLayout({
       style={preset ? brandRamp(preset.hue) : undefined}
     >
       <head>
+        {/* First: every remote imports the one federation runtime by name (`lib/mf-runtime.ts`). */}
+        <script type="importmap" dangerouslySetInnerHTML={{ __html: MF_IMPORT_MAP }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {/* Before any markup: a press on a remote's screen before it hydrates is held, not lost. */}
         <script dangerouslySetInnerHTML={{ __html: EARLY_PRESSES_SCRIPT }} />

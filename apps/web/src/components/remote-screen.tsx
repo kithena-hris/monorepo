@@ -1,6 +1,7 @@
 'use client';
 
-import { createInstance, type ModuleFederation } from '@module-federation/runtime';
+import type * as Runtime from '@module-federation/runtime';
+import type { ModuleFederation } from '@module-federation/runtime';
 import { Alert, Spinner } from '@reach/ui';
 import * as React from 'react';
 import {
@@ -21,6 +22,7 @@ import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 
 import { WAITING, chosenFiles, handFilesOver, releaseEarlyPresses } from '../lib/early-presses';
+import { MF_RUNTIME_URL } from '../lib/mf-runtime';
 
 /*
  * The shell's React and the shell's Reach, offered to every remote.
@@ -41,7 +43,7 @@ import { WAITING, chosenFiles, handFilesOver, releaseEarlyPresses } from '../lib
  * imports of single components resolve to the files the barrel re-exports.
  */
 const shareConfig = { singleton: true, requiredVersion: false } as const;
-let federation: ModuleFederation | undefined;
+let federation: Promise<ModuleFederation> | undefined;
 
 type Screen = ComponentType<Record<string, unknown>>;
 
@@ -73,8 +75,19 @@ export const shellShared = () =>
     },
   }) as const;
 
-function runtime(): ModuleFederation {
-  federation ??= createInstance({ name: 'shell', remotes: [], shared: shellShared() });
+/**
+ * The page's one federation runtime: the file the import map names for every
+ * remote (`lib/mf-runtime.ts`), loaded by URL rather than bundled, so the shell
+ * and its remotes share one copy and one instance.
+ */
+function runtime(): Promise<ModuleFederation> {
+  federation ??= (
+    import(/* webpackIgnore: true */ /* turbopackIgnore: true */ MF_RUNTIME_URL) as Promise<
+      typeof Runtime
+    >
+  ).then(({ createInstance }) =>
+    createInstance({ name: 'shell', remotes: [], shared: shellShared() }),
+  );
   return federation;
 }
 
@@ -90,7 +103,7 @@ function pick(
 
 /** In the browser: federation, from `remoteEntry.js`. */
 async function browserModule(name: string, entry: string): Promise<Record<string, unknown>> {
-  const mf = runtime();
+  const mf = await runtime();
   // On this host (`REMOTE_PATH`): absolute, as federation keys a remote by it.
   mf.registerRemotes([{ name, entry: new URL(entry, window.location.href).href, type: 'module' }]);
   return (await mf.loadRemote<Record<string, unknown>>(name)) ?? {};

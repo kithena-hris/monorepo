@@ -52,5 +52,13 @@ export default defineConfig({
   ],
   // After Tailwind: this build's utilities stay off the host's chrome.
   css: { postcss: { plugins: [containUtilities()] } },
-  build: { target: 'es2022', rolldownOptions: { input: {} } },
+  build: {
+    target: 'es2022',
+    rolldownOptions: {
+      input: {},
+      // The federation runtime is the shell's, one copy for every remote, by
+      // the import map it puts in the page (`apps/web/src/lib/mf-runtime.ts`).
+      external: [/^@module-federation\/runtime(\/|$)/],
+    },
+  },
 });
