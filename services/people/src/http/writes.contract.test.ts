@@ -209,3 +209,36 @@ describe("a screen's keyed write", () => {
     expect(createEndpoint).toHaveBeenCalledTimes(made);
   });
 });
+
+describe('a keyed write addressed by a key, not an id', () => {
+  // `people.idempotency_key.resource_id` is a uuid; the key in the path is not one.
+  const complete = vi.fn(() =>
+    Promise.resolve({ ok: true as const, value: { workspace: 'Acme', connectedAt: '2026-10-18' } }),
+  );
+  const service = {
+    inTenant: (_tenant: string, fn: (scope: { tx: never }) => Promise<unknown>) =>
+      fn({ tx: {} as never }),
+  } as unknown as PeopleService;
+  const deps = {
+    service,
+    relations: { relations: () => Promise.resolve({ isAdmin: true }) },
+    chat: { apps: [{ key: 'slack', name: 'Slack', complete }] },
+  } as unknown as ScreenRouteDeps;
+  const rest = restHandler({
+    service,
+    callerFrom,
+    idempotency: inMemoryIdempotency(),
+    screens: screenRoutes(deps, inMemoryIdempotency()),
+  });
+
+  it('keeps its key, so connecting a chat app answers as it succeeded', async () => {
+    const answer = await rest({
+      method: 'POST',
+      url: '/v1/chat/apps/slack/complete',
+      headers: { 'idempotency-key': 'k-chat' },
+      body: JSON.stringify({ code: 'c', state: 's' }),
+    });
+    expect(answer?.status).toBe(200);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+});

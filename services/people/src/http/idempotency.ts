@@ -124,6 +124,11 @@ export function inMemoryIdempotency(): IdempotencyStore {
     kept: (_tx, tenantId, id) => Promise.resolve(answers.get(`${tenantId}:${id}`) ?? null),
     find: (_tx, tenantId, key) => Promise.resolve(keys.get(`${tenantId}:${key}`) ?? null),
     save(_tx, tenantId, key, stored) {
+      // As the column is: a resource that is not a uuid fails here as it would in Postgres.
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stored.resourceId)
+      )
+        return Promise.reject(new Error(`resource_id is not a uuid: ${stored.resourceId}`));
       if (keys.has(`${tenantId}:${key}`)) return Promise.resolve(false);
       keys.set(`${tenantId}:${key}`, stored);
       return Promise.resolve(true);

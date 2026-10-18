@@ -1212,14 +1212,11 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'PUT',
       pattern: new RegExp(`^/v1/approval-checks/${KEY}$`),
-      handle: write(
-        ApprovalCheckBody,
-        (asking, input, id) =>
-          flagged(
-            (tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }),
-            asking,
-          ),
-        { resource: (_asking, id) => id },
+      handle: write(ApprovalCheckBody, (asking, input, id) =>
+        flagged(
+          (tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }),
+          asking,
+        ),
       ),
     },
     // Suspected duplicates, and one pair side by side when `a` and `b` name it (PEO-074).
@@ -1628,23 +1625,17 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: new RegExp(`^/v1/chat/apps/${KEY}/complete$`),
-      handle: write(ChatComplete, (asking, input, id) => completeChat(deps, asking, id, input), {
-        resource: (_asking, id) => id,
-      }),
+      handle: write(ChatComplete, (asking, input, id) => completeChat(deps, asking, id, input)),
     },
     {
       method: 'POST',
       pattern: new RegExp(`^/v1/chat/apps/${KEY}/disconnect$`),
-      handle: write(NoBody, (asking, _input, id) => disconnectChat(deps, asking, id), {
-        resource: (_asking, id) => id,
-      }),
+      handle: write(NoBody, (asking, _input, id) => disconnectChat(deps, asking, id)),
     },
     {
       method: 'PUT',
       pattern: new RegExp(`^/v1/chat/notices/${KEY}$`),
-      handle: write(ChatNotice, (asking, input, id) => setChatNotice(deps, asking, id, input.on), {
-        resource: (_asking, id) => id,
-      }),
+      handle: write(ChatNotice, (asking, input, id) => setChatNotice(deps, asking, id, input.on)),
     },
     // SCIM connections (PEO-072, PEO-073): people_admin's, audited by event.
     {
