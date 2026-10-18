@@ -3,6 +3,7 @@ import * as z from 'zod';
 import { FormDefinition, type CalendarDate } from '@kithena/contracts';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 import { plainText, validateDefinition } from '@kithena/form-kit';
+import { logger } from '@kithena/telemetry';
 
 import { counts, position, sentences, type Labelled } from '../domain/sentiment.js';
 import { addDays } from '../domain/cycle.js';
@@ -51,8 +52,22 @@ async function ask<T>(
     parsed = null;
   }
   const answer = spec.answer.safeParse(parsed);
-  if (!answer.success)
+  if (!answer.success) {
+    // Where the answer did not fit, never what it said: paths and codes only.
+    logger.warn(
+      {
+        feature,
+        prompt: spec.version,
+        empty: raw === null,
+        json: parsed !== null,
+        issues: answer.error.issues
+          .slice(0, 8)
+          .map((i) => `${i.path.join('.')}:${i.code}`),
+      },
+      'model answer did not fit',
+    );
     return err(failure('AI_UNAVAILABLE', 'The assistant could not answer just now'));
+  }
   const id = ctx.deps.newId();
   await ctx.tx.aiLog.save({
     id,
