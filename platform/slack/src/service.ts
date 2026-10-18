@@ -690,7 +690,9 @@ export function slackService(deps: Deps): SlackService {
         token: got.userToken,
         grantedAt: new Date(deps.now()).toISOString(),
       });
-      return { ok: true, body: { account: got.userId } };
+      // Slack names the person by an id; their email is what they recognise.
+      const email = await deps.slack.emailOf(installation.botToken, got.userId).catch(() => null);
+      return { ok: true, body: { account: email ?? got.userId } };
     },
 
     async toolSearch(tenantId, personId, q) {

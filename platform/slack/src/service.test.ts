@@ -611,7 +611,7 @@ describe('connecting', () => {
       expect(otherWorkspace.ok).toBe(false);
       expect(w.revoked).toEqual(['xoxp-pam']);
       const done = await w.service.toolComplete(TENANT, PERSON, 'code', state);
-      expect(done.ok ? done.body.account : '').toBe('U9');
+      expect(done.ok ? done.body.account : '').toBe('pam@acme.example');
       expect((await w.store.personToken(TENANT, PERSON))?.token).toBe('xoxp-pam');
     });
 
