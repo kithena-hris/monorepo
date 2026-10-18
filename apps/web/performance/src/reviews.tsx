@@ -25,6 +25,8 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  Slider,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -475,7 +477,10 @@ function Writing({
   const [dialog, setDialog] = useState<'submit' | 'unlock' | 'decline' | null>(null);
   // Closed until asked for: the form is the page, the context is a reference.
   const [panelOpen, setPanelOpen] = useState(props.search?.['panel'] === 'open');
-  const [tab, setTab] = useState(props.search?.['tab'] === 'ai' ? 'ai' : 'context');
+  const aiHelp =
+    data.ai['summaries'] === true || (data.ai['writingChecks'] === true && data.may.write);
+  // AI help first where there is any: it fills itself, so it is the useful page.
+  const [tab, setTab] = useState(aiHelp && props.search?.['tab'] !== 'context' ? 'ai' : 'context');
   const pending = useRef<Record<string, Answer>>({});
   const revision = useRef(data.review.revision);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -552,11 +557,51 @@ function Writing({
     sources: { id: string; label: string }[];
     dropped: number;
   } | null>(null);
-  const [reads, setReads] = useState<{
-    reads: string;
-    flags: { sentence: string; level: string; title: string; suggestion: string | null }[];
-  } | null>(null);
+  const [reads, setReads] = useState<Reads | null>(null);
+  const [asking, setAsking] = useState({ summary: false, reads: false });
+  const [aiError, setAiError] = useState<string | null>(null);
   const writing = data.may.write;
+  // AI help fills itself once it is on screen: the summary once, the read-back
+  // of the draft again a few seconds after each save, never on a button.
+  const asked = useRef({ summary: false, reads: -1 });
+  const savedRevision = saving.state === 'saved' ? saving.revision : null;
+  useEffect(() => {
+    if (!panelOpen || tab !== 'ai') return;
+    if (data.ai['summaries'] === true && !asked.current.summary) {
+      asked.current.summary = true;
+      setAsking((a) => ({ ...a, summary: true }));
+      void act.call('SummarisePerformanceReview', { id: data.review.id }).then((d) => {
+        setAsking((a) => ({ ...a, summary: false }));
+        if (d.ok) setSummary(d.data as typeof summary);
+        else setAiError(d.message);
+      });
+    }
+    if (
+      !writing ||
+      data.ai['writingChecks'] !== true ||
+      savedRevision === null ||
+      savedRevision === asked.current.reads
+    )
+      return;
+    const later = setTimeout(
+      () => {
+        asked.current.reads = savedRevision;
+        setAsking((a) => ({ ...a, reads: true }));
+        void act.call('PerformanceHowItReads', { id: data.review.id }).then((d) => {
+          setAsking((a) => ({ ...a, reads: false }));
+          if (d.ok) setReads(d.data as Reads);
+          else setAiError(d.message);
+        });
+      },
+      asked.current.reads === -1 ? 0 : 3000,
+    );
+    return () => {
+      clearTimeout(later);
+    };
+  }, [panelOpen, tab, savedRevision]);
+  const required = data.form.sections
+    .flatMap((s) => s.questions)
+    .filter((q) => q.required && q.type !== 'performance_score').length;
   const unconfirmed = Object.entries(data.suggestions).filter(([, s]) => !s.confirmed);
   const badge =
     saving.state === 'saving'
@@ -573,19 +618,6 @@ function Writing({
         description={`${data.review.cycle?.name ?? 'Detached review'} · due ${day(data.review.due)}`}
         actions={
           <>
-            <span className="text-sm text-fg-muted" aria-live="polite">
-              {badge}
-            </span>
-            <Button
-              variant="ghost"
-              startIcon={<icons.info aria-hidden />}
-              aria-pressed={panelOpen}
-              onClick={() => {
-                setPanelOpen((open) => !open);
-              }}
-            >
-              Details
-            </Button>
             {data.may.decline ? (
               <Button
                 variant="ghost"
@@ -617,6 +649,53 @@ function Writing({
                 Withdraw unlock request
               </Button>
             ) : null}
+            {writing && data.ai['prefill'] === true ? (
+              <Button
+                variant="secondary"
+                startIcon={<icons.assistant aria-hidden />}
+                loading={act.pending}
+                onClick={() => {
+                  ai('PrefillPerformanceReview');
+                }}
+              >
+                Prefill with AI
+              </Button>
+            ) : null}
+          </>
+        }
+      />
+      {/* Who it is about, how far it has got and the way to finish stay in
+          view however long the form is. */}
+      <Card className="sticky top-2 z-20 bg-surface/85 backdrop-blur-md">
+        <CardContent className="grid grid-cols-1 items-center gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+          <Person
+            name={data.review.subject.name}
+            sub={[
+              kindLabel(data.review.kind),
+              data.review.subject.title,
+              `due ${day(data.review.due)}`,
+            ]
+              .filter((x) => x !== '')
+              .join(' · ')}
+          />
+          <AnswerProgress done={required - missing.length} total={required} />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="text-sm text-fg-muted" aria-live="polite">
+              {badge}
+            </span>
+            {unconfirmed.length > 0 ? (
+              <Badge tone="accent">{`${plural(unconfirmed.length, 'suggestion')} to confirm`}</Badge>
+            ) : null}
+            <Button
+              variant="ghost"
+              startIcon={<icons.info aria-hidden />}
+              aria-pressed={panelOpen}
+              onClick={() => {
+                setPanelOpen((open) => !open);
+              }}
+            >
+              Details
+            </Button>
             {writing ? (
               <Button
                 onClick={() => {
@@ -628,9 +707,9 @@ function Writing({
                 Submit
               </Button>
             ) : null}
-          </>
-        }
-      />
+          </div>
+        </CardContent>
+      </Card>
       <Refusal error={act.error} />
       {saving.state === 'stale' ? (
         <Alert
@@ -678,45 +757,8 @@ function Writing({
           {`${subject} sees your answers ${data.review.cycle?.names === 'shown' ? 'with' : 'without'} your name, and only once at least ${String(data.review.cycle?.minimum ?? 3)} have answered. Their manager and HR see your name.`}
         </Alert>
       ) : null}
-      {writing && (data.ai['prefill'] === true || data.ai['summaries'] === true) ? (
-        <div className="flex flex-wrap gap-2">
-          {data.ai['prefill'] === true ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              startIcon={<icons.assistant aria-hidden />}
-              loading={act.pending}
-              onClick={() => {
-                ai('PrefillPerformanceReview');
-              }}
-            >
-              Prefill with AI
-            </Button>
-          ) : null}
-          {unconfirmed.length > 0 ? (
-            <Badge tone="accent">{`${plural(unconfirmed.length, 'suggestion')} to confirm`}</Badge>
-          ) : null}
-        </div>
-      ) : null}
       <div className="mx-auto w-full max-w-3xl">
         <div className="flex min-w-0 flex-col gap-3">
-          <Progress
-            value={Math.round(
-              ((data.form.sections
-                .flatMap((s) => s.questions)
-                .filter((q) => q.required && q.type !== 'performance_score').length -
-                missing.length) /
-                Math.max(
-                  1,
-                  data.form.sections
-                    .flatMap((s) => s.questions)
-                    .filter((q) => q.required && q.type !== 'performance_score').length,
-                )) *
-                100,
-            )}
-            label="Required questions answered"
-            showValue
-          />
           <FormView
             definition={data.form}
             answers={answers}
@@ -756,7 +798,7 @@ function Writing({
             <SheetTitle>Details</SheetTitle>
           </SheetHeader>
           <SheetBody className="flex flex-col gap-3">
-            {data.ai['summaries'] === true || (data.ai['writingChecks'] === true && writing) ? (
+            {aiHelp ? (
               <TertiaryNav
                 label="Details"
                 orientation="horizontal"
@@ -769,8 +811,7 @@ function Writing({
                 ]}
               />
             ) : null}
-            {tab === 'context' ||
-            !(data.ai['summaries'] === true || (data.ai['writingChecks'] === true && writing)) ? (
+            {tab === 'context' || !aiHelp ? (
               <>
                 <Context data={data} />
                 <Card>
@@ -802,18 +843,13 @@ function Writing({
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   {summary === null ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      loading={act.pending}
-                      onClick={() => {
-                        ai('SummarisePerformanceReview', (d) => {
-                          setSummary(d as typeof summary);
-                        });
-                      }}
-                    >
-                      Summarise
-                    </Button>
+                    <Asking
+                      busy={asking.summary}
+                      what="Reading what others said…"
+                      error={aiError}
+                    />
+                  ) : summary.sentences.length === 0 ? (
+                    <p className="text-sm text-fg-muted">Nobody else has written about them yet.</p>
                   ) : (
                     <>
                       <p>
@@ -841,21 +877,23 @@ function Writing({
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   {reads === null ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      loading={act.pending}
-                      onClick={() => {
-                        ai('PerformanceHowItReads', (d) => {
-                          setReads(d as typeof reads);
-                        });
-                      }}
-                    >
-                      Check my draft
-                    </Button>
+                    <Asking busy={asking.reads} what="Reading your draft…" error={aiError} />
+                  ) : reads.reads === null ? (
+                    <p className="text-sm text-fg-muted">
+                      {`Start writing and it is read back here as ${subject} will read it.`}
+                    </p>
                   ) : (
                     <>
-                      <p>{reads.reads}</p>
+                      {reads.sentiment?.position === null || reads.sentiment === null ? null : (
+                        <Tone position={reads.sentiment.position} counts={reads.sentiment.counts} />
+                      )}
+                      <p
+                        className={
+                          asking.reads ? 'opacity-60 transition-opacity' : 'transition-opacity'
+                        }
+                      >
+                        {reads.reads}
+                      </p>
                       {reads.flags.map((f) => (
                         <Alert
                           key={f.sentence}
@@ -911,6 +949,121 @@ function Writing({
           {...props}
         />
       ) : null}
+    </div>
+  );
+}
+
+interface Reads {
+  readonly reads: string | null;
+  readonly flags: readonly {
+    readonly sentence: string;
+    readonly level: string;
+    readonly title: string;
+    readonly suggestion: string | null;
+  }[];
+  readonly sentiment: {
+    readonly position: number | null;
+    readonly counts: {
+      readonly positive: number;
+      readonly negative: number;
+      readonly neutral: number;
+    };
+  } | null;
+}
+
+/** An AI answer on its way, or why it did not come. */
+function Asking({
+  busy,
+  what,
+  error,
+}: {
+  readonly busy: boolean;
+  readonly what: string;
+  readonly error: string | null;
+}): JSX.Element {
+  return busy || error === null ? (
+    <p className="flex items-center gap-2 text-sm text-fg-muted" aria-live="polite">
+      <Spinner size="sm" label={what} />
+      {what}
+    </p>
+  ) : (
+    <p className="text-sm text-fg-muted">{error}</p>
+  );
+}
+
+const FACES = ['😟', '😕', '😐', '🙂', '😄'] as const;
+const toneWord = (v: number): string =>
+  v < 30
+    ? 'Critical'
+    : v < 45
+      ? 'Guarded'
+      : v < 60
+        ? 'Balanced'
+        : v < 80
+          ? 'Encouraging'
+          : 'Glowing';
+
+/** The draft's tone (§13.6): where the domain put it, with the sentences behind it. */
+function Tone({
+  position,
+  counts,
+}: {
+  readonly position: number;
+  readonly counts: NonNullable<Reads['sentiment']>['counts'];
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-2">
+      <Slider
+        variant="meter"
+        label="Tone of your draft"
+        value={[position]}
+        knob={(v) => FACES[Math.min(4, Math.floor(v / 20))]}
+        tip={toneWord}
+        labels={['Critical', 'Balanced', 'Encouraging']}
+      />
+      <p className="text-sm text-fg-muted">
+        {[
+          counts.positive > 0 ? `${String(counts.positive)} encouraging` : '',
+          counts.neutral > 0 ? `${String(counts.neutral)} neutral` : '',
+          counts.negative > 0 ? `${String(counts.negative)} critical` : '',
+        ]
+          .filter((x) => x !== '')
+          .join(' · ')}
+        {' sentences'}
+      </p>
+    </div>
+  );
+}
+
+/** Required questions answered, at the top and centre: the count springs as it moves. */
+function AnswerProgress({
+  done,
+  total,
+}: {
+  readonly done: number;
+  readonly total: number;
+}): JSX.Element {
+  const complete = total > 0 && done >= total;
+  return (
+    <div className="flex w-full flex-col items-center gap-1.5 md:w-72">
+      <span className="flex items-center gap-1.5 text-sm font-medium" aria-live="polite">
+        {complete ? (
+          <icons.success aria-hidden className="size-4 text-success motion-safe:animate-pop-in" />
+        ) : null}
+        <span key={done} className="tabular-nums motion-safe:animate-pop-in">
+          {total === 0
+            ? 'No required questions'
+            : complete
+              ? 'Every required question answered'
+              : `${String(done)} of ${String(total)} required answered`}
+        </span>
+      </span>
+      <Progress
+        className="w-full"
+        tone={complete ? 'success' : 'accent'}
+        value={total === 0 ? 100 : Math.round((done / total) * 100)}
+        label="Required questions answered"
+      />
     </div>
   );
 }

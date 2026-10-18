@@ -1,7 +1,8 @@
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RichTextContent } from './rich-text';
+import { RichTextEditorBody } from './rich-text-editor';
 import { RichTextFrame } from './rich-text-frame';
 
 afterEach(() => {
@@ -50,5 +51,20 @@ describe('<RichTextFrame> counter', () => {
     expect(getByText('1 word')).toBeInTheDocument();
     rerender(<RichTextFrame label="Strengths" showCount used={21} words={4} />);
     expect(getByText('21 characters')).toBeInTheDocument();
+  });
+});
+
+describe('<RichTextEditor> value', () => {
+  // A draft written elsewhere (an AI prefill, a newer revision) arrives as a
+  // new value after mount; the editor has to show it, not its first one.
+  it('follows a value changed from outside', async () => {
+    const { container, rerender } = render(<RichTextEditorBody label="Strengths" value="" />);
+    await waitFor(() => {
+      expect(container.querySelector('.ProseMirror')).not.toBeNull();
+    });
+    rerender(<RichTextEditorBody label="Strengths" value="<p>Ships on time.</p>" />);
+    await waitFor(() => {
+      expect(container.querySelector('.ProseMirror')).toHaveTextContent('Ships on time.');
+    });
   });
 });

@@ -46,14 +46,88 @@ export interface SliderProps extends ComponentPropsWithoutRef<typeof SliderPrimi
    * small set of discrete steps, alongside `showTicks`.
    */
   labels?: readonly ReactNode[];
-  /** `confirm`: slide to the end to confirm. `label` is printed in the track. */
-  variant?: 'default' | 'confirm';
+  /**
+   * `confirm`: slide to the end to confirm. `label` is printed in the track.
+   * `meter`: a reading, not an input — a `meter` on a track running from
+   * danger through warning to success, its knob gliding to the value when it
+   * changes. Takes `value`, `knob`, `tip` and `labels`.
+   */
+  variant?: 'default' | 'confirm' | 'meter';
+  /** Meter: what the knob carries, a glyph or a face for the value. */
+  knob?: (value: number) => ReactNode;
   /** Confirm: called when the knob reaches the end, or a confirming key is pressed. */
   onConfirm?: () => void;
 }
 
 const CONFIRM_KEYS = new Set(['Enter', ' ', 'End', 'ArrowRight', 'ArrowUp', 'PageUp']);
 const IGNORED_KEYS = new Set(['ArrowLeft', 'ArrowDown', 'PageDown', 'Home']);
+
+function MeterSlider({
+  label,
+  value,
+  min,
+  max,
+  knob,
+  tip,
+  labels,
+  className,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  knob: ((value: number) => ReactNode) | undefined;
+  tip: SliderProps['tip'];
+  labels: SliderProps['labels'];
+  className: string | undefined;
+}): JSX.Element {
+  const percent = max === min ? 0 : Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  const shown = typeof tip === 'function' ? tip(value) : tip ? value : null;
+  return (
+    <div className={cn('w-full', tip && 'pt-9', className)}>
+      <div
+        role="meter"
+        aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={typeof shown === 'string' ? shown : undefined}
+        className="relative flex h-9 items-center"
+      >
+        <span
+          aria-hidden
+          className="h-2 w-full rounded-full bg-linear-to-r from-danger via-warning to-success opacity-80"
+        />
+        <span
+          aria-hidden
+          className={cn(
+            'absolute top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-surface text-xl leading-none',
+            'shadow-[0_2px_8px_oklch(0%_0_0/0.25),0_0_0_0.5px_oklch(0%_0_0/0.12)]',
+            'motion-safe:transition-[left] motion-safe:duration-(--animate-duration-spring-move) motion-safe:ease-spring-move',
+          )}
+          style={{ left: `${String(percent)}%` }}
+        >
+          {knob?.(value)}
+          {shown === null ? null : (
+            <span className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 rounded-[0.5rem] bg-invert px-2 py-1 text-xs leading-none font-semibold whitespace-nowrap text-fg-on-invert tabular-nums">
+              {shown}
+            </span>
+          )}
+        </span>
+      </div>
+      {labels && labels.length > 0 ? (
+        <div
+          aria-hidden
+          className="mt-2 flex justify-between text-xs leading-none font-medium text-fg-subtle"
+        >
+          {labels.map((item, i) => (
+            <span key={i}>{item}</span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ConfirmSlider({
   label,
@@ -142,6 +216,7 @@ export function Slider({
   labels,
   variant = 'default',
   onConfirm,
+  knob,
   min = 0,
   max = 100,
   step = 1,
@@ -153,6 +228,20 @@ export function Slider({
         label={label}
         onConfirm={onConfirm}
         disabled={props.disabled}
+        className={className}
+      />
+    );
+  }
+  if (variant === 'meter') {
+    return (
+      <MeterSlider
+        label={label}
+        value={props.value?.[0] ?? props.defaultValue?.[0] ?? min}
+        min={min}
+        max={max}
+        knob={knob}
+        tip={tip}
+        labels={labels}
         className={className}
       />
     );

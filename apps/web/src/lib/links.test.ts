@@ -38,6 +38,8 @@ describe('inAppHref', () => {
     expect(inAppHref(clickOn(link, { button: 1 }), ORIGIN)).toBeNull();
     expect(inAppHref(clickOn('<a data-target href="/f.csv" download>F</a>'), ORIGIN)).toBeNull();
     expect(inAppHref(clickOn('<a data-target href="/p" target="_blank">P</a>'), ORIGIN)).toBeNull();
+    // A place on this page: the browser's, and the click's own handler's.
+    expect(inAppHref(clickOn('<a data-target href="#changes">C</a>'), ORIGIN)).toBeNull();
     expect(
       inAppHref(clickOn('<a data-target href="https://files.example/x">X</a>'), ORIGIN),
     ).toBeNull();

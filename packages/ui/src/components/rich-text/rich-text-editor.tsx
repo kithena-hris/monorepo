@@ -275,6 +275,17 @@ export function RichTextEditorBody(props: RichTextEditorProps): JSX.Element {
     editor?.setEditable(!readOnly && !disabled);
   }, [editor, readOnly, disabled]);
 
+  // `content` is read once, at creation. A value that changes from outside
+  // (a draft written elsewhere, a newer revision loaded) is pushed in; one
+  // that is only this editor's own last `onChange` coming back is equal and
+  // left alone, and nothing is pushed while somebody is typing in it, so the
+  // cursor never jumps.
+  useEffect(() => {
+    if (editor === null || editor.isDestroyed || editor.isFocused || value === editor.getHTML())
+      return;
+    editor.commands.setContent(value, { emitUpdate: false });
+  }, [editor, value]);
+
   /*
    * No cast: `@tiptap/extensions` augments Tiptap's `Storage` interface with
    * `characterCount`, so the type is already correct and the old assertion was

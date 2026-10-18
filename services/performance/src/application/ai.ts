@@ -10,7 +10,7 @@ import { isSubmitted, standing } from '../domain/review.js';
 import { audit, forbidden, hrOnly, names, notFound, type Ctx } from './context.js';
 import { metric, COHORT } from './analytics.js';
 import { formOf } from './forms.js';
-import { people } from './members.js';
+import { people, subtitle } from './members.js';
 import { load } from './reviews.js';
 import { aiOn, settingsOf, type AiFeature } from './settings.js';
 
@@ -178,42 +178,43 @@ async function evidence(ctx: Ctx, reviewId: string) {
   const name = await names(ctx);
   const sources: { id: string; label: string; text: string }[] = [];
   const peers = new Map<string, string>();
-  if (r.cycleId !== null)
-    for (const x of await ctx.tx.reviews.find({ cycleId: r.cycleId, subjectId: r.subjectId })) {
-      if (x.id === r.id || !isSubmitted(x) || x.detached !== null) continue;
-      if (r.kind !== 'manager' && !(x.kind === 'self' && r.authorId === r.subjectId)) continue;
-      const form = await formOf(ctx, x);
-      if (form === null) continue;
-      const who =
-        x.confidential || x.kind === 'peer' || x.kind === 'upward'
-          ? (peers.get(x.authorId) ??
-            `${x.kind === 'upward' ? 'Report' : 'Peer'} ${String(peers.size + 1)}`)
-          : name(x.authorId);
-      peers.set(x.authorId, who);
-      const a = standing(x);
-      const text = form.sections
-        .flatMap((s) => s.questions)
-        .map((q) => {
-          const v = a[q.id]?.value;
-          if (v === undefined || v === null) return null;
-          const shown =
-            q.type === 'scale'
-              ? (q.options.find((o) => o.value === v)?.label ?? String(v))
-              : typeof v === 'string'
-                ? plainText(v)
-                : Array.isArray(v)
-                  ? v.join(', ')
-                  : String(v);
-          return `${q.prompt}: ${shown}`;
-        })
-        .filter((l): l is string => l !== null)
-        .join('\n');
-      sources.push({
-        id: `r${String(sources.length + 1)}`,
-        label: `${who}, ${x.kind} review`,
-        text,
-      });
-    }
+  // Every submitted review about the person, this cycle's and earlier ones':
+  // the year before is evidence too, read under the same rule.
+  for (const x of await ctx.tx.reviews.find({ subjectId: r.subjectId })) {
+    if (x.id === r.id || !isSubmitted(x) || x.detached !== null) continue;
+    if (r.kind !== 'manager' && !(x.kind === 'self' && r.authorId === r.subjectId)) continue;
+    const form = await formOf(ctx, x);
+    if (form === null) continue;
+    const who =
+      x.confidential || x.kind === 'peer' || x.kind === 'upward'
+        ? (peers.get(x.authorId) ??
+          `${x.kind === 'upward' ? 'Report' : 'Peer'} ${String(peers.size + 1)}`)
+        : name(x.authorId);
+    peers.set(x.authorId, who);
+    const a = standing(x);
+    const text = form.sections
+      .flatMap((s) => s.questions)
+      .map((q) => {
+        const v = a[q.id]?.value;
+        if (v === undefined || v === null) return null;
+        const shown =
+          q.type === 'scale'
+            ? (q.options.find((o) => o.value === v)?.label ?? String(v))
+            : typeof v === 'string'
+              ? plainText(v)
+              : Array.isArray(v)
+                ? v.join(', ')
+                : String(v);
+        return `${q.prompt}: ${shown}`;
+      })
+      .filter((l): l is string => l !== null)
+      .join('\n');
+    sources.push({
+      id: `r${String(sources.length + 1)}`,
+      label: `${who}, ${x.cycleId === r.cycleId ? '' : 'earlier '}${x.kind} review`,
+      text,
+    });
+  }
   for (const f of (await ctx.tx.feedback.find({ subjectId: r.subjectId }))
     .filter((f) => !f.undone && f.audience !== 'recipient')
     .slice(0, 20))
@@ -228,10 +229,12 @@ async function evidence(ctx: Ctx, reviewId: string) {
       label: `Goal: ${g.title}`,
       text: `${g.title}; check-ins: ${g.checkIns.map((c) => `${c.confidence}${c.note === null ? '' : ` (${c.note})`}`).join('; ')}`,
     });
+  const person = (await people(ctx)).find((p) => p.personId === r.subjectId);
   return ok({
     review: r,
     sources,
     subject: r.subjectId === ctx.viewer.personId ? 'you' : 'the person',
+    role: subtitle(person) || null,
   });
 }
 
@@ -337,10 +340,11 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
     ctx,
     'prefill',
     {
-      version: '1',
+      version: '2',
       instruction:
-        'Draft answers to this review form from the sources only. For text questions write 1–3 sentences citing source ids. ' +
-        'For scale, goals, choice, binary and number questions suggest a value with a one-line reason. ' +
+        'Draft an answer to every question of this review form. Ground each in the sources and cite their ids. ' +
+        'Where the sources say nothing about a question, or there are none, write what is typical of good work in this role by common industry standards, phrased as a draft for the writer to make specific, and cite nothing. ' +
+        'For text questions write 2–4 sentences. For scale, goals, choice, binary and number questions suggest a value with a one-line reason. ' +
         'Return JSON {"text":[{"questionId","text","cites"}],"values":[{"questionId","value","reason"}]}.',
       answer: Prefill,
     },
@@ -353,6 +357,7 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
       },
       sources: ev.value.sources,
       about: ev.value.subject,
+      role: ev.value.role,
     },
     { forPerson: r.subjectId, on: 'Prefill' },
   );
@@ -364,14 +369,14 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
   for (const t of got.value.answer.text) {
     const q = byId.get(t.questionId);
     const written = answers[q?.id ?? '']?.value;
-    // Empty as the editor leaves it (`<p></p>`) is empty; a source the model
-    // made up is dropped, not the whole answer — but one it was given must
-    // be cited, or nothing here came from the year's evidence.
+    // Empty as the editor leaves it (`<p></p>`) is empty. An answer citing
+    // nothing is the role's generic draft, kept and marked like any other;
+    // one citing only sources the model made up is dropped.
     if (
       q?.type !== 'text' ||
       (typeof written === 'string' && plainText(written).trim() !== '') ||
       t.text.trim() === '' ||
-      !t.cites.some((c) => known.has(c))
+      (t.cites.length > 0 && !t.cites.some((c) => known.has(c)))
     )
       continue;
     answers[q.id] = { value: `<p>${t.text.replaceAll('<', '&lt;')}</p>`, comment: null };
@@ -424,6 +429,8 @@ export async function howItReads(ctx: Ctx, reviewId: string): Promise<Result<unk
     .map((a) => (typeof a.value === 'string' ? plainText(a.value) : ''))
     .filter((t) => t !== '')
     .join('\n');
+  // Nothing written yet is nothing to read back, and no model is asked.
+  if (text.trim() === '') return ok({ reads: null, flags: [], sentiment: null });
   const got = await ask(
     ctx,
     'writingChecks',
@@ -438,7 +445,14 @@ export async function howItReads(ctx: Ctx, reviewId: string): Promise<Result<unk
     { forPerson: ev.value.review.subjectId, on: 'How it reads' },
   );
   if (!got.ok) return got;
-  return ok({ ...got.value.answer, logId: got.value.logId });
+  // The tone on the slider beside it, where Sentiment is on; without it the
+  // reading stands alone.
+  const feel = await sentiment(ctx, text, 'How it reads');
+  return ok({
+    ...got.value.answer,
+    sentiment: feel.ok ? feel.value : null,
+    logId: got.value.logId,
+  });
 }
 
 /** §12.5: tone check on feedback, advisory only. */

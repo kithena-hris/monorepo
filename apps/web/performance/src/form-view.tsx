@@ -336,8 +336,15 @@ export function QuestionBlock({
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-xs text-fg-muted">{number}</span>
+        {/* One mark: Required, turned red while it still has no answer. */}
         {q.required && q.type !== 'performance_score' ? (
-          <span className="text-xs text-fg-muted">Required</span>
+          isMissing ? (
+            <Badge size="sm" tone="danger">
+              Required
+            </Badge>
+          ) : (
+            <span className="text-xs text-fg-muted">Required</span>
+          )
         ) : null}
         {q.private ? (
           <Badge size="sm" tone="warning">
@@ -346,12 +353,7 @@ export function QuestionBlock({
         ) : null}
         {drafted?.includes(q.id) === true ? (
           <Badge size="sm" tone="accent">
-            Drafted by AI from cited text
-          </Badge>
-        ) : null}
-        {isMissing ? (
-          <Badge size="sm" tone="danger">
-            Needs an answer
+            Drafted by AI
           </Badge>
         ) : null}
       </div>

@@ -44,6 +44,10 @@ export function inAppHref(event: MouseEvent, origin: string): string | null {
 function inAppLink(target: EventTarget | null, origin: string): string | null {
   const link = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href]') : null;
   if (link === null || link.hasAttribute('download')) return null;
+  // `#section` is a place on this page, not another page: the browser scrolls
+  // to it. Pushed as a route it also overtook whatever navigation the link's
+  // own click had just started — a tab choosing `?tab=…` lost to its `#tab`.
+  if (link.getAttribute('href')?.startsWith('#') === true) return null;
   if (link.target !== '' && link.target !== '_self') return null;
   const url = new URL(link.href, origin);
   return url.origin === origin ? `${url.pathname}${url.search}${url.hash}` : null;
