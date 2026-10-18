@@ -341,18 +341,30 @@ async function firstLoad(page: Page, name: string, path: string, ready: Locator)
       ),
     ];
   });
-  let js = 0;
-  for (const url of scripts) {
-    const body = await (await page.request.get(url)).body();
-    js += gzipSync(body).length;
-  }
-  record(name, 'first load: LCP ms', perf.lcp, BUDGET.lcp);
-  record(name, 'first load: CLS', perf.cls, BUDGET.cls);
   const area = path.startsWith('/time-off')
     ? 'timeoff'
     : path.startsWith('/settings')
       ? 'settings'
       : 'people';
+  let js = 0;
+  const sizes: { url: string; kb: number }[] = [];
+  for (const url of scripts) {
+    const body = await (await page.request.get(url)).body();
+    const gz = gzipSync(body).length;
+    js += gz;
+    sizes.push({ url: new URL(url).pathname, kb: gz / 1024 });
+  }
+  // Every page says where its bytes are, its largest scripts, so a page that
+  // grows is compared with the last green run chunk by chunk, not guessed at.
+  process.stdout.write(
+    `${name}: the largest scripts\n${sizes
+      .toSorted((a, b) => b.kb - a.kb)
+      .slice(0, 15)
+      .map((x) => `  ${x.kb.toFixed(2).padStart(8)} KB  ${x.url}`)
+      .join('\n')}\n`,
+  );
+  record(name, 'first load: LCP ms', perf.lcp, BUDGET.lcp);
+  record(name, 'first load: CLS', perf.cls, BUDGET.cls);
   record(name, 'first load: JS KB (gzip)', js / 1024, JS_BUDGET_KB[area] ?? 520);
 }
 
