@@ -48,6 +48,9 @@ export default tseslint.config(
       // `public/` because a worker is fetched by URL and Next compiles nothing
       // there. `apps/web/src/lib/kiosk-sw.test.ts` runs it.
       'apps/web/public/kiosk-sw.js',
+      // The federation runtime the shell's build bundles for every remote
+      // (`apps/web/src/lib/mf-runtime.ts`): generated, minified, git-ignored.
+      'apps/web/public/_mf/**',
       // Conflict copies from whatever syncs this directory — `foo 2.ts` beside
       // `foo.ts`. Git ignores them; ESLint does not read `.gitignore`, so it
       // was reporting a parse error for a file nothing is meant to see.
