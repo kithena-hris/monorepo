@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  Chip,
   Dialog,
   DialogBody,
   DialogContent,
@@ -567,6 +568,134 @@ interface Write {
   };
   readonly may: { write: boolean; unlock: boolean; withdraw: boolean; decline: boolean };
   readonly scale?: readonly Option[];
+  /** The company's AI switches: `writingChecks` brings Rephrase. */
+  readonly ai?: Readonly<Record<string, boolean>>;
+}
+
+/** The tones an answer can be rephrased in, several at once (the server's `REPHRASE_TONES`). */
+const TONES = [
+  ['clearer', 'Clearer'],
+  ['concise', 'More concise'],
+  ['specific', 'More specific'],
+  ['warmer', 'Warmer'],
+  ['direct', 'More direct'],
+  ['formal', 'More formal'],
+  ['constructive', 'More constructive'],
+  ['confident', 'More confident'],
+] as const;
+
+/**
+ * Rephrase, as on the web: choose one tone or several, see the answer said
+ * again, then use it or try again. Nothing changes until Use this.
+ */
+function Rephrase({
+  reviewId,
+  text,
+  onUse,
+}: {
+  readonly reviewId: string;
+  readonly text: string;
+  readonly onUse: (html: string) => void;
+}): React.JSX.Element {
+  const signed = useSigned();
+  const [open, setOpen] = useState(false);
+  const [tones, setTones] = useState<readonly string[]>(['clearer']);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = (): void => {
+    setBusy(true);
+    setError(null);
+    void ask<{ html: string }>(
+      signed,
+      'RephrasePerformanceAnswer',
+      { id: reviewId, input: { html: html(text), tones } },
+      'performance',
+    ).then((r) => {
+      setBusy(false);
+      if (r.ok) setResult(r.data.html);
+      else setError(r.message);
+    });
+  };
+  const close = (): void => {
+    setOpen(false);
+    setResult(null);
+    setError(null);
+  };
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={text.trim() === ''}
+        onPress={() => {
+          setOpen(true);
+        }}
+      >
+        Rephrase
+      </Button>
+      {open ? (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) close();
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rephrase this answer</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <Text tone="muted">Choose one or more tones. The meaning and the lists stay.</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {TONES.map(([v, l]) => (
+                  <Chip
+                    key={v}
+                    selected={tones.includes(v)}
+                    onPress={() => {
+                      setTones((t) => (t.includes(v) ? t.filter((x) => x !== v) : [...t, v]));
+                    }}
+                  >
+                    {l}
+                  </Chip>
+                ))}
+              </View>
+              {result === null ? null : <Text>{plain(result)}</Text>}
+              {error === null ? null : <Alert tone="danger">{error}</Alert>}
+            </DialogBody>
+            <DialogFooter>
+              <Button onPress={close}>Cancel</Button>
+              {result === null ? (
+                <Button
+                  variant="primary"
+                  loading={busy}
+                  disabled={tones.length === 0}
+                  onPress={run}
+                >
+                  Rephrase
+                </Button>
+              ) : (
+                <>
+                  <Button loading={busy} disabled={tones.length === 0} onPress={run}>
+                    Try again
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onPress={() => {
+                      onUse(result);
+                      close();
+                    }}
+                  >
+                    Use this
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </>
+  );
 }
 
 /** PFM3, PFM3b, PFM3c: one question a screen, the evidence in a dialog, and submitting. */
@@ -740,16 +869,28 @@ function Writing({
       {!data.may.write ? (
         <Text>{typeof a?.value === 'string' ? plain(a.value) : String(a?.value ?? '—')}</Text>
       ) : q.type === 'text' ? (
-        <Textarea
-          accessibilityLabel={q.prompt}
-          value={text[q.id] ?? ''}
-          onChange={(v) => {
-            setText({ ...text, [q.id]: v });
-          }}
-          onBlur={() => {
-            save(q.id, html(text[q.id] ?? ''));
-          }}
-        />
+        <>
+          <Textarea
+            accessibilityLabel={q.prompt}
+            value={text[q.id] ?? ''}
+            onChange={(v) => {
+              setText({ ...text, [q.id]: v });
+            }}
+            onBlur={() => {
+              save(q.id, html(text[q.id] ?? ''));
+            }}
+          />
+          {data.ai?.['writingChecks'] === true ? (
+            <Rephrase
+              reviewId={data.review.id}
+              text={text[q.id] ?? ''}
+              onUse={(rephrased) => {
+                setText({ ...text, [q.id]: plain(rephrased) });
+                save(q.id, rephrased);
+              }}
+            />
+          ) : null}
+        </>
       ) : q.type === 'scale' || q.type === 'goals' ? (
         <RadioGroup
           accessibilityLabel={q.prompt}

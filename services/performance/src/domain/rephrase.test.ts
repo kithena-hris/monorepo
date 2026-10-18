@@ -81,3 +81,14 @@ describe('a rephrase', () => {
     expect(html).toBe('<p>Fine workhere</p>');
   });
 });
+
+describe('what a rephrase may give back', () => {
+  it('cannot be tricked into a tag by one assembled round a dropped one', () => {
+    const html = restored('<p><<span>script>x</p>', [], '<p>x</p>');
+    expect(html).toBe('<p>x</p>');
+  });
+
+  it('keeps a lone < as text', () => {
+    expect(restored('<p>a < b</p>', [], '<p>a b</p>')).toBe('<p>a &lt; b</p>');
+  });
+});

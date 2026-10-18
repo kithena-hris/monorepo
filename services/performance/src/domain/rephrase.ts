@@ -50,16 +50,28 @@ export function protectLinks(html: string): { text: string; links: string[] } {
   return { text, links };
 }
 
-/** Only the editor's own tags, bare: anything else the model wrote is dropped, its words kept. */
+/**
+ * Only the editor's own tags, bare: anything else the model wrote is dropped,
+ * its words kept. Dropped until nothing changes, so a tag cannot survive by
+ * being assembled from the pieces round one that was taken out; then any `<`
+ * left that does not open one of those bare tags is escaped as text.
+ */
 function keptTagsOnly(html: string): string {
-  return html.replaceAll(/<\/?([a-z0-9]+)\b[^>]*>/giu, (tag, name: string) => {
+  const one = (tag: string, name: string): string => {
     // <b> and <i> are the editor's <strong> and <em>, whichever the model wrote.
     const n =
       ({ b: 'strong', i: 'em' } as Record<string, string>)[name.toLowerCase()] ??
       name.toLowerCase();
     if (!KEPT_TAGS.has(n)) return '';
     return tag.startsWith('</') ? `</${n}>` : n === 'br' ? '<br>' : `<${n}>`;
-  });
+  };
+  let text = html;
+  for (let before = ''; before !== text;) {
+    before = text;
+    text = text.replaceAll(/<\/?([a-z0-9]+)\b[^>]*>/giu, one);
+  }
+  const bare = new RegExp(`^</?(${[...KEPT_TAGS].join('|')})>`, 'u');
+  return text.replaceAll(/</gu, (lt, at: number) => (bare.test(text.slice(at)) ? lt : '&lt;'));
 }
 
 const countOf = (html: string, tag: string): number =>
