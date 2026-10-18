@@ -68,7 +68,15 @@ import {
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
-import { addDays, planItem, planRows, resolveDue, type Plan } from './cycle-plan';
+import {
+  addDays,
+  planItem,
+  planRows,
+  resolveDue,
+  type Plan,
+  KIND_ORDER,
+  TONES,
+} from './cycle-plan';
 import { Loaded } from './load';
 import {
   CycleBadge,
@@ -2001,6 +2009,10 @@ export interface OverviewData {
   /** Where every review stands, overall and by department, least done first. */
   readonly insights?: {
     readonly status: Readonly<Record<'submitted' | 'overdue' | 'started' | 'waiting', number>>;
+    /** Each state's reviews by kind, for the donut's outer ring. */
+    readonly statusByKind?: Readonly<
+      Record<'submitted' | 'overdue' | 'started' | 'waiting', Readonly<Record<string, number>>>
+    >;
     readonly byDepartment: readonly {
       readonly department: string;
       readonly submitted: number;
@@ -2127,8 +2139,20 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
           .join(' · ')}
       >
         <DonutChart
-          label="Reviews by where they stand"
-          data={STANCES.map((x) => ({ label: x.label, value: got.status[x.key], tone: x.tone }))}
+          label="Reviews by where they stand, and by kind"
+          // Inside, where each review stands; around it, which kinds they are,
+          // each in its colour on the timeline below.
+          data={STANCES.map((x) => ({
+            label: x.label,
+            value: got.status[x.key],
+            tone: x.tone,
+            parts: KIND_ORDER.flatMap((k, i) => {
+              const n = got.statusByKind?.[x.key][k] ?? 0;
+              return n === 0
+                ? []
+                : [{ label: `${kindLabel(k)}s`, value: n, tone: TONES[i] ?? 'chart-1' }];
+            }),
+          }))}
           center={`${String(done)}%`}
           centerLabel="submitted"
           showLegend

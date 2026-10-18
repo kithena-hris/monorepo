@@ -182,3 +182,64 @@ export const Sizes: Story = {
     </div>
   ),
 };
+
+export const TwoRings: Story = {
+  name: 'Two rings: what each slice is made of',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Give a slice `parts` and they are drawn as an outer ring inside its arc: states on the inside, what each state is made of around it. A part keeps one colour wherever it appears, and its total is keyed under the legend. Hover any arc for its count and share.',
+      },
+    },
+  },
+  render: () => (
+    <ChartCard title="Where every review stands" className="max-w-xl">
+      <DonutChart
+        label="Reviews by state and kind"
+        center="38%"
+        centerLabel="submitted"
+        data={[
+          {
+            label: 'Submitted',
+            value: 38,
+            tone: 'success',
+            parts: [
+              { label: 'Self', value: 24 },
+              { label: 'Manager', value: 9 },
+              { label: 'Peer', value: 5 },
+            ],
+          },
+          {
+            label: 'In progress',
+            value: 22,
+            tone: 'accent',
+            parts: [
+              { label: 'Self', value: 10 },
+              { label: 'Manager', value: 8 },
+              { label: 'Peer', value: 4 },
+            ],
+          },
+          {
+            label: 'Not started',
+            value: 30,
+            tone: 'neutral',
+            parts: [
+              { label: 'Manager', value: 14 },
+              { label: 'Peer', value: 16 },
+            ],
+          },
+          {
+            label: 'Overdue',
+            value: 10,
+            tone: 'danger',
+            parts: [
+              { label: 'Self', value: 3 },
+              { label: 'Manager', value: 7 },
+            ],
+          },
+        ]}
+      />
+    </ChartCard>
+  ),
+};
