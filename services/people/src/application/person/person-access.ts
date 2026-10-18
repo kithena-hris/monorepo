@@ -1378,6 +1378,33 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return nextNumber(tx, tenantId, entity);
   }
 
+  /**
+   * Why `managerId` cannot be `personId`'s manager, or null when they can: not
+   * themselves, someone on the record, still with the company, and not
+   * reporting to them, however far down (walked up at most 32 steps).
+   */
+  async function managerRefused(
+    tx: Tx,
+    tenantId: string,
+    personId: string,
+    managerId: string,
+  ): Promise<DomainFailure | null> {
+    const refuse = (message: string) =>
+      failure('VALUE_INVALID', `manager_id: ${message}`, ['manager_id']);
+    if (managerId === personId) return refuse('somebody cannot be their own manager');
+    const chosen = await deps.reader.record(tx, tenantId, managerId, true);
+    if (chosen === null) return refuse('there is nobody by that id');
+    if (chosen.snapshot.status === 'terminated')
+      return refuse('they have left the company; choose someone who is still here');
+    let above: unknown = chosen.values['manager_id'];
+    for (let step = 0; step < 32 && typeof above === 'string'; step++) {
+      if (above === personId)
+        return refuse('they report to this person, so they cannot also be their manager');
+      above = (await deps.reader.record(tx, tenantId, above, true))?.values['manager_id'];
+    }
+    return null;
+  }
+
   async function update(
     tx: Tx,
     asking: Asking & {
@@ -1444,6 +1471,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }
       checks.push([definition, valid.value.check]);
       accepted.push([definition, valid.value.value]);
+    }
+    // A new manager, saved or sent for approval, is someone still here who is
+    // not the person and not below them: a line nobody can hold is refused.
+    const manager = [...accepted, ...heldBack].find(([d]) => d.key === 'manager_id')?.[1];
+    if (typeof manager === 'string') {
+      const refused = await managerRefused(tx, asking.tenantId, asking.personId, manager);
+      if (refused !== null) return err(refused);
     }
     const bypassed =
       mode.value === 'bypass' ? accepted.filter(([d]) => holds(d)).map(([d]) => d.key) : [];

@@ -81,7 +81,8 @@ export async function managerChanged(
       });
       taken.push({ cycleId: c.id, reviewId: r.id, authorId: r.authorId, change });
     }
-    if (input.managerId === null) continue;
+    // Nobody to write it, or someone who has left and never will.
+    if (input.managerId === null || isLeaver(await tx.members.get(input.managerId))) continue;
     const pin = c.snapshot?.pinned.manager;
     if (pin === undefined) continue;
     const before = theirs.find((r) => r.authorId === input.managerId);

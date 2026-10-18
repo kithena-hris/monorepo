@@ -773,13 +773,15 @@ describe('hiring', () => {
             ])
           : new Map(),
       };
-      return { store, people: personAccess({ ...store.deps, calendars: fixedCalendars(calendar) }) };
+      return {
+        store,
+        people: personAccess({ ...store.deps, calendars: fixedCalendars(calendar) }),
+      };
     };
     const hiredEntity = (store: ReturnType<typeof withEntities>['store']) =>
       (
         store.events.find((e) => e.eventName === 'people.person.hired')?.payload as
-          | { legalEntityId?: string | null }
-          | undefined
+          { legalEntityId?: string | null } | undefined
       )?.legalEntityId;
     const placedRows = (store: ReturnType<typeof withEntities>['store']) =>
       store.history
@@ -992,9 +994,9 @@ describe('Kithena support (decided 2026-09-29)', () => {
       userId: SUPPORT_ACCOUNT,
       onBehalfOf: OPERATOR,
     });
-    expect(store.events.every((e) => e.actor.kind === 'user' && e.actor.onBehalfOf === OPERATOR)).toBe(
-      true,
-    );
+    expect(
+      store.events.every((e) => e.actor.kind === 'user' && e.actor.onBehalfOf === OPERATOR),
+    ).toBe(true);
   });
 
   it('writes what the employee owns, as any administrator does (decided 2026-10-14)', async () => {
@@ -1284,5 +1286,44 @@ describe('searching the directory (PEO-117)', () => {
       search: 'Ada',
     });
     expect(page.ok ? 'allowed' : page.error.code).toBe('FILTER_WITH_AS_OF');
+  });
+});
+
+describe('a new manager', () => {
+  const GONE = '00000000-0000-4000-8000-0000000000a3';
+  const GRACE = '00000000-0000-4000-8000-0000000000a4';
+  const managerField = define({
+    key: 'manager_id',
+    dataType: 'person_ref',
+    typeConfig: { kind: 'person_ref' },
+    ownership: ['hr'],
+  });
+  function managers() {
+    const store = inMemoryPeople([versionOf(3, [salary, title, iban, phone, managerField])]);
+    store.seed(MARCO, { account: MARCO_ACCOUNT });
+    store.seed(ADA, { account: ADA_ACCOUNT, fields: { managerId: MARCO } });
+    store.seed(GONE, { status: 'terminated' });
+    store.seed(GRACE, {});
+    return personAccess(store.deps);
+  }
+  const moving = (personId: string, managerId: string) =>
+    managers().update(tx, { ...asking(hr), personId, changes: { manager_id: managerId } });
+  const why = async (personId: string, managerId: string) => {
+    const done = await moving(personId, managerId);
+    return done.ok ? null : done.error.message;
+  };
+
+  it('is someone still with the company', async () => {
+    expect(await why(ADA, GONE)).toMatch(/left the company/u);
+  });
+
+  it('is not the person themselves, nor anyone below them', async () => {
+    expect(await why(ADA, ADA)).toMatch(/their own manager/u);
+    // Ada reports to Marco: Marco cannot report to Ada.
+    expect(await why(MARCO, ADA)).toMatch(/report to this person/u);
+  });
+
+  it('is anyone else', async () => {
+    expect((await moving(ADA, GRACE)).ok).toBe(true);
   });
 });
