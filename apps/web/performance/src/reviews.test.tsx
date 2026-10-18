@@ -79,4 +79,73 @@ describe('<Write>', () => {
     );
     expect(await screen.findByText(/Saved .* revision 4/u)).toBeInTheDocument();
   });
+
+  // How it will read sits with the draft: a flag under the answer it is about,
+  // and the change it suggests, taken in one press and saved.
+  it('reads the draft and puts a suggestion in the sentence’s place', async () => {
+    const withText: WriteData = {
+      ...data,
+      form: {
+        ...data.form,
+        sections: [
+          {
+            id: 's1',
+            title: 'Results',
+            description: null,
+            questions: [
+              {
+                id: 't1',
+                type: 'text',
+                prompt: 'What went well?',
+                help: null,
+                required: false,
+                allowComment: false,
+                private: false,
+              },
+            ],
+          },
+        ],
+      },
+      answers: { t1: { value: '<p>She is bossy. Ships on time.</p>', comment: null } },
+      missing: [],
+      ai: { writingChecks: true },
+    };
+    const onAct = vi.fn((name: string) =>
+      Promise.resolve(
+        name === 'PerformanceHowItReads'
+          ? {
+              ok: true as const,
+              data: {
+                reads: 'Mostly warm, one word about the person.',
+                flags: [
+                  {
+                    sentence: 'She is bossy.',
+                    level: 'warning',
+                    title: 'About the person, not the work',
+                    suggestion: 'She sets direction firmly in planning.',
+                  },
+                ],
+                sentiment: { position: 62, counts: { positive: 1, negative: 1, neutral: 0 } },
+              },
+            }
+          : {
+              ok: true as const,
+              data: { revision: 4, savedAt: '2026-10-18T10:01:00.000Z', missing: [], score: null },
+            },
+      ),
+    );
+    render(<Write load={{ status: 'ready', data: withText }} onAct={onAct} />);
+    const use = await screen.findByRole('button', { name: 'Use suggestion' }, { timeout: 3000 });
+    fireEvent.click(use);
+    await waitFor(
+      () => {
+        const saved = onAct.mock.calls
+          .filter(([name]) => name === 'SavePerformanceAnswers')
+          .map((call) => JSON.stringify(call));
+        expect(saved.some((c) => c.includes('She sets direction firmly in planning.'))).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+    expect(screen.queryByRole('button', { name: 'Use suggestion' })).toBeNull();
+  });
 });

@@ -139,6 +139,8 @@ export interface FormViewProps {
   readonly missing?: readonly string[];
   /** One section at a time on a phone (design PFM3): the index shown, else all. */
   readonly only?: number;
+  /** Anything to say under a question's answer: how a sentence in it will read. */
+  readonly below?: (questionId: string) => ReactNode;
 }
 
 export function FormView(props: FormViewProps): JSX.Element {
@@ -186,6 +188,7 @@ export function QuestionBlock({
   subject,
   missing,
   scale = [],
+  below,
 }: FormViewProps & { readonly number: string; readonly question: Question }): JSX.Element {
   const a = answers[q.id];
   const s = suggestions?.[q.id];
@@ -379,6 +382,7 @@ export function QuestionBlock({
           )}
         </div>
       ) : null}
+      {below?.(q.id)}
       {q.allowComment ? (
         write ? (
           <Textarea

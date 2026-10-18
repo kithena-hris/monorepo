@@ -25,6 +25,9 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Slider,
   Spinner,
   Table,
@@ -477,8 +480,9 @@ function Writing({
   const [dialog, setDialog] = useState<'submit' | 'unlock' | 'decline' | null>(null);
   // Closed until asked for: the form is the page, the context is a reference.
   const [panelOpen, setPanelOpen] = useState(props.search?.['panel'] === 'open');
-  const aiHelp =
-    data.ai['summaries'] === true || (data.ai['writingChecks'] === true && data.may.write);
+  // The panel's AI help is the summary of what others said; how the draft
+  // reads lives with the draft itself, under its answers and at submit.
+  const aiHelp = data.ai['summaries'] === true;
   // AI help first where there is any: it fills itself, so it is the useful page.
   const [tab, setTab] = useState(aiHelp && props.search?.['tab'] !== 'context' ? 'ai' : 'context');
   const pending = useRef<Record<string, Answer>>({});
@@ -565,48 +569,112 @@ function Writing({
     sources: { id: string; label: string }[];
     dropped: number;
   } | null>(null);
-  const [reads, setReads] = useState<Reads | null>(null);
-  const [asking, setAsking] = useState({ summary: false, reads: false });
+  const [asking, setAsking] = useState({ summary: false });
   const [aiError, setAiError] = useState<string | null>(null);
   const writing = data.may.write;
-  // AI help fills itself once it is on screen: the summary once, the read-back
-  // of the draft again a few seconds after each save, never on a button.
-  const asked = useRef({ summary: false, reads: -1 });
+  // The panel's summary fills itself once it is on screen, never on a button.
+  const asked = useRef({ summary: false });
   const savedRevision = saving.state === 'saved' ? saving.revision : null;
   useEffect(() => {
     if (!panelOpen || tab !== 'ai') return;
     if (data.ai['summaries'] === true && !asked.current.summary) {
       asked.current.summary = true;
-      setAsking((a) => ({ ...a, summary: true }));
+      setAsking({ summary: true });
       void act.call('SummarisePerformanceReview', { id: data.review.id }).then((d) => {
-        setAsking((a) => ({ ...a, summary: false }));
+        setAsking({ summary: false });
         if (d.ok) setSummary(d.data as typeof summary);
         else setAiError(d.message);
       });
     }
-    if (
-      !writing ||
-      data.ai['writingChecks'] !== true ||
-      savedRevision === null ||
-      savedRevision === asked.current.reads
-    )
-      return;
+  }, [panelOpen, tab]);
+
+  /*
+   * How it will read to the subject (§13.7), kept with the draft: read again a
+   * few seconds after a save that changed its words, and at once on Retry or
+   * at Submit if the words moved since. A flag sits under the answer its
+   * sentence is in, with the change to make; only what is worth changing.
+   */
+  const checks = writing && data.ai['writingChecks'] === true;
+  const [reads, setReads] = useState<Reads | null>(null);
+  const [reading, setReading] = useState<'idle' | 'reading' | 'failed'>('idle');
+  const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
+  const [notFound, setNotFound] = useState<string | null>(null);
+  const readFor = useRef<string | null>(null);
+  const textQuestions = data.form.sections
+    .flatMap((x) => x.questions)
+    .filter((q) => q.type === 'text');
+  const wordsOf = (a: Answers): string =>
+    textQuestions
+      .map((q) => {
+        const v = a[q.id]?.value;
+        return typeof v === 'string' ? textOf(v) : '';
+      })
+      .join('\n')
+      .trim();
+  const readNow = (words: string): void => {
+    readFor.current = words;
+    setReading('reading');
+    void flush()
+      .then(() => act.call('PerformanceHowItReads', { id: data.review.id }))
+      .then((d) => {
+        if (d.ok) {
+          setReads(d.data as Reads);
+          setKept(new Set());
+          setReading('idle');
+        } else setReading('failed');
+      });
+  };
+  useEffect(() => {
+    if (!checks || savedRevision === null) return;
+    const words = wordsOf(answers);
+    if (words === '' || words === readFor.current) return;
     const later = setTimeout(
       () => {
-        asked.current.reads = savedRevision;
-        setAsking((a) => ({ ...a, reads: true }));
-        void act.call('PerformanceHowItReads', { id: data.review.id }).then((d) => {
-          setAsking((a) => ({ ...a, reads: false }));
-          if (d.ok) setReads(d.data as Reads);
-          else setAiError(d.message);
-        });
+        readNow(words);
       },
-      asked.current.reads === -1 ? 0 : 3000,
+      readFor.current === null ? 800 : 4000,
     );
     return () => {
       clearTimeout(later);
     };
-  }, [panelOpen, tab, savedRevision]);
+  }, [savedRevision]);
+  const fresh = reads !== null && readFor.current === wordsOf(answers);
+  // Worth changing only: a warning or worse, not set aside.
+  const flags = (reads?.flags ?? []).filter(
+    (f) => (f.level === 'danger' || f.level === 'warning') && !kept.has(f.sentence),
+  );
+  const whereIs = (f: Flag): string | null => {
+    const needle = squash(f.sentence);
+    return (
+      textQuestions.find((q) => {
+        const v = answers[q.id]?.value;
+        return typeof v === 'string' && squash(textOf(v)).includes(needle);
+      })?.id ?? null
+    );
+  };
+  const keep = (f: Flag): void => {
+    setKept((k) => new Set([...k, f.sentence]));
+  };
+  // The suggestion put in the sentence's place, in the answer it is in, and saved.
+  const takeSuggestion = (f: Flag): void => {
+    const q = whereIs(f);
+    const html = q === null ? null : answers[q]?.value;
+    const was = escapeHtml(f.sentence);
+    if (q === null || typeof html !== 'string' || f.suggestion === null || !html.includes(was)) {
+      setNotFound(f.sentence);
+      return;
+    }
+    setNotFound(null);
+    change(q, {
+      value: html.replace(was, escapeHtml(f.suggestion)),
+      comment: answers[q]?.comment ?? null,
+    });
+    keep(f);
+  };
+  const flagList = (list: readonly Flag[]): JSX.Element | null =>
+    list.length === 0 ? null : (
+      <ReadFlags flags={list} onUse={takeSuggestion} onKeep={keep} notFound={notFound} />
+    );
   const required = data.form.sections
     .flatMap((s) => s.questions)
     .filter((q) => q.required && q.type !== 'performance_score').length;
@@ -693,6 +761,17 @@ function Writing({
             </span>
             {unconfirmed.length > 0 ? (
               <Badge tone="accent">{`${plural(unconfirmed.length, 'suggestion')} to confirm`}</Badge>
+            ) : null}
+            {checks ? (
+              <ReadsChip
+                reads={reads}
+                reading={reading}
+                flags={flags.length}
+                subject={subject}
+                onRetry={() => {
+                  readNow(wordsOf(answers));
+                }}
+              />
             ) : null}
             <Button
               variant="ghost"
@@ -790,6 +869,9 @@ function Writing({
             subject={subject}
             missing={missing}
             {...(data.scale === undefined ? {} : { scale: data.scale })}
+            {...(checks
+              ? { below: (q: string) => flagList(flags.filter((f) => whereIs(f) === q)) }
+              : {})}
           />
         </div>
       </div>
@@ -878,50 +960,6 @@ function Writing({
                 </CardContent>
               </Card>
             ) : null}
-            {tab === 'ai' && data.ai['writingChecks'] === true && writing ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle level={3}>{`How it will read to ${subject}`}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  {reads === null ? (
-                    <Asking busy={asking.reads} what="Reading your draft…" error={aiError} />
-                  ) : reads.reads === null ? (
-                    <p className="text-sm text-fg-muted">
-                      {`Start writing and it is read back here as ${subject} will read it.`}
-                    </p>
-                  ) : (
-                    <>
-                      {reads.sentiment?.position === null || reads.sentiment === null ? null : (
-                        <Tone position={reads.sentiment.position} counts={reads.sentiment.counts} />
-                      )}
-                      <p
-                        className={
-                          asking.reads ? 'opacity-60 transition-opacity' : 'transition-opacity'
-                        }
-                      >
-                        {reads.reads}
-                      </p>
-                      {reads.flags.map((f) => (
-                        <Alert
-                          key={f.sentence}
-                          tone={
-                            f.level === 'danger'
-                              ? 'danger'
-                              : f.level === 'warning'
-                                ? 'warning'
-                                : 'info'
-                          }
-                          title={f.title}
-                        >
-                          {`“${f.sentence}”${f.suggestion === null ? '' : ` Try: ${f.suggestion}`}`}
-                        </Alert>
-                      ))}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            ) : null}
           </SheetBody>
         </SheetContent>
       </Sheet>
@@ -931,6 +969,21 @@ function Writing({
           answers={answers}
           missing={missing}
           score={currentScore}
+          flush={flush}
+          reads={
+            checks
+              ? {
+                  reads,
+                  reading,
+                  fresh,
+                  flags,
+                  onRead: () => {
+                    readNow(wordsOf(answers));
+                  },
+                  list: flagList,
+                }
+              : null
+          }
           onClose={() => {
             setDialog(null);
           }}
@@ -977,6 +1030,147 @@ interface Reads {
       readonly neutral: number;
     };
   } | null;
+}
+
+type Flag = Reads['flags'][number];
+
+/**
+ * An answer's words, as the reader sees them: tags dropped, entities read.
+ * Only ever compared with words, never put back as markup; the tags are
+ * stripped until none is left, so no tag can survive by being nested.
+ */
+const textOf = (html: string): string => {
+  let text = html.replaceAll(/<\/(p|li|h\d)>/gu, '\n');
+  for (let before = ''; before !== text;) {
+    before = text;
+    text = text.replaceAll(/<[^<>]*>/gu, '');
+  }
+  return text
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&amp;', '&');
+};
+const squash = (text: string): string => text.replaceAll(/\s+/gu, ' ').trim();
+const escapeHtml = (text: string): string =>
+  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+/** What is worth changing in a sentence, with the change itself one press away. */
+function ReadFlags({
+  flags,
+  onUse,
+  onKeep,
+  notFound,
+}: {
+  readonly flags: readonly Flag[];
+  readonly onUse: (f: Flag) => void;
+  readonly onKeep: (f: Flag) => void;
+  readonly notFound: string | null;
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-2">
+      {flags.map((f) => (
+        <Alert
+          key={f.sentence}
+          tone={f.level === 'danger' ? 'danger' : 'warning'}
+          title={f.title}
+          action={
+            <span className="flex flex-wrap gap-2">
+              {f.suggestion === null ? null : (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onUse(f);
+                  }}
+                >
+                  Use suggestion
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  onKeep(f);
+                }}
+              >
+                Keep as is
+              </Button>
+            </span>
+          }
+        >
+          <span className="flex flex-col gap-1">
+            <span>{`“${f.sentence}”`}</span>
+            {f.suggestion === null ? null : (
+              <span className="text-fg">{`Instead: “${f.suggestion}”`}</span>
+            )}
+            {notFound === f.sentence ? (
+              <span className="text-fg-muted">
+                That sentence has changed since it was read: edit it by hand.
+              </span>
+            ) : null}
+          </span>
+        </Alert>
+      ))}
+    </div>
+  );
+}
+
+/** The draft's tone in the bar that stays in view: open for the whole reading. */
+function ReadsChip({
+  reads,
+  reading,
+  flags,
+  subject,
+  onRetry,
+}: {
+  readonly reads: Reads | null;
+  readonly reading: 'idle' | 'reading' | 'failed';
+  readonly flags: number;
+  readonly subject: string;
+  readonly onRetry: () => void;
+}): JSX.Element | null {
+  if (reading === 'failed')
+    return (
+      <Button size="sm" variant="ghost" startIcon={<icons.refresh aria-hidden />} onClick={onRetry}>
+        Retry reading it
+      </Button>
+    );
+  if (reads === null || reads.reads === null)
+    return reading === 'reading' ? <Spinner size="sm" label="Reading your draft" /> : null;
+  const position = reads.sentiment?.position ?? null;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`How it will read to ${subject}`}
+          loading={reading === 'reading'}
+        >
+          {position === null
+            ? 'How it reads'
+            : `${FACES[Math.min(4, Math.floor(position / 20))] ?? ''} ${toneWord(position)}`}
+          {flags === 0 ? null : (
+            <Badge size="sm" tone="warning" className="ml-1.5">
+              {String(flags)}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="flex w-80 flex-col gap-3">
+        <p className="text-sm font-semibold">{`How it will read to ${subject}`}</p>
+        {position === null || reads.sentiment === null ? null : (
+          <Tone position={position} counts={reads.sentiment.counts} />
+        )}
+        <p className="text-sm">{reads.reads}</p>
+        {flags === 0 ? null : (
+          <p className="text-sm text-fg-muted">{`${plural(flags, 'suggestion')} under your answers.`}</p>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 /** An AI answer on its way, or why it did not come. */
@@ -1164,6 +1358,8 @@ function SubmitDialog({
   missing,
   score: s,
   onClose,
+  flush,
+  reads: check,
   ...props
 }: ScreenProps<WriteData> & {
   readonly data: WriteData;
@@ -1171,8 +1367,23 @@ function SubmitDialog({
   readonly missing: readonly string[];
   readonly score: Score | null;
   readonly onClose: () => void;
+  /** Saves what is pending, so a suggestion taken here is in what is submitted. */
+  readonly flush: () => Promise<void>;
+  /** How it will read, from the writer; null where the company has it off. */
+  readonly reads: {
+    readonly reads: Reads | null;
+    readonly reading: 'idle' | 'reading' | 'failed';
+    readonly fresh: boolean;
+    readonly flags: readonly Flag[];
+    readonly onRead: () => void;
+    readonly list: (flags: readonly Flag[]) => JSX.Element | null;
+  } | null;
 }): JSX.Element {
   const act = useAct(props);
+  // Read again on opening if the words moved since the last reading.
+  useEffect(() => {
+    if (check !== null && !check.fresh && check.reading !== 'reading') check.onRead();
+  }, []);
   const pending = Object.entries(data.suggestions).filter(([, x]) => !x.confirmed);
   const [confirmed, setConfirmed] = useState<string[]>([]);
   const [hideName, setHideName] = useState(true);
@@ -1196,17 +1407,19 @@ function SubmitDialog({
             disabled={missing.length > 0 || left > 0}
             loading={act.pending}
             onClick={() => {
-              act.run(
-                'SubmitPerformanceReview',
-                {
-                  id: data.review.id,
-                  input: {
-                    confidential: data.review.cycle?.names === 'writer' ? hideName : null,
-                    confirm: confirmed,
+              void flush().then(() => {
+                act.run(
+                  'SubmitPerformanceReview',
+                  {
+                    id: data.review.id,
+                    input: {
+                      confidential: data.review.cycle?.names === 'writer' ? hideName : null,
+                      confirm: confirmed,
+                    },
                   },
-                },
-                onClose,
-              );
+                  onClose,
+                );
+              });
             }}
           >
             {left > 0 ? `Confirm ${String(left)} more to submit` : 'Submit'}
@@ -1224,6 +1437,47 @@ function SubmitDialog({
         </Alert>
       ) : (
         <Alert tone="success" title="Every required question is answered" />
+      )}
+      {check === null ? null : (
+        // How it will read, last before it is sent: the tone always, a change
+        // only where one is worth making.
+        <div className="flex flex-col gap-2">
+          <p className="font-medium">{`How it will read to ${subject}`}</p>
+          {check.reading === 'reading' ? (
+            <Asking busy what="Reading your draft…" error={null} />
+          ) : check.reading === 'failed' ? (
+            <span className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+              It could not be read just now.
+              <Button
+                size="sm"
+                variant="secondary"
+                startIcon={<icons.refresh aria-hidden />}
+                onClick={check.onRead}
+              >
+                Retry
+              </Button>
+            </span>
+          ) : check.reads === null || check.reads.reads === null ? null : (
+            <>
+              {check.reads.sentiment === null || check.reads.sentiment.position === null ? null : (
+                <Tone
+                  position={check.reads.sentiment.position}
+                  counts={check.reads.sentiment.counts}
+                />
+              )}
+              {check.flags.length === 0 ? (
+                <p className="text-sm text-fg-muted">{check.reads.reads}</p>
+              ) : (
+                <>
+                  <p className="text-sm text-fg-muted">
+                    {`${plural(check.flags.length, 'change')} worth making before you submit:`}
+                  </p>
+                  {check.list(check.flags)}
+                </>
+              )}
+            </>
+          )}
+        </div>
       )}
       {pending.length === 0 ? null : (
         <div className="flex flex-col gap-2">
