@@ -152,21 +152,17 @@ export async function pickerView(
       limit: PICKER_PAGE,
     });
     if (!listed.ok) return listed;
+    // Said as the directory says them. A department is an org unit
+    // (`org_unit_id`), or a choice on a registry older than org units.
     const version = await deps.service.schemas.current(tx, asking.tenantId);
-    const department = version?.document.attributes.find((d) => d.key === 'department');
-    const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+    const defs = new Map((version?.document.attributes ?? []).map((d) => [d.key as string, d]));
+    const places = placeNames(await deps.calendars.load(tx, asking.tenantId));
     const about = (p: PersonView): string | null => {
-      const team = text(p.attributes['department']);
-      const parts = [
-        text(p.attributes['job_title']),
-        team === null || department === undefined
-          ? null
-          : department.typeConfig.kind === 'select'
-            ? (optionLabel(department, team) ?? team)
-            : department.typeConfig.kind === 'text'
-              ? team
-              : null,
-      ].filter((x): x is string => x !== null);
+      const parts = ['job_title', 'org_unit_id', 'department'].flatMap((key) => {
+        const d = defs.get(key);
+        const shown = d === undefined ? undefined : cellOf(d, p.attributes[key], new Map(), places);
+        return shown === undefined || shown === '' ? [] : [shown];
+      });
       return parts.length === 0 ? null : parts.join(' · ');
     };
     const people = new Map(listed.value.items.map((p) => [p.id, p]));

@@ -131,6 +131,7 @@ beforeAll(async () => {
         define({ key: 'pay_grade', requiresApproval: true }),
         define({ key: 'given_name' }),
         define({ key: 'family_name' }),
+        define({ key: 'department' }),
         define({ key: 'buddy', dataType: 'person_ref', typeConfig: { kind: 'person_ref' } }),
       ]),
       [],
@@ -277,6 +278,29 @@ describe('bulk edit (PEO-071)', () => {
     });
     expect(seen.body.rows[0]?.changes).toEqual([
       expect.objectContaining({ key: 'buddy', before: null, after: 'Marco Rossi' }),
+    ]);
+  });
+
+  it('tells two people apart in the picker by their title and department', async () => {
+    const set = await post(
+      '',
+      {
+        personIds: [MARCO],
+        values: {
+          given_name: 'Marco',
+          family_name: 'Rossi',
+          job_title: 'Engineer',
+          department: 'Platform',
+        },
+        effectiveFrom: ON,
+      },
+      hr,
+      'bulk-about',
+    );
+    expect(set.status).toBe(200);
+    const picked = await fetch(`${base}/v1/views/people-picker?search=Marco`, { headers: hr });
+    expect(((await picked.json()) as { options: unknown[] }).options).toEqual([
+      { value: MARCO, label: 'Marco Rossi', description: 'Engineer · Platform' },
     ]);
   });
 
