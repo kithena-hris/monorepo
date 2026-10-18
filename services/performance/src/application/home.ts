@@ -337,33 +337,73 @@ export async function connectedTools(ctx: Ctx): Promise<Result<unknown>> {
       source: s,
       on: grant?.sources[s]?.on ?? false,
       at: grant?.sources[s]?.at ?? null,
+      // Which tools can be linked here yet, and as whom each one is.
+      available: ctx.deps.tools?.[s] !== undefined,
+      account: grant?.sources[s]?.account ?? null,
+      install: ctx.deps.tools?.[s]?.install ?? null,
     })),
     reads: (grant?.reads ?? []).toReversed().slice(0, 20),
   });
 }
 
-/** One source, on or off, for this person alone (§22.3). Off stops reading at once and drops what was cached. */
+/**
+ * One source, on or off, for this person alone (§22.3). On with no account
+ * linked yet answers where to approve it; on with the tool's `code` and
+ * `state` finishes linking it. Off stops reading at once, gives the token back
+ * to the tool and drops what was recorded of its reads.
+ */
 export async function setGrant(
   ctx: Ctx,
   source: string,
   on: boolean,
-): Promise<Result<{ ok: true }>> {
+  link: { readonly code?: string; readonly state?: string; readonly origin?: string } = {},
+): Promise<Result<{ ok: true; link?: string; account?: string }>> {
   const who = me(ctx);
   if (!who.ok) return who;
   if (!(EVIDENCE_SOURCES as readonly string[]).includes(source))
     return err({ code: 'BAD_REQUEST', message: `No source ${source}` });
+  const tool = ctx.deps.tools?.[source];
+  if (on && tool === undefined)
+    return err({ code: 'BAD_REQUEST', message: 'That tool cannot be linked yet' });
+  if (on && (await settingsOf(ctx)).integrations.evidence[source] === false)
+    return err({ code: 'FORBIDDEN', message: 'Your company has not offered that tool' });
   const grant = (await ctx.tx.grants.get(who.value)) ?? { id: who.value, sources: {}, reads: [] };
+  const held = grant.sources[source];
+  const tenantId = ctx.caller.tenantId;
+  let account = held?.account ?? null;
+  let secret = held?.secret ?? null;
+  if (on && tool !== undefined && link.code !== undefined && link.state !== undefined) {
+    const done = await tool.complete({
+      tenantId,
+      personId: who.value,
+      code: link.code,
+      state: link.state,
+    });
+    if (!done.ok) return done;
+    ({ account, secret } = done.value);
+  } else if (on && tool !== undefined && account === null) {
+    // Not linked: approve it in the tool first; nothing is granted until then.
+    if (link.origin === undefined)
+      return err({ code: 'BAD_REQUEST', message: 'Where to come back to is missing' });
+    const asked = await tool.authorize({ tenantId, personId: who.value, origin: link.origin });
+    return asked.ok ? ok({ ok: true, link: asked.value.url }) : asked;
+  } else if (!on && tool !== undefined && account !== null) {
+    await tool.revoke({ tenantId, personId: who.value, secret });
+    account = null;
+    secret = null;
+  }
   await ctx.tx.grants.save({
     ...grant,
-    sources: { ...grant.sources, [source]: { on, at: ctx.at } },
+    sources: { ...grant.sources, [source]: { on, at: ctx.at, account, secret } },
     reads: on ? grant.reads : grant.reads.filter((r) => r.source !== source),
   });
-  await audit(ctx, { kind: 'tool',
+  await audit(ctx, {
+    kind: 'tool',
     action: on ? 'Granted a connected tool' : 'Revoked a connected tool',
     target: source,
     fields: ['grant'],
   });
-  return ok({ ok: true });
+  return ok({ ok: true, ...(account === null ? {} : { account }) });
 }
 
 /* ---------------------------------------------------- settings, S1–S10 -- */

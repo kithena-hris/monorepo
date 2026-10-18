@@ -32,7 +32,8 @@
         "im:write",
         "users:read",
         "users:read.email"
-      ]
+      ],
+      "user": ["search:read"]
     }
   },
   "settings": {

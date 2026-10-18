@@ -1447,6 +1447,8 @@ export interface ReleasedData {
     readonly released: string | null;
     readonly acknowledged: { readonly at: string; readonly comment: string | null } | null;
     readonly cycle: string | null;
+    /** The writer's tools an AI draft drew on, by name. */
+    readonly helpedBy?: readonly string[];
   };
   readonly definition: FormDefinition;
   readonly answers: Answers;
@@ -1478,7 +1480,7 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                 ? data.review.title
                 : `${data.review.title}, ${data.review.cycle}`
             }
-            description={`${data.review.by === null ? 'Names hidden' : `From ${data.review.by}`}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}`}
+            description={`${data.review.by === null ? 'Names hidden' : `From ${data.review.by}`}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}${(data.review.helpedBy ?? []).length === 0 ? '' : ` · Drafted with help from ${(data.review.helpedBy ?? []).join(' and ')}`}`}
             actions={
               <Button
                 variant="secondary"

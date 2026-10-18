@@ -11,6 +11,7 @@ import {
   type Slack,
   type Recruiting,
   type TimeOff,
+  USER_SCOPES,
 } from './service.js';
 import { memoryStore } from './store.js';
 
@@ -24,6 +25,8 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
   const acted: Record<string, unknown>[] = [];
   /** Every answer, by the call that carried it. */
   const said: { via: string; m: Record<string, unknown> }[] = [];
+  const revoked: string[] = [];
+  const searched: string[] = [];
   const slack: Slack = {
     emailOf: () => Promise.resolve('pam@acme.example'),
     userByEmail: (_t, email) => Promise.resolve(email === 'pam@acme.example' ? 'U1' : null),
@@ -53,7 +56,22 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     updateView: () => Promise.resolve(),
     exchangeCode: () =>
       Promise.resolve({ botToken: 'xoxb-new', teamId: 'T2', teamName: 'Acme', botUserId: 'B1' }),
-    revoke: () => Promise.resolve(),
+    revoke: (token) => {
+      revoked.push(token);
+      return Promise.resolve();
+    },
+    exchangeUserCode: ({ code }) =>
+      Promise.resolve({
+        userToken: 'xoxp-pam',
+        userId: 'U9',
+        teamId: code === 'elsewhere' ? 'T-OTHER' : 'T2',
+      }),
+    searchMessages: (_t, query) => {
+      searched.push(query);
+      return Promise.resolve([
+        { text: 'Shipped the export.', link: 'https://s/p1', ts: '1767225600', channel: '#eng' },
+      ]);
+    },
   };
   const asked: {
     tenantId: string;
@@ -123,12 +141,15 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       clientId: 'c',
       clientSecret: 's',
       redirectUri: 'https://auth/slack/done',
+      toolRedirectUri: 'https://auth/tools/slack/done',
       stateSecret: secret,
     },
   });
   return {
     store,
     service,
+    revoked,
+    searched,
     posted,
     replaced,
     acted,
@@ -552,5 +573,82 @@ describe('connecting', () => {
     };
     const url = new URL(world().service.authorizeUrl(TENANT, 'a', 'https://acme') ?? '');
     expect(url.searchParams.get('scope')?.split(',')).toEqual(manifest.oauth_config.scopes.bot);
+  });
+
+  describe('a person’s own Slack (Performance §22.3)', () => {
+    const PERSON = '33333333-3333-4333-8333-333333333333';
+    const connected = async () => {
+      const w = world();
+      await w.store.install({
+        tenantId: TENANT,
+        teamId: 'T2',
+        teamName: 'Acme',
+        botUserId: 'B1',
+        botToken: 'xoxb',
+        installedBy: null,
+        installedAt: '2026-10-01T00:00:00.000Z',
+      });
+      return w;
+    };
+
+    it('is linked only once the company has added Slack, with the user scope alone', async () => {
+      const bare = await world().service.toolAuthorizeUrl(TENANT, PERSON, 'https://acme');
+      expect(bare.ok).toBe(false);
+      const w = await connected();
+      const got = await w.service.toolAuthorizeUrl(TENANT, PERSON, 'https://acme');
+      const url = new URL(got.ok ? got.body.url : '');
+      expect(url.searchParams.get('user_scope')).toBe('search:read');
+      expect(url.searchParams.get('scope')).toBeNull();
+      expect(url.searchParams.get('redirect_uri')).toBe('https://auth/tools/slack/done');
+    });
+
+    it('keeps the token only for the person who started it, in the company’s workspace', async () => {
+      const w = await connected();
+      const state = signState(w.secret, { t: TENANT, a: PERSON, o: 'https://acme' }, 1_000);
+      const someoneElse = await w.service.toolComplete(TENANT, 'not-them', 'code', state);
+      expect(someoneElse.ok).toBe(false);
+      const otherWorkspace = await w.service.toolComplete(TENANT, PERSON, 'elsewhere', state);
+      expect(otherWorkspace.ok).toBe(false);
+      expect(w.revoked).toEqual(['xoxp-pam']);
+      const done = await w.service.toolComplete(TENANT, PERSON, 'code', state);
+      expect(done.ok ? done.body.account : '').toBe('U9');
+      expect((await w.store.personToken(TENANT, PERSON))?.token).toBe('xoxp-pam');
+    });
+
+    it('searches what the subject wrote in the period, as the person, and forgets on revoke', async () => {
+      const w = await connected();
+      const state = signState(w.secret, { t: TENANT, a: PERSON, o: 'https://acme' }, 1_000);
+      await w.service.toolComplete(TENANT, PERSON, 'code', state);
+      const found = await w.service.toolSearch(TENANT, PERSON, {
+        subjectEmail: 'pam@acme.example',
+        from: '2026-01-01',
+        to: '2026-06-30',
+      });
+      expect(w.searched).toEqual(['from:<@U1> after:2025-12-31 before:2026-07-01']);
+      expect(found.ok ? found.body.items : []).toEqual([
+        {
+          link: 'https://s/p1',
+          date: '2026-01-01',
+          kind: 'message',
+          text: 'In #eng: Shipped the export.',
+        },
+      ]);
+      await w.service.toolRevoke(TENANT, PERSON);
+      expect(await w.store.personToken(TENANT, PERSON)).toBeNull();
+      const after = await w.service.toolSearch(TENANT, PERSON, {
+        subjectEmail: 'pam@acme.example',
+        from: '2026-01-01',
+        to: '2026-06-30',
+      });
+      expect(after.ok).toBe(false);
+    });
+  });
+
+  it('asks a person for exactly the user scopes the manifest lists', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const manifest = JSON.parse(
+      await readFile(new URL('../manifest.json', import.meta.url), 'utf8'),
+    ) as { oauth_config: { scopes: { user: string[] } } };
+    expect([...USER_SCOPES]).toEqual(manifest.oauth_config.scopes.user);
   });
 });

@@ -86,7 +86,19 @@ export interface AiOutput {
 /** A person's grants to read their own work in connected tools (§22.3). */
 export interface Grant {
   readonly id: string;
-  readonly sources: Readonly<Record<string, { readonly on: boolean; readonly at: string }>>;
+  readonly sources: Readonly<
+    Record<
+      string,
+      {
+        readonly on: boolean;
+        readonly at: string;
+        /** Who they are in the tool, once linked: a Slack user id, a GitHub login. */
+        readonly account?: string | null;
+        /** What the tool's adapter keeps to read as them, sealed by it; null when the tool keeps it. */
+        readonly secret?: string | null;
+      }
+    >
+  >;
   readonly reads: readonly {
     readonly source: string;
     readonly at: string;
@@ -169,7 +181,10 @@ export interface Tx {
   readonly outbox: {
     publish(events: readonly PendingEvent[]): Promise<void>;
     /** What was written after `after`, oldest first, at most `limit`. */
-    since(after: { readonly at: string; readonly id: string }, limit: number): Promise<readonly Written[]>;
+    since(
+      after: { readonly at: string; readonly id: string },
+      limit: number,
+    ): Promise<readonly Written[]>;
   };
 }
 
@@ -258,12 +273,63 @@ export interface ChatButton {
 export interface Chat {
   send(
     tenantId: string,
-    message: { readonly email: string; readonly text: string; readonly buttons: readonly ChatButton[] },
+    message: {
+      readonly email: string;
+      readonly text: string;
+      readonly buttons: readonly ChatButton[];
+    },
   ): Promise<void>;
   /** A button's value, signed so that only Performance's own buttons run. */
   seal(press: ChatPress): string;
   /** A pressed value back, or null for one Performance did not sign. */
   open(value: string): ChatPress | null;
+}
+
+/** Something a person's tool holds about the subject in the period, for one request only (§23.1). */
+export interface EvidenceItem {
+  readonly link: string;
+  readonly date: string;
+  readonly kind: string;
+  readonly text: string;
+}
+
+/**
+ * A work tool a person links for themselves (§22.3, §23.1): one adapter per
+ * tool behind this port. The person approves it in the tool; every read is
+ * through their own token, about one subject and one period, and nothing
+ * read is kept.
+ */
+export interface ToolConnector {
+  /** Where the company installs the tool's app first, when it has one (GitHub's). */
+  readonly install?: string;
+  /** Where the person approves Kithena reading it, returning to `origin`. */
+  authorize(a: {
+    readonly tenantId: string;
+    readonly personId: string;
+    readonly origin: string;
+  }): Promise<Result<{ readonly url: string }>>;
+  /** They approved: who they are there, and what to keep to read as them. */
+  complete(a: {
+    readonly tenantId: string;
+    readonly personId: string;
+    readonly code: string;
+    readonly state: string;
+  }): Promise<Result<{ readonly account: string; readonly secret: string | null }>>;
+  /** What the subject did in the period, as the person can see it; a renewed secret to keep. */
+  search(a: {
+    readonly tenantId: string;
+    readonly personId: string;
+    readonly secret: string | null;
+    readonly subject: { readonly email: string | null; readonly account: string | null };
+    readonly from: string;
+    readonly to: string;
+  }): Promise<Result<{ readonly items: readonly EvidenceItem[]; readonly secret?: string | null }>>;
+  /** Turned off: the token given back to the tool. */
+  revoke(a: {
+    readonly tenantId: string;
+    readonly personId: string;
+    readonly secret: string | null;
+  }): Promise<void>;
 }
 
 export interface Deps {
@@ -275,4 +341,6 @@ export interface Deps {
   readonly model?: Model;
   readonly webhooks?: Webhooks;
   readonly chat?: Chat;
+  /** The tools a person may link, by source (`slack`, `github`); a tool without one is not offered. */
+  readonly tools?: Readonly<Partial<Record<string, ToolConnector>>>;
 }

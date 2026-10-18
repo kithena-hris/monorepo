@@ -861,6 +861,10 @@ jobs:
           # What every Performance webhook secret is derived from; unset, no
           # endpoint can be added.
           PERFORMANCE_WEBHOOK_KEY: ${{ secrets.PERFORMANCE_WEBHOOK_KEY }}
+          # The GitHub App a person links to read their own work (PRD §22.3); optional.
+          GITHUB_APP_CLIENT_ID: ${{ secrets.GITHUB_APP_CLIENT_ID }}
+          GITHUB_APP_CLIENT_SECRET: ${{ secrets.GITHUB_APP_CLIENT_SECRET }}
+          GITHUB_APP_SLUG: ${{ vars.GITHUB_APP_SLUG }}
           # The calendar integrations' credentials (TOF-110), each its own
           # secret so adding one never means rewriting TIMEOFF_ENV. Unset, the
           # integration is not offered. The Google key is the service
@@ -980,6 +984,11 @@ jobs:
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_PERFORMANCE_TOKEN=%s\n' "$MESSAGING_PERFORMANCE_TOKEN"
             fi
             if [ -n "$PERFORMANCE_WEBHOOK_KEY" ]; then printf 'PERFORMANCE_WEBHOOK_KEY=%s\n' "$PERFORMANCE_WEBHOOK_KEY"; fi
+            # GitHub, linked by each person for themselves; off until the app's pair is set.
+            if [ -n "$GITHUB_APP_CLIENT_ID" ] && [ -n "$GITHUB_APP_CLIENT_SECRET" ]; then
+              printf 'GITHUB_APP_CLIENT_ID=%s\nGITHUB_APP_CLIENT_SECRET=%s\nGITHUB_APP_SLUG=%s\nAUTH_ORIGIN=https://auth.app.kithena.com\n' \
+                "$GITHUB_APP_CLIENT_ID" "$GITHUB_APP_CLIENT_SECRET" "$GITHUB_APP_SLUG"
+            fi
             # The assistant answers questions about Performance over this pair.
             if [ -n "$ASSISTANT_PERFORMANCE_TOKEN" ]; then printf 'ASSISTANT_PERFORMANCE_TOKEN=%s\n' "$ASSISTANT_PERFORMANCE_TOKEN"; fi
             if [ -n "$SLACK_PERFORMANCE_TOKEN" ]; then printf 'SLACK_PERFORMANCE_TOKEN=%s\n' "$SLACK_PERFORMANCE_TOKEN"; fi

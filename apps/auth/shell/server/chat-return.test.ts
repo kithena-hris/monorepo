@@ -9,7 +9,21 @@ const back = (o: string, extra = '') =>
 describe('chatReturnTo', () => {
   it('passes the code and state on to the company’s own origin', () => {
     const to = chatReturnTo(back('https://acme.app.kithena.com'), 'auth.app.kithena.com');
-    expect(to).toMatch(/^https:\/\/acme\.app\.kithena\.com\/people\/chat\/slack\/done\?code=c1&state=/);
+    expect(to).toMatch(
+      /^https:\/\/acme\.app\.kithena\.com\/people\/chat\/slack\/done\?code=c1&state=/,
+    );
+  });
+
+  it('passes a person’s own tool link on to Performance on the company’s origin', () => {
+    const url = new URL(
+      `https://auth.app.kithena.com/tools/github/done?code=c1&state=${state('https://acme.app.kithena.com')}`,
+    );
+    expect(chatReturnTo(url, 'auth.app.kithena.com')).toMatch(
+      /^https:\/\/acme\.app\.kithena\.com\/performance\/tools\/github\/done\?code=c1&state=/,
+    );
+    expect(
+      chatReturnTo(new URL(url.toString().replace('/tools/', '/other/')), 'auth.app.kithena.com'),
+    ).toBe(null);
   });
 
   it('sends nobody anywhere but a company origin', () => {
@@ -24,7 +38,10 @@ describe('chatReturnTo', () => {
       expect(chatReturnTo(back(o), 'auth.app.kithena.com')).toBe(null);
     }
     expect(
-      chatReturnTo(new URL('https://auth.app.kithena.com/chat/slack/done?state=junk'), 'auth.app.kithena.com'),
+      chatReturnTo(
+        new URL('https://auth.app.kithena.com/chat/slack/done?state=junk'),
+        'auth.app.kithena.com',
+      ),
     ).toBe(null);
   });
 });

@@ -19,11 +19,23 @@ export interface Installation {
   readonly installedAt: string;
 }
 
+/** One person's own token, for reading what they can see (Performance §22.3). */
+export interface PersonToken {
+  readonly tenantId: string;
+  readonly personId: string;
+  readonly slackUserId: string;
+  readonly token: string;
+  readonly grantedAt: string;
+}
+
 export interface Store {
   companyOf(teamId: string): Promise<string | null>;
   installation(tenantId: string): Promise<Installation | null>;
   install(installation: Installation): Promise<void>;
   uninstall(tenantId: string): Promise<void>;
+  personToken(tenantId: string, personId: string): Promise<PersonToken | null>;
+  keepPersonToken(token: PersonToken): Promise<void>;
+  dropPersonToken(tenantId: string, personId: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -82,6 +94,36 @@ export function postgresStore(url: string, key: TokenKey): Store {
       inTenant(tenantId, async (tx) => {
         await tx`DELETE FROM slack.installation WHERE tenant_id = ${tenantId}`;
       }),
+    personToken: (tenantId, personId) =>
+      inTenant(tenantId, async (tx) => {
+        const [row] = await tx<{ slack_user_id: string; token: Buffer; granted_at: Date }[]>`
+          SELECT slack_user_id, token, granted_at FROM slack.person_token
+           WHERE tenant_id = ${tenantId} AND person_id = ${personId}`;
+        if (row === undefined) return null;
+        return {
+          tenantId,
+          personId,
+          slackUserId: row.slack_user_id,
+          token: unseal(key, row.token),
+          grantedAt: row.granted_at.toISOString(),
+        };
+      }),
+    keepPersonToken: (t) =>
+      inTenant(t.tenantId, async (tx) => {
+        await tx`
+          INSERT INTO slack.person_token
+            (tenant_id, person_id, slack_user_id, token, token_key_id, granted_at)
+          VALUES (${t.tenantId}, ${t.personId}, ${t.slackUserId}, ${seal(key, t.token)},
+                  ${key.id}, ${t.grantedAt})
+          ON CONFLICT (tenant_id, person_id) DO UPDATE SET
+            slack_user_id = EXCLUDED.slack_user_id, token = EXCLUDED.token,
+            token_key_id = EXCLUDED.token_key_id, granted_at = EXCLUDED.granted_at`;
+      }),
+    dropPersonToken: (tenantId, personId) =>
+      inTenant(tenantId, async (tx) => {
+        await tx`DELETE FROM slack.person_token
+                  WHERE tenant_id = ${tenantId} AND person_id = ${personId}`;
+      }),
     close: () => sql.end({ timeout: 5 }),
   };
 }
@@ -89,6 +131,7 @@ export function postgresStore(url: string, key: TokenKey): Store {
 /** Kept in memory: a developer's machine without the database, and the tests. */
 export function memoryStore(): Store {
   const installations = new Map<string, Installation>();
+  const people = new Map<string, PersonToken>();
   return {
     companyOf: (teamId) =>
       Promise.resolve(
@@ -101,6 +144,16 @@ export function memoryStore(): Store {
     },
     uninstall: (tenantId) => {
       installations.delete(tenantId);
+      return Promise.resolve();
+    },
+    personToken: (tenantId, personId) =>
+      Promise.resolve(people.get(`${tenantId}/${personId}`) ?? null),
+    keepPersonToken: (t) => {
+      people.set(`${t.tenantId}/${t.personId}`, t);
+      return Promise.resolve();
+    },
+    dropPersonToken: (tenantId, personId) => {
+      people.delete(`${tenantId}/${personId}`);
       return Promise.resolve();
     },
     close: () => Promise.resolve(),

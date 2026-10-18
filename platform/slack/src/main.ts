@@ -203,6 +203,7 @@ const service = slackService({
           clientId,
           clientSecret,
           redirectUri: new URL('/chat/slack/done', authOrigin).toString(),
+          toolRedirectUri: new URL('/tools/slack/done', authOrigin).toString(),
           // Its own key, derived from the client secret: nothing else signs with it.
           stateSecret: createHmac('sha256', clientSecret).update('kithena-slack-state').digest(),
         }
@@ -394,12 +395,58 @@ async function recruitingRoute(
   return { status: 202, body: { sent } };
 }
 
-/** Performance's one route: a message to a person, with its buttons. */
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A person's own Slack, for Performance (§22.3): link it, read what they can
+ * see about someone in a period, unlink it. Performance has checked the
+ * grant; this checks the state, the workspace and the token.
+ */
+async function toolsRoute(
+  pathname: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+  const tenantId = str(body['tenantId'], 36);
+  const personId = str(body['personId'], 36);
+  if (!tenantId || !personId) return { status: 400, body: {} };
+  const answer = <T>(done: { ok: true; body: T } | { ok: false; message: string }) =>
+    done.ok ? { status: 200, body: done.body } : { status: 422, body: { message: done.message } };
+  switch (pathname) {
+    case '/internal/performance/tools/authorize': {
+      const origin = str(body['origin'], 300);
+      if (!origin) return { status: 400, body: {} };
+      return answer(await service.toolAuthorizeUrl(tenantId, personId, origin));
+    }
+    case '/internal/performance/tools/complete': {
+      const code = str(body['code'], 500);
+      const state = str(body['state'], 2000);
+      if (!code || !state) return { status: 400, body: {} };
+      return answer(await service.toolComplete(tenantId, personId, code, state));
+    }
+    case '/internal/performance/tools/search': {
+      const subjectEmail = str(body['subjectEmail'], 320);
+      const from = str(body['from'], 10);
+      const to = str(body['to'], 10);
+      if (!subjectEmail || !from || !to || !DATE.test(from) || !DATE.test(to))
+        return { status: 400, body: {} };
+      return answer(await service.toolSearch(tenantId, personId, { subjectEmail, from, to }));
+    }
+    case '/internal/performance/tools/revoke':
+      await service.toolRevoke(tenantId, personId);
+      return { status: 200, body: {} };
+    default:
+      return { status: 404, body: {} };
+  }
+}
+
+/** Performance's routes: a message to a person, with its buttons; and a person's own Slack. */
 async function performanceRoute(
   request: IncomingMessage,
   pathname: string,
   body: Record<string, unknown>,
 ): Promise<{ status: number; body: unknown }> {
+  if (pathname.startsWith('/internal/performance/tools/') && request.method === 'POST')
+    return toolsRoute(pathname, body);
   if (pathname !== '/internal/performance/message' || request.method !== 'POST')
     return { status: 404, body: {} };
   const tenantId = str(body['tenantId'], 36);

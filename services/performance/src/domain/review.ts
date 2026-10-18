@@ -45,6 +45,8 @@ export interface Review {
   readonly suggestions: Readonly<Record<string, Suggestion>>;
   /** Text answers drafted by AI and not yet edited. */
   readonly drafted: readonly string[];
+  /** The writer's tools an AI draft drew on (§22.3): the subject is told which. */
+  readonly toolHelp?: readonly string[];
   readonly unlock: {
     readonly reason: string;
     readonly at: string;
