@@ -1,4 +1,4 @@
-import type { TimelineEntry, TimelineRow } from '@reach/ui';
+import type { ChartTone, TimelineEntry, TimelineRow } from '@reach/ui';
 
 /**
  * A cycle's calendar worked out in the browser, so a deadline or a reminder
@@ -41,28 +41,56 @@ export function resolveDue(p: Pick<Plan, 'start' | 'nominations'>, d: Deadline):
   return addDays(base, d.days ?? 0);
 }
 
-/** The days a review due on `due` is reminded, by the cycle's rules. */
-export function reminderDates(rules: readonly string[], start: string, due: string): string[] {
-  const out = new Set<string>();
+/** The days a review due on `due` is reminded, each with the rule that put it there. */
+export function reminders(
+  rules: readonly string[],
+  start: string,
+  due: string,
+): { readonly date: string; readonly rule: string }[] {
+  const out = new Map<string, string>();
+  const add = (date: string, rule: string): void => {
+    if (!out.has(date)) out.set(date, rule);
+  };
   for (const rule of rules) {
     const [kind, n] = rule.split(':');
     const every = Math.max(1, Number(n));
-    if (kind === 'opens') out.add(start);
-    else if (kind === 'on_day') out.add(due);
+    if (kind === 'opens') add(start, rule);
+    else if (kind === 'on_day') add(due, rule);
     else if (kind === 'before') {
       const day = addDays(due, -Number(n));
-      if (day >= start) out.add(day);
-    } else if (kind === 'late') for (let i = 1; i <= 3; i++) out.add(addDays(due, every * i));
+      if (day >= start) add(day, rule);
+    } else if (kind === 'late') for (let i = 1; i <= 3; i++) add(addDays(due, every * i), rule);
   }
-  return [...out].toSorted();
+  return [...out]
+    .map(([date, rule]) => ({ date, rule }))
+    .toSorted((a, b) => a.date.localeCompare(b.date));
 }
+
+/** The days a review due on `due` is reminded, by the cycle's rules. */
+export const reminderDates = (rules: readonly string[], start: string, due: string): string[] =>
+  reminders(rules, start, due).map((r) => r.date);
 
 const KIND_ORDER = ['self', 'manager', 'peer', 'upward', 'skip'] as const;
 const TONES = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5'] as const;
 
+/** What a mark on the plan is, from its id: the thing a drag or a menu changes. */
+export type PlanItem =
+  | { readonly what: 'open' | 'due'; readonly kind: string }
+  | { readonly what: 'remind'; readonly kind: string; readonly rule: string }
+  | { readonly what: 'nominations' | 'nominations-due' | 'release' };
+
+export function planItem(id: string): PlanItem | null {
+  if (id === 'nominations' || id === 'nominations-due' || id === 'release') return { what: id };
+  const remind = /^([a-z]+)-remind:([a-z_:0-9]+)@/u.exec(id);
+  if (remind !== null) return { what: 'remind', kind: remind[1] ?? '', rule: remind[2] ?? '' };
+  const bar = /^([a-z]+)-(open|due)$/u.exec(id);
+  return bar === null ? null : { what: bar[2] as 'open' | 'due', kind: bar[1] ?? '' };
+}
+
 /**
  * The whole cycle as lanes: a bar for each kind of review from when it opens
- * to its deadline, a pin on the deadline, and a pin on each reminder.
+ * to its deadline, and pins in the review's own colour: solid on the
+ * deadline, outlined on each reminder.
  */
 export function planRows(
   p: Plan,
@@ -75,7 +103,7 @@ export function planRows(
   if (nominationsClose !== null)
     rows.push({
       label: 'Nominations',
-      meta: 'Peers chosen',
+      meta: `Close ${date(nominationsClose)}`,
       items: [
         {
           id: 'nominations',
@@ -88,7 +116,7 @@ export function planRows(
           id: 'nominations-due',
           label: 'Nominations close',
           start: nominationsClose,
-          tone: 'danger',
+          tone: 'neutral',
         },
       ],
     });
@@ -96,24 +124,21 @@ export function planRows(
     const a = p.activities[k];
     if (a?.on !== true) return;
     const due = resolveDue(p, a.due);
+    const tone: ChartTone = TONES[i] ?? 'accent';
     const opens =
       a.due.from === 'nominations' && nominationsClose !== null ? nominationsClose : p.start.date;
     const items: TimelineEntry[] = [
-      {
-        id: `${k}-open`,
-        label: label(k),
-        start: opens,
-        end: due < opens ? opens : due,
-        tone: TONES[i] ?? 'accent',
-      },
-      { id: `${k}-due`, label: `${label(k)} due`, start: due, tone: 'danger' },
-      ...reminderDates(p.reminders.rules, opens, due)
-        .filter((d) => d !== due)
-        .map((d) => ({
-          id: `${k}-remind-${d}`,
+      { id: `${k}-open`, label: label(k), start: opens, end: due < opens ? opens : due, tone },
+      { id: `${k}-due`, label: `${label(k)} due`, start: due, tone },
+      ...reminders(p.reminders.rules, opens, due)
+        .filter((r) => r.date !== due)
+        .map((r) => ({
+          id: `${k}-remind:${r.rule}@${r.date}`,
           label: 'Reminder',
-          start: d,
-          tone: 'warning' as const,
+          start: r.date,
+          tone,
+          tentative: true,
+          locked: true,
         })),
     ];
     rows.push({ label: label(k), meta: `Due ${date(due)}`, items });

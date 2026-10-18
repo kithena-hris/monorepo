@@ -441,6 +441,12 @@ export interface DataTableProps<T extends TableRow> {
   onEndReached?: () => void;
   /** The next page is on its way: a skeleton row, in the rows' shape, sits under the last one. */
   loadingMore?: boolean;
+  /**
+   * Said under the last row once there is nothing more to load, so the end of
+   * a long list reads as the end and not as a page still coming: "That's
+   * everyone · 57 people". An infinite table says "End of the list" without it.
+   */
+  endLabel?: ReactNode;
 
   /** Drag handles on every row. Disabled while a sort is active. */
   reorderable?: boolean;
@@ -537,6 +543,7 @@ export function DataTable<T extends TableRow>({
   onColumnWidthsChange,
   onEndReached,
   loadingMore = false,
+  endLabel,
   reorderable = false,
   onReorder,
   describeRow,
@@ -1010,6 +1017,11 @@ export function DataTable<T extends TableRow>({
     if (infinite.current && added > 0) setSaid(`${String(added)} more loaded`);
   }, [rows.length]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
+  const atEnd =
+    rows.length > 0 &&
+    onEndReached === undefined &&
+    !loadingMore &&
+    (endLabel !== undefined || infinite.current);
   useEffect(() => {
     const el = scrollRef.current;
     if (el === null || !wantsEnd) return;
@@ -1109,7 +1121,9 @@ export function DataTable<T extends TableRow>({
       {...(virtualized
         ? {
             contentHeight:
-              headHeight + virtualizer.getTotalSize() + (loadingMore ? estimateRowHeight : 0),
+              headHeight +
+              virtualizer.getTotalSize() +
+              (loadingMore || atEnd ? estimateRowHeight : 0),
           }
         : {})}
     >
@@ -1352,6 +1366,22 @@ export function DataTable<T extends TableRow>({
                 />
               </TableCell>
             ))}
+          </TableRow>
+        ) : null}
+
+        {atEnd ? (
+          // The end, said: a rule either side of a quiet line, as tall as a row.
+          <TableRow
+            className="touch:block hover:bg-transparent"
+            style={{ height: estimateRowHeight }}
+          >
+            <TableCell colSpan={totalColumns} className="touch:block">
+              <span className="flex items-center gap-3 text-xs font-medium text-fg-subtle">
+                <span aria-hidden className="h-px flex-1 bg-[var(--reach-line)]" />
+                {endLabel ?? 'End of the list'}
+                <span aria-hidden className="h-px flex-1 bg-[var(--reach-line)]" />
+              </span>
+            </TableCell>
           </TableRow>
         ) : null}
       </TableBody>

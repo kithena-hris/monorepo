@@ -652,3 +652,30 @@ describe('<DataTable> pinned header and a virtualized body', () => {
     vi.restoreAllMocks();
   });
 });
+
+describe('<DataTable> end of the list', () => {
+  it('says the end once there is nothing more to load, and not while a page may come', () => {
+    const { rerender } = render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={() => undefined}
+      />,
+    );
+    expect(screen.queryByText('End of the list')).toBeNull();
+    rerender(<DataTable label="People" rows={people} columns={columns} rowId={(p) => p.id} />);
+    expect(screen.getByText('End of the list')).toBeInTheDocument();
+    rerender(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        endLabel="That’s everyone · 4 people"
+      />,
+    );
+    expect(screen.getByText('That’s everyone · 4 people')).toBeInTheDocument();
+  });
+});

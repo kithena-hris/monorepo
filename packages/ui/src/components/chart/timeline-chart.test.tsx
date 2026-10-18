@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TooltipProvider } from '../tooltip/tooltip';
 import { TimelineChart, type TimelineMove, type TimelineRow } from './timeline-chart';
 
 /** 2027 is 365 days; at 730px wide a day is 2px and a week 14px. */
@@ -99,5 +100,27 @@ describe('<TimelineChart variant="track">', () => {
     await press(bar, 'Space', 'ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowRight', 'Space');
     expect(onItemMove).not.toHaveBeenCalled();
     expect(onDrop).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }), false);
+  });
+});
+
+describe('<TimelineChart> item menu', () => {
+  it('opens what a bar offers on a right-click, and runs the one chosen', async () => {
+    const extend = vi.fn();
+    render(
+      <TooltipProvider>
+        <TimelineChart
+          label="Plan"
+          rows={rows}
+          itemActions={(item) =>
+            item.id === 'a' ? [{ id: 'extend', label: 'Extend it', onSelect: extend }] : []
+          }
+        />
+      </TooltipProvider>,
+    );
+    const bar = screen.getAllByLabelText(/2 weeks/u)[0];
+    if (bar === undefined) throw new Error('no bar');
+    fireEvent.contextMenu(bar);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Extend it' }));
+    expect(extend).toHaveBeenCalledOnce();
   });
 });

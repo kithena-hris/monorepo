@@ -30,6 +30,13 @@ import { cn } from '../../lib/cn';
 import { springEasing, springSettleTime, springs } from '../../lib/spring';
 import { useCoarsePointer, usePrefersReducedMotion } from '../../lib/use-media-query';
 import { addMonths, formatIsoDate, parseIsoDate, type IsoDate } from '../calendar/calendar';
+import type { RowAction } from '../../lib/shortcut-keys';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '../context-menu/context-menu';
 import { Tooltip } from '../tooltip/tooltip';
 import {
   ChartFrame,
@@ -223,6 +230,11 @@ export interface TimelineChartProps extends ChartInteractionProps {
   formatDate?: (iso: IsoDate) => string;
   onSelect?: (item: TimelineEntry, row: TimelineRow) => void;
   selectedId?: string;
+  /**
+   * What a right-click, a long-press or the keyboard's menu key on a bar or a
+   * mark offers: change it, remove it. None, no menu. Gantt only.
+   */
+  itemActions?: (item: TimelineEntry, row: TimelineRow) => readonly RowAction[];
 
   /**
    * Lets bars be dragged along the axis, resized by their ends, and dropped on
@@ -524,6 +536,7 @@ function TimelineGantt({
   formatDate = defaultDateFormat,
   onSelect,
   selectedId,
+  itemActions,
   editable = false,
   canMove,
   onItemMove,
@@ -1078,6 +1091,7 @@ function TimelineGantt({
                     <TimelineMark
                       key={item.id}
                       description={describe(row, item)}
+                      {...(itemActions === undefined ? {} : { actions: itemActions(item, row) })}
                       selectable={onSelect !== undefined || draggable}
                       elementRef={(element) => {
                         if (element) bars.current.set(item.id, element);
@@ -1137,6 +1151,7 @@ function TimelineGantt({
                   <TimelineMark
                     key={item.id}
                     description={describe(row, item)}
+                    {...(itemActions === undefined ? {} : { actions: itemActions(item, row) })}
                     selectable={onSelect !== undefined || draggable}
                     elementRef={(element) => {
                       if (element) bars.current.set(item.id, element);
@@ -1328,9 +1343,12 @@ function TimelineMark({
   children,
   elementRef,
   describedBy,
+  actions,
   ...handlers
 }: {
   description: string;
+  /** Its context menu; none, none. */
+  actions?: readonly RowAction[];
   selectable: boolean;
   onActivate: () => void;
   className: string;
@@ -1354,18 +1372,48 @@ function TimelineMark({
     ...handlers,
   };
 
+  const mark = selectable ? (
+    <button type="button" {...shared} onClick={onActivate}>
+      {children}
+    </button>
+  ) : (
+    <div role="img" tabIndex={0} {...shared}>
+      {children}
+    </div>
+  );
+  if (actions === undefined || actions.length === 0)
+    return (
+      <Tooltip content={description} side="top">
+        {mark}
+      </Tooltip>
+    );
   return (
-    <Tooltip content={description} side="top">
-      {selectable ? (
-        <button type="button" {...shared} onClick={onActivate}>
-          {children}
-        </button>
-      ) : (
-        <div role="img" tabIndex={0} {...shared}>
-          {children}
-        </div>
-      )}
-    </Tooltip>
+    <ContextMenu>
+      <Tooltip content={description} side="top">
+        {/* Its own menu, not the plot's zoom menu as well. */}
+        <ContextMenuTrigger
+          asChild
+          onContextMenu={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          {mark}
+        </ContextMenuTrigger>
+      </Tooltip>
+      <ContextMenuContent>
+        {actions.map((a) => (
+          <ContextMenuItem
+            key={a.id}
+            destructive={a.destructive === true}
+            disabled={a.disabled === true}
+            onSelect={a.onSelect}
+          >
+            {a.icon}
+            {a.label}
+          </ContextMenuItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
