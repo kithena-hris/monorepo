@@ -22,6 +22,7 @@ const acme: Tenant = {
     accentColor: null,
   },
   location: null,
+  googleSignIn: false,
 };
 
 describe('isLookupWorthwhile', () => {

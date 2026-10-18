@@ -1,6 +1,7 @@
 import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+import { appSignIn, bindCode } from '../../../lib/app-sign-in';
 import { RETURN_COOKIE, SESSION_COOKIE } from '../../../lib/session-cookie';
 
 /**
@@ -62,6 +63,23 @@ export async function GET(request: Request): Promise<Response> {
   const giveUp = seeOther('/signed-out');
 
   if (code === '' || tenantId === null || tenantId === '') return giveUp;
+
+  /*
+   * The phone app's Google sign-in (`lib/app-sign-in.ts`): the code goes on
+   * to the app, sealed to its challenge, and is not redeemed here — this sheet
+   * is not where the app lives. `api/mobile/session` redeems it, as it does a
+   * passkey's.
+   */
+  const query = new URL(request.url).searchParams;
+  const app = appSignIn(query.get('app') ?? undefined, query.get('challenge') ?? undefined);
+  if (app !== null) {
+    const to = new URL(app.redirect);
+    to.searchParams.set(
+      'code',
+      bindCode(code, app.challenge, process.env['INTERNAL_API_TOKEN'] ?? ''),
+    );
+    return new NextResponse(null, { status: 303, headers: { location: to.toString() } });
+  }
 
   const redeemed = await fetch(
     `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/handoff/redeem`,

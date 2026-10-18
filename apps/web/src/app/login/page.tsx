@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
-import { PageHeader } from '@reach/ui';
+import { Alert, PageHeader, Separator } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { CompanyPanel } from '../../components/company-panel';
+import { GoogleSignIn } from '../../components/google-sign-in';
 import { PasskeySignIn } from '../../components/passkey-sign-in';
 import { appSignIn } from '../../lib/app-sign-in';
 import { currentTenant } from '../../lib/branding';
@@ -80,11 +81,36 @@ export default async function Login({
             <PageHeader
               className="mt-1"
               title="Sign in"
-              description="Use the passkey on this device. There is no password to remember."
+              description={
+                tenant.googleSignIn
+                  ? 'Use the passkey on this device, or your work Google account. There is no password to remember.'
+                  : 'Use the passkey on this device. There is no password to remember.'
+              }
             />
           </div>
 
+          {/* Back from Google without a sign-in: the same words whatever the
+              reason, as a passkey's refusal is, because whether that Google
+              account was fine and simply has no account here is not the
+              asker's to learn. */}
+          {tenant.googleSignIn && one('error') === 'google' ? (
+            <Alert tone="danger" title="That Google account could not sign you in">
+              Choose the work Google account your HR team invited, or use your passkey.
+            </Alert>
+          ) : null}
+
           <PasskeySignIn app={app} />
+
+          {tenant.googleSignIn ? (
+            <>
+              <div className="flex items-center gap-3">
+                <Separator className="flex-1" />
+                <span className="text-fg-muted text-xs">or</span>
+                <Separator className="flex-1" />
+              </div>
+              <GoogleSignIn slug={tenant.slug} app={app} />
+            </>
+          ) : null}
         </main>
       </div>
     </div>

@@ -35,6 +35,7 @@ export interface CompanyDraft {
   readonly logoUrl: string | null;
   readonly coverImageUrl: string | null;
   readonly brandingPublic: boolean;
+  readonly googleSignIn: boolean;
   readonly address: {
     readonly country: string;
     readonly line1: string;
@@ -117,6 +118,7 @@ export function EditCompanyForm({
         read('logoUrl') !== (company.logoUrl ?? '') ||
         read('coverImageUrl') !== (company.coverImageUrl ?? '') ||
         (read('brandingPublic') !== '') !== company.brandingPublic ||
+        (read('googleSignIn') !== '') !== company.googleSignIn ||
         read('country') !== stored.country ||
         read('line1') !== stored.line1 ||
         read('line2') !== (stored.line2 ?? '') ||
@@ -130,6 +132,7 @@ export function EditCompanyForm({
   const [logoUrl, setLogoUrl] = useState(company.logoUrl);
   const [coverImageUrl, setCoverImageUrl] = useState(company.coverImageUrl);
   const [brandingPublic, setBrandingPublic] = useState(company.brandingPublic);
+  const [googleSignIn, setGoogleSignIn] = useState(company.googleSignIn);
   const [country, setCountry] = useState(stored.country);
   const [subdivision, setSubdivision] = useState(stored.subdivision ?? '');
 
@@ -147,6 +150,7 @@ export function EditCompanyForm({
     logoUrl,
     coverImageUrl,
     brandingPublic,
+    googleSignIn,
     country,
     subdivision,
   ]);
@@ -196,6 +200,7 @@ export function EditCompanyForm({
       <input type="hidden" name="logoUrl" value={logoUrl ?? ''} />
       <input type="hidden" name="coverImageUrl" value={coverImageUrl ?? ''} />
       <input type="hidden" name="brandingPublic" value={brandingPublic ? 'on' : ''} />
+      <input type="hidden" name="googleSignIn" value={googleSignIn ? 'on' : ''} />
       {/* `Combobox` is a listbox, not an `<input>`, so it submits nothing of its
           own. These carry its value into the action. */}
       <input type="hidden" name="country" value={country} />
@@ -254,6 +259,26 @@ export function EditCompanyForm({
               Turn this off for a company that does not want to be named on a page nobody has signed
               in to — mid-acquisition, or in a regulated matter. Their accent colour still applies,
               because it identifies nobody.
+            </FieldDescription>
+          </div>
+        </Field>
+      </Card>
+
+      <Card variant="outlined" padded className="flex flex-col gap-5">
+        <h2 className="text-sm font-medium">Signing in</h2>
+        <Field orientation="horizontal">
+          <Switch
+            id="googleSignIn"
+            checked={googleSignIn}
+            onCheckedChange={setGoogleSignIn}
+            className="mt-0.5 shrink-0"
+          />
+          <div>
+            <FieldLabel htmlFor="googleSignIn">Sign in with Google</FieldLabel>
+            <FieldDescription>
+              Beside the passkey, for a company on Google Workspace. Only a Workspace account whose
+              address is the person’s work address can sign in; an invited person who has not set up
+              a passkey is enrolled by their first Google sign-in.
             </FieldDescription>
           </div>
         </Field>

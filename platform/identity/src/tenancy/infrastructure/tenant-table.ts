@@ -21,6 +21,7 @@ export const tenant = platform.table('tenant', {
   themeId: text('theme_id'),
   accentColor: text('accent_color'),
   brandingPublic: boolean('branding_public').notNull(),
+  googleSignIn: boolean('google_sign_in').notNull(),
   // The registered address. Only the two parts a screen says out loud are
   // declared here: a person reads "London, United Kingdom", never a street.
   addressCity: text('address_city'),

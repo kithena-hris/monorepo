@@ -2,6 +2,7 @@ import { defineServerConfig } from '@modern-js/server-runtime';
 import type { MiddlewareHandler } from '@modern-js/server-runtime';
 
 import { chatReturn } from './chat-return';
+import { googleSignIn } from './google';
 
 /**
  * The auth origin's server half.
@@ -254,6 +255,7 @@ export default defineServerConfig({
     // by the prefix happening not to overlap.
     { name: 'chat-return', handler: chatReturn },
     { name: 'handoff-issuer', handler: handoffIssuer },
+    { name: 'google-sign-in', handler: googleSignIn },
     { name: 'identity-proxy', handler: identityProxy },
   ],
 });

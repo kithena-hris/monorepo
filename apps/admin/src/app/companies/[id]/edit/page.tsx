@@ -96,6 +96,7 @@ export default async function EditCompany({
           logoUrl: text('logoUrl'),
           coverImageUrl: text('coverImageUrl'),
           brandingPublic: text('brandingPublic') !== '',
+          googleSignIn: text('googleSignIn') !== '',
           ...(addressChanged ? { address } : {}),
         },
       },
@@ -121,10 +122,7 @@ export default async function EditCompany({
    * registry — so an operator sees what was actually stored rather than a form
    * still holding what they typed. `?saved=1` is what raises the toast there.
    */
-  async function saveAndReturn(
-    previous: EditResult | null,
-    form: FormData,
-  ): Promise<EditResult> {
+  async function saveAndReturn(previous: EditResult | null, form: FormData): Promise<EditResult> {
     'use server';
     const result = await save(previous, form);
     if (result.ok) {
@@ -165,6 +163,7 @@ export default async function EditCompany({
           logoUrl: company.logoUrl,
           coverImageUrl: company.coverImageUrl,
           brandingPublic: company.brandingPublic,
+          googleSignIn: company.googleSignIn,
           address: company.address,
         }}
       />

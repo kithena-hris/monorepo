@@ -29,6 +29,7 @@ export function drizzleTenantRepository(db: PostgresJsDatabase): TenantRepositor
           themeId: tenant.themeId,
           accentColor: tenant.accentColor,
           brandingPublic: tenant.brandingPublic,
+          googleSignIn: tenant.googleSignIn,
           addressCity: tenant.addressCity,
           addressCountry: tenant.addressCountry,
         })
@@ -53,6 +54,7 @@ export function drizzleTenantRepository(db: PostgresJsDatabase): TenantRepositor
           row.addressCity === null || row.addressCountry === null
             ? null
             : { city: row.addressCity, country: row.addressCountry },
+        googleSignIn: row.googleSignIn,
       } satisfies Tenant;
     },
   };

@@ -77,6 +77,13 @@ function routes(): Promise<RequestHandler> {
     authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',
     signingKey: process.env['AUTH_SIGNING_KEY'],
     allowInsecureOrigins: process.env['VERCEL_ENV'] !== 'production',
+    // Signing in with Google; unset, it is off at every company.
+    ...(process.env['GOOGLE_SIGN_IN_CLIENT_ID'] && process.env['GOOGLE_SIGN_IN_CLIENT_SECRET']
+      ? {
+          googleClientId: process.env['GOOGLE_SIGN_IN_CLIENT_ID'],
+          googleClientSecret: process.env['GOOGLE_SIGN_IN_CLIENT_SECRET'],
+        }
+      : {}),
     // Optional. Absent, invitations are not emailed and the enrolment link
     // comes back in the response only — a supported deployment, not a broken one.
     ...(process.env['MESSAGING_URL'] ? { messagingUrl: process.env['MESSAGING_URL'] } : {}),

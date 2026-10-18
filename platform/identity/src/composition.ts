@@ -40,11 +40,7 @@ import { startSupport } from './account/application/start-support.js';
 import { supportRoutes } from './account/http/support-routes.js';
 import { startViewAs } from './account/application/start-view-as.js';
 import { viewAsRoutes } from './account/http/view-as-routes.js';
-import {
-  beginViewAs,
-  closeViewAs,
-  viewerOf,
-} from './account/infrastructure/view-as-store.js';
+import { beginViewAs, closeViewAs, viewerOf } from './account/infrastructure/view-as-store.js';
 import { SUPPORT_AMR, supportAccountProfile } from './account/domain/support.js';
 import { admitOperatorSession } from './operator/domain/operator.js';
 import { asInstant } from './credential/infrastructure/drizzle-enrolment-token-store.js';
@@ -57,6 +53,14 @@ import { drizzleCredentialRepository } from './credential/infrastructure/drizzle
 import { simpleWebAuthnRelyingParty } from './credential/infrastructure/simplewebauthn-relying-party.js';
 import { postgresChallengeStore } from './credential/infrastructure/postgres-challenge-store.js';
 import { webauthnRoutes } from './credential/http/webauthn-routes.js';
+import type { Device } from './shared/device.js';
+import { googleRoutes } from './credential/http/google-routes.js';
+import { googleExchange } from './credential/infrastructure/google-oidc.js';
+import {
+  beginGoogleSignIn,
+  finishGoogleSignIn,
+  type GoogleSignInDeps,
+} from './credential/application/sign-in-with-google.js';
 import { completeEnrolment } from './credential/application/complete-enrolment.js';
 import { drizzleEnrolmentTokenStore } from './credential/infrastructure/drizzle-enrolment-token-store.js';
 import { enrolmentRoutes } from './credential/http/enrolment-routes.js';
@@ -153,6 +157,14 @@ export interface Config {
    * reports itself undelivered rather than pretending otherwise.
    */
   readonly messagingUrl?: string | undefined;
+  /**
+   * The OAuth client signing in with Google uses, its one redirect URI the
+   * auth origin's `/google/callback`. Unset: Google is off at every company.
+   */
+  readonly googleClientId?: string | undefined;
+  readonly googleClientSecret?: string | undefined;
+  /** Google's token endpoint and keys, stood in for by integration tests. */
+  readonly googleExchange?: GoogleSignInDeps['exchange'] | undefined;
   /**
    * The secret identity presents to the messaging service.
    *
@@ -695,7 +707,9 @@ export async function compose(config: Config): Promise<RequestHandler> {
     },
     settle: async (tenantId) => {
       try {
-        await inTenantTransaction(tenantId, (tx) => closeViewAs(tx, tenantId, systemClock.now(), null));
+        await inTenantTransaction(tenantId, (tx) =>
+          closeViewAs(tx, tenantId, systemClock.now(), null),
+        );
       } catch (error) {
         // Never a refused sign-in: the next session check closes it instead.
         logger.warn({ err: error, tenantId }, 'lapsed view-as sessions not closed');
@@ -850,7 +864,11 @@ export async function compose(config: Config): Promise<RequestHandler> {
         // Whoever People now calls an administrator administers every module.
         if (known && entitlement === 'module.people') {
           const spread = await spreadSuperAdministrators(modules)(tenantId);
-          if (spread.length > 0) logger.info({ tenantId, named: spread.length }, 'super administrators named everywhere');
+          if (spread.length > 0)
+            logger.info(
+              { tenantId, named: spread.length },
+              'super administrators named everywhere',
+            );
         }
         return known;
       }),
@@ -889,6 +907,50 @@ export async function compose(config: Config): Promise<RequestHandler> {
     internalToken: config.internalToken,
   });
 
+  /*
+   * Every company this person may sign into, across tenants.
+   *
+   * Through `platform.accounts_for_identity`, a SECURITY DEFINER function,
+   * because `platform.account` carries FORCE row-level security and this is
+   * the one question that legitimately spans tenants — asked before any
+   * tenant is known, which is exactly when there is no `app.tenant_id` for
+   * a policy to compare against. The migration explains why that is a
+   * function rather than a privilege on the service role.
+   */
+  const accountsForIdentity = async (identityId: string) => {
+    const rows = await db.execute(sql`
+      SELECT account_id, tenant_id, tenant_slug, work_email
+        FROM platform.accounts_for_identity(${identityId}::uuid)
+    `);
+    return [...rows].map((row) => ({
+      accountId: text(row['account_id']),
+      tenantId: text(row['tenant_id']),
+      tenantSlug: text(row['tenant_slug']),
+      workEmail: text(row['work_email']),
+    }));
+  };
+  const startSignedInSession = async (
+    tenantId: string,
+    accountId: string,
+    device: Device,
+    amr: readonly string[],
+  ) => {
+    const sessionId = uuidv7();
+    const started = await begin(
+      tenantId,
+      accountId,
+      { id: sessionId, device, amr },
+      context(accountId),
+    );
+    if (!started.ok) return started;
+
+    return ok({
+      sessionId,
+      accountId,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+  };
+
   const webauthn = webauthnRoutes({
     rp: relyingParty,
     challenges,
@@ -910,48 +972,153 @@ export async function compose(config: Config): Promise<RequestHandler> {
           logger.info({ reason, ...context }, 'passkey refused');
         },
       }),
-      /*
-       * Every company this person may sign into, across tenants.
-       *
-       * Through `platform.accounts_for_identity`, a SECURITY DEFINER function,
-       * because `platform.account` carries FORCE row-level security and this is
-       * the one question that legitimately spans tenants — asked before any
-       * tenant is known, which is exactly when there is no `app.tenant_id` for
-       * a policy to compare against. The migration explains why that is a
-       * function rather than a privilege on the service role.
-       */
-      accountsFor: async (identityId) => {
-        const rows = await db.execute(sql`
-          SELECT account_id, tenant_id, tenant_slug, work_email
-            FROM platform.accounts_for_identity(${identityId}::uuid)
-        `);
-        return [...rows].map((row) => ({
-          accountId: text(row['account_id']),
-          tenantId: text(row['tenant_id']),
-          tenantSlug: text(row['tenant_slug']),
-          workEmail: text(row['work_email']),
-        }));
-      },
-      beginSession: async (tenantId, accountId, device, amr) => {
-        const sessionId = uuidv7();
-        const started = await begin(
-          tenantId,
-          accountId,
-          { id: sessionId, device, amr },
-          context(accountId),
-        );
-        if (!started.ok) return started;
-
-        return ok({
-          sessionId,
-          accountId,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        });
-      },
+      accountsFor: accountsForIdentity,
+      beginSession: startSignedInSession,
       onRefusal: (reason) => {
         logger.info({ reason }, 'sign-in refused');
       },
     }),
+  });
+
+  /*
+   * Signing in with Google (`sign-in-with-google.ts`). Off everywhere until
+   * the client is configured, and then only at companies the back office has
+   * switched it on for.
+   */
+  const GOOGLE_ISSUER = 'https://accounts.google.com';
+  const googleRedirect = `${config.authOrigin.replace(/\/$/u, '')}/google/callback`;
+  const googleDeps: GoogleSignInDeps = {
+    clientId: config.googleClientId ?? '',
+    redirectUri: googleRedirect,
+    trips: {
+      issue: async (state, trip, ttlSeconds) => {
+        // Trips nobody came back from, cleared on the way out of the next.
+        await db.execute(sql`DELETE FROM platform.google_sign_in_state WHERE expires_at < now()`);
+        await db.execute(sql`
+          INSERT INTO platform.google_sign_in_state
+            (state, tenant_id, tenant_slug, verifier, nonce, app_redirect, app_challenge, expires_at)
+          VALUES (${state}, ${trip.tenantId}::uuid, ${trip.tenantSlug}, ${trip.verifier}, ${trip.nonce},
+                  ${trip.app?.redirect ?? null}, ${trip.app?.challenge ?? null},
+                  now() + make_interval(secs => ${ttlSeconds}))
+        `);
+      },
+      consume: async (state) => {
+        const rows = await db.execute(sql`
+          DELETE FROM platform.google_sign_in_state
+           WHERE state = ${state} AND expires_at > now()
+          RETURNING tenant_id, tenant_slug, verifier, nonce, app_redirect, app_challenge
+        `);
+        const row = [...rows][0];
+        if (!row) return null;
+        const redirect = textOrNull(row['app_redirect']);
+        const challenge = textOrNull(row['app_challenge']);
+        return {
+          tenantId: text(row['tenant_id']),
+          tenantSlug: text(row['tenant_slug']),
+          verifier: text(row['verifier']),
+          nonce: text(row['nonce']),
+          app: redirect === null || challenge === null ? null : { redirect, challenge },
+        };
+      },
+    },
+    tenantBySlug: async (slug) => {
+      if (!config.googleClientId || !config.googleClientSecret) return null;
+      const rows = await db.execute(sql`
+        SELECT id, slug FROM platform.tenant
+         WHERE slug = ${slug} AND status = 'active' AND google_sign_in
+      `);
+      const row = [...rows][0];
+      return row ? { id: text(row['id']), slug: text(row['slug']) } : null;
+    },
+    exchange:
+      config.googleExchange ??
+      googleExchange({
+        clientId: config.googleClientId ?? '',
+        clientSecret: config.googleClientSecret ?? '',
+        redirectUri: googleRedirect,
+      }),
+    linkedIdentity: async (sub) => {
+      const rows = await db.execute(sql`
+        SELECT identity_id FROM platform.credential
+         WHERE kind = 'federated' AND provider = ${GOOGLE_ISSUER}
+           AND external_id = ${sub} AND revoked_at IS NULL
+      `);
+      const value = [...rows][0]?.['identity_id'];
+      return typeof value === 'string' ? value : null;
+    },
+    accountsFor: accountsForIdentity,
+    /*
+     * The first sign-in: the account here with this work address, linked to
+     * the Google account, and enrolled if it was only invited — in one
+     * transaction, so a refusal (a start date not reached) leaves no link.
+     */
+    link: async (tenantId, google) => {
+      try {
+        return await inTenantTransaction(tenantId, async (tx) => {
+          const rows = await tx.execute(sql`
+            SELECT id, identity_id, status FROM platform.account
+             WHERE tenant_id = ${tenantId}::uuid AND lower(work_email) = ${google.email}
+               AND kind = 'member' AND status IN ('active', 'invited')
+          `);
+          const row = [...rows][0];
+          if (!row) return null;
+          const accountId = text(row['id']);
+
+          // A Google account already linked to somebody else stays theirs.
+          const linked = await tx.execute(sql`
+            INSERT INTO platform.credential (id, identity_id, kind, external_id, provider)
+            VALUES (${uuidv7()}::uuid, ${text(row['identity_id'])}::uuid, 'federated',
+                    ${google.sub}, ${GOOGLE_ISSUER})
+            ON CONFLICT (kind, provider, external_id) WHERE revoked_at IS NULL DO NOTHING
+            RETURNING id
+          `);
+          const credentialId = [...linked][0]?.['id'];
+          if (typeof credentialId !== 'string') return null;
+
+          if (row['status'] === 'invited') {
+            if (google.name !== null) await recordCapturedName(tx, accountId, google.name);
+            const snapshot = await accounts.load(tx, accountId);
+            if (!snapshot) return null;
+            const account = Account.rehydrate(snapshot);
+            const enrolled = account.enrol(
+              credentialId,
+              context(accountId),
+              google.name === null ? undefined : { name: google.name, mobilePresent: false },
+            );
+            if (!enrolled.ok) throw new EnrolmentRefused(enrolled.error.code);
+            await accounts.save(tx, account);
+          }
+          return accountId;
+        });
+      } catch (error) {
+        if (error instanceof EnrolmentRefused) {
+          logger.info({ reason: error.message }, 'google enrolment refused');
+          return null;
+        }
+        throw error;
+      }
+    },
+    beginSession: startSignedInSession,
+    handOff: async (tenantId, session) => {
+      const issued = await issueHandoff({ store: handoffStore, clock: systemClock })({
+        tenantId,
+        sessionId: session.sessionId,
+      });
+      if (issued.ok) return issued.value.code;
+      // Nobody will ever hold this session: give the device slot back.
+      await inTenantTransaction(tenantId, (tx) =>
+        tx.execute(sql`DELETE FROM platform.session WHERE id = ${session.sessionId}::uuid`),
+      );
+      return null;
+    },
+    onRefusal: (reason) => {
+      logger.info({ reason }, 'google sign-in refused');
+    },
+  };
+  const google = googleRoutes({
+    begin: beginGoogleSignIn(googleDeps),
+    finish: finishGoogleSignIn(googleDeps),
+    internalToken: config.internalToken,
   });
 
   /* ------------------------------------------------------------ back-office */
@@ -1591,7 +1758,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     tenantDetail: async (id) => {
       const rows = await db.execute(sql`
         SELECT id, slug, display_name, status, created_at, theme_id,
-               logo_url, cover_image_url, branding_public, entitlements,
+               logo_url, cover_image_url, branding_public, google_sign_in, entitlements,
                address_country, address_line1,
                address_line2, address_city, address_subdivision, address_postcode
           FROM platform.tenant
@@ -1651,6 +1818,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
         logoUrl: textOrNull(row['logo_url']),
         coverImageUrl: textOrNull(row['cover_image_url']),
         brandingPublic: row['branding_public'] !== false,
+        googleSignIn: row['google_sign_in'] === true,
         address,
         entitlements: modulesOrNull(row['entitlements']),
         effectiveEntitlements: effectiveEntitlements(
@@ -1773,6 +1941,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
                  logo_url = ${change.logoUrl},
                  cover_image_url = ${change.coverImageUrl},
                  branding_public = ${change.brandingPublic},
+                 google_sign_in = COALESCE(${change.googleSignIn ?? null}, google_sign_in),
                  address_country = COALESCE(${change.address?.country.toUpperCase() ?? null}, address_country),
                  address_line1 = COALESCE(${change.address?.line1 ?? null}, address_line1),
                  address_line2 = CASE WHEN ${change.address !== undefined} THEN ${change.address?.line2 ?? null} ELSE address_line2 END,
@@ -2027,6 +2196,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await support(request, response)) ||
     (await viewAs(request, response)) ||
     (await webauthn(request, response)) ||
+    (await google(request, response)) ||
     (await enrolment(request, response)) ||
     (await operator(request, response)) ||
     (await admin(request, response)) ||

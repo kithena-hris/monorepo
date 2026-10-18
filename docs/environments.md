@@ -395,6 +395,42 @@ matches directories and two-digit copies as well as the obvious
 `name 2.ext` case, but that is a net rather than a cure: the repository wants
 moving somewhere iCloud does not watch.
 
+### Signing in with Google
+
+Beside the passkey, per company: the back office's **Edit company → Signing
+in** switch. The design is `docs/authentication.md`, "The tenant login page";
+the code is `platform/identity/src/credential/application/sign-in-with-google.ts`.
+
+One OAuth client serves every company, because Google allows no wildcard
+redirect URIs. Set it up once, in the Google Cloud console:
+
+1. **APIs & Services → OAuth consent screen**: user type _External_, app name
+   Kithena, scopes `openid`, `email`, `profile` (none of them sensitive, so no
+   verification review). Publish it to _In production_; in _Testing_ only
+   listed test users can sign in.
+2. **Credentials → Create credentials → OAuth client ID**: type _Web
+   application_, authorised redirect URI exactly
+   `https://auth.app.kithena.com/google/callback` (and
+   `http://auth.app.localhost:3100/google/callback` on a separate client for
+   local work). No JavaScript origins are needed.
+3. Store the pair as repository secrets, and redeploy:
+
+   ```bash
+   gh secret set GOOGLE_SIGN_IN_CLIENT_ID
+   gh secret set GOOGLE_SIGN_IN_CLIENT_SECRET
+   gh workflow run vercel-production.yml --ref main
+   ```
+
+   The deploy passes both to identity (`--env`). Unset, Google is off at every
+   company and the button never appears.
+
+Who may sign in is decided in identity, not by the switch alone: a Google
+account must belong to a Workspace (`hd`), have a verified address, and that
+address must be the person's work address at the company. A personal Google
+account opened on a work address is refused. The first sign-in links the
+Google account (`platform.credential`, kind `federated`, keyed by `sub`), and
+enrols an invited person who has not set up a passkey.
+
 ### Identity, on Vercel
 
 `platform/identity/api/[...path].ts` is the whole of the deployment surface: a
