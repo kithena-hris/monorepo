@@ -2147,7 +2147,7 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
             tone: x.tone,
             values: got.byDepartment.map((d) => d[x.key]),
           }))}
-          format={(v) => `${String(Math.round(v))}%`}
+          format={(v) => plural(Math.round(v), 'review')}
         />
       </ChartCard>
     </div>
@@ -2601,7 +2601,7 @@ function OverviewTable({
       // set, not measured from whatever rows are drawn, so nothing moves as
       // the next page lands.
       scroll="page"
-      columnSizing="fixed"
+      columnSizing="fill"
       stickyHeader
       {...(view.group === null
         ? {}
