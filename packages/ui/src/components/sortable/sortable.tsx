@@ -82,10 +82,11 @@ export interface SortableListProps<T extends SortableItem> {
   hideMoveButtons?: boolean;
   /**
    * `always` shows Move up and Move down on every row. `on-focus` keeps them
-   * out of sight until keyboard focus is inside the row: the handle is the
-   * control a pointer uses, and the buttons stay the path that needs no
-   * instructions for a keyboard or a screen reader, which reads them either
-   * way.
+   * faded until the row is hovered or has keyboard focus inside it: the
+   * handle is the control a pointer uses, and the buttons stay the path that
+   * needs no instructions for a keyboard or a screen reader, which reads them
+   * either way. Their space is kept while faded, so showing them never moves
+   * what is in the row.
    */
   moveButtons?: 'always' | 'on-focus';
   /**
@@ -345,8 +346,11 @@ function SortableRow({
         <div
           className={cn(
             'flex shrink-0 items-center',
+            // Their room is kept, only faded: taking it when they appeared
+            // squeezed the row's own content — and an input in the row has
+            // visible focus while typing, so it shrank on the first key.
             moveButtons === 'on-focus' &&
-              'sr-only group-has-[:focus-visible]/row:not-sr-only group-has-[:focus-visible]/row:flex',
+              'pointer-events-none opacity-0 transition-opacity group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-has-[:focus-visible]/row:pointer-events-auto group-has-[:focus-visible]/row:opacity-100',
           )}
         >
           <Button
