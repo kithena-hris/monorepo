@@ -276,9 +276,9 @@ export function EditCompanyForm({
           <div>
             <FieldLabel htmlFor="googleSignIn">Sign in with Google</FieldLabel>
             <FieldDescription>
-              Beside the passkey, for a company on Google Workspace. Only a Workspace account whose
-              address is the person’s work address can sign in; an invited person who has not set up
-              a passkey is enrolled by their first Google sign-in.
+              Beside the passkey. A Google account can sign in when its address is the person’s work
+              address and it is a Workspace account or a Gmail address; an invited person who has not
+              set up a passkey is enrolled by their first Google sign-in.
             </FieldDescription>
           </div>
         </Field>
