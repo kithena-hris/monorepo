@@ -707,6 +707,8 @@ export {
 } from './components/filter-builder/filter-model';
 
 export { DataTable } from './components/table/data-table';
+export { BulkBar } from './components/table/bulk-bar';
+export { RowMenu } from './components/table/row-menu';
 export type {
   DataColumn,
   DataTableHandle,

@@ -363,10 +363,15 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
   const drafted = new Set(r.drafted);
   for (const t of got.value.answer.text) {
     const q = byId.get(t.questionId);
+    const written = answers[q?.id ?? '']?.value;
+    // Empty as the editor leaves it (`<p></p>`) is empty; a source the model
+    // made up is dropped, not the whole answer — but one it was given must
+    // be cited, or nothing here came from the year's evidence.
     if (
       q?.type !== 'text' ||
-      (answers[q.id]?.value ?? '') !== '' ||
-      !t.cites.every((c) => known.has(c))
+      (typeof written === 'string' && plainText(written).trim() !== '') ||
+      t.text.trim() === '' ||
+      !t.cites.some((c) => known.has(c))
     )
       continue;
     answers[q.id] = { value: `<p>${t.text.replaceAll('<', '&lt;')}</p>`, comment: null };

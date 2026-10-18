@@ -222,7 +222,10 @@ export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Res
       personId: m.personId,
       name: m.name,
       title: subtitle(m),
-      manager: m.managerId === null ? null : (byId.get(m.managerId)?.name ?? null),
+      manager:
+        m.managerId === null
+          ? null
+          : { id: m.managerId, name: byId.get(m.managerId)?.name ?? 'Someone' },
       note: excluded.has(m.personId)
         ? `Excluded${excluded.get(m.personId) ? ` · ${excluded.get(m.personId) ?? ''}` : ''}`
         : included.has(m.personId)
@@ -1036,7 +1039,10 @@ export async function overviewScreen(
       personId: p.personId,
       name: p.name,
       title: subtitle(p),
-      manager: p.managerId === null ? null : (byId.get(p.managerId)?.name ?? null),
+      manager:
+        p.managerId === null
+          ? null
+          : { id: p.managerId, name: byId.get(p.managerId)?.name ?? 'Someone' },
       self: reviewState(
         about.find((r) => r.kind === 'self'),
         ctx.today,
@@ -1051,8 +1057,11 @@ export async function overviewScreen(
       upward: c.activities.upward.on
         ? `${String(about.filter((r) => r.kind === 'upward' && isSubmitted(r)).length)} of ${String(about.filter((r) => r.kind === 'upward').length)}`
         : '—',
-      managerReview: reviewState(mgr, ctx.today),
+      // Nobody can write it for someone with no manager (`checks` says so at launch).
+      managerReview: p.managerId === null ? '—' : reviewState(mgr, ctx.today),
       managerReviewId: mgr?.id ?? null,
+      // Where peers are nominated for them, from the row's own menu.
+      nominationId: nom?.id ?? null,
       release: mgr?.acknowledged
         ? 'Acknowledged'
         : mgr?.released
