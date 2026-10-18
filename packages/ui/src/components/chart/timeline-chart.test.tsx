@@ -123,4 +123,25 @@ describe('<TimelineChart> item menu', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Extend it' }));
     expect(extend).toHaveBeenCalledOnce();
   });
+
+  it('keeps a press on a menu item from the plot underneath', async () => {
+    const plot = vi.fn();
+    render(
+      <TooltipProvider>
+        <div onPointerDown={plot}>
+          <TimelineChart
+            label="Plan"
+            rows={rows}
+            zoomable
+            itemActions={() => [{ id: 'x', label: 'Do it', onSelect: () => undefined }]}
+          />
+        </div>
+      </TooltipProvider>,
+    );
+    const bar = screen.getAllByLabelText(/2 weeks/u)[0];
+    if (bar === undefined) throw new Error('no bar');
+    fireEvent.contextMenu(bar);
+    fireEvent.pointerDown(await screen.findByRole('menuitem', { name: 'Do it' }));
+    expect(plot).not.toHaveBeenCalled();
+  });
 });
