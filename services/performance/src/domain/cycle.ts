@@ -258,13 +258,18 @@ export function checks(input: CheckInput): Issue[] {
       });
   }
   if (c.activities.manager.on) {
+    // A founder, a contractor, someone between teams: they take part, and
+    // the one review nobody can write is left out (`authorsFor`).
     const none = input.subjects.filter((s) => s.managerId === null);
-    for (const s of none)
+    if (none.length > 0)
       issues.push({
-        level: 'block',
-        title: `${s.name} has no manager`,
-        detail: 'Their manager review can’t be created. Exclude them, or pick who writes it.',
-        people: [s.personId],
+        level: 'warn',
+        title:
+          none.length === 1
+            ? `${none[0]?.name ?? 'Someone'} has no manager`
+            : `${String(none.length)} people have no manager`,
+        detail: 'They take part in the cycle; nobody writes their manager review.',
+        people: none.map((s) => s.personId),
       });
   }
   const due = dueDates(c);

@@ -96,11 +96,7 @@ export async function loadScreen(
       return read('PerformanceHome');
     case 'MyReviews': {
       const tab = last(path);
-      const tabs: Record<string, string> = {
-        owed: 'about',
-        done: 'written',
-        nominations: 'nominations',
-      };
+      const tabs: Record<string, string> = { owed: 'about', done: 'written' };
       return read('PerformanceMyReviews', { tab: tabs[tab] ?? 'write' });
     }
     case 'Write':

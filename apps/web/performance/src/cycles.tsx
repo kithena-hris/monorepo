@@ -14,6 +14,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  BulkBar,
+  RowMenu,
   EmptyState,
   Field,
   FieldControl,
@@ -405,7 +407,7 @@ export interface SetupData {
       readonly personId: string;
       readonly name: string;
       readonly title: string;
-      readonly manager: string | null;
+      readonly manager: { readonly id: string; readonly name: string } | null;
       readonly note: string | null;
     }[];
     readonly noLongerMatches: readonly {
@@ -517,7 +519,9 @@ function SetupDialog({
       >
         <Refusal error={act.error} />
         {step === 0 ? <Basics c={c} save={save} action={data.action} /> : null}
-        {step === 1 ? <Participants c={c} data={data} save={save} act={act} /> : null}
+        {step === 1 ? (
+          <Participants c={c} data={data} save={save} act={act} onNavigate={props.onNavigate} />
+        ) : null}
         {step === 2 ? <Reviews c={c} data={data} save={save} activity={activity} /> : null}
         {step === 3 ? <Launch c={c} data={data} save={save} /> : null}
       </StepDialog>
@@ -732,11 +736,13 @@ function Participants({
   data,
   save,
   act,
+  onNavigate,
 }: {
   readonly c: CycleSetup;
   readonly data: SetupData;
   readonly save: (p: Partial<CycleSetup>) => void;
   readonly act: Act;
+  readonly onNavigate?: ((to: string) => void) | undefined;
 }): JSX.Element {
   const [excluding, setExcluding] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -897,8 +903,18 @@ function Participants({
                     <TableCell>
                       <Person name={r.name} sub={r.title} />
                     </TableCell>
-                    <TableCell className="text-sm text-fg-muted">
-                      {r.manager ?? 'No manager'}
+                    <TableCell className="text-sm">
+                      {r.manager === null ? (
+                        <span className="text-fg-muted">No manager</span>
+                      ) : (
+                        <To
+                          href={`/people/${r.manager.id}`}
+                          onNavigate={onNavigate}
+                          className="inline-flex rounded-md hover:underline"
+                        >
+                          <Person name={r.manager.name} size="xs" />
+                        </To>
+                      )}
                     </TableCell>
                     <TableCell>
                       {r.note === null ? (
@@ -1417,12 +1433,14 @@ interface OverviewRow {
   readonly personId: string;
   readonly name: string;
   readonly title: string;
-  readonly manager: string | null;
+  readonly manager: { readonly id: string; readonly name: string } | null;
   readonly self: string;
   readonly peers: string;
   readonly upward: string;
   readonly managerReview: string;
   readonly managerReviewId: string | null;
+  /** Where peers are nominated for them; null before nominations open. */
+  readonly nominationId: string | null;
   readonly release: string;
   readonly score: number | null;
 }
@@ -1617,9 +1635,6 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                   }}
                   items={[
                     { id: 'overview', label: 'Overview' },
-                    ...(c.kinds.includes('peer')
-                      ? [{ id: 'nominations', label: 'Nominations' }]
-                      : []),
                     ...(data.hr
                       ? [
                           { id: 'changes', label: 'Changes' },
@@ -1748,6 +1763,9 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               ) : null}
                               <TableHead>Release</TableHead>
                               {data.hr ? <TableHead>Score</TableHead> : null}
+                              <TableHead>
+                                <span className="sr-only">Actions</span>
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1781,8 +1799,18 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                                   )}
                                   <span className="block text-xs text-fg-muted">{r.title}</span>
                                 </TableCell>
-                                <TableCell className="text-sm text-fg-muted">
-                                  {r.manager ?? 'No manager'}
+                                <TableCell className="text-sm">
+                                  {r.manager === null ? (
+                                    <span className="text-fg-muted">No manager</span>
+                                  ) : (
+                                    <To
+                                      href={`/people/${r.manager.id}`}
+                                      onNavigate={props.onNavigate}
+                                      className="inline-flex rounded-md hover:underline"
+                                    >
+                                      <Person name={r.manager.name} size="xs" />
+                                    </To>
+                                  )}
                                 </TableCell>
                                 {c.kinds.includes('self') ? (
                                   <TableCell>
@@ -1797,13 +1825,76 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                                 ) : null}
                                 {c.kinds.includes('manager') ? (
                                   <TableCell>
-                                    <ReviewBadge state={r.managerReview} />
+                                    {r.managerReview === '—' ? (
+                                      <span className="text-fg-muted">—</span>
+                                    ) : (
+                                      <ReviewBadge state={r.managerReview} />
+                                    )}
                                   </TableCell>
                                 ) : null}
                                 <TableCell className="text-sm text-fg-muted">{r.release}</TableCell>
                                 {data.hr ? (
                                   <TableCell className="tabular-nums">{score(r.score)}</TableCell>
                                 ) : null}
+                                <TableCell className="w-0 text-end">
+                                  <RowMenu
+                                    name={r.name}
+                                    actions={[
+                                      {
+                                        id: 'open',
+                                        label: 'Open their reviews',
+                                        onSelect: () => {
+                                          props.onNavigate?.(
+                                            `/performance/cycles/${id}/about/${r.personId}`,
+                                          );
+                                        },
+                                      },
+                                      ...(c.kinds.includes('peer') && r.nominationId !== null
+                                        ? [
+                                            {
+                                              id: 'nominate',
+                                              label: 'Nominate peers for feedback',
+                                              onSelect: () => {
+                                                props.onNavigate?.(
+                                                  `/performance/nominations/${r.nominationId ?? ''}`,
+                                                );
+                                              },
+                                            },
+                                          ]
+                                        : []),
+                                      ...(data.hr && c.state === 'in_progress'
+                                        ? [
+                                            {
+                                              id: 'remind',
+                                              label: 'Remind',
+                                              onSelect: () => {
+                                                run('RemindPerformanceCycle', {
+                                                  personIds: [r.personId],
+                                                });
+                                              },
+                                            },
+                                            {
+                                              id: 'extend',
+                                              label: 'Extend a deadline',
+                                              onSelect: () => {
+                                                setSelected(new Set([r.personId]));
+                                                setDialog('extend');
+                                              },
+                                            },
+                                            {
+                                              id: 'remove',
+                                              label: 'Remove from the cycle',
+                                              destructive: true,
+                                              onSelect: () => {
+                                                setSelected(new Set([r.personId]));
+                                                setDialog('remove');
+                                              },
+                                            },
+                                          ]
+                                        : []),
+                                    ]}
+                                  />
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -1823,55 +1914,42 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                     ) : null}
                   </CardContent>
                 </Card>
-                {selected.size > 0 ? (
-                  <div
-                    role="toolbar"
-                    aria-label="Selected people"
-                    className="sticky bottom-4 flex flex-wrap items-center gap-2 rounded-lg bg-surface-inverse p-3 text-fg-inverse shadow-lg"
+                <BulkBar
+                  count={selected.size}
+                  onClear={() => {
+                    setSelected(new Set());
+                  }}
+                >
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      run('RemindPerformanceCycle', { personIds: chosen });
+                    }}
                   >
-                    <span className="mr-auto font-semibold">{`${String(selected.size)} selected`}</span>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        run('RemindPerformanceCycle', { personIds: chosen });
-                      }}
-                    >
-                      Remind
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setDialog('extend');
-                      }}
-                    >
-                      Extend deadline
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        run('ReleasePerformanceCycle', { personIds: chosen });
-                      }}
-                    >
-                      Release
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={selected.size !== 1}
-                      onClick={() => {
-                        setDialog('remove');
-                      }}
-                    >
-                      Remove from cycle
-                    </Button>
-                  </div>
-                ) : null}
+                    Remind
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setDialog('extend');
+                    }}
+                  >
+                    Extend deadline
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      run('ReleasePerformanceCycle', { personIds: chosen });
+                    }}
+                  >
+                    Release
+                  </Button>
+                </BulkBar>
               </>
             ) : null}
-            {tab === 'nominations' ? <Nominations data={data} act={act} id={id} /> : null}
             {tab === 'changes' ? (
               // Every change is a line of the company's activity log, filtered to this cycle.
               <EmptyState
@@ -1969,87 +2047,6 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
 }
 
 /** PF9: who has nominated, who is waiting for approval, who is late. */
-function Nominations({
-  data,
-  act,
-  id,
-}: {
-  readonly data: OverviewData;
-  readonly act: Act;
-  readonly id: string;
-}): JSX.Element {
-  const late = data.nominations.filter((n) => n.state === 'Not nominated').length;
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-3">
-        {data.hr && late > 0 ? (
-          <div>
-            <Button
-              size="sm"
-              variant="secondary"
-              startIcon={<icons.notifications aria-hidden />}
-              loading={act.pending}
-              onClick={() => {
-                act.run('RemindPerformanceCycle', { id, input: { personIds: [] } });
-              }}
-            >
-              {`Remind ${String(late)} who haven’t nominated`}
-            </Button>
-          </div>
-        ) : null}
-        {data.nominations.length === 0 ? (
-          <EmptyState title="No nominations" />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Subject</TableHead>
-                <TableHead>Peers</TableHead>
-                <TableHead>{`${String(data.bounds.min)} to ${String(data.bounds.max)}`}</TableHead>
-                <TableHead>State</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.nominations.map((n) => (
-                <TableRow key={n.id}>
-                  <TableCell>
-                    <Person name={n.subject} />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {n.peers.length === 0 ? '—' : n.peers.join(', ')}
-                  </TableCell>
-                  <TableCell>
-                    <Badge size="sm" tone={n.count >= data.bounds.min ? 'success' : 'danger'}>
-                      {String(n.count)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      size="sm"
-                      tone={
-                        n.state === 'Approved'
-                          ? 'success'
-                          : n.state.startsWith('Waiting')
-                            ? 'warning'
-                            : n.state === 'Not nominated'
-                              ? 'danger'
-                              : 'neutral'
-                      }
-                    >
-                      {n.state}
-                    </Badge>
-                    {n.late ? <span className="ml-2 text-xs text-danger-fg">Late</span> : null}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 function ExtendDialog({
   kinds,
   people,

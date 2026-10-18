@@ -263,9 +263,9 @@ interface MyReviews {
     | null;
 }
 
-/** PFM1: I owe, owed to me and nominations, with feedback, goals and learning a tap away. */
+/** PFM1: I owe (with peers to pick or approve) and owed to me, with feedback, goals and learning a tap away. */
 export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>): React.JSX.Element {
-  const [tab, setTab] = useState<'write' | 'about' | 'nominations'>('write');
+  const [tab, setTab] = useState<'write' | 'about'>('write');
   const { load, reload } = useRead<MyReviews>('PerformanceMyReviews', { tab }, 'performance');
   const viewer = useRead<Viewer>('PerformanceViewer', {}, 'performance').load;
   const roles =
@@ -339,12 +339,11 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
             accessibilityLabel="Reviews"
             value={tab}
             onValueChange={(v) => {
-              setTab(v === 'about' ? 'about' : v === 'nominations' ? 'nominations' : 'write');
+              setTab(v === 'about' ? 'about' : 'write');
             }}
           >
             <SegmentedControlItem value="write">I owe</SegmentedControlItem>
             <SegmentedControlItem value="about">Owed to me</SegmentedControlItem>
-            <SegmentedControlItem value="nominations">Nominations</SegmentedControlItem>
           </SegmentedControl>
           {tab === 'write' ? (
             data.rows.length === 0 ? (
@@ -435,10 +434,10 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                 </View>
               ))
             : null}
-          {tab === 'nominations' ? (
-            data.nominations.length === 0 ? (
-              <Text tone="muted">No nominations waiting on you.</Text>
-            ) : (
+          {/* Peers to pick or approve sit with what you owe, as on the web. */}
+          {tab === 'write' && data.nominations.length > 0 ? (
+            <>
+              <Text variant="headline">Peers to pick or approve</Text>
               <List>
                 {data.nominations.map((n) => (
                   <ListItem
@@ -455,7 +454,7 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                   </ListItem>
                 ))}
               </List>
-            )
+            </>
           ) : null}
         </>
       )}
@@ -2034,9 +2033,7 @@ export function PerformanceScan({
         </>
       ) : !permission.granted ? (
         <>
-          <Text>
-            Kithena reads the session’s code with the camera. Nothing it sees is kept.
-          </Text>
+          <Text>Kithena reads the session’s code with the camera. Nothing it sees is kept.</Text>
           <Button
             variant="primary"
             onPress={() => {

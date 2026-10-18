@@ -140,7 +140,7 @@ describe('a cycle', () => {
     expect(due.peer).toBe('2026-12-08');
   });
 
-  it('blocks a launch with nobody, or with someone who has no manager', () => {
+  it('blocks a launch with nobody, and only flags people with no manager', () => {
     const templates = {
       't-self': { name: 'Self', published: 3 },
       't-mgr': { name: 'Manager', published: 3 },
@@ -152,10 +152,23 @@ describe('a cycle', () => {
     const nora = checks({
       cycle: cycle(),
       today: day('2026-11-01'),
-      subjects: [{ personId: 'nora', name: 'Nora Becker', managerId: null }],
+      subjects: [
+        { personId: 'nora', name: 'Nora Becker', managerId: null },
+        { personId: 'ines', name: 'Ines Alves', managerId: null },
+        { personId: 'adam', name: 'Adam', managerId: 'marco' },
+      ],
       templates,
     });
-    expect(nora.find((i) => i.level === 'block')?.title).toBe('Nora Becker has no manager');
+    // A founder, a contractor: they take part, with no manager review.
+    expect(blocked(nora)).toBe(false);
+    expect(nora.filter((i) => i.title.includes('manager') && i.level === 'warn')).toEqual([
+      {
+        level: 'warn',
+        title: '2 people have no manager',
+        detail: 'They take part in the cycle; nobody writes their manager review.',
+        people: ['nora', 'ines'],
+      },
+    ]);
     const fine = checks({
       cycle: cycle(),
       today: day('2026-11-01'),

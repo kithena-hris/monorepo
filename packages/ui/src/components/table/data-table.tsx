@@ -56,10 +56,8 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { observeElementRect, useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
-import { ArrowUpDown, ChevronRight, GripVertical, X } from 'lucide-react';
+import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react';
 
-import { bulkBarClass } from '../../lib/bulk-bar';
-import { PINNED_BAR } from '../../lib/pinned';
 import { cn } from '../../lib/cn';
 import {
   actionPressed,
@@ -68,7 +66,7 @@ import {
   useShortcutKeys,
   type RowAction,
 } from '../../lib/shortcut-keys';
-import { Button } from '../button/button';
+import { BulkBar } from './bulk-bar';
 import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
@@ -1360,38 +1358,16 @@ export function DataTable<T extends TableRow>({
     </Table>
   );
 
-  const bulkBar =
-    selectable && picked.size > 0 ? (
-      /*
-       * Under the table and sticky to the bottom of the viewport, not floating
-       * over the table. In flow it never covers the last row: under a short
-       * table it simply sits beneath it, and on a long one it rides the bottom
-       * edge until the table's end scrolls up to meet it. Inverted, so it reads
-       * as a mode the page is in rather than one more row. It wraps on a narrow
-       * screen instead of pushing the count off it.
-       */
-      <div
-        role="group"
-        aria-label={`${String(picked.size)} selected`}
-        {...PINNED_BAR}
-        className={cn('sticky bottom-4 z-20', bulkBarClass, 'motion-safe:animate-pop-in')}
-      >
-        <span aria-live="polite" className="text-sm font-semibold tabular-nums">
-          {picked.size} selected
-        </span>
-        <span aria-hidden className="mx-2 h-5 w-px bg-fg-on-invert/25" />
-        <div className="flex flex-wrap items-center gap-1.5">{bulkActions?.(pickedRowObjects)}</div>
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label="Clear selection"
-          startIcon={<X />}
-          onClick={() => {
-            setPicked([]);
-          }}
-        />
-      </div>
-    ) : null;
+  const bulkBar = selectable ? (
+    <BulkBar
+      count={picked.size}
+      onClear={() => {
+        setPicked([]);
+      }}
+    >
+      {bulkActions?.(pickedRowObjects)}
+    </BulkBar>
+  ) : null;
 
   return (
     <div className="min-w-0 space-y-3">

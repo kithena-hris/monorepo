@@ -130,43 +130,38 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
             title="My reviews"
             description="Every review you write, across cycles, and what is written about you."
           />
-          {data.tab === 'nominations' ? (
+          {/* Peers to pick or approve are things to do, so they sit with the
+              reviews to write rather than behind a tab of their own. */}
+          {data.tab === 'write' && data.nominations.length > 0 ? (
             <Card>
-              <CardContent>
-                {data.nominations.length === 0 ? (
-                  <EmptyState
-                    icon={<icons.people aria-hidden />}
-                    title="No nominations to make"
-                    description="When a cycle asks you to pick peers, or approve someone’s, it shows here."
-                  />
-                ) : (
-                  <List>
-                    {data.nominations.map((n) => (
-                      <ListItem
-                        key={n.id}
-                        asChild
-                        chevron
-                        icon={n.kind === 'approve' ? <icons.approve /> : <icons.people />}
-                        description={`${n.cycle}${n.due === null ? '' : ` · due ${day(n.due)}`}`}
-                        trailing={
-                          <Badge size="sm" tone={n.kind === 'approve' ? 'accent' : 'neutral'}>
-                            {n.kind === 'approve' ? 'To review' : 'To pick'}
-                          </Badge>
-                        }
-                      >
-                        <a href={`/performance/nominations/${n.id}`}>
-                          {n.kind === 'nominate'
-                            ? `Pick ${String(n.min)} to ${String(n.max)} peers for ${n.subject}`
-                            : `Approve ${n.subject}’s peers`}
-                        </a>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
+              <CardContent className="flex flex-col gap-2">
+                <h2 className="font-semibold">Peers to pick or approve</h2>
+                <List>
+                  {data.nominations.map((n) => (
+                    <ListItem
+                      key={n.id}
+                      asChild
+                      chevron
+                      icon={n.kind === 'approve' ? <icons.approve /> : <icons.people />}
+                      description={`${n.cycle}${n.due === null ? '' : ` · due ${day(n.due)}`}`}
+                      trailing={
+                        <Badge size="sm" tone={n.kind === 'approve' ? 'accent' : 'neutral'}>
+                          {n.kind === 'approve' ? 'To review' : 'To pick'}
+                        </Badge>
+                      }
+                    >
+                      <a href={`/performance/nominations/${n.id}`}>
+                        {n.kind === 'nominate'
+                          ? `Pick ${String(n.min)} to ${String(n.max)} peers for ${n.subject}`
+                          : `Approve ${n.subject}’s peers`}
+                      </a>
+                    </ListItem>
+                  ))}
+                </List>
               </CardContent>
             </Card>
           ) : null}
-          {data.tab === 'nominations' ? null : data.tab === 'about' ? (
+          {data.tab === 'about' ? (
             <AboutMe cycles={data.about ?? []} onNavigate={props.onNavigate} />
           ) : (
             <>
@@ -520,6 +515,17 @@ function Writing({
       clearTimeout(timer.current);
     };
   });
+  // The server moved on without this form — a prefill, a confirmed
+  // suggestion — and the page was read again: take its answers, with
+  // anything typed here and not yet saved still on top.
+  useEffect(() => {
+    if (data.review.revision <= revision.current) return;
+    revision.current = data.review.revision;
+    setAnswers({ ...data.answers, ...pending.current });
+    setScore(data.score);
+    setMissing(data.missing);
+    setSaving({ state: 'saved', at: data.review.savedAt, revision: data.review.revision });
+  }, [data]);
   const change = (id: string, a: Answer): void => {
     setAnswers((prev) => ({ ...prev, [id]: a }));
     pending.current = { ...pending.current, [id]: a };
@@ -528,8 +534,12 @@ function Writing({
       void flush();
     }, 800);
   };
+  // What was typed is saved first, so the server works from it and the
+  // revision it answers with is the one this form goes on from.
   const ai = (name: string, after?: (d: unknown) => void): void => {
-    act.run(name, { id: data.review.id }, after);
+    void flush().then(() => {
+      act.run(name, { id: data.review.id }, after);
+    });
   };
   const [summary, setSummary] = useState<{
     sentences: { text: string; cites: string[] }[];
@@ -699,7 +709,16 @@ function Writing({
             suggestions={data.suggestions}
             drafted={data.drafted}
             onConfirm={(q) => {
-              act.run('ConfirmPerformanceSuggestion', { id: data.review.id, questionId: q });
+              const s = data.suggestions[q];
+              // Chosen at once; the server writes the same answer.
+              if (s !== undefined)
+                setAnswers((prev) => ({
+                  ...prev,
+                  [q]: { value: s.value, comment: prev[q]?.comment ?? null },
+                }));
+              void flush().then(() => {
+                act.run('ConfirmPerformanceSuggestion', { id: data.review.id, questionId: q });
+              });
             }}
             score={currentScore}
             subject={subject}
