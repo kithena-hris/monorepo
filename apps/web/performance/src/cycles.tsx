@@ -1427,7 +1427,7 @@ function RemindersStep({
 
 /** The whole cycle on one axis: each review's window, its deadline and its reminders pinned. */
 function CyclePlan({ c, today }: { readonly c: Plan; readonly today?: string }): JSX.Element {
-  const rows = planRows(c, kindLabel);
+  const rows = planRows(c, kindLabel, day);
   return (
     <ChartCard
       title="The cycle at a glance"
@@ -2037,15 +2037,23 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                   orientation="horizontal"
                   variant="line"
                   activeId={tab}
-                  onSelect={(t) => {
-                    props.onFilter?.({ tab: t === 'overview' ? null : t, page: null });
-                  }}
+                  current="page"
+                  // Each tab is its own address, followed by the shell's router.
+                  // A `#tab` anchor and a push of `?tab=` raced, and the push lost.
                   items={[
-                    { id: 'overview', label: 'Overview' },
+                    { id: 'overview', label: 'Overview', href: `/performance/cycles/${id}` },
                     ...(data.hr
                       ? [
-                          { id: 'changes', label: 'Changes' },
-                          { id: 'settings', label: 'Settings' },
+                          {
+                            id: 'changes',
+                            label: 'Changes',
+                            href: `/performance/cycles/${id}?tab=changes`,
+                          },
+                          {
+                            id: 'settings',
+                            label: 'Settings',
+                            href: `/performance/cycles/${id}?tab=settings`,
+                          },
                         ]
                       : []),
                   ]}

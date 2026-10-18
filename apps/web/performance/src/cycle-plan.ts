@@ -64,7 +64,11 @@ const TONES = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5'] as const;
  * The whole cycle as lanes: a bar for each kind of review from when it opens
  * to its deadline, a pin on the deadline, and a pin on each reminder.
  */
-export function planRows(p: Plan, label: (kind: string) => string): TimelineRow[] {
+export function planRows(
+  p: Plan,
+  label: (kind: string) => string,
+  date: (iso: string) => string = (iso) => iso,
+): TimelineRow[] {
   const rows: TimelineRow[] = [];
   const peerNominated = p.activities['peer']?.on === true && !p.peer.all;
   const nominationsClose = peerNominated ? resolveDue(p, p.nominations) : null;
@@ -112,7 +116,7 @@ export function planRows(p: Plan, label: (kind: string) => string): TimelineRow[
           tone: 'warning' as const,
         })),
     ];
-    rows.push({ label: label(k), meta: `Due ${due}`, items });
+    rows.push({ label: label(k), meta: `Due ${date(due)}`, items });
   });
   const release = p.visibility?.release;
   if (release?.mode === 'hr_date' && release.date !== null)
