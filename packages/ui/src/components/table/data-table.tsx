@@ -224,6 +224,13 @@ const COLUMN_DEFAULT = 176;
 /** How near the end, in px, counts as the end. */
 const END_MARGIN = 480;
 
+/**
+ * How far from the end of what is loaded the next page is asked for: the
+ * last 30% of it, and never less than `END_MARGIN`, so the page has landed
+ * before the reader gets there and the end is never seen waiting.
+ */
+const ahead = (loaded: number): number => Math.max(END_MARGIN, loaded * 0.3);
+
 /** The box a virtualized table assumes until it has one: a window's height. */
 const UNMEASURED = { width: 0, height: 900 };
 
@@ -829,6 +836,8 @@ export function DataTable<T extends TableRow>({
     estimateSize,
     overscan: 20,
     scrollMargin: margin,
+    // Rendered with the frame, not inside each scroll event (`virtual-list.tsx`).
+    useFlushSync: false,
   });
   const inBox = useVirtualizer({
     count: virtualized && !page ? items.length : 0,
@@ -1069,8 +1078,8 @@ export function DataTable<T extends TableRow>({
     // The window scrolls: the end is the table's bottom nearing the window's.
     const check = (): void => {
       if ('checkVisibility' in el && !el.checkVisibility()) return;
-      if (el.getBoundingClientRect().bottom - window.innerHeight < END_MARGIN)
-        endReached.current?.();
+      const box = el.getBoundingClientRect();
+      if (box.bottom - window.innerHeight < ahead(box.height)) endReached.current?.();
     };
     check();
     window.addEventListener('scroll', check, { passive: true });
@@ -1085,7 +1094,8 @@ export function DataTable<T extends TableRow>({
       // A table not drawn (a desk's, hidden under a finger) is at no end at all.
       // (`in`: jsdom has no `checkVisibility`, and draws nothing anyway.)
       if ('checkVisibility' in el && !el.checkVisibility()) return;
-      if (el.scrollHeight - el.scrollTop - el.clientHeight < END_MARGIN) endReached.current?.();
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < ahead(el.scrollHeight))
+        endReached.current?.();
     };
     check();
     el.addEventListener('scroll', check, { passive: true });

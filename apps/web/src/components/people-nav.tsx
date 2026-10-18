@@ -107,38 +107,43 @@ export function PeopleSubnav({
 }
 
 /**
- * The collapsed rail's People flyout (A1): the same four as a compact menu,
- * each with its icon, what it holds and its count, and where the settings are.
+ * The collapsed rail's flyout (A1): an area's sections as a compact menu,
+ * each with its icon, what it holds and its count. People's, by default, with
+ * where its settings are; another area passes its own title and home.
  */
 export function PeopleSections({
   sections,
   route,
   counts = {},
-}: PeopleNavProps): JSX.Element | null {
+  title = 'People',
+  home = '/people',
+}: PeopleNavProps & { readonly title?: string; readonly home?: string }): JSX.Element | null {
   const hint = useHint();
   if (sections.length === 0) return null;
   const current = currentPlace(sections, route);
   return (
     <MegaMenu
       size="compact"
-      title="People"
-      shortcut={hint('/people')}
+      title={title}
+      shortcut={hint(home)}
       footer={
-        <>
-          <icons.settings aria-hidden />
-          <span>
-            Fields and roles are in{' '}
-            <Link
-              href="/settings"
-              className="font-semibold text-fg underline-offset-4 hover:underline"
-            >
-              Settings › People
-            </Link>
-          </span>
-        </>
+        home !== '/people' ? undefined : (
+          <>
+            <icons.settings aria-hidden />
+            <span>
+              Fields and roles are in{' '}
+              <Link
+                href="/settings"
+                className="font-semibold text-fg underline-offset-4 hover:underline"
+              >
+                Settings › People
+              </Link>
+            </span>
+          </>
+        )
       }
     >
-      <Nav label="People sections">
+      <Nav label={`${title} sections`}>
         <NavList>
           {sections.map((s) => (
             <NavItem
