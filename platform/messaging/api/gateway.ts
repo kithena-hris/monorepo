@@ -73,6 +73,12 @@ function routes(): RequestHandler {
     // Documents' notices: a signing link for somebody outside, and their code.
     // Read by `main.ts` and not here, every one was refused with a 401.
     documentsNoticeToken: process.env['MESSAGING_DOCUMENTS_TOKEN'],
+    // Recruiting's, Onboarding's and Performance's emails, each its pair's
+    // secret. Read by `main.ts` and not here, every one was refused with a 401
+    // (`gateway.test.ts` now holds the two lists together).
+    recruitingToken: process.env['MESSAGING_RECRUITING_TOKEN'],
+    onboardingToken: process.env['MESSAGING_ONBOARDING_TOKEN'],
+    performanceToken: process.env['MESSAGING_PERFORMANCE_TOKEN'],
     // The Inbox's email follows each person's settings, read from identity
     // where `INTERNAL_API_URL` says it answers; the daily digest starts on
     // Vercel's cron, which presents `CRON_SECRET`.
