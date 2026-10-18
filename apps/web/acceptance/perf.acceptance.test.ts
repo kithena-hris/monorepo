@@ -67,7 +67,11 @@ const BUDGET = {
  */
 const JS_BUDGET_KB: Readonly<Record<string, number>> = {
   people: 602,
-  settings: 600,
+  // 602, with People's, from 18 Oct 2026: Reach's date and time pickers replaced
+  // every browser date input, and the shell's shared chunks grew 1.9 KB on every
+  // page though both picker screens load lazily; the owner chose the raise. Each
+  // page's largest scripts are printed every run, to compare the next growth.
+  settings: 602,
   timeoff: 560,
 };
 
