@@ -253,6 +253,13 @@ describe('headerFrame', () => {
     expect(reports.tabs?.some((t) => t.current)).toBe(false);
   });
 
+  it('has no tabs on one thing’s own page: the list’s tabs stay on the list', () => {
+    // A report, a review being written: the umbrella's tabs are the list's.
+    const report = headerFrame(hr, '/people/reports/:id', '/people');
+    expect(report.section).toBe('Insights');
+    expect(report.tabs).toBeUndefined();
+  });
+
   it('offers adding somebody where it belongs, as the dialog over the directory', () => {
     expect(headerFrame(hr, '/people/directory/list', '/people').actions).toEqual([
       { href: '/people/directory/list?add=person', label: 'Add person', icon: 'hire' },

@@ -20,6 +20,11 @@ import {
   PageHeader,
   Progress,
   SearchField,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
   Table,
   TableBody,
   TableCell,
@@ -468,8 +473,9 @@ function Writing({
   const [currentScore, setScore] = useState<Score | null>(data.score);
   const [missing, setMissing] = useState(data.missing);
   const [dialog, setDialog] = useState<'submit' | 'unlock' | 'decline' | null>(null);
-  const [panelOpen, setPanelOpen] = useState(props.search?.['panel'] !== 'closed');
-  const [tab, setTab] = useState(props.search?.['tab'] ?? 'context');
+  // Closed until asked for: the form is the page, the context is a reference.
+  const [panelOpen, setPanelOpen] = useState(props.search?.['panel'] === 'open');
+  const [tab, setTab] = useState(props.search?.['tab'] === 'ai' ? 'ai' : 'context');
   const pending = useRef<Record<string, Answer>>({});
   const revision = useRef(data.review.revision);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -570,6 +576,16 @@ function Writing({
             <span className="text-sm text-fg-muted" aria-live="polite">
               {badge}
             </span>
+            <Button
+              variant="ghost"
+              startIcon={<icons.info aria-hidden />}
+              aria-pressed={panelOpen}
+              onClick={() => {
+                setPanelOpen((open) => !open);
+              }}
+            >
+              Details
+            </Button>
             {data.may.decline ? (
               <Button
                 variant="ghost"
@@ -682,7 +698,7 @@ function Writing({
           ) : null}
         </div>
       ) : null}
-      <div className={`grid gap-4 ${panelOpen ? 'lg:grid-cols-[minmax(0,1fr)_auto]' : ''}`}>
+      <div className="mx-auto w-full max-w-3xl">
         <div className="flex min-w-0 flex-col gap-3">
           <Progress
             value={Math.round(
@@ -726,39 +742,60 @@ function Writing({
             {...(data.scale === undefined ? {} : { scale: data.scale })}
           />
         </div>
-        {panelOpen ? (
-          <aside
-            aria-label="Detail panel"
-            className="flex min-w-72 resize-x flex-col gap-3 overflow-auto lg:w-[26rem] lg:max-w-[40rem]"
-          >
-            <div className="flex items-center gap-2">
+      </div>
+      {/* Beside the form, not over it: non-modal, so writing goes on while it
+          is open, and only the trigger or its own close button shuts it. */}
+      <Sheet open={panelOpen} onOpenChange={setPanelOpen} modal={false}>
+        <SheetContent
+          size="sm"
+          onInteractOutside={(e) => {
+            e.preventDefault();
+          }}
+        >
+          <SheetHeader>
+            <SheetTitle>Details</SheetTitle>
+          </SheetHeader>
+          <SheetBody className="flex flex-col gap-3">
+            {data.ai['summaries'] === true || (data.ai['writingChecks'] === true && writing) ? (
               <TertiaryNav
-                label="Detail panel"
+                label="Details"
                 orientation="horizontal"
                 variant="line"
                 activeId={tab}
                 onSelect={setTab}
                 items={[
                   { id: 'context', label: 'Context' },
-                  ...(data.ai['summaries'] === true ? [{ id: 'summary', label: 'Summary' }] : []),
-                  ...(data.ai['writingChecks'] === true && writing
-                    ? [{ id: 'reads', label: 'How it reads' }]
-                    : []),
-                  { id: 'earlier', label: 'Earlier reviews' },
+                  { id: 'ai', label: 'AI help' },
                 ]}
               />
-              <Button
-                size="xs"
-                variant="ghost"
-                aria-label="Close the panel"
-                startIcon={<icons.close aria-hidden />}
-                onClick={() => {
-                  setPanelOpen(false);
-                }}
-              />
-            </div>
-            {tab === 'context' ? <Context data={data} /> : null}
-            {tab === 'summary' ? (
+            ) : null}
+            {tab === 'context' ||
+            !(data.ai['summaries'] === true || (data.ai['writingChecks'] === true && writing)) ? (
+              <>
+                <Context data={data} />
+                <Card>
+                  <CardHeader>
+                    <CardTitle level={3}>Earlier reviews</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-2">
+                    {data.panel.earlier.length === 0 ? (
+                      <p className="text-sm text-fg-muted">No earlier reviews you may read.</p>
+                    ) : (
+                      data.panel.earlier.map((e) => (
+                        <KeyValues
+                          key={e.id}
+                          layout="split"
+                          items={[
+                            { label: e.cycle ?? 'Review', value: `${e.by} · ${score(e.score)}` },
+                          ]}
+                        />
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : null}
+            {tab === 'ai' && data.ai['summaries'] === true ? (
               <Card>
                 <CardHeader>
                   <CardTitle level={3}>Summary of what others said</CardTitle>
@@ -797,7 +834,7 @@ function Writing({
                 </CardContent>
               </Card>
             ) : null}
-            {tab === 'reads' ? (
+            {tab === 'ai' && data.ai['writingChecks'] === true && writing ? (
               <Card>
                 <CardHeader>
                   <CardTitle level={3}>{`How it will read to ${subject}`}</CardTitle>
@@ -839,40 +876,9 @@ function Writing({
                 </CardContent>
               </Card>
             ) : null}
-            {tab === 'earlier' ? (
-              <Card>
-                <CardContent className="flex flex-col gap-2">
-                  {data.panel.earlier.length === 0 ? (
-                    <p className="text-sm text-fg-muted">No earlier reviews you may read.</p>
-                  ) : (
-                    data.panel.earlier.map((e) => (
-                      <KeyValues
-                        key={e.id}
-                        layout="split"
-                        items={[
-                          { label: e.cycle ?? 'Review', value: `${e.by} · ${score(e.score)}` },
-                        ]}
-                      />
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-            ) : null}
-          </aside>
-        ) : (
-          <div>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                setPanelOpen(true);
-              }}
-            >
-              Show the detail panel
-            </Button>
-          </div>
-        )}
-      </div>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
       {dialog === 'submit' ? (
         <SubmitDialog
           data={data}

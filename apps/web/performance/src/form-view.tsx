@@ -223,6 +223,8 @@ function QuestionBlock({
         }}
         toolbar={['inline', 'lists']}
         minHeight="5rem"
+        showCount
+        countUnit="words"
       />
     );
   } else if (q.type === 'scale' || q.type === 'goals') {
