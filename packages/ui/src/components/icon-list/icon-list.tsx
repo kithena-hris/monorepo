@@ -44,11 +44,14 @@ const tileTone = {
   danger: 'bg-danger-subtle text-danger-fg',
   info: 'bg-info-subtle text-info-fg',
   // The chart series' colours, for a list that is a chart's key in words.
-  'chart-1': 'bg-chart-1/15 text-chart-1',
-  'chart-2': 'bg-chart-2/15 text-chart-2',
-  'chart-3': 'bg-chart-3/15 text-chart-3',
-  'chart-4': 'bg-chart-4/15 text-chart-4',
-  'chart-5': 'bg-chart-5/15 text-chart-5',
+  // The glyph takes a quarter of the text colour: a series colour is
+  // mid-lightness, so on its own tint it sat at 2.99:1 in the light theme;
+  // mixed toward the text it clears 3:1 in both themes and keeps its hue.
+  'chart-1': 'bg-chart-1/15 text-[color-mix(in_oklab,var(--color-chart-1),var(--color-fg)_25%)]',
+  'chart-2': 'bg-chart-2/15 text-[color-mix(in_oklab,var(--color-chart-2),var(--color-fg)_25%)]',
+  'chart-3': 'bg-chart-3/15 text-[color-mix(in_oklab,var(--color-chart-3),var(--color-fg)_25%)]',
+  'chart-4': 'bg-chart-4/15 text-[color-mix(in_oklab,var(--color-chart-4),var(--color-fg)_25%)]',
+  'chart-5': 'bg-chart-5/15 text-[color-mix(in_oklab,var(--color-chart-5),var(--color-fg)_25%)]',
 } as const;
 
 export interface IconListItemProps extends Omit<ComponentPropsWithoutRef<'li'>, 'title'> {
