@@ -31,10 +31,10 @@ import {
   springEasing,
   springSettleTime,
   springs,
-  useInView,
 } from '@reach/ui';
 import { durations, easings } from '@reach/ui/motion';
 import {
+  useCallback,
   useLayoutEffect,
   useRef,
   useState,
@@ -419,7 +419,7 @@ export function StepDialog({
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
-          <div ref={dock.place}>
+          <div ref={dock.attach}>
             <div
               aria-hidden={dock.isDocked}
               inert={dock.isDocked}
@@ -478,9 +478,27 @@ const curve = (points: readonly number[]): string => `cubic-bezier(${points.join
 function useDock(): {
   readonly isDocked: boolean;
   readonly place: RefObject<HTMLDivElement | null>;
+  /** The bar's place: observed from when it is in the page, not from mount. */
+  readonly attach: (el: HTMLDivElement | null) => void;
   readonly docked: RefObject<HTMLDivElement | null>;
 } {
-  const [place, inView] = useInView<HTMLDivElement>();
+  // A callback ref, not `useInView`'s: the dialog's portal draws its content a
+  // render after the dialog mounts, so an observer set up on mount found no
+  // element and the bar never docked.
+  const place = useRef<HTMLDivElement | null>(null);
+  const [inView, setInView] = useState(false);
+  const watching = useRef<IntersectionObserver | null>(null);
+  const attach = useCallback((el: HTMLDivElement | null) => {
+    watching.current?.disconnect();
+    watching.current = null;
+    place.current = el;
+    if (el === null) return;
+    const seen = new IntersectionObserver(([entry]) => {
+      if (entry !== undefined) setInView(entry.isIntersecting);
+    });
+    seen.observe(el);
+    watching.current = seen;
+  }, []);
   const docked = useRef<HTMLDivElement>(null);
   // Docked only once the bar has been seen and then scrolled away, not while
   // the dialog is still opening.
@@ -524,7 +542,7 @@ function useDock(): {
       );
     }
   }, [isDocked, place]);
-  return { isDocked, place, docked };
+  return { isDocked, place, attach, docked };
 }
 
 /** A simple confirmation or form dialog. */
