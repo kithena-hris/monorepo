@@ -113,26 +113,6 @@
       "component": "Calibration"
     },
     {
-      "path": "/performance/analytics",
-      "component": "Analytics"
-    },
-    {
-      "path": "/performance/analytics/raters",
-      "component": "Analytics"
-    },
-    {
-      "path": "/performance/analytics/trends",
-      "component": "Analytics"
-    },
-    {
-      "path": "/performance/analytics/fairness",
-      "component": "Analytics"
-    },
-    {
-      "path": "/performance/analytics/ask",
-      "component": "Analytics"
-    },
-    {
       "path": "/performance/templates",
       "component": "Templates"
     },
@@ -364,39 +344,6 @@
       "description": "Scores compared across teams before release",
       "summary": "Calibration",
       "owns": ["/performance/calibration/:id"]
-    },
-    {
-      "path": "/performance/analytics",
-      "label": "Analytics",
-      "group": "Performance",
-      "icon": "analytics",
-      "for": ["hr", "calibrator"],
-      "description": "Completion, scores, raters and fairness",
-      "summary": "Analytics",
-      "tabs": [
-        {
-          "path": "/performance/analytics",
-          "label": "Cycle"
-        },
-        {
-          "path": "/performance/analytics/raters",
-          "label": "Raters"
-        },
-        {
-          "path": "/performance/analytics/trends",
-          "label": "Across cycles"
-        },
-        {
-          "path": "/performance/analytics/fairness",
-          "label": "Fairness",
-          "for": ["hr"]
-        },
-        {
-          "path": "/performance/analytics/ask",
-          "label": "Ask",
-          "for": ["hr"]
-        }
-      ]
     },
     {
       "path": "/performance/templates",

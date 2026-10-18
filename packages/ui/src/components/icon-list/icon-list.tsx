@@ -43,6 +43,12 @@ const tileTone = {
   warning: 'bg-warning-subtle text-warning-fg',
   danger: 'bg-danger-subtle text-danger-fg',
   info: 'bg-info-subtle text-info-fg',
+  // The chart series' colours, for a list that is a chart's key in words.
+  'chart-1': 'bg-chart-1/15 text-chart-1',
+  'chart-2': 'bg-chart-2/15 text-chart-2',
+  'chart-3': 'bg-chart-3/15 text-chart-3',
+  'chart-4': 'bg-chart-4/15 text-chart-4',
+  'chart-5': 'bg-chart-5/15 text-chart-5',
 } as const;
 
 export interface IconListItemProps extends Omit<ComponentPropsWithoutRef<'li'>, 'title'> {

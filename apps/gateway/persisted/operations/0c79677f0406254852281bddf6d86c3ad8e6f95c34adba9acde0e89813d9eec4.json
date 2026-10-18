@@ -1,1 +1,0 @@
-{"version":1,"body":"query PerformanceCycleSetup($id: String!, $q: String) {\n    performanceCycleSetup(id: $id, q: $q)\n  }"}

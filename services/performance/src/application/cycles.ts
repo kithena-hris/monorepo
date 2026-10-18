@@ -212,8 +212,16 @@ export async function checksOf(ctx: Ctx, c: Cycle): Promise<Issue[]> {
 const distinct = (xs: readonly (string | null)[]): string[] =>
   [...new Set(xs.filter((x): x is string => x !== null))].toSorted();
 
-/** The setup dialog's data (PF4): the draft, its options, who is in, and the checks. */
-export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Result<unknown>> {
+/**
+ * The setup dialog's data (PF4): the draft, its options, who is in, and the
+ * checks. Who is in comes a page at a time, searched by name or title: the
+ * screen asks for the next page as the list nears its end.
+ */
+export async function setupScreen(
+  ctx: Ctx,
+  id: string,
+  opts: { q?: string; page?: number; size?: number } = {},
+): Promise<Result<unknown>> {
   const may = hrOnly(ctx);
   if (!may.ok) return may;
   const c = await ctx.tx.cycles.get(id);
@@ -223,25 +231,26 @@ export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Res
   const byId = new Map(members.map((m) => [m.personId, m]));
   const included = new Set(c.participants.include.map((p) => p.personId));
   const excluded = new Map(c.participants.exclude.map((p) => [p.personId, p.reason]));
-  const needle = (q ?? '').toLowerCase();
-  const rows = members
+  const needle = (opts.q ?? '').trim().toLowerCase();
+  const matching = members
     .filter((m) => ids.has(m.personId) || excluded.has(m.personId))
-    .filter((m) => needle === '' || m.name.toLowerCase().includes(needle))
-    // Everyone, not a first hundred: the screen draws only the rows in view.
-    .map((m) => ({
-      personId: m.personId,
-      name: m.name,
-      title: subtitle(m),
-      manager:
-        m.managerId === null
-          ? null
-          : { id: m.managerId, name: byId.get(m.managerId)?.name ?? 'Someone' },
-      note: excluded.has(m.personId)
-        ? `Excluded${excluded.get(m.personId) ? ` · ${excluded.get(m.personId) ?? ''}` : ''}`
-        : included.has(m.personId)
-          ? 'Included by hand'
-          : null,
-    }));
+    .filter((m) => needle === '' || `${m.name} ${subtitle(m)}`.toLowerCase().includes(needle));
+  const size = Math.min(200, Math.max(10, opts.size ?? 50));
+  const page = Math.max(1, opts.page ?? 1);
+  const rows = matching.slice((page - 1) * size, page * size).map((m) => ({
+    personId: m.personId,
+    name: m.name,
+    title: subtitle(m),
+    manager:
+      m.managerId === null
+        ? null
+        : { id: m.managerId, name: byId.get(m.managerId)?.name ?? 'Someone' },
+    note: excluded.has(m.personId)
+      ? `Excluded${excluded.get(m.personId) ? ` · ${excluded.get(m.personId) ?? ''}` : ''}`
+      : included.has(m.personId)
+        ? 'Included by hand'
+        : null,
+  }));
   const departments = [
     ...new Set(members.map((m) => m.department).filter((d): d is string => d !== null)),
   ].toSorted();
@@ -255,6 +264,10 @@ export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Res
       included: included.size,
       excluded: excluded.size,
       rows,
+      /** Those the search matches, of whom `rows` is page `page`. */
+      total: matching.length,
+      page,
+      size,
       // Who can be added by name: the picker filters these as it is typed in.
       everyone: members
         .filter((m) => m.status !== 'terminated')

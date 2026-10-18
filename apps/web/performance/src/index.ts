@@ -5,7 +5,6 @@
 import './styles.css';
 
 import { framed } from './frame';
-import { Analytics as AnalyticsScreen } from './analytics';
 import { Automations as AutomationsScreen, Automation as AutomationScreen } from './automations';
 import {
   Calibrations as CalibrationsScreen,
@@ -67,7 +66,6 @@ export const Automations = framed(AutomationsScreen);
 export const Automation = framed(AutomationScreen);
 export const Calibrations = framed(CalibrationsScreen);
 export const Calibration = framed(CalibrationScreen);
-export const Analytics = framed(AnalyticsScreen);
 export const Settings = framed(SettingsScreen);
 export const AiLog = framed(AiLogScreen);
 export const Retention = framed(RetentionScreen);

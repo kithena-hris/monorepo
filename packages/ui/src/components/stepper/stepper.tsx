@@ -67,6 +67,13 @@ export interface StepperProps extends Omit<ComponentPropsWithoutRef<'nav'>, 'onS
   orientation?: 'horizontal' | 'vertical' | 'auto';
   size?: 'sm' | 'md';
   /**
+   * `compact` is one line: small markers joined by short rails, and only the
+   * current step's name beside its marker (the others are read out, and named
+   * on hover). For a stepper that has to sit beside something, such as a
+   * heading it was docked next to. Always across, whatever `orientation` says.
+   */
+  variant?: 'default' | 'compact';
+  /**
    * Makes finished steps clickable. Steps ahead of the current one stay inert:
    * jumping forward skips the validation the steps between are there to do.
    */
@@ -133,6 +140,19 @@ const horizontalLayout = {
   railMd: 'end-0 h-0.5 start-9 top-[13px]',
 };
 
+/* One line: each rail sits in the flow between two steps rather than under them. */
+const compactLayout = {
+  list: 'flex-row items-center gap-1.5',
+  item: 'flex items-center gap-1.5',
+  step: 'flex-row items-center gap-1.5',
+  gap: '',
+  text: 'whitespace-nowrap',
+  label: 'text-sm',
+  description: '',
+  railSm: '',
+  railMd: '',
+};
+
 const layoutFor = {
   horizontal: horizontalLayout,
   vertical: {
@@ -170,16 +190,22 @@ export function Stepper({
   current,
   orientation = 'horizontal',
   size = 'md',
+  variant = 'default',
   onStepChange,
   free = false,
   label,
   className,
   ...props
 }: StepperProps): JSX.Element {
-  const markerSize = size === 'sm' ? 'size-6 text-xs' : 'size-7 text-sm';
-  const o = layoutFor[orientation];
+  const compact = variant === 'compact';
+  const markerSize = compact
+    ? 'size-5 text-2xs'
+    : size === 'sm'
+      ? 'size-6 text-xs'
+      : 'size-7 text-sm';
+  const o = compact ? compactLayout : layoutFor[orientation];
 
-  const horizontal = orientation === 'horizontal';
+  const horizontal = compact || orientation === 'horizontal';
   // The step in progress, counted from one, and never past the last step.
   const shown = Math.min(current + 1, steps.length);
   const failed = steps.some((step, index) => statusOf(step, index, current) === 'error');
@@ -231,9 +257,9 @@ export function Stepper({
             >
               {step.icon ??
                 (status === 'complete' ? (
-                  <Check aria-hidden className="size-4" strokeWidth={2.5} />
+                  <Check aria-hidden className={compact ? 'size-3' : 'size-4'} strokeWidth={2.5} />
                 ) : status === 'error' ? (
-                  <X aria-hidden className="size-4" strokeWidth={2.5} />
+                  <X aria-hidden className={compact ? 'size-3' : 'size-4'} strokeWidth={2.5} />
                 ) : (
                   index + 1
                 ))}
@@ -241,7 +267,7 @@ export function Stepper({
           );
 
           const text = (
-            <span className={cn('min-w-0', o.text)}>
+            <span className={cn('min-w-0', o.text, compact && status !== 'current' && 'sr-only')}>
               <span
                 className={cn(
                   'block truncate font-semibold',
@@ -256,7 +282,7 @@ export function Stepper({
                   Step {index + 1} of {steps.length}
                 </span>
               ) : null}
-              {step.description === undefined ? null : (
+              {step.description === undefined || compact ? null : (
                 <span
                   className={cn(
                     'mt-0.5 block',
@@ -273,16 +299,20 @@ export function Stepper({
           );
 
           const layout = cn('flex min-w-0 items-start', o.step, !last && o.gap);
+          // Compact shows one name; the rest are named on hover.
+          const named = compact && status !== 'current' ? { title: step.label } : {};
 
           const body = reachable ? (
             <button
               type="button"
+              {...named}
               onClick={() => {
                 onStepChange(index, step);
               }}
               className={cn(
                 layout,
-                'w-full touch:min-h-tap rounded-sm text-start',
+                !compact && 'w-full',
+                'touch:min-h-tap rounded-sm text-start',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                 'hover:[&>span:first-child]:brightness-110',
               )}
@@ -291,7 +321,7 @@ export function Stepper({
               {text}
             </button>
           ) : (
-            <span className={layout}>
+            <span className={layout} {...named}>
               {marker}
               {text}
             </span>
@@ -318,7 +348,8 @@ export function Stepper({
                 <span
                   aria-hidden
                   className={cn(
-                    'pointer-events-none absolute rounded-full transition-colors duration-(--animate-duration-normal)',
+                    'pointer-events-none rounded-full transition-colors duration-(--animate-duration-normal)',
+                    compact ? 'h-0.5 w-4 shrink-0' : 'absolute',
                     status === 'complete' ? 'bg-accent' : 'bg-border-strong',
                     size === 'sm' ? o.railSm : o.railMd,
                   )}

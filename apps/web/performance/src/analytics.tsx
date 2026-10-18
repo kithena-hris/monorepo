@@ -8,7 +8,6 @@ import {
   CardTitle,
   EmptyState,
   HorizontalBarChart,
-  PageHeader,
   Stat,
   Table,
   TableBody,
@@ -22,8 +21,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { Loaded } from './load';
-import { Choose, Refusal, day, useAct } from './shared';
+import { Refusal, day, useAct } from './shared';
 import type { ScreenProps } from './types';
 
 /**
@@ -91,39 +89,59 @@ const pct = (v: number | null | undefined): string =>
 const shown = (rows: readonly Metric[]): { label: string; value: number }[] =>
   rows.filter((r) => r.value !== null).map((r) => ({ label: r.label, value: r.value ?? 0 }));
 
-export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
+/** Each view of one cycle's analytics, as Performance answers it; any may be missing (not allowed). */
+export type CycleAnalyticsData = Partial<
+  Record<'cycle' | 'raters' | 'fairness' | 'trends' | 'ask', AnalyticsData>
+>;
+
+/**
+ * A cycle's analytics on its own page, one section after another: completion
+ * and scores, how raters compare, fairness, the trend up to it, and a chart
+ * asked for in words. A draft has none: analytics answers for the latest
+ * launched cycle when asked about one, so a view about another cycle is not
+ * shown.
+ */
+export function CycleAnalytics({
+  id,
+  views,
+  ...props
+}: ScreenProps<unknown> & {
+  readonly id: string;
+  readonly views: CycleAnalyticsData;
+}): JSX.Element {
+  const first = views.cycle ?? views.raters;
+  if (first === undefined)
+    return (
+      <EmptyState
+        icon={<icons.analytics aria-hidden />}
+        title="Analytics aren’t open to you"
+        description="They are for HR and calibrators."
+      />
+    );
+  if (first.empty === true || first.cycleId !== id)
+    return (
+      <EmptyState
+        icon={<icons.analytics aria-hidden />}
+        title="Nothing to measure yet"
+        description="Numbers appear once this cycle has launched and reviews are written."
+      />
+    );
+  const section = (title: string, data: AnalyticsData | undefined): JSX.Element | null =>
+    data === undefined ? null : (
+      <section className="flex flex-col gap-3" aria-label={title}>
+        <h2 className="font-display text-lg font-semibold">{title}</h2>
+        <Body data={data} {...(props as ScreenProps<AnalyticsData>)} />
+      </section>
+    );
   return (
-    <Loaded load={props.load} what="analytics">
-      {(data) => (
-        <div className="flex flex-col gap-4">
-          <PageHeader
-            title="Analytics"
-            description={`How reviews are going, and how scores compare. Groups smaller than ${String(data.cohort)} are hidden.`}
-          />
-          {data.cycles.length === 0 || data.tab === 'trends' ? null : (
-            <div className="w-72">
-              <Choose
-                label="Cycle"
-                value={data.cycleId ?? ''}
-                options={data.cycles.map((c) => [c.id, c.name] as const)}
-                onChange={(v) => {
-                  props.onFilter?.({ cycle: v });
-                }}
-              />
-            </div>
-          )}
-          {data.empty === true ? (
-            <EmptyState
-              icon={<icons.analytics aria-hidden />}
-              title="No cycle has launched yet"
-              description="Numbers appear once reviews are written."
-            />
-          ) : (
-            <Body data={data} {...props} />
-          )}
-        </div>
-      )}
-    </Loaded>
+    <div className="flex flex-col gap-8">
+      <p className="text-sm text-fg-muted">{`Groups smaller than ${String(first.cohort)} are hidden.`}</p>
+      {section('Completion and scores', views.cycle)}
+      {section('Raters', views.raters)}
+      {section('Fairness', views.fairness)}
+      {section('Across cycles', views.trends)}
+      {section('Ask for a chart', views.ask)}
+    </div>
   );
 }
 

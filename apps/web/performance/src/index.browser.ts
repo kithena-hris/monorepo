@@ -31,7 +31,6 @@ export const Automations = split(() => import('./automations'), 'Automations');
 export const Automation = split(() => import('./automations'), 'Automation');
 export const Calibrations = split(() => import('./calibration'), 'Calibrations');
 export const Calibration = split(() => import('./calibration'), 'Calibration');
-export const Analytics = split(() => import('./analytics'), 'Analytics');
 export const Settings = split(() => import('./settings'), 'Settings');
 export const AiLog = split(() => import('./settings'), 'AiLog');
 export const Retention = split(() => import('./settings'), 'Retention');

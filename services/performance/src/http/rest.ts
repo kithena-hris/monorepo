@@ -572,8 +572,18 @@ export const ROUTES: readonly Route[] = [
     method: 'GET',
     path: `${V1}/cycles/{id}/setup`,
     summary: 'PF4: setup',
-    params: z.object({ id: Id, q: z.string().max(100).optional() }),
-    run: (ctx, { params }) => cycles.setupScreen(ctx, params.id, params.q),
+    params: z.object({
+      id: Id,
+      q: z.string().max(100).optional(),
+      page: z.coerce.number().int().min(1).optional(),
+      size: z.coerce.number().int().min(10).max(200).optional(),
+    }),
+    run: (ctx, { params }) =>
+      cycles.setupScreen(ctx, params.id, {
+        ...(params.q === undefined ? {} : { q: params.q }),
+        ...(params.page === undefined ? {} : { page: params.page }),
+        ...(params.size === undefined ? {} : { size: params.size }),
+      }),
   }),
   route({
     name: 'performanceUnlocks',

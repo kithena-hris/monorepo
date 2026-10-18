@@ -25,9 +25,25 @@ import {
   SelectValue,
   Stepper,
   Switch,
+  Tooltip,
   cn,
+  icons,
+  springEasing,
+  springSettleTime,
+  springs,
+  useInView,
 } from '@reach/ui';
-import { useState, useTransition, type JSX, type MouseEvent, type ReactNode } from 'react';
+import { durations, easings } from '@reach/ui/motion';
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+  type JSX,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 
 import type { CycleState, Done, Kind, ScreenProps } from './types';
 
@@ -253,6 +269,7 @@ export function SwitchRow({
   onChange,
   disabled,
   locked,
+  info,
 }: {
   readonly label: string;
   readonly hint?: ReactNode;
@@ -261,11 +278,25 @@ export function SwitchRow({
   readonly disabled?: boolean;
   /** Kithena holds it on: "Always". */
   readonly locked?: string;
+  /** More about it, behind an info button beside the label. */
+  readonly info?: string;
 }): JSX.Element {
   return (
     <Field orientation="horizontal" className="justify-between gap-4 py-2.5">
       <span className="flex min-w-0 flex-col">
-        <FieldLabel>{label}</FieldLabel>
+        <span className="flex items-center gap-1">
+          <FieldLabel>{label}</FieldLabel>
+          {info === undefined ? null : (
+            <Tooltip content={info}>
+              <Button
+                size="xs"
+                variant="ghost"
+                aria-label={`About ${label}: ${info}`}
+                startIcon={<icons.info aria-hidden />}
+              />
+            </Tooltip>
+          )}
+        </span>
         {hint === undefined ? null : <FieldDescription>{hint}</FieldDescription>}
       </span>
       <span className="flex items-center gap-2">
@@ -332,6 +363,31 @@ export function StepDialog({
   readonly wide?: boolean;
 }): JSX.Element {
   const lastStep = step === steps.length - 1;
+  const dock = useDock();
+  // A new step starts at its top, wherever the last one was scrolled to.
+  const shown = useRef(step);
+  useLayoutEffect(() => {
+    if (shown.current === step) return;
+    shown.current = step;
+    dock.place.current?.parentElement?.scrollTo({ top: 0 });
+  }, [step, dock.place]);
+  const bar = (compact: boolean) => (
+    <Stepper
+      label={`${title} steps`}
+      size="sm"
+      variant={compact ? 'compact' : 'default'}
+      free
+      current={step}
+      onStepChange={(i) => {
+        onStep(i);
+      }}
+      steps={steps.map((s, i) => ({
+        id: String(i),
+        label: s,
+        status: i < step ? 'complete' : i === step ? 'current' : 'upcoming',
+      }))}
+    />
+  );
   return (
     <Dialog
       open={open}
@@ -348,24 +404,36 @@ export function StepDialog({
         )}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <div className="flex min-w-0 items-center gap-4">
+            <DialogTitle className="min-w-0 truncate">{title}</DialogTitle>
+            {/* The bar, docked here while its place is scrolled away. */}
+            <div
+              ref={dock.docked}
+              aria-hidden={!dock.isDocked}
+              inert={!dock.isDocked}
+              className={cn('ms-auto shrink-0', !dock.isDocked && 'opacity-0')}
+            >
+              {bar(true)}
+            </div>
+          </div>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
-          <Stepper
-            label={`${title} steps`}
-            size="sm"
-            free
-            current={step}
-            onStepChange={(i) => {
-              onStep(i);
-            }}
-            steps={steps.map((s, i) => ({
-              id: String(i),
-              label: s,
-              status: i < step ? 'complete' : i === step ? 'current' : 'upcoming',
-            }))}
-          />
+          <div ref={dock.place}>
+            <div
+              aria-hidden={dock.isDocked}
+              inert={dock.isDocked}
+              className={cn(
+                'transition-[opacity,translate] motion-reduce:transition-none',
+                dock.isDocked
+                  ? 'pointer-events-none -translate-y-2 opacity-0 duration-(--animate-duration-fast) ease-(--ease-exit)'
+                  : // Back once the docked copy has gone: one bar on screen at a time.
+                    'delay-(--animate-duration-fast) duration-(--animate-duration-normal) ease-(--ease-entrance)',
+              )}
+            >
+              {bar(false)}
+            </div>
+          </div>
           {children}
         </DialogBody>
         <DialogFooter>
@@ -393,6 +461,70 @@ export function StepDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+const curve = (points: readonly number[]): string => `cubic-bezier(${points.join(', ')})`;
+
+/**
+ * A step bar that docks beside the dialog's title once it is scrolled out of
+ * the body. Docking, the copy in the header glides from where the bar was to
+ * the title on the `move` spring; undocking, it slips back toward the bar's
+ * place and fades out fast, and only then does the bar fade back in (its CSS
+ * waits `fast`), so the two are never on screen together. Reduced motion
+ * swaps them without travel. Under a thumb the bar stays where it is: the
+ * header has no room beside the title. (`seen` is false on the server, so
+ * `matchMedia` is only reached in a browser.)
+ */
+function useDock(): {
+  readonly isDocked: boolean;
+  readonly place: RefObject<HTMLDivElement | null>;
+  readonly docked: RefObject<HTMLDivElement | null>;
+} {
+  const [place, inView] = useInView<HTMLDivElement>();
+  const docked = useRef<HTMLDivElement>(null);
+  // Docked only once the bar has been seen and then scrolled away, not while
+  // the dialog is still opening.
+  const seen = useRef(false);
+  if (inView) seen.current = true;
+  const isDocked = seen.current && !inView && !matchMedia('(pointer: coarse)').matches;
+  const was = useRef(isDocked);
+  useLayoutEffect(() => {
+    if (was.current === isDocked) return;
+    was.current = isDocked;
+    const to = docked.current;
+    const from = place.current;
+    if (to === null || from === null || matchMedia('(prefers-reduced-motion: reduce)').matches)
+      return;
+    for (const running of to.getAnimations()) running.cancel();
+    const a = from.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    const dx = a.left - b.left;
+    const dy = a.top - b.top;
+    if (isDocked) {
+      to.animate(
+        [
+          { opacity: 0, transform: `translate(${String(dx)}px, ${String(dy)}px) scale(0.92)` },
+          { opacity: 1, transform: 'none' },
+        ],
+        {
+          duration: springSettleTime(springs.move, 0.004) * 1000,
+          easing: springEasing(springs.move),
+        },
+      );
+    } else {
+      to.animate(
+        [
+          { opacity: 1, transform: 'none' },
+          {
+            opacity: 0,
+            transform: `translate(${String(dx / 4)}px, ${String(dy / 4)}px) scale(0.96)`,
+          },
+        ],
+        { duration: durations.fast, easing: curve(easings.exit) },
+      );
+    }
+  }, [isDocked, place]);
+  return { isDocked, place, docked };
 }
 
 /** A simple confirmation or form dialog. */

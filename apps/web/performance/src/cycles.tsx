@@ -35,8 +35,11 @@ import {
   Field,
   FieldControl,
   FieldLabel,
+  IconList,
+  IconListItem,
   Input,
   KeyValues,
+  Stat,
   NumberField,
   PageHeader,
   Progress,
@@ -77,6 +80,7 @@ import {
   KIND_ORDER,
   TONES,
 } from './cycle-plan';
+import { CycleAnalytics, type CycleAnalyticsData } from './analytics';
 import { Loaded } from './load';
 import {
   CycleBadge,
@@ -541,6 +545,10 @@ export interface SetupData {
       readonly name: string;
       readonly title: string;
     }[];
+    /** Those the search matches, of whom `rows` is page `page` of `size`. */
+    readonly total?: number;
+    readonly page?: number;
+    readonly size?: number;
     readonly everyone?: readonly {
       readonly personId: string;
       readonly name: string;
@@ -651,7 +659,15 @@ function SetupDialog({
         <Refusal error={act.error} />
         {step === 0 ? <Basics c={c} save={save} action={data.action} /> : null}
         {step === 1 ? (
-          <Participants c={c} data={data} save={save} act={act} onNavigate={props.onNavigate} />
+          <Participants
+            c={c}
+            data={data}
+            save={save}
+            act={act}
+            search={props.search}
+            onFilter={props.onFilter}
+            onNavigate={props.onNavigate}
+          />
         ) : null}
         {step === 2 ? <Reviews c={c} data={data} save={save} activity={activity} /> : null}
         {step === 3 ? <RemindersStep c={c} save={save} /> : null}
@@ -865,18 +881,150 @@ function conditionsOf(group: FilterGroup): Cond[] {
   });
 }
 
-/** Who is in: in words, by filters like the directory's, and by name; left out with a reason. */
+/**
+ * The filters in force as chips, and Add filter, which opens the builder in a
+ * dialog applied on Apply. The cycle overview's toolbar and the setup's People
+ * step share it: one holds a view in the address, the other who is in.
+ */
+function FilterChips({
+  fields,
+  value,
+  match,
+  onApply,
+  title,
+  description,
+}: {
+  readonly fields: readonly FilterField[];
+  readonly value: readonly Cond[];
+  readonly match: 'all' | 'any';
+  readonly onApply: (filter: Cond[], match: 'all' | 'any') => void;
+  readonly title: string;
+  readonly description: string;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<FilterGroup>(() => groupOf(value, match));
+  const chips = chipsOf(fields, value);
+  return (
+    <>
+      <ChipRow role="group" aria-label="Filters in force">
+        {match === 'any' && chips.length > 1 ? (
+          <span className="text-xs text-fg-muted">Any of:</span>
+        ) : null}
+        {chips.map((chip) => (
+          <Chip
+            key={chip.key}
+            field={chip.field}
+            onRemove={() => {
+              onApply(
+                value.filter((_, i) => !chip.at.includes(i)),
+                match,
+              );
+            }}
+            removeLabel={`Remove ${chip.field} ${chip.text}`}
+          >
+            {chip.text}
+          </Chip>
+        ))}
+        <Chip
+          variant="dashed"
+          startIcon={<icons.add aria-hidden />}
+          onClick={() => {
+            setDraft(groupOf(value, match));
+            setOpen(true);
+          }}
+        >
+          Add filter
+        </Chip>
+        {chips.length === 0 ? null : (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              onApply([], 'all');
+            }}
+          >
+            Clear all
+          </Button>
+        )}
+      </ChipRow>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-170">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <FilterBuilder
+              label="Conditions"
+              fields={[...fields]}
+              value={draft}
+              onChange={setDraft}
+              maxConditions={20}
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              className="me-auto"
+              onClick={() => {
+                setDraft({ match: 'all', conditions: [] });
+              }}
+            >
+              Clear
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                onApply(
+                  conditionsOf({
+                    ...draft,
+                    conditions: draft.conditions.filter((x) => isConditionComplete(fields, x)),
+                  }),
+                  draft.match,
+                );
+                setOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+type Participant = SetupData['participants']['rows'][number];
+
+/**
+ * Who is in, as the cycle overview lists people: a question in words, then
+ * one toolbar with the search, the filters as chips and Add by name, and the
+ * list right under it. The filters are the cycle's and saved as they apply;
+ * the search is the address's. Both are answered by Performance a page at a
+ * time, the next page asked for as the list nears its end.
+ */
 function Participants({
   c,
   data,
   save,
   act,
+  search,
+  onFilter,
   onNavigate,
 }: {
   readonly c: CycleSetup;
   readonly data: SetupData;
   readonly save: (p: Partial<CycleSetup>) => void;
   readonly act: Act;
+  readonly search?: Readonly<Record<string, string>> | undefined;
+  readonly onFilter?: ((patch: Record<string, string | null>) => void) | undefined;
   readonly onNavigate?: ((to: string) => void) | undefined;
 }): JSX.Element {
   const [excluding, setExcluding] = useState<string | null>(null);
@@ -887,21 +1035,51 @@ function Participants({
     summary: string[];
   } | null>(null);
   const p = data.participants;
-  const [find, setFind] = useState('');
-  const needle = find.trim().toLowerCase();
-  const shown =
-    needle === ''
-      ? p.rows
-      : p.rows.filter((r) => `${r.name} ${r.title}`.toLowerCase().includes(needle));
+  const q = search?.['q'] ?? '';
+  const pages = usePages(
+    p.rows,
+    p.total !== undefined &&
+      p.page !== undefined &&
+      p.size !== undefined &&
+      p.page * p.size < p.total
+      ? String(p.page + 1)
+      : null,
+    async (cursor) => {
+      const page = Number(cursor);
+      const d = await act.call('PerformanceCycleSetup', {
+        id: c.id,
+        q: q === '' ? null : q,
+        page,
+        size: p.size ?? 50,
+      });
+      if (!d.ok) return null;
+      const more = (d.data as SetupData).participants;
+      return {
+        items: more.rows,
+        next: page * (more.size ?? 50) < (more.total ?? 0) ? String(page + 1) : null,
+      };
+    },
+  );
   const people = (p.everyone ?? p.rows).map((x) => ({
     value: x.personId,
     label: x.name,
     description: x.title,
   }));
-  const columns: readonly DataColumn<SetupData['participants']['rows'][number]>[] = [
-    { id: 'person', header: 'Person', cell: (r) => <Person name={r.name} sub={r.title} /> },
+  const match = c.participants.match ?? 'all';
+  const fields = filterFields(data);
+  const participants = (patch: Partial<CycleSetup['participants']>): void => {
+    save({ participants: { ...c.participants, ...patch } });
+  };
+  const columns: readonly DataColumn<Participant>[] = [
+    {
+      id: 'person',
+      width: '20rem',
+      header: 'Person',
+      cell: (r) => <Person name={r.name} sub={r.title} />,
+    },
     {
       id: 'manager',
+      width: '14rem',
       header: 'Manager',
       cell: (r) =>
         r.manager === null ? (
@@ -918,19 +1096,11 @@ function Participants({
     },
     {
       id: 'note',
-      header: <span className="sr-only">Leave out</span>,
-      className: 'w-0 text-end',
+      width: '12rem',
+      header: 'How',
       cell: (r) =>
         r.note === null ? (
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={() => {
-              setExcluding(r.personId);
-            }}
-          >
-            Leave out
-          </Button>
+          <span className="text-sm text-fg-muted">By the filters</span>
         ) : (
           <Badge size="sm" tone={r.note.startsWith('Excluded') ? 'neutral' : 'accent'}>
             {r.note}
@@ -938,179 +1108,201 @@ function Participants({
         ),
     },
   ];
-  const match = c.participants.match ?? 'all';
-  const fields = filterFields(data);
-  const [group, setGroup] = useState<FilterGroup>(() => groupOf(c.participants.filter, match));
-  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Only complete conditions are saved, and typing settles first.
-  const change = (next: FilterGroup): void => {
-    setGroup(next);
-    const done = {
-      ...next,
-      conditions: next.conditions.filter((x) => isConditionComplete(fields, x)),
-    };
-    const filter = conditionsOf(done);
-    if (JSON.stringify(filter) === JSON.stringify(c.participants.filter) && done.match === match)
-      return;
-    if (pending.current !== null) clearTimeout(pending.current);
-    pending.current = setTimeout(() => {
-      save({ participants: { ...c.participants, filter, match: done.match } });
-    }, 400);
-  };
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle level={3}>Describe who, in words</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            <Field>
-              <FieldLabel>Who should be in</FieldLabel>
-              <Input
-                value={chat}
-                placeholder="Engineering and Product in Chicago, without anyone on leave"
-                onChange={(e) => {
-                  setChat(e.target.value);
-                }}
-              />
-            </Field>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="self-start"
-              startIcon={<icons.assistant aria-hidden />}
-              disabled={chat.trim().length < 3}
-              loading={act.pending}
-              onClick={() => {
-                act.run(
-                  'PerformanceParticipantsInWords',
-                  { id: c.id, input: { text: chat } },
-                  (d) => {
-                    setProposal(d as typeof proposal);
-                  },
-                );
-              }}
-            >
-              Propose the filters
-            </Button>
-            {proposal === null ? null : (
-              <Alert
-                tone="info"
-                title="Change who is in"
-                action={
-                  <span className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setProposal(null);
-                      }}
-                    >
-                      Discard
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setGroup(groupOf(proposal.filter, match));
-                        save({ participants: { ...c.participants, filter: proposal.filter } });
-                        setProposal(null);
-                      }}
-                    >
-                      Apply
-                    </Button>
-                  </span>
-                }
-              >
-                {proposal.summary.join(' · ')}
-              </Alert>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      <FilterBuilder
-        label="Who is in"
-        title="Filters"
-        emptyDescription="Nobody is chosen by a filter. Add one, or add people by name."
-        fields={fields}
-        value={group}
-        onChange={change}
-        maxConditions={20}
-      />
-      <Field>
-        <FieldLabel>Add someone by name</FieldLabel>
-        <FieldControl>
-          {/* Who is added by hand stays listed under it, each removable there. */}
-          <Combobox
-            label="Add someone by name"
-            multiple
-            chips
-            placeholder="Type a name"
-            searchPlaceholder="Search people"
-            emptyMessage="Nobody by that name"
-            options={people}
-            value={c.participants.include.map((x) => x.personId)}
-            onChange={(next) => {
-              const ids = Array.isArray(next) ? (next as readonly string[]) : [];
-              const kept = c.participants.include.filter((x) => ids.includes(x.personId));
-              const added = ids
-                .filter((id) => !kept.some((x) => x.personId === id))
-                .map((personId) => ({
-                  personId,
-                  reason: null,
-                  by: 'You',
-                  at: new Date().toISOString(),
-                }));
-              save({
-                participants: {
-                  ...c.participants,
-                  include: [...kept, ...added],
-                  exclude: c.participants.exclude.filter((x) => !ids.includes(x.personId)),
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label="Describe who should be in, in words"
+          className="flex-1"
+          value={chat}
+          placeholder="Ask in words: Engineering and Product in Chicago, without anyone on leave"
+          onChange={(e) => {
+            setChat(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && chat.trim().length >= 3)
+              act.run(
+                'PerformanceParticipantsInWords',
+                { id: c.id, input: { text: chat } },
+                (d) => {
+                  setProposal(d as typeof proposal);
                 },
-              });
+              );
+          }}
+        />
+        <Button
+          variant="secondary"
+          startIcon={<icons.assistant aria-hidden />}
+          disabled={chat.trim().length < 3}
+          loading={act.pending}
+          onClick={() => {
+            act.run('PerformanceParticipantsInWords', { id: c.id, input: { text: chat } }, (d) => {
+              setProposal(d as typeof proposal);
+            });
+          }}
+        >
+          Propose
+        </Button>
+      </div>
+      {proposal === null ? null : (
+        <Alert
+          tone="info"
+          title="Change who is in"
+          action={
+            <span className="flex gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setProposal(null);
+                }}
+              >
+                Discard
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  participants({ filter: proposal.filter });
+                  setProposal(null);
+                }}
+              >
+                Apply
+              </Button>
+            </span>
+          }
+        >
+          {proposal.summary.join(' · ')}
+        </Alert>
+      )}
+      <Toolbar
+        search={
+          <Search
+            label="Search who is in"
+            placeholder={`Search ${plural(p.count, 'person', 'people')}`}
+            initial={q}
+            onSearch={(next) => {
+              onFilter?.({ q: next === '' ? null : next });
             }}
           />
-        </FieldControl>
-      </Field>
-      <Card>
-        <CardHeader>
-          <CardTitle level={3}>{plural(p.count, 'person', 'people')}</CardTitle>
-          <p className="text-sm text-fg-muted">{`${String(p.fromFilter)} from the filter, ${String(p.included)} added by name, ${String(p.excluded)} left out`}</p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <SearchField
-            label="Search who is in"
-            placeholder={`Search ${plural(p.rows.length, 'person', 'people')}`}
-            value={find}
-            onValueChange={setFind}
+        }
+        filters={
+          <FilterChips
+            fields={fields}
+            value={c.participants.filter}
+            match={match}
+            title="Who is in"
+            description="Everyone these match is in, with whoever you add by name. Nothing changes until you press Apply."
+            onApply={(filter, m) => {
+              participants({ filter, match: m });
+            }}
           />
-          {/* Everyone who is in, drawn only where the list is in view. */}
-          <DataTable
-            label="Who is in"
-            rows={shown}
-            rowId={(r) => r.personId}
-            columns={columns}
-            virtualize="auto"
-            estimateRowHeight={57}
-            containerClassName="max-h-96"
-            stickyHeader
-            empty={
-              <EmptyState
-                title={find === '' ? 'Nobody yet' : 'Nobody by that name'}
-                description={
-                  find === '' ? 'Choose a department, or add people by name.' : 'Try another name.'
-                }
-              />
+        }
+        actions={
+          <span className="w-56">
+            <Combobox
+              label="Add by name"
+              multiple
+              size="sm"
+              placeholder="Add by name"
+              searchPlaceholder="Search people"
+              emptyMessage="Nobody by that name"
+              options={people}
+              value={c.participants.include.map((x) => x.personId)}
+              onChange={(next) => {
+                const ids = Array.isArray(next) ? (next as readonly string[]) : [];
+                const kept = c.participants.include.filter((x) => ids.includes(x.personId));
+                const added = ids
+                  .filter((id) => !kept.some((x) => x.personId === id))
+                  .map((personId) => ({
+                    personId,
+                    reason: null,
+                    by: 'You',
+                    at: new Date().toISOString(),
+                  }));
+                participants({
+                  include: [...kept, ...added],
+                  exclude: c.participants.exclude.filter((x) => !ids.includes(x.personId)),
+                });
+              }}
+            />
+          </span>
+        }
+      />
+      <p className="text-sm text-fg-muted" aria-live="polite">
+        <span className="font-semibold text-fg">{plural(p.count, 'person', 'people')}</span>
+        {` · ${String(p.fromFilter)} from the filters, ${String(p.included)} added by name, ${String(p.excluded)} left out`}
+        {q === '' ? '' : ` · ${plural(p.total ?? p.rows.length, 'match', 'matches')} “${q}”`}
+      </p>
+      {/* A page at a time, only the rows in view drawn; the next page comes at 70%. */}
+      <DataTable
+        label="Who is in"
+        rows={pages.items}
+        rowId={(r) => r.personId}
+        columns={columns}
+        describeRow={(r) => r.name}
+        estimateRowHeight={57}
+        containerClassName="max-h-[28rem]"
+        columnSizing="fill"
+        stickyHeader
+        {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+        loadingMore={pages.loading}
+        {...(pages.items.length > 0 && pages.loadMore === undefined
+          ? {
+              endLabel: `That’s everyone · ${plural(p.total ?? p.rows.length, 'person', 'people')}`,
+            }
+          : {})}
+        rowActions={(r) =>
+          r.note === null
+            ? [
+                {
+                  id: 'leave-out',
+                  label: 'Leave out of this cycle',
+                  onSelect: () => {
+                    setExcluding(r.personId);
+                  },
+                },
+              ]
+            : r.note.startsWith('Excluded')
+              ? [
+                  {
+                    id: 'back-in',
+                    label: 'Take back in',
+                    onSelect: () => {
+                      participants({
+                        exclude: c.participants.exclude.filter((x) => x.personId !== r.personId),
+                      });
+                    },
+                  },
+                ]
+              : [
+                  {
+                    id: 'remove',
+                    label: 'Remove, added by name',
+                    destructive: true,
+                    onSelect: () => {
+                      participants({
+                        include: c.participants.include.filter((x) => x.personId !== r.personId),
+                      });
+                    },
+                  },
+                ]
+        }
+        empty={
+          <EmptyState
+            icon={<icons.people aria-hidden />}
+            title={q === '' ? 'Nobody yet' : 'Nobody matches'}
+            description={
+              q === '' ? 'Add a filter, or add people by name.' : 'Try another name or title.'
             }
           />
-        </CardContent>
-      </Card>
+        }
+      />
       <SwitchRow
         label="Keep in step"
         hint="People who start matching are added; people who stop matching are listed for you to decide."
         checked={c.participants.keepInStep}
         onChange={(on) => {
-          save({ participants: { ...c.participants, keepInStep: on } });
+          participants({ keepInStep: on });
         }}
       />
       {p.noLongerMatches.length === 0 ? null : (
@@ -1142,15 +1334,12 @@ function Participants({
               disabled={reason.trim() === ''}
               onClick={() => {
                 if (excluding === null) return;
-                save({
-                  participants: {
-                    ...c.participants,
-                    exclude: [
-                      ...c.participants.exclude,
-                      { personId: excluding, reason, by: 'You', at: new Date().toISOString() },
-                    ],
-                    include: c.participants.include.filter((x) => x.personId !== excluding),
-                  },
+                participants({
+                  exclude: [
+                    ...c.participants.exclude,
+                    { personId: excluding, reason, by: 'You', at: new Date().toISOString() },
+                  ],
+                  include: c.participants.include.filter((x) => x.personId !== excluding),
                 });
                 setExcluding(null);
                 setReason('');
@@ -1393,8 +1582,14 @@ function ReminderOptions({
         ))}
       </ChipRow>
       <SwitchRow
+        label="Inbox"
+        info="Always on: every reminder lands in each person’s Inbox in Kithena, whatever else is chosen."
+        checked
+        disabled
+      />
+      <SwitchRow
         label="Email"
-        hint="By each person’s preference; the Inbox always"
+        hint="By each person’s preference"
         checked={value.email}
         onChange={(email) => {
           onChange({ ...value, email });
@@ -1792,6 +1987,40 @@ function CyclePlan({
 }
 
 /** How it ends (release), who sees what, and what stops a launch. */
+/** Each review kind's glyph; its colour is its place in the plan's chart. */
+const KIND_GLYPH = {
+  self: icons.person,
+  manager: icons.approve,
+  peer: icons.people,
+  upward: icons.up,
+  skip: icons.hierarchy,
+} as const;
+
+function KindGlyph({ kind }: { readonly kind: string }): JSX.Element {
+  const Glyph = (KIND_GLYPH as Partial<Record<string, typeof icons.person>>)[kind] ?? icons.review;
+  return <Glyph aria-hidden />;
+}
+
+const kindTone = (kind: string): (typeof TONES)[number] =>
+  TONES[KIND_ORDER.indexOf(kind as (typeof KIND_ORDER)[number])] ?? 'chart-1';
+
+/** "14 days after the start": when a deadline falls, in words. */
+const dueAfter = (d: Deadline): string =>
+  d.kind === 'exact'
+    ? 'on a set date'
+    : `${plural(d.days ?? 0, 'day')} after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`;
+
+const PICKER: Readonly<Record<string, string>> = {
+  subject: 'the person',
+  manager: 'their manager',
+  hr: 'HR',
+};
+
+/**
+ * The last step: whether anything stops it, what launches (who, when, and each
+ * review with its form and deadline, in the plan's colours), the plan, and what
+ * the subject sees once it is written.
+ */
 function Launch({
   c,
   data,
@@ -1806,6 +2035,16 @@ function Launch({
     save({ visibility: { ...v, ...patch } });
   };
   const blocks = data.checks.filter((i) => i.level === 'block').length;
+  const warns = data.checks.filter((i) => i.level === 'warn').length;
+  const on = KINDS.filter((k) => k !== 'goals' && c.activities[k].on);
+  const dues = on.map((k) => resolveDue(c, c.activities[k].due));
+  const last = dues.toSorted().at(-1);
+  const form = (id: string | null): string => {
+    const t = data.templates.find((x) => x.id === id);
+    return t === undefined
+      ? 'No form chosen yet'
+      : `${t.name} · v${String(t.published ?? 1)} · ${plural(t.questions, 'question')}`;
+  };
   const names = (label: string, value: string, key: 'peerNames' | 'upwardNames'): JSX.Element => (
     <Field>
       <FieldLabel>{label}</FieldLabel>
@@ -1831,128 +2070,207 @@ function Launch({
     </Field>
   );
   return (
-    <div className="flex flex-col gap-4">
-      {data.checks.map((i) => (
-        <Alert
-          key={`${i.level}-${i.title}`}
-          tone={i.level === 'block' ? 'danger' : i.level === 'warn' ? 'warning' : 'success'}
-          title={i.title}
-        >
-          {i.detail}
-        </Alert>
-      ))}
-      <p className="text-sm text-fg-muted">
-        {blocks === 0
-          ? 'Nothing stops this cycle. Warnings don’t.'
-          : `${plural(blocks, 'issue')} ${blocks === 1 ? 'stops' : 'stop'} it. Warnings don’t.`}
-      </p>
+    <div className="flex flex-col gap-5">
       <Card>
-        <CardContent>
-          <KeyValues
-            layout="split"
-            items={[
-              { label: 'People', value: plural(data.participants.count, 'person', 'people') },
-              {
-                label: 'Reviews',
-                value:
-                  KINDS.filter((k) => k !== 'goals' && c.activities[k].on)
-                    .map(kindLabel)
-                    .join(', ') || 'None',
-              },
-              { label: 'Starts', value: `${day(c.start.date)}, ${c.start.time} ${c.start.zone}` },
-            ]}
-          />
+        <CardHeader>
+          <CardTitle level={3}>
+            {blocks === 0
+              ? 'Ready to launch'
+              : `${plural(blocks, 'thing')} to fix before it can launch`}
+          </CardTitle>
+          <p className="text-sm text-fg-muted">
+            {blocks === 0 && warns === 0
+              ? 'Every check passed.'
+              : warns === 0
+                ? 'Fix what is marked; nothing else stops it.'
+                : `${plural(warns, 'warning')} to read. Warnings don’t stop it.`}
+          </p>
+        </CardHeader>
+        {data.checks.length === 0 ? null : (
+          <CardContent>
+            <IconList divided>
+              {data.checks.map((i) => (
+                <IconListItem
+                  key={`${i.level}-${i.title}`}
+                  icon={
+                    i.level === 'block' ? (
+                      <icons.danger />
+                    ) : i.level === 'warn' ? (
+                      <icons.warning />
+                    ) : (
+                      <icons.success />
+                    )
+                  }
+                  tone={i.level === 'block' ? 'danger' : i.level === 'warn' ? 'warning' : 'success'}
+                  description={i.detail}
+                >
+                  {i.title}
+                </IconListItem>
+              ))}
+            </IconList>
+          </CardContent>
+        )}
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle level={3}>What launches</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat
+              label="People"
+              icon={<icons.people aria-hidden />}
+              iconPosition="start"
+              value={String(data.participants.count)}
+              description={`${String(data.participants.fromFilter)} by the filters, ${String(data.participants.included)} by name`}
+            />
+            <Stat
+              label="Starts"
+              icon={<icons.calendar aria-hidden />}
+              iconPosition="start"
+              value={day(c.start.date)}
+              description={`${c.start.time} ${c.start.zone}`}
+            />
+            <Stat
+              label="Last deadline"
+              icon={<icons.flagged aria-hidden />}
+              iconPosition="start"
+              value={last === undefined ? '—' : day(last)}
+              description={plural(on.length, 'review')}
+            />
+          </div>
+          {on.length === 0 ? (
+            <p className="text-sm text-fg-muted">No review is part of this cycle yet.</p>
+          ) : (
+            <IconList divided aria-label="Reviews in this cycle">
+              {on.map((k, i) => {
+                const a = c.activities[k];
+                return (
+                  <IconListItem
+                    key={k}
+                    icon={<KindGlyph kind={k} />}
+                    tone={kindTone(k)}
+                    description={
+                      <>
+                        <span className="block">{form(a.templateId)}</span>
+                        <span className="block">
+                          <span className="font-medium text-fg">{`Due ${day(dues[i] ?? '')}`}</span>
+                          {` · ${dueAfter(a.due)}`}
+                          {k === 'peer'
+                            ? c.peer.all
+                              ? ` · every teammate, up to ${String(c.peer.max)}`
+                              : ` · ${String(c.peer.min)} to ${String(c.peer.max)} peers, nominated by ${PICKER[c.peer.picker] ?? c.peer.picker}`
+                            : ''}
+                        </span>
+                      </>
+                    }
+                  >
+                    {kindLabel(k)}
+                  </IconListItem>
+                );
+              })}
+              {c.goals === 'none' ? null : (
+                <IconListItem
+                  icon={<icons.goal />}
+                  tone="neutral"
+                  description={GOALS_LABEL[c.goals] ?? c.goals}
+                >
+                  Goals
+                </IconListItem>
+              )}
+            </IconList>
+          )}
         </CardContent>
       </Card>
       <CyclePlan c={c} edit={{ mode: 'setup', c, save }} />
-      <Field>
-        <FieldLabel>The subject sees their reviews</FieldLabel>
-        <RadioGroup
-          aria-label="Release"
-          className="flex flex-col gap-2"
-          value={v.release.mode}
-          onValueChange={(mode) => {
-            set({ release: { ...v.release, mode } });
-          }}
-        >
-          <RadioCard
-            value="manager"
-            description="The manager releases each one once it is submitted."
-          >
-            As each is submitted
-          </RadioCard>
-          <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
-            On a date
-          </RadioCard>
-          <RadioCard
-            value="close"
-            description="When the cycle closes, after calibration if it has one."
-          >
-            When the cycle closes
-          </RadioCard>
-        </RadioGroup>
-      </Field>
-      {v.release.mode === 'hr_date' ? (
-        <Field>
-          <FieldLabel>Release on</FieldLabel>
-          <FieldControl>
-            <DatePicker
-              label="Release on"
-              value={v.release.date}
-              onChange={(date) => {
-                set({ release: { ...v.release, date } });
-              }}
-            />
-          </FieldControl>
-        </Field>
-      ) : null}
       <Card>
         <CardHeader>
-          <CardTitle level={3}>Names and what the subject can do</CardTitle>
+          <CardTitle level={3}>What the subject sees</CardTitle>
+          <p className="text-sm text-fg-muted">Their manager and HR always see who wrote what.</p>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
+        <CardContent className="flex flex-col gap-5">
+          <Field>
+            <FieldLabel>Their reviews reach them</FieldLabel>
+            <RadioGroup
+              aria-label="Release"
+              className="grid gap-2 sm:grid-cols-3"
+              value={v.release.mode}
+              onValueChange={(mode) => {
+                set({ release: { ...v.release, mode } });
+              }}
+            >
+              <RadioCard
+                value="manager"
+                description="The manager releases each one once it is submitted."
+              >
+                As each is submitted
+              </RadioCard>
+              <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
+                On a date
+              </RadioCard>
+              <RadioCard
+                value="close"
+                description="When the cycle closes, after calibration if it has one."
+              >
+                When the cycle closes
+              </RadioCard>
+            </RadioGroup>
+          </Field>
+          {v.release.mode === 'hr_date' ? (
+            <Field>
+              <FieldLabel>Release on</FieldLabel>
+              <FieldControl>
+                <DatePicker
+                  label="Release on"
+                  value={v.release.date}
+                  onChange={(date) => {
+                    set({ release: { ...v.release, date } });
+                  }}
+                />
+              </FieldControl>
+            </Field>
+          ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
             {names('Peer reviews: the writers’ names', v.peerNames, 'peerNames')}
             {names('Upward reviews: the writers’ names', v.upwardNames, 'upwardNames')}
-            <p className="text-sm text-fg-muted">
-              The subject’s manager and HR always see who wrote what.
-            </p>
+          </div>
+          <div className="flex flex-col">
             <SwitchRow
               label="Ask for an acknowledgement"
               hint="“I’ve read this” is not agreement."
               checked={v.acknowledge}
-              onChange={(on) => {
-                set({ acknowledge: on });
+              onChange={(ack) => {
+                set({ acknowledge: ack });
               }}
             />
             <SwitchRow
               label="Let the subject comment"
               hint="Shown to the manager and HR"
               checked={v.subjectComment}
-              onChange={(on) => {
-                set({ subjectComment: on });
+              onChange={(comment) => {
+                set({ subjectComment: comment });
               }}
             />
             <SwitchRow
               label="Share the peer summary"
               hint="Peer answers, without names"
               checked={v.peerSummary}
-              onChange={(on) => {
-                set({ peerSummary: on });
-              }}
-            />
-            <NumberField
-              label="Response minimum"
-              hint="Confidential answers show only once this many are in."
-              value={v.minimum}
-              suffix={unit(v.minimum, 'answer')}
-              min={1}
-              max={20}
-              onChange={(n) => {
-                if (n !== null) set({ minimum: n });
+              onChange={(summary) => {
+                set({ peerSummary: summary });
               }}
             />
           </div>
+          <NumberField
+            label="Response minimum"
+            hint="Confidential answers show only once this many are in."
+            value={v.minimum}
+            suffix={unit(v.minimum, 'answer')}
+            min={1}
+            max={20}
+            onChange={(n) => {
+              if (n !== null) set({ minimum: n });
+            }}
+          />
         </CardContent>
       </Card>
     </div>
@@ -2049,11 +2367,174 @@ export interface OverviewData {
     readonly goals: string;
   };
   readonly hr: boolean;
+  /** On the Analytics tab: each view of this cycle's analytics HR may read. */
+  readonly analytics?: CycleAnalyticsData;
 }
 
 type Dialog = 'extend' | 'close' | 'export' | 'add' | 'remove' | null;
 
 const REMINDER_LABEL: Readonly<Record<string, string>> = Object.fromEntries(REMINDERS);
+const RELEASE_LABEL: Readonly<Record<string, string>> = {
+  manager: 'As each is submitted',
+  hr_date: 'On a date',
+  close: 'When the cycle closes',
+};
+
+/**
+ * How the cycle is set up, in sections: each review with its deadline (in the
+ * plan's colours), peers, reminders and how they reach people, and what the
+ * subject sees. Read here; changed in the setup while it has not started, and
+ * from the plan on the Overview once it runs.
+ */
+function CycleSettings({
+  data,
+  onEdit,
+}: {
+  readonly data: OverviewData;
+  readonly onEdit?: () => void;
+}): JSX.Element {
+  const c = data.cycle;
+  const st = data.settings;
+  const kinds = KIND_ORDER.filter((k) => c.kinds.includes(k));
+  const due = (k: string): string | null => {
+    const a = data.plan.activities[k];
+    return a === undefined ? null : resolveDue(data.plan, a.due);
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="flex-1 text-sm text-fg-muted">
+          {onEdit === undefined
+            ? 'Deadlines move from the plan on the Overview; everything else was fixed at launch.'
+            : 'Not started yet, so all of it can still change.'}
+        </p>
+        {onEdit === undefined ? null : (
+          <Button variant="secondary" startIcon={<icons.edit aria-hidden />} onClick={onEdit}>
+            Edit setup
+          </Button>
+        )}
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>Reviews</CardTitle>
+          <p className="text-sm text-fg-muted">{`Starts ${day(data.plan.start.date)}`}</p>
+        </CardHeader>
+        <CardContent>
+          {kinds.length === 0 ? (
+            <p className="text-sm text-fg-muted">No review is part of this cycle.</p>
+          ) : (
+            <IconList divided aria-label="Reviews in this cycle">
+              {kinds.map((k) => {
+                const d = due(k);
+                return (
+                  <IconListItem
+                    key={k}
+                    icon={<KindGlyph kind={k} />}
+                    tone={kindTone(k)}
+                    description={d === null ? 'No deadline' : `Due ${day(d)}`}
+                  >
+                    {kindLabel(k)}
+                  </IconListItem>
+                );
+              })}
+              <IconListItem icon={<icons.goal />} description={GOALS_LABEL[st.goals] ?? st.goals}>
+                Goals
+              </IconListItem>
+            </IconList>
+          )}
+        </CardContent>
+      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle level={2}>Reminders</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {st.reminders.rules.length === 0 ? (
+              <p className="text-sm text-fg-muted">No reminders are sent.</p>
+            ) : (
+              <ChipRow aria-label="When reviews are reminded">
+                {st.reminders.rules.map((r) => (
+                  <Badge key={r} tone="accent">
+                    {REMINDER_LABEL[r] ?? r}
+                  </Badge>
+                ))}
+              </ChipRow>
+            )}
+            <IconList aria-label="How reminders reach people">
+              <IconListItem
+                icon={<icons.inbox />}
+                tone="success"
+                description="Always: every reminder lands in each person’s Inbox."
+              >
+                Inbox
+              </IconListItem>
+              <IconListItem
+                icon={<icons.email />}
+                tone={st.reminders.email ? 'success' : 'neutral'}
+                description={
+                  st.reminders.email ? 'On, by each person’s preference' : 'Off for this cycle'
+                }
+              >
+                Email
+              </IconListItem>
+              <IconListItem
+                icon={<icons.message />}
+                tone={st.reminders.chat ? 'success' : 'neutral'}
+                description={
+                  st.reminders.chat
+                    ? 'On, by each person’s preference, when connected'
+                    : 'Off for this cycle'
+                }
+              >
+                Chat app
+              </IconListItem>
+            </IconList>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle level={2}>What the subject sees</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <IconList>
+              <IconListItem
+                icon={<icons.visible />}
+                description={
+                  st.visibility.release.mode === 'hr_date' &&
+                  data.plan.visibility?.release.date !== null &&
+                  data.plan.visibility?.release.date !== undefined
+                    ? `On ${day(data.plan.visibility.release.date)}`
+                    : 'When their reviews are released to them'
+                }
+              >
+                {RELEASE_LABEL[st.visibility.release.mode] ?? words(st.visibility.release.mode)}
+              </IconListItem>
+              <IconListItem
+                icon={<icons.locked />}
+                description="Confidential answers show only once this many are in."
+              >
+                {`At least ${plural(st.visibility.minimum, 'answer')}`}
+              </IconListItem>
+              {c.kinds.includes('peer') ? (
+                <IconListItem
+                  icon={<icons.people />}
+                  description={
+                    st.peer.all
+                      ? `Every teammate, up to ${String(st.peer.max)}`
+                      : `Nominated, ${String(st.peer.min)} to ${String(st.peer.max)} each`
+                  }
+                >
+                  Peers
+                </IconListItem>
+              ) : null}
+            </IconList>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
 const GOALS_LABEL: Readonly<Record<string, string>> = {
   none: 'Not part of this cycle',
   context: 'Shown beside the review',
@@ -2240,8 +2721,6 @@ function PeopleToolbar({
       ],
     },
   ];
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<FilterGroup>(() => groupOf(stored, match));
   const [words, setWords] = useState('');
   const [said, setSaid] = useState<readonly string[]>([]);
   const [asking, setAsking] = useState(false);
@@ -2287,7 +2766,6 @@ function PeopleToolbar({
         apply(got.filter, got.match, { group: got.group });
       });
   };
-  const chips = chipsOf(fields, stored);
   const group = props.search?.['group'] ?? '';
   return (
     <div className="flex flex-col gap-3">
@@ -2333,49 +2811,17 @@ function PeopleToolbar({
           />
         }
         filters={
-          <ChipRow role="group" aria-label="Filters in force">
-            {match === 'any' && chips.length > 1 ? (
-              <span className="text-xs text-fg-muted">Any of:</span>
-            ) : null}
-            {chips.map((chip) => (
-              <Chip
-                key={chip.key}
-                field={chip.field}
-                onRemove={() => {
-                  setSaid([]);
-                  apply(
-                    stored.filter((_, i) => !chip.at.includes(i)),
-                    match,
-                  );
-                }}
-                removeLabel={`Remove ${chip.field} ${chip.text}`}
-              >
-                {chip.text}
-              </Chip>
-            ))}
-            <Chip
-              variant="dashed"
-              startIcon={<icons.add aria-hidden />}
-              onClick={() => {
-                setDraft(groupOf(stored, match));
-                setOpen(true);
-              }}
-            >
-              Add filter
-            </Chip>
-            {chips.length === 0 ? null : (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setSaid([]);
-                  apply([], 'all');
-                }}
-              >
-                Clear all
-              </Button>
-            )}
-          </ChipRow>
+          <FilterChips
+            fields={fields}
+            value={stored}
+            match={match}
+            title="Filter people"
+            description="Who they are, and where their reviews stand. Nothing applies until you press Apply."
+            onApply={(filter, m) => {
+              setSaid([]);
+              apply(filter, m);
+            }}
+          />
         }
         actions={
           <span className="flex items-center gap-2">
@@ -2412,59 +2858,6 @@ function PeopleToolbar({
           </span>
         }
       />
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-170">
-          <DialogHeader>
-            <DialogTitle>Filter people</DialogTitle>
-            <DialogDescription>
-              Who they are, and where their reviews stand. Nothing applies until you press Apply.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            <FilterBuilder
-              label="Conditions"
-              fields={fields}
-              value={draft}
-              onChange={setDraft}
-              maxConditions={20}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              className="me-auto"
-              onClick={() => {
-                setDraft({ match: 'all', conditions: [] });
-              }}
-            >
-              Clear
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                setSaid([]);
-                apply(
-                  conditionsOf({
-                    ...draft,
-                    conditions: draft.conditions.filter((x) => isConditionComplete(fields, x)),
-                  }),
-                  draft.match,
-                );
-                setOpen(false);
-              }}
-            >
-              Apply
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -2849,6 +3242,11 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                     ...(data.hr
                       ? [
                           {
+                            id: 'analytics',
+                            label: 'Analytics',
+                            href: `/performance/cycles/${id}?tab=analytics`,
+                          },
+                          {
                             id: 'changes',
                             label: 'Changes',
                             href: `/performance/cycles/${id}?tab=changes`,
@@ -2996,49 +3394,20 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                 }
               />
             ) : null}
+            {tab === 'analytics' ? (
+              <CycleAnalytics id={id} views={data.analytics ?? {}} {...props} />
+            ) : null}
             {tab === 'settings' ? (
-              <Card>
-                <CardContent>
-                  <KeyValues
-                    layout="split"
-                    items={[
-                      { label: 'Reviews', value: c.kinds.map(kindLabel).join(', ') || 'None' },
-                      {
-                        label: 'Response minimum',
-                        value: plural(data.settings.visibility.minimum, 'answer'),
+              <CycleSettings
+                data={data}
+                {...(['draft', 'scheduled', 'launch_failed'].includes(c.state)
+                  ? {
+                      onEdit: () => {
+                        props.onNavigate?.(`/performance/cycles/${id}/setup`);
                       },
-                      { label: 'Release', value: words(data.settings.visibility.release.mode) },
-                      {
-                        label: 'Peers',
-                        value: data.settings.peer.all
-                          ? `Every teammate, up to ${String(data.settings.peer.max)}`
-                          : `Nominated, ${String(data.settings.peer.min)} to ${String(data.settings.peer.max)}`,
-                      },
-                      {
-                        label: 'Reminders',
-                        value:
-                          data.settings.reminders.rules
-                            .map((r) => REMINDER_LABEL[r] ?? r)
-                            .join(', ') || 'None',
-                      },
-                      {
-                        label: 'Reminded by',
-                        value: [
-                          'Inbox',
-                          data.settings.reminders.email ? 'email' : '',
-                          data.settings.reminders.chat ? 'chat app' : '',
-                        ]
-                          .filter((x) => x !== '')
-                          .join(', '),
-                      },
-                      {
-                        label: 'Goals',
-                        value: GOALS_LABEL[data.settings.goals] ?? data.settings.goals,
-                      },
-                    ]}
-                  />
-                </CardContent>
-              </Card>
+                    }
+                  : {})}
+              />
             ) : null}
             {dialog === 'extend' ? (
               <ExtendDialog
