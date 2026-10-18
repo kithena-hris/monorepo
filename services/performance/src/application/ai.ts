@@ -60,9 +60,7 @@ async function ask<T>(
         prompt: spec.version,
         empty: raw === null,
         json: parsed !== null,
-        issues: answer.error.issues
-          .slice(0, 8)
-          .map((i) => `${i.path.join('.')}:${i.code}`),
+        issues: answer.error.issues.slice(0, 8).map((i) => `${i.path.join('.')}:${i.code}`),
       },
       'model answer did not fit',
     );
@@ -521,19 +519,48 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
   });
 }
 
+const LEVELS: Readonly<Record<string, string>> = {
+  danger: 'danger',
+  high: 'danger',
+  critical: 'danger',
+  severe: 'danger',
+  error: 'danger',
+  warning: 'warning',
+  warn: 'warning',
+  medium: 'warning',
+  moderate: 'warning',
+  info: 'info',
+  low: 'info',
+  minor: 'info',
+  suggestion: 'info',
+};
+
 const Flag = z.object({
   sentence: z.string().max(600),
-  level: z.enum(['danger', 'warning', 'info']),
+  // Named in the prompt; a near-miss ("high", "Medium") is read as the nearest
+  // level rather than failing the whole reading.
+  level: z.preprocess(
+    (v) => (typeof v === 'string' ? (LEVELS[v.trim().toLowerCase()] ?? v) : v),
+    z.enum(['danger', 'warning', 'info']),
+  ),
   title: z.string().max(200),
   // Asked for, never required: a model that leaves one out, or still says
   // "suggestion", loses that line rather than the whole reading.
-  advice: z.string().max(600).nullish().transform((v) => v ?? null),
-  rewrite: z.string().max(800).nullish().transform((v) => v ?? null),
+  advice: z
+    .string()
+    .max(600)
+    .nullish()
+    .transform((v) => v ?? null),
+  rewrite: z
+    .string()
+    .max(800)
+    .nullish()
+    .transform((v) => v ?? null),
 });
 
 /** How a flag's two lines are asked for: advice to the writer, and the sentence itself mended. */
 const FLAG_FIELDS =
-  ' Each flag is {"sentence","level","title","advice","rewrite"}: "sentence" is copied exactly from the draft; "advice" is one short instruction to the writer; ' +
+  ' Each flag is {"sentence","level","title","advice","rewrite"}: "sentence" is copied exactly from the draft; "level" is "danger", "warning" or "info"; "advice" is one short instruction to the writer; ' +
   '"rewrite" is that same sentence rewritten so the flag no longer applies, in the writer\'s voice and language, ready to stand in its place in the draft: never an instruction, never advice. ' +
   'Keep every fact, name and number in it. Never invent an example, outcome, number or name: where the fix needs a fact only the writer knows, put a short placeholder in square brackets, like [one example of the mentoring and what it changed]. ' +
   '"rewrite" is null only when no rewrite of this sentence alone can fix it.';
