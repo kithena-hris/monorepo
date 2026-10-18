@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { TooltipProvider } from '../tooltip/tooltip';
-import { DonutChart } from './chart';
+import { DonutChart } from './donut-chart';
 
 describe('<DonutChart> with parts', () => {
   it('draws an outer ring of each slice’s parts, one colour per part, totalled in its key', () => {

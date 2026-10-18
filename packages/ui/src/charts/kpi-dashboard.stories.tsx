@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { DonutChart, Sparkline, TrendChart } from '../components/chart/chart';
+import { Sparkline, TrendChart } from '../components/chart/chart';
+import { DonutChart } from '../components/chart/donut-chart';
 import { ChartCard } from '../components/chart/chart-card';
 import { Gauge } from '../components/chart/gauge';
 import { AutoGrid } from '../components/layout/layout';

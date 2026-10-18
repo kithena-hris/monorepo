@@ -135,7 +135,6 @@ export {
   BarChart,
   ChartDataTable,
   ChartLegend,
-  DonutChart,
   FunnelChart,
   HeatmapChart,
   HorizontalBarChart,
@@ -150,8 +149,6 @@ export type {
   ChartPoint,
   ChartWindow,
   ChartTone,
-  DonutChartProps,
-  DonutSlice,
   FunnelChartProps,
   FunnelStage,
   HeatmapCell,
@@ -184,6 +181,10 @@ export type {
   TimelineUnit,
   TimelineVariant,
 } from './components/chart/timeline-chart';
+
+// Its own module: a page with no donut never fetches it.
+export { DonutChart } from './components/chart/donut-chart';
+export type { DonutChartProps, DonutSlice } from './components/chart/donut-chart';
 
 export { ChartCard } from './components/chart/chart-card';
 export type { ChartCardProps } from './components/chart/chart-card';

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
-import { DonutChart, HorizontalBarChart } from '../components/chart/chart';
+import { HorizontalBarChart } from '../components/chart/chart';
+import { DonutChart } from '../components/chart/donut-chart';
 import { ChartCard } from '../components/chart/chart-card';
 import { AutoGrid } from '../components/layout/layout';
 import { byStatus, teamHeadcount } from './fixtures';
