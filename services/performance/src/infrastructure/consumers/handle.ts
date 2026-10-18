@@ -16,11 +16,14 @@ import {
   TenantEntitlementsChanged,
   type EventDefinition,
   type EventEnvelope,
+  type CalendarDate,
   type PersonId,
 } from '@kithena/contracts';
 import { logger } from '@kithena/telemetry';
 
 import { isSubmitted } from '../../domain/review.js';
+import { deliver } from '../../application/context.js';
+import { leaverManagerReviews, onReportingLineMoved } from '../../application/manager-change.js';
 import type { Deps, Member, Tx } from '../../application/ports.js';
 
 /**
@@ -30,10 +33,10 @@ import type { Deps, Member, Tx } from '../../application/ports.js';
  * event, a malformed message logged and skipped. Onboarding's consumer's
  * shape.
  *
- * A manager change only moves the reporting line here: whether its manager
- * reviews go to the new manager is HR's choice when they make the change
- * (§8.8, `applyManagerChange`), and left alone the old manager writes them. A
- * leaver's unsubmitted reviews are cancelled.
+ * A manager change moves the reporting line, and its manager reviews follow
+ * where HR chose that for this change, or where the old manager has left
+ * (§8.8, `manager-change.ts`). A leaver's unsubmitted reviews are cancelled,
+ * and a report already moved to someone else gets a review from them.
  */
 
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
@@ -153,25 +156,60 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
       case PersonManagerChanged.name: {
         const e = parse(PersonManagerChanged, raw);
         if (!e) return 'rejected';
-        const { personId, managerId } = e.payload;
-        return deps.uow.run(e.tenantId, (tx) =>
-          patch(tx, personId, e.eventId, (m) => ({ ...m, managerPersonId: managerId })),
-        );
+        const { personId, managerId, previousManagerId } = e.payload;
+        const at = deps.clock.now().toISOString();
+        const [done, mail] = await deps.uow.run(e.tenantId, async (tx) => {
+          const moved = await patch(tx, personId, e.eventId, (m) => ({
+            ...m,
+            managerPersonId: managerId,
+          }));
+          // Once only: a replayed event changes nothing a second time.
+          if (moved !== 'applied') return [moved, []] as const;
+          return [
+            moved,
+            await onReportingLineMoved(tx, deps.newId, {
+              personId,
+              previousManagerId,
+              managerId,
+              at,
+              today: deps.clock.today('UTC') as CalendarDate,
+            }),
+          ] as const;
+        });
+        await deliver(deps, e.tenantId, mail);
+        return done;
       }
       case PersonTerminated.name: {
         const e = parse(PersonTerminated, raw);
         if (!e) return 'rejected';
-        return deps.uow.run(e.tenantId, async (tx) => {
-          const done = await patch(tx, e.payload.personId, e.eventId, (m) => ({
+        const leaverId = e.payload.personId;
+        const [done, mail] = await deps.uow.run(e.tenantId, async (tx) => {
+          const left = await patch(tx, leaverId, e.eventId, (m) => ({
             ...m,
             status: 'terminated',
             leftOn: e.payload.lastWorkingDay,
           }));
-          for (const r of await tx.reviews.find({ ownerId: e.payload.personId }))
-            if (!isSubmitted(r) && ['not_started', 'in_progress'].includes(r.status))
+          const cancelled = [];
+          for (const r of await tx.reviews.find({ ownerId: leaverId }))
+            if (!isSubmitted(r) && ['not_started', 'in_progress'].includes(r.status)) {
               await tx.reviews.save({ ...r, status: 'cancelled' });
-          return done;
+              if (r.kind === 'manager') cancelled.push(r);
+            }
+          // Their reports already moved to someone else: that manager writes it now.
+          return [
+            left,
+            left === 'applied'
+              ? await leaverManagerReviews(tx, deps.newId, {
+                  leaverId,
+                  cancelled,
+                  at: deps.clock.now().toISOString(),
+                  today: deps.clock.today('UTC') as CalendarDate,
+                })
+              : [],
+          ] as const;
         });
+        await deliver(deps, e.tenantId, mail);
+        return done;
       }
       case OrgUnitCreated.name:
       case OrgUnitUpdated.name: {

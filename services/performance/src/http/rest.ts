@@ -17,6 +17,7 @@ import * as automations from '../application/automations.js';
 import * as calibration from '../application/calibration.js';
 import { audit, contextOf, deliver, type Ctx, type Outgoing } from '../application/context.js';
 import * as cycles from '../application/cycles.js';
+import * as managerChange from '../application/manager-change.js';
 import * as feedback from '../application/feedback.js';
 import * as goals from '../application/goals.js';
 import * as home from '../application/home.js';
@@ -903,21 +904,27 @@ export const ROUTES: readonly Route[] = [
   route({
     name: 'performanceManagerChangeImpact',
     method: 'GET',
-    path: `${V1}/people/{personId}/manager-change`,
-    summary: '§8.8: what changing their manager would do to their manager reviews, asked first',
-    params: z.object({ personId: Id, managerId: Id.optional() }),
+    path: `${V1}/manager-change`,
+    summary: '§8.8: what changing these people’s manager would do to their manager reviews',
+    params: z.object({ personIds: z.string().max(20_000), managerId: Id.optional() }),
     run: (ctx, { params }) =>
-      cycles.managerChangeImpact(ctx, params.personId, params.managerId ?? null),
+      managerChange.managerChangeImpact(
+        ctx,
+        params.personIds.split(',').filter((p) => p !== '').slice(0, 500),
+        params.managerId ?? null,
+      ),
   }),
   route({
-    name: 'applyPerformanceManagerChange',
+    name: 'choosePerformanceManagerHandover',
     method: 'POST',
-    path: `${V1}/people/{personId}/manager-change`,
-    summary: '§8.8: HR hands their manager reviews to the new manager',
-    params: z.object({ personId: Id }),
-    body: z.object({ managerId: Id.nullable() }),
-    run: (ctx, { params, body }) =>
-      cycles.applyManagerChange(ctx, { personId: params.personId, managerId: body.managerId }),
+    path: `${V1}/manager-change`,
+    summary: '§8.8: HR’s choice for their manager reviews, carried out when the change takes effect',
+    body: z.object({
+      personIds: z.array(Id).min(1).max(500),
+      managerId: Id.nullable(),
+      handOver: z.boolean(),
+    }),
+    run: (ctx, { body }) => managerChange.chooseManagerHandover(ctx, body),
   }),
   route({
     name: 'discardPerformanceReview',

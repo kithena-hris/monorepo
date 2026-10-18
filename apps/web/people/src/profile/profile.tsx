@@ -78,6 +78,12 @@ import { PendingNote, SensitiveMark } from '../record/pending';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
 import {
+  MANAGER_KEY,
+  managerOf,
+  useManagerConfirm,
+  type ChangeQuestion,
+} from '../record/manager-change';
+import {
   EmploymentMove,
   EmploymentPeriods,
   isDestructiveMove,
@@ -242,23 +248,6 @@ export interface ProfileProps {
   };
 }
 
-/** Something a change touches beyond the record, asked before it is made, with its choices. */
-export interface ChangeQuestion {
-  readonly id: string;
-  readonly title: string;
-  readonly description: string;
-  readonly options: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly description: string;
-  }[];
-  /** The choice made unless HR picks another. */
-  readonly value: string;
-}
-
-/** The reporting line's attribute: a change to it is confirmed first. */
-const MANAGER_KEY = 'manager_id';
-
 export type PhotoOutcome =
   | { readonly ok: true; readonly avatarUrl: string | null }
   | { readonly ok: false; readonly message: string };
@@ -333,24 +322,17 @@ function Record({
       : (state.sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly))?.key ??
         null);
   const [editingHeld, setEditing] = useHeld<string | null>(heldEditing, onEditingChange, null);
-  // A new manager waiting on HR's confirmation, and what came of carrying it out.
-  const [asking, setAsking] = useState<{
-    readonly questions: readonly ChangeQuestion[] | null;
-    readonly resolve: (answers: Readonly<Record<string, string>> | null) => void;
-  } | null>(null);
+  // A new manager, confirmed first; and what came of carrying out the answer.
   const [afterManager, setAfterManager] = useState<string | null>(null);
-  const confirmManager = (managerId: string | null) =>
-    new Promise<Readonly<Record<string, string>> | null>((resolve) => {
-      setAsking({ questions: null, resolve });
-      void (managerChange?.questions(managerId) ?? Promise.resolve([])).then(
-        (questions) => {
-          setAsking((a) => (a === null ? a : { ...a, questions }));
+  const managerConfirm = useManagerConfirm(
+    managerChange === undefined
+      ? undefined
+      : {
+          questions: (_ids, managerId) => managerChange.questions(managerId),
+          apply: (_ids, managerId, answers) => managerChange.apply(managerId, answers),
         },
-        () => {
-          setAsking((a) => (a === null ? a : { ...a, questions: [] }));
-        },
-      );
-    });
+    `Change ${state.person.name.split(' ')[0] ?? state.person.name}’s manager?`,
+  );
   const editing = editingHeld ?? sectionOf(focusField);
   const [focus, setFocus] = useState<string | undefined>(focusField);
   const [opened, setOpened] = useHeld<string | null>(heldOpen, onOpenChange, null);
@@ -677,7 +659,22 @@ function Record({
             name={person.name}
             current={values[dating.key]}
             today={state.calendar?.today ?? null}
-            onChange={onChangeDated}
+            onChange={async (change) => {
+              // A new manager from a date is confirmed too; the answer holds from that day.
+              const moving = managerChange !== undefined && MANAGER_KEY in change.values;
+              const next = managerOf(change.values[MANAGER_KEY]);
+              const answers = moving
+                ? await managerConfirm.confirm([], next, longDate(change.effectiveFrom))
+                : {};
+              if (answers === null)
+                return { ok: false, message: 'Not saved: the change of manager was cancelled.' };
+              const outcome = await onChangeDated(change);
+              if (outcome.ok && moving) {
+                const done = await managerChange.apply(next, answers);
+                setAfterManager(done.ok ? null : done.message);
+              }
+              return outcome;
+            }}
             onClose={close}
           />
         )}
@@ -907,21 +904,17 @@ function Record({
                             managerChange !== undefined &&
                             MANAGER_KEY in changed &&
                             (manager ?? null) !== (values[MANAGER_KEY] ?? null);
-                          const next =
-                            typeof manager === 'string' && manager !== '' ? manager : null;
-                          const answers = moving ? await confirmManager(next) : {};
+                          const next = managerOf(manager);
+                          const answers = moving ? await managerConfirm.confirm([], next) : {};
                           if (answers === null)
                             return {
                               ok: false,
                               message: 'Not saved: the change of manager was cancelled.',
                             };
                           const outcome = await onSave(key, changed);
-                          // Carried out once the change is the record's, not while it waits for approval.
-                          const held = (outcome.ok ? (outcome.held ?? []) : []).includes(
-                            section.fields.find((f) => f.key === MANAGER_KEY)?.label ?? MANAGER_KEY,
-                          );
+                          // Sent on even while it waits for approval: carried out when it takes effect.
                           const done =
-                            outcome.ok && moving && !held
+                            outcome.ok && moving
                               ? await managerChange.apply(next, answers)
                               : undefined;
                           if (done !== undefined) setAfterManager(done.ok ? null : done.message);
@@ -999,98 +992,8 @@ function Record({
           </Alert>
         )}
       </Stack>
-      {asking === null ? null : (
-        <ManagerChangeConfirm
-          firstName={firstName}
-          questions={asking.questions}
-          onDone={(answers) => {
-            asking.resolve(answers);
-            setAsking(null);
-          }}
-        />
-      )}
+      {managerConfirm.dialog}
     </LegalName>
-  );
-}
-
-/**
- * A new manager, confirmed: what else it touches (Performance's manager
- * reviews in a running cycle, say), each as a choice, the host's suggestion
- * picked. Cancel saves nothing.
- */
-function ManagerChangeConfirm({
-  firstName,
-  questions,
-  onDone,
-}: {
-  readonly firstName: string;
-  readonly questions: readonly ChangeQuestion[] | null;
-  readonly onDone: (answers: Readonly<Record<string, string>> | null) => void;
-}): JSX.Element {
-  const [answers, setAnswers] = useState<Readonly<Record<string, string>>>({});
-  const chosen = (q: ChangeQuestion): string => answers[q.id] ?? q.value;
-  return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onDone(null);
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{`Change ${firstName}’s manager?`}</DialogTitle>
-          <DialogDescription>
-            They report to the person you chose from now on, and who may see their record follows.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody className="flex flex-col gap-5">
-          {questions === null ? (
-            <p className="text-sm text-fg-muted" aria-live="polite">
-              Checking what else this touches…
-            </p>
-          ) : (
-            questions.map((q) => (
-              <Field key={q.id}>
-                <FieldLabel>{q.title}</FieldLabel>
-                <p className="text-sm text-fg-muted">{q.description}</p>
-                <RadioGroup
-                  aria-label={q.title}
-                  className="flex flex-col gap-2"
-                  value={chosen(q)}
-                  onValueChange={(v) => {
-                    setAnswers((a) => ({ ...a, [q.id]: v }));
-                  }}
-                >
-                  {q.options.map((o) => (
-                    <RadioCard key={o.id} value={o.id} description={o.description}>
-                      {o.label}
-                    </RadioCard>
-                  ))}
-                </RadioGroup>
-              </Field>
-            ))
-          )}
-        </DialogBody>
-        <DialogFooter>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              onDone(null);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            disabled={questions === null}
-            onClick={() => {
-              onDone(Object.fromEntries((questions ?? []).map((q) => [q.id, chosen(q)] as const)));
-            }}
-          >
-            Change manager
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

@@ -119,6 +119,73 @@ describe('BulkEdit', () => {
     expect(onCommit.mock.calls.map(([page]) => page.personIds)).toEqual([['a', 'l'], ['j']]);
   });
 
+  it('confirms a new manager for them all once, and hands over for those it moved', async () => {
+    const user = fast();
+    const withManager: BulkEditState = {
+      ...state,
+      sections: [
+        {
+          key: 'work',
+          label: 'Work',
+          visibility: ['hr'],
+          fields: [
+            {
+              key: 'manager_id',
+              label: 'Manager',
+              description: null,
+              dataType: 'person_ref',
+              options: [],
+              required: false,
+              readOnly: false,
+            },
+          ],
+        },
+      ],
+    };
+    const managerChange = {
+      questions: vi.fn(() =>
+        Promise.resolve([
+          {
+            id: 'performance.manager-reviews',
+            title: 'Manager reviews of 3 people in H2 2026',
+            description: 'Grace Hopper still has 2 to write.',
+            options: [
+              { id: 'reassign', label: 'Give them to Zoë', description: 'Zoë writes their own.' },
+              { id: 'keep', label: 'Leave them with Grace Hopper', description: 'As planned.' },
+            ],
+            value: 'reassign',
+          },
+        ]),
+      ),
+      apply: vi.fn(() => Promise.resolve({ ok: true as const })),
+    };
+    const onCommit = answer(true);
+    render(
+      <BulkEdit
+        load={{ status: 'ready', data: withManager }}
+        onPreview={answer(false)}
+        onCommit={onCommit}
+        searchPeople={() => Promise.resolve([{ value: 'z', label: 'Zoë Person' }])}
+        managerChange={managerChange}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /^Manager/u }));
+    await user.type(screen.getByRole('combobox', { name: 'Manager search' }), 'Zo');
+    await user.click(await screen.findByRole('option', { name: 'Zoë Person' }));
+    await user.click(screen.getByRole('button', { name: 'Preview changes' }));
+    await user.click(await screen.findByRole('button', { name: 'Apply to 2 people' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Change the manager of 3 people?' });
+    expect(managerChange.questions).toHaveBeenCalledWith(['a', 'l', 'j'], 'z');
+    expect(onCommit).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Change manager' }));
+    await waitFor(() => {
+      expect(managerChange.apply).toHaveBeenCalledWith(['a', 'l'], 'z', {
+        'performance.manager-reviews': 'reassign',
+      });
+    });
+    expect(onCommit).toHaveBeenCalled();
+  });
+
   it('sets the preview aside when a value or the date changes, so what is applied is what was shown', async () => {
     const user = fast();
     render(

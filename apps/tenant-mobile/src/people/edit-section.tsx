@@ -126,7 +126,7 @@ function useSectionEdit(
       const asked = await ask<{ question: ChangeQuestion | null }>(
         signed,
         'PerformanceManagerChangeImpact',
-        { personId, managerId: nextManager },
+        { personIds: personId, managerId: nextManager },
         'performance',
       );
       setSaving(false);
@@ -166,14 +166,17 @@ function useSectionEdit(
       return;
     }
     const waiting = answer.data.held ?? [];
-    // HR's answer carried out once the new manager is the record's, not while it waits.
+    // HR's answer sent on, even while it waits for approval: carried out when it takes effect.
     const answers = confirmed.current;
     confirmed.current = null;
-    if (moving && waiting.length === 0 && answers?.['performance.manager-reviews'] === 'reassign') {
+    const choice = answers?.['performance.manager-reviews'];
+    if (moving && choice !== undefined) {
       const handed = await ask(
         signed,
-        'ApplyPerformanceManagerChange',
-        { personId, input: { managerId: nextManager } },
+        'ChoosePerformanceManagerHandover',
+        {
+          input: { personIds: [personId], managerId: nextManager, handOver: choice === 'reassign' },
+        },
         'performance',
       );
       if (!handed.ok)

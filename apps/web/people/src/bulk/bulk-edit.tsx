@@ -36,7 +36,13 @@ import { useHeld } from '../held';
 import { Loaded, type IdentifierFinding, type Loadable } from '../load';
 import { PlacementPickers, type PlacementState } from '../profile/employment';
 import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
-import { DisplayValue } from '../record/display';
+import { DisplayValue, longDate } from '../record/display';
+import {
+  MANAGER_KEY,
+  managerOf,
+  useManagerConfirm,
+  type ManagerChange,
+} from '../record/manager-change';
 import type { AttributeValue, RecordField, RecordSection } from '../record/model';
 
 export interface BulkEditState {
@@ -111,6 +117,8 @@ export interface BulkEditProps {
   /** Setting values or hiring (`?tab=hire`), held by the host. */
   readonly tab?: BulkTab;
   readonly onTabChange?: (tab: BulkTab) => void;
+  /** A new manager for them all, confirmed first with what it touches elsewhere. */
+  readonly managerChange?: ManagerChange;
 }
 
 export type BulkTab = 'edit' | 'hire';
@@ -253,6 +261,7 @@ function Editor({
   onPreview,
   onCommit,
   onBack,
+  managerChange,
   tabs,
 }: Omit<BulkEditProps, 'load' | 'searchPeople' | 'onPreviewHire' | 'onCommitHire'> & {
   readonly state: BulkEditState;
@@ -280,7 +289,7 @@ function Editor({
   });
 
   /** Every page in turn, a page of `limit` people a request; stops at the first failure. */
-  const run = async (act: BulkEditProps['onPreview']): Promise<void> => {
+  const run = async (act: BulkEditProps['onPreview']): Promise<readonly BulkRow[]> => {
     setBusy(true);
     setProblem(null);
     const done = await pages(
@@ -291,6 +300,37 @@ function Editor({
     setProblem(done.problem);
     setShown(done.rows.length === 0 ? null : { committed: done.committed, rows: done.rows });
     setBusy(false);
+    return done.rows;
+  };
+
+  // A new manager for them all: asked once, before anything is applied.
+  const managerConfirm = useManagerConfirm(
+    managerChange,
+    `Change the manager of ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}?`,
+  );
+  const commit = async (): Promise<void> => {
+    const moving = managerChange !== undefined && chosen.includes(MANAGER_KEY);
+    const next = managerOf(values[MANAGER_KEY]);
+    const ids = state.people.map((p) => p.id);
+    const answers = moving
+      ? await managerConfirm.confirm(
+          ids,
+          next,
+          effectiveFrom === state.today ? undefined : longDate(effectiveFrom),
+        )
+      : {};
+    if (answers === null) return;
+    const rows = await run(onCommit);
+    // Those it changed, or sent for approval: carried out when it takes effect.
+    const moved = rows.filter((r) => r.outcome === 'changed' || r.outcome === 'held');
+    if (moving && moved.length > 0) {
+      const done = await managerChange.apply(
+        moved.map((r) => r.personId),
+        next,
+        answers,
+      );
+      if (!done.ok) setProblem(done.message);
+    }
   };
 
   const count = (outcome: BulkRow['outcome']) =>
@@ -310,6 +350,7 @@ function Editor({
 
   return (
     <Stack gap={5}>
+      {managerConfirm.dialog}
       <PageHeader
         title={`Edit ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}`}
         description={state.people.map((p) => p.name).join(', ')}
@@ -484,7 +525,7 @@ function Editor({
                       loading={busy}
                       loadingLabel="Saving"
                       onClick={() => {
-                        void run(onCommit);
+                        void commit();
                       }}
                     >
                       {`Apply to ${String(count('changed') + count('held'))} ${count('changed') + count('held') === 1 ? 'person' : 'people'}`}
