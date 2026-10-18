@@ -259,11 +259,16 @@ describe('bulk edit (PEO-071)', () => {
   });
 
   it('names the person a person field holds, never their id', async () => {
-    const named = await post('/commit', {
-      personIds: [MARCO],
-      values: { given_name: 'Marco', family_name: 'Rossi' },
-      effectiveFrom: ON,
-    });
+    const named = await post(
+      '',
+      {
+        personIds: [MARCO],
+        values: { given_name: 'Marco', family_name: 'Rossi' },
+        effectiveFrom: ON,
+      },
+      hr,
+      'bulk-name',
+    );
     expect(outcomes(named.body.rows)).toEqual([[MARCO, 'changed', null]]);
     const seen = await post('/preview', {
       personIds: [ADA],
