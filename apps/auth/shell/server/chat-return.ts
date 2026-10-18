@@ -1,7 +1,9 @@
 import type { MiddlewareHandler } from '@modern-js/server-runtime';
 
 /**
- * Where a chat app (Slack today) sends somebody back after connecting it.
+ * Where a chat app (Slack today) sends somebody back after connecting it,
+ * and where a tool sends a person back after they linked their own account
+ * (`/tools/<app>/done`, finished in Performance).
  *
  * A chat app accepts a fixed list of return addresses and a company's is its
  * own subdomain, so every company returns here, to `/chat/<app>/done`, and is
@@ -14,11 +16,22 @@ import type { MiddlewareHandler } from '@modern-js/server-runtime';
  * origin sits under (`acme.app.kithena.com` beside `auth.app.kithena.com`) —
  * so the one open parameter cannot send anybody anywhere else.
  */
-const RETURN_PATH = /^\/chat\/([a-z]{1,20})\/done$/;
+const RETURN_PATH = /^\/(chat|tools)\/([a-z]{1,20})\/done$/;
+
+/**
+ * Where each kind of return finishes on the company's origin: a chat app the
+ * company connects in People, or a tool a person links for themselves in
+ * Performance's My connected tools (§22.3).
+ */
+const FINISH: Readonly<Record<string, (app: string) => string>> = {
+  chat: (app) => `/people/chat/${app}/done`,
+  tools: (app) => `/performance/tools/${app}/done`,
+};
 
 export function chatReturnTo(url: URL, authHost: string): string | null {
-  const app = RETURN_PATH.exec(url.pathname)?.[1];
-  if (app === undefined) return null;
+  const [, kind = '', app] = RETURN_PATH.exec(url.pathname) ?? [];
+  const finish = FINISH[kind];
+  if (app === undefined || finish === undefined) return null;
   const state = url.searchParams.get('state') ?? '';
   const [claims] = state.split('.');
   let origin: URL;
@@ -43,7 +56,7 @@ export function chatReturnTo(url: URL, authHost: string): string | null {
   ) {
     return null;
   }
-  const to = new URL(`/people/chat/${app}/done`, origin);
+  const to = new URL(finish(app), origin);
   for (const key of ['code', 'state', 'error']) {
     const value = url.searchParams.get(key);
     if (value !== null) to.searchParams.set(key, value);
