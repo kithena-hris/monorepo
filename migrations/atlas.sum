@@ -1,4 +1,4 @@
-h1:i2OgS/gp4Zf9tjy40ALnSpCG+xeIigwFauCBZtWdst0=
+h1:NAuPKI9tNQ++ggVSZKWbNOzia0VrA93WS3ytu29RZyk=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -153,3 +153,4 @@ h1:i2OgS/gp4Zf9tjy40ALnSpCG+xeIigwFauCBZtWdst0=
 20261018120000_people_departments_from_field.sql h1:QlvVi5EEGp+iItIPq60R0uKd7FoDMcC9HAeUXybLMiI=
 20261018130000_people_meridian_required_where_applies.sql h1:EG5+SjjhXirwnJavU2pj94+1KOhzxMIte3xxatZkB5k=
 20261018150000_identity_google_sign_in.sql h1:R9BQGOVQhqh2ObvRwAKJg2fYgyQrgabglGPPQzkN/VY=
+20261018170000_slack_person_token.sql h1:n351qpFHOJjrkR5UVTcAmchDCUcWhuHkT8bl0ZbL18k=

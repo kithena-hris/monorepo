@@ -16,6 +16,7 @@ import {
 } from './blocks.js';
 import { answerText, helpText, type Question } from './events.js';
 import { signState, verifyState } from './secrets.js';
+import type { FoundMessage } from './slack-api.js';
 import type { Store } from './store.js';
 
 /**
@@ -201,6 +202,24 @@ export interface Slack {
     botUserId: string;
   }>;
   revoke(token: string): Promise<void>;
+  exchangeUserCode(c: {
+    clientId: string;
+    clientSecret: string;
+    code: string;
+    redirectUri: string;
+  }): Promise<{ userToken: string; userId: string; teamId: string }>;
+  searchMessages(userToken: string, query: string, count: number): Promise<readonly FoundMessage[]>;
+}
+
+/** What a person's own token may do: search what they can see, nothing else. */
+export const USER_SCOPES = ['search:read'] as const;
+
+/** One message found for a person's draft: never stored, discarded after the request. */
+export interface Evidence {
+  readonly link: string;
+  readonly date: string;
+  readonly kind: 'message';
+  readonly text: string;
 }
 
 export interface OAuth {
@@ -208,6 +227,8 @@ export interface OAuth {
   readonly clientSecret: string;
   /** Registered with Slack: the auth origin's `/chat/slack/done`. */
   readonly redirectUri: string;
+  /** Registered with Slack too: the auth origin's `/tools/slack/done`, for a person's own grant. */
+  readonly toolRedirectUri: string;
   readonly stateSecret: Buffer;
 }
 
@@ -269,6 +290,25 @@ export interface SlackService {
   authorizeUrl(tenantId: string, accountId: string, origin: string): string | null;
   complete(tenantId: string, code: string, state: string): Promise<Outcome<Connection>>;
   disconnect(tenantId: string): Promise<void>;
+  /** Where a person approves Kithena reading what they can see (Performance §22.3). */
+  toolAuthorizeUrl(
+    tenantId: string,
+    personId: string,
+    origin: string,
+  ): Promise<Outcome<{ readonly url: string }>>;
+  toolComplete(
+    tenantId: string,
+    personId: string,
+    code: string,
+    state: string,
+  ): Promise<Outcome<{ readonly account: string }>>;
+  /** What `subjectEmail` wrote in the period, as `personId` can see it in Slack. */
+  toolSearch(
+    tenantId: string,
+    personId: string,
+    q: { readonly subjectEmail: string; readonly from: string; readonly to: string },
+  ): Promise<Outcome<{ readonly items: readonly Evidence[] }>>;
+  toolRevoke(tenantId: string, personId: string): Promise<void>;
 }
 
 export function slackService(deps: Deps): SlackService {
@@ -598,6 +638,101 @@ export function slackService(deps: Deps): SlackService {
       if (installation.botToken !== deps.keepToken)
         await deps.slack.revoke(installation.botToken).catch(() => undefined);
       await deps.store.uninstall(tenantId);
+    },
+
+    /* ------------------------------------- a person's own Slack, §22.3 -- */
+
+    async toolAuthorizeUrl(tenantId, personId, origin) {
+      if (deps.oauth === null) return { ok: false, message: 'Slack is not set up here.' };
+      // The company connects Slack first; a person then links their own account.
+      if ((await deps.store.installation(tenantId)) === null)
+        return { ok: false, message: 'Your company has not added Kithena to Slack yet.' };
+      const url = new URL('https://slack.com/oauth/v2/authorize');
+      url.searchParams.set('client_id', deps.oauth.clientId);
+      url.searchParams.set('user_scope', USER_SCOPES.join(','));
+      url.searchParams.set('redirect_uri', deps.oauth.toolRedirectUri);
+      url.searchParams.set(
+        'state',
+        signState(deps.oauth.stateSecret, { t: tenantId, a: personId, o: origin }, deps.now()),
+      );
+      return { ok: true, body: { url: url.toString() } };
+    },
+
+    async toolComplete(tenantId, personId, code, state) {
+      if (deps.oauth === null) return { ok: false, message: 'Slack is not set up here.' };
+      const claims = verifyState(deps.oauth.stateSecret, state, deps.now());
+      // Finished by the person who started it, for the company it started in.
+      if (claims === null || claims.t !== tenantId || claims.a !== personId)
+        return { ok: false, message: 'That link expired or was not started here. Try again.' };
+      const installation = await deps.store.installation(tenantId);
+      if (installation === null)
+        return { ok: false, message: 'Your company has not added Kithena to Slack yet.' };
+      const got = await deps.slack
+        .exchangeUserCode({
+          clientId: deps.oauth.clientId,
+          clientSecret: deps.oauth.clientSecret,
+          code,
+          redirectUri: deps.oauth.toolRedirectUri,
+        })
+        .catch(() => null);
+      if (got === null) return { ok: false, message: 'Slack did not confirm it. Try again.' };
+      if (got.teamId !== installation.teamId) {
+        await deps.slack.revoke(got.userToken).catch(() => undefined);
+        return {
+          ok: false,
+          message: `Link the account you use in ${installation.teamName}, your company's workspace.`,
+        };
+      }
+      await deps.store.keepPersonToken({
+        tenantId,
+        personId,
+        slackUserId: got.userId,
+        token: got.userToken,
+        grantedAt: new Date(deps.now()).toISOString(),
+      });
+      return { ok: true, body: { account: got.userId } };
+    },
+
+    async toolSearch(tenantId, personId, q) {
+      const [mine, installation] = await Promise.all([
+        deps.store.personToken(tenantId, personId),
+        deps.store.installation(tenantId),
+      ]);
+      if (mine === null || installation === null)
+        return { ok: false, message: 'Slack is not linked.' };
+      const subject = await deps.slack
+        .userByEmail(installation.botToken, q.subjectEmail)
+        .catch(() => null);
+      if (subject === null) return { ok: true, body: { items: [] } };
+      // Slack's after: and before: leave out the day named, so one day wider.
+      const day = (date: string, by: number): string =>
+        new Date(Date.parse(`${date}T00:00:00Z`) + by * 86_400_000).toISOString().slice(0, 10);
+      const found = await deps.slack
+        .searchMessages(
+          mine.token,
+          `from:<@${subject}> after:${day(q.from, -1)} before:${day(q.to, 1)}`,
+          40,
+        )
+        .catch(() => null);
+      if (found === null) return { ok: false, message: 'Slack did not answer the search.' };
+      return {
+        ok: true,
+        body: {
+          items: found.map((m) => ({
+            link: m.link,
+            date: new Date(Number(m.ts) * 1000).toISOString().slice(0, 10),
+            kind: 'message' as const,
+            text: `In ${m.channel}: ${m.text.slice(0, 500)}`,
+          })),
+        },
+      };
+    },
+
+    async toolRevoke(tenantId, personId) {
+      const mine = await deps.store.personToken(tenantId, personId);
+      if (mine === null) return;
+      await deps.slack.revoke(mine.token).catch(() => undefined);
+      await deps.store.dropPersonToken(tenantId, personId);
     },
   };
 }

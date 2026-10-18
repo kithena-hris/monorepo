@@ -189,3 +189,82 @@ export async function exchangeCode(config: {
 export async function revoke(botToken: string): Promise<void> {
   await call('auth.revoke', botToken, {});
 }
+
+/** A person approved reading what they can see: their own token, and who they are. */
+export async function exchangeUserCode(config: {
+  readonly clientId: string;
+  readonly clientSecret: string;
+  readonly code: string;
+  readonly redirectUri: string;
+}): Promise<{ readonly userToken: string; readonly userId: string; readonly teamId: string }> {
+  const response = await fetch(`${API}/oauth.v2.access`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      code: config.code,
+      redirect_uri: config.redirectUri,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const answer = (await response.json()) as {
+    ok?: boolean;
+    error?: string;
+    team?: { id?: string };
+    authed_user?: { id?: string; access_token?: string };
+  };
+  const user = answer.authed_user;
+  if (answer.ok !== true || !user?.access_token || !user.id || !answer.team?.id)
+    throw new Error(`Slack oauth.v2.access: ${String(answer.error)}`);
+  return { userToken: user.access_token, userId: user.id, teamId: answer.team.id };
+}
+
+export interface FoundMessage {
+  readonly text: string;
+  readonly link: string;
+  /** Epoch seconds, as Slack's `ts`. */
+  readonly ts: string;
+  readonly channel: string;
+}
+
+/**
+ * Search what the token's owner can see, as Slack's own search box does
+ * (`search.messages`, user token, `search:read`). Nothing is stored.
+ */
+export async function searchMessages(
+  userToken: string,
+  query: string,
+  count: number,
+): Promise<FoundMessage[]> {
+  const params = new URLSearchParams({ query, count: String(count), sort: 'timestamp' });
+  const response = await fetch(`${API}/search.messages?${params.toString()}`, {
+    headers: { authorization: `Bearer ${userToken}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  const answer = (await response.json()) as {
+    ok?: boolean;
+    error?: string;
+    messages?: {
+      matches?: readonly {
+        text?: string;
+        permalink?: string;
+        ts?: string;
+        channel?: { name?: string; is_im?: boolean };
+      }[];
+    };
+  };
+  if (answer.ok !== true) throw new Error(`Slack search.messages: ${String(answer.error)}`);
+  return (answer.messages?.matches ?? []).flatMap((m) =>
+    m.text && m.permalink && m.ts
+      ? [
+          {
+            text: m.text,
+            link: m.permalink,
+            ts: m.ts,
+            channel: m.channel?.is_im === true ? 'a direct message' : `#${m.channel?.name ?? ''}`,
+          },
+        ]
+      : [],
+  );
+}

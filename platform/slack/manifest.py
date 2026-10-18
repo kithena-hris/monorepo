@@ -22,5 +22,8 @@ m['features']['slash_commands'][0]['usage_hint'] = 'who reports to Michael?'
 m['display_information']['long_description'] = m['display_information']['long_description'].replace(
     '/kithena ', ENVS[env]['command'] + ' ')
 if ENVS[env]['auth']:
-    m['oauth_config']['redirect_urls'] = [ENVS[env]['auth'] + '/chat/slack/done']
+    # "Add to Slack" for the company, and a person linking their own account
+    # for Performance's connected tools.
+    m['oauth_config']['redirect_urls'] = [ENVS[env]['auth'] + '/chat/slack/done',
+                                          ENVS[env]['auth'] + '/tools/slack/done']
 print(json.dumps(m))
