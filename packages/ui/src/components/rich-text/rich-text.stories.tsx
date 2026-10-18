@@ -391,3 +391,31 @@ export const Roundtrip: Story = {
     );
   },
 };
+
+export const WithAControlAtTheEnd: Story = {
+  name: 'With a control at the end',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`toolbarEnd`: a control of the screen’s own beside the formatting, outside its arrow-key group, for something that acts on the whole text.',
+      },
+    },
+  },
+  render: function Render() {
+    const [value, setValue] = useState('<p>Shipped the billing rewrite.</p>');
+    return (
+      <RichTextEditor
+        label="What went well?"
+        value={value}
+        onChange={setValue}
+        toolbar={['inline', 'lists']}
+        toolbarEnd={
+          <Button size="xs" variant="ghost">
+            Rewrite
+          </Button>
+        }
+      />
+    );
+  },
+};

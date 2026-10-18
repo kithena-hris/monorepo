@@ -309,6 +309,7 @@ export function RichTextEditorBody(props: RichTextEditorProps): JSX.Element {
             groups={toolbar}
             sticky={stickyToolbar}
             label={label ? `${label} formatting` : 'Formatting'}
+            end={props.toolbarEnd}
           />
         ) : null
       }
@@ -322,11 +323,13 @@ function RichTextToolbar({
   groups: names,
   sticky,
   label,
+  end,
 }: {
   editor: Editor;
   groups: readonly RichTextGroup[];
   sticky: boolean;
   label: string;
+  end?: ReactNode;
 }): JSX.Element {
   const [focusIndex, setFocusIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -382,66 +385,73 @@ function RichTextToolbar({
 
   return (
     <div
-      ref={containerRef}
-      role="toolbar"
-      aria-label={label}
-      aria-orientation="horizontal"
-      onKeyDown={onKeyDown}
       className={cn(
-        'flex flex-wrap items-center gap-0.5 p-1.5 shadow-[inset_0_-1px_0_var(--reach-color-border)]',
-        // Under a thumb the buttons are at the tap floor, and wrapped they
-        // would stack three rows above the text. One row that scrolls.
-        'touch:flex-nowrap touch:overflow-x-auto touch:[scrollbar-width:none] touch:[&>*]:shrink-0',
+        'flex items-center shadow-[inset_0_-1px_0_var(--reach-color-border)]',
         sticky && 'sticky top-0 z-10 bg-inherit',
       )}
     >
-      {buttons.map((button, index) => {
-        const active = button.active?.(editor) ?? false;
-        return (
-          <Fragment key={button.id}>
-            {groupStarts.has(index) ? (
-              <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
-            ) : null}
-            <button
-              type="button"
-              data-toolbar-item
-              aria-label={button.label}
-              aria-pressed={button.active ? active : undefined}
-              disabled={button.enabled ? !button.enabled(editor) : false}
-              tabIndex={index === tabStop ? 0 : -1}
-              onFocus={() => {
-                setFocusIndex(index);
-              }}
-              onClick={() => {
-                button.run(editor);
-              }}
-              className={cn(
-                'grid size-7.5 touch:size-11 place-items-center rounded-[0.5rem] text-fg-muted',
-                'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
-                'hover:bg-surface-hover hover:text-fg',
-                'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
-                'disabled:pointer-events-none disabled:opacity-40',
-                active && 'bg-accent-subtle text-accent-fg',
-                '[&_svg]:size-4',
-              )}
-            >
-              {button.icon}
-            </button>
-          </Fragment>
-        );
-      })}
+      <div
+        ref={containerRef}
+        role="toolbar"
+        aria-label={label}
+        aria-orientation="horizontal"
+        onKeyDown={onKeyDown}
+        className={cn(
+          'flex min-w-0 flex-1 flex-wrap items-center gap-0.5 p-1.5',
+          // Under a thumb the buttons are at the tap floor, and wrapped they
+          // would stack three rows above the text. One row that scrolls.
+          'touch:flex-nowrap touch:overflow-x-auto touch:[scrollbar-width:none] touch:[&>*]:shrink-0',
+        )}
+      >
+        {buttons.map((button, index) => {
+          const active = button.active?.(editor) ?? false;
+          return (
+            <Fragment key={button.id}>
+              {groupStarts.has(index) ? (
+                <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+              ) : null}
+              <button
+                type="button"
+                data-toolbar-item
+                aria-label={button.label}
+                aria-pressed={button.active ? active : undefined}
+                disabled={button.enabled ? !button.enabled(editor) : false}
+                tabIndex={index === tabStop ? 0 : -1}
+                onFocus={() => {
+                  setFocusIndex(index);
+                }}
+                onClick={() => {
+                  button.run(editor);
+                }}
+                className={cn(
+                  'grid size-7.5 touch:size-11 place-items-center rounded-[0.5rem] text-fg-muted',
+                  'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
+                  'hover:bg-surface-hover hover:text-fg',
+                  'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
+                  'disabled:pointer-events-none disabled:opacity-40',
+                  active && 'bg-accent-subtle text-accent-fg',
+                  '[&_svg]:size-4',
+                )}
+              >
+                {button.icon}
+              </button>
+            </Fragment>
+          );
+        })}
 
-      {hasLink && buttons.length > 0 ? (
-        <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
-      ) : null}
-      {hasLink ? (
-        <LinkControls
-          editor={editor}
-          startIndex={buttons.length}
-          focusIndex={tabStop}
-          onFocusIndex={setFocusIndex}
-        />
-      ) : null}
+        {hasLink && buttons.length > 0 ? (
+          <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+        ) : null}
+        {hasLink ? (
+          <LinkControls
+            editor={editor}
+            startIndex={buttons.length}
+            focusIndex={tabStop}
+            onFocusIndex={setFocusIndex}
+          />
+        ) : null}
+      </div>
+      {end === undefined || end === null ? null : <div className="shrink-0 p-1.5">{end}</div>}
     </div>
   );
 }

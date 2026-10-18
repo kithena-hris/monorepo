@@ -953,6 +953,20 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params }) => ai.howItReads(ctx, params.id),
   }),
   route({
+    name: 'rephrasePerformanceAnswer',
+    method: 'POST',
+    path: `${V1}/ai/reviews/{id}/rephrase`,
+    summary: 'PF10c: an answer rephrased in the tones asked for, links and formatting kept',
+    params: z.object({ id: Id }),
+    body: z.object({
+      html: z.string().max(40_000),
+      tones: z
+        .array(z.enum(Object.keys(ai.REPHRASE_TONES) as [ai.RephraseTone, ...ai.RephraseTone[]]))
+        .max(8),
+    }),
+    run: (ctx, { params, body }) => ai.rephrase(ctx, params.id, body),
+  }),
+  route({
     name: 'performanceSentiment',
     method: 'POST',
     path: `${V1}/ai/sentiment`,

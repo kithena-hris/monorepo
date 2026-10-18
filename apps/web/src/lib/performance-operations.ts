@@ -321,6 +321,9 @@ export const OPERATIONS = {
   RemovePerformanceParticipant: `mutation RemovePerformanceParticipant($id: String!, $key: String!, $input: JSON!) {
     removePerformanceParticipant(id: $id, idempotencyKey: $key, input: $input)
   }`,
+  RephrasePerformanceAnswer: `mutation RephrasePerformanceAnswer($id: String!, $key: String!, $input: JSON!) {
+    rephrasePerformanceAnswer(id: $id, idempotencyKey: $key, input: $input)
+  }`,
   RequestPerformanceFeedback: `mutation RequestPerformanceFeedback($key: String!, $input: JSON!) {
     requestPerformanceFeedback(idempotencyKey: $key, input: $input)
   }`,

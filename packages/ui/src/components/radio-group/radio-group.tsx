@@ -1,8 +1,8 @@
 'use client';
 
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
-import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
-import { useId } from 'react';
+import type { ComponentPropsWithoutRef, JSX, MouseEvent, ReactNode } from 'react';
+import { createContext, use, useId } from 'react';
 
 import { icons } from '../../icons';
 import { cn } from '../../lib/cn';
@@ -19,18 +19,46 @@ import { cn } from '../../lib/cn';
  * A radio group with two options that are opposites is a `Switch`.
  */
 
+export interface RadioGroupProps extends ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Root> {
+  /**
+   * Pressing the chosen option again clears the choice, and `onValueChange`
+   * fires with an empty string. For an answer that may be left blank, such as
+   * an optional question, where a radio group otherwise has no way back to
+   * nothing once something is picked. By click, tap or Space.
+   */
+  deselectable?: boolean;
+}
+
+/** What a deselectable group's options need to clear it. */
+const Deselect = createContext<((value: string, event: MouseEvent) => void) | null>(null);
+
 export function RadioGroup({
   className,
+  deselectable = false,
+  value,
+  onValueChange,
   ...props
-}: ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Root>): JSX.Element {
+}: RadioGroupProps): JSX.Element {
+  const clear =
+    deselectable && value !== undefined
+      ? (option: string, event: MouseEvent): void => {
+          if (option !== value || value === '') return;
+          event.preventDefault();
+          onValueChange?.('');
+        }
+      : null;
   return (
-    <RadioGroupPrimitive.Root
-      className={cn(
-        'grid gap-2 data-[orientation=horizontal]:auto-cols-max data-[orientation=horizontal]:grid-flow-col',
-        className,
-      )}
-      {...props}
-    />
+    <Deselect value={clear}>
+      <RadioGroupPrimitive.Root
+        className={cn(
+          'grid gap-2 data-[orientation=horizontal]:auto-cols-max data-[orientation=horizontal]:grid-flow-col',
+          className,
+        )}
+        {...(value === undefined ? {} : { value })}
+        {...(onValueChange === undefined ? {} : { onValueChange })}
+        {...props}
+      />
+    </Deselect>
   );
 }
 
@@ -49,8 +77,10 @@ export function RadioGroupItem({
   children,
   description,
   id,
+  onClick,
   ...props
 }: RadioGroupItemProps): JSX.Element {
+  const clear = use(Deselect);
   const generatedId = useId();
   const controlId = id ?? generatedId;
   const descriptionId = `${controlId}-description`;
@@ -79,6 +109,10 @@ export function RadioGroupItem({
           'touch:before:-translate-x-1/2 touch:before:-translate-y-1/2 touch:before:content-[""]',
           className,
         )}
+        onClick={(event) => {
+          onClick?.(event);
+          clear?.(props.value, event);
+        }}
         {...props}
       >
         <RadioGroupPrimitive.Indicator className="size-[0.4375rem] rounded-full bg-fg-on-accent data-[state=checked]:animate-scale-in touch:size-2.5" />
@@ -131,8 +165,10 @@ export function RadioCard({
   badge,
   impact,
   id,
+  onClick,
   ...props
 }: RadioCardProps): JSX.Element {
+  const clear = use(Deselect);
   const generatedId = useId();
   const controlId = id ?? generatedId;
   const descriptionId = `${controlId}-description`;
@@ -176,6 +212,10 @@ export function RadioCard({
           // The card draws the focus ring; a second one on the dot is noise.
           'focus-visible:outline-none',
         )}
+        onClick={(event) => {
+          onClick?.(event);
+          clear?.(props.value, event);
+        }}
         {...props}
       >
         <RadioGroupPrimitive.Indicator className="size-[0.4375rem] rounded-full bg-fg-on-accent data-[state=checked]:animate-scale-in touch:size-2.5" />

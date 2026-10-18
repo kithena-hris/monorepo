@@ -54,6 +54,11 @@ export interface RichTextEditorProps {
   maxHeight?: string;
   /** Keeps the toolbar visible while a long document scrolls. */
   stickyToolbar?: boolean;
+  /**
+   * At the toolbar's far end, outside its arrow-key group: a control of the
+   * screen's own that acts on the whole text, such as one that rewrites it.
+   */
+  toolbarEnd?: ReactNode;
   /** Escape hatch for extra Tiptap extensions: mentions, tables, an emoji picker. */
   extensions?: UseEditorOptions['extensions'];
   className?: string;

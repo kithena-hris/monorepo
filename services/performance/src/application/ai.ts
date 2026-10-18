@@ -6,6 +6,7 @@ import { plainText, validateDefinition } from '@kithena/form-kit';
 
 import { counts, position, sentences, type Labelled } from '../domain/sentiment.js';
 import { addDays } from '../domain/cycle.js';
+import { mended, protectLinks, restored } from '../domain/rephrase.js';
 import { current } from '../domain/template.js';
 import { isSubmitted, standing } from '../domain/review.js';
 import { audit, forbidden, hrOnly, names, notFound, type Ctx } from './context.js';
@@ -509,8 +510,16 @@ const Flag = z.object({
   sentence: z.string().max(600),
   level: z.enum(['danger', 'warning', 'info']),
   title: z.string().max(200),
-  suggestion: z.string().max(600).nullable(),
+  advice: z.string().max(600).nullable(),
+  rewrite: z.string().max(800).nullable(),
 });
+
+/** How a flag's two lines are asked for: advice to the writer, and the sentence itself mended. */
+const FLAG_FIELDS =
+  ' Each flag is {"sentence","level","title","advice","rewrite"}: "sentence" is copied exactly from the draft; "advice" is one short instruction to the writer; ' +
+  '"rewrite" is that same sentence rewritten so the flag no longer applies, in the writer\'s voice and language, ready to stand in its place in the draft: never an instruction, never advice. ' +
+  'Keep every fact, name and number in it. Never invent an example, outcome, number or name: where the fix needs a fact only the writer knows, put a short placeholder in square brackets, like [one example of the mentoring and what it changed]. ' +
+  '"rewrite" is null only when no rewrite of this sentence alone can fix it.';
 
 /** §13.7: how it will read to its receiver, and the checks a writer can use or ignore. */
 export async function howItReads(ctx: Ctx, reviewId: string): Promise<Result<unknown>> {
@@ -526,10 +535,11 @@ export async function howItReads(ctx: Ctx, reviewId: string): Promise<Result<unk
     ctx,
     'writingChecks',
     {
-      version: '1',
+      version: '2',
       instruction:
-        'Read this draft review as its receiver would. Return JSON {"reads":"a short paragraph","flags":[{"sentence","level","title","suggestion"}]}. ' +
-        'Flag wording about personality rather than behaviour, gendered or age-coded words, claims with no example, and vague praise.',
+        'Read this draft review as its receiver would. Return JSON {"reads":"a short paragraph","flags":[…]}. ' +
+        'Flag wording about personality rather than behaviour, gendered or age-coded words, claims with no example, and vague praise.' +
+        FLAG_FIELDS,
       answer: z.object({ reads: z.string().max(1200), flags: z.array(Flag).max(20) }),
     },
     { draft: text },
@@ -541,6 +551,7 @@ export async function howItReads(ctx: Ctx, reviewId: string): Promise<Result<unk
   const feel = await sentiment(ctx, text, 'How it reads');
   return ok({
     ...got.value.answer,
+    flags: got.value.answer.flags.map(mended),
     sentiment: feel.ok ? feel.value : null,
     logId: got.value.logId,
   });
@@ -552,16 +563,87 @@ export async function toneCheck(ctx: Ctx, text: string): Promise<Result<unknown>
     ctx,
     'toneCheck',
     {
-      version: '1',
+      version: '2',
       instruction:
-        'Check this feedback for sentences that read as personal, vague or harsh. Return JSON {"verdict":"one short sentence","flags":[{"sentence","level","title","suggestion"}]}.',
+        'Check this feedback for sentences that read as personal, vague or harsh. Return JSON {"verdict":"one short sentence","flags":[…]}.' +
+        FLAG_FIELDS,
       answer: z.object({ verdict: z.string().max(300), flags: z.array(Flag).max(20) }),
     },
     { feedback: plainText(text) },
     { on: 'Feedback tone' },
   );
   if (!got.ok) return got;
-  return ok({ ...got.value.answer, logId: got.value.logId });
+  return ok({
+    ...got.value.answer,
+    flags: got.value.answer.flags.map(mended),
+    logId: got.value.logId,
+  });
+}
+
+/* ------------------------------------------------------------ rephrase -- */
+
+/** The tones an answer can be rephrased in; several at once. */
+export const REPHRASE_TONES = {
+  clearer: 'clearer and easier to follow',
+  concise: 'more concise',
+  specific: 'more specific about behaviour and impact',
+  warmer: 'warmer',
+  direct: 'more direct',
+  formal: 'more formal',
+  constructive: 'more constructive, framed around what comes next',
+  confident: 'more confident',
+} as const;
+export type RephraseTone = keyof typeof REPHRASE_TONES;
+
+/**
+ * §13.7: one answer said again in the tones asked for, by its writer. The
+ * meaning, facts, names and numbers stay; so do its links (taken out before
+ * the model reads it and put back after) and its lists and marks. Asked twice
+ * at most; a second answer that changed the shape is refused, never half-used.
+ */
+export async function rephrase(
+  ctx: Ctx,
+  reviewId: string,
+  input: { html: string; tones: readonly RephraseTone[] },
+): Promise<Result<{ html: string; logId: string }>> {
+  const loaded = await load(ctx, reviewId);
+  if (!loaded.ok) return loaded;
+  const r = loaded.value.review;
+  if (r.authorId !== ctx.viewer.personId)
+    return err(forbidden('Only the writer rephrases a review'));
+  if (plainText(input.html).trim() === '')
+    return err(failure('EMPTY', 'There is nothing to rephrase yet'));
+  const { text, links } = protectLinks(input.html);
+  const tones = (input.tones.length === 0 ? (['clearer'] as const) : input.tones).map(
+    (t) => REPHRASE_TONES[t],
+  );
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const got = await ask(
+      ctx,
+      'writingChecks',
+      {
+        version: '1',
+        instruction:
+          'Rephrase this part of a performance review so it reads ' +
+          tones.join(', ') +
+          '. Return JSON {"html":"…"}. Keep the meaning, every fact, name, number and example, and the writer\'s point of view; add nothing that is not there. ' +
+          'Keep the HTML structure exactly: the same paragraphs and list items in the same order, and the same <strong>, <em>, <u>, <s> and <code> marks around the words they mark. ' +
+          'Keep every marker like ⟦1⟧…⟦/1⟧ exactly once, around the words that belong to it; you may reword the words inside. Text in [square brackets] stays as it is.',
+        answer: z.object({ html: z.string().max(40_000) }),
+      },
+      { html: text },
+      { forPerson: r.subjectId, on: 'Rephrase' },
+    );
+    if (!got.ok) return got;
+    const html = restored(got.value.answer.html, links, input.html);
+    if (html !== null) return ok({ html, logId: got.value.logId });
+  }
+  return err(
+    failure(
+      'AI_UNAVAILABLE',
+      'The rephrase lost a link or the formatting, so it was not used. Try again.',
+    ),
+  );
 }
 
 /* --------------------------------------------------------- setup in words -- */

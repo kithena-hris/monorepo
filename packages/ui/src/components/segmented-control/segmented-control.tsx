@@ -82,8 +82,17 @@ export interface SegmentedControlProps
     VariantProps<typeof root> {
   value?: string;
   defaultValue?: string;
-  /** Fires with the newly selected segment. Never with an empty string. */
+  /**
+   * Fires with the newly selected segment; with an empty string only when
+   * `deselectable` and the chosen segment is pressed again.
+   */
   onValueChange?: (value: string) => void;
+  /**
+   * Pressing the chosen segment again clears it. For an answer that may be
+   * left blank (yes, no, or not said); a control that switches between views
+   * always has one, and leaves this off.
+   */
+  deselectable?: boolean;
   /** Applies to every segment. `lg` is desk-only in the design; under a finger it matches `md`. */
   size?: Size;
 }
@@ -101,6 +110,7 @@ export function SegmentedControl({
   value: valueProp,
   defaultValue,
   onValueChange,
+  deselectable = false,
   children,
   ...props
 }: SegmentedControlProps): JSX.Element {
@@ -159,9 +169,9 @@ export function SegmentedControl({
         value={value}
         onValueChange={(next) => {
           // Radix reports an empty string when the current item is pressed
-          // again. A segmented control always has a view, so that press is a
-          // no-op rather than a deselection.
-          if (next === '') return;
+          // again. A segmented control usually always has a view, so that
+          // press is a no-op rather than a deselection, unless it may be blank.
+          if (next === '' && !deselectable) return;
           setUncontrolled(next);
           onValueChange?.(next);
         }}
