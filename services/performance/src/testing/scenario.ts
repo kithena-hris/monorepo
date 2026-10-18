@@ -66,6 +66,8 @@ export async function oneCycle(h: Harness): Promise<void> {
   };
   // A webhook receiver that keeps what it is sent.
   const posted: { url: string; headers: Record<string, string>; body: string }[] = [];
+  // What was given back to a tool when a person turned it off.
+  const revoked: (string | null)[] = [];
   // A chat app that keeps what it is asked to send.
   const chatted: { email: string; text: string; buttons: { label: string; value: string }[] }[] =
     [];
@@ -92,6 +94,24 @@ export async function oneCycle(h: Harness): Promise<void> {
       clock,
       ...(chat === undefined ? {} : { chat }),
       chatToken: 'chat-pair',
+      // A work tool a person links for themselves (§22.3), kept to what it was asked.
+      tools: {
+        github: {
+          authorize: ({ personId, origin }) =>
+            Promise.resolve(ok({ url: `https://github.test/authorize?p=${personId}&o=${origin}` })),
+          complete: ({ code }) =>
+            Promise.resolve(
+              code === 'good'
+                ? ok({ account: 'marco-gh', secret: 'sealed' })
+                : err(failure('TOOL_REFUSED', 'GitHub did not confirm it')),
+            ),
+          search: () => Promise.resolve(ok({ items: [] })),
+          revoke: ({ secret }) => {
+            revoked.push(secret);
+            return Promise.resolve();
+          },
+        },
+      },
       mailer: {
         send: (m) => {
           mailed.push(m);
@@ -646,4 +666,31 @@ export async function oneCycle(h: Harness): Promise<void> {
   });
   expect(gone.deleted).toBeGreaterThan(0);
   expect(await dueNow()).toEqual([]);
+
+  // A person links their own GitHub (§22.3): nothing is granted until they
+  // approve it there; a tool with no connector here cannot be turned on; off
+  // gives the token back.
+  type Tools = {
+    sources: { source: string; on: boolean; available: boolean; account: string | null }[];
+  };
+  const gh = async () =>
+    (await data<Tools>('marco', 'GET', '/me/tools')).sources.find((x) => x.source === 'github');
+  expect(await gh()).toMatchObject({ on: false, available: true, account: null });
+  expect((await call('marco', 'PUT', '/me/tools/jira', { on: true })).status).toBe(400);
+  const linking = await data<{ link: string }>('marco', 'PUT', '/me/tools/github', {
+    on: true,
+    origin: 'https://acme.app.kithena.com',
+  });
+  expect(linking.link).toBe(
+    `https://github.test/authorize?p=${ids.marco.person}&o=https://acme.app.kithena.com`,
+  );
+  expect((await gh())?.on).toBe(false);
+  expect(
+    (await call('marco', 'PUT', '/me/tools/github', { on: true, code: 'bad', state: 's' })).status,
+  ).toBe(422);
+  await data('marco', 'PUT', '/me/tools/github', { on: true, code: 'good', state: 's' });
+  expect(await gh()).toMatchObject({ on: true, account: 'marco-gh' });
+  await data('marco', 'PUT', '/me/tools/github', { on: false });
+  expect(revoked).toEqual(['sealed']);
+  expect(await gh()).toMatchObject({ on: false, account: null });
 }

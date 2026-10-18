@@ -1269,6 +1269,12 @@ export interface ConnectedToolsData {
     readonly source: string;
     readonly on: boolean;
     readonly at: string | null;
+    /** Whether it can be linked here yet. */
+    readonly available?: boolean;
+    /** Who they are in it, once linked. */
+    readonly account?: string | null;
+    /** Where the company installs its app first. */
+    readonly install?: string | null;
   }[];
   readonly reads: readonly {
     readonly source: string;
@@ -1292,6 +1298,31 @@ const SOURCE: Readonly<Record<string, string>> = {
 /** S12: what I let Kithena read of my own work, each on or off, and every read. */
 export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Element {
   const act = useAct(props);
+  const [going, setGoing] = useState<string | null>(null);
+  const [refused, setRefused] = useState<string | null>(null);
+  const linked = props.search?.['linked'];
+  const notLinked = props.search?.['notLinked'];
+  // On with nothing linked goes to the tool to approve it; Kithena comes back here.
+  const turn = (source: string, on: boolean): void => {
+    setRefused(null);
+    if (!on) {
+      act.run('SetPerformanceGrant', { source, input: { on } });
+      return;
+    }
+    setGoing(source);
+    void act
+      .call('SetPerformanceGrant', { source, input: { on, origin: window.location.origin } })
+      .then((d) => {
+        const link = d.ok ? (d.data as { link?: string }).link : undefined;
+        if (link !== undefined) {
+          window.location.assign(link);
+          return;
+        }
+        setGoing(null);
+        if (d.ok) props.onRefresh?.();
+        else setRefused(d.message);
+      });
+  };
   return (
     <Loaded load={props.load} what="your connected tools">
       {(data) => (
@@ -1300,35 +1331,64 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
             title="My connected tools"
             description="What Kithena may read of your own work to suggest evidence for reviews about you and by you. Off stops it at once and drops what was read."
           />
-          <Refusal error={act.error} />
+          <Refusal error={refused ?? act.error} />
+          {linked === undefined ? null : (
+            <Alert
+              tone="success"
+              title={`${linked} is linked`}
+            >{`Kithena's AI may now read what you can see in ${linked} when it drafts a review with you.`}</Alert>
+          )}
+          {notLinked === undefined ? null : <Alert tone="warning" title={notLinked} />}
           <FormSections>
             <FormSection
               title="Tools"
-              description="Each is read only for reviews about you or by you."
+              description="Each is read only for reviews about you or by you, only for the review's period, and nothing read is kept."
             >
               <List>
-                {data.sources.map((s) => (
-                  <ListItem
-                    key={s.source}
-                    description={
-                      s.at === null
-                        ? 'Never turned on'
-                        : `${s.on ? 'On' : 'Off'} since ${when(s.at)}`
-                    }
-                    trailing={
-                      <Switch
-                        aria-label={SOURCE[s.source] ?? s.source}
-                        checked={s.on}
-                        disabled={act.pending}
-                        onCheckedChange={(on) => {
-                          act.run('SetPerformanceGrant', { source: s.source, input: { on } });
-                        }}
-                      />
-                    }
-                  >
-                    {SOURCE[s.source] ?? s.source}
-                  </ListItem>
-                ))}
+                {data.sources.map((s) => {
+                  const name = SOURCE[s.source] ?? s.source;
+                  const available = s.available !== false;
+                  return (
+                    <ListItem
+                      key={s.source}
+                      description={
+                        !available
+                          ? 'Not available yet'
+                          : [
+                              s.account === null || s.account === undefined
+                                ? s.on
+                                  ? null
+                                  : 'Turning it on asks you to approve it there'
+                                : `Linked as ${s.account}`,
+                              s.at === null ? null : `${s.on ? 'On' : 'Off'} since ${when(s.at)}`,
+                            ]
+                              .filter((x) => x !== null)
+                              .join(' · ')
+                      }
+                      trailing={
+                        <span className="flex items-center gap-2">
+                          {s.install === null || s.install === undefined || s.on ? null : (
+                            <Button asChild size="sm" variant="ghost">
+                              <a href={s.install} target="_blank" rel="noreferrer">
+                                Install for your company
+                              </a>
+                            </Button>
+                          )}
+                          <Switch
+                            aria-label={name}
+                            checked={s.on}
+                            disabled={!available || act.pending || going !== null}
+                            onCheckedChange={(on) => {
+                              turn(s.source, on);
+                            }}
+                          />
+                        </span>
+                      }
+                    >
+                      {name}
+                    </ListItem>
+                  );
+                })}
               </List>
             </FormSection>
             <FormSection title="Recent reads" description="Every time Kithena read something.">

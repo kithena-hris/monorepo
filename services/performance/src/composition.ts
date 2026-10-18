@@ -14,6 +14,7 @@ import { modelFrom } from './infrastructure/model.js';
 import { drizzleUnitOfWork, performanceDatabase } from './infrastructure/unit-of-work.js';
 import { webhooksFrom } from './infrastructure/webhooks.js';
 import { chatFrom } from './infrastructure/chat.js';
+import { toolsFrom } from './infrastructure/tools.js';
 
 /**
  * Performance's composition root (PRF-004), Onboarding's shape. With
@@ -56,6 +57,7 @@ export function composePerformance(env: NodeJS.ProcessEnv = process.env): Compos
   const model = modelFrom(env);
   const webhooks = webhooksFrom(env);
   const chat = chatFrom(env);
+  const tools = toolsFrom(env);
   if (webhooks === undefined)
     logger.info({ module: 'performance' }, 'PERFORMANCE_WEBHOOK_KEY unset; no webhooks');
   const { listener, deps } = performanceServer(
@@ -67,6 +69,7 @@ export function composePerformance(env: NodeJS.ProcessEnv = process.env): Compos
       ...(model === undefined ? {} : { model }),
       ...(webhooks === undefined ? {} : { webhooks }),
       ...(chat === undefined ? {} : { chat }),
+      tools,
       chatToken: env['SLACK_PERFORMANCE_TOKEN'] ?? '',
       // The assistant's secret for its pair (assistant PRD §15.3); empty refuses it.
       assistantCallerFrom: withMember(

@@ -2490,7 +2490,12 @@ export function PerformanceAsk({ navigation }: PeopleScreen<'PerformanceAsk'>): 
 }
 
 interface Tools {
-  readonly sources: readonly { source: string; on: boolean }[];
+  readonly sources: readonly {
+    source: string;
+    on: boolean;
+    available?: boolean;
+    account?: string | null;
+  }[];
 }
 
 const SOURCE: Readonly<Record<string, string>> = {
@@ -2530,7 +2535,17 @@ export function PerformanceTools({
             <Switch
               key={s.source}
               checked={s.on}
-              disabled={write.busy}
+              // Linking approves it in the tool, in a browser: done on the web, then on and off here.
+              disabled={
+                write.busy || s.available === false || (!s.on && (s.account ?? null) === null)
+              }
+              description={
+                s.available === false
+                  ? 'Not available yet'
+                  : (s.account ?? null) === null
+                    ? 'Link it on the web: Settings › Performance › My connected tools'
+                    : `Linked as ${s.account ?? ''}`
+              }
               onCheckedChange={(on) => {
                 write.run('SetPerformanceGrant', { source: s.source, input: { on } });
               }}

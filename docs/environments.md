@@ -432,6 +432,51 @@ on a company's own domain is refused. The first sign-in links the
 Google account (`platform.credential`, kind `federated`, keyed by `sub`), and
 enrols an invited person who has not set up a passkey.
 
+### Connected tools: Slack and GitHub
+
+What each person links in **Settings › Performance › My connected tools**, so
+Performance's AI can draft from their own work (performance PRD §22.3, §23.1).
+Every read is through that person's own token, about one subject, in the review
+period; nothing read is kept. The code is
+`services/performance/src/infrastructure/tools.ts`.
+
+Both return through the auth origin's `/tools/<tool>/done`, which passes the
+browser on to the company's `/performance/tools/<tool>/done`.
+
+**Slack** uses Kithena's one Slack app, so a company must have added Kithena to
+Slack first. The app needs the user scope `search:read` and the second return
+address; both are in the manifest, so apply it once per environment:
+
+```bash
+cd platform/slack && python3 manifest.py production | pbcopy
+# api.slack.com → the Kithena app → App Manifest → paste → Save
+```
+
+The person's token is kept by the Slack service, sealed in
+`slack.person_token`. No new secret.
+
+**GitHub** is a GitHub App the company installs on its organisation; it then
+acts as each person who links it, and sees only repositories both the
+installation and that person can.
+
+1. **github.com → Settings → Developer settings → GitHub Apps → New**: name
+   Kithena, callback URL exactly `https://auth.app.kithena.com/tools/github/done`,
+   _Request user authorization (OAuth) during installation_ off, webhook off.
+   Repository permissions, read-only: _Pull requests_, _Issues_, _Metadata_.
+   Account permissions: none. _Any account_ may install it.
+2. Generate a client secret, and store the pair and the app's slug:
+
+   ```bash
+   gh secret set GITHUB_APP_CLIENT_ID --env Production
+   gh secret set GITHUB_APP_CLIENT_SECRET --env Production
+   gh variable set GITHUB_APP_SLUG --env Production
+   gh workflow run vercel-production.yml --ref main
+   ```
+
+   Unset, GitHub shows as _Not available yet_. Its tokens are sealed under a key
+   derived from `PERFORMANCE_WEBHOOK_KEY`, so that has to be set too; an
+   expiring token is renewed as it is used.
+
 ### Identity, on Vercel
 
 `platform/identity/api/[...path].ts` is the whole of the deployment surface: a

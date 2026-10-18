@@ -283,7 +283,11 @@ NOBYPASSRLS` and RLS on `tenant_id`.
       Teams, Google Chat, meeting notes, GitHub, GitLab, Linear, Jira,
       Confluence. Each read only on the person's own explicit, revocable,
       audited grant, per source, off by default (My connected tools). PRD
-      §13.5, §22.3, §23.1.
+      §13.5, §22.3, §23.1. **Slack and GitHub built** (2026-10-18): the port,
+      both adapters, linking and revoking, evidence in prefill and summaries,
+      and "Drafted with help from" on the released review. Slack uses
+      `search.messages` with the person's token, not the Real-time Search API,
+      which needs a Marketplace listing. The other seven remain.
 - [ ] **PRF-167** Key results that follow a Linear project or a Jira epic.
       PRD §14.5.
 - [ ] **PRF-168** The owner's business tasks (the account owner does them):

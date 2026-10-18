@@ -1547,8 +1547,19 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/me/tools/{source}`,
     summary: 'Grant or revoke a source',
     params: z.object({ source: z.string().max(20) }),
-    body: z.object({ on: z.boolean() }),
-    run: (ctx, { params, body }) => home.setGrant(ctx, params.source, body.on),
+    body: z.object({
+      on: z.boolean(),
+      // Linking: where the tool returns to, then the code and state it returned.
+      origin: z.url().max(300).optional(),
+      code: z.string().min(1).max(500).optional(),
+      state: z.string().min(1).max(2000).optional(),
+    }),
+    run: (ctx, { params, body }) =>
+      home.setGrant(ctx, params.source, body.on, {
+        ...(body.origin === undefined ? {} : { origin: body.origin }),
+        ...(body.code === undefined ? {} : { code: body.code }),
+        ...(body.state === undefined ? {} : { state: body.state }),
+      }),
   }),
 
   /* ----------------------------------------------------- Ask Kithena -- */

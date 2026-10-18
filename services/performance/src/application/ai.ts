@@ -1,16 +1,18 @@
 import { createHash } from 'node:crypto';
 import * as z from 'zod';
-import { FormDefinition } from '@kithena/contracts';
+import { FormDefinition, type CalendarDate } from '@kithena/contracts';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 import { plainText, validateDefinition } from '@kithena/form-kit';
 
 import { counts, position, sentences, type Labelled } from '../domain/sentiment.js';
+import { addDays } from '../domain/cycle.js';
 import { current } from '../domain/template.js';
 import { isSubmitted, standing } from '../domain/review.js';
 import { audit, forbidden, hrOnly, names, notFound, type Ctx } from './context.js';
 import { metric, COHORT } from './analytics.js';
 import { formOf } from './forms.js';
 import { people, subtitle } from './members.js';
+import type { EvidenceItem } from './ports.js';
 import { load } from './reviews.js';
 import { aiOn, settingsOf, type AiFeature } from './settings.js';
 
@@ -169,7 +171,7 @@ export async function translateTemplate(
 /* ------------------------------------------------------------- writing -- */
 
 /** What the model may read for a review's writer (§22.4): masked, cited by id. */
-async function evidence(ctx: Ctx, reviewId: string) {
+async function evidence(ctx: Ctx, reviewId: string, withTools = false) {
   const loaded = await load(ctx, reviewId);
   if (!loaded.ok) return loaded;
   const r = loaded.value.review;
@@ -230,7 +232,20 @@ async function evidence(ctx: Ctx, reviewId: string) {
       text: `${g.title}; check-ins: ${g.checkIns.map((c) => `${c.confidence}${c.note === null ? '' : ` (${c.note})`}`).join('; ')}`,
     });
   const person = (await people(ctx)).find((p) => p.personId === r.subjectId);
+  const tools = withTools
+    ? await toolEvidence(ctx, r, person?.email ?? null, name(r.subjectId))
+    : [];
+  const toolOf: Record<string, string> = {};
+  for (const t of tools) {
+    toolOf[`t${String(sources.length + 1)}`] = t.source;
+    sources.push({
+      id: `t${String(sources.length + 1)}`,
+      label: `${TOOL_NAME[t.source] ?? t.source} ${t.kind}, ${t.date}: ${t.link}`,
+      text: t.text,
+    });
+  }
   return ok({
+    toolOf,
     review: r,
     sources,
     subject: r.subjectId === ctx.viewer.personId ? 'you' : 'the person',
@@ -238,11 +253,79 @@ async function evidence(ctx: Ctx, reviewId: string) {
   });
 }
 
+const TOOL_NAME: Readonly<Record<string, string>> = { slack: 'Slack', github: 'GitHub' };
+
+/**
+ * §22.3: what the writer's own linked tools hold about the subject in the
+ * review period, read as the writer, only from tools they turned on. Each
+ * read is recorded on their grant; what was read is not kept.
+ */
+async function toolEvidence(
+  ctx: Ctx,
+  r: { readonly subjectId: string; readonly cycleId: string | null; readonly due: CalendarDate },
+  subjectEmail: string | null,
+  subjectName: string,
+): Promise<(EvidenceItem & { readonly source: string })[]> {
+  const writer = ctx.viewer.personId;
+  const tools = ctx.deps.tools;
+  if (writer === null || tools === undefined) return [];
+  const grant = await ctx.tx.grants.get(writer);
+  if (grant === null) return [];
+  const on = Object.entries(grant.sources).filter(
+    ([s, g]) => g.on && g.account != null && tools[s] !== undefined,
+  );
+  if (on.length === 0) return [];
+  const cycle = r.cycleId === null ? null : await ctx.tx.cycles.get(r.cycleId);
+  const period = cycle?.period ?? {
+    from: addDays(r.due, -365),
+    to: r.due,
+  };
+  const theirs = writer === r.subjectId ? grant : await ctx.tx.grants.get(r.subjectId);
+  const found = await Promise.all(
+    on.map(async ([source, g]) => {
+      const got = await tools[source]?.search({
+        tenantId: ctx.caller.tenantId,
+        personId: writer,
+        secret: g.secret ?? null,
+        subject: { email: subjectEmail, account: theirs?.sources[source]?.account ?? null },
+        from: period.from,
+        to: period.to,
+      });
+      return { source, got };
+    }),
+  );
+  const renewed = Object.fromEntries(
+    found.flatMap(({ source, got }) =>
+      got?.ok === true && got.value.secret !== undefined ? [[source, got.value.secret]] : [],
+    ),
+  );
+  await ctx.tx.grants.save({
+    ...grant,
+    sources: Object.fromEntries(
+      Object.entries(grant.sources).map(([s, g]) => [
+        s,
+        s in renewed ? { ...g, secret: renewed[s] ?? null } : g,
+      ]),
+    ),
+    reads: [
+      ...grant.reads,
+      ...found.map(({ source }) => ({
+        source,
+        at: ctx.at,
+        purpose: `Evidence for a review about ${subjectName}`,
+      })),
+    ].slice(-50),
+  });
+  return found.flatMap(({ source, got }) =>
+    got?.ok === true ? got.value.items.slice(0, 40).map((i) => ({ ...i, source })) : [],
+  );
+}
+
 const Cited = z.object({ text: z.string().max(600), cites: z.array(z.string()).max(8) });
 
 /** §13.2: a summary where every sentence cites its sources; a sentence citing nothing real is dropped. */
 export async function summarise(ctx: Ctx, reviewId: string): Promise<Result<unknown>> {
-  const ev = await evidence(ctx, reviewId);
+  const ev = await evidence(ctx, reviewId, true);
   if (!ev.ok) return ev;
   const got = await ask(
     ctx,
@@ -328,7 +411,7 @@ const Prefill = z.object({
  * beside the answers until the writer confirms or changes each.
  */
 export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknown>> {
-  const ev = await evidence(ctx, reviewId);
+  const ev = await evidence(ctx, reviewId, true);
   if (!ev.ok) return ev;
   const r = ev.value.review;
   const form = await formOf(ctx, r);
@@ -366,6 +449,7 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
   const known = new Set(ev.value.sources.map((s) => s.id));
   const answers = { ...r.answers };
   const drafted = new Set(r.drafted);
+  const helped = new Set(r.toolHelp ?? []);
   for (const t of got.value.answer.text) {
     const q = byId.get(t.questionId);
     const written = answers[q?.id ?? '']?.value;
@@ -381,6 +465,10 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
       continue;
     answers[q.id] = { value: `<p>${t.text.replaceAll('<', '&lt;')}</p>`, comment: null };
     drafted.add(q.id);
+    for (const c of t.cites) {
+      const tool = ev.value.toolOf[c];
+      if (tool !== undefined) helped.add(tool);
+    }
   }
   const suggestions = { ...r.suggestions };
   for (const v of got.value.answer.values) {
@@ -402,6 +490,7 @@ export async function prefill(ctx: Ctx, reviewId: string): Promise<Result<unknow
     ...r,
     answers,
     drafted: [...drafted],
+    ...(helped.size === 0 ? {} : { toolHelp: [...helped] }),
     suggestions,
     revision: r.revision + 1,
     savedAt: ctx.at,
