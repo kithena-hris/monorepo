@@ -298,10 +298,11 @@ describe('bulk edit (PEO-071)', () => {
       'bulk-about',
     );
     expect(set.status).toBe(200);
-    const picked = await fetch(`${base}/v1/views/people-picker?search=Marco`, { headers: hr });
-    expect(((await picked.json()) as { options: unknown[] }).options).toEqual([
-      { value: MARCO, label: 'Marco Rossi', description: 'Engineer · Platform' },
-    ]);
+    // Unsearched: Ada has no name, so the picker offers Marco alone.
+    const picked = await fetch(`${base}/v1/views/people-picker`, { headers: hr });
+    expect(await picked.json()).toMatchObject({
+      options: [{ value: MARCO, label: 'Marco Rossi', description: 'Engineer · Platform' }],
+    });
   });
 
   it('is atomic per person: a value one person claims first is refused for the next, in the preview and the commit alike', async () => {
