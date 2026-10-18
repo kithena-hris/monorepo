@@ -24,14 +24,13 @@ async function read(
       : { status: 'error', message: answer.message, code: answer.code };
 }
 
+/** As `call` hands it back: the query's one top-level field, unwrapped. */
 interface Timeline {
-  readonly timeOffCalendarTimeline: {
-    readonly entries: readonly {
-      readonly personId: string;
-      readonly status: string;
-      readonly span: { readonly from: string; readonly to: string };
-    }[];
-  };
+  readonly entries: readonly {
+    readonly personId: string;
+    readonly status: string;
+    readonly span: { readonly from: string; readonly to: string };
+  }[];
 }
 
 /**
@@ -52,7 +51,7 @@ async function awayNow(): Promise<Record<string, string>> {
   });
   const away: Record<string, string> = {};
   if (!answer.ok) return away;
-  for (const e of answer.data.timeOffCalendarTimeline.entries)
+  for (const e of answer.data.entries)
     if (AWAY.has(e.status) && e.span.from <= to && e.span.to >= today) {
       const until = away[e.personId];
       if (until === undefined || e.span.to > until) away[e.personId] = e.span.to;
@@ -61,10 +60,8 @@ async function awayNow(): Promise<Record<string, string>> {
 }
 
 interface Organisation {
-  readonly peopleOrganisation: {
-    readonly legalEntities: readonly { readonly id: string; readonly name: string }[];
-    readonly locations: readonly { readonly id: string; readonly name: string }[];
-  };
+  readonly legalEntities: readonly { readonly id: string; readonly name: string }[];
+  readonly locations: readonly { readonly id: string; readonly name: string }[];
 }
 
 /** Work location and legal entity names by id, from People; none if it cannot say. */
@@ -77,8 +74,8 @@ async function placesNamed(): Promise<{
   const named = (xs: readonly { id: string; name: string }[]) =>
     Object.fromEntries(xs.map((x) => [x.id, x.name]));
   return {
-    locations: named(answer.data.peopleOrganisation.locations),
-    entities: named(answer.data.peopleOrganisation.legalEntities),
+    locations: named(answer.data.locations),
+    entities: named(answer.data.legalEntities),
   };
 }
 
