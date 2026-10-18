@@ -1012,6 +1012,79 @@ const reviewState = (r: Review | undefined, today: CalendarDate): string => {
       : r.status;
 };
 
+/** A review as the charts count it: one of four states, lateness first. */
+function stance(r: Review, today: CalendarDate): 'submitted' | 'overdue' | 'started' | 'waiting' {
+  if (isSubmitted(r)) return 'submitted';
+  if (r.due < today && ['not_started', 'in_progress'].includes(r.status)) return 'overdue';
+  return r.status === 'in_progress' ? 'started' : 'waiting';
+}
+
+/**
+ * Where the cycle's reviews stand, overall and by the department of the
+ * person each is about, the least done first: the departments to chase.
+ * Eight departments, the rest as Other, so the chart stays readable.
+ */
+export function insightsOf(
+  reviews: readonly Review[],
+  subjects: readonly Person[],
+  today: CalendarDate,
+): {
+  readonly status: Record<'submitted' | 'overdue' | 'started' | 'waiting', number>;
+  readonly byDepartment: readonly {
+    readonly department: string;
+    readonly submitted: number;
+    readonly started: number;
+    readonly waiting: number;
+    readonly overdue: number;
+  }[];
+} {
+  const live = reviews.filter((r) => r.detached === null && !r.hidden && r.status !== 'cancelled');
+  const department = new Map(subjects.map((p) => [p.personId, p.department ?? 'No department']));
+  const status = { submitted: 0, overdue: 0, started: 0, waiting: 0 };
+  const rows = new Map<
+    string,
+    { submitted: number; started: number; waiting: number; overdue: number }
+  >();
+  for (const r of live) {
+    const s = stance(r, today);
+    status[s] += 1;
+    const d = department.get(r.subjectId);
+    if (d === undefined) continue;
+    const row = rows.get(d) ?? { submitted: 0, started: 0, waiting: 0, overdue: 0 };
+    row[s] += 1;
+    rows.set(d, row);
+  }
+  const done = (x: { submitted: number; started: number; waiting: number; overdue: number }) =>
+    x.submitted / Math.max(1, x.submitted + x.started + x.waiting + x.overdue);
+  const ranked = [...rows]
+    .map(([d, x]) => ({ department: d, ...x }))
+    .toSorted(
+      (a, b) =>
+        done(a) - done(b) || b.overdue - a.overdue || a.department.localeCompare(b.department),
+    );
+  const kept = ranked.slice(0, 8);
+  const rest = ranked.slice(8);
+  return {
+    status,
+    byDepartment:
+      rest.length === 0
+        ? kept
+        : [
+            ...kept,
+            rest.reduce(
+              (o, x) => ({
+                department: 'Other',
+                submitted: o.submitted + x.submitted,
+                started: o.started + x.started,
+                waiting: o.waiting + x.waiting,
+                overdue: o.overdue + x.overdue,
+              }),
+              { department: 'Other', submitted: 0, started: 0, waiting: 0, overdue: 0 },
+            ),
+          ],
+  };
+}
+
 /** The overview's own conditions, beside a person's: each review's state, and lateness. */
 const REVIEW_FIELDS = new Set(['self', 'managerReview', 'overdue']);
 const OverviewCond = z.object({
@@ -1249,6 +1322,8 @@ export async function overviewScreen(
     today: ctx.today,
     released: reviews.filter((r) => r.released !== null && r.kind === 'manager').length,
     overdue: counts.overdue,
+    // The two charts' numbers: where every review stands, and by department.
+    insights: insightsOf(reviews, subjectPeople, ctx.today),
     rows,
     total: shown.length,
     page,

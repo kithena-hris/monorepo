@@ -7,8 +7,20 @@ import {
   CardHeader,
   CardTitle,
   ChartCard,
+  DonutChart,
+  StackedBarChart,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Toolbar,
   Checkbox,
-  CircularProgress,
   Chip,
   ChipRow,
   Combobox,
@@ -39,7 +51,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Stat,
   TertiaryNav,
   TimelineChart,
   type RowAction,
@@ -1987,6 +1998,17 @@ export interface OverviewData {
   }[];
   readonly plan: Plan;
   readonly today: string;
+  /** Where every review stands, overall and by department, least done first. */
+  readonly insights?: {
+    readonly status: Readonly<Record<'submitted' | 'overdue' | 'started' | 'waiting', number>>;
+    readonly byDepartment: readonly {
+      readonly department: string;
+      readonly submitted: number;
+      readonly started: number;
+      readonly waiting: number;
+      readonly overdue: number;
+    }[];
+  };
   readonly released: number;
   readonly overdue: number;
   readonly rows: readonly OverviewRow[];
@@ -2019,13 +2041,6 @@ export interface OverviewData {
 
 type Dialog = 'extend' | 'close' | 'export' | 'add' | 'remove' | null;
 
-const KIND_ICON: Readonly<Record<string, typeof icons.review>> = {
-  self: icons.person,
-  manager: icons.approve,
-  peer: icons.people,
-  upward: icons.hierarchy,
-  skip: icons.organisation,
-};
 const REMINDER_LABEL: Readonly<Record<string, string>> = Object.fromEntries(REMINDERS);
 const GOALS_LABEL: Readonly<Record<string, string>> = {
   none: 'Not part of this cycle',
@@ -2075,10 +2090,101 @@ function groupLabel(data: OverviewData, group: string, r: OverviewRow): string {
   }
 }
 
+const STANCES = [
+  { key: 'submitted', label: 'Submitted', tone: 'success' },
+  { key: 'started', label: 'In progress', tone: 'accent' },
+  { key: 'waiting', label: 'Not started', tone: 'neutral' },
+  { key: 'overdue', label: 'Overdue', tone: 'danger' },
+] as const;
+
 /**
- * The people table's search, filters, grouping and the same in words, all in
- * the address: a filter is shareable and survives a reload, and the table
- * reads it from there (`OverviewTable`).
+ * Two charts in place of a wall of tiles, each answering its own question.
+ * Left: how far along is the cycle, every review in it by where it stands,
+ * with the next deadline. Right: who is behind, each department's share of
+ * its reviews by the same four states, the least done first.
+ */
+function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null {
+  const got = data.insights;
+  if (got === undefined) return null;
+  const total = STANCES.reduce((n, x) => n + got.status[x.key], 0);
+  const done = total === 0 ? 0 : Math.round((got.status.submitted / total) * 100);
+  const next = data.tiles
+    .filter((t) => t.due !== null && t.due >= data.today && t.submitted < t.total)
+    .toSorted((a, b) => (a.due ?? '').localeCompare(b.due ?? ''))[0];
+  const left = next?.due == null ? null : daysBetween(data.today, next.due);
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      <ChartCard
+        title="Where every review stands"
+        description={[
+          `${String(got.status.submitted)} of ${plural(total, 'review')} in`,
+          got.status.overdue > 0 ? `${String(got.status.overdue)} overdue` : 'none overdue',
+          next === undefined || left === null
+            ? null
+            : `${kindLabel(next.kind)}s due ${day(next.due)}${left === 0 ? ', today' : `, in ${plural(left, 'day')}`}`,
+        ]
+          .filter((x) => x !== null)
+          .join(' · ')}
+      >
+        <DonutChart
+          label="Reviews by where they stand"
+          data={STANCES.map((x) => ({ label: x.label, value: got.status[x.key], tone: x.tone }))}
+          center={`${String(done)}%`}
+          centerLabel="submitted"
+          showLegend
+        />
+      </ChartCard>
+      <ChartCard
+        title="Who is behind"
+        description="Each department’s reviews by where they stand, the least done first."
+      >
+        <StackedBarChart
+          label="Reviews by department and where they stand"
+          normalise
+          categories={got.byDepartment.map((d) => d.department)}
+          series={STANCES.map((x) => ({
+            label: x.label,
+            tone: x.tone,
+            values: got.byDepartment.map((d) => d[x.key]),
+          }))}
+          format={(v) => `${String(Math.round(v))}%`}
+        />
+      </ChartCard>
+    </div>
+  );
+}
+
+/** What a filter's chip says: "Department: Engineering, Sales". */
+function chipsOf(
+  fields: readonly FilterField[],
+  conds: readonly Cond[],
+): {
+  readonly key: string;
+  readonly field: string;
+  readonly text: string;
+  readonly at: number[];
+}[] {
+  const groups = groupOf(conds, 'all').conditions;
+  let at = 0;
+  return groups.map((g) => {
+    const f = fields.find((x) => x.id === g.field);
+    const op = f?.operators.find((o) => o.id === g.operator);
+    const named = g.values.map((v) => f?.options?.find((o) => o.value === v)?.label ?? v);
+    const taken = g.values.map(() => at++);
+    return {
+      key: g.id,
+      field: f?.label ?? g.field,
+      text: `${op !== undefined && op.id !== 'is' ? `${op.label} ` : ''}${named.join(', ')}`,
+      at: taken,
+    };
+  });
+}
+
+/**
+ * The people table's controls, as People's directory has them: a question in
+ * words above; then one toolbar with the search, the filters in force as
+ * chips (Add filter opens the builder, applied on Apply), and a View menu for
+ * the grouping. Everything in the address, so a view is shareable.
  */
 function PeopleToolbar({
   data,
@@ -2110,8 +2216,8 @@ function PeopleToolbar({
       ],
     },
   ];
-  const [group, setGroup] = useState<FilterGroup>(() => groupOf(stored, match));
-  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<FilterGroup>(() => groupOf(stored, match));
   const [words, setWords] = useState('');
   const [said, setSaid] = useState<readonly string[]>([]);
   const [asking, setAsking] = useState(false);
@@ -2128,20 +2234,8 @@ function PeopleToolbar({
       ...extra,
     });
   };
-  // Only complete conditions reach the address, and typing settles first.
-  const change = (next: FilterGroup): void => {
-    setGroup(next);
-    setSaid([]);
-    const done = {
-      ...next,
-      conditions: next.conditions.filter((x) => isConditionComplete(fields, x)),
-    };
-    if (pending.current !== null) clearTimeout(pending.current);
-    pending.current = setTimeout(() => {
-      apply(conditionsOf(done), done.match);
-    }, 400);
-  };
   const ask = (): void => {
+    if (words.trim().length < 3) return;
     setAsking(true);
     setRefused(null);
     void act
@@ -2165,15 +2259,46 @@ function PeopleToolbar({
           group: string | null;
           summary: string[];
         };
-        setGroup(groupOf(got.filter, got.match));
         setSaid(got.summary);
         apply(got.filter, got.match, { group: got.group });
       });
   };
+  const chips = chipsOf(fields, stored);
+  const group = props.search?.['group'] ?? '';
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label="Ask who to show, in words"
+          className="flex-1"
+          value={words}
+          placeholder="Ask in words: Engineering in London whose self review is overdue, by manager"
+          onChange={(e) => {
+            setWords(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') ask();
+          }}
+        />
+        <Button
+          variant="secondary"
+          startIcon={<icons.assistant aria-hidden />}
+          disabled={words.trim().length < 3}
+          loading={asking}
+          onClick={ask}
+        >
+          Ask
+        </Button>
+      </div>
+      <Refusal error={refused} />
+      {said.length === 0 ? null : (
+        <p
+          className="text-sm text-fg-muted"
+          aria-live="polite"
+        >{`Understood: ${said.join(' · ')}`}</p>
+      )}
+      <Toolbar
+        search={
           <Search
             label="Search people"
             placeholder={`Search ${String(data.total)} people`}
@@ -2182,68 +2307,141 @@ function PeopleToolbar({
               props.onFilter?.({ q: q === '' ? null : q, page: null });
             }}
           />
-          <Select
-            value={props.search?.['group'] ?? ''}
-            onValueChange={(v) => {
-              props.onFilter?.({ group: v === '' ? null : v, page: null });
-            }}
-          >
-            <SelectTrigger aria-label="Group by" className="w-48">
-              <SelectValue placeholder="Group by" />
-            </SelectTrigger>
-            <SelectContent>
-              {GROUPS.map(([v, l]) => (
-                <SelectItem key={v === '' ? 'none' : v} value={v}>
-                  {v === '' ? l : `Group by ${l.toLowerCase()}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="ml-auto text-sm text-fg-muted">
-            {plural(data.total, 'person', 'people')}
+        }
+        filters={
+          <ChipRow role="group" aria-label="Filters in force">
+            {match === 'any' && chips.length > 1 ? (
+              <span className="text-xs text-fg-muted">Any of:</span>
+            ) : null}
+            {chips.map((chip) => (
+              <Chip
+                key={chip.key}
+                field={chip.field}
+                onRemove={() => {
+                  setSaid([]);
+                  apply(
+                    stored.filter((_, i) => !chip.at.includes(i)),
+                    match,
+                  );
+                }}
+                removeLabel={`Remove ${chip.field} ${chip.text}`}
+              >
+                {chip.text}
+              </Chip>
+            ))}
+            <Chip
+              variant="dashed"
+              startIcon={<icons.add aria-hidden />}
+              onClick={() => {
+                setDraft(groupOf(stored, match));
+                setOpen(true);
+              }}
+            >
+              Add filter
+            </Chip>
+            {chips.length === 0 ? null : (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSaid([]);
+                  apply([], 'all');
+                }}
+              >
+                Clear all
+              </Button>
+            )}
+          </ChipRow>
+        }
+        actions={
+          <span className="flex items-center gap-2">
+            <span className="text-sm text-fg-muted">{plural(data.total, 'person', 'people')}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="ghost" startIcon={<icons.adjust aria-hidden />}>
+                  {group === ''
+                    ? 'View'
+                    : `View · by ${(GROUPS.find(([v]) => v === group)?.[1] ?? '').toLowerCase()}`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" aria-label="View" className="flex w-72 flex-col gap-2.5">
+                <p className="text-xs font-semibold text-fg-subtle">Group by</p>
+                <Select
+                  value={group === '' ? 'none' : group}
+                  onValueChange={(v) => {
+                    props.onFilter?.({ group: v === 'none' ? null : v, page: null });
+                  }}
+                >
+                  <SelectTrigger aria-label="Group by" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GROUPS.map(([v, l]) => (
+                      <SelectItem key={v === '' ? 'none' : v} value={v === '' ? 'none' : v}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </PopoverContent>
+            </Popover>
           </span>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <Field className="min-w-64 flex-1">
-            <FieldLabel>Filter in words</FieldLabel>
-            <Input
-              value={words}
-              placeholder="Engineering in London whose self review is overdue, by manager"
-              onChange={(e) => {
-                setWords(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && words.trim().length >= 3) ask();
-              }}
+        }
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-170">
+          <DialogHeader>
+            <DialogTitle>Filter people</DialogTitle>
+            <DialogDescription>
+              Who they are, and where their reviews stand. Nothing applies until you press Apply.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <FilterBuilder
+              label="Conditions"
+              fields={fields}
+              value={draft}
+              onChange={setDraft}
+              maxConditions={20}
             />
-          </Field>
-          <Button
-            variant="secondary"
-            startIcon={<icons.assistant aria-hidden />}
-            disabled={words.trim().length < 3}
-            loading={asking}
-            onClick={ask}
-          >
-            Filter
-          </Button>
-        </div>
-        <Refusal error={refused} />
-        {said.length === 0 ? null : (
-          <p className="text-sm text-fg-muted" aria-live="polite">
-            {said.join(' · ')}
-          </p>
-        )}
-        <FilterBuilder
-          label="Filter the people"
-          title="Filters"
-          emptyDescription="Everyone in the cycle. Add a filter, or describe who in words."
-          fields={fields}
-          value={group}
-          onChange={change}
-          maxConditions={20}
-        />
-      </CardContent>
-    </Card>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              className="me-auto"
+              onClick={() => {
+                setDraft({ match: 'all', conditions: [] });
+              }}
+            >
+              Clear
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setSaid([]);
+                apply(
+                  conditionsOf({
+                    ...draft,
+                    conditions: draft.conditions.filter((x) => isConditionComplete(fields, x)),
+                  }),
+                  draft.match,
+                );
+                setOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -2307,6 +2505,7 @@ function OverviewTable({
   const columns: DataColumn<OverviewRow>[] = [
     {
       id: 'person',
+      width: '18rem',
       header: 'Person',
       cell: (r) => (
         <span className="flex flex-col">
@@ -2326,6 +2525,7 @@ function OverviewTable({
     },
     {
       id: 'manager',
+      width: '13rem',
       header: 'Manager',
       cell: (r) =>
         r.manager === null ? (
@@ -2341,16 +2541,26 @@ function OverviewTable({
         ),
     },
     ...(has('self')
-      ? [{ id: 'self', header: 'Self', cell: (r: OverviewRow) => <ReviewBadge state={r.self} /> }]
+      ? [
+          {
+            id: 'self',
+            width: '9rem',
+            header: 'Self',
+            cell: (r: OverviewRow) => <ReviewBadge state={r.self} />,
+          },
+        ]
       : []),
-    ...(has('peer') ? [{ id: 'peers', header: 'Peers', cell: (r: OverviewRow) => r.peers }] : []),
+    ...(has('peer')
+      ? [{ id: 'peers', width: '10rem', header: 'Peers', cell: (r: OverviewRow) => r.peers }]
+      : []),
     ...(has('upward')
-      ? [{ id: 'upward', header: 'Upward', cell: (r: OverviewRow) => r.upward }]
+      ? [{ id: 'upward', width: '7rem', header: 'Upward', cell: (r: OverviewRow) => r.upward }]
       : []),
     ...(has('manager')
       ? [
           {
             id: 'managerReview',
+            width: '10rem',
             header: 'Manager review',
             cell: (r: OverviewRow) =>
               r.managerReview === '—' ? (
@@ -2363,6 +2573,7 @@ function OverviewTable({
       : []),
     {
       id: 'release',
+      width: '9rem',
       header: 'Release',
       cell: (r) => <span className="text-sm text-fg-muted">{r.release}</span>,
     },
@@ -2370,6 +2581,7 @@ function OverviewTable({
       ? [
           {
             id: 'score',
+            width: '6rem',
             header: 'Score',
             numeric: true,
             cell: (r: OverviewRow) => score(r.score),
@@ -2385,8 +2597,11 @@ function OverviewTable({
       columns={columns}
       describeRow={(r) => r.name}
       estimateRowHeight={57}
-      // The page's one scroll: the header pins to the window's top.
+      // The page's one scroll: the header pins to the window's top. Widths are
+      // set, not measured from whatever rows are drawn, so nothing moves as
+      // the next page lands.
       scroll="page"
+      columnSizing="fixed"
       stickyHeader
       {...(view.group === null
         ? {}
@@ -2668,63 +2883,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
             ) : null}
             {tab === 'overview' ? (
               <>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {data.tiles.map((t) => {
-                    const Icon = KIND_ICON[t.kind] ?? icons.review;
-                    const left = t.due === null ? null : daysBetween(data.today, t.due);
-                    return (
-                      <Stat
-                        key={t.kind}
-                        icon={<Icon aria-hidden />}
-                        iconPosition="start"
-                        label={`${kindLabel(t.kind)}s`}
-                        value={String(t.submitted)}
-                        unit={`of ${String(t.total)} in`}
-                        chart={
-                          <CircularProgress
-                            size={44}
-                            value={t.total === 0 ? 0 : Math.round((t.submitted / t.total) * 100)}
-                            tone={t.overdue > 0 ? 'warning' : 'success'}
-                            label={`${kindLabel(t.kind)}s submitted`}
-                          />
-                        }
-                        {...(t.overdue > 0 ? { sentiment: 'negative' as const } : {})}
-                        description={[
-                          `${String(t.started)} in progress`,
-                          t.overdue > 0 ? `${String(t.overdue)} overdue` : '',
-                          t.due === null || left === null
-                            ? ''
-                            : left > 0
-                              ? `due ${day(t.due)}, in ${plural(left, 'day')}`
-                              : left === 0
-                                ? 'due today'
-                                : `was due ${day(t.due)}`,
-                        ]
-                          .filter((x) => x !== '')
-                          .join(' · ')}
-                      />
-                    );
-                  })}
-                  <Stat
-                    icon={<icons.visible aria-hidden />}
-                    iconPosition="start"
-                    label="Released"
-                    value={String(data.released)}
-                    unit="manager reviews"
-                    description={`${words(data.settings.visibility.release.mode)} release`}
-                  />
-                  <Stat
-                    icon={<icons.warning aria-hidden />}
-                    iconPosition="start"
-                    label="Overdue"
-                    value={String(data.overdue)}
-                    unit={data.overdue === 1 ? 'review' : 'reviews'}
-                    description={
-                      data.overdue === 0 ? 'Everything is on time' : 'Remind them from the menu'
-                    }
-                    {...(data.overdue > 0 ? { sentiment: 'negative' as const } : {})}
-                  />
-                </div>
+                {data.insights === undefined ? null : <Insights data={data} />}
                 <CyclePlan
                   c={data.plan}
                   today={data.today}
