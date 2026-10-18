@@ -4,8 +4,9 @@ import type { Review } from '../domain/review.js';
 import { insightsOf } from './cycles.js';
 import type { Person } from './members.js';
 
-const review = (subjectId: string, status: string, due: string, submitted = false) =>
+const review = (subjectId: string, status: string, due: string, submitted = false, kind = 'self') =>
   ({
+    kind,
     subjectId,
     status,
     due,
@@ -30,6 +31,7 @@ describe('insightsOf', () => {
       '2026-10-18' as never,
     );
     expect(got.status).toEqual({ submitted: 1, overdue: 1, started: 1, waiting: 1 });
+    expect(got.statusByKind.submitted).toEqual({ self: 1 });
     expect(got.byDepartment.map((d) => d.department)).toEqual(['Ops', 'Sales']);
     expect(got.byDepartment[0]).toMatchObject({ overdue: 1, waiting: 1, submitted: 0 });
   });

@@ -1030,6 +1030,11 @@ export function insightsOf(
   today: CalendarDate,
 ): {
   readonly status: Record<'submitted' | 'overdue' | 'started' | 'waiting', number>;
+  /** Each state's reviews by kind: what the donut's outer ring is made of. */
+  readonly statusByKind: Record<
+    'submitted' | 'overdue' | 'started' | 'waiting',
+    Record<string, number>
+  >;
   readonly byDepartment: readonly {
     readonly department: string;
     readonly submitted: number;
@@ -1041,6 +1046,10 @@ export function insightsOf(
   const live = reviews.filter((r) => r.detached === null && !r.hidden && r.status !== 'cancelled');
   const department = new Map(subjects.map((p) => [p.personId, p.department ?? 'No department']));
   const status = { submitted: 0, overdue: 0, started: 0, waiting: 0 };
+  const statusByKind: Record<
+    'submitted' | 'overdue' | 'started' | 'waiting',
+    Record<string, number>
+  > = { submitted: {}, overdue: {}, started: {}, waiting: {} };
   const rows = new Map<
     string,
     { submitted: number; started: number; waiting: number; overdue: number }
@@ -1048,6 +1057,7 @@ export function insightsOf(
   for (const r of live) {
     const s = stance(r, today);
     status[s] += 1;
+    statusByKind[s][r.kind] = (statusByKind[s][r.kind] ?? 0) + 1;
     const d = department.get(r.subjectId);
     if (d === undefined) continue;
     const row = rows.get(d) ?? { submitted: 0, started: 0, waiting: 0, overdue: 0 };
@@ -1066,6 +1076,7 @@ export function insightsOf(
   const rest = ranked.slice(8);
   return {
     status,
+    statusByKind,
     byDepartment:
       rest.length === 0
         ? kept

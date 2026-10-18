@@ -3,7 +3,6 @@ import { useState } from 'react';
 
 import {
   BarChart,
-  DonutChart,
   FunnelChart,
   HeatmapChart,
   HorizontalBarChart,
@@ -11,6 +10,7 @@ import {
   TrendChart,
 } from '../components/chart/chart';
 import { ChartCard } from '../components/chart/chart-card';
+import { DonutChart } from '../components/chart/donut-chart';
 import { WaterfallChart } from '../components/chart/waterfall-chart';
 import { AutoGrid } from '../components/layout/layout';
 import {

@@ -70,8 +70,9 @@ export function reminders(
 export const reminderDates = (rules: readonly string[], start: string, due: string): string[] =>
   reminders(rules, start, due).map((r) => r.date);
 
-const KIND_ORDER = ['self', 'manager', 'peer', 'upward', 'skip'] as const;
-const TONES = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5'] as const;
+/** The kinds in order, each with its colour wherever a cycle is drawn. */
+export const KIND_ORDER = ['self', 'manager', 'peer', 'upward', 'skip'] as const;
+export const TONES = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5'] as const;
 
 /** What a mark on the plan is, from its id: the thing a drag or a menu changes. */
 export type PlanItem =
