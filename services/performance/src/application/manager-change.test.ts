@@ -202,4 +202,15 @@ describe('a manager change as it reaches Performance (§8.8)', () => {
     expect(told.map((m) => m.to)).toEqual(['priya@acme.example']);
     expect(await w.run((tx) => tx.reviews.find({ ownerId: 'priya' }))).toHaveLength(1);
   });
+
+  it('gives nothing to a new manager who has left', async () => {
+    const w = await company([
+      member('adam'),
+      member('marco'),
+      member('gone', { status: 'terminated' }),
+    ]);
+    await w.run((tx) => tx.settings.set('manager-handover:adam', { managerId: 'gone', at: AT }));
+    await w.run((tx) => onReportingLineMoved(tx, w.newId, moved('gone')));
+    expect(await w.run((tx) => tx.reviews.find({ ownerId: 'gone' }))).toEqual([]);
+  });
 });
