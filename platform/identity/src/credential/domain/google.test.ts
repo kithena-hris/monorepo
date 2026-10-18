@@ -33,6 +33,17 @@ describe('googleAccount', () => {
     expect(googleAccount({ ...claims, hd: '' }, 'n-1').ok).toBe(false);
   });
 
+  it('takes a Gmail address, whose mailbox is the Google account itself', () => {
+    const { hd: _hd, ...gmail } = claims;
+    for (const email of ['Ada.Lovelace@gmail.com', 'ada@googlemail.com']) {
+      const account = googleAccount({ ...gmail, email }, 'n-1');
+      expect(account.ok && account.value.email).toBe(email.toLowerCase());
+    }
+    // Not a lookalike: only the address's own domain counts.
+    expect(googleAccount({ ...gmail, email: 'ada@gmail.com.acme.example' }, 'n-1').ok).toBe(false);
+    expect(googleAccount({ ...gmail, email: 'ada@notgmail.com' }, 'n-1').ok).toBe(false);
+  });
+
   it('refuses an address Google has not verified', () => {
     expect(googleAccount({ ...claims, email_verified: false }, 'n-1').ok).toBe(false);
     expect(googleAccount({ ...claims, email_verified: 'true' }, 'n-1').ok).toBe(false);

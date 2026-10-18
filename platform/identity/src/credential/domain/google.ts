@@ -13,7 +13,10 @@ import { checkName, type PersonName } from '../../shared/person-name.js';
  *   on any address its owner can read mail at, `ada@acme.example` included, and
  *   nobody at Acme can switch it off when Ada leaves. A Workspace account
  *   carries the organisation's domain and is the company's to suspend; nobody
- *   else can hold that domain without its DNS.
+ *   else can hold that domain without its DNS. A Gmail address is the one
+ *   exception: its mailbox *is* the Google account, so nobody but its owner
+ *   can sign in as it, and a company whose people are on Gmail has no
+ *   Workspace to name.
  * - **A verified address**, the one compared with the work address on the
  *   first sign-in. After that the link is `sub`, which Google never reassigns.
  * - **Our nonce**, so a token minted for somebody else's trip cannot be replayed
@@ -31,6 +34,9 @@ const Refused = failure('GOOGLE_ACCOUNT_REFUSED', 'This Google account cannot si
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
 
+/** Addresses whose mailbox Google itself holds, so the account is the address. */
+const GOOGLE_MAIL = new Set(['gmail.com', 'googlemail.com']);
+
 export function googleAccount(
   claims: Readonly<Record<string, unknown>>,
   nonce: string,
@@ -39,7 +45,8 @@ export function googleAccount(
   const email = text(claims['email']).toLowerCase();
   if (sub === '' || email === '') return err(Refused);
   if (claims['email_verified'] !== true) return err(Refused);
-  if (text(claims['hd']) === '') return err(Refused);
+  const managed = text(claims['hd']) !== '' || GOOGLE_MAIL.has(email.split('@').at(-1) ?? '');
+  if (!managed) return err(Refused);
   if (nonce === '' || claims['nonce'] !== nonce) return err(Refused);
 
   const named = checkName({ given: claims['given_name'], family: claims['family_name'] });

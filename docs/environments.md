@@ -425,9 +425,10 @@ redirect URIs. Set it up once, in the Google Cloud console:
    company and the button never appears.
 
 Who may sign in is decided in identity, not by the switch alone: a Google
-account must belong to a Workspace (`hd`), have a verified address, and that
-address must be the person's work address at the company. A personal Google
-account opened on a work address is refused. The first sign-in links the
+account must belong to a Workspace (`hd`) or be a Gmail address (whose
+mailbox is the Google account), have a verified address, and that address must
+be the person's work address at the company. A personal Google account opened
+on a company's own domain is refused. The first sign-in links the
 Google account (`platform.credential`, kind `federated`, keyed by `sub`), and
 enrols an invited person who has not set up a passkey.
 
