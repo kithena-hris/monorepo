@@ -51,7 +51,7 @@ import { searchPeople } from '../app/(app)/people/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
 import { useInAppLinks, useWarmPages } from '../lib/links';
-import { firstUnder, matchPath } from '../lib/remotes';
+import { AREAS as REMOTES, firstUnder, matchPath } from '../lib/remotes';
 import {
   DEFAULT_PREFS,
   adjacentPage,
@@ -676,17 +676,18 @@ export function AppShell({
                                 : {})}
                         >
                           {/* Where the area's address redirects (`firstUnder`, as the
-                              server does), so a press is one round trip, not two. */}
+                              server does), so a press is one round trip, not two:
+                              every remote's, by its home, not only those with a
+                              subnav. */}
                           <Link
                             href={
                               (firstUnder(
                                 area.href === '/people'
                                   ? shell.sections
-                                  : area.href === '/time-off'
-                                    ? (timeOff?.sections ?? [])
-                                    : area.href === '/performance'
-                                      ? (perf?.sections ?? [])
-                                      : [],
+                                  : (shell.remotes?.[
+                                      Object.values(REMOTES).find((r) => r.home === area.href)
+                                        ?.name ?? ''
+                                    ]?.sections ?? []),
                                 area.href,
                               ) ?? (area.href === '/inbox' ? '/inbox/todo' : area.href)) as Route
                             }
