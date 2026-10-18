@@ -696,3 +696,21 @@ describe('<DataTable scroll="page">', () => {
     expect(box.className).not.toContain('overscroll-y-contain');
   });
 });
+
+describe('<DataTable columnSizing="fill">', () => {
+  it('spans its box, with the set widths as its least', () => {
+    render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        columnSizing="fill"
+      />,
+    );
+    const table = screen.getByRole('region', { name: 'People' }).querySelector('table');
+    expect(table?.style.width).toBe('100%');
+    expect(Number.parseFloat(table?.style.minWidth ?? '0')).toBeGreaterThan(0);
+    expect(table?.className).toContain('table-fixed');
+  });
+});

@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type FocusEvent,
   type JSX,
   type KeyboardEvent,
@@ -437,9 +438,11 @@ export interface DataTableProps<T extends TableRow> {
    * it holds. `fixed` (the default with it) lays out on the declared widths,
    * gives spare room once to the columns the first rows overflow, and never
    * moves them again: rows arriving or scrolling past cannot nudge a column,
-   * which is what a table that keeps loading needs.
+   * which is what a table that keeps loading needs. `fill` is `fixed` with
+   * the widths read as shares of the whole width: the table spans its box,
+   * each column wider in proportion, and still never moves as rows come.
    */
-  columnSizing?: 'content' | 'fixed';
+  columnSizing?: 'content' | 'fixed' | 'fill';
   /** Widths in px by column id. Uncontrolled when omitted. */
   columnWidths?: Readonly<Record<string, number>>;
   onColumnWidthsChange?: (widths: Readonly<Record<string, number>>) => void;
@@ -593,7 +596,8 @@ export function DataTable<T extends TableRow>({
   const [collapsed, setCollapsed] = useState<readonly string[]>(defaultCollapsedGroups ?? []);
   const [ownWidths, setOwnWidths] = useState<Readonly<Record<string, number>>>({});
   const widths = columnWidths ?? ownWidths;
-  const fixed = columnSizing === 'fixed';
+  const fixed = columnSizing === 'fixed' || columnSizing === 'fill';
+  const fill = columnSizing === 'fill';
   // Width a column was given to show what it truncates (`stretchOverflowing`),
   // measured once per set of columns: measuring again as rows arrive, as the
   // container gained a scrollbar or as a column was dragged moved every
@@ -1169,12 +1173,14 @@ export function DataTable<T extends TableRow>({
       // went. The leading controls are 40px each, the actions 48px.
       {...(fixed
         ? {
-            style: {
-              width:
-                columns.reduce((sum, column) => sum + widthFor(column), 0) +
+            style: ((): CSSProperties => {
+              const sum =
+                columns.reduce((total, column) => total + widthFor(column), 0) +
                 leadingColumns * 40 +
-                (rowActions ? 48 : 0),
-            },
+                (rowActions ? 48 : 0);
+              // Filling, the widths are shares of the box and their sum its least.
+              return fill ? { width: '100%', minWidth: sum } : { width: sum };
+            })(),
           }
         : {})}
       // While more is on its way, the wheel stays with the table at the end
