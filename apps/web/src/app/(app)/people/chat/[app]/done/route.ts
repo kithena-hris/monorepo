@@ -1,4 +1,5 @@
 import { people } from '../../../../../../lib/people';
+import { strictReturn } from '../../../../../../lib/strict-return';
 
 /**
  * Where a chat app (Slack today) sends the administrator back after they
@@ -15,6 +16,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ app: string }> },
 ): Promise<Response> {
+  // A passkey's Strict cookie stays behind on a return from another site.
+  const again = strictReturn(request);
+  if (again !== null) return again;
   const { app } = await params;
   const url = new URL(request.url);
   const back = new URL('/settings/people/integrations/slack', url);
