@@ -506,6 +506,25 @@ export function AppShell({
     perf !== undefined && isCurrent('/performance', pathname)
       ? (matchPath(perf.routes, pathname)?.path ?? null)
       : null;
+  // A remote area's sections as the collapsed rail's flyout, as People's are.
+  const railFlyout = (href: string, label: string) => {
+    const remote = shell.remotes?.[Object.values(REMOTES).find((r) => r.home === href)?.name ?? ''];
+    if (remote === undefined || remote.sections.length === 0) return {};
+    return {
+      flyout: (
+        <PeopleSections
+          title={label}
+          home={href}
+          sections={remote.sections}
+          route={
+            isCurrent(href, pathname) ? (matchPath(remote.routes, pathname)?.path ?? null) : null
+          }
+          counts={remote.counts ?? {}}
+        />
+      ),
+      flyoutSize: 'compact' as const,
+    };
+  };
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const keys = useShortcutsFor({
@@ -674,6 +693,8 @@ export function AppShell({
                                     expanded: isCurrent(area.href, pathname),
                                   }
                                 : {})}
+                          // Every other area with sections opens them from the collapsed rail too.
+                          {...(area.href === '/people' ? {} : railFlyout(area.href, area.label))}
                         >
                           {/* Where the area's address redirects (`firstUnder`, as the
                               server does), so a press is one round trip, not two:
