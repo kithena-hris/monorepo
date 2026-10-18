@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
   Chip,
   ChipRow,
   DropdownMenu,
@@ -30,13 +29,17 @@ import {
   Timeline,
   TimelineItem,
   SortableList,
-  FieldRow,
+  ModalPage,
+  ModalPageBody,
+  ModalPageContent,
+  ModalPageHeader,
+  Tooltip,
   ChangeDiff,
   icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { FormView } from './form-view';
+import { FormView, QuestionBlock } from './form-view';
 import { Loaded } from './load';
 import {
   Choose,
@@ -546,15 +549,6 @@ const blank = (type: Question['type'], scale: readonly ScaleOption[]): Question 
   return { ...base, type: 'text', guidance: null };
 };
 
-/** Each kind of question's glyph, for its row in the builder. */
-const QUESTION_ICON: Readonly<Record<string, JSX.Element>> = {
-  text: <icons.message aria-hidden />,
-  scale: <icons.assessment aria-hidden />,
-  binary: <icons.approve aria-hidden />,
-  choice: <icons.list aria-hidden />,
-  performance_score: <icons.analytics aria-hidden />,
-};
-
 const TYPES = [
   ['text', 'Text'],
   ['scale', 'Scale'],
@@ -594,6 +588,7 @@ function Building({
   const [as, setAs] = useState<'reviewer' | 'subject'>('reviewer');
   const [device, setDevice] = useState<'web' | 'phone'>('web');
   const [answers, setAnswers] = useState<Answers>({});
+  const [previewing, setPreviewing] = useState(false);
   const [issues, setIssues] = useState<
     readonly { questionId: string; level: string; title: string }[] | null
   >(null);
@@ -657,6 +652,16 @@ function Building({
         actions={
           data.hr ? (
             <>
+              <Tooltip content="Preview the form">
+                <Button
+                  variant="secondary"
+                  aria-label="Preview the form"
+                  startIcon={<icons.visible aria-hidden />}
+                  onClick={() => {
+                    setPreviewing(true);
+                  }}
+                />
+              </Tooltip>
               <Button variant="secondary" asChild>
                 <a href={`/performance/templates/${data.id}/history`}>History</a>
               </Button>
@@ -732,7 +737,10 @@ function Building({
           </ul>
         </Alert>
       )}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {/* One column: each question drawn as the person answering sees it,
+          its editor in its place while it has focus. The whole form, as it
+          will be answered, is a click away (the preview in the header). */}
+      <div className="mx-auto w-full max-w-3xl">
         <div className="flex flex-col gap-4">
           <Field>
             <FieldLabel>Template name</FieldLabel>
@@ -805,37 +813,38 @@ function Building({
                           scale={data.scale}
                         />
                       ) : (
-                        <FieldRow
-                          icon={QUESTION_ICON[q.type] ?? <icons.list aria-hidden />}
-                          title={q.prompt}
-                          badges={
-                            <>
-                              {q.required ? (
-                                <Badge size="sm" variant="outline">
-                                  Required
-                                </Badge>
-                              ) : null}
-                              {q.private ? (
-                                <Badge size="sm" tone="warning">
-                                  Private
-                                </Badge>
-                              ) : null}
-                            </>
-                          }
-                          description={
-                            TYPES.find(([t]) => t === q.type)?.[1] ??
-                            (q.type === 'performance_score'
-                              ? 'Performance score, computed'
-                              : q.type)
+                        <div
+                          className={
+                            q.type === 'performance_score'
+                              ? 'px-1'
+                              : 'cursor-text rounded-md px-1 hover:bg-surface-sunken'
                           }
                           {...(q.type === 'performance_score'
                             ? {}
                             : {
-                                onOpen: () => {
+                                // Focus anywhere in the question, by click or
+                                // by Tab, and it opens for editing.
+                                onFocusCapture: () => {
+                                  setSelected(q.id);
+                                },
+                                onClick: () => {
                                   setSelected(q.id);
                                 },
                               })}
-                        />
+                        >
+                          <QuestionBlock
+                            number={`${String(ordered.indexOf(s) + 1)}.${String(s.questions.indexOf(q) + 1)}`}
+                            question={q}
+                            definition={def}
+                            answers={answers}
+                            scale={data.scale}
+                            editable
+                            onChange={(id, a) => {
+                              setAnswers({ ...answers, [id]: a });
+                            }}
+                            subject="the subject"
+                          />
+                        </div>
                       )
                     }
                   </SortableList>
@@ -903,52 +912,59 @@ function Building({
             )}
           </div>
         </div>
-        <Card className="h-fit lg:sticky lg:top-4">
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle level={2}>Preview</CardTitle>
-            <span className="flex gap-2">
-              <SegmentedControl
-                size="sm"
-                aria-label="Device"
-                value={device}
-                onValueChange={(v) => {
-                  setDevice(v === 'phone' ? 'phone' : 'web');
-                }}
-              >
-                <SegmentedControlItem value="web">Web</SegmentedControlItem>
-                <SegmentedControlItem value="phone">Phone</SegmentedControlItem>
-              </SegmentedControl>
-              <SegmentedControl
-                size="sm"
-                aria-label="Seen by"
-                value={as}
-                onValueChange={(v) => {
-                  setAs(v === 'subject' ? 'subject' : 'reviewer');
-                }}
-              >
-                <SegmentedControlItem value="reviewer">Reviewer</SegmentedControlItem>
-                <SegmentedControlItem value="subject">Subject</SegmentedControlItem>
-              </SegmentedControl>
-            </span>
-          </CardHeader>
-          <CardContent className={device === 'phone' ? 'mx-auto w-full max-w-sm' : ''}>
-            {shown.sections.length === 0 ? (
-              <p className="text-sm text-fg-muted">Add a question to see the form.</p>
-            ) : (
-              <FormView
-                definition={shown}
-                answers={answers}
-                scale={data.scale}
-                editable={as === 'reviewer'}
-                onChange={(id, a) => {
-                  setAnswers({ ...answers, [id]: a });
-                }}
-                subject="the subject"
-              />
-            )}
-          </CardContent>
-        </Card>
       </div>
+      <ModalPage open={previewing} onOpenChange={setPreviewing}>
+        <ModalPageContent size="column">
+          <ModalPageHeader
+            title={`Preview: ${name}`}
+            description="As it will be answered. Nothing here is saved."
+            actions={
+              <>
+                <SegmentedControl
+                  size="sm"
+                  aria-label="Device"
+                  value={device}
+                  onValueChange={(v) => {
+                    setDevice(v === 'phone' ? 'phone' : 'web');
+                  }}
+                >
+                  <SegmentedControlItem value="web">Web</SegmentedControlItem>
+                  <SegmentedControlItem value="phone">Phone</SegmentedControlItem>
+                </SegmentedControl>
+                <SegmentedControl
+                  size="sm"
+                  aria-label="Seen by"
+                  value={as}
+                  onValueChange={(v) => {
+                    setAs(v === 'subject' ? 'subject' : 'reviewer');
+                  }}
+                >
+                  <SegmentedControlItem value="reviewer">Reviewer</SegmentedControlItem>
+                  <SegmentedControlItem value="subject">Subject</SegmentedControlItem>
+                </SegmentedControl>
+              </>
+            }
+          />
+          <ModalPageBody>
+            <div className={device === 'phone' ? 'mx-auto w-full max-w-sm' : ''}>
+              {shown.sections.length === 0 ? (
+                <p className="text-sm text-fg-muted">Add a question to see the form.</p>
+              ) : (
+                <FormView
+                  definition={shown}
+                  answers={answers}
+                  scale={data.scale}
+                  editable={as === 'reviewer'}
+                  onChange={(id, a) => {
+                    setAnswers({ ...answers, [id]: a });
+                  }}
+                  subject="the subject"
+                />
+              )}
+            </div>
+          </ModalPageBody>
+        </ModalPageContent>
+      </ModalPage>
       {warnPrivate === null ? null : (
         <Modal
           open
@@ -1057,6 +1073,8 @@ function QuestionEditor({
       <Field required>
         <FieldLabel>Question</FieldLabel>
         <Input
+          // Opened by focusing the question, so the focus lands here.
+          autoFocus
           value={q.prompt}
           onChange={(e) => {
             onChange({ ...q, prompt: e.target.value });
@@ -1086,8 +1104,10 @@ function QuestionEditor({
           <p className="text-sm font-semibold">{`Options · ${String(q.options.length)} of 2–10`}</p>
           {q.options.map((o, i) => (
             <div
-              key={`${String(i)}-${String(o.value)}`}
-              className="grid grid-cols-[5rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2"
+              // By position: keyed by its value, the row was rebuilt on every
+              // step of the value and lost the focus mid-press.
+              key={i}
+              className="grid grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2"
             >
               <NumberField
                 label="Value"

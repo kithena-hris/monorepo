@@ -764,7 +764,7 @@ function Writing({
               value={String(o.value)}
               {...(o.description === null ? {} : { description: o.description })}
             >
-              {`${String(o.value)} · ${o.label}`}
+              {o.label}
             </RadioCard>
           ))}
         </RadioGroup>
