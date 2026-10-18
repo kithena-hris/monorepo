@@ -172,7 +172,8 @@ export function FormView(props: FormViewProps): JSX.Element {
   );
 }
 
-function QuestionBlock({
+/** One question as the person answering sees it; the template builder draws each so. */
+export function QuestionBlock({
   number,
   question: q,
   answers,
@@ -255,7 +256,9 @@ function QuestionBlock({
                 ) : undefined
               }
             >
-              {`${String(o.value)} · ${o.label}`}
+              {/* The label only: the value is what the score is worked out
+                  from, not something the person answering needs to read. */}
+              {o.label}
             </RadioCard>
           ))}
         </RadioGroup>
