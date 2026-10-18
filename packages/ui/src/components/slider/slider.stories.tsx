@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
+import { Button } from '../button/button';
 import { Input } from '../input/input';
 import { Slider } from './slider';
 
@@ -370,6 +371,44 @@ export const Confirm: Story = {
         <p className="text-sm text-fg-muted" aria-live="polite">
           Confirmed {count} {count === 1 ? 'time' : 'times'}
         </p>
+      </div>
+    );
+  },
+};
+
+const FACES = ['😟', '😕', '😐', '🙂', '😄'];
+
+export const Meter: Story = {
+  name: 'Meter',
+  args: { label: 'Tone', variant: 'meter', value: [72] },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`variant="meter"`: a reading rather than an input, so a `meter` and not a `slider`. The track runs from danger to success, the knob can carry a glyph for the value, and when the value changes the knob glides there on the move spring (at once under reduced motion).',
+      },
+    },
+  },
+  render: function MeterStory(args) {
+    const [value, setValue] = useState(72);
+    return (
+      <div className="max-w-sm space-y-4">
+        <Slider
+          {...args}
+          value={[value]}
+          knob={(v) => FACES[Math.min(4, Math.floor(v / 20))]}
+          tip={(v) => (v < 40 ? 'Critical' : v < 60 ? 'Mixed' : 'Encouraging')}
+          labels={['Critical', 'Mixed', 'Encouraging']}
+        />
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            setValue((v) => (v > 50 ? 28 : 84));
+          }}
+        >
+          Change the reading
+        </Button>
       </div>
     );
   },
