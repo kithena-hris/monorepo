@@ -516,16 +516,24 @@ function Writing({
     setSaving({ state: 'saved', at: saved.savedAt, revision: saved.revision });
   };
   // Saved 800 ms after the last change, and before the page goes away (§10.2).
+  // Registered once: a cleanup that ran on every render cleared the timer each
+  // keystroke had just set, so typing was saved only when something else
+  // flushed it. Leaving the page saves what is pending rather than dropping it.
+  const latestFlush = useRef(flush);
+  useEffect(() => {
+    latestFlush.current = flush;
+  });
   useEffect(() => {
     const hide = (): void => {
-      if (document.visibilityState === 'hidden') void flush();
+      if (document.visibilityState === 'hidden') void latestFlush.current();
     };
     document.addEventListener('visibilitychange', hide);
     return () => {
       document.removeEventListener('visibilitychange', hide);
       clearTimeout(timer.current);
+      void latestFlush.current();
     };
-  });
+  }, []);
   // The server moved on without this form — a prefill, a confirmed
   // suggestion — and the page was read again: take its answers, with
   // anything typed here and not yet saved still on top.
