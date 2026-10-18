@@ -34,6 +34,13 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """§8.8: HR hands their manager reviews to the new manager"""
+  applyPerformanceManagerChange(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    personId: String!
+  ): JSON
   """Archive or unarchive"""
   archivePerformanceCycle(
     id: String!
@@ -171,6 +178,8 @@ type Mutation {
   deletePerformanceNote(id: String!, idempotencyKey: String!): JSON
   """Delete a template no cycle used"""
   deletePerformanceTemplate(id: String!, idempotencyKey: String!): JSON
+  """§8.8: a former manager deletes the review they can no longer submit"""
+  discardPerformanceReview(id: String!, idempotencyKey: String!): JSON
   """Copy a template"""
   duplicatePerformanceTemplate(
     id: String!
@@ -635,6 +644,10 @@ type Query {
   performanceLearning(tab: String): JSON
   """PF15b: an item"""
   performanceLearningItem(id: String!): JSON
+  """
+  §8.8: what changing their manager would do to their manager reviews, asked first
+  """
+  performanceManagerChangeImpact(managerId: String, personId: String!): JSON
   """PF13: my reviews"""
   performanceMyReviews(tab: String): JSON
   """PF21: notes"""

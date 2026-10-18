@@ -1,7 +1,7 @@
 'use server';
 
 import type { ShareChoice } from '../../../lib/export-address';
-import { people, type PeopleAnswer } from '../../../lib/people';
+import { people, performance, type PeopleAnswer } from '../../../lib/people';
 import { VIEWS } from '../../../lib/people-views';
 import { loadScreen } from '../../../lib/people-screens';
 import { startViewing } from '../../../lib/view-as';
@@ -118,6 +118,47 @@ export async function savePersonSection(
   changed: Values,
 ): Promise<Saved> {
   return saved(people('SavePersonSection', { personId, changed: formInputs(changed) }));
+}
+
+/** A question a module asks before a change of manager is made, with its choices (People's `ChangeQuestion`). */
+interface ChangeQuestion {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly options: readonly { id: string; label: string; description: string }[];
+  readonly value: string;
+}
+
+/**
+ * What changing someone's manager touches beyond People, asked before it is
+ * made: today Performance's manager reviews in a running cycle. A company
+ * without Performance, or a cycle with nothing to hand over, asks nothing.
+ */
+export async function managerChangeQuestions(
+  personId: string,
+  managerId: string | null,
+): Promise<readonly ChangeQuestion[]> {
+  const asked = await performance<{ question: ChangeQuestion | null }>(
+    'PerformanceManagerChangeImpact',
+    { personId, managerId },
+  );
+  return asked.ok && asked.data.question !== null ? [asked.data.question] : [];
+}
+
+/** HR's answers carried out once the new manager is saved: Performance's reviews handed over, or left. */
+export async function applyManagerChange(
+  personId: string,
+  managerId: string | null,
+  answers: Readonly<Record<string, string>>,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (answers['performance.manager-reviews'] !== 'reassign') return { ok: true };
+  const done = await performance('ApplyPerformanceManagerChange', {
+    personId,
+    input: { managerId },
+  });
+  return done.ok
+    ? { ok: true }
+    : { ok: false, message: `Their manager reviews were not handed over: ${done.message}` };
 }
 
 /**

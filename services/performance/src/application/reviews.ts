@@ -296,6 +296,14 @@ export async function writeScreen(ctx: Ctx, id: string): Promise<Result<unknown>
               minimum: c.visibility.minimum,
             },
       handover: r.handover === null ? null : { from: name(r.handover.from), note: r.handover.note },
+      // No longer the subject's manager (§8.8): read or delete it, never submit.
+      formerManager:
+        r.formerManager === undefined || r.formerManager === null
+          ? null
+          : {
+              at: r.formerManager.at,
+              to: r.formerManager.to === null ? null : name(r.formerManager.to),
+            },
       detached: r.detached,
       unlock: r.unlock,
     },
@@ -641,6 +649,33 @@ export async function decideUnlockOf(
 }
 
 /** A peer declines (design PF10d): the nominator is told and can replace them. */
+/**
+ * §8.8: a manager review its writer no longer may submit, because the subject
+ * reports to someone else now, deleted by that writer. Nobody else's to
+ * delete; a submitted one stays.
+ */
+export async function discardReview(ctx: Ctx, id: string): Promise<Result<{ ok: true }>> {
+  const r = await ctx.tx.reviews.get(id);
+  if (r === null || r.hidden) return err(notFound('review'));
+  if (r.authorId !== ctx.viewer.personId)
+    return err(forbidden('Only its writer can delete this review'));
+  if (r.formerManager === undefined || r.formerManager === null || isSubmitted(r))
+    return err(
+      failure(
+        'BAD_STATE',
+        'Only a review you can no longer submit, as their former manager, is deleted',
+      ),
+    );
+  await ctx.tx.reviews.save({ ...r, status: 'cancelled' });
+  await audit(ctx, {
+    kind: 'review',
+    action: 'Deleted a manager review written before a manager change',
+    target: 'Manager review',
+    targetId: id,
+  });
+  return ok({ ok: true });
+}
+
 export async function declineReview(
   ctx: Ctx,
   id: string,

@@ -8,11 +8,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  RadioCard,
+  RadioGroup,
   Stack,
   Text,
   useToast,
 } from '@reach/ui-native';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
 
 import { Failed, Loading, Page } from '../frame';
@@ -42,6 +44,18 @@ interface SectionData {
   readonly values: readonly Entry[];
 }
 
+/** The reporting line's attribute: a new manager is confirmed first, as on the web. */
+const MANAGER_KEY = 'manager_id';
+
+/** What a new manager touches in Performance, asked first (`PerformanceManagerChangeImpact`). */
+interface ChangeQuestion {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly options: readonly { id: string; label: string; description: string }[];
+  readonly value: string;
+}
+
 /** Values a save is checked for first (PEO-125): the identifiers People validates. */
 const CHECKED = new Set(['national_id', 'bank_account']);
 
@@ -69,6 +83,12 @@ function useSectionEdit(
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  // A new manager waiting on confirmation: what it touches, and the choice made.
+  const [confirming, setConfirming] = useState<{
+    readonly questions: readonly ChangeQuestion[];
+    readonly answers: Readonly<Record<string, string>>;
+  } | null>(null);
+  const confirmed = useRef<Readonly<Record<string, string>> | null>(null);
 
   const section =
     load.status === 'ready' ? load.data.sections.find((s) => s.key === sectionKey) : undefined;
@@ -96,6 +116,27 @@ function useSectionEdit(
     );
     setProblems(emptied);
     if (Object.keys(emptied).length > 0) return;
+
+    // Someone else's new manager is confirmed first, with what it touches in Performance.
+    const manager = changed[MANAGER_KEY];
+    const nextManager = typeof manager === 'string' && manager !== '' ? manager : null;
+    const moving = personId !== undefined && MANAGER_KEY in changed;
+    if (moving && confirmed.current === null) {
+      setSaving(true);
+      const asked = await ask<{ question: ChangeQuestion | null }>(
+        signed,
+        'PerformanceManagerChangeImpact',
+        { personId, managerId: nextManager },
+        'performance',
+      );
+      setSaving(false);
+      const questions = asked.ok && asked.data.question !== null ? [asked.data.question] : [];
+      setConfirming({
+        questions,
+        answers: Object.fromEntries(questions.map((q) => [q.id, q.value])),
+      });
+      return;
+    }
 
     setSaving(true);
     setFailed(null);
@@ -125,6 +166,23 @@ function useSectionEdit(
       return;
     }
     const waiting = answer.data.held ?? [];
+    // HR's answer carried out once the new manager is the record's, not while it waits.
+    const answers = confirmed.current;
+    confirmed.current = null;
+    if (moving && waiting.length === 0 && answers?.['performance.manager-reviews'] === 'reassign') {
+      const handed = await ask(
+        signed,
+        'ApplyPerformanceManagerChange',
+        { personId, input: { managerId: nextManager } },
+        'performance',
+      );
+      if (!handed.ok)
+        toast({
+          title: 'Their manager reviews were not handed over',
+          description: handed.message,
+          tone: 'danger',
+        });
+    }
     toast(
       waiting.length === 0
         ? { title: 'Saved', tone: 'success' }
@@ -150,6 +208,65 @@ function useSectionEdit(
           <Alert tone="danger" title="That was not saved">
             {failed}
           </Alert>
+        )}
+        {confirming === null ? null : (
+          <Dialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setConfirming(null);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{`Change ${load.data.person.name.split(' ')[0] ?? ''}’s manager?`}</DialogTitle>
+                <DialogDescription>
+                  They report to the person you chose from now on.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogBody>
+                {confirming.questions.map((q) => (
+                  <Stack key={q.id} gap={2}>
+                    <Text weight="semibold">{q.title}</Text>
+                    <Text tone="muted">{q.description}</Text>
+                    <RadioGroup
+                      accessibilityLabel={q.title}
+                      value={confirming.answers[q.id] ?? q.value}
+                      onValueChange={(v) => {
+                        setConfirming((c) =>
+                          c === null ? c : { ...c, answers: { ...c.answers, [q.id]: v } },
+                        );
+                      }}
+                    >
+                      {q.options.map((o) => (
+                        <RadioCard key={o.id} value={o.id} description={o.description}>
+                          {o.label}
+                        </RadioCard>
+                      ))}
+                    </RadioGroup>
+                  </Stack>
+                ))}
+              </DialogBody>
+              <DialogFooter>
+                <Button
+                  onPress={() => {
+                    setConfirming(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onPress={() => {
+                    confirmed.current = confirming.answers;
+                    setConfirming(null);
+                    void save();
+                  }}
+                >
+                  Change manager
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
         {section.fields.map((field) => (
           <AttributeInput

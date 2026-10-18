@@ -82,4 +82,6 @@ export const PERFORMANCE_INBOX_KINDS = {
   learning: 'performance.learning',
   checkIn: 'performance.check-in',
   released: 'performance.released',
+  /** A manager review its writer no longer writes: the subject reports to someone else (§8.8). */
+  managerChanged: 'performance.manager-changed',
 } as const;

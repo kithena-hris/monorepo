@@ -30,9 +30,10 @@ import type { Deps, Member, Tx } from '../../application/ports.js';
  * event, a malformed message logged and skipped. Onboarding's consumer's
  * shape.
  *
- * A manager change mid-cycle moves an unsubmitted manager review to the new
- * manager with a handover note (§8.8); a submitted one stays the old
- * manager's. A leaver's unsubmitted reviews are cancelled.
+ * A manager change only moves the reporting line here: whether its manager
+ * reviews go to the new manager is HR's choice when they make the change
+ * (§8.8, `applyManagerChange`), and left alone the old manager writes them. A
+ * leaver's unsubmitted reviews are cancelled.
  */
 
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
@@ -152,28 +153,10 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
       case PersonManagerChanged.name: {
         const e = parse(PersonManagerChanged, raw);
         if (!e) return 'rejected';
-        const { personId, managerId, previousManagerId } = e.payload;
-        return deps.uow.run(e.tenantId, async (tx) => {
-          const done = await patch(tx, personId, e.eventId, (m) => ({
-            ...m,
-            managerPersonId: managerId,
-          }));
-          if (managerId === null) return done;
-          for (const r of await tx.reviews.find({ subjectId: personId }))
-            if (
-              r.kind === 'manager' &&
-              !isSubmitted(r) &&
-              r.detached === null &&
-              ['not_started', 'in_progress'].includes(r.status) &&
-              r.authorId !== managerId
-            )
-              await tx.reviews.save({
-                ...r,
-                authorId: managerId,
-                handover: { from: previousManagerId ?? r.authorId, note: null },
-              });
-          return done;
-        });
+        const { personId, managerId } = e.payload;
+        return deps.uow.run(e.tenantId, (tx) =>
+          patch(tx, personId, e.eventId, (m) => ({ ...m, managerPersonId: managerId })),
+        );
       }
       case PersonTerminated.name: {
         const e = parse(PersonTerminated, raw);

@@ -253,6 +253,97 @@ describe('Profile', () => {
     expect(onSave).toHaveBeenCalledWith('work', { manager_id: 'z' });
   });
 
+  it('confirms a new manager first, with what else it touches, and carries out the choice', async () => {
+    const user = fast();
+    const withManager: ProfileState = {
+      person: { ...person, missing: 0 },
+      sections: [
+        {
+          key: 'work',
+          label: 'Work',
+          visibility: ['self', 'hr'],
+          readsLogged: false,
+          fields: [
+            field({
+              key: 'manager_id',
+              label: 'Manager',
+              dataType: 'person_ref',
+              readOnly: false,
+              options: [{ value: 'g', label: 'Grace Hopper' }],
+            }),
+          ],
+        },
+      ],
+      values: { manager_id: 'g' },
+    };
+    const question = {
+      id: 'performance.manager-reviews',
+      title: 'Their manager review in H2 2026',
+      description: 'Grace Hopper still has it to write.',
+      options: [
+        { id: 'reassign', label: 'Give it to Zoë', description: 'Zoë writes their own.' },
+        { id: 'keep', label: 'Leave it with Grace Hopper', description: 'As planned.' },
+      ],
+      value: 'reassign',
+    };
+    const managerChange = {
+      questions: vi.fn(() => Promise.resolve([question])),
+      apply: vi.fn(() => Promise.resolve({ ok: true as const })),
+    };
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const pick = async () => {
+      await user.click(screen.getByRole('button', { name: 'Edit Work' }));
+      const form = screen.getByRole('form', { name: 'Work' });
+      await user.click(within(form).getByRole('button', { name: /^Manager: / }));
+      await user.type(screen.getByRole('combobox', { name: 'Manager search' }), 'Zo');
+      await user.click(await screen.findByRole('option', { name: 'Zoë Person' }));
+      await user.click(within(form).getByRole('button', { name: 'Save' }));
+    };
+    const { unmount } = render(
+      <Profile
+        load={{ status: 'ready', data: withManager }}
+        onSave={onSave}
+        searchPeople={() => Promise.resolve([{ value: 'z', label: 'Zoë Person' }])}
+        managerChange={managerChange}
+      />,
+    );
+    await pick();
+    const dialog = await screen.findByRole('dialog', { name: /manager\?$/u });
+    expect(managerChange.questions).toHaveBeenCalledWith('z');
+    expect(onSave).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('radio', { name: 'Leave it with Grace Hopper' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Change manager' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('work', { manager_id: 'z' });
+    });
+    await waitFor(() => {
+      expect(managerChange.apply).toHaveBeenCalledWith('z', {
+        'performance.manager-reviews': 'keep',
+      });
+    });
+    unmount();
+
+    // Cancelled, nothing is saved and nothing carried out.
+    onSave.mockClear();
+    managerChange.apply.mockClear();
+    render(
+      <Profile
+        load={{ status: 'ready', data: withManager }}
+        onSave={onSave}
+        searchPeople={() => Promise.resolve([{ value: 'z', label: 'Zoë Person' }])}
+        managerChange={managerChange}
+      />,
+    );
+    await pick();
+    await user.click(
+      within(await screen.findByRole('dialog', { name: /manager\?$/u })).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    expect(onSave).not.toHaveBeenCalled();
+    expect(managerChange.apply).not.toHaveBeenCalled();
+  });
+
   it('lets HR move somebody, saying when the move is a transfer (PEO-123)', async () => {
     const user = fast();
     const placed: ProfileState = {

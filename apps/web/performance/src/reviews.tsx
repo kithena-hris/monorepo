@@ -38,6 +38,7 @@ import {
   TableRow,
   TertiaryNav,
   Textarea,
+  Tooltip,
   icons,
 } from '@reach/ui';
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
@@ -399,6 +400,8 @@ export interface WriteData {
       readonly minimum: number;
     } | null;
     readonly handover: { readonly from: string; readonly note: string | null } | null;
+    /** They stopped being the subject's manager while writing it (§8.8): `to` writes theirs. */
+    readonly formerManager?: { readonly at: string; readonly to: string | null } | null;
     readonly detached: { readonly at: string; readonly keep: boolean | null } | null;
     readonly unlock: {
       readonly reason: string;
@@ -477,7 +480,7 @@ function Writing({
   });
   const [currentScore, setScore] = useState<Score | null>(data.score);
   const [missing, setMissing] = useState(data.missing);
-  const [dialog, setDialog] = useState<'submit' | 'unlock' | 'decline' | null>(null);
+  const [dialog, setDialog] = useState<'submit' | 'unlock' | 'decline' | 'discard' | null>(null);
   // Closed until asked for: the form is the page, the context is a reference.
   const [panelOpen, setPanelOpen] = useState(props.search?.['panel'] === 'open');
   // The panel's AI help is the summary of what others said; how the draft
@@ -572,6 +575,9 @@ function Writing({
   const [asking, setAsking] = useState({ summary: false });
   const [aiError, setAiError] = useState<string | null>(null);
   const writing = data.may.write;
+  // No longer the subject's manager (§8.8): kept to read or delete, never submitted.
+  const former = data.review.formerManager ?? null;
+  const noLongerTheirs = `You are no longer ${data.review.subject.name}’s manager, so this review cannot be submitted. ${former?.to ?? 'Their new manager'} writes theirs.`;
   // The panel's summary fills itself once it is on screen, never on a button.
   const asked = useRef({ summary: false });
   const savedRevision = saving.state === 'saved' ? saving.revision : null;
@@ -787,7 +793,20 @@ function Writing({
               >
                 Details
               </Button>
-              {writing ? (
+              {writing && former !== null ? (
+                // Theirs no longer to submit: the reason one press away.
+                <span className="flex items-center gap-1">
+                  <Button disabled>Submit</Button>
+                  <Tooltip content={noLongerTheirs}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Why Submit is off: ${noLongerTheirs}`}
+                      startIcon={<icons.info aria-hidden />}
+                    />
+                  </Tooltip>
+                </span>
+              ) : writing ? (
                 <Button
                   onClick={() => {
                     void flush().then(() => {
@@ -833,6 +852,27 @@ function Writing({
           keep={data.review.detached.keep}
           {...props}
         />
+      )}
+      {former === null ? null : (
+        <Alert
+          tone="warning"
+          title={`You are no longer ${data.review.subject.name}’s manager`}
+          action={
+            writing ? (
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => {
+                  setDialog('discard');
+                }}
+              >
+                Delete this review
+              </Button>
+            ) : undefined
+          }
+        >
+          {`${subject} reports to ${former.to ?? 'someone else'} now, so this review can no longer be submitted; ${former.to ?? 'their new manager'} writes theirs. It stays here for you to read until you delete it.`}
+        </Alert>
       )}
       {data.review.handover === null ? null : (
         <Alert tone="info" title={`Handed over from ${data.review.handover.from}`}>
@@ -1017,6 +1057,41 @@ function Writing({
           }}
           {...props}
         />
+      ) : null}
+      {dialog === 'discard' ? (
+        <Modal
+          open
+          onClose={() => {
+            setDialog(null);
+          }}
+          title="Delete this review?"
+          description={`What you wrote about ${subject} is deleted, and nobody sees it. This cannot be undone.`}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setDialog(null);
+                }}
+              >
+                Keep it
+              </Button>
+              <Button
+                variant="danger"
+                loading={act.pending}
+                onClick={() => {
+                  act.run('DiscardPerformanceReview', { id: data.review.id }, () => {
+                    props.onNavigate?.('/performance/reviews');
+                  });
+                }}
+              >
+                Delete
+              </Button>
+            </>
+          }
+        >
+          <Refusal error={act.error} />
+        </Modal>
       ) : null}
       {dialog === 'decline' ? (
         <DeclineDialog

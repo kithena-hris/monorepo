@@ -10,11 +10,17 @@
  */
 
 export const OPERATIONS = {
+  PerformanceManagerChangeImpact: `query PerformanceManagerChangeImpact($managerId: String, $personId: String!) {
+    performanceManagerChangeImpact(managerId: $managerId, personId: $personId)
+  }`,
   PerformanceWebhooks: `query PerformanceWebhooks {
     performanceWebhooks
   }`,
   AddPerformanceWebhook: `mutation AddPerformanceWebhook($key: String!, $input: JSON!) {
     addPerformanceWebhook(idempotencyKey: $key, input: $input)
+  }`,
+  ApplyPerformanceManagerChange: `mutation ApplyPerformanceManagerChange($input: JSON!, $key: String!, $personId: String!) {
+    applyPerformanceManagerChange(idempotencyKey: $key, input: $input, personId: $personId)
   }`,
   ChangePerformanceWebhook: `mutation ChangePerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
     changePerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
@@ -233,6 +239,9 @@ export const OPERATIONS = {
   }`,
   DeletePerformanceTemplate: `mutation DeletePerformanceTemplate($id: String!, $key: String!) {
     deletePerformanceTemplate(id: $id, idempotencyKey: $key)
+  }`,
+  DiscardPerformanceReview: `mutation DiscardPerformanceReview($id: String!, $key: String!) {
+    discardPerformanceReview(id: $id, idempotencyKey: $key)
   }`,
   DuplicatePerformanceTemplate: `mutation DuplicatePerformanceTemplate($id: String!, $key: String!, $input: JSON!) {
     duplicatePerformanceTemplate(id: $id, idempotencyKey: $key, input: $input)

@@ -44,6 +44,7 @@ import {
   detach,
   hold,
   nominate,
+  onManagerChange,
   reattach,
   releaseHold,
   requestUnlock,
@@ -826,5 +827,41 @@ describe('a session’s calendar invitation', () => {
   it('folds a long line rather than letting a calendar cut it', () => {
     const ics = invitation({ ...base, description: 'x'.repeat(200) });
     expect(ics).toContain('\r\n x');
+  });
+});
+
+describe('a manager change (§8.8)', () => {
+  it('keeps a submitted manager review beside the new manager’s', () => {
+    expect(onManagerChange(review({ status: 'locked' }), 'priya')).toBe('keep');
+  });
+
+  it('removes one not started', () => {
+    expect(onManagerChange(review({ status: 'not_started' }), 'priya')).toBe('remove');
+    expect(onManagerChange(review({ status: 'not_started' }), null)).toBe('remove');
+  });
+
+  it('leaves one in progress with its writer, never to be submitted', () => {
+    expect(onManagerChange(review({ status: 'in_progress' }), 'priya')).toBe('outdate');
+  });
+
+  it('touches nothing else: the new manager’s own, another kind, one already gone', () => {
+    expect(onManagerChange(review({ authorId: 'priya' }), 'priya')).toBe('keep');
+    expect(onManagerChange(review({ kind: 'self', authorId: 'adam' }), 'priya')).toBe('keep');
+    expect(onManagerChange(review({ status: 'cancelled' }), 'priya')).toBe('keep');
+    expect(
+      onManagerChange(
+        review({ status: 'in_progress', detached: { at: 'x', keep: null } }),
+        'priya',
+      ),
+    ).toBe('keep');
+  });
+
+  it('refuses a submission from someone who is no longer the manager', () => {
+    const done = submit(
+      review({ status: 'in_progress', formerManager: { at: '2026-11-02T09:00:00Z', to: 'priya' } }),
+      '2026-11-03T09:00:00Z',
+      null,
+    );
+    expect(done.ok ? null : done.error.code).toBe('NOT_THE_MANAGER');
   });
 });
