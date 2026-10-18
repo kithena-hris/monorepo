@@ -46,25 +46,32 @@ export interface Counts {
   readonly reviews: number;
   readonly submitted: number;
   readonly overdue: number;
-  readonly byKind: Readonly<Record<string, { total: number; submitted: number }>>;
+  readonly byKind: Readonly<
+    Record<string, { total: number; submitted: number; started: number; overdue: number }>
+  >;
 }
 
 export function countsOf(reviews: readonly Review[], today: CalendarDate): Counts {
   const live = reviews.filter(
     (r) => r.detached === null && !r.hidden && !['cancelled'].includes(r.status),
   );
-  const byKind: Record<string, { total: number; submitted: number }> = {};
+  const byKind: Record<
+    string,
+    { total: number; submitted: number; started: number; overdue: number }
+  > = {};
+  const late = (r: Review): boolean =>
+    !isSubmitted(r) && r.due < today && !['abandoned', 'withdrawn'].includes(r.status);
   for (const r of live) {
-    const k = (byKind[r.kind] ??= { total: 0, submitted: 0 });
+    const k = (byKind[r.kind] ??= { total: 0, submitted: 0, started: 0, overdue: 0 });
     k.total += 1;
     if (isSubmitted(r)) k.submitted += 1;
+    else if (r.status === 'in_progress') k.started += 1;
+    if (late(r)) k.overdue += 1;
   }
   return {
     reviews: live.length,
     submitted: live.filter(isSubmitted).length,
-    overdue: live.filter(
-      (r) => !isSubmitted(r) && r.due < today && !['abandoned', 'withdrawn'].includes(r.status),
-    ).length,
+    overdue: live.filter(late).length,
     byKind,
   };
 }
@@ -217,7 +224,7 @@ export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Res
   const rows = members
     .filter((m) => ids.has(m.personId) || excluded.has(m.personId))
     .filter((m) => needle === '' || m.name.toLowerCase().includes(needle))
-    .slice(0, 100)
+    // Everyone, not a first hundred: the screen draws only the rows in view.
     .map((m) => ({
       personId: m.personId,
       name: m.name,
@@ -245,6 +252,10 @@ export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Res
       included: included.size,
       excluded: excluded.size,
       rows,
+      // Who can be added by name: the picker filters these as it is typed in.
+      everyone: members
+        .filter((m) => m.status !== 'terminated')
+        .map((m) => ({ personId: m.personId, name: m.name, title: subtitle(m) })),
       noLongerMatches: c.noLongerMatches.map((p) => ({
         personId: p,
         name: byId.get(p)?.name ?? 'Someone',
@@ -277,7 +288,7 @@ export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Res
 export async function createCycle(
   ctx: Ctx,
   input: { name: string; start: CalendarDate | null; copyFrom: string | null },
-): Promise<Result<{ id: string }>> {
+): Promise<Result<{ id: string; start: Cycle['start'] }>> {
   const may = hrOnly(ctx);
   if (!may.ok) return may;
   await ensureSeeded(ctx);
@@ -334,7 +345,8 @@ export async function createCycle(
     targetId: id,
   });
   ctx.touched.add(id);
-  return ok({ id });
+  // The start as the company's defaults made it, for a dialog already open.
+  return ok({ id, start: c.start });
 }
 
 /** A setup step saved (§8.1): any step, any order, while the cycle can still change. */
@@ -1097,9 +1109,42 @@ export async function overviewScreen(
     tiles: REVIEW_KINDS.filter((k) => c.activities[k].on).map((k) => ({
       kind: k,
       submitted: counts.byKind[k]?.submitted ?? 0,
+      started: counts.byKind[k]?.started ?? 0,
+      overdue: counts.byKind[k]?.overdue ?? 0,
       total: counts.byKind[k]?.total ?? 0,
       due: due[k] ?? null,
     })),
+    // The cycle on one axis: its deadlines as they stand (extensions
+    // included), the reminders the rules put around them, and today.
+    plan: {
+      start: c.start,
+      nominations:
+        due.nominations === undefined ? c.nominations : { kind: 'exact', date: due.nominations },
+      activities: Object.fromEntries(
+        KINDS.map((k) => {
+          const date = due[k];
+          const a = c.activities[k];
+          return [
+            k,
+            {
+              on: a.on,
+              due:
+                date === undefined
+                  ? a.due
+                  : {
+                      kind: 'exact',
+                      date,
+                      ...(a.due.kind === 'relative' ? { from: a.due.from } : {}),
+                    },
+            },
+          ];
+        }),
+      ),
+      peer: { all: c.peer.all },
+      reminders: c.reminders,
+      visibility: { release: c.visibility.release },
+    },
+    today: ctx.today,
     released: reviews.filter((r) => r.released !== null && r.kind === 'manager').length,
     overdue: counts.overdue,
     rows,
