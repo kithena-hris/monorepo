@@ -1,6 +1,11 @@
+import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
 
-import { NotificationSettings } from '../../../../components/inbox/notification-settings';
+// Its own chunk, with the time picker in it: nothing a page loads up front
+// imports a picker (`apps/web/acceptance/perf.acceptance.test.ts`, the budgets).
+const NotificationSettings = dynamic(() =>
+  import('../../../../components/inbox/notification-settings').then((m) => m.NotificationSettings),
+);
 import { notificationsOf } from '../../../../lib/inbox/notifications';
 import { inboxState } from '../../../../lib/inbox/server';
 import { readPreference } from '../../../../lib/preferences';

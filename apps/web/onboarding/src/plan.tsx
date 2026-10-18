@@ -17,7 +17,6 @@ import {
   Field,
   FieldControl,
   FieldLabel,
-  Input,
   KeyValues,
   NumberField,
   PageHeader,
@@ -31,6 +30,7 @@ import {
   SelectValue,
   Textarea,
   icons,
+  DatePicker,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -351,11 +351,11 @@ function PlanBody({
           <Field>
             <FieldLabel>New start date</FieldLabel>
             <FieldControl>
-              <Input
-                type="date"
-                value={start}
-                onChange={(e) => {
-                  setStart(e.target.value);
+              <DatePicker
+                label="New start date"
+                value={start === '' ? null : start}
+                onChange={(d) => {
+                  setStart(d ?? '');
                 }}
               />
             </FieldControl>

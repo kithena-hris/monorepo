@@ -32,6 +32,7 @@ import {
   TableRow,
   Textarea,
   icons,
+  DatePicker,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -315,11 +316,11 @@ function Editor({
             <Field>
               <FieldLabel>Target start</FieldLabel>
               <FieldControl>
-                <Input
-                  type="date"
-                  value={r.targetStart ?? ''}
-                  onChange={(e) => {
-                    setR({ ...r, targetStart: e.target.value === '' ? null : e.target.value });
+                <DatePicker
+                  label="Target start"
+                  value={r.targetStart}
+                  onChange={(d) => {
+                    setR({ ...r, targetStart: d });
                   }}
                 />
               </FieldControl>

@@ -17,7 +17,6 @@ import {
   Field,
   FieldControl,
   FieldLabel,
-  Input,
   List,
   ListItem,
   PageHeader,
@@ -30,6 +29,7 @@ import {
   ToastProvider,
   icons,
   useToast,
+  TimePicker,
 } from '@reach/ui';
 import { useState, useTransition, type JSX } from 'react';
 
@@ -257,12 +257,12 @@ function Settings({
                 <Field disabled={!n.quiet.on}>
                   <FieldLabel>From</FieldLabel>
                   <FieldControl>
-                    <Input
-                      type="time"
+                    <TimePicker
+                      label="From"
                       value={n.quiet.from}
                       disabled={!n.quiet.on}
-                      onChange={(e) => {
-                        save({ ...n, quiet: { ...n.quiet, from: e.target.value } });
+                      onChange={(t) => {
+                        if (t !== null) save({ ...n, quiet: { ...n.quiet, from: t } });
                       }}
                     />
                   </FieldControl>
@@ -270,12 +270,12 @@ function Settings({
                 <Field disabled={!n.quiet.on}>
                   <FieldLabel>Until</FieldLabel>
                   <FieldControl>
-                    <Input
-                      type="time"
+                    <TimePicker
+                      label="Until"
                       value={n.quiet.to}
                       disabled={!n.quiet.on}
-                      onChange={(e) => {
-                        save({ ...n, quiet: { ...n.quiet, to: e.target.value } });
+                      onChange={(t) => {
+                        if (t !== null) save({ ...n, quiet: { ...n.quiet, to: t } });
                       }}
                     />
                   </FieldControl>
@@ -304,11 +304,11 @@ function Settings({
               <Field>
                 <FieldLabel>Sent at</FieldLabel>
                 <FieldControl>
-                  <Input
-                    type="time"
+                  <TimePicker
+                    label="Sent at"
                     value={n.digestAt}
-                    onChange={(e) => {
-                      save({ ...n, digestAt: e.target.value });
+                    onChange={(t) => {
+                      if (t !== null) save({ ...n, digestAt: t });
                     }}
                   />
                 </FieldControl>

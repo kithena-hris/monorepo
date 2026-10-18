@@ -131,16 +131,32 @@ const DeadlineIn = z.union([
     from: z.enum(['start', 'nominations']),
   }),
 ]);
+const RemindersIn = z.object({
+  rules: z.array(z.string().regex(/^(before:\d{1,2}|on_day|late:\d{1,2}|opens)$/u)).max(8),
+  email: z.boolean(),
+  chat: z.boolean(),
+});
 const ActivityIn = z.object({
   on: z.boolean(),
   templateId: Id.nullable(),
   pinnedVersion: z.int().min(1).nullable(),
   due: DeadlineIn,
   afterOthers: z.boolean().optional(),
+  reminders: RemindersIn.optional(),
 });
 const ConditionIn = z.object({
-  field: z.enum(['department', 'status', 'startedBefore', 'manager', 'title', 'legalEntity']),
+  field: z.enum([
+    'department',
+    'status',
+    'startedBefore',
+    'hiredOn',
+    'manager',
+    'title',
+    'legalEntity',
+    'location',
+  ]),
   value: text(120).min(1),
+  op: z.enum(['is', 'not', 'contains', 'before', 'after']).optional(),
 });
 const ChoiceIn = z.object({
   personId: Id,
@@ -159,6 +175,7 @@ const CyclePatch = z.object({
   participants: z
     .object({
       filter: z.array(ConditionIn).max(30),
+      match: z.enum(['all', 'any']).optional(),
       include: z.array(ChoiceIn).max(5000),
       exclude: z.array(ChoiceIn).max(5000),
       keepInStep: z.boolean(),
@@ -201,13 +218,7 @@ const CyclePatch = z.object({
       peerSummary: z.boolean(),
     })
     .optional(),
-  reminders: z
-    .object({
-      rules: z.array(z.string().regex(/^(before:\d{1,2}|on_day|late:\d{1,2}|opens)$/u)).max(8),
-      email: z.boolean(),
-      chat: z.boolean(),
-    })
-    .optional(),
+  reminders: RemindersIn.optional(),
 });
 const KeyResultIn = z.object({
   title: text(200).min(1),
@@ -1906,7 +1917,8 @@ export async function runAs(
   key: string,
 ): Promise<{ readonly ok: boolean; readonly message: string | null }> {
   const r = ROUTES.find((x) => x.name === route && x.method !== 'GET');
-  if (r === undefined) return { ok: false, message: 'Not something Performance does from a chat app' };
+  if (r === undefined)
+    return { ok: false, message: 'Not something Performance does from a chat app' };
   const path = r.path.replaceAll(/\{([a-zA-Z]+)\}/gu, (_m, n: string) => {
     const v = params[n];
     return encodeURIComponent(typeof v === 'string' || typeof v === 'number' ? String(v) : '');
@@ -1914,7 +1926,10 @@ export async function runAs(
   const answer = await restHandler({ deps, callerFrom: () => Promise.resolve(ok(caller)) })({
     method: r.method,
     url: path,
-    headers: { 'idempotency-key': key, ...(caller.via === undefined ? {} : { 'x-performance-via': caller.via }) },
+    headers: {
+      'idempotency-key': key,
+      ...(caller.via === undefined ? {} : { 'x-performance-via': caller.via }),
+    },
     body: r.body === null ? '' : JSON.stringify(body ?? {}),
   });
   const passed = answer !== null && answer.status < 400;
@@ -1922,7 +1937,8 @@ export async function runAs(
     ok: passed,
     message: passed
       ? null
-      : ((answer?.body as { error?: { message?: string } } | undefined)?.error?.message ?? 'Refused'),
+      : ((answer?.body as { error?: { message?: string } } | undefined)?.error?.message ??
+        'Refused'),
   };
 }
 

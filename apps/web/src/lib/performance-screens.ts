@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { performance, timeOff } from './people';
+import { people, performance, timeOff } from './people';
 import { currentPerson } from './session';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
 import type { OperationName } from './performance-operations';
@@ -60,6 +60,28 @@ async function awayNow(): Promise<Record<string, string>> {
   return away;
 }
 
+interface Organisation {
+  readonly peopleOrganisation: {
+    readonly legalEntities: readonly { readonly id: string; readonly name: string }[];
+    readonly locations: readonly { readonly id: string; readonly name: string }[];
+  };
+}
+
+/** Work location and legal entity names by id, from People; none if it cannot say. */
+async function placesNamed(): Promise<{
+  locations: Record<string, string>;
+  entities: Record<string, string>;
+}> {
+  const answer = await people<Organisation>('Organisation');
+  if (!answer.ok) return { locations: {}, entities: {} };
+  const named = (xs: readonly { id: string; name: string }[]) =>
+    Object.fromEntries(xs.map((x) => [x.id, x.name]));
+  return {
+    locations: named(answer.data.peopleOrganisation.locations),
+    entities: named(answer.data.peopleOrganisation.legalEntities),
+  };
+}
+
 const opt = (v: string | undefined): string | null => (v === undefined || v === '' ? null : v);
 const int = (v: string | undefined): number | null =>
   v !== undefined && /^\d+$/u.test(v) ? Number(v) : null;
@@ -107,8 +129,16 @@ export async function loadScreen(
         return done;
       return { ...done, data: { ...(done.data as object), away: await awayNow() } };
     }
-    case 'Setup':
-      return read('PerformanceCycleSetup', { id, q: opt(s['q']) });
+    case 'Setup': {
+      const [done, person] = await Promise.all([
+        read('PerformanceCycleSetup', { id, q: opt(s['q']) }),
+        currentPerson(),
+      ]);
+      // The filters name work locations and legal entities, which People holds.
+      if (done.status !== 'ready' || person?.entitlements.includes('module.people') !== true)
+        return done;
+      return { ...done, data: { ...(done.data as object), places: await placesNamed() } };
+    }
     case 'About': {
       const [done, person] = await Promise.all([
         read('PerformanceReviewsAbout', {

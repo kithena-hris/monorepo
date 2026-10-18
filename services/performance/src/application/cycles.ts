@@ -163,6 +163,7 @@ export const filterable = (p: Person): Filterable => ({
   title: p.title,
   hiredOn: p.hiredOn,
   legalEntityId: p.legalEntityId,
+  locationId: p.locationId,
 });
 
 /** Templates as the checks read them. */
@@ -197,6 +198,9 @@ export async function checksOf(ctx: Ctx, c: Cycle): Promise<Issue[]> {
     overlapping: c.activities.self.on ? [...overlapping] : [],
   });
 }
+
+const distinct = (xs: readonly (string | null)[]): string[] =>
+  [...new Set(xs.filter((x): x is string => x !== null))].toSorted();
 
 /** The setup dialog's data (PF4): the draft, its options, who is in, and the checks. */
 export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Result<unknown>> {
@@ -244,7 +248,18 @@ export async function setupScreen(ctx: Ctx, id: string, q?: string): Promise<Res
         title: subtitle(byId.get(p)),
       })),
     },
-    fields: { departments, statuses: ['active', 'on_leave', 'terminated'] },
+    // What the filter builder offers, as the members hold it: names where
+    // Performance knows them, ids the shell names from People (locations, entities).
+    fields: {
+      departments,
+      statuses: ['active', 'on_leave', 'notice', 'pre_hire'],
+      locations: distinct(members.map((m) => m.locationId)),
+      legalEntities: distinct(members.map((m) => m.legalEntityId)),
+      managers: distinct(members.map((m) => m.managerId)).map((id) => ({
+        value: id,
+        label: byId.get(id)?.name ?? 'Someone who left',
+      })),
+    },
     due: dueDates(c),
     checks: await checksOf(ctx, c),
     action: action.ok ? action.value : 'past',
@@ -309,7 +324,8 @@ export async function createCycle(
       { cycleId: id, from: null, to: 'draft', reviews: 0 },
     ),
   );
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: input.copyFrom === null ? 'Created a cycle' : 'Copied a cycle',
     target: input.name,
     targetId: id,
@@ -353,7 +369,13 @@ export async function saveCycle(
       changed.push(k);
     }
   await ctx.tx.cycles.save(next);
-  await audit(ctx, { kind: 'cycle', action: 'Edited a cycle', target: c.name, targetId: id, fields: changed });
+  await audit(ctx, {
+    kind: 'cycle',
+    action: 'Edited a cycle',
+    target: c.name,
+    targetId: id,
+    fields: changed,
+  });
   ctx.touched.add(id);
   return ok({ version: next.version });
 }
@@ -496,7 +518,8 @@ export async function unschedule(ctx: Ctx, id: string): Promise<Result<{ ok: tru
   if (!back.ok) return back;
   await ctx.tx.cycles.save(back.value);
   await stateEvent(ctx, c, 'draft');
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action:
       c.state === 'launch_failed' ? 'Moved a failed launch back to draft' : 'Unscheduled a cycle',
     target: c.name,
@@ -570,7 +593,8 @@ export async function closeCycle(
   if (!closed.ok) return closed;
   await ctx.tx.cycles.save({ ...closed.value, closedAt: ctx.at });
   await stateEvent(ctx, c, 'closed');
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: 'Closed a cycle',
     target: c.name,
     targetId: id,
@@ -593,7 +617,8 @@ export async function archiveCycle(
   if (!next.ok) return next;
   await ctx.tx.cycles.save(next.value);
   await stateEvent(ctx, c, next.value.state);
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: archived ? 'Archived a cycle' : 'Unarchived a cycle',
     target: c.name,
     targetId: id,
@@ -718,7 +743,8 @@ export async function addParticipant(
       dueFloor: addDays(ctx.today, 7),
     });
   } else await ctx.tx.cycles.save(next);
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: 'Added someone to a cycle',
     target: c.name,
     targetId: id,
@@ -761,7 +787,8 @@ export async function removeParticipant(
         ? null
         : { ...c.snapshot, subjects: c.snapshot.subjects.filter((s) => s !== personId) },
   });
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: 'Removed someone from a cycle',
     target: c.name,
     targetId: id,
@@ -795,7 +822,8 @@ export async function extendDeadline(
       version: c.version + 1,
       snapshot: { ...c.snapshot, due: { ...c.snapshot.due, [input.kind]: input.due } },
     });
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: 'Extended a deadline',
     target: `${c.name} · ${label(input.kind)}`,
     targetId: id,
@@ -844,7 +872,8 @@ export async function remind(
         ...(c.reminders.chat ? {} : { chat: false as const }),
       });
   }
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: 'Sent reminders',
     target: `${c.name} · ${String(authors.size)} people`,
     targetId: id,
@@ -878,7 +907,8 @@ export async function releaseFor(
     );
     released += 1;
   }
-  await audit(ctx, { kind: 'cycle',
+  await audit(ctx, {
+    kind: 'cycle',
     action: 'Released reviews',
     target: `${c.name} · ${String(released)}`,
     targetId: id,
@@ -898,7 +928,8 @@ export async function handOver(
   const r = await ctx.tx.reviews.get(reviewId);
   if (r === null || r.kind !== 'manager') return err(notFound('manager review'));
   if (input.choice === 'old_finishes') {
-    await audit(ctx, { kind: 'review',
+    await audit(ctx, {
+      kind: 'review',
       action: 'Kept a manager review with its writer',
       target: 'Manager review',
       targetId: reviewId,
@@ -931,7 +962,8 @@ export async function handOver(
         }),
       );
   }
-  await audit(ctx, { kind: 'review',
+  await audit(ctx, {
+    kind: 'review',
     action: 'Handed over a manager review',
     target: 'Manager review',
     targetId: reviewId,

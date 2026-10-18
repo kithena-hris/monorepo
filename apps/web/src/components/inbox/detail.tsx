@@ -22,15 +22,20 @@ import {
 } from '@reach/ui';
 import { InboxEvent } from '@kithena/contracts';
 import * as z from 'zod';
-import { useState, useTransition, type JSX, type ReactNode } from 'react';
+import { Suspense, lazy, useState, useTransition, type JSX, type ReactNode } from 'react';
 
 import { moduleName, type Shown } from '../../lib/inbox/model';
 import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
 import type { Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
-import { MuteDialog, SnoozeDialog } from './dialogs';
+import { MuteDialog } from './dialogs';
 import { PeopleBody } from './detail-people';
 import { TimeOffBody } from './detail-timeoff';
+
+// Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
+const SnoozeDialog = lazy(() =>
+  import('./dated-dialogs').then((m) => ({ default: m.SnoozeDialog })),
+);
 
 /**
  * The detail pane (C1's anatomy, M:B1): always the same parts — what kind it
@@ -375,19 +380,21 @@ export function InboxDetail({
         </Alert>
       )}
       {dialog === 'snooze' ? (
-        <SnoozeDialog
-          item={item}
-          onClose={() => {
-            setDialog(null);
-          }}
-          onPick={(at) => {
-            setDialog(null);
-            act.run(() => snooze(item.id, at), {
-              title: `Snoozed until ${when(at, zone)}`,
-              next: true,
-            });
-          }}
-        />
+        <Suspense fallback={null}>
+          <SnoozeDialog
+            item={item}
+            onClose={() => {
+              setDialog(null);
+            }}
+            onPick={(at) => {
+              setDialog(null);
+              act.run(() => snooze(item.id, at), {
+                title: `Snoozed until ${when(at, zone)}`,
+                next: true,
+              });
+            }}
+          />
+        </Suspense>
       ) : null}
       {dialog === 'mute' ? (
         <MuteDialog

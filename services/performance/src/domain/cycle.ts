@@ -7,10 +7,25 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
  * participant filter, deadlines and the checks before launch are here, pure.
  */
 
-/** One condition of the participant filter (§8.2), by member field. */
+/**
+ * One condition of the participant filter (§8.2), by member field, as the
+ * directory's filter builder makes them: "is" (several on one field are
+ * alternatives), "is not", "contains" for a title, "before" and "after" for a
+ * start date. No `op` is "is", as every filter saved before there were any;
+ * `startedBefore` is the start date "before" those filters used.
+ */
 export interface Condition {
-  readonly field: 'department' | 'status' | 'startedBefore' | 'manager' | 'title' | 'legalEntity';
+  readonly field:
+    | 'department'
+    | 'status'
+    | 'startedBefore'
+    | 'hiredOn'
+    | 'manager'
+    | 'title'
+    | 'legalEntity'
+    | 'location';
   readonly value: string;
+  readonly op?: 'is' | 'not' | 'contains' | 'before' | 'after' | undefined;
 }
 
 export interface PersonChoice {
@@ -33,6 +48,8 @@ export interface ActivityConfig {
   readonly due: Deadline;
   /** The manager waits for the self and peer reviews (§8.3). */
   readonly afterOthers?: boolean;
+  /** This kind's own reminders; absent, the cycle's (§8.4). */
+  readonly reminders?: Reminders | undefined;
 }
 
 export interface PeerConfig {
@@ -81,6 +98,8 @@ export interface Cycle {
   readonly goals: 'none' | 'context' | 'scored';
   readonly participants: {
     readonly filter: readonly Condition[];
+    /** All of the conditions, or any one. Absent: all, as every filter before the choice. */
+    readonly match?: 'all' | 'any' | undefined;
     readonly include: readonly PersonChoice[];
     readonly exclude: readonly PersonChoice[];
     readonly keepInStep: boolean;
@@ -327,35 +346,82 @@ export interface Filterable {
   readonly title: string | null;
   readonly hiredOn: string | null;
   readonly legalEntityId: string | null;
+  readonly locationId: string | null;
 }
 
-export function matches(m: Filterable, filter: readonly Condition[]): boolean {
-  // Conditions on one field are alternatives; different fields all hold (§8.2).
-  const byField = new Map<string, string[]>();
-  for (const c of filter)
-    byField.set(c.field, [...(byField.get(c.field) ?? []), c.value.toLowerCase()]);
-  for (const [field, values] of byField) {
-    const hit = values.some((v) => {
-      switch (field) {
-        case 'department':
-          return (m.department ?? '').toLowerCase() === v;
-        case 'status':
-          return m.status.toLowerCase() === v;
-        case 'startedBefore':
-          return m.hiredOn !== null && m.hiredOn < v;
-        case 'manager':
-          return (m.managerPersonId ?? '').toLowerCase() === v;
-        case 'title':
-          return (m.title ?? '').toLowerCase().includes(v);
-        case 'legalEntity':
-          return (m.legalEntityId ?? '').toLowerCase() === v;
-        default:
-          return false;
-      }
-    });
-    if (!hit) return false;
+/** The member's value a condition reads, lower-cased. */
+function valueOf(m: Filterable, field: Condition['field']): string | null {
+  const v = {
+    department: m.department,
+    status: m.status,
+    startedBefore: m.hiredOn,
+    hiredOn: m.hiredOn,
+    manager: m.managerPersonId,
+    title: m.title,
+    legalEntity: m.legalEntityId,
+    location: m.locationId,
+  }[field];
+  return v === null ? null : v.toLowerCase();
+}
+
+const opOf = (c: Condition): NonNullable<Condition['op']> =>
+  c.op ?? (c.field === 'startedBefore' ? 'before' : c.field === 'title' ? 'contains' : 'is');
+
+function holds(m: Filterable, c: Condition): boolean {
+  const have = valueOf(m, c.field);
+  const want = c.value.toLowerCase();
+  switch (opOf(c)) {
+    case 'is':
+      return have === want;
+    case 'not':
+      return have !== want;
+    case 'contains':
+      return have !== null && have.includes(want);
+    case 'before':
+      return have !== null && have < want;
+    case 'after':
+      return have !== null && have > want;
   }
+}
+
+/**
+ * Whether a member is in. With `all`, conditions "is" on one field are
+ * alternatives ("Department is Sales or Support") and everything else must
+ * hold; with `any`, one condition is enough (§8.2).
+ */
+export function matches(
+  m: Filterable,
+  filter: readonly Condition[],
+  match: 'all' | 'any' = 'all',
+): boolean {
+  if (match === 'any') return filter.some((c) => holds(m, c));
+  const alternatives = new Map<string, Condition[]>();
+  for (const c of filter) {
+    if (opOf(c) === 'is') alternatives.set(c.field, [...(alternatives.get(c.field) ?? []), c]);
+    else if (!holds(m, c)) return false;
+  }
+  for (const group of alternatives.values()) if (!group.some((c) => holds(m, c))) return false;
   return true;
+}
+
+/** The reminders a kind of review follows: its own, else the cycle's. */
+export const remindersFor = (c: Cycle, kind: ActivityKind): Reminders =>
+  c.activities[kind].reminders ?? c.reminders;
+
+/**
+ * Whether a review `days` from its deadline (negative: late) is reminded
+ * today: `before:3`, `on_day`, and `late:2`, every two days, three times at
+ * most.
+ */
+export function remindsOn(rules: readonly string[], days: number): boolean {
+  return rules.some((rule) => {
+    const [kind, n] = rule.split(':');
+    const every = Math.max(1, Number(n));
+    if (kind === 'before') return days === Number(n);
+    if (kind === 'on_day') return days === 0;
+    if (kind === 'late') return days < 0 && -days % every === 0 && -days <= every * 3;
+    return false;
+  });
 }
 
 /** Who is in: the filter, then the inclusions, less the exclusions (§8.2). */
@@ -364,7 +430,11 @@ export function subjectsOf(c: Cycle, members: readonly Filterable[]): string[] {
     c.participants.filter.length === 0
       ? []
       : members
-          .filter((m) => m.status !== 'terminated' && matches(m, c.participants.filter))
+          .filter(
+            (m) =>
+              m.status !== 'terminated' &&
+              matches(m, c.participants.filter, c.participants.match ?? 'all'),
+          )
           .map((m) => m.personId),
   );
   for (const p of c.participants.include) out.add(p.personId);

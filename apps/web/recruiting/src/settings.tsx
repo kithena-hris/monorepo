@@ -31,6 +31,7 @@ import {
   TableRow,
   Textarea,
   icons,
+  DatePicker,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
@@ -952,11 +953,11 @@ function Ai({
         <Field>
           <FieldLabel>Last independent bias audit</FieldLabel>
           <FieldControl>
-            <Input
-              type="date"
-              value={ai.nycAuditOn ?? ''}
-              onChange={(e) => {
-                setAi({ ...ai, nycAuditOn: e.target.value === '' ? null : e.target.value });
+            <DatePicker
+              label="Last independent bias audit"
+              value={ai.nycAuditOn}
+              onChange={(d) => {
+                setAi({ ...ai, nycAuditOn: d });
               }}
             />
           </FieldControl>

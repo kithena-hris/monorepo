@@ -89,10 +89,11 @@ export interface FieldProps extends ComponentPropsWithoutRef<'div'> {
    *   room for a label column.
    *
    * At a desk a field is never as wide as whatever holds it: a text field
-   * stops at 28rem, a text area at 42rem, a label-and-switch row at 42rem, so
-   * a field in a wide card or dialog is the width of what goes in it, and a
-   * switch stays within reach of its label. Under a thumb it fills the row.
-   * `className` widens one that needs it (`max-w-none`).
+   * stops at 28rem and a text area at 42rem, so a field in a wide card or
+   * dialog is the width of what goes in it. A label-and-switch row is the
+   * exception: it spans its row, the switch at the end where a settings list
+   * puts it. Under a thumb every field fills the row. `className` widens one
+   * that needs it (`max-w-none`).
    */
   orientation?: 'vertical' | 'horizontal' | 'columns';
 }
@@ -134,7 +135,7 @@ export function Field({
           // A control beside its label is a row a thumb has to hit on its own;
           // at the tap floor, two rows' hit areas never overlap.
           orientation === 'horizontal' &&
-            'max-w-2xl flex-row items-center justify-between gap-4 touch:min-h-tap touch:max-w-none',
+            'flex-row items-center justify-between gap-4 touch:min-h-tap',
           orientation === 'columns' && cn(fieldColumns, 'max-w-2xl touch:max-w-none'),
           className,
         )}

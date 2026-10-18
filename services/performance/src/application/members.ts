@@ -15,6 +15,7 @@ export interface Person {
   readonly status: string;
   readonly hiredOn: string | null;
   readonly legalEntityId: string | null;
+  readonly locationId: string | null;
   readonly probationEnd: string | null;
   readonly email: string | null;
 }
@@ -31,6 +32,7 @@ export async function people(ctx: Ctx): Promise<Person[]> {
     status: m.status,
     hiredOn: m.hiredOn,
     legalEntityId: m.legalEntityId,
+    locationId: m.locationId,
     probationEnd: m.probationEnd,
     email: m.workEmail,
   }));
