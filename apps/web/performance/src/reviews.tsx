@@ -1034,17 +1034,25 @@ interface Reads {
 
 type Flag = Reads['flags'][number];
 
-/** An answer's words, as the reader sees them: tags dropped, entities read. */
-const textOf = (html: string): string =>
-  html
-    .replaceAll(/<\/(p|li|h\d)>/gu, '\n')
-    .replaceAll(/<[^>]+>/gu, '')
+/**
+ * An answer's words, as the reader sees them: tags dropped, entities read.
+ * Only ever compared with words, never put back as markup; the tags are
+ * stripped until none is left, so no tag can survive by being nested.
+ */
+const textOf = (html: string): string => {
+  let text = html.replaceAll(/<\/(p|li|h\d)>/gu, '\n');
+  for (let before = ''; before !== text;) {
+    before = text;
+    text = text.replaceAll(/<[^<>]*>/gu, '');
+  }
+  return text
     .replaceAll('&nbsp;', ' ')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
     .replaceAll('&quot;', '"')
     .replaceAll('&#39;', "'")
     .replaceAll('&amp;', '&');
+};
 const squash = (text: string): string => text.replaceAll(/\s+/gu, ' ').trim();
 const escapeHtml = (text: string): string =>
   text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
