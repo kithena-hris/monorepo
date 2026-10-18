@@ -1561,7 +1561,7 @@ function ReminderOptions({
   readonly onChange: (next: Reminders) => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-col gap-2 border-t border-[var(--reach-line)] pt-3">
+    <div className="flex flex-col gap-2">
       <p className="text-sm font-semibold">Reminders</p>
       <ChipRow aria-label={`When ${kind.toLowerCase()} are reminded`}>
         {REMINDERS.map(([v, l]) => (
