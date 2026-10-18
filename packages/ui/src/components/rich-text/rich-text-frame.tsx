@@ -38,6 +38,12 @@ export interface RichTextEditorProps {
   characterLimit?: number;
   /** Shows the counter even without a limit. */
   showCount?: boolean;
+  /**
+   * What the counter counts without a limit: characters, or words for prose
+   * somebody is asked to write at length (a review, a statement). A limit is
+   * always counted in characters.
+   */
+  countUnit?: 'characters' | 'words';
   /** Read-only rendering: no toolbar, no caret, content still selectable and copyable. */
   readOnly?: boolean;
   disabled?: boolean;
@@ -66,6 +72,7 @@ export function RichTextFrame({
   hint,
   characterLimit,
   showCount = false,
+  countUnit = 'characters',
   readOnly = false,
   disabled = false,
   invalid = false,
@@ -73,12 +80,15 @@ export function RichTextFrame({
   maxHeight,
   className,
   used,
+  words = 0,
   ids,
   onLabelClick,
   controls,
   editable,
 }: RichTextEditorProps & {
   readonly used: number;
+  /** Words written, for `countUnit="words"`. */
+  readonly words?: number;
   /** The label's, the hint's and the counter's ids, which the editable region points at. */
   readonly ids?: { readonly label: string; readonly hint: string; readonly count: string };
   readonly onLabelClick?: () => void;
@@ -158,9 +168,11 @@ export function RichTextFrame({
             characterLimit !== undefined && used >= characterLimit && 'text-danger-fg',
           )}
         >
-          {characterLimit === undefined
-            ? `${String(used)} characters`
-            : `${String(used)} / ${String(characterLimit)}`}
+          {characterLimit !== undefined
+            ? `${String(used)} / ${String(characterLimit)}`
+            : countUnit === 'words'
+              ? `${String(words)} ${words === 1 ? 'word' : 'words'}`
+              : `${String(used)} characters`}
         </p>
       ) : null}
     </div>

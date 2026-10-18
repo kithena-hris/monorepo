@@ -19,8 +19,10 @@ import { usePortalContainer } from '../../lib/portal-container';
  * their place, and a centred modal covers the very row they are comparing
  * against.
  *
- * It is still modal (focus trapped, Escape closes), so it is the wrong choice
- * for anything the user needs to reference while working elsewhere.
+ * It is modal by default (focus trapped, Escape closes). For something the
+ * user reads while working elsewhere, the context beside a form, pass
+ * `modal={false}` to `Sheet`: no scrim, no trap, the page stays usable, and
+ * `onInteractOutside` prevented keeps a click in the page from closing it.
  */
 
 /*

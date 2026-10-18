@@ -2,6 +2,7 @@ import { render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RichTextContent } from './rich-text';
+import { RichTextFrame } from './rich-text-frame';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -36,5 +37,18 @@ describe('<RichTextContent>', () => {
       <RichTextContent sanitisedHtml='<p>See the <a href="https://example.test">policy</a>.</p><ul><li>Accrual</li></ul>' />,
     );
     expect(error).not.toHaveBeenCalled();
+  });
+});
+
+describe('<RichTextFrame> counter', () => {
+  it('counts words where asked, and characters otherwise', () => {
+    const { getByText, rerender } = render(
+      <RichTextFrame label="Strengths" showCount countUnit="words" used={21} words={4} />,
+    );
+    expect(getByText('4 words')).toBeInTheDocument();
+    rerender(<RichTextFrame label="Strengths" showCount countUnit="words" used={5} words={1} />);
+    expect(getByText('1 word')).toBeInTheDocument();
+    rerender(<RichTextFrame label="Strengths" showCount used={21} words={4} />);
+    expect(getByText('21 characters')).toBeInTheDocument();
   });
 });

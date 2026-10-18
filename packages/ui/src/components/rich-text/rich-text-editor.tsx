@@ -283,10 +283,12 @@ export function RichTextEditorBody(props: RichTextEditorProps): JSX.Element {
    * `characterLimit` ternary include it, so the entry is always present.
    */
   const used = editor?.storage.characterCount.characters() ?? 0;
+  const words = editor?.storage.characterCount.words() ?? 0;
   return (
     <RichTextFrame
       {...props}
       used={used}
+      words={words}
       ids={{ label: labelId, hint: hintId, count: countId }}
       onLabelClick={() => editor?.chain().focus().run()}
       controls={

@@ -129,12 +129,15 @@ export function headerFrame(
   const section = currentPlace(places.sections, route);
   const here = section ?? currentPlace(places.actions, route);
   const tab = currentTab(section, route);
+  // One thing's own page (`/performance/reviews/:id`) is not the list's: the
+  // umbrella's tabs stay on the list. A sibling page it owns keeps them.
+  const umbrella = tab !== undefined || route?.includes('/:') !== true;
   return {
     // Every People page opens as "People › section", its siblings a click away.
     section: here === undefined ? null : here.label,
     siblings: siblingsOf(places.sections, here, counts.sections),
     siblingsLabel: `${area} sections`,
-    ...(section?.tabs === undefined
+    ...(section?.tabs === undefined || !umbrella
       ? {}
       : {
           tabs: section.tabs.map((t) => {
