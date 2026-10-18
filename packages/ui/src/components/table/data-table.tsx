@@ -444,7 +444,7 @@ export interface DataTableProps<T extends TableRow> {
   /**
    * Said under the last row once there is nothing more to load, so the end of
    * a long list reads as the end and not as a page still coming: "That's
-   * everyone · 57 people". An infinite table says "End of the list" without it.
+   * everyone · 57 people". Without it, nothing is said.
    */
   endLabel?: ReactNode;
 
@@ -1018,10 +1018,7 @@ export function DataTable<T extends TableRow>({
   }, [rows.length]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   const atEnd =
-    rows.length > 0 &&
-    onEndReached === undefined &&
-    !loadingMore &&
-    (endLabel !== undefined || infinite.current);
+    endLabel !== undefined && rows.length > 0 && onEndReached === undefined && !loadingMore;
   useEffect(() => {
     const el = scrollRef.current;
     if (el === null || !wantsEnd) return;
@@ -1378,7 +1375,7 @@ export function DataTable<T extends TableRow>({
             <TableCell colSpan={totalColumns} className="touch:block">
               <span className="flex items-center gap-3 text-xs font-medium text-fg-subtle">
                 <span aria-hidden className="h-px flex-1 bg-[var(--reach-line)]" />
-                {endLabel ?? 'End of the list'}
+                {endLabel}
                 <span aria-hidden className="h-px flex-1 bg-[var(--reach-line)]" />
               </span>
             </TableCell>

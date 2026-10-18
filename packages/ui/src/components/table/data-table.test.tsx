@@ -662,11 +662,10 @@ describe('<DataTable> end of the list', () => {
         columns={columns}
         rowId={(p) => p.id}
         onEndReached={() => undefined}
+        endLabel="That’s everyone · 4 people"
       />,
     );
-    expect(screen.queryByText('End of the list')).toBeNull();
-    rerender(<DataTable label="People" rows={people} columns={columns} rowId={(p) => p.id} />);
-    expect(screen.getByText('End of the list')).toBeInTheDocument();
+    expect(screen.queryByText(/everyone/u)).toBeNull();
     rerender(
       <DataTable
         label="People"
