@@ -705,7 +705,9 @@ function TimelineGantt({
       : `${formatDate(item.start)}, milestone`;
     const done =
       item.progress === undefined ? '' : `, ${String(Math.round(item.progress * 100))}% complete`;
-    return `${row.label}, ${item.label}: ${dates}${done}${notes(item)}`;
+    // A bar named as its lane is said once: "Self review: …", not twice.
+    const name = item.label === row.label ? row.label : `${row.label}, ${item.label}`;
+    return `${name}: ${dates}${done}${notes(item)}`;
   };
 
   const csvRows = entries.map(({ row, item }) => ({
@@ -1400,7 +1402,14 @@ function TimelineMark({
           {mark}
         </ContextMenuTrigger>
       </Tooltip>
-      <ContextMenuContent>
+      {/* React passes a portal's events up to its parent: a press on an item
+          reached the plot's drag-to-zoom, which took the pointer, and the
+          click never came back to the item. */}
+      <ContextMenuContent
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+      >
         {actions.map((a) => (
           <ContextMenuItem
             key={a.id}
