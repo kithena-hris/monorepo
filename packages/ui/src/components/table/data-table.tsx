@@ -55,7 +55,12 @@ import {
   type RowData,
   type SortingState,
 } from '@tanstack/react-table';
-import { observeElementRect, useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
+import {
+  observeElementRect,
+  useVirtualizer,
+  useWindowVirtualizer,
+  type Virtualizer,
+} from '@tanstack/react-virtual';
 import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
@@ -484,6 +489,15 @@ export interface DataTableProps<T extends TableRow> {
   /** Shown in place of the body when there are no rows. */
   empty?: ReactNode;
   stickyHeader?: boolean;
+  /**
+   * What scrolls. `self` (the default): the table's own box, given a height
+   * through `containerClassName`. `page`: the window, with the table as tall
+   * as its rows, so a page with more above the table has one scroll, not a
+   * page scroll and a table scroll inside it. The header then pins to the top
+   * of the window, the rows virtualize against it, and `onEndReached` fires as
+   * the page nears the table's end.
+   */
+  scroll?: 'self' | 'page';
   /** Shorter rows and smaller type. Has no effect on the cards under a finger. */
   dense?: boolean;
   containerClassName?: string;
@@ -555,6 +569,7 @@ export function DataTable<T extends TableRow>({
   activeRowId = null,
   empty = 'Nothing to show.',
   stickyHeader = false,
+  scroll = 'self',
   dense = false,
   containerClassName,
   className,
@@ -789,8 +804,34 @@ export function DataTable<T extends TableRow>({
   const getScrollElement = useCallback(() => scrollRef.current, []);
   const estimateSize = useCallback(() => estimateRowHeight, [estimateRowHeight]);
 
-  const virtualizer = useVirtualizer({
-    count: virtualized ? items.length : 0,
+  const page = scroll === 'page';
+  // Where the first row sits on the page, for the window's virtualizer: under
+  // whatever the page draws above the table, and under its header.
+  const [margin, setMargin] = useState(0);
+  useLayoutEffect(() => {
+    if (!page) return;
+    const measure = (): void => {
+      const body = scrollRef.current?.querySelector('tbody');
+      const top = (body?.getBoundingClientRect().top ?? 0) + window.scrollY;
+      setMargin((m) => (Math.abs(m - top) < 1 ? m : top));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    return () => {
+      observer.disconnect();
+    };
+  }, [page]);
+  // Both, always (hooks are not conditional); the one not scrolling counts nothing.
+  const inPage = useWindowVirtualizer({
+    count: virtualized && page ? items.length : 0,
+    estimateSize,
+    overscan: 20,
+    scrollMargin: margin,
+  });
+  const inBox = useVirtualizer({
+    count: virtualized && !page ? items.length : 0,
     getScrollElement,
     estimateSize,
     // Rows above and below the view: a screen's worth and more, so a fling
@@ -805,6 +846,9 @@ export function DataTable<T extends TableRow>({
     initialRect: UNMEASURED,
     observeElementRect: observeSizedRect,
   });
+  const virtualizer = page ? inPage : inBox;
+  // The window's virtualizer counts from the top of the page; the spacers count from the body's.
+  const offset = page ? margin : 0;
 
   // The pinned header's height: with every row counted at its height, the
   // box's whole extent, which `Table` holds the box to (`contentHeight`).
@@ -814,14 +858,14 @@ export function DataTable<T extends TableRow>({
   }, [virtualized, fitKey, dense]);
 
   const virtualRows = virtualized ? virtualizer.getVirtualItems() : [];
-  const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
+  const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? offset) - offset : 0;
   // Until the virtualizer has measured its box it names no rows at all: the
   // body is then one spacer as tall as every row, not an empty table, which
   // flashed blank and read as "at the end" to `onEndReached`, loading pages
   // nobody had scrolled to.
   const paddingBottom =
     virtualRows.length > 0
-      ? virtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end ?? 0)
+      ? virtualizer.getTotalSize() - ((virtualRows[virtualRows.length - 1]?.end ?? offset) - offset)
       : virtualizer.getTotalSize();
 
   /** The items to render, paired with the 0-based index a reader should hear. */
@@ -1021,7 +1065,22 @@ export function DataTable<T extends TableRow>({
     endLabel !== undefined && rows.length > 0 && onEndReached === undefined && !loadingMore;
   useEffect(() => {
     const el = scrollRef.current;
-    if (el === null || !wantsEnd) return;
+    if (el === null || !wantsEnd || !page) return;
+    // The window scrolls: the end is the table's bottom nearing the window's.
+    const check = (): void => {
+      if ('checkVisibility' in el && !el.checkVisibility()) return;
+      if (el.getBoundingClientRect().bottom - window.innerHeight < END_MARGIN)
+        endReached.current?.();
+    };
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', check);
+    };
+  }, [wantsEnd, ordered.length, page]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el === null || !wantsEnd || page) return;
     const check = (): void => {
       // A table not drawn (a desk's, hidden under a finger) is at no end at all.
       // (`in`: jsdom has no `checkVisibility`, and draws nothing anyway.)
@@ -1033,7 +1092,7 @@ export function DataTable<T extends TableRow>({
     return () => {
       el.removeEventListener('scroll', check);
     };
-  }, [wantsEnd, ordered.length]);
+  }, [wantsEnd, ordered.length, page]);
 
   /*
    * A table of few columns leaves room at its end. That room goes to the
@@ -1112,10 +1171,13 @@ export function DataTable<T extends TableRow>({
       // of what has loaded: WebKit handed it to the page, which slid away
       // under the reader until the next page arrived.
       containerClassName={cn(
-        onEndReached !== undefined && 'overscroll-y-contain',
+        onEndReached !== undefined && !page && 'overscroll-y-contain',
+        // Not a scroll container at all: the header pins to the window, which
+        // a box that scrolls, even one that never needs to, would stop.
+        page && 'overflow-visible',
         containerClassName,
       )}
-      {...(virtualized
+      {...(virtualized && !page
         ? {
             contentHeight:
               headHeight +

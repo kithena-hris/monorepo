@@ -2242,11 +2242,42 @@ export function PerformanceCycle({
   navigation,
   route,
 }: PeopleScreen<'PerformanceCycle'>): React.JSX.Element {
+  // Who to show, in words: the same filter the web's table takes, chosen by the assistant.
+  const [view, setView] = useState<{ filter: string; match: string; group: string | null } | null>(
+    null,
+  );
+  const [words, setWords] = useState('');
+  const [said, setSaid] = useState<readonly string[]>([]);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
+  const signed = useSigned();
   const { load, reload } = useRead<Cycle>(
     'PerformanceCycle',
-    { id: route.params.id },
+    { id: route.params.id, ...(view === null ? {} : view) },
     'performance',
   );
+  const filterInWords = (text: string): void => {
+    if (text.trim().length < 3) return;
+    setAsking(true);
+    setProblem(null);
+    void ask<{ filter: unknown[]; match: string; group: string | null; summary: string[] }>(
+      signed,
+      'PerformanceOverviewInWords',
+      {
+        id: route.params.id,
+        input: { text, current: [], places: { locations: {}, entities: {} } },
+      },
+      'performance',
+    ).then((r) => {
+      setAsking(false);
+      if (!r.ok) {
+        setProblem(r.message);
+        return;
+      }
+      setSaid(r.data.summary);
+      setView({ filter: JSON.stringify(r.data.filter), match: r.data.match, group: r.data.group });
+    });
+  };
   return (
     <Screen
       title={route.params.name}
@@ -2259,6 +2290,31 @@ export function PerformanceCycle({
         <>
           {data.overdue === 0 ? null : (
             <Alert tone="warning">{`${String(data.overdue)} overdue`}</Alert>
+          )}
+          <SearchField
+            value={words}
+            onValueChange={setWords}
+            onSearch={filterInWords}
+            label="Filter in words"
+            placeholder="Whose self review is overdue"
+          />
+          <Problem text={problem} />
+          {asking ? <Text tone="muted">Working out who…</Text> : null}
+          {said.length === 0 ? null : (
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Text tone="muted">{said.join(' · ')}</Text>
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => {
+                  setView(null);
+                  setSaid([]);
+                  setWords('');
+                }}
+              >
+                Show everyone
+              </Button>
+            </View>
           )}
           <List>
             {data.rows.map((r) => (

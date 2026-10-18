@@ -67,8 +67,8 @@ export const OPERATIONS = {
   PerformanceConnectedTools: `query PerformanceConnectedTools {
     performanceConnectedTools
   }`,
-  PerformanceCycle: `query PerformanceCycle($id: String!, $page: Int, $q: String, $size: Int, $tab: String) {
-    performanceCycle(id: $id, page: $page, q: $q, size: $size, tab: $tab)
+  PerformanceCycle: `query PerformanceCycle($id: String!, $page: Int, $q: String, $size: Int, $tab: String, $filter: String, $match: String, $group: String) {
+    performanceCycle(id: $id, page: $page, q: $q, size: $size, tab: $tab, filter: $filter, match: $match, group: $group)
   }`,
   PerformanceCycleSetup: `query PerformanceCycleSetup($id: String!, $q: String) {
     performanceCycleSetup(id: $id, q: $q)
@@ -287,6 +287,9 @@ export const OPERATIONS = {
   }`,
   PerformanceLearningSuggestions: `mutation PerformanceLearningSuggestions($key: String!, $personId: String!) {
     performanceLearningSuggestions(idempotencyKey: $key, personId: $personId)
+  }`,
+  PerformanceOverviewInWords: `mutation PerformanceOverviewInWords($id: String!, $key: String!, $input: JSON!) {
+    performanceOverviewInWords(id: $id, idempotencyKey: $key, input: $input)
   }`,
   PerformanceParticipantsInWords: `mutation PerformanceParticipantsInWords($id: String!, $key: String!, $input: JSON!) {
     performanceParticipantsInWords(id: $id, idempotencyKey: $key, input: $input)

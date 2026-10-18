@@ -678,3 +678,21 @@ describe('<DataTable> end of the list', () => {
     expect(screen.getByText('That’s everyone · 4 people')).toBeInTheDocument();
   });
 });
+
+describe('<DataTable scroll="page">', () => {
+  it('is not a scroll box of its own, so its header pins to the window', () => {
+    render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        scroll="page"
+        stickyHeader
+      />,
+    );
+    const box = screen.getByRole('region', { name: 'People' });
+    expect(box.className).toContain('overflow-visible');
+    expect(box.className).not.toContain('overscroll-y-contain');
+  });
+});

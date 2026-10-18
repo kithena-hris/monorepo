@@ -232,6 +232,32 @@ export async function oneCycle(h: Harness): Promise<void> {
   }
   expect(state).toBe('in_progress');
 
+  // The people table filters by who they are and where their reviews stand,
+  // and groups in runs; a filter it cannot read filters nothing.
+  type Overview = { total: number; rows: { name: string; manager: { name: string } | null }[] };
+  const overview = (query: string) => data<Overview>('ada', 'GET', `/cycles/${cycleId}?${query}`);
+  const everyone = (await overview('')).total;
+  const engineers = await overview(
+    `filter=${encodeURIComponent(JSON.stringify([{ field: 'title', op: 'contains', value: 'engineer' }]))}`,
+  );
+  expect(engineers.rows.map((r) => r.name).toSorted()).toEqual(['Adam', 'Marco', 'Omar']);
+  const notStarted = await overview(
+    `filter=${encodeURIComponent(JSON.stringify([{ field: 'self', op: 'is', value: 'not_started' }]))}`,
+  );
+  expect(notStarted.total).toBe(everyone);
+  const none = await overview(
+    `filter=${encodeURIComponent(JSON.stringify([{ field: 'self', op: 'not', value: 'not_started' }]))}`,
+  );
+  expect(none.total).toBe(0);
+  expect((await overview('filter=not-json')).total).toBe(everyone);
+  const grouped = await overview('group=manager');
+  const managers = grouped.rows.map((r) => r.manager?.name ?? '');
+  expect(managers).toEqual(
+    managers.toSorted((a, b) =>
+      (a === '') === (b === '') ? a.localeCompare(b) : a === '' ? 1 : -1,
+    ),
+  );
+
   // Adam nominates two peers; Marco approves; their reviews appear.
   const mine = await data<{
     nominations: { id: string; kind: string }[];
