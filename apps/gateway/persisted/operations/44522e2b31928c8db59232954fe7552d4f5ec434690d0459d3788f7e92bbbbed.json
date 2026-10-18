@@ -1,0 +1,1 @@
+{"version":1,"body":"query PerformanceManagerChangeImpact($managerId: String, $personIds: String!) {\n    performanceManagerChangeImpact(managerId: $managerId, personIds: $personIds)\n  }"}

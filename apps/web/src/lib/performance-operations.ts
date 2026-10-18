@@ -10,17 +10,14 @@
  */
 
 export const OPERATIONS = {
-  PerformanceManagerChangeImpact: `query PerformanceManagerChangeImpact($managerId: String, $personId: String!) {
-    performanceManagerChangeImpact(managerId: $managerId, personId: $personId)
+  PerformanceManagerChangeImpact: `query PerformanceManagerChangeImpact($managerId: String, $personIds: String!) {
+    performanceManagerChangeImpact(managerId: $managerId, personIds: $personIds)
   }`,
   PerformanceWebhooks: `query PerformanceWebhooks {
     performanceWebhooks
   }`,
   AddPerformanceWebhook: `mutation AddPerformanceWebhook($key: String!, $input: JSON!) {
     addPerformanceWebhook(idempotencyKey: $key, input: $input)
-  }`,
-  ApplyPerformanceManagerChange: `mutation ApplyPerformanceManagerChange($input: JSON!, $key: String!, $personId: String!) {
-    applyPerformanceManagerChange(idempotencyKey: $key, input: $input, personId: $personId)
   }`,
   ChangePerformanceWebhook: `mutation ChangePerformanceWebhook($id: String!, $key: String!, $input: JSON!) {
     changePerformanceWebhook(id: $id, idempotencyKey: $key, input: $input)
@@ -194,6 +191,9 @@ export const OPERATIONS = {
   }`,
   CheckPerformanceTemplate: `mutation CheckPerformanceTemplate($id: String!, $key: String!) {
     checkPerformanceTemplate(id: $id, idempotencyKey: $key)
+  }`,
+  ChoosePerformanceManagerHandover: `mutation ChoosePerformanceManagerHandover($input: JSON!, $key: String!) {
+    choosePerformanceManagerHandover(idempotencyKey: $key, input: $input)
   }`,
   ClosePerformanceCycle: `mutation ClosePerformanceCycle($id: String!, $key: String!, $input: JSON!) {
     closePerformanceCycle(id: $id, idempotencyKey: $key, input: $input)

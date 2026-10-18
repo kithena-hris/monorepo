@@ -1,1 +1,0 @@
-{"version":1,"body":"mutation ApplyPerformanceManagerChange($input: JSON!, $key: String!, $personId: String!) {\n    applyPerformanceManagerChange(idempotencyKey: $key, input: $input, personId: $personId)\n  }"}

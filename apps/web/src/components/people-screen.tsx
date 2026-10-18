@@ -600,9 +600,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             : {
                 managerChange: {
                   questions: (managerId: string | null) =>
-                    actions.managerChangeQuestions(id, managerId),
+                    actions.managerChangeQuestions([id], managerId),
                   apply: (managerId: string | null, answers: Readonly<Record<string, string>>) =>
-                    actions.applyManagerChange(id, managerId, answers),
+                    actions.applyManagerChange([id], managerId, answers),
                 },
               }),
           // Offered to everybody; the screen shows it only where People says they may.
@@ -998,6 +998,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load: loadable,
           onPreview: actions.previewBulkEdit,
           onCommit: actions.commitBulkEdit,
+          // A new manager for them all is confirmed first, with what it touches elsewhere.
+          managerChange: {
+            questions: actions.managerChangeQuestions,
+            apply: actions.applyManagerChange,
+          },
           onPreviewHire: actions.previewBulkHire,
           onCommitHire: actions.commitBulkHire,
           searchPeople: reads.searchPeople,

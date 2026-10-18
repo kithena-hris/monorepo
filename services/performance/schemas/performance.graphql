@@ -34,13 +34,6 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
-  """§8.8: HR hands their manager reviews to the new manager"""
-  applyPerformanceManagerChange(
-    idempotencyKey: String!
-    """The REST body"""
-    input: JSON!
-    personId: String!
-  ): JSON
   """Archive or unarchive"""
   archivePerformanceCycle(
     id: String!
@@ -98,6 +91,14 @@ type Mutation {
   ): JSON
   """PF2e: check a form"""
   checkPerformanceTemplate(id: String!, idempotencyKey: String!): JSON
+  """
+  §8.8: HR’s choice for their manager reviews, carried out when the change takes effect
+  """
+  choosePerformanceManagerHandover(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """PF5g: close"""
   closePerformanceCycle(
     id: String!
@@ -645,9 +646,9 @@ type Query {
   """PF15b: an item"""
   performanceLearningItem(id: String!): JSON
   """
-  §8.8: what changing their manager would do to their manager reviews, asked first
+  §8.8: what changing these people’s manager would do to their manager reviews
   """
-  performanceManagerChangeImpact(managerId: String, personId: String!): JSON
+  performanceManagerChangeImpact(managerId: String, personIds: String!): JSON
   """PF13: my reviews"""
   performanceMyReviews(tab: String): JSON
   """PF21: notes"""

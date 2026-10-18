@@ -26,14 +26,13 @@ import {
   detach,
   isSubmitted,
   newReview,
-  onManagerChange,
   reattach,
   reviewKey,
   type Review,
 } from '../domain/review.js';
 import { published, type Template } from '../domain/template.js';
 import { audit, event, hrOnly, names, notFound, publish, type Ctx } from './context.js';
-import type { LiveChange, Tx } from './ports.js';
+import type { LiveChange } from './ports.js';
 import { people, subtitle, team, type Person } from './members.js';
 import { settingsOf } from './settings.js';
 import { ensureSeeded, publishedTemplates } from './templates.js';
@@ -733,19 +732,6 @@ export async function reviewsFor(
   return made;
 }
 
-/** What a manager change did, cycle by cycle, for whoever has to be told. */
-export interface ManagerChangeDone {
-  /** The new manager's review in each cycle, made or given back. */
-  readonly given: readonly { readonly cycleId: string; readonly reviewId: string }[];
-  /** An old manager's review that is theirs no more: removed, or kept to read. */
-  readonly taken: readonly {
-    readonly cycleId: string;
-    readonly reviewId: string;
-    readonly authorId: string;
-    readonly change: 'remove' | 'outdate';
-  }[];
-}
-
 /**
  * A subject's manager review as the overview shows it: their current
  * manager's, else whichever is still standing (a former manager's, HR having
@@ -754,212 +740,6 @@ export interface ManagerChangeDone {
 function managerReviewOf(about: readonly Review[], managerId: string | null): Review | undefined {
   const theirs = about.filter((r) => r.kind === 'manager' && r.status !== 'cancelled');
   return theirs.find((r) => r.authorId === managerId) ?? theirs[0];
-}
-
-/** The running cycles a manager change can touch: the subject is in it, and it has manager reviews. */
-async function cyclesWithManagerReviews(tx: Tx, personId: string): Promise<Cycle[]> {
-  return (await tx.cycles.find()).filter(
-    (c) =>
-      c.state === 'in_progress' &&
-      c.activities.manager.on &&
-      c.snapshot?.subjects.includes(personId) === true,
-  );
-}
-
-/**
- * §8.8: a subject's manager changed, and HR chose to hand their manager
- * reviews over. In every running cycle they are in, the manager review
- * becomes the new manager's: the old one stays beside it once submitted, goes
- * if it was not started, and stays its writer's to read or delete if it was in
- * progress, no longer to be submitted. Both are marked, so each manager's
- * Inbox can say what changed. The new manager's is due when the old one was,
- * never sooner than a week from today; one they had before (they were the
- * manager once already) comes back rather than a second one. Without a new
- * manager, only the old reviews change.
- */
-export async function managerChanged(
-  tx: Tx,
-  newId: () => string,
-  input: {
-    readonly personId: string;
-    readonly managerId: string | null;
-    readonly at: string;
-    readonly today: CalendarDate;
-  },
-): Promise<ManagerChangeDone> {
-  const given: ManagerChangeDone['given'][number][] = [];
-  const taken: ManagerChangeDone['taken'][number][] = [];
-  for (const c of await cyclesWithManagerReviews(tx, input.personId)) {
-    const theirs = (await tx.reviews.find({ cycleId: c.id, subjectId: input.personId })).filter(
-      (r) => r.kind === 'manager',
-    );
-    const mark = { at: input.at, to: input.managerId };
-    for (const r of theirs) {
-      const change = onManagerChange(r, input.managerId);
-      if (change === 'keep') continue;
-      await tx.reviews.save({
-        ...r,
-        ...(change === 'remove' ? { status: 'cancelled' as const } : {}),
-        formerManager: mark,
-      });
-      taken.push({ cycleId: c.id, reviewId: r.id, authorId: r.authorId, change });
-    }
-    if (input.managerId === null) continue;
-    const pin = c.snapshot?.pinned.manager;
-    if (pin === undefined) continue;
-    const before = theirs.find((r) => r.authorId === input.managerId);
-    const old = theirs.find((r) => r.authorId !== input.managerId && r.status !== 'cancelled');
-    const handover = { from: old?.authorId ?? input.managerId, note: HANDED_OVER };
-    if (before !== undefined) {
-      // Theirs again: back as it was, and theirs to submit.
-      await tx.reviews.save({ ...reattach(before), formerManager: null, handover });
-      given.push({ cycleId: c.id, reviewId: before.id });
-      continue;
-    }
-    const due0 = old?.due ?? c.snapshot?.due.manager ?? addDays(c.start.date, 14);
-    const floor = addDays(input.today, 7);
-    const id = newId();
-    await tx.reviews.save({
-      ...newReview({
-        id,
-        cycleId: c.id,
-        kind: 'manager',
-        subjectId: input.personId,
-        authorId: input.managerId,
-        templateId: old?.templateId ?? pin.templateId,
-        version: old?.version ?? pin.version,
-        due: due0 < floor ? floor : due0,
-        confidential: false,
-        hidden: false,
-        goals: old?.goals ?? [],
-        at: input.at,
-      }),
-      ...(old === undefined ? {} : { handover }),
-    });
-    given.push({ cycleId: c.id, reviewId: id });
-  }
-  return { given, taken };
-}
-
-const HANDED_OVER = 'Their manager changed, so you write their manager review now.';
-
-/**
- * §8.8: what changing a person's manager would do to their manager reviews,
- * asked before the change is made (People's confirm, through the shell). A
- * question only where a running cycle has a manager review someone else is
- * still to write or has written; null otherwise.
- */
-export async function managerChangeImpact(
-  ctx: Ctx,
-  personId: string,
-  managerId: string | null,
-): Promise<Result<unknown>> {
-  const may = hrOnly(ctx);
-  if (!may.ok) return may;
-  const name = await names(ctx);
-  const cycles: { id: string; name: string; from: string[]; pending: number }[] = [];
-  for (const c of await cyclesWithManagerReviews(ctx.tx, personId)) {
-    const others = (await ctx.tx.reviews.find({ cycleId: c.id, subjectId: personId })).filter(
-      (r) => r.kind === 'manager' && r.authorId !== managerId && r.status !== 'cancelled',
-    );
-    if (others.length === 0) continue;
-    cycles.push({
-      id: c.id,
-      name: c.name,
-      from: [...new Set(others.map((r) => name(r.authorId)))],
-      pending: others.filter((r) => onManagerChange(r, managerId) !== 'keep').length,
-    });
-  }
-  if (cycles.length === 0) return ok({ question: null });
-  const who = name(personId);
-  const to = managerId === null ? null : name(managerId);
-  const from = [...new Set(cycles.flatMap((c) => c.from))].join(' and ');
-  const where = cycles.map((c) => c.name).join(', ');
-  const pending = cycles.reduce((n, c) => n + c.pending, 0);
-  return ok({
-    question: {
-      id: 'performance.manager-reviews',
-      title: `${who}’s manager review in ${where}`,
-      description:
-        pending === 0
-          ? `${from} has already submitted it.`
-          : `${from} still has ${pending === 1 ? 'it' : `${String(pending)} of them`} to write.`,
-      options: [
-        {
-          id: 'reassign',
-          label: to === null ? `Take it from ${from}` : `Give it to ${to}`,
-          description:
-            to === null
-              ? 'An unstarted one is removed; a draft stays for them to read, and cannot be submitted.'
-              : `${to} writes their own. ${from}’s stays if submitted, goes if not started, and a draft is kept to read but cannot be submitted. Both are told.`,
-        },
-        {
-          id: 'keep',
-          label: `Leave it with ${from}`,
-          description: `${from} writes it as planned.`,
-        },
-      ],
-      value: 'reassign',
-    },
-  });
-}
-
-/**
- * §8.8: HR confirmed a manager change and chose to hand the manager reviews
- * over. Carried out as `managerChanged`; then the new manager hears what is
- * theirs to write, and an old manager who had one still to write hears that
- * they no longer need to, by email and the chat app (the Inbox shows both).
- */
-export async function applyManagerChange(
-  ctx: Ctx,
-  input: { readonly personId: string; readonly managerId: string | null },
-): Promise<Result<{ given: number; taken: number }>> {
-  const may = hrOnly(ctx);
-  if (!may.ok) return may;
-  const done = await managerChanged(ctx.tx, ctx.deps.newId, {
-    ...input,
-    at: ctx.at,
-    today: ctx.today,
-  });
-  const name = await names(ctx);
-  const members = await ctx.members();
-  const email = (id: string): string | null =>
-    members.find((m) => m.personId === id)?.workEmail ?? null;
-  const cycleName = new Map((await ctx.tx.cycles.find()).map((c) => [c.id, c.name] as const));
-  const who = name(input.personId);
-  const to = input.managerId === null ? null : name(input.managerId);
-  const at = ctx.at.slice(0, 10);
-  if (input.managerId !== null && done.given.length > 0) {
-    const address = email(input.managerId);
-    const where = done.given.map((g) => cycleName.get(g.cycleId) ?? 'a cycle').join(', ');
-    if (address !== null)
-      ctx.mail.push({
-        to: address,
-        subject: `You write ${who}’s manager review`,
-        text: `Hi ${name(input.managerId)}, ${who} reports to you now, so their manager review in ${where} is yours to write. Open Kithena to start it.`,
-        dedupeKey: `manager-change:given:${input.personId}:${input.managerId}:${at}`,
-      });
-  }
-  for (const authorId of new Set(done.taken.map((t) => t.authorId))) {
-    const address = email(authorId);
-    if (address === null) continue;
-    const mine = done.taken.filter((t) => t.authorId === authorId);
-    const where = [...new Set(mine.map((t) => cycleName.get(t.cycleId) ?? 'a cycle'))].join(', ');
-    const draft = mine.some((t) => t.change === 'outdate');
-    ctx.mail.push({
-      to: address,
-      subject: `You no longer write ${who}’s manager review`,
-      text: `Hi ${name(authorId)}, ${who} ${to === null ? 'no longer reports to you' : `reports to ${to} now`}, so you are no longer a manager reviewer for them in ${where} and do not have to submit it.${draft ? ' Your draft stays in Kithena for you to read until you delete it.' : ''}`,
-      dedupeKey: `manager-change:taken:${input.personId}:${authorId}:${at}`,
-    });
-  }
-  await audit(ctx, {
-    kind: 'review',
-    action: 'Handed manager reviews to a new manager',
-    target: `${who}${to === null ? '' : ` · to ${to}`}`,
-    targetId: input.personId,
-  });
-  return ok({ given: done.given.length, taken: done.taken.length });
 }
 
 /** Option 1 (§14.6): every goal of the subject's in periods that overlap the review period. */

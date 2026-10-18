@@ -130,31 +130,35 @@ interface ChangeQuestion {
 }
 
 /**
- * What changing someone's manager touches beyond People, asked before it is
- * made: today Performance's manager reviews in a running cycle. A company
- * without Performance, or a cycle with nothing to hand over, asks nothing.
+ * What changing these people's manager touches beyond People, asked before it
+ * is made: today Performance's manager reviews in a running cycle. A company
+ * without Performance, or nothing to hand over, asks nothing.
  */
 export async function managerChangeQuestions(
-  personId: string,
+  personIds: readonly string[],
   managerId: string | null,
 ): Promise<readonly ChangeQuestion[]> {
   const asked = await performance<{ question: ChangeQuestion | null }>(
     'PerformanceManagerChangeImpact',
-    { personId, managerId },
+    { personIds: personIds.join(','), managerId },
   );
   return asked.ok && asked.data.question !== null ? [asked.data.question] : [];
 }
 
-/** HR's answers carried out once the new manager is saved: Performance's reviews handed over, or left. */
+/**
+ * HR's answers, sent once the change is made (or sent for approval, or dated):
+ * Performance keeps a hand-over and carries it out when the change takes
+ * effect; leave-as-is forgets any earlier one.
+ */
 export async function applyManagerChange(
-  personId: string,
+  personIds: readonly string[],
   managerId: string | null,
   answers: Readonly<Record<string, string>>,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  if (answers['performance.manager-reviews'] !== 'reassign') return { ok: true };
-  const done = await performance('ApplyPerformanceManagerChange', {
-    personId,
-    input: { managerId },
+  const choice = answers['performance.manager-reviews'];
+  if (choice === undefined) return { ok: true };
+  const done = await performance('ChoosePerformanceManagerHandover', {
+    input: { personIds, managerId, handOver: choice === 'reassign' },
   });
   return done.ok
     ? { ok: true }

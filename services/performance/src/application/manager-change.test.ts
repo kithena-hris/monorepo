@@ -4,7 +4,10 @@ import type { CalendarDate, TenantId } from '@kithena/contracts';
 import { draftCycle, type Cycle } from '../domain/cycle.js';
 import { newReview, type Review } from '../domain/review.js';
 import { memoryUnitOfWork } from '../testing/memory.js';
-import { managerChanged } from './cycles.js';
+import type { PersonId } from '@kithena/contracts';
+
+import type { Member } from './ports.js';
+import { leaverManagerReviews, managerChanged, onReportingLineMoved } from './manager-change.js';
 
 const TENANT = '00000000-0000-4000-8000-00000000000a' as TenantId;
 const day = (s: string) => s as CalendarDate;
@@ -112,5 +115,91 @@ describe('a manager change in a running cycle (§8.8)', () => {
     const all = await w.all();
     expect(all).toHaveLength(1);
     expect(all[0]?.status).toBe('cancelled');
+  });
+});
+
+const member = (personId: string, patch: Partial<Member> = {}): Member => ({
+  personId: personId as PersonId,
+  accountId: null,
+  displayName: `${personId.charAt(0).toUpperCase()}${personId.slice(1)}`,
+  workEmail: `${personId}@acme.example`,
+  managerPersonId: null,
+  status: 'active',
+  title: null,
+  orgUnitId: null,
+  locationId: null,
+  legalEntityId: null,
+  hiredOn: null,
+  probationEnd: null,
+  ...patch,
+});
+
+/** A running cycle, Adam's manager review with Marco, and whoever is in the projection. */
+async function company(members: readonly Member[], review: Partial<Review> = {}) {
+  const { uow } = memoryUnitOfWork();
+  await uow.run(TENANT, async (tx) => {
+    await tx.cycles.save(running);
+    await tx.reviews.save(managerReview('marcos', 'adam', review));
+    for (const m of members) await tx.members.upsert(m, `e-${m.personId}`);
+  });
+  let n = 0;
+  const newId = () => `new-${String(++n)}`;
+  const run = <T>(fn: (tx: Parameters<Parameters<typeof uow.run>[1]>[0]) => Promise<T>) =>
+    uow.run(TENANT, fn);
+  return { run, newId };
+}
+
+describe('a manager change as it reaches Performance (§8.8)', () => {
+  const moved = (managerId: string, previousManagerId = 'marco') => ({
+    personId: 'adam',
+    previousManagerId,
+    managerId,
+    at: AT,
+    today: day('2026-11-20'),
+  });
+
+  it('hands over only where HR chose it for this very change, and tells both', async () => {
+    const w = await company([member('adam'), member('marco'), member('priya')], {
+      status: 'in_progress',
+    });
+    // No choice kept: the old manager writes it as planned.
+    expect(await w.run((tx) => onReportingLineMoved(tx, w.newId, moved('priya')))).toEqual([]);
+    await w.run((tx) => tx.settings.set('manager-handover:adam', { managerId: 'priya', at: AT }));
+    // A choice for someone else is not this change's.
+    expect(await w.run((tx) => onReportingLineMoved(tx, w.newId, moved('zoe')))).toEqual([]);
+    const told = await w.run((tx) => onReportingLineMoved(tx, w.newId, moved('priya')));
+    expect(told.map((m) => m.to).toSorted()).toEqual(['marco@acme.example', 'priya@acme.example']);
+    expect(told.find((m) => m.to === 'marco@acme.example')?.text).toContain('draft stays');
+    // Carried out once: the choice is spent.
+    expect(await w.run((tx) => tx.settings.get('manager-handover:adam'))).toBeNull();
+  });
+
+  it('hands over without asking when the old manager has left, telling only the new one', async () => {
+    const w = await company(
+      [member('adam'), member('marco', { status: 'terminated' }), member('priya')],
+      { status: 'cancelled' },
+    );
+    const told = await w.run((tx) => onReportingLineMoved(tx, w.newId, moved('priya')));
+    expect(told.map((m) => m.to)).toEqual(['priya@acme.example']);
+    const priyas = await w.run((tx) => tx.reviews.find({ ownerId: 'priya' }));
+    expect(priyas).toHaveLength(1);
+    expect(priyas[0]?.handover?.from).toBe('marco');
+  });
+
+  it('gives a leaver’s cancelled review to the manager their report already moved to', async () => {
+    const w = await company(
+      [member('adam', { managerPersonId: 'priya' as PersonId }), member('marco'), member('priya')],
+      { status: 'cancelled' },
+    );
+    const told = await w.run((tx) =>
+      leaverManagerReviews(tx, w.newId, {
+        leaverId: 'marco',
+        cancelled: [{ subjectId: 'adam', cycleId: 'c1' }],
+        at: AT,
+        today: day('2026-11-20'),
+      }),
+    );
+    expect(told.map((m) => m.to)).toEqual(['priya@acme.example']);
+    expect(await w.run((tx) => tx.reviews.find({ ownerId: 'priya' }))).toHaveLength(1);
   });
 });
