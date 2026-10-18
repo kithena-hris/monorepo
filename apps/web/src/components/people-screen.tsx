@@ -1067,6 +1067,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onTabChange: (tab: string) => {
             go(`/settings/people/integrations${tab === 'overview' ? '' : `/${tab}`}`);
           },
+          tabsAt: '/settings/people/integrations',
           ...dialog,
           scim: {
             onConnect: async (system: string) => {

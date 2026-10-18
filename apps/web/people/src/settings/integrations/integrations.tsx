@@ -108,6 +108,12 @@ export interface IntegrationsProps {
   readonly tab?: string | null;
   readonly onTabChange?: (tab: string) => void;
   /**
+   * The overview's address, each other tab at `<tabsAt>/<tab>`. Given, an
+   * overview card opens its tab as a link, which works before the screen has
+   * hydrated; a button drawn by the server does nothing until then.
+   */
+  readonly tabsAt?: string;
+  /**
    * The dialog open over the tab, held by the host so a link opens it in the
    * server's HTML: `endpoint` to add a webhook endpoint, `connect` to connect
    * a system over SCIM. Any other value is closed.
@@ -211,6 +217,7 @@ function Endpoints({
   chat,
   tab: heldTab,
   onTabChange,
+  tabsAt,
   open: heldOpen,
   onOpenChange,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
@@ -262,6 +269,7 @@ function Endpoints({
               chatShown={chat !== undefined}
               scimShown={scim !== undefined}
               onOpen={setTab}
+              {...(tabsAt === undefined ? {} : { tabsAt })}
             />
             <Outgoing state={state} />
           </Stack>
@@ -364,11 +372,13 @@ function Directory({
   chatShown,
   scimShown,
   onOpen,
+  tabsAt,
 }: {
   readonly state: IntegrationsState;
   readonly chatShown: boolean;
   readonly scimShown: boolean;
   readonly onOpen: (tab: string) => void;
+  readonly tabsAt?: string;
 }): JSX.Element {
   const slack = state.chat?.apps.find((a) => a.key === 'slack');
   const live = state.endpoints.filter((e) => e.enabled);
@@ -445,16 +455,24 @@ function Directory({
               <p className="text-sm text-fg-muted">{c.says}</p>
             </CardContent>
             <CardFooter>
-              <Button
-                size="sm"
-                variant="secondary"
-                aria-label={`${c.action}: ${c.name}`}
-                onClick={() => {
-                  onOpen(c.id);
-                }}
-              >
-                {c.action}
-              </Button>
+              {tabsAt === undefined ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  aria-label={`${c.action}: ${c.name}`}
+                  onClick={() => {
+                    onOpen(c.id);
+                  }}
+                >
+                  {c.action}
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" asChild>
+                  <a href={`${tabsAt}/${c.id}`} aria-label={`${c.action}: ${c.name}`}>
+                    {c.action}
+                  </a>
+                </Button>
+              )}
             </CardFooter>
           </Card>
         ))}
