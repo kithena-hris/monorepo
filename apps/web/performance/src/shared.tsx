@@ -449,7 +449,7 @@ export function StepDialog({
           {children}
         </DialogBody>
         <DialogFooter>
-          <span className="mr-auto text-sm text-fg-muted">{`Step ${String(step + 1)} of ${String(steps.length)}`}</span>
+          <span className="mr-auto self-center px-1 text-sm text-fg-muted">{`Step ${String(step + 1)} of ${String(steps.length)}`}</span>
           <Button
             variant="secondary"
             onClick={() => {
@@ -459,7 +459,9 @@ export function StepDialog({
           >
             {step === 0 ? 'Cancel' : 'Back'}
           </Button>
+          {/* One primary per dialog, and it is the finish; Next is promoted, not primary. */}
           <Button
+            variant={lastStep ? 'primary' : 'tinted'}
             loading={pending === true}
             disabled={!canNext}
             onClick={() => {
