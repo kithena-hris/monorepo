@@ -34,6 +34,7 @@ import {
   EmptyState,
   Field,
   FieldControl,
+  FieldDescription,
   FieldLabel,
   IconList,
   IconListItem,
@@ -54,6 +55,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Separator,
   TertiaryNav,
   TimelineChart,
   type RowAction,
@@ -575,8 +577,8 @@ export interface SetupData {
   readonly action: 'launch' | 'schedule' | 'past';
 }
 
-/** Five steps, each one thing: when, who, which reviews, reminders, and how it ends. */
-const STEPS = ['Basics', 'People', 'Reviews', 'Reminders', 'Launch'];
+/** Four steps: when and what the subject sees, who, which reviews and their reminders, and a last look. */
+const STEPS = ['Basics', 'People', 'Reviews and reminders', 'Launch'];
 const ZONES = [
   'Europe/Madrid',
   'Europe/London',
@@ -669,24 +671,34 @@ function SetupDialog({
           />
         ) : null}
         {step === 2 ? <Reviews c={c} data={data} save={save} activity={activity} /> : null}
-        {step === 3 ? <RemindersStep c={c} save={save} /> : null}
-        {step === 4 ? <Launch c={c} data={data} save={save} /> : null}
+        {step === 3 ? <Launch c={c} data={data} /> : null}
       </StepDialog>
     </div>
   );
 }
 
+type BasicsOf = Pick<CycleSetup, 'name' | 'description' | 'start'> &
+  Partial<Pick<CycleSetup, 'visibility'>>;
+
+/**
+ * When it starts and, once the draft exists (`visibility` is known), what the
+ * subject sees when their reviews are written.
+ */
 function Basics({
   c,
   save,
   action,
 }: {
-  readonly c: Pick<CycleSetup, 'name' | 'description' | 'start'>;
-  readonly save: (p: Partial<Pick<CycleSetup, 'name' | 'description' | 'start'>>) => void;
+  readonly c: BasicsOf;
+  readonly save: (p: Partial<BasicsOf>) => void;
   readonly action: string;
 }): JSX.Element {
   const [name, setName] = useState(c.name);
   const [description, setDescription] = useState(c.description);
+  const v = c.visibility;
+  const set = (patch: Partial<CycleSetup['visibility']>): void => {
+    if (v !== undefined) save({ visibility: { ...v, ...patch } });
+  };
   return (
     <div className="flex flex-col gap-4">
       <Field required>
@@ -725,6 +737,13 @@ function Basics({
             }}
           />
         </FieldControl>
+        <FieldDescription {...(action === 'past' ? { tone: 'warning' } : {})}>
+          {action === 'launch'
+            ? 'Today, so it launches when you confirm.'
+            : action === 'past'
+              ? 'That day has passed: choose today or later.'
+              : 'Later, so it will be scheduled.'}
+        </FieldDescription>
       </Field>
       <Field>
         <FieldLabel>At</FieldLabel>
@@ -760,16 +779,85 @@ function Basics({
           </SelectContent>
         </Select>
       </Field>
-      <Alert
-        tone="info"
-        title={
-          action === 'launch'
-            ? 'Starts today, so it launches when you confirm'
-            : action === 'past'
-              ? 'That start has passed: choose today or later'
-              : 'Starts later, so it will be scheduled'
-        }
-      />
+      {v === undefined ? null : (
+        <>
+          <Separator />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold">What the subject sees</p>
+            <p className="text-sm text-fg-muted">Their manager and HR always see who wrote what.</p>
+          </div>
+          <Field>
+            <FieldLabel>Their reviews reach them</FieldLabel>
+            <RadioGroup
+              aria-label="Release"
+              className="flex flex-col gap-2"
+              value={v.release.mode}
+              onValueChange={(mode) => {
+                set({ release: { ...v.release, mode } });
+              }}
+            >
+              <RadioCard
+                value="manager"
+                description="The manager releases each one once it is submitted."
+              >
+                As each is submitted
+              </RadioCard>
+              <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
+                On a date
+              </RadioCard>
+              <RadioCard
+                value="close"
+                description="When the cycle closes, after calibration if it has one."
+              >
+                When the cycle closes
+              </RadioCard>
+            </RadioGroup>
+          </Field>
+          {v.release.mode === 'hr_date' ? (
+            <Field>
+              <FieldLabel>Release on</FieldLabel>
+              <FieldControl>
+                <DatePicker
+                  label="Release on"
+                  value={v.release.date}
+                  onChange={(date) => {
+                    set({ release: { ...v.release, date } });
+                  }}
+                />
+              </FieldControl>
+            </Field>
+          ) : null}
+          <div className="flex flex-col">
+            <SwitchRow
+              label="Ask for an acknowledgement"
+              hint="“I’ve read this” is not agreement."
+              checked={v.acknowledge}
+              onChange={(ack) => {
+                set({ acknowledge: ack });
+              }}
+            />
+            <SwitchRow
+              label="Let the subject comment"
+              hint="Shown to the manager and HR"
+              checked={v.subjectComment}
+              onChange={(comment) => {
+                set({ subjectComment: comment });
+              }}
+            />
+          </div>
+          <NumberField
+            label="Response minimum"
+            hint="Confidential answers show only once this many are in."
+            value={v.minimum}
+            suffix={unit(v.minimum, 'answer')}
+            min={1}
+            max={20}
+            onChange={(n) => {
+              if (n !== null) set({ minimum: n });
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -1109,6 +1197,23 @@ function Participants({
   ];
   return (
     <div className="flex flex-col gap-3">
+      {/* The settings first; the list of who is in scrolls last. */}
+      <SwitchRow
+        label="Keep in step"
+        hint="People who start matching are added; people who stop matching are listed for you to decide."
+        checked={c.participants.keepInStep}
+        onChange={(on) => {
+          participants({ keepInStep: on });
+        }}
+      />
+      {p.noLongerMatches.length === 0 ? null : (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-semibold">{`No longer matches · ${String(p.noLongerMatches.length)}`}</p>
+          {p.noLongerMatches.map((n) => (
+            <Person key={n.personId} name={n.name} sub={n.title} />
+          ))}
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <Input
           aria-label="Describe who should be in, in words"
@@ -1296,22 +1401,6 @@ function Participants({
           />
         }
       />
-      <SwitchRow
-        label="Keep in step"
-        hint="People who start matching are added; people who stop matching are listed for you to decide."
-        checked={c.participants.keepInStep}
-        onChange={(on) => {
-          participants({ keepInStep: on });
-        }}
-      />
-      {p.noLongerMatches.length === 0 ? null : (
-        <div className="mt-3 flex flex-col gap-2">
-          <p className="text-sm font-semibold">{`No longer matches · ${String(p.noLongerMatches.length)}`}</p>
-          {p.noLongerMatches.map((n) => (
-            <Person key={n.personId} name={n.name} sub={n.title} />
-          ))}
-        </div>
-      )}
       <Modal
         open={excluding !== null}
         onClose={() => {
@@ -1364,7 +1453,7 @@ function Participants({
   );
 }
 
-/** Which reviews, each with its form, when it is due and its settings; goals; reminders. */
+/** Which reviews, each with its form, when it is due and its settings; goals; then reminders and the plan. */
 function Reviews({
   c,
   data,
@@ -1378,7 +1467,12 @@ function Reviews({
 }): JSX.Element {
   // The peer range while a thumb is held; saved when it is let go.
   const [dragging, setDragging] = useState<readonly [number, number] | null>(null);
-  const peers = dragging ?? ([c.peer.min, c.peer.max] as const);
+  const peers = dragging ?? ([c.peer.min, Math.min(PEERS_MAX, c.peer.max)] as const);
+  const identity =
+    (key: 'peerNames' | 'upwardNames') =>
+    (next: string): void => {
+      save({ visibility: { ...c.visibility, [key]: next } });
+    };
   return (
     <div className="flex flex-col gap-4">
       {KINDS.filter((k) => k !== 'goals').map((k) => {
@@ -1486,24 +1580,29 @@ function Reviews({
                       />
                     </>
                   )}
-                  <Slider
-                    label="Peer reviewers per person"
-                    thumbLabels={['At least', 'At most']}
-                    valueDisplay={`${String(peers[0])} to ${String(peers[1])}`}
-                    min={0}
-                    max={20}
-                    showTicks
-                    labels={Array.from({ length: 21 }, (_, i) => String(i))}
-                    value={[...peers]}
-                    onValueChange={([lo = peers[0], hi = peers[1]]) => {
-                      setDragging([lo, Math.max(1, hi)]);
-                    }}
-                    // Saved once, when the thumb is let go, not at every step of the drag.
-                    onValueCommit={([lo = peers[0], hi = peers[1]]) => {
-                      setDragging(null);
-                      save({ peer: { ...c.peer, min: lo, max: Math.max(1, hi) } });
-                    }}
-                  />
+                  <Field>
+                    <FieldLabel>Peer reviewers per person</FieldLabel>
+                    <FieldControl>
+                      <Slider
+                        label="Peer reviewers per person"
+                        thumbLabels={['At least', 'At most']}
+                        valueDisplay={`${String(peers[0])} to ${String(peers[1])}`}
+                        min={0}
+                        max={PEERS_MAX}
+                        showTicks
+                        labels={Array.from({ length: PEERS_MAX + 1 }, (_, i) => String(i))}
+                        value={[...peers]}
+                        onValueChange={([lo = peers[0], hi = peers[1]]) => {
+                          setDragging([lo, Math.max(1, hi)]);
+                        }}
+                        // Saved once, when the thumb is let go, not at every step of the drag.
+                        onValueCommit={([lo = peers[0], hi = peers[1]]) => {
+                          setDragging(null);
+                          save({ peer: { ...c.peer, min: lo, max: Math.max(1, hi) } });
+                        }}
+                      />
+                    </FieldControl>
+                  </Field>
                   <SwitchRow
                     label="A reviewer can decline, and is replaced"
                     checked={c.peer.declineReplace}
@@ -1511,35 +1610,108 @@ function Reviews({
                       save({ peer: { ...c.peer, declineReplace: on } });
                     }}
                   />
+                  <Identity value={c.visibility.peerNames} onChange={identity('peerNames')} />
+                  <SwitchRow
+                    label="Share the peer summary"
+                    hint="Peer answers, without names"
+                    checked={c.visibility.peerSummary}
+                    onChange={(peerSummary) => {
+                      save({ visibility: { ...c.visibility, peerSummary } });
+                    }}
+                  />
                 </>
+              ) : null}
+              {k === 'upward' && a.on ? (
+                <Identity value={c.visibility.upwardNames} onChange={identity('upwardNames')} />
               ) : null}
             </CardContent>
           </Card>
         );
       })}
-      <Field>
-        <FieldLabel>Goals</FieldLabel>
-        <RadioGroup
-          aria-label="Goals"
-          className="flex flex-col gap-2"
-          value={c.goals}
-          onValueChange={(v) => {
-            save({ goals: v as CycleSetup['goals'] });
-          }}
-        >
-          <RadioCard value="none">Not part of this cycle</RadioCard>
-          <RadioCard
-            value="context"
-            description="Reviewers see each person’s goals beside the form."
-          >
-            Shown beside the review
-          </RadioCard>
-          <RadioCard value="scored" description="A section is added with each goal and its score.">
-            Scored in the review
-          </RadioCard>
-        </RadioGroup>
-      </Field>
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <SwitchRow
+            label="Goals"
+            hint={c.goals === 'none' ? 'Not in this cycle' : 'Part of this cycle'}
+            checked={c.goals !== 'none'}
+            onChange={(on) => {
+              save({ goals: on ? 'context' : 'none' });
+            }}
+          />
+          {c.goals === 'none' ? null : (
+            <RadioGroup
+              aria-label="How goals are used"
+              className="flex flex-col gap-2"
+              value={c.goals}
+              onValueChange={(v) => {
+                save({ goals: v as CycleSetup['goals'] });
+              }}
+            >
+              <RadioCard
+                value="context"
+                description="Reviewers see each person’s goals beside the form."
+              >
+                Shown beside the review
+              </RadioCard>
+              <RadioCard
+                value="scored"
+                description="A section is added with each goal and its score."
+              >
+                Scored in the review
+              </RadioCard>
+            </RadioGroup>
+          )}
+        </CardContent>
+      </Card>
+      <Separator />
+      <ReminderOptions
+        kind="Reviews"
+        value={c.reminders}
+        onChange={(reminders) => {
+          // One rule for all: any kind's own rules from before give way.
+          const activities = Object.fromEntries(
+            KINDS.map((k) => {
+              const { reminders: _own, ...rest } = c.activities[k];
+              return [k, rest];
+            }),
+          ) as unknown as CycleSetup['activities'];
+          save({ reminders, activities });
+        }}
+      />
+      <CyclePlan c={c} edit={{ mode: 'setup', c, save }} />
     </div>
+  );
+}
+
+/** The most peer reviewers a person can be given; more than this is a chore, not a review. */
+const PEERS_MAX = 8;
+
+/** Whether the subject learns who wrote a peer or an upward review. */
+function Identity({
+  value,
+  onChange,
+}: {
+  readonly value: string;
+  readonly onChange: (next: string) => void;
+}): JSX.Element {
+  return (
+    <Field>
+      <FieldLabel>Reviewer identity</FieldLabel>
+      <Select value={value} onValueChange={onChange}>
+        <FieldControl>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+        </FieldControl>
+        <SelectContent>
+          {NAMES.map(([x, l]) => (
+            <SelectItem key={x} value={x}>
+              {l}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
   );
 }
 
@@ -1548,6 +1720,7 @@ const NAMES = [
   ['shown', 'Shown to the subject'],
   ['writer', 'The writer chooses'],
 ] as const;
+const NAME_LABEL: Readonly<Record<string, string>> = Object.fromEntries(NAMES);
 
 /** One kind of review's reminders: when, and by which channels besides the Inbox. */
 function ReminderOptions({
@@ -1608,43 +1781,6 @@ function ReminderOptions({
 
 /** "3 days", "1 answer": the unit a number field counts in, after it. */
 const unit = (n: number, one: string): string => (n === 1 ? one : `${one}s`);
-
-/**
- * One set of reminders for every review in the cycle. Each deadline is
- * relative, so the same rules land on different days for each review: the
- * plan underneath shows where.
- */
-function RemindersStep({
-  c,
-  save,
-}: {
-  readonly c: CycleSetup;
-  readonly save: (p: Partial<CycleSetup>) => void;
-}): JSX.Element {
-  return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent>
-          <ReminderOptions
-            kind="Reviews"
-            value={c.reminders}
-            onChange={(reminders) => {
-              // One rule for all: any kind's own rules from before give way.
-              const activities = Object.fromEntries(
-                KINDS.map((k) => {
-                  const { reminders: _own, ...rest } = c.activities[k];
-                  return [k, rest];
-                }),
-              ) as unknown as CycleSetup['activities'];
-              save({ reminders, activities });
-            }}
-          />
-        </CardContent>
-      </Card>
-      <CyclePlan c={c} edit={{ mode: 'setup', c, save }} />
-    </div>
-  );
-}
 
 /** What may be changed on the plan: a draft's setup, or a running cycle's deadlines. */
 type PlanEdit =
@@ -2016,23 +2152,12 @@ const PICKER: Readonly<Record<string, string>> = {
 };
 
 /**
- * The last step: whether anything stops it, what launches (who, when, and each
- * review with its form and deadline, in the plan's colours), the plan, and what
- * the subject sees once it is written.
+ * The last step, a last look and nothing to set: whether anything stops it,
+ * what launches (who, when, and each review with its form and deadline, in the
+ * plan's colours), the plan, and what the subject sees once it is written.
  */
-function Launch({
-  c,
-  data,
-  save,
-}: {
-  readonly c: CycleSetup;
-  readonly data: SetupData;
-  readonly save: (p: Partial<CycleSetup>) => void;
-}): JSX.Element {
+function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData }): JSX.Element {
   const v = c.visibility;
-  const set = (patch: Partial<CycleSetup['visibility']>): void => {
-    save({ visibility: { ...v, ...patch } });
-  };
   const blocks = data.checks.filter((i) => i.level === 'block').length;
   const warns = data.checks.filter((i) => i.level === 'warn').length;
   const on = KINDS.filter((k) => k !== 'goals' && c.activities[k].on);
@@ -2044,30 +2169,6 @@ function Launch({
       ? 'No form chosen yet'
       : `${t.name} · v${String(t.published ?? 1)} · ${plural(t.questions, 'question')}`;
   };
-  const names = (label: string, value: string, key: 'peerNames' | 'upwardNames'): JSX.Element => (
-    <Field>
-      <FieldLabel>{label}</FieldLabel>
-      <Select
-        value={value}
-        onValueChange={(x) => {
-          set({ [key]: x });
-        }}
-      >
-        <FieldControl>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-        </FieldControl>
-        <SelectContent>
-          {NAMES.map(([x, l]) => (
-            <SelectItem key={x} value={x}>
-              {l}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
   return (
     <div className="flex flex-col gap-5">
       <Card>
@@ -2183,94 +2284,36 @@ function Launch({
           )}
         </CardContent>
       </Card>
-      <CyclePlan c={c} edit={{ mode: 'setup', c, save }} />
+      <CyclePlan c={c} />
       <Card>
         <CardHeader>
           <CardTitle level={3}>What the subject sees</CardTitle>
-          <p className="text-sm text-fg-muted">Their manager and HR always see who wrote what.</p>
+          <p className="text-sm text-fg-muted">Set in Basics and Reviews; this is a last look.</p>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <Field>
-            <FieldLabel>Their reviews reach them</FieldLabel>
-            <RadioGroup
-              aria-label="Release"
-              className="grid gap-2 sm:grid-cols-3"
-              value={v.release.mode}
-              onValueChange={(mode) => {
-                set({ release: { ...v.release, mode } });
-              }}
-            >
-              <RadioCard
-                value="manager"
-                description="The manager releases each one once it is submitted."
-              >
-                As each is submitted
-              </RadioCard>
-              <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
-                On a date
-              </RadioCard>
-              <RadioCard
-                value="close"
-                description="When the cycle closes, after calibration if it has one."
-              >
-                When the cycle closes
-              </RadioCard>
-            </RadioGroup>
-          </Field>
-          {v.release.mode === 'hr_date' ? (
-            <Field>
-              <FieldLabel>Release on</FieldLabel>
-              <FieldControl>
-                <DatePicker
-                  label="Release on"
-                  value={v.release.date}
-                  onChange={(date) => {
-                    set({ release: { ...v.release, date } });
-                  }}
-                />
-              </FieldControl>
-            </Field>
-          ) : null}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {names('Peer reviews: the writers’ names', v.peerNames, 'peerNames')}
-            {names('Upward reviews: the writers’ names', v.upwardNames, 'upwardNames')}
-          </div>
-          <div className="flex flex-col">
-            <SwitchRow
-              label="Ask for an acknowledgement"
-              hint="“I’ve read this” is not agreement."
-              checked={v.acknowledge}
-              onChange={(ack) => {
-                set({ acknowledge: ack });
-              }}
-            />
-            <SwitchRow
-              label="Let the subject comment"
-              hint="Shown to the manager and HR"
-              checked={v.subjectComment}
-              onChange={(comment) => {
-                set({ subjectComment: comment });
-              }}
-            />
-            <SwitchRow
-              label="Share the peer summary"
-              hint="Peer answers, without names"
-              checked={v.peerSummary}
-              onChange={(summary) => {
-                set({ peerSummary: summary });
-              }}
-            />
-          </div>
-          <NumberField
-            label="Response minimum"
-            hint="Confidential answers show only once this many are in."
-            value={v.minimum}
-            suffix={unit(v.minimum, 'answer')}
-            min={1}
-            max={20}
-            onChange={(n) => {
-              if (n !== null) set({ minimum: n });
-            }}
+        <CardContent>
+          <KeyValues
+            items={[
+              {
+                label: 'Their reviews reach them',
+                value:
+                  v.release.mode === 'hr_date' && v.release.date !== null
+                    ? `On ${day(v.release.date)}`
+                    : (RELEASE_LABEL[v.release.mode] ?? v.release.mode),
+              },
+              ...(c.activities.peer.on
+                ? [{ label: 'Peer reviewers', value: NAME_LABEL[v.peerNames] ?? v.peerNames }]
+                : []),
+              ...(c.activities.upward.on
+                ? [{ label: 'Upward reviewers', value: NAME_LABEL[v.upwardNames] ?? v.upwardNames }]
+                : []),
+              { label: 'Acknowledgement', value: v.acknowledge ? 'Asked for' : 'Not asked for' },
+              { label: 'Their comment', value: v.subjectComment ? 'Allowed' : 'Not allowed' },
+              {
+                label: 'Peer summary',
+                value: v.peerSummary ? 'Shared, without names' : 'Kept back',
+              },
+              { label: 'Response minimum', value: plural(v.minimum, 'answer') },
+            ]}
           />
         </CardContent>
       </Card>
