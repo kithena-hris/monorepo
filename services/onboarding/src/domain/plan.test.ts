@@ -117,6 +117,8 @@ describe('a plan (§O4)', () => {
   });
 
   it('opens a goal or a training task in Performance unless the template says where', () => {
+    const [first] = template.tasks;
+    if (first === undefined) throw new Error('the template has no task to copy');
     const goals = buildPlan({
       id: 'plan2',
       hireId: 'h1',
@@ -125,8 +127,8 @@ describe('a plan (§O4)', () => {
         {
           ...template,
           tasks: [
-            { ...template.tasks[0]!, key: 'goal', kind: 'goal', link: null },
-            { ...template.tasks[0]!, key: 'course', kind: 'training', link: '/course/1' },
+            { ...first, key: 'goal', kind: 'goal', link: null },
+            { ...first, key: 'course', kind: 'training', link: '/course/1' },
           ],
         },
       ],
