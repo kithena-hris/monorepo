@@ -274,9 +274,14 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 
 ## Phase 4 — with the suite
 
-- [ ] **REC-140** Documents: optional `subjectRef` on an envelope and its
+- [x] **REC-140** Documents: optional `subjectRef` on an envelope and its
       events (a Documents change); the shell flow from an accepted offer to an
       envelope; Recruiting consumes `documents.envelope.completed`. §21.2.
+      _Decided: the contract stays `generated` until the shell's "Send to
+      sign" files it through Documents' `fileDraft` (the accepted terms drawn
+      as a PDF, the candidate first by emailed code, then the sender for the
+      company) and tells Recruiting (`contractSent`). No envelope id is kept
+      in Recruiting: the state says it is out, and Documents owns the rest._
 - [ ] **REC-141** People consumes `recruiting.candidate.hired` (creates the
       `pre_hire`) and `recruiting.prehire.cancelled` (discards it): People's
       own consumer. §21.4.

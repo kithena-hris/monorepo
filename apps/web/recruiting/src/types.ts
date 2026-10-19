@@ -592,7 +592,8 @@ export interface OfferData {
     readonly approvalReasons: readonly string[];
   };
   readonly hash: string;
-  readonly candidate: { readonly id: string; readonly name: string };
+  readonly candidate: { readonly id: string; readonly name: string; readonly email: string };
+  readonly signatoryPersonId: string | null;
   readonly job: { readonly id: string; readonly title: string };
   readonly meta: { readonly grade: string | null; readonly outsideBandReason: string | null };
   readonly checked: {

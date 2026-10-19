@@ -1,0 +1,19 @@
+Done in 1.2s using pnpm v10.15.0
+  Time:    19.203s 
+
+== lint
+services/people/src/application/import/commit.test.ts:224:9: warning unicorn(consistent-function-scoping): Function `violation` does not capture any variables from its parent scope help: Move `violation` to the outer scope to avoid recreating it on every call.
+✖ 89 problems (0 errors, 89 warnings)
+  0 errors and 89 warnings potentially fixable with the `--fix` option.
+x 1 dependency violations (0 errors, 1 warnings). 2372 modules, 9139 dependencies cruised.
+== codegen
+codegen exit 0
+== supergraph
+[90m└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘[39m
+Router execution config successfully written to "/Users/akash_venugopal/code/kithena/apps/gateway/supergraph.json".
+== contracts
+      Tests  580 passed (580)
+-- test
+-- test:contract
+-- test:standalone
+-- test:integration

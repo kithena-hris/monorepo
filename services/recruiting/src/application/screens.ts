@@ -452,7 +452,13 @@ export async function offerScreen(ctx: Ctx, offerId: string): Promise<Result<unk
   return ok({
     offer,
     hash: versionHash(version),
-    candidate: { id: candidate?.id ?? '', name: candidate?.name ?? '' },
+    candidate: {
+      id: candidate?.id ?? '',
+      name: candidate?.name ?? '',
+      email: candidate?.email ?? '',
+    },
+    /** Who signs for the company when the shell sends the contract (PRD §21.2): the reader, as a member. */
+    signatoryPersonId: ctx.viewer.personId,
     job: { id: job.id, title: job.title },
     meta,
     checked: checked.ok ? checked.value : null,

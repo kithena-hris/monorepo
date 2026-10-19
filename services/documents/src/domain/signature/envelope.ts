@@ -85,6 +85,12 @@ export interface Envelope {
    * somebody signs, and on a request older than it.
    */
   readonly workingBlobKey?: string | null;
+  /**
+   * What another module filed this for, so it can match the completion
+   * without asking Documents anything: `recruiting:offer:<id>:<version>`
+   * (Recruiting PRD §21.2). Absent on a request made in Documents itself.
+   */
+  readonly subjectRef?: string | null;
 }
 
 export const CODE_MINUTES = 10;
@@ -136,6 +142,7 @@ export interface SendInput {
   readonly message: string;
   readonly dueOn: CalendarDate | null;
   readonly at: Instant;
+  readonly subjectRef?: string | null;
 }
 
 /** Where a document says to sign: a page, and the line's top left as fractions of it. */
@@ -226,6 +233,7 @@ export function send(input: SendInput): Result<Envelope> {
     completedAt: null,
     voidReason: null,
     signedVersion: null,
+    subjectRef: input.subjectRef ?? null,
   });
 }
 

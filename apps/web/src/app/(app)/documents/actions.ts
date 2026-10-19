@@ -1,12 +1,11 @@
 'use server';
 
-import { headers } from 'next/headers';
 
 import type { SignatureMark } from '@kithena/contracts';
 
-import { currentTenant } from '../../../lib/branding';
 import { keepMySignature } from '../../../lib/my-signature';
 import { documents, people, timeOff } from '../../../lib/people';
+import { signingOrigin } from '../../../lib/signing-origin';
 import { requestExport } from '../people/actions';
 
 /**
@@ -202,17 +201,7 @@ export async function fileLink(
 /* ------------------------------------------------- signatures (K1–K10) -- */
 
 /** Where a signing link points and whose name is on the email: this company's own host. */
-async function origin(): Promise<{ origin: string; companyName: string }> {
-  const inbound = await headers();
-  const host = inbound.get('x-forwarded-host') ?? inbound.get('host') ?? 'localhost:3000';
-  const proto =
-    inbound.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-  const tenant = await currentTenant();
-  return {
-    origin: `${proto}://${host}`,
-    companyName: tenant?.branding.displayName ?? tenant?.slug ?? host,
-  };
-}
+const origin = signingOrigin;
 
 export interface SignerInput {
   readonly personId: string | null;

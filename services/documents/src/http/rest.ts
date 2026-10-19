@@ -342,6 +342,13 @@ const OriginBody = {
   companyName: z.string().trim().min(1).max(120),
 };
 
+/** Another module's reference for the request, echoed on `envelope.completed`: `recruiting:offer:<id>:<version>`. */
+const SubjectRef = z
+  .string()
+  .regex(/^[a-z]+:[a-z_]+:[A-Za-z0-9:-]{1,120}$/u)
+  .nullable()
+  .default(null);
+
 /** The contract's signature: typed in a face, or drawn. */
 const Mark = SignatureMark;
 
@@ -814,6 +821,7 @@ export const ROUTES: readonly Route[] = [
       fields: z.array(FieldBody).max(200).default([]),
       message: z.string().max(2000).default(''),
       dueOn: CalendarDate.nullable().default(null),
+      subjectRef: SubjectRef,
       ...OriginBody,
     }),
     answer: Created,
@@ -1267,6 +1275,7 @@ export const ROUTES: readonly Route[] = [
         )
         .max(10),
       send: z.boolean(),
+      subjectRef: SubjectRef,
       ...OriginBody,
     }),
     answer: z

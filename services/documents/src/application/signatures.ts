@@ -125,6 +125,8 @@ export async function sendForSignature(
     readonly fields: readonly Field[];
     readonly message: string;
     readonly dueOn: CalendarDate | null;
+    /** Another module's reference, echoed on `envelope.completed` (Recruiting PRD §21.2). */
+    readonly subjectRef?: string | null;
   } & Origin,
 ): Promise<Result<{ id: string }>> {
   const mail: Mail[] = [];
@@ -198,6 +200,7 @@ export async function sendForSignature(
       message: input.message,
       dueOn: input.dueOn,
       at: ctx.at,
+      subjectRef: input.subjectRef ?? null,
     });
     if (!env.ok) return env;
     await tx.envelopes.save(env.value);
@@ -610,6 +613,7 @@ export async function sealEnvelope(
           documentId: doc.id,
           signedVersion: n,
           subjectPersonId: doc.subjectPersonId,
+          subjectRef: env.subjectRef ?? null,
         },
       ),
     ]);

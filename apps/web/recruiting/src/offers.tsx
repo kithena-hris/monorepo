@@ -1409,6 +1409,31 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                         ]}
                       />
                     )}
+                    {k !== null && k.route === 'documents' && k.state === 'generated' ? (
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-fg-muted">
+                          Drawn from the accepted terms; {data.candidate.name} signs first with an
+                          emailed code, then you for the company.
+                        </p>
+                        <Button
+                          loading={act.pending}
+                          onClick={() => {
+                            act.run('SendContract', { offerId: data.offer.id }, (made) => {
+                              const id = (made as { id?: string } | null)?.id;
+                              if (id !== undefined) props.onNavigate?.(`/documents/${id}`);
+                            });
+                          }}
+                        >
+                          Send to sign
+                        </Button>
+                      </div>
+                    ) : null}
+                    {k !== null && k.route === 'documents' && k.state === 'out_for_signature' ? (
+                      <p className="mt-4 text-sm text-fg-muted">
+                        Out for signature in Documents. It is signed here the moment the last
+                        signature lands.
+                      </p>
+                    ) : null}
                   </CardContent>
                 </Card>
                 {k !== null && k.state !== 'signed' && k.route !== 'documents' ? (
