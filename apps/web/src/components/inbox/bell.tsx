@@ -12,7 +12,6 @@ import {
   NotificationItem,
   SegmentedControl,
   SegmentedControlItem,
-  ToastProvider,
   icons,
   useToast,
 } from '@reach/ui';
@@ -135,18 +134,21 @@ function BellButton({
   );
 }
 
-/** The sidebar's Notifications row: the Inbox's peek opens beside it. A `NavItem`, so it goes inside a `NavList`. */
+/**
+ * The sidebar's Notifications row: the Inbox's peek opens beside it. A
+ * `NavItem`, so it goes inside a `NavList`, and the `ToastProvider` it needs
+ * (B3) sits outside that list: the provider renders the toasts' viewport, a
+ * list of its own, which cannot be a list's item.
+ */
 export function InboxBell({
   inbox,
 }: {
   readonly inbox: Promise<InboxPeek> | undefined;
 }): JSX.Element {
   return (
-    <ToastProvider>
-      <Suspense fallback={<BellButton todo={0} updates={0} />}>
-        {inbox === undefined ? <BellButton todo={0} updates={0} /> : <Bell inbox={inbox} />}
-      </Suspense>
-    </ToastProvider>
+    <Suspense fallback={<BellButton todo={0} updates={0} />}>
+      {inbox === undefined ? <BellButton todo={0} updates={0} /> : <Bell inbox={inbox} />}
+    </Suspense>
   );
 }
 

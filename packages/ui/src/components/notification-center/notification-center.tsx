@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  cloneElement,
   useId,
   useLayoutEffect,
   useRef,
@@ -9,6 +10,7 @@ import {
   type JSX,
   type ReactElement,
   type ReactNode,
+  type Ref,
   type RefObject,
 } from 'react';
 
@@ -231,7 +233,7 @@ export function NotificationItem({
 
 export interface NotificationCenterProps {
   /** The bell. Rendered as the trigger, so it must be one focusable element. */
-  trigger: ReactElement;
+  trigger: ReactElement<{ ref?: Ref<HTMLElement> }>;
   title?: string;
   action?: ReactNode;
   open?: boolean;
@@ -250,8 +252,8 @@ export interface NotificationCenterProps {
  * window: a subtree can declare itself coarse (`data-pointer`), as the docs'
  * phone frame does, and a narrow desk window is still a mouse.
  */
-function useCoarseAt(): [ref: RefObject<HTMLSpanElement | null>, coarse: boolean] {
-  const ref = useRef<HTMLSpanElement>(null);
+function useCoarseAt(): [ref: RefObject<HTMLElement | null>, coarse: boolean] {
+  const ref = useRef<HTMLElement>(null);
   const [coarse, setCoarse] = useState(false);
   useLayoutEffect(() => {
     setCoarse(
@@ -272,13 +274,15 @@ export function NotificationCenter({
   ...root
 }: NotificationCenterProps): JSX.Element {
   const [ref, coarse] = useCoarseAt();
+  // The trigger itself is asked where it is: no box around it, so a trigger
+  // that is a list's item (a sidebar row) still sits directly in its list.
+  const bell = cloneElement(trigger, { ref });
 
   return (
-    // `display: contents`: a box for asking where the trigger is, not for layout.
-    <span ref={ref} className="contents">
+    <>
       {coarse ? (
         <Sheet {...root}>
-          <SheetTrigger asChild>{trigger}</SheetTrigger>
+          <SheetTrigger asChild>{bell}</SheetTrigger>
           <SheetContent side="bottom" size="full" className="bg-canvas">
             <div className="px-4 pt-4 pe-14">
               <PanelHeader
@@ -293,7 +297,7 @@ export function NotificationCenter({
         </Sheet>
       ) : (
         <Popover {...root}>
-          <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+          <PopoverTrigger asChild>{bell}</PopoverTrigger>
           <PopoverContent
             side={side}
             align={side === 'bottom' ? 'end' : 'start'}
@@ -309,6 +313,6 @@ export function NotificationCenter({
           </PopoverContent>
         </Popover>
       )}
-    </span>
+    </>
   );
 }

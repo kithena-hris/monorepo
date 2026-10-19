@@ -22,6 +22,7 @@ import {
   NavList,
   PageLayout,
   Separator,
+  ToastProvider,
   TabBar,
   TabBarItem,
   TooltipProvider,
@@ -652,29 +653,31 @@ export function AppShell({
                     settled on: search (the command palette, every page and anybody they
                     may read), then what is waiting for them (the Inbox's peek, the same
                     list the phone's Inbox tab shows), then the areas. */}
-                <Nav label="Search and notifications">
-                  <NavList>
-                    <NavItem
-                      asChild
-                      icon={<icons.search aria-hidden />}
-                      shortcut={
-                        <KbdShortcut
-                          keys={keys.table.find((s) => s.id === 'palette')?.keys ?? []}
-                        />
-                      }
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaletteOpen(true);
-                        }}
+                <ToastProvider>
+                  <Nav label="Search and notifications">
+                    <NavList>
+                      <NavItem
+                        asChild
+                        icon={<icons.search aria-hidden />}
+                        shortcut={
+                          <KbdShortcut
+                            keys={keys.table.find((s) => s.id === 'palette')?.keys ?? []}
+                          />
+                        }
                       >
-                        Search
-                      </button>
-                    </NavItem>
-                    <InboxBell inbox={inbox} />
-                  </NavList>
-                </Nav>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaletteOpen(true);
+                          }}
+                        >
+                          Search
+                        </button>
+                      </NavItem>
+                      <InboxBell inbox={inbox} />
+                    </NavList>
+                  </Nav>
+                </ToastProvider>
                 <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
                   <NavList>
                     {areas.map((area) =>
