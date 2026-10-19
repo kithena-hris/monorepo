@@ -1,7 +1,0 @@
- Tasks:    33 successful, 33 total
-services/people/src/application/import/commit.test.ts:224:9: warning unicorn(consistent-function-scoping): Function `violation` does not capture any variables from its parent scope help: Move `violation` to the outer scope to avoid recreating it on every call.
-✖ 94 problems (0 errors, 94 warnings)
-x 1 dependency violations (0 errors, 1 warnings). 2603 modules, 10189 dependencies cruised.
-      Tests  243 passed (243)
-      Tests  207 passed (207)
-      Tests  579 passed (579)
