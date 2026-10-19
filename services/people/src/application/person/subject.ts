@@ -2,7 +2,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { SUPPORT_RELATIONS, type ExternalSource } from '../../domain/access/field-access.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
-import type { PersonReader, PersonRecord, RelationsResolver } from './ports.js';
+import type { PersonReader, PersonRecord, RelationsResolver, Viewer } from './ports.js';
 
 /**
  * The person a viewer is looking at, for custom visibility rules (PEO-066).
@@ -61,7 +61,10 @@ const NOBODY = '00000000-0000-0000-0000-000000000000';
  * system — on every path that resolves relations through it, which is every
  * transport's. A question about nobody in particular has no sources.
  */
-export function withSources(resolver: RelationsResolver, external: ExternalSources): RelationsResolver {
+export function withSources(
+  resolver: RelationsResolver,
+  external: ExternalSources,
+): RelationsResolver {
   const reach = resolver.reach?.bind(resolver);
   return {
     ...(reach === undefined ? {} : { reach }),
@@ -106,18 +109,29 @@ export function withSubjects(resolver: RelationsResolver, reader: PersonReader):
 export function withSupport(resolver: RelationsResolver): RelationsResolver {
   const reach = resolver.reach?.bind(resolver);
   const nobody = { self: new Set<string>(), direct: new Set<string>(), chain: new Set<string>() };
+  const whole = (viewer: Viewer) => viewer.support !== undefined || viewer.accountId === SYSTEM;
   return {
     ...(reach === undefined
       ? {}
       : {
           reach: (tx, tenantId, viewer) =>
-            viewer.support === undefined
-              ? reach(tx, tenantId, viewer)
-              : Promise.resolve({ ...nobody, complete: true }),
+            whole(viewer)
+              ? Promise.resolve({ ...nobody, complete: true })
+              : reach(tx, tenantId, viewer),
         }),
     relations: (tx, tenantId, viewer, personId) =>
-      viewer.support === undefined
-        ? resolver.relations(tx, tenantId, viewer, personId)
-        : Promise.resolve(SUPPORT_RELATIONS),
+      whole(viewer)
+        ? Promise.resolve(SUPPORT_RELATIONS)
+        : resolver.relations(tx, tenantId, viewer, personId),
   };
 }
+
+/**
+ * People itself, writing on another module's word (a hire Recruiting made,
+ * PRD §21.4): HR to everybody and nobody's self or manager, as support is,
+ * and no account OpenFGA could hold a tuple for. Never a session's viewer:
+ * every transport resolves a real account, and `withSupport` is the only
+ * place this name means anything.
+ */
+export const SYSTEM = 'system';
+export const SYSTEM_VIEWER: Viewer = { accountId: SYSTEM, roles: new Set(['hr']) };

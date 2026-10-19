@@ -3,6 +3,7 @@ import {
   AccountProfileCaptured,
   AccountProvisioned,
   AccountSignupAnswered,
+  CandidateHired,
   PersonAnonymised,
   PersonChangeDecided,
   PersonChangeRequested,
@@ -16,6 +17,7 @@ import {
   PersonStatusChanged,
   PersonTerminated,
   PersonUnmerged,
+  PrehireCancelled,
   RoleGranted,
   RoleRevoked,
   SchemaPublished,
@@ -33,6 +35,11 @@ import { logger } from '@kithena/telemetry';
 
 import type { RecomputeCompleteness } from '../../application/completeness/recompute.js';
 import type { OrgAdmin } from '../../application/org/org.js';
+import type {
+  Cancelled,
+  Hired,
+  HiresFromRecruiting,
+} from '../../application/person/hire-from-recruiting.js';
 import type { EnterAsSelf, SelfEntryOutcome } from '../../application/person/self-entry.js';
 import type { ReportSignup } from '../signup-report.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
@@ -97,6 +104,12 @@ export interface ConsumerDeps {
     started(tenantId: string, changeId: string, correlationId: string): Promise<void>;
     closed(tenantId: string, changeId: string, correlationId: string): Promise<void>;
   };
+  /**
+   * A hire Recruiting made, as a `pre_hire` here (Recruiting PRD §21.4):
+   * through the write path, so absent without the secrets' keys, as
+   * `enterAsSelf` is; the event is then ignored and said so.
+   */
+  readonly hires?: HiresFromRecruiting;
 }
 
 /**
@@ -451,6 +464,35 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
           await authz.sync(tx, event.tenantId, event.payload.absorbedPersonId);
           return authz.sync(tx, event.tenantId, event.payload.survivingPersonId);
         });
+      }
+
+      /*
+       * Recruiting hired somebody (PRD §21.4): a `pre_hire` from the start
+       * date, with what the company's schema has a field for; the record is
+       * HR's from then on. A hire that fell through before the start is
+       * discarded, found by the work email it was created under.
+       */
+      case CandidateHired.name:
+      case PrehireCancelled.name: {
+        const hired = name === CandidateHired.name;
+        const event = hired ? parse(CandidateHired, raw) : parse(PrehireCancelled, raw);
+        if (!event) return 'rejected';
+        const { hires } = deps;
+        if (!hires) {
+          logger.warn({ eventId: event.eventId }, 'recruiting hire not applied: no write path');
+          return 'ignored';
+        }
+        const done = await deps.inTenant(event.tenantId, async ({ tx }) => {
+          await rememberTenant(tx, event.tenantId);
+          return hired ? hires.hired(tx, event as Hired) : hires.cancelled(tx, event as Cancelled);
+        });
+        if (done.outcome === 'rejected' || done.outcome === 'ignored') {
+          logger.warn(
+            { eventId: event.eventId, outcome: done.outcome, code: done.code },
+            hired ? 'recruiting hire not applied' : 'recruiting cancellation not applied',
+          );
+        }
+        return done.outcome;
       }
 
       default: {

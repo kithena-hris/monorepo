@@ -282,9 +282,13 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
       as a PDF, the candidate first by emailed code, then the sender for the
       company) and tells Recruiting (`contractSent`). No envelope id is kept
       in Recruiting: the state says it is out, and Documents owns the rest._
-- [ ] **REC-141** People consumes `recruiting.candidate.hired` (creates the
+- [x] **REC-141** People consumes `recruiting.candidate.hired` (creates the
       `pre_hire`) and `recruiting.prehire.cancelled` (discards it): People's
-      own consumer. §21.4.
+      own consumer. §21.4. _Decided: through `PersonAccess.create` as the
+      system with HR's relations, writing only the keys the company's schema
+      defines; somebody already on the books under the work email is left as
+      they are; `prehire.cancelled` now carries the email, and a pre-hire may
+      be discarded (never on the headcount)._
 - [ ] **REC-142** Pay band projection from `people.pay_band.set`. §18.2.
 - [ ] **REC-143** Time Off's absences and holidays passed by the shell to
       scheduling and the start-date picker. §28.

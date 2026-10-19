@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { asInternal, asPublic, policy } from '../classification.js';
+import { asContact, asInternal, asPublic, policy } from '../classification.js';
 import { defineEvent } from '../event.js';
 import { activityRecorded } from './activity.js';
 import { CalendarDate, Instant, LegalEntityId, Money } from '../primitives.js';
@@ -219,6 +219,8 @@ export const PrehireCancelled = defineEvent(
     candidateId: CandidateId,
     applicationId: ApplicationId,
     reasonKey: PrehireCancelReason,
+    /** The work email the hire was created under, which is how People finds the record to discard (§21.4). */
+    email: z.email().nullable().register(policy, asContact()),
   }),
 );
 

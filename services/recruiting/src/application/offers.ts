@@ -702,13 +702,19 @@ export async function cancelThePrehire(
   const cancelled = cancelPrehire(held, reason);
   if (!cancelled.ok) return cancelled;
   await ctx.tx.prehires.save(cancelled.value);
+  const candidate = await ctx.tx.candidates.get(held.candidateId);
   await publish(
     ctx,
     event(
       ctx,
       'recruiting.prehire.cancelled',
       { type: 'Application', id: applicationId },
-      { candidateId: held.candidateId, applicationId, reasonKey: reason },
+      {
+        candidateId: held.candidateId,
+        applicationId,
+        reasonKey: reason,
+        email: candidate?.email ?? null,
+      },
     ),
   );
   return ok(cancelled.value);
