@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemoveBenefit($id: String!, $key: String!) {\n    removeBenefit(id: $id, idempotencyKey: $key)\n  }"}

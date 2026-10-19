@@ -1,4 +1,5 @@
 import {
+  Combobox,
   Alert,
   Badge,
   Button,
@@ -270,12 +271,26 @@ function Details({
             <Field>
               <FieldLabel>Department</FieldLabel>
               <FieldControl>
-                <Input
-                  value={job.department ?? ''}
-                  onChange={(e) => {
-                    setJob({ ...job, department: e.target.value === '' ? null : e.target.value });
-                  }}
-                />
+                {data.orgUnits.length === 0 ? (
+                  <Input
+                    value={job.department ?? ''}
+                    onChange={(e) => {
+                      setJob({ ...job, department: e.target.value === '' ? null : e.target.value });
+                    }}
+                  />
+                ) : (
+                  // The company's departments (People's, or Recruiting's own in Settings), picked, not typed.
+                  <Combobox
+                    label="Department"
+                    clearable
+                    placeholder="Choose a department"
+                    options={data.orgUnits.map((u) => ({ value: u.name, label: u.name }))}
+                    value={job.department}
+                    onChange={(v) => {
+                      setJob({ ...job, department: typeof v === 'string' ? v : null });
+                    }}
+                  />
+                )}
               </FieldControl>
             </Field>
             <Field>

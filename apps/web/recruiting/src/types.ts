@@ -227,6 +227,8 @@ export interface JobData {
     readonly country: string;
     readonly currency: string;
   }[];
+  /** The departments a job can be in: People's where present, Recruiting's own otherwise. */
+  readonly orgUnits: readonly OrgUnit[];
   readonly questionnaires: readonly {
     readonly id: string;
     readonly name: string;
@@ -778,58 +780,142 @@ export interface Agency {
   readonly jobIds: readonly string[];
 }
 
+/** Where a legal entity, a location or a department came from: People, or here. */
+export type OrgSource = 'recruiting' | 'people';
+
+export interface SettingsEntity {
+  readonly id: string;
+  readonly name: string;
+  readonly country: string;
+  readonly currency: string;
+  readonly fullTimeWeeklyMinutes: number;
+  readonly headcount: number;
+  readonly foundedOn: string | null;
+  readonly worksCouncil: boolean;
+  readonly worksCouncilIds: readonly string[];
+  readonly source?: OrgSource;
+}
+
+export interface SettingsLocation {
+  readonly id: string;
+  readonly name: string;
+  readonly entityId: string | null;
+  readonly country: string;
+  readonly region: string | null;
+  readonly city: string | null;
+  readonly timeZone: string;
+  readonly source?: OrgSource;
+}
+
+export interface OrgUnit {
+  readonly id: string;
+  readonly name: string;
+  readonly parentId: string | null;
+  readonly source?: OrgSource;
+}
+
+export type Approver =
+  | { readonly kind: 'person'; readonly personId: string }
+  | { readonly kind: 'role'; readonly role: 'hr' | 'finance' | 'recruiting_admin' }
+  | { readonly kind: 'managers_manager' };
+
+export interface ApprovalChain {
+  readonly id: string;
+  readonly name: string;
+  readonly appliesTo: 'requisition' | 'offer';
+  readonly priority: number;
+  readonly when: {
+    readonly budgetAboveMinor?: number;
+    readonly reasons?: readonly string[];
+    readonly legalEntityIds?: readonly string[];
+    readonly outsideBand?: boolean;
+    readonly aboveBudget?: boolean;
+    readonly grades?: readonly string[];
+  };
+  readonly steps: readonly Approver[];
+}
+
+export type QuestionKind =
+  'short_text' | 'long_text' | 'single' | 'multiple' | 'number' | 'yes_no' | 'date' | 'file';
+
+export interface Question {
+  readonly id: string;
+  readonly text: string;
+  readonly kind: QuestionKind;
+  readonly required: boolean;
+  readonly options: readonly string[];
+  readonly points: Readonly<Record<string, number>> | null;
+  readonly knockout: unknown;
+}
+
+export interface Questionnaire {
+  readonly id: string;
+  readonly version: number;
+  readonly name: string;
+  readonly questions: readonly Question[];
+  readonly worksCouncilConsentVersion: number | null;
+}
+
+export interface MessageTemplate {
+  readonly id: string;
+  readonly kind: 'email' | 'offer_letter' | 'contract';
+  readonly purpose: string;
+  readonly language: string;
+  readonly name: string;
+  readonly subject: string | null;
+  readonly body: string;
+}
+
+export type BenefitValue =
+  | { readonly kind: 'money'; readonly yearlyMinor: number; readonly currency: string }
+  | { readonly kind: 'percent'; readonly basisPoints: number }
+  | { readonly kind: 'days'; readonly days: number }
+  | { readonly kind: 'descriptive' };
+
+export interface Benefit {
+  readonly id: string;
+  readonly key: string;
+  readonly legalEntityId: string;
+  readonly category: string;
+  readonly statutory: boolean;
+  readonly names: Readonly<Record<string, string>>;
+  readonly value: BenefitValue;
+  readonly eligibility: {
+    readonly employmentTypes: readonly string[] | null;
+    readonly minWeeklyMinutes: number | null;
+    readonly waiting:
+      | { readonly kind: 'none' }
+      | { readonly kind: 'after_probation' }
+      | { readonly kind: 'months'; readonly months: number };
+    readonly workModes: readonly string[] | null;
+    readonly locationIds: readonly string[] | null;
+  };
+  readonly taxNote: string | null;
+}
+
 export interface SettingsData {
   readonly general: GeneralSettings;
-  readonly entities: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly country: string;
-    readonly currency: string;
-    readonly worksCouncil: boolean;
-  }[];
-  readonly locations: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly country: string;
-    readonly timeZone: string;
-  }[];
+  readonly entities: readonly SettingsEntity[];
+  readonly locations: readonly SettingsLocation[];
+  /** The departments: People's where present, Recruiting's own otherwise or beside them. */
+  readonly orgUnits: readonly OrgUnit[];
+  /** Names to pick for an approval chain's "person" step. */
+  readonly members: readonly { readonly personId: string; readonly name: string }[];
   readonly pipelines: readonly {
     readonly id: string;
     readonly name: string;
     readonly isDefault: boolean;
     readonly stages: readonly Stage[];
   }[];
-  readonly chains: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly appliesTo: 'requisition' | 'offer';
-    readonly steps: readonly unknown[];
-  }[];
-  readonly questionnaires: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly version: number;
-  }[];
+  readonly chains: readonly ApprovalChain[];
+  readonly questionnaires: readonly Questionnaire[];
   readonly scorecards: readonly {
     readonly id: string;
     readonly name: string;
     readonly competencies: readonly { readonly key: string; readonly name: string }[];
   }[];
-  readonly templates: readonly {
-    readonly id: string;
-    readonly kind: string;
-    readonly purpose: string;
-    readonly language: string;
-    readonly name: string;
-  }[];
-  readonly benefits: readonly {
-    readonly id: string;
-    readonly key: string;
-    readonly legalEntityId: string;
-    readonly category: string;
-    readonly statutory: boolean;
-    readonly names: Readonly<Record<string, string>>;
-  }[];
+  readonly templates: readonly MessageTemplate[];
+  readonly benefits: readonly Benefit[];
   readonly payBands: readonly {
     readonly id: string;
     readonly grade: string;

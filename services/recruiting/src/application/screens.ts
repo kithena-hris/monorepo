@@ -175,6 +175,8 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     counts: await counts(ctx, job),
     locations: await ctx.tx.locations.list(),
     entities: await ctx.tx.entities.list(),
+    // The departments a job is in: People's where present, Recruiting's own otherwise.
+    orgUnits: await ctx.tx.orgUnits.list(),
     questionnaires: (await ctx.tx.questionnaires.list()).map((q) => ({
       id: q.id,
       name: q.name,
@@ -599,6 +601,12 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     general: await generalSettings(ctx),
     entities: await ctx.tx.entities.list(),
     locations: await ctx.tx.locations.list(),
+    orgUnits: await ctx.tx.orgUnits.list(),
+    // For an approval chain's "person" step: a name to pick, nothing more.
+    members: (await ctx.tx.members.list()).map((m) => ({
+      personId: m.personId,
+      name: m.displayName,
+    })),
     pipelines: await ctx.tx.pipelines.list(),
     chains: await ctx.tx.chains.list(),
     questionnaires: await ctx.tx.questionnaires.list(),

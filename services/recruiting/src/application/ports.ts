@@ -80,6 +80,21 @@ export interface AdminStore {
   remove(accountId: string): Promise<void>;
 }
 
+/**
+ * Where a legal entity, a location or a department came from: People's
+ * events, where People is present, or Recruiting's own settings. One of
+ * People's is renamed, moved or archived in People; Recruiting adds what
+ * only it knows (an entity's currency, its works council) and nothing else.
+ */
+export type OrgSource = 'recruiting' | 'people';
+
+export interface OrgUnit {
+  readonly id: string;
+  readonly name: string;
+  readonly parentId: string | null;
+  readonly source?: OrgSource;
+}
+
 export interface Entity {
   readonly id: string;
   readonly name: string;
@@ -90,6 +105,7 @@ export interface Entity {
   readonly foundedOn: CalendarDate | null;
   readonly worksCouncil: boolean;
   readonly worksCouncilIds: readonly string[];
+  readonly source?: OrgSource;
 }
 
 export interface Location {
@@ -100,6 +116,7 @@ export interface Location {
   readonly region: string | null;
   readonly city: string | null;
   readonly timeZone: string;
+  readonly source?: OrgSource;
 }
 
 /** A plain keyed store, for the aggregates nothing queries across. */
@@ -694,6 +711,8 @@ export interface QuestionnaireStore {
   get(id: string): Promise<Questionnaire | null>;
   list(): Promise<readonly Questionnaire[]>;
   save(q: Questionnaire): Promise<void>;
+  /** Out of the list; the answers given to it stay with their applications. */
+  remove(id: string): Promise<void>;
   answers(applicationId: string): Promise<
     readonly {
       readonly questionnaireId: string;
@@ -823,11 +842,7 @@ export interface Tx {
   readonly admins: AdminStore;
   readonly entities: Records<Entity>;
   readonly locations: Records<Location>;
-  readonly orgUnits: Records<{
-    readonly id: string;
-    readonly name: string;
-    readonly parentId: string | null;
-  }>;
+  readonly orgUnits: Records<OrgUnit>;
   readonly requisitions: Records<Requisition>;
   readonly chains: Records<ApprovalChain>;
   readonly approvals: ApprovalStore;

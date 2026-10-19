@@ -115,3 +115,111 @@ describe('a signed envelope from Documents', () => {
     expect(await consume(completed(generated.subjectRef))).toBe('rejected');
   });
 });
+
+/** People's organisation reaching Recruiting (PRD §5.2): shown as People's, tied to, never edited here. */
+function orgEvent(eventName: string, payload: Record<string, unknown>): Record<string, unknown> {
+  return {
+    eventId: '01890000-0000-7000-8000-000000000001',
+    eventName,
+    eventVersion: 1,
+    tenantId,
+    occurredAt: at,
+    recordedAt: at,
+    effectiveFrom: at.slice(0, 10),
+    aggregate: { type: 'Organisation', id: randomUUID(), version: 1 },
+    actor: { kind: 'system', process: 'people' },
+    correlationId: randomUUID(),
+    causationId: null,
+    payload,
+  };
+}
+
+describe('People’s legal entities, locations and org units', () => {
+  it('become Recruiting’s, marked as People’s, with the pack’s currency and statutory benefits', async () => {
+    const uow = memoryUnitOfWork();
+    const consume = recruitingConsumer(uow);
+    const legalEntityId = randomUUID();
+    const locationId = randomUUID();
+    const orgUnitId = randomUUID();
+    expect(
+      await consume(
+        orgEvent('people.legal_entity.created', {
+          legalEntityId,
+          name: 'Acme Ltd',
+          country: 'GB',
+          timeZone: 'Europe/London',
+        }),
+      ),
+    ).toBe('applied');
+    expect(
+      await consume(
+        orgEvent('people.location.created', {
+          locationId,
+          legalEntityId,
+          name: 'London',
+          country: 'GB',
+          timeZone: 'Europe/London',
+          effectiveFrom: '2026-01-01',
+        }),
+      ),
+    ).toBe('applied');
+    expect(
+      await consume(
+        orgEvent('people.org_unit.created', { orgUnitId, name: 'Engineering', parentId: null }),
+      ),
+    ).toBe('applied');
+    const held = await uow.run(tenantId, async (tx) => ({
+      entity: await tx.entities.get(legalEntityId),
+      location: await tx.locations.get(locationId),
+      unit: await tx.orgUnits.get(orgUnitId),
+      statutory: (await tx.benefits.list()).filter((b) => b.legalEntityId === legalEntityId),
+    }));
+    expect(held.entity).toMatchObject({
+      name: 'Acme Ltd',
+      country: 'GB',
+      currency: 'GBP',
+      source: 'people',
+    });
+    expect(held.location).toMatchObject({
+      name: 'London',
+      entityId: legalEntityId,
+      source: 'people',
+    });
+    expect(held.unit).toMatchObject({ name: 'Engineering', parentId: null, source: 'people' });
+    expect(held.statutory.length).toBeGreaterThan(0);
+    // Said again: nothing moves.
+    expect(
+      await consume(
+        orgEvent('people.org_unit.created', { orgUnitId, name: 'Engineering', parentId: null }),
+      ),
+    ).toBe('unchanged');
+    // Archived in People: gone here.
+    expect(
+      await consume(
+        orgEvent('people.org_unit.updated', {
+          orgUnitId,
+          name: 'Engineering',
+          parentId: null,
+          archived: true,
+          fieldsChanged: ['archived'],
+        }),
+      ),
+    ).toBe('applied');
+    expect(await uow.run(tenantId, (tx) => tx.orgUnits.get(orgUnitId))).toBeNull();
+  });
+
+  it('ignores an entity in a country Recruiting cannot hire in', async () => {
+    const uow = memoryUnitOfWork();
+    const consume = recruitingConsumer(uow);
+    expect(
+      await consume(
+        orgEvent('people.legal_entity.created', {
+          legalEntityId: randomUUID(),
+          name: 'Acme SAS',
+          country: 'FR',
+          timeZone: 'Europe/Paris',
+        }),
+      ),
+    ).toBe('ignored');
+  });
+});

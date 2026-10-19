@@ -35,6 +35,8 @@ import type {
   JobAd,
   JobRecord,
   Location,
+  OrgSource,
+  OrgUnit,
   Member,
   Message,
   Note,
@@ -318,10 +320,10 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
       list: async () =>
         (await rows(tx, sql`SELECT * FROM recruiting.location ORDER BY name`)).map(locationOf),
       save: async (l) => {
-        await tx.execute(sql`INSERT INTO recruiting.location (tenant_id, id, name, entity_id, country, region, city, time_zone)
-          VALUES (${T}, ${l.id}, ${l.name}, ${l.entityId}, ${l.country}, ${l.region}, ${l.city}, ${l.timeZone})
+        await tx.execute(sql`INSERT INTO recruiting.location (tenant_id, id, name, entity_id, country, region, city, time_zone, source)
+          VALUES (${T}, ${l.id}, ${l.name}, ${l.entityId}, ${l.country}, ${l.region}, ${l.city}, ${l.timeZone}, ${l.source ?? 'recruiting'})
           ON CONFLICT (tenant_id, id) DO UPDATE SET name = EXCLUDED.name, entity_id = EXCLUDED.entity_id, country = EXCLUDED.country,
-            region = EXCLUDED.region, city = EXCLUDED.city, time_zone = EXCLUDED.time_zone`);
+            region = EXCLUDED.region, city = EXCLUDED.city, time_zone = EXCLUDED.time_zone, source = EXCLUDED.source`);
       },
       remove: async (id) => {
         await tx.execute(sql`DELETE FROM recruiting.location WHERE id = ${id}`);
@@ -331,23 +333,21 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
       get: async (id) => {
         const r = await one(
           tx,
-          sql`SELECT id, name, parent_id FROM recruiting.org_unit WHERE id = ${id}`,
+          sql`SELECT id, name, parent_id, source FROM recruiting.org_unit WHERE id = ${id}`,
         );
-        return r === null
-          ? null
-          : { id: String(r['id']), name: String(r['name']), parentId: str(r['parent_id']) };
+        return r === null ? null : orgUnitOf(r);
       },
       list: async () =>
         (
-          await rows(tx, sql`SELECT id, name, parent_id FROM recruiting.org_unit ORDER BY name`)
-        ).map((r) => ({
-          id: String(r['id']),
-          name: String(r['name']),
-          parentId: str(r['parent_id']),
-        })),
+          await rows(
+            tx,
+            sql`SELECT id, name, parent_id, source FROM recruiting.org_unit ORDER BY name`,
+          )
+        ).map(orgUnitOf),
       save: async (o) => {
-        await tx.execute(sql`INSERT INTO recruiting.org_unit (tenant_id, id, name, parent_id) VALUES (${T}, ${o.id}, ${o.name}, ${o.parentId})
-          ON CONFLICT (tenant_id, id) DO UPDATE SET name = EXCLUDED.name, parent_id = EXCLUDED.parent_id`);
+        await tx.execute(sql`INSERT INTO recruiting.org_unit (tenant_id, id, name, parent_id, source)
+          VALUES (${T}, ${o.id}, ${o.name}, ${o.parentId}, ${o.source ?? 'recruiting'})
+          ON CONFLICT (tenant_id, id) DO UPDATE SET name = EXCLUDED.name, parent_id = EXCLUDED.parent_id, source = EXCLUDED.source`);
       },
       remove: async (id) => {
         await tx.execute(sql`DELETE FROM recruiting.org_unit WHERE id = ${id}`);
@@ -430,6 +430,10 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
           await tx.execute(sql`INSERT INTO recruiting.question (tenant_id, id, questionnaire_id, position, body)
             VALUES (${T}, ${question.id}, ${q.id}, ${i}, ${J(question)})`);
         }
+      },
+      // Archived, not deleted: applications keep the answers they gave to it.
+      remove: async (id) => {
+        await tx.execute(sql`UPDATE recruiting.questionnaire SET archived = true WHERE id = ${id}`);
       },
       answers: async (applicationId) =>
         (
@@ -1318,6 +1322,7 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
   };
 }
 
+const sourceOf = (r: Row): OrgSource => (r['source'] === 'people' ? 'people' : 'recruiting');
 const locationOf = (r: Row): Location => ({
   id: String(r['id']),
   name: String(r['name']),
@@ -1326,6 +1331,13 @@ const locationOf = (r: Row): Location => ({
   region: str(r['region']),
   city: str(r['city']),
   timeZone: String(r['time_zone']),
+  source: sourceOf(r),
+});
+const orgUnitOf = (r: Row): OrgUnit => ({
+  id: String(r['id']),
+  name: String(r['name']),
+  parentId: str(r['parent_id']),
+  source: sourceOf(r),
 });
 const pipelineOf = (r: Row | null): PipelineTemplate | null =>
   r === null

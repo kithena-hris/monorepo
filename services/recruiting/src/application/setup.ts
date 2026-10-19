@@ -14,6 +14,7 @@ import type { ApprovalChain } from '../domain/requisition/requisition.js';
 import type {
   Entity,
   Location,
+  OrgUnit,
   PayBand,
   PipelineTemplate,
   ScorecardTemplate,
@@ -146,7 +147,13 @@ export async function saveEntity(ctx: Ctx, input: unknown): Promise<Result<Entit
   const parsed = EntityInput.safeParse(input);
   if (!parsed.success)
     return err(failure('INVALID', parsed.error.issues[0]?.message ?? 'Check the entity'));
-  const entity = parsed.data as Entity;
+  const held = await ctx.tx.entities.get(parsed.data.id);
+  // One of People's keeps People's name and country; Recruiting adds what only
+  // it knows: the currency, the working week, the works council.
+  const entity: Entity =
+    held?.source === 'people'
+      ? { ...(parsed.data as Entity), name: held.name, country: held.country, source: 'people' }
+      : (parsed.data as Entity);
   await ctx.tx.entities.save(entity);
   // The pack's statutory benefits arrive with the entity (PRD §20.1).
   for (const benefit of statutoryBenefits(entity.country, null, entity.id)) {
@@ -171,8 +178,150 @@ export async function saveLocation(ctx: Ctx, input: unknown): Promise<Result<Loc
   const parsed = LocationInput.safeParse(input);
   if (!parsed.success)
     return err(failure('INVALID', parsed.error.issues[0]?.message ?? 'Check the location'));
+  const held = await ctx.tx.locations.get(parsed.data.id);
+  if (held?.source === 'people') return err(FROM_PEOPLE);
+  if (parsed.data.entityId !== null && (await ctx.tx.entities.get(parsed.data.entityId)) === null)
+    return err(failure('NOT_FOUND', 'No such legal entity'));
   await ctx.tx.locations.save(parsed.data);
   return ok(parsed.data as Location);
+}
+
+/** A row People owns is changed in People; Recruiting shows it and ties to it. */
+const FROM_PEOPLE = failure('FROM_PEOPLE', 'This comes from People; change it there');
+
+const OrgUnitInput = z.object({
+  id: z.uuid(),
+  name: z.string().min(1).max(200),
+  parentId: z.uuid().nullable(),
+});
+
+/** A department, where People is absent or beside People's (PRD §5.2). */
+export async function saveOrgUnit(ctx: Ctx, input: unknown): Promise<Result<OrgUnit>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  const parsed = OrgUnitInput.safeParse(input);
+  if (!parsed.success)
+    return err(failure('INVALID', parsed.error.issues[0]?.message ?? 'Check the department'));
+  const held = await ctx.tx.orgUnits.get(parsed.data.id);
+  if (held?.source === 'people') return err(FROM_PEOPLE);
+  if (parsed.data.parentId === parsed.data.id)
+    return err(failure('INVALID', 'A department cannot sit under itself'));
+  if (parsed.data.parentId !== null && (await ctx.tx.orgUnits.get(parsed.data.parentId)) === null)
+    return err(failure('NOT_FOUND', 'No such parent department'));
+  await ctx.tx.orgUnits.save(parsed.data);
+  return ok(parsed.data);
+}
+
+/* ------------------------------------------------------------- removing -- */
+
+export async function removeEntity(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  const held = await ctx.tx.entities.get(id);
+  if (held === null) return err(failure('NOT_FOUND', 'No such legal entity'));
+  if (held.source === 'people') return err(FROM_PEOPLE);
+  if ((await ctx.tx.locations.list()).some((l) => l.entityId === id))
+    return err(failure('IN_USE', 'Move or remove its locations first'));
+  // Its statutory benefits came with it (PRD §20.1) and go with it.
+  for (const b of await ctx.tx.benefits.list())
+    if (b.legalEntityId === id) await ctx.tx.benefits.remove(b.id);
+  await ctx.tx.entities.remove(id);
+  return ok(undefined);
+}
+
+export async function removeLocation(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  const held = await ctx.tx.locations.get(id);
+  if (held === null) return err(failure('NOT_FOUND', 'No such location'));
+  if (held.source === 'people') return err(FROM_PEOPLE);
+  await ctx.tx.locations.remove(id);
+  return ok(undefined);
+}
+
+export async function removeOrgUnit(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  const held = await ctx.tx.orgUnits.get(id);
+  if (held === null) return err(failure('NOT_FOUND', 'No such department'));
+  if (held.source === 'people') return err(FROM_PEOPLE);
+  if ((await ctx.tx.orgUnits.list()).some((u) => u.parentId === id))
+    return err(failure('IN_USE', 'Move or remove the departments under it first'));
+  await ctx.tx.orgUnits.remove(id);
+  return ok(undefined);
+}
+
+/** A job copied its stages, so a template can go; the default stays until another is the default. */
+export async function removePipeline(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  const held = await ctx.tx.pipelines.get(id);
+  if (held === null) return err(failure('NOT_FOUND', 'No such pipeline'));
+  if (held.isDefault && (await ctx.tx.pipelines.list()).length > 1)
+    return err(failure('DEFAULT', 'Make another pipeline the default first'));
+  await ctx.tx.pipelines.remove(id);
+  return ok(undefined);
+}
+
+export async function removeChain(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  if ((await ctx.tx.chains.get(id)) === null) return err(failure('NOT_FOUND', 'No such chain'));
+  await ctx.tx.chains.remove(id);
+  return ok(undefined);
+}
+
+export async function removeQuestionnaire(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  if ((await ctx.tx.questionnaires.get(id)) === null)
+    return err(failure('NOT_FOUND', 'No such questionnaire'));
+  await ctx.tx.questionnaires.remove(id);
+  return ok(undefined);
+}
+
+export async function removeScorecardTemplate(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  if ((await ctx.tx.scorecardTemplates.get(id)) === null)
+    return err(failure('NOT_FOUND', 'No such scorecard'));
+  await ctx.tx.scorecardTemplates.remove(id);
+  return ok(undefined);
+}
+
+export async function removeTemplate(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  if ((await ctx.tx.templates.get(id)) === null)
+    return err(failure('NOT_FOUND', 'No such template'));
+  const used = (await ctx.tx.pipelines.list()).find((p) =>
+    p.stages.some((s) => s.automations.some((a) => a.kind === 'email' && a.templateId === id)),
+  );
+  if (used !== undefined)
+    return err(failure('IN_USE', `The pipeline “${used.name}” sends it; change that stage first`));
+  await ctx.tx.templates.remove(id);
+  return ok(undefined);
+}
+
+export async function removeBenefit(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  const held = await ctx.tx.benefits.get(id);
+  if (held === null) return err(failure('NOT_FOUND', 'No such benefit'));
+  if (held.statutory)
+    return err(failure('STATUTORY', 'A statutory benefit comes from the country pack and stays'));
+  await ctx.tx.benefits.remove(id);
+  return ok(undefined);
+}
+
+export async function removePayBand(ctx: Ctx, id: string): Promise<Result<void>> {
+  const may = adminOnly(ctx);
+  if (!may.ok) return may;
+  const held = await ctx.tx.payBands.get(id);
+  if (held === null) return err(failure('NOT_FOUND', 'No such pay band'));
+  if (held.source === 'people') return err(FROM_PEOPLE);
+  await ctx.tx.payBands.remove(id);
+  return ok(undefined);
 }
 
 export async function savePipeline(
