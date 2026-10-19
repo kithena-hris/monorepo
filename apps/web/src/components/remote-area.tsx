@@ -119,6 +119,7 @@ export async function RemoteArea({
         route={drawn}
         load={load}
         frame={frame}
+        path={path}
         params={route.params}
         search={search}
       />
