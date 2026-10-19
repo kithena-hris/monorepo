@@ -34,15 +34,11 @@ import {
   SelectValue,
   Skeleton,
   Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
+  type DataColumn,
   icons,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 
 import { useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
@@ -177,6 +173,21 @@ function Ready({
     event.preventDefault();
     props.onNavigate(to);
   };
+  // Held while what they close over holds, so opening a dialog redraws no row.
+  const { onNavigate, onRestore, onChangeSection, onRemindSigners } = props;
+  const columns = useMemo(
+    () =>
+      documentColumns({
+        deleted: data.deleted,
+        sections: data.sections,
+        onNavigate,
+        onShare: setSharing,
+        onRestore,
+        onChangeSection,
+        onRemindSigners,
+      }),
+    [data.deleted, data.sections, onNavigate, onRestore, onChangeSection, onRemindSigners],
+  );
   const upload = (preset: Partial<UploadPreset> = {}): void => {
     setUploading({
       typeKey: null,
@@ -403,37 +414,15 @@ function Ready({
               }
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Access</TableHead>
-                  <TableHead>Who can see it</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.rows.map((row) => (
-                  <DocumentRow
-                    key={row.id}
-                    row={row}
-                    deleted={data.deleted}
-                    onOpen={go(href(row.id))}
-                    onShare={() => {
-                      setSharing({ id: row.id, title: row.title });
-                    }}
-                    onRestore={props.onRestore}
-                    sections={data.sections}
-                    onChangeSection={props.onChangeSection}
-                    onRemindSigners={props.onRemindSigners}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable<Row>
+              label="Documents"
+              rows={data.rows}
+              rowId={rowId}
+              describeRow={rowTitle}
+              stickyHeader
+              containerClassName="page-fill max-h-dvh min-h-64"
+              columns={columns}
+            />
           )}
         </section>
       )}
@@ -932,136 +921,188 @@ function ShowPicker({
   );
 }
 
-function DocumentRow({
-  row,
-  deleted,
-  onOpen,
-  onShare,
-  onRestore,
-  sections,
-  onChangeSection,
-  onRemindSigners,
-}: {
-  readonly row: Row;
+const rowId = (row: Row): string => row.id;
+const rowTitle = (row: Row): string => row.title;
+
+interface RowContext {
   readonly deleted: boolean;
-  readonly onOpen: (event: { preventDefault: () => void }) => void;
-  readonly onShare: () => void;
-  readonly onRestore: LibraryProps['onRestore'];
   readonly sections: LibraryData['sections'];
+  readonly onNavigate: LibraryProps['onNavigate'];
+  readonly onShare: (doc: { id: string; title: string }) => void;
+  readonly onRestore: LibraryProps['onRestore'];
   readonly onChangeSection: LibraryProps['onChangeSection'];
   readonly onRemindSigners: LibraryProps['onRemindSigners'];
-}): JSX.Element {
-  const write = useWrite();
-  const [reminded, setReminded] = useState(false);
-  const signing = row.signing ?? null;
-  const mine = sections.filter((s) => s.kind === 'personal');
-  return (
-    <TableRow>
-      <TableCell>
+}
+
+/** Every document this person can open, one row each, virtualised: a company files thousands. */
+function documentColumns(ctx: RowContext): readonly DataColumn<Row>[] {
+  const open = (id: string) => (event: { preventDefault: () => void }) => {
+    if (ctx.onNavigate === undefined) return;
+    event.preventDefault();
+    ctx.onNavigate(href(id));
+  };
+  return [
+    {
+      id: 'name',
+      header: 'Name',
+      sortBy: (row) => row.title,
+      cell: (row) => (
         <div className="flex min-w-0 items-center gap-3">
           <DocIcon kind={row.kind} />
           <div className="min-w-0">
-            {deleted ? (
+            {ctx.deleted ? (
               <span className="font-semibold">{row.title}</span>
             ) : (
-              <a href={href(row.id)} onClick={onOpen} className="font-semibold hover:underline">
+              <a
+                href={href(row.id)}
+                onClick={open(row.id)}
+                className="font-semibold hover:underline"
+              >
                 {row.title}
               </a>
             )}
             <p className="truncate text-sm text-fg-muted">{meta(row)}</p>
           </div>
         </div>
-      </TableCell>
-      <TableCell>
-        <AccessBadge row={row} />
-      </TableCell>
-      <TableCell>
-        <span className="text-sm text-fg-muted">{row.who.label}</span>
-      </TableCell>
-      <TableCell>
-        <span className="text-sm text-fg-muted">{shortDate(row.updatedAt)}</span>
-      </TableCell>
-      <TableCell>
-        <div className="flex flex-col items-start gap-1">
-          <StatusBadge status={row.status} />
-          {signing === null ? null : <SigningBadge signing={signing} />}
-          {reminded && signing !== null ? (
-            <span className="text-xs text-fg-muted">
-              {`Reminder sent to ${signing.waitingOn.join(', ')}`}
-            </span>
-          ) : null}
-        </div>
-      </TableCell>
-      <TableCell>
-        {deleted ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            loading={write.pending}
-            onClick={() => {
-              write.run(() => onRestore?.(row.id) ?? Promise.resolve({ ok: true }));
+      ),
+    },
+    {
+      id: 'access',
+      header: 'Access',
+      hideOnCard: true,
+      sortBy: (row) => row.level,
+      cell: (row) => <AccessBadge row={row} />,
+    },
+    {
+      id: 'who',
+      header: 'Who can see it',
+      hideOnCard: true,
+      sortBy: (row) => row.who.label,
+      cell: (row) => <span className="text-sm text-fg-muted">{row.who.label}</span>,
+    },
+    {
+      id: 'updated',
+      header: 'Updated',
+      sortBy: (row) => row.updatedAt,
+      cell: (row) => <span className="text-sm text-fg-muted">{shortDate(row.updatedAt)}</span>,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cardTrailing: true,
+      sortBy: (row) => row.status?.label ?? '',
+      cell: (row) => <RowStatus row={row} />,
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">Actions</span>,
+      width: '3rem',
+      cell: (row) => <RowActions row={row} ctx={ctx} open={open(row.id)} />,
+    },
+  ];
+}
+
+function RowStatus({ row }: { readonly row: Row }): JSX.Element {
+  const signing = row.signing ?? null;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <StatusBadge status={row.status} />
+      {signing === null ? null : <SigningBadge signing={signing} />}
+    </div>
+  );
+}
+
+/** Restore, or the row's menu: open, share, remind the signers, file in a section of mine. */
+function RowActions({
+  row,
+  ctx,
+  open,
+}: {
+  readonly row: Row;
+  readonly ctx: RowContext;
+  readonly open: (event: { preventDefault: () => void }) => void;
+}): JSX.Element {
+  const write = useWrite();
+  const [reminded, setReminded] = useState(false);
+  const signing = row.signing ?? null;
+  const mine = ctx.sections.filter((s) => s.kind === 'personal');
+  if (ctx.deleted) {
+    return (
+      <Button
+        size="sm"
+        variant="secondary"
+        loading={write.pending}
+        onClick={() => {
+          write.run(() => ctx.onRestore?.(row.id) ?? Promise.resolve({ ok: true }));
+        }}
+      >
+        Restore
+      </Button>
+    );
+  }
+  const { onRemindSigners, onChangeSection } = ctx;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`More for ${row.title}`}
+          startIcon={<icons.more aria-hidden />}
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <a href={href(row.id)} onClick={open}>
+            Open
+          </a>
+        </DropdownMenuItem>
+        {row.mine && !row.aboutMe ? (
+          <DropdownMenuItem
+            onSelect={() => {
+              ctx.onShare({ id: row.id, title: row.title });
             }}
           >
-            Restore
-          </Button>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={`More for ${row.title}`}
-                startIcon={<icons.more aria-hidden />}
-              />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <a href={href(row.id)} onClick={onOpen}>
-                  Open
-                </a>
-              </DropdownMenuItem>
-              {row.mine && !row.aboutMe ? (
-                <DropdownMenuItem onSelect={onShare}>Share…</DropdownMenuItem>
-              ) : null}
-              {signing?.canRemind === true && onRemindSigners !== undefined ? (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    write.run(
-                      () => onRemindSigners(signing.envelopeId),
-                      () => {
-                        setReminded(true);
-                      },
-                    );
-                  }}
-                >
-                  {`Send reminder email to ${signing.waitingOn.join(', ') || 'the next signer'}`}
-                </DropdownMenuItem>
-              ) : null}
-              {mine.length === 0 ? null : <DropdownMenuSeparator />}
-              {mine.map((s) => {
-                const inIt = row.sectionIds.includes(s.id);
-                return (
-                  <DropdownMenuItem
-                    key={s.id}
-                    onSelect={() => {
-                      write.run(
-                        () =>
-                          onChangeSection?.(
-                            s.id,
-                            inIt ? { remove: [row.id] } : { add: [row.id] },
-                          ) ?? Promise.resolve({ ok: true }),
-                      );
-                    }}
-                  >
-                    {inIt ? `Remove from ${s.name}` : `Add to ${s.name}`}
-                  </DropdownMenuItem>
+            Share…
+          </DropdownMenuItem>
+        ) : null}
+        {signing?.canRemind === true && onRemindSigners !== undefined ? (
+          <DropdownMenuItem
+            disabled={reminded}
+            onSelect={() => {
+              write.run(
+                () => onRemindSigners(signing.envelopeId),
+                () => {
+                  setReminded(true);
+                },
+              );
+            }}
+          >
+            {reminded
+              ? `Reminder sent to ${signing.waitingOn.join(', ')}`
+              : `Send reminder email to ${signing.waitingOn.join(', ') || 'the next signer'}`}
+          </DropdownMenuItem>
+        ) : null}
+        {mine.length === 0 ? null : <DropdownMenuSeparator />}
+        {mine.map((s) => {
+          const inIt = row.sectionIds.includes(s.id);
+          return (
+            <DropdownMenuItem
+              key={s.id}
+              onSelect={() => {
+                write.run(
+                  () =>
+                    onChangeSection?.(s.id, inIt ? { remove: [row.id] } : { add: [row.id] }) ??
+                    Promise.resolve({ ok: true }),
                 );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </TableCell>
-    </TableRow>
+              }}
+            >
+              {inIt ? `Remove from ${s.name}` : `Add to ${s.name}`}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
