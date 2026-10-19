@@ -251,8 +251,9 @@ function SignNow({
             ) : null}
             {problem === null || checking ? null : <Alert tone="danger">{problem}</Alert>}
             <p className="text-xs text-fg-muted">
-              Adopting a signature, you agree it is the legal equivalent of your handwritten one. At
-              Finish we email you a code to confirm it is you.
+              {verified
+                ? 'Adopting a signature, you agree it is the legal equivalent of your handwritten one.'
+                : 'Adopting a signature, you agree it is the legal equivalent of your handwritten one. At Finish we email you a code to confirm it is you.'}
             </p>
             {declining ? (
               <>
