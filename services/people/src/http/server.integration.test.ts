@@ -1184,17 +1184,23 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
   // The user's file (`.claude/data/make_employees.py`, seeded): every tenth
   // of its 1,000 rows, all 105 columns, every country and currency in it.
   // Nobody in the sample is serving notice, so two of its active people are,
-  // here: a resignation with a last day two months ahead.
+  // here: a resignation with a last day two months ahead. Its three pre-hires
+  // start on dates the calendar overtakes (the first was reached on
+  // 2026-10-19, and a pre-hire already started is a lifecycle conflict), so
+  // each starts two months ahead too: the hire date is the 41st column, and
+  // nothing before it is quoted.
   const AHEAD = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
   const MERIDIAN = readFile(
     new URL('./meridian-freight.fixture.csv', import.meta.url),
     'utf8',
   ).then((csv) =>
     new TextEncoder().encode(
-      csv.replaceAll(
-        /^(MF000(?:11|21),.*?),Active,,,,,,,/gmu,
-        `$1,Notice period,,,,${AHEAD},Resignation - new opportunity,Yes,`,
-      ),
+      csv
+        .replaceAll(
+          /^(MF000(?:11|21),.*?),Active,,,,,,,/gmu,
+          `$1,Notice period,,,,${AHEAD},Resignation - new opportunity,Yes,`,
+        )
+        .replaceAll(/^(MF00(?:061|481|761),(?:[^,\n]*,){39})\d{4}-\d{2}-\d{2},/gmu, `$1${AHEAD},`),
     ),
   );
   const TENANT = '00000000-0000-4000-8000-0000000000c0';
