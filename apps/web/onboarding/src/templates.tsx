@@ -69,6 +69,8 @@ const KINDS: readonly TaskKind[] = [
   'meeting',
   'equipment',
   'account',
+  'goal',
+  'training',
 ];
 const COUNTRIES = ['DE', 'ES', 'GB', 'IN', 'US'] as const;
 const label = (k: string) => (k === 'it' ? 'IT' : k === 'hr' ? 'HR' : words(k));

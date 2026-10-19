@@ -116,6 +116,28 @@ describe('a plan (§O4)', () => {
     expect(review).toMatchObject({ ownerRole: 'manager', dueOn: '2027-04-01' });
   });
 
+  it('opens a goal or a training task in Performance unless the template says where', () => {
+    const goals = buildPlan({
+      id: 'plan2',
+      hireId: 'h1',
+      hire,
+      templates: [
+        {
+          ...template,
+          tasks: [
+            { ...template.tasks[0]!, key: 'goal', kind: 'goal', link: null },
+            { ...template.tasks[0]!, key: 'course', kind: 'training', link: '/course/1' },
+          ],
+        },
+      ],
+      country: [],
+      holidays: new Set(),
+      newId,
+    });
+    expect(goals.tasks.find((t) => t.key === 'goal')?.link).toBe('/performance/goals');
+    expect(goals.tasks.find((t) => t.key === 'course')?.link).toBe('/course/1');
+  });
+
   it('moves every task hanging off the start when the start moves', () => {
     const moved = moveStart(plan, d('2026-11-09'), new Set());
     expect(moved.tasks.find((t) => t.key === 'welcome')?.dueOn).toBe('2026-11-09');

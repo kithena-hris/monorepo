@@ -200,6 +200,16 @@ export function defaultTemplate(id: string): Template {
       t('checkin_30', '30-day check-in', 'first_month', 'manager', 'meeting', '+30d'),
       t('checkin_60', '60-day check-in', 'probation', 'manager', 'meeting', '+60d'),
       t('checkin_90', '90-day check-in', 'probation', 'manager', 'meeting', '+90d'),
+      // Performance's two: the first goals agreed, the onboarding learning assigned.
+      t(
+        'onboarding_training',
+        'Assign the onboarding training',
+        'before_start',
+        'hr',
+        'training',
+        '-3d',
+      ),
+      t('first_goals', 'Agree the first goals', 'first_week', 'manager', 'goal', '+5d'),
     ],
   };
 }
