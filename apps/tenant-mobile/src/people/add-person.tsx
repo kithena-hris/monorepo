@@ -9,16 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
   Field,
-  FieldControl,
   Icon,
   FieldError,
   FieldLabel,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Stack,
   useToast,
 } from '@reach/ui-native';
@@ -27,7 +21,8 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { useAct } from './act';
-import { useRead, useSigned } from './api';
+import { ask, useSigned } from './api';
+import { PersonPicker } from './attribute-input';
 import { readOffer } from './readers';
 
 /** Shape only, as the web's: whether it is free is People's answer. */
@@ -56,12 +51,8 @@ export function AddPersonDialog({
   const [email, setEmail] = useState('');
   const [hireDate, setHireDate] = useState<string | null>(null);
   const [manager, setManager] = useState('');
-  // Who may manage them: the first page of People's picker, as the web's combobox opens.
-  const picker = useRead<{ options: { value: string; label: string }[] }>('PeoplePicker', {
-    search: null,
-    after: null,
-  }).load;
-  const managers = picker.status === 'ready' ? picker.data.options : [];
+  // Who the offer named, so the picker says their name before anyone searches.
+  const [named, setNamed] = useState<readonly { value: string; label: string }[]>([]);
   const [tried, setTried] = useState(false);
   const missing = {
     given: given.trim() === '',
@@ -106,10 +97,13 @@ export function AddPersonDialog({
               loadingLabel="Reading the offer"
               onPress={() => {
                 setReading(true);
-                void readOffer(signed).then((read) => {
-                  setReading(false);
-                  if (read === null) return;
+                void readOffer(signed).then(async (read) => {
+                  if (read === null) {
+                    setReading(false);
+                    return;
+                  }
                   if (!read.ok) {
+                    setReading(false);
                     toast({
                       title: 'That did not work',
                       description: read.message,
@@ -122,16 +116,30 @@ export function AddPersonDialog({
                   if (o.family !== null) setFamily(o.family);
                   if (o.email !== null) setEmail(o.email);
                   if (o.start !== null) setHireDate(o.start);
-                  const boss =
-                    o.manager === null
-                      ? undefined
-                      : managers.find((m) => m.label.toLowerCase() === o.manager?.toLowerCase());
-                  if (boss !== undefined) setManager(boss.value);
-                  const found = [o.given, o.email, o.start, boss?.value].filter(
+                  // Searched over everybody, and taken only when one person has that name.
+                  const said = o.manager?.trim().toLowerCase() ?? '';
+                  const found =
+                    said === ''
+                      ? null
+                      : await ask<{ options: { value: string; label: string }[] }>(
+                          signed,
+                          'PeoplePicker',
+                          { search: said.slice(0, 200) },
+                        );
+                  const same = found?.ok
+                    ? found.data.options.filter((m) => m.label.toLowerCase() === said)
+                    : [];
+                  const boss = same.length === 1 ? same[0] : undefined;
+                  if (boss !== undefined) {
+                    setNamed([boss]);
+                    setManager(boss.value);
+                  }
+                  setReading(false);
+                  const filled = [o.given, o.email, o.start, boss?.value].filter(
                     (x) => x != null,
                   ).length;
                   toast(
-                    found === 0
+                    filled === 0
                       ? {
                           title: 'Nothing to fill in',
                           description:
@@ -185,27 +193,23 @@ export function AddPersonDialog({
                   />
                 </Field>
               </View>
-              {managers.length === 0 ? null : (
-                <View className="flex-1">
-                  <Field>
-                    <FieldLabel>Manager</FieldLabel>
-                    <Select value={manager} onValueChange={setManager}>
-                      <FieldControl>
-                        <SelectTrigger size="sm">
-                          <SelectValue placeholder="Optional" />
-                        </SelectTrigger>
-                      </FieldControl>
-                      <SelectContent title="Manager">
-                        {managers.map((m) => (
-                          <SelectItem key={m.value} value={m.value}>
-                            {m.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </View>
-              )}
+              <View className="flex-1">
+                <Field>
+                  <FieldLabel>Manager</FieldLabel>
+                  {/* Searched over everybody, a title and department under each name (PEO-122). */}
+                  <PersonPicker
+                    label="Manager"
+                    known={named}
+                    value={manager}
+                    onChange={(id) => {
+                      setManager(id ?? '');
+                    }}
+                    disabled={false}
+                    placeholder="Optional"
+                    size="sm"
+                  />
+                </Field>
+              </View>
             </View>
           </Stack>
         </DialogBody>

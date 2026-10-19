@@ -1,6 +1,7 @@
 import {
   Button,
   Combobox,
+  type ComboboxOption,
   CurrencyField,
   DatePicker,
   Field,
@@ -140,22 +141,28 @@ function SignatureField(props: React.ComponentProps<typeof SignatureInput>): Rea
 /**
  * A person, picked by typing their name: People searches everybody it lets
  * this viewer read (`PeoplePicker`), so the 50,000th person is as reachable as
- * the first. The field's own options name whoever is chosen already.
+ * the first. `known` names whoever is chosen already (a field's own options).
  */
-function PersonPicker({
-  field,
+export function PersonPicker({
+  label,
+  known,
   value,
   onChange,
   disabled,
+  placeholder = 'Choose a person',
+  size,
 }: {
-  field: RecordField;
+  label: string;
+  known: readonly { value: string; label: string }[];
   value: string;
   onChange: (value: string | null) => void;
   disabled: boolean;
+  placeholder?: string;
+  size?: 'sm' | 'md';
 }): React.JSX.Element {
   const signed = useSigned();
   const [search, setSearch] = useState('');
-  const [options, setOptions] = useState(field.options);
+  const [options, setOptions] = useState<readonly ComboboxOption[]>(known);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     let live = true;
@@ -171,7 +178,7 @@ function PersonPicker({
         if (answer.ok) {
           // Whoever is chosen stays nameable while the list shows others; job
           // title and department beneath each name tell two of one name apart.
-          const chosen = field.options.filter((o) => o.value === value);
+          const chosen = known.filter((o) => o.value === value);
           const found = answer.data.options
             .filter((o) => o.value !== value)
             .map(({ description, ...o }) => (description === null ? o : { ...o, description }));
@@ -183,10 +190,10 @@ function PersonPicker({
       live = false;
       clearTimeout(timer);
     };
-  }, [signed, search, field.options, value]);
+  }, [signed, search, known, value]);
   return (
     <Combobox
-      label={field.label}
+      label={label}
       options={options}
       value={value === '' ? null : value}
       onChange={(next) => {
@@ -194,10 +201,11 @@ function PersonPicker({
       }}
       onSearchChange={setSearch}
       loading={loading}
-      placeholder="Choose a person"
+      placeholder={placeholder}
       searchPlaceholder="Type a name"
       disabled={disabled}
       clearable
+      {...(size === undefined ? {} : { size })}
     />
   );
 }
@@ -316,7 +324,13 @@ function Control({
       );
     case 'person_ref':
       return (
-        <PersonPicker field={field} value={text(value)} onChange={onChange} disabled={disabled} />
+        <PersonPicker
+          label={field.label}
+          known={field.options}
+          value={text(value)}
+          onChange={onChange}
+          disabled={disabled}
+        />
       );
     case 'money': {
       const money =
