@@ -108,8 +108,9 @@ The sender always says which: Kithena never guesses whether something needs acti
 - [x] **INB-034** My requests and Done (E1–E3, F1, H4).
 - [x] **INB-035** Manager: bulk approve same-kind tasks with the warning (G3); hand over while
       away (G4).
-- [x] **INB-036** Sidebar Inbox with the task count (dot when only updates are unread), the bell
-      peek with both lanes, `G N`, a toast when a task arrives, Home's To do card (B1–B3).
+- [x] **INB-036** Sidebar Inbox with the task count beside its name (dot when only updates are
+      unread), `G N`, a toast when a task arrives, Home's To do card (B1–B3). The bell peek it
+      first had is gone: notifications are the Inbox, and the sidebar has one row for them.
 - [x] **INB-037** HR: Ask for details and Send a document from a profile (H2, H3).
 - [x] **INB-038** Settings › You › Notifications (P1) and Settings › Organisation › Inbox rules
       (P2).

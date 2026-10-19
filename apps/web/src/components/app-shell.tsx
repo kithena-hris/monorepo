@@ -22,7 +22,6 @@ import {
   NavList,
   PageLayout,
   Separator,
-  ToastProvider,
   TabBar,
   TabBarItem,
   TooltipProvider,
@@ -65,7 +64,7 @@ import {
 import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
-import { InboxBell, InboxCount, useInboxTodo } from './inbox/bell';
+import { InboxCount, InboxToasts, useInboxTodo } from './inbox/bell';
 import type { InboxPeek } from '../lib/inbox/peek';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
 import { RemoteSlot } from './remote-slot';
@@ -488,6 +487,11 @@ export function AppShell({
   );
   const areas = areasFor(entitlements);
   const pathname = usePathname();
+  // The item pressed is marked at once, while its page is still on its way;
+  // the address catching up (or going elsewhere) ends it. Remembered with the
+  // address it was pressed from, so no effect has to clear it.
+  const [pressed, setPressed] = useState<{ href: string; from: string } | null>(null);
+  const here = pressed !== null && pressed.from === pathname ? pressed.href : pathname;
   const role = roleOf(shell.roles);
   // Which of People's routes the address is, to mark its section: the shell is
   // drawn once, by the layout, so it reads that from the address rather than
@@ -495,13 +499,14 @@ export function AppShell({
   const route = isCurrent('/people', pathname)
     ? (matchPath(shell.routes, pathname)?.path ?? null)
     : null;
-  // Time Off's and Performance's places, from their own manifests, for the pages warmed below.
-  const timeOff = shell.remotes?.['timeoff'];
-  const perf = shell.remotes?.['performance'];
-  /** A remote area by its home, and which of its routes the address is while you are in it. */
+  /**
+   * A remote area by its home, and which of its routes the address is while
+   * you are in it. An area with one section has nothing to list under its
+   * item: the item is the section.
+   */
   const remoteOf = (href: string) => {
     const remote = shell.remotes?.[Object.values(REMOTES).find((r) => r.home === href)?.name ?? ''];
-    if (remote === undefined || remote.sections.length === 0) return null;
+    if (remote === undefined || remote.sections.length < 2) return null;
     return {
       ...remote,
       route: isCurrent(href, pathname) ? (matchPath(remote.routes, pathname)?.path ?? null) : null,
@@ -521,7 +526,7 @@ export function AppShell({
           label={`${label} sections`}
         />
       ),
-      expanded: isCurrent(href, pathname),
+      expanded: isCurrent(href, here),
     };
   };
   // The same sections as the collapsed rail's flyout (V8), as People's are.
@@ -562,29 +567,26 @@ export function AppShell({
     const k = keys.keysFor(path);
     return k === undefined ? undefined : <KbdShortcut keys={k} />;
   };
-  // Hover-prefetch a plain link only where there is a page: People's routes
-  // and the host's own, never a file or a download behind a route handler.
+  // Hover-prefetch a plain link only where there is a page: People's routes,
+  // every remote's and the host's own, never a file or a download behind a
+  // route handler. A sidebar link without this waits for the server on the
+  // click instead of on the hover before it.
+  const remotes = useMemo(() => Object.values(shell.remotes ?? {}), [shell.remotes]);
   const isPage = useCallback(
     (path: string) =>
       HOST_PAGES.has(path) ||
       matchPath(shell.routes, path) !== undefined ||
-      (timeOff !== undefined && matchPath(timeOff.routes, path) !== undefined) ||
-      (perf !== undefined && matchPath(perf.routes, path) !== undefined),
-    [shell.routes, timeOff, perf],
+      remotes.some((r) => matchPath(r.routes, path) !== undefined),
+    [shell.routes, remotes],
   );
   useInAppLinks(isPage);
   // The other tabs of this page's place, fetched whole once it has settled.
   const warmAreas = useMemo(
     () => [
       { places: [...shell.sections, ...shell.settings], routes: shell.routes },
-      ...(timeOff === undefined
-        ? []
-        : [{ places: [...timeOff.sections, ...timeOff.settings], routes: timeOff.routes }]),
-      ...(perf === undefined
-        ? []
-        : [{ places: [...perf.sections, ...perf.settings], routes: perf.routes }]),
+      ...remotes.map((r) => ({ places: [...r.sections, ...r.settings], routes: r.routes })),
     ],
-    [shell, timeOff, perf],
+    [shell, remotes],
   );
   useWarmPages(pathname, warmAreas);
   /*
@@ -649,35 +651,31 @@ export function AppShell({
             }
             sidebar={
               <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
-                {/* Under the logo, before any area, the order every workspace tool has
-                    settled on: search (the command palette, every page and anybody they
-                    may read), then what is waiting for them (the Inbox's peek, the same
-                    list the phone's Inbox tab shows), then the areas. */}
-                <ToastProvider>
-                  <Nav label="Search and notifications">
-                    <NavList>
-                      <NavItem
-                        asChild
-                        icon={<icons.search aria-hidden />}
-                        shortcut={
-                          <KbdShortcut
-                            keys={keys.table.find((s) => s.id === 'palette')?.keys ?? []}
-                          />
-                        }
+                {/* Under the logo, before any area: search (the command palette, every
+                    page and anybody they may read), then the areas. What is waiting for
+                    them is the Inbox, with its count beside its name. */}
+                <Nav label="Search">
+                  <NavList>
+                    <NavItem
+                      asChild
+                      icon={<icons.search aria-hidden />}
+                      shortcut={
+                        <KbdShortcut
+                          keys={keys.table.find((s) => s.id === 'palette')?.keys ?? []}
+                        />
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaletteOpen(true);
+                        }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPaletteOpen(true);
-                          }}
-                        >
-                          Search
-                        </button>
-                      </NavItem>
-                      <InboxBell inbox={inbox} />
-                    </NavList>
-                  </Nav>
-                </ToastProvider>
+                        Search
+                      </button>
+                    </NavItem>
+                  </NavList>
+                </Nav>
                 <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
                   <NavList>
                     {areas.map((area) =>
@@ -686,7 +684,7 @@ export function AppShell({
                           key={area.label}
                           asChild
                           icon={area.icon}
-                          current={isCurrent(area.href, pathname)}
+                          current={isCurrent(area.href, here)}
                           shortcut={hint(area.href)}
                           {...(area.href === '/inbox'
                             ? { badge: <InboxCount inbox={inbox} /> }
@@ -702,7 +700,7 @@ export function AppShell({
                                     counts={shell.counts}
                                   />
                                 ),
-                                expanded: isCurrent(area.href, pathname),
+                                expanded: isCurrent(area.href, here),
                                 flyout: (
                                   <PeopleSections
                                     sections={shell.sections}
@@ -735,6 +733,9 @@ export function AppShell({
                                 area.href,
                               ) ?? (area.href === '/inbox' ? '/inbox/todo' : area.href)) as Route
                             }
+                            onClick={() => {
+                              setPressed({ href: area.href, from: pathname });
+                            }}
                           >
                             {area.label}
                           </Link>
@@ -797,6 +798,7 @@ export function AppShell({
               </div>
             }
           >
+            <InboxToasts inbox={inbox} />
             <SearchPalette
               open={paletteOpen}
               onOpenChange={setPaletteOpen}
