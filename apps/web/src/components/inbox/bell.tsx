@@ -6,12 +6,12 @@ import {
   Button,
   EmptyState,
   KbdShortcut,
+  NavItem,
   NotificationCenter,
   NotificationGroup,
   NotificationItem,
   SegmentedControl,
   SegmentedControlItem,
-  ToastProvider,
   icons,
   useToast,
 } from '@reach/ui';
@@ -67,19 +67,25 @@ export function InboxCount({
 
 function Count({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element | null {
   const peek = use(inbox);
-  if (peek.counts.todo > 0) {
+  return <CountBadge todo={peek.counts.todo} updates={peek.counts.updates} />;
+}
+
+/** The red number of tasks, or the dot when only updates are unread. */
+function CountBadge({
+  todo,
+  updates,
+}: {
+  readonly todo: number;
+  readonly updates: number;
+}): JSX.Element | null {
+  if (todo > 0) {
     return (
-      <Badge
-        size="xs"
-        variant="solid"
-        tone="danger"
-        aria-label={`${String(peek.counts.todo)} to do`}
-      >
-        {peek.counts.todo}
+      <Badge size="xs" variant="solid" tone="danger" aria-label={`${String(todo)} to do`}>
+        {todo}
       </Badge>
     );
   }
-  return peek.counts.updates > 0 ? (
+  return updates > 0 ? (
     <Badge size="xs" variant="solid" tone="accent" aria-label="Unread updates" />
   ) : null;
 }
@@ -99,61 +105,50 @@ export function useInboxTodo(inbox: Promise<InboxPeek> | undefined): number {
   return n;
 }
 
+/**
+ * The bell as a sidebar row, under Search: the same row as every area, with
+ * the count where an area's count goes. In the rail the count is the dot on
+ * the icon and the number stays in the tooltip, as `NavItem` does for Inbox.
+ * The `...props` are the popover trigger's (`onClick`, `aria-expanded`), put
+ * on the button the row renders.
+ */
 function BellButton({
   todo,
   updates,
+  ...props
 }: {
   readonly todo: number;
   readonly updates: number;
 }): JSX.Element {
+  const badge = <CountBadge todo={todo} updates={updates} />;
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="relative"
-      aria-label={
-        todo === 0
-          ? updates === 0
-            ? 'Inbox'
-            : 'Inbox, unread updates'
-          : `Inbox, ${String(todo)} to do`
-      }
-      startIcon={<icons.notifications aria-hidden />}
+    <NavItem
+      asChild
+      icon={<icons.notifications aria-hidden />}
+      {...(todo > 0 || updates > 0 ? { badge } : {})}
     >
-      {todo > 0 ? (
-        <Badge
-          size="xs"
-          variant="solid"
-          tone="danger"
-          aria-hidden
-          className="absolute -top-0.5 -end-0.5 ring-2 ring-canvas"
-        >
-          {todo}
-        </Badge>
-      ) : updates > 0 ? (
-        <Badge
-          size="xs"
-          variant="solid"
-          tone="accent"
-          aria-hidden
-          className="absolute -top-0.5 -end-0.5 ring-2 ring-canvas"
-        />
-      ) : null}
-    </Button>
+      <button type="button" {...props}>
+        Notifications
+      </button>
+    </NavItem>
   );
 }
 
+/**
+ * The sidebar's Notifications row: the Inbox's peek opens beside it. A
+ * `NavItem`, so it goes inside a `NavList`, and the `ToastProvider` it needs
+ * (B3) sits outside that list: the provider renders the toasts' viewport, a
+ * list of its own, which cannot be a list's item.
+ */
 export function InboxBell({
   inbox,
 }: {
   readonly inbox: Promise<InboxPeek> | undefined;
 }): JSX.Element {
   return (
-    <ToastProvider>
-      <Suspense fallback={<BellButton todo={0} updates={0} />}>
-        {inbox === undefined ? <BellButton todo={0} updates={0} /> : <Bell inbox={inbox} />}
-      </Suspense>
-    </ToastProvider>
+    <Suspense fallback={<BellButton todo={0} updates={0} />}>
+      {inbox === undefined ? <BellButton todo={0} updates={0} /> : <Bell inbox={inbox} />}
+    </Suspense>
   );
 }
 
@@ -214,6 +209,7 @@ function Bell({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
           </Button>
         </span>
       }
+      side="right"
       trigger={<BellButton todo={peek.counts.todo} updates={updates} />}
     >
       <div className="px-3.5 pt-3 pb-1">

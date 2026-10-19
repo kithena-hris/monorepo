@@ -36,6 +36,7 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  FormSection,
   IconList,
   IconListItem,
   Input,
@@ -577,8 +578,8 @@ export interface SetupData {
   readonly action: 'launch' | 'schedule' | 'past';
 }
 
-/** Four steps: when and what the subject sees, who, which reviews and their reminders, and a last look. */
-const STEPS = ['Basics', 'People', 'Reviews and reminders', 'Launch'];
+/** Five steps: when and what the subject sees, who, which reviews and their reminders, the timeline, and a last look. */
+const STEPS = ['Basics', 'People', 'Reviews and reminders', 'Timeline', 'Launch'];
 const ZONES = [
   'Europe/Madrid',
   'Europe/London',
@@ -671,7 +672,8 @@ function SetupDialog({
           />
         ) : null}
         {step === 2 ? <Reviews c={c} data={data} save={save} activity={activity} /> : null}
-        {step === 3 ? <Launch c={c} data={data} /> : null}
+        {step === 3 ? <CyclePlan c={c} edit={{ mode: 'setup', c, save }} /> : null}
+        {step === 4 ? <Launch c={c} data={data} /> : null}
       </StepDialog>
     </div>
   );
@@ -782,80 +784,82 @@ function Basics({
       {v === undefined ? null : (
         <>
           <Separator />
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">What the subject sees</p>
-            <p className="text-sm text-fg-muted">Their manager and HR always see who wrote what.</p>
-          </div>
-          <Field>
-            <FieldLabel>Their reviews reach them</FieldLabel>
-            <RadioGroup
-              aria-label="Release"
-              className="flex flex-col gap-2"
-              value={v.release.mode}
-              onValueChange={(mode) => {
-                set({ release: { ...v.release, mode } });
-              }}
-            >
-              <RadioCard
-                value="manager"
-                description="The manager releases each one once it is submitted."
-              >
-                As each is submitted
-              </RadioCard>
-              <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
-                On a date
-              </RadioCard>
-              <RadioCard
-                value="close"
-                description="When the cycle closes, after calibration if it has one."
-              >
-                When the cycle closes
-              </RadioCard>
-            </RadioGroup>
-          </Field>
-          {v.release.mode === 'hr_date' ? (
+          <FormSection
+            headingLevel={3}
+            title="What the subject sees"
+            description="Their manager and HR always see who wrote what."
+          >
             <Field>
-              <FieldLabel>Release on</FieldLabel>
-              <FieldControl>
-                <DatePicker
-                  label="Release on"
-                  value={v.release.date}
-                  onChange={(date) => {
-                    set({ release: { ...v.release, date } });
-                  }}
-                />
-              </FieldControl>
+              <FieldLabel>Their reviews reach them</FieldLabel>
+              <RadioGroup
+                aria-label="Release"
+                className="flex flex-col gap-2"
+                value={v.release.mode}
+                onValueChange={(mode) => {
+                  set({ release: { ...v.release, mode } });
+                }}
+              >
+                <RadioCard
+                  value="manager"
+                  description="The manager releases each one once it is submitted."
+                >
+                  As each is submitted
+                </RadioCard>
+                <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
+                  On a date
+                </RadioCard>
+                <RadioCard
+                  value="close"
+                  description="When the cycle closes, after calibration if it has one."
+                >
+                  When the cycle closes
+                </RadioCard>
+              </RadioGroup>
             </Field>
-          ) : null}
-          <div className="flex flex-col">
-            <SwitchRow
-              label="Ask for an acknowledgement"
-              hint="“I’ve read this” is not agreement."
-              checked={v.acknowledge}
-              onChange={(ack) => {
-                set({ acknowledge: ack });
+            {v.release.mode === 'hr_date' ? (
+              <Field>
+                <FieldLabel>Release on</FieldLabel>
+                <FieldControl>
+                  <DatePicker
+                    label="Release on"
+                    value={v.release.date}
+                    onChange={(date) => {
+                      set({ release: { ...v.release, date } });
+                    }}
+                  />
+                </FieldControl>
+              </Field>
+            ) : null}
+            <div className="flex flex-col">
+              <SwitchRow
+                label="Ask for an acknowledgement"
+                hint="“I’ve read this” is not agreement."
+                checked={v.acknowledge}
+                onChange={(ack) => {
+                  set({ acknowledge: ack });
+                }}
+              />
+              <SwitchRow
+                label="Let the subject comment"
+                hint="Shown to the manager and HR"
+                checked={v.subjectComment}
+                onChange={(comment) => {
+                  set({ subjectComment: comment });
+                }}
+              />
+            </div>
+            <NumberField
+              label="Response minimum"
+              hint="Confidential answers show only once this many are in."
+              value={v.minimum}
+              suffix={unit(v.minimum, 'answer')}
+              min={1}
+              max={20}
+              onChange={(n) => {
+                if (n !== null) set({ minimum: n });
               }}
             />
-            <SwitchRow
-              label="Let the subject comment"
-              hint="Shown to the manager and HR"
-              checked={v.subjectComment}
-              onChange={(comment) => {
-                set({ subjectComment: comment });
-              }}
-            />
-          </div>
-          <NumberField
-            label="Response minimum"
-            hint="Confidential answers show only once this many are in."
-            value={v.minimum}
-            suffix={unit(v.minimum, 'answer')}
-            min={1}
-            max={20}
-            onChange={(n) => {
-              if (n !== null) set({ minimum: n });
-            }}
-          />
+          </FormSection>
         </>
       )}
     </div>
@@ -1678,7 +1682,6 @@ function Reviews({
           save({ reminders, activities });
         }}
       />
-      <CyclePlan c={c} edit={{ mode: 'setup', c, save }} />
     </div>
   );
 }
@@ -2154,7 +2157,7 @@ const PICKER: Readonly<Record<string, string>> = {
 /**
  * The last step, a last look and nothing to set: whether anything stops it,
  * what launches (who, when, and each review with its form and deadline, in the
- * plan's colours), the plan, and what the subject sees once it is written.
+ * plan's colours), and what the subject sees once it is written.
  */
 function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData }): JSX.Element {
   const v = c.visibility;
@@ -2284,7 +2287,6 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
           )}
         </CardContent>
       </Card>
-      <CyclePlan c={c} />
       <Card>
         <CardHeader>
           <CardTitle level={3}>What the subject sees</CardTitle>
