@@ -15,7 +15,7 @@ import {
   FieldDescription,
   FieldLabel,
   Input,
-  NumberField,
+  CurrencyField,
   PageHeader,
   Select,
   SelectContent,
@@ -71,29 +71,28 @@ interface Template {
   }[];
 }
 
+/** A switch with its label and what it does: the label leads, the switch sits at the trailing edge. */
 function Toggle({
-  id,
   label,
   hint,
   checked,
   onChange,
 }: {
-  readonly id: string;
   readonly label: string;
   readonly hint?: string;
   readonly checked: boolean;
   readonly onChange: (on: boolean) => void;
 }): JSX.Element {
   return (
-    <div className="flex items-start gap-3 border-b border-[var(--reach-line)] py-3 last:border-b-0">
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
-      <span className="flex flex-col">
-        <label htmlFor={id} className="font-medium">
-          {label}
-        </label>
-        {hint === undefined ? null : <span className="text-sm text-fg-muted">{hint}</span>}
+    <Field orientation="horizontal" className="py-2.5">
+      <span className="flex min-w-0 flex-col">
+        <FieldLabel>{label}</FieldLabel>
+        {hint === undefined ? null : <FieldDescription>{hint}</FieldDescription>}
       </span>
-    </div>
+      <FieldControl>
+        <Switch checked={checked} onCheckedChange={onChange} />
+      </FieldControl>
+    </Field>
   );
 }
 
@@ -133,145 +132,78 @@ function General({
   return (
     <div className="flex flex-col gap-4">
       <Refusal error={act.error} />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Process">
-          <Toggle
-            id="requisitions"
-            label="Use requisitions"
-            hint="Off: jobs open directly, without approval."
-            checked={g.requisitionsOn}
-            onChange={(on) => {
-              setG({ ...g, requisitionsOn: on });
+      <Section title="Process">
+        <Toggle
+          label="Use requisitions"
+          hint="Off: jobs open directly, without approval."
+          checked={g.requisitionsOn}
+          onChange={(on) => {
+            setG({ ...g, requisitionsOn: on });
+          }}
+        />
+        <Field className="py-2.5">
+          <FieldLabel>Show internal applicants to their manager from</FieldLabel>
+          <Select
+            value={g.revealInternalAt}
+            onValueChange={(v) => {
+              setG({ ...g, revealInternalAt: v as GeneralSettings['revealInternalAt'] });
             }}
-          />
-          <Toggle
-            id="federal"
-            label="US federal contractor"
-            hint="Adds the equal-opportunity statement to US jobs."
-            checked={g.federalContractor}
-            onChange={(on) => {
-              setG({ ...g, federalContractor: on });
-            }}
-          />
-          <Field className="py-3">
-            <FieldLabel>Show internal applicants to their manager from</FieldLabel>
-            <Select
-              value={g.revealInternalAt}
-              onValueChange={(v) => {
-                setG({ ...g, revealInternalAt: v as GeneralSettings['revealInternalAt'] });
-              }}
-            >
-              <FieldControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FieldControl>
-              <SelectContent>
-                {(['screening', 'interview', 'assessment', 'offer'] as const).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {words(s)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          >
+            <FieldControl>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+            </FieldControl>
+            <SelectContent>
+              {(['screening', 'interview', 'assessment', 'offer'] as const).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {words(s)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Toggle
+          label="Referral bonus"
+          hint={
+            g.referralBonus === null
+              ? 'Off'
+              : `${money(g.referralBonus.amountMinor, g.referralBonus.currency)}, after ${words(g.referralBonus.after).toLowerCase()}`
+          }
+          checked={g.referralBonus !== null}
+          onChange={(on) => {
+            setG({
+              ...g,
+              referralBonus: on
+                ? { amountMinor: 200_000, currency: 'EUR', after: 'probation' }
+                : null,
+            });
+          }}
+        />
+        {g.referralBonus === null ? null : (
+          <Field className="py-2.5">
+            <FieldLabel>Bonus amount</FieldLabel>
+            <FieldControl>
+              <CurrencyField
+                currency={g.referralBonus.currency}
+                value={String(g.referralBonus.amountMinor)}
+                onValueChange={(minor) => {
+                  setG({
+                    ...g,
+                    referralBonus:
+                      g.referralBonus === null
+                        ? null
+                        : { ...g.referralBonus, amountMinor: Number(minor) || 0 },
+                  });
+                }}
+              />
+            </FieldControl>
+            <FieldDescription>
+              {`Paid to the referrer after the hire’s ${words(g.referralBonus.after).toLowerCase()}.`}
+            </FieldDescription>
           </Field>
-          <Toggle
-            id="bonus"
-            label="Referral bonus"
-            hint={
-              g.referralBonus === null
-                ? 'Off'
-                : `${money(g.referralBonus.amountMinor, g.referralBonus.currency)}, after ${words(g.referralBonus.after).toLowerCase()}`
-            }
-            checked={g.referralBonus !== null}
-            onChange={(on) => {
-              setG({
-                ...g,
-                referralBonus: on
-                  ? { amountMinor: 200_000, currency: 'EUR', after: 'probation' }
-                  : null,
-              });
-            }}
-          />
-          {g.referralBonus === null ? null : (
-            <NumberField
-              label="Bonus amount"
-              value={g.referralBonus.amountMinor / 100}
-              min={0}
-              onChange={(n) => {
-                setG({
-                  ...g,
-                  referralBonus:
-                    g.referralBonus === null
-                      ? null
-                      : { ...g.referralBonus, amountMinor: Math.round((n ?? 0) * 100) },
-                });
-              }}
-            />
-          )}
-        </Section>
-        <Section title="Careers page" description="The company’s page on Kithena Jobs">
-          <div className="flex flex-col gap-3">
-            <Field required>
-              <FieldLabel>Company name</FieldLabel>
-              <FieldControl>
-                <Input
-                  value={g.companyName}
-                  onChange={(e) => {
-                    setG({ ...g, companyName: e.target.value });
-                  }}
-                />
-              </FieldControl>
-            </Field>
-            <Field required>
-              <FieldLabel>Address on Kithena Jobs</FieldLabel>
-              <FieldControl>
-                <Input
-                  value={g.companySlug}
-                  onChange={(e) => {
-                    setG({ ...g, companySlug: e.target.value.toLowerCase() });
-                  }}
-                />
-              </FieldControl>
-              <FieldDescription>{`jobs.kithena.com/${g.companySlug}`}</FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel>About the company</FieldLabel>
-              <FieldControl>
-                <Textarea
-                  autoResize
-                  value={g.about ?? ''}
-                  onChange={(e) => {
-                    setG({ ...g, about: e.target.value === '' ? null : e.target.value });
-                  }}
-                />
-              </FieldControl>
-            </Field>
-            <Field>
-              <FieldLabel>Reply-to address</FieldLabel>
-              <FieldControl>
-                <Input
-                  type="email"
-                  value={g.replyAddress ?? ''}
-                  onChange={(e) => {
-                    setG({ ...g, replyAddress: e.target.value === '' ? null : e.target.value });
-                  }}
-                />
-              </FieldControl>
-            </Field>
-            <Toggle
-              id="searchable"
-              label="On Kithena Jobs’ search"
-              hint="Beside your careers page, in the cross-company search."
-              checked={g.searchable}
-              onChange={(on) => {
-                setG({ ...g, searchable: on });
-              }}
-            />
-          </div>
-        </Section>
-      </div>
-      {data.domainsOn ? <OwnDomain domain={data.careersDomain} props={props} /> : null}
+        )}
+      </Section>
       <Section title="Rejection reasons" description="Internal; never sent to candidates">
         <ChipRow aria-label="Rejection reasons">
           {g.rejectionReasons.map((r) => (
@@ -312,6 +244,74 @@ function General({
           </Button>
         </form>
       </Section>
+      <Section title="Careers page" description="The company’s page on Kithena Jobs">
+        <div className="flex flex-col gap-3">
+          <Field required>
+            <FieldLabel>Company name</FieldLabel>
+            <FieldControl>
+              <Input
+                value={g.companyName}
+                onChange={(e) => {
+                  setG({ ...g, companyName: e.target.value });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field required>
+            <FieldLabel>Address on Kithena Jobs</FieldLabel>
+            <FieldControl>
+              <Input
+                value={g.companySlug}
+                onChange={(e) => {
+                  setG({ ...g, companySlug: e.target.value.toLowerCase() });
+                }}
+              />
+            </FieldControl>
+            <FieldDescription>{`jobs.kithena.com/${g.companySlug}`}</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>About the company</FieldLabel>
+            <FieldControl>
+              <Textarea
+                autoResize
+                value={g.about ?? ''}
+                onChange={(e) => {
+                  setG({ ...g, about: e.target.value === '' ? null : e.target.value });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field>
+            <FieldLabel>Reply-to address</FieldLabel>
+            <FieldControl>
+              <Input
+                type="email"
+                value={g.replyAddress ?? ''}
+                onChange={(e) => {
+                  setG({ ...g, replyAddress: e.target.value === '' ? null : e.target.value });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Toggle
+            label="On Kithena Jobs’ search"
+            hint="Beside your careers page, in the cross-company search."
+            checked={g.searchable}
+            onChange={(on) => {
+              setG({ ...g, searchable: on });
+            }}
+          />
+          <Toggle
+            label="US federal contractor"
+            hint="Adds the equal-opportunity statement to US jobs."
+            checked={g.federalContractor}
+            onChange={(on) => {
+              setG({ ...g, federalContractor: on });
+            }}
+          />
+        </div>
+      </Section>
+      {data.domainsOn ? <OwnDomain domain={data.careersDomain} props={props} /> : null}
       <div className="flex justify-end">
         <Button loading={act.pending} onClick={save}>
           Save
@@ -753,8 +753,9 @@ function PayBands({
 }): JSX.Element {
   const act = useAct(props);
   const [grade, setGrade] = useState('');
-  const [min, setMin] = useState<number | null>(null);
-  const [max, setMax] = useState<number | null>(null);
+  // Minor units as strings, as `CurrencyField` keeps them; empty is blank.
+  const [min, setMin] = useState('');
+  const [max, setMax] = useState('');
   const [entity, setEntity] = useState(data.entities[0]?.id ?? '');
   const currency = data.entities.find((e) => e.id === entity)?.currency ?? 'EUR';
   return (
@@ -782,7 +783,7 @@ function PayBands({
             ))}
           </TableBody>
         </Table>
-        <div className="mt-3 grid gap-3 md:grid-cols-4">
+        <div className="mt-3 flex flex-col gap-3">
           <Field>
             <FieldLabel>Grade</FieldLabel>
             <FieldControl>
@@ -795,8 +796,6 @@ function PayBands({
               />
             </FieldControl>
           </Field>
-          <NumberField label={`From (${currency})`} value={min} min={0} onChange={setMin} />
-          <NumberField label={`To (${currency})`} value={max} min={0} onChange={setMax} />
           <Field>
             <FieldLabel>Entity</FieldLabel>
             <Select value={entity} onValueChange={setEntity}>
@@ -814,11 +813,27 @@ function PayBands({
               </SelectContent>
             </Select>
           </Field>
+          <Field>
+            <FieldLabel>From</FieldLabel>
+            <FieldControl>
+              <CurrencyField currency={currency} value={min} onValueChange={setMin} />
+            </FieldControl>
+            <FieldDescription>The band’s floor, in the entity’s currency.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>To</FieldLabel>
+            <FieldControl>
+              <CurrencyField currency={currency} value={max} onValueChange={setMax} />
+            </FieldControl>
+            <FieldDescription>
+              Its ceiling; an offer above it needs a reason and an approval.
+            </FieldDescription>
+          </Field>
         </div>
         <div className="mt-3 flex justify-end">
           <Button
             variant="secondary"
-            disabled={grade.trim() === '' || min === null || max === null}
+            disabled={grade.trim() === '' || min === '' || max === ''}
             loading={act.pending}
             onClick={() => {
               act.run(
@@ -828,15 +843,15 @@ function PayBands({
                   input: {
                     entityId: entity === '' ? null : entity,
                     grade,
-                    minMinor: Math.round((min ?? 0) * 100),
-                    maxMinor: Math.round((max ?? 0) * 100),
+                    minMinor: Number(min),
+                    maxMinor: Number(max),
                     currency,
                   },
                 },
                 () => {
                   setGrade('');
-                  setMin(null);
-                  setMax(null);
+                  setMin('');
+                  setMax('');
                 },
               );
             }}
@@ -867,7 +882,6 @@ function Ai({
       </Alert>
       <Section title="Features" description="Each switched on or off on its own">
         <Toggle
-          id="ai-writer"
           label="Write and translate job ads"
           checked={ai.writer}
           onChange={(on) => {
@@ -875,7 +889,6 @@ function Ai({
           }}
         />
         <Toggle
-          id="ai-parser"
           label="Parse CVs"
           checked={ai.parser}
           onChange={(on) => {
@@ -883,7 +896,6 @@ function Ai({
           }}
         />
         <Toggle
-          id="ai-matrix"
           label="Evidence matrix"
           hint="Met, partly met, not met or not evidenced per criterion, with the passages; a label, never a stage."
           checked={ai.matrix}
@@ -892,7 +904,6 @@ function Ai({
           }}
         />
         <Toggle
-          id="ai-assistant"
           label="Job assistant on Kithena Jobs"
           checked={ai.assistant}
           onChange={(on) => {
@@ -900,7 +911,6 @@ function Ai({
           }}
         />
         <Toggle
-          id="ai-charts"
           label="Ask for a chart"
           checked={ai.charts}
           onChange={(on) => {
@@ -914,7 +924,6 @@ function Ai({
           religion, health and union membership are always masked.
         </p>
         <Toggle
-          id="ai-schools"
           label="Mask schools too"
           hint="Removes the names of universities and schools, against prestige bias."
           checked={ai.maskSchools ?? false}
@@ -928,7 +937,6 @@ function Ai({
         description="Asked after applying, sealed, counted only in groups of five; never seen by a hiring team or a model"
       >
         <Toggle
-          id="self-id-gender"
           label="Gender"
           hint="Where it is lawful to ask in the countries you hire in."
           checked={selfId.gender}
@@ -937,7 +945,6 @@ function Ai({
           }}
         />
         <Toggle
-          id="self-id-ethnicity"
           label="Race or ethnicity (US EEO-1)"
           hint="For a US employer."
           checked={selfId.ethnicity}

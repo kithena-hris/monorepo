@@ -25,6 +25,8 @@ export interface ActScreenProps {
   readonly route: RemoteRoute | null;
   readonly load: ScreenLoad | { readonly status: 'loading' };
   readonly frame: ReturnType<typeof areaFrame>;
+  /** The address itself, for a screen that is one place per address (Recruiting's settings). */
+  readonly path?: string;
   /** The route's own parts (`/jobs/:id/setup`) and the query: what the screen is of. */
   readonly params?: Readonly<Record<string, string>>;
   readonly search?: Readonly<Record<string, string>>;
@@ -85,6 +87,7 @@ function ActScreen({
   route,
   load,
   frame,
+  path,
   params = {},
   search = {},
   area,
@@ -130,6 +133,7 @@ function ActScreen({
       route={route}
       props={{
         load: loadable,
+        ...(path === undefined ? {} : { path }),
         params,
         search,
         onNavigate: go,
