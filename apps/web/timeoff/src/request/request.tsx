@@ -12,15 +12,15 @@ import {
   ListItem,
   RadioCard,
   RadioGroup,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   SegmentedControl,
   SegmentedControlItem,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
   Skeleton,
   Stat,
   Textarea,
@@ -187,7 +187,7 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
   return (
     <>
       {behind}
-      <Sheet
+      <Dialog
         open
         onOpenChange={(open) => {
           if (!open) close();
@@ -196,18 +196,18 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
         {load.status === 'ready' ? (
           <Panel data={load.data} onAsk={onAsk} onSend={onSend} onNavigate={onNavigate} />
         ) : (
-          <SheetContent size="xl">
-            <SheetHeader>
-              <SheetTitle>Request time off</SheetTitle>
-              <SheetDescription>
+          <DialogContent className={WIDE} sheetOnTouch>
+            <DialogHeader>
+              <DialogTitle>Request time off</DialogTitle>
+              <DialogDescription>
                 {load.status === 'error'
                   ? load.refused === true
                     ? 'There is nothing to request from yet.'
                     : 'Time Off did not answer.'
                   : 'Loading the types and your balances.'}
-              </SheetDescription>
-            </SheetHeader>
-            <SheetBody>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogBody>
               {load.status === 'error' && load.refused === true ? (
                 <Alert tone="info" title="You can’t request time off yet">
                   {load.message}
@@ -229,10 +229,10 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
               ) : (
                 <PanelSkeleton />
               )}
-            </SheetBody>
-          </SheetContent>
+            </DialogBody>
+          </DialogContent>
         )}
-      </Sheet>
+      </Dialog>
     </>
   );
 }
@@ -289,12 +289,12 @@ function Panel({
   const sendLabel = sendTo(preview);
 
   return (
-    <SheetContent
-      size="xl"
+    <DialogContent
+      sheetOnTouch
       // Past the type, a phone's steps are the whole screen (MT6, MT7).
-      className={step === 'type' ? undefined : 'touch:h-full touch:max-h-full touch:rounded-none'}
+      className={`${WIDE} ${step === 'type' ? '' : 'touch:h-full touch:max-h-full touch:rounded-none'}`}
     >
-      <SheetHeader>
+      <DialogHeader>
         {step === 'type' ? null : (
           <AppBarBack
             className="hidden touch:inline-flex"
@@ -305,12 +305,12 @@ function Panel({
             {step === 'review' ? 'Dates' : 'Type'}
           </AppBarBack>
         )}
-        <SheetTitle>Request time off</SheetTitle>
-        <SheetDescription>
+        <DialogTitle>Request time off</DialogTitle>
+        <DialogDescription>
           {preview?.approver == null
             ? 'Choose a type and the dates. Nothing is sent until you send it.'
             : `${preview.approver.displayName} approves.`}
-        </SheetDescription>
+        </DialogDescription>
         <Button
           variant="ghost"
           size="sm"
@@ -320,8 +320,8 @@ function Panel({
         >
           <a href="/time-off/request/describe">Describe it instead</a>
         </Button>
-      </SheetHeader>
-      <SheetBody>
+      </DialogHeader>
+      <DialogBody>
         <div className={columns}>
           <TypePicker
             data={data}
@@ -362,8 +362,8 @@ function Panel({
             </div>
           </div>
         </div>
-      </SheetBody>
-      <SheetFooter className={step === 'type' ? 'touch:hidden' : undefined}>
+      </DialogBody>
+      <DialogFooter className={step === 'type' ? 'touch:hidden' : undefined}>
         {/* At a desk: leave, or send. */}
         <Button className="touch:hidden" onClick={() => onNavigate?.(CLOSE)}>
           Cancel
@@ -412,10 +412,13 @@ function Panel({
             </Button>
           </div>
         ) : null}
-      </SheetFooter>
-    </SheetContent>
+      </DialogFooter>
+    </DialogContent>
   );
 }
+
+/** Two columns at a desk, the picker and the dates side by side: wider than a dialog's default. */
+const WIDE = 'sm:max-w-4xl';
 
 /** "Send to Marco", "Send to Marco and HR", "Send to HR", or "Send" when nobody approves it. */
 function sendTo(preview: RequestData['preview']): string {
