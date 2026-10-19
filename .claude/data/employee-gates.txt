@@ -1,0 +1,20 @@
+Done in 16.5s using pnpm v10.15.0
+  Time:    2m12.589s 
+
+== lint
+services/people/src/application/import/commit.test.ts:224:9: warning unicorn(consistent-function-scoping): Function `violation` does not capture any variables from its parent scope help: Move `violation` to the outer scope to avoid recreating it on every call.
+✖ 89 problems (0 errors, 89 warnings)
+  0 errors and 89 warnings potentially fixable with the `--fix` option.
+x 1 dependency violations (0 errors, 1 warnings). 2395 modules, 9236 dependencies cruised.
+== persist
+
+188 persisted operations, up to date
+== ui
+      Tests  338 passed (338)
+== web
+      Tests  227 passed (227)
+== remote
+      Tests  47 passed (47)
+== timeoff
+      Tests  372 passed (372)
+      Tests  14 passed (14)

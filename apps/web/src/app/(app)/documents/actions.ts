@@ -1,12 +1,10 @@
 'use server';
 
-import { headers } from 'next/headers';
-
 import type { SignatureMark } from '@kithena/contracts';
 
-import { currentTenant } from '../../../lib/branding';
 import { keepMySignature } from '../../../lib/my-signature';
 import { documents, people, timeOff } from '../../../lib/people';
+import { signingOrigin } from '../../../lib/signing-origin';
 import { requestExport } from '../people/actions';
 
 /**
@@ -195,24 +193,46 @@ export async function fileLink(
     base64: string | null;
   }>('DocumentsFile', { documentId, mode, version, device: 'web' });
   if (!a.ok) return { ok: false, message: a.message };
-  const url = a.data.url ?? `data:${a.data.mediaType};base64,${a.data.base64 ?? ''}`;
+  // A signed link where the store gives one; otherwise the shell's own route
+  // streams the bytes (`api/documents/[documentId]/file`), never a data URL:
+  // megabytes of base64 in the page's own payload is what made a document
+  // page slow to arrive, and a URL the browser fetches is cached by version.
+  const url =
+    a.data.url ??
+    `/api/documents/${encodeURIComponent(documentId)}/file?mode=${mode}${
+      version === null ? '' : `&version=${String(version)}`
+    }`;
   return { ok: true, url, fileName: a.data.fileName, mediaType: a.data.mediaType };
+}
+
+/** A version's bytes, for the shell's file route: what `fileLink` points at when the store has no link. */
+export async function fileBytes(
+  documentId: string,
+  mode: 'view' | 'download',
+  version: number | null,
+): Promise<{
+  readonly bytes: Uint8Array;
+  readonly mediaType: string;
+  readonly fileName: string;
+} | null> {
+  const a = await documents<{
+    fileName: string;
+    mediaType: string;
+    url: string | null;
+    base64: string | null;
+  }>('DocumentsFile', { documentId, mode, version, device: 'web' });
+  if (!a.ok || a.data.base64 === null) return null;
+  return {
+    bytes: Buffer.from(a.data.base64, 'base64'),
+    mediaType: a.data.mediaType,
+    fileName: a.data.fileName,
+  };
 }
 
 /* ------------------------------------------------- signatures (K1–K10) -- */
 
 /** Where a signing link points and whose name is on the email: this company's own host. */
-async function origin(): Promise<{ origin: string; companyName: string }> {
-  const inbound = await headers();
-  const host = inbound.get('x-forwarded-host') ?? inbound.get('host') ?? 'localhost:3000';
-  const proto =
-    inbound.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-  const tenant = await currentTenant();
-  return {
-    origin: `${proto}://${host}`,
-    companyName: tenant?.branding.displayName ?? tenant?.slug ?? host,
-  };
-}
+const origin = signingOrigin;
 
 export interface SignerInput {
   readonly personId: string | null;
@@ -328,7 +348,23 @@ export async function envelopeFileLink(
     { envelopeId },
   );
   if (!a.ok) return { ok: false, message: a.message };
-  return { ok: true, url: a.data.url ?? `data:${a.data.mediaType};base64,${a.data.base64 ?? ''}` };
+  // The shell's route streams it where the store gives no link (`fileLink`).
+  return {
+    ok: true,
+    url: a.data.url ?? `/api/documents/envelopes/${encodeURIComponent(envelopeId)}/file`,
+  };
+}
+
+/** The version being signed, as bytes, for the shell's envelope file route. */
+export async function envelopeFileBytes(
+  envelopeId: string,
+): Promise<{ readonly bytes: Uint8Array; readonly mediaType: string } | null> {
+  const a = await documents<{ mediaType: string; url: string | null; base64: string | null }>(
+    'DocumentsEnvelopeFile',
+    { envelopeId },
+  );
+  if (!a.ok || a.data.base64 === null) return null;
+  return { bytes: Buffer.from(a.data.base64, 'base64'), mediaType: a.data.mediaType };
 }
 
 /* ---------------------------------------------- acknowledgements (F2, F3) -- */
@@ -894,6 +930,19 @@ export async function fileDraft(
       input: { ...draft, send, ...(await origin()) },
     }),
   );
+}
+
+/** The draft drawn as `fileDraft` would file it, as a URL the viewer opens. */
+export async function previewDraft(
+  draft: Readonly<Record<string, unknown>>,
+): Promise<Read<{ readonly url: string }>> {
+  const a = await documents<{ readonly base64: string; readonly mediaType: string }>(
+    'PreviewDraft',
+    { input: draft },
+  );
+  return a.ok
+    ? { ok: true, data: { url: `data:${a.data.mediaType};base64,${a.data.base64}` } }
+    : { ok: false, message: a.message };
 }
 
 /* ------------------------------------- a certificate that unlocks leave (J4) -- */

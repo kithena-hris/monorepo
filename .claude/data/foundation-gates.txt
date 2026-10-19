@@ -1,0 +1,26 @@
+Done in 1.3s using pnpm v10.15.0
+Cached:    0 cached, 32 total
+  Time:    21.574s 
+
+== lint
+  178:9  warning  Unused eslint-disable directive (no problems were reported from 'no-await-in-loop')
+  69:5  warning  Unused eslint-disable directive (no problems were reported from 'no-await-in-loop')
+✖ 89 problems (0 errors, 89 warnings)
+  0 errors and 89 warnings potentially fixable with the `--fix` option.
+x 1 dependency violations (0 errors, 1 warnings). 2278 modules, 8504 dependencies cruised.
+== codegen
+  ],
+  "unclassified": []
+}
+== contracts
+      Tests  580 passed (580)
+== timeoff
+-- test
+      Tests  299 passed (299)
+-- test:contract
+      Tests  27 passed (27)
+-- test:standalone
+      Tests  9 passed (9)
+-- test:integration
+ FAIL  src/infrastructure/bootstrap.integration.test.ts [ src/infrastructure/bootstrap.integration.test.ts ]
+      Tests  7 skipped (7)

@@ -11,15 +11,15 @@ import {
   PopoverClose,
   PopoverContent,
   PopoverTrigger,
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   SegmentedControl,
   SegmentedControlItem,
-  Sheet,
-  SheetBody,
-  SheetClose,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
   Slider,
   icons,
   keysOf,
@@ -558,16 +558,16 @@ export function ClockOutSheet({
   readonly onClockOut: () => void;
 }): JSX.Element {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{`Clock out at ${clockTime(minute)}?`}</SheetTitle>
-        </SheetHeader>
-        <SheetBody className="flex flex-col gap-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent sheetOnTouch>
+        <DialogHeader>
+          <DialogTitle>{`Clock out at ${clockTime(minute)}?`}</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="flex flex-col gap-4">
           <DayBar label="Today" segments={day.segments} now={minute} />
           <DayNumbers day={day} />
-        </SheetBody>
-        <SheetFooter className="flex flex-col gap-2">
+        </DialogBody>
+        <DialogFooter className="flex flex-col gap-2">
           <Button
             variant="primary"
             className="w-full"
@@ -577,13 +577,13 @@ export function ClockOutSheet({
           >
             Clock out
           </Button>
-          <SheetClose asChild>
+          <DialogClose asChild>
             <Button variant="ghost" className="w-full">
               Keep working
             </Button>
-          </SheetClose>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

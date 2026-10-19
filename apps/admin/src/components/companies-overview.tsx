@@ -6,18 +6,18 @@ import {
   Avatar,
   Badge,
   BarChart,
+  DataTable,
+  type DataColumn,
   DonutChart,
   PageSection,
   Sparkline,
   Stack,
   Stat,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   icons,
+  usePages,
   type ChartPoint,
 } from '@reach/ui';
 import Link from 'next/link';
@@ -54,18 +54,28 @@ export interface CompanyRow {
  * than letting a partial number read as a total.
  */
 export function CompaniesOverview({
-  rows,
+  rows: first,
+  next,
+  onMore,
   hostSuffix,
-  partial,
 }: {
   readonly rows: readonly CompanyRow[];
+  /** Where the next page starts; null when these are all of them. */
+  readonly next: string | null;
+  /** The next page from a cursor, as the list nears its end: the server's. */
+  readonly onMore: (
+    cursor: string,
+  ) => Promise<{ readonly items: readonly CompanyRow[]; readonly next: string | null } | null>;
   readonly hostSuffix: string;
-  /** Whether another page of companies exists beyond these. */
-  readonly partial: boolean;
 }): JSX.Element {
   const [tab, setTab] = useState<'all' | 'active' | 'awaiting' | 'unreachable'>('all');
+  // Infinite: older companies load as the table nears its end.
+  const pages = usePages(first, next, onMore);
+  const rows = pages.items;
+  const partial = pages.loadMore !== undefined;
 
   const stats = useMemo(() => summarise(rows), [rows]);
+  const columns = useMemo(() => companyColumns(hostSuffix), [hostSuffix]);
 
   const filtered = useMemo(() => {
     if (tab === 'active') return rows.filter((row) => row.status === 'active');
@@ -189,115 +199,116 @@ export function CompaniesOverview({
           counts are in the labels because a tab that turns out to be empty is
           a click nobody wanted to spend.
         */}
-        <div
-          role="tablist"
-          aria-label="Filter companies"
-          className="border-border mb-4 flex flex-wrap gap-1 border-b"
+        <Tabs
+          value={tab}
+          onValueChange={(v) => {
+            setTab(v as typeof tab);
+          }}
+          className="mb-4"
         >
-          {(
-            [
-              ['all', 'All', rows.length],
-              ['active', 'Active', stats.active],
-              ['awaiting', 'Awaiting enrolment', stats.companiesAwaiting],
-              ['unreachable', 'Nobody can reach', stats.unreachable],
-            ] as const
-          ).map(([id, label, count]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => {
-                setTab(id);
-              }}
-              className={`focus-visible:outline-border-focus -mb-px rounded-t-sm border-b-2 px-3 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] ${
-                tab === id
-                  ? 'border-accent text-fg'
-                  : 'hover:text-fg border-transparent text-fg-muted'
-              }`}
-            >
-              {label}
-              <span className="text-fg-subtle ml-1.5 text-xs">{count}</span>
-            </button>
-          ))}
-        </div>
+          <TabsList aria-label="Filter companies">
+            {(
+              [
+                ['all', 'All', rows.length],
+                ['active', 'Active', stats.active],
+                ['awaiting', 'Awaiting enrolment', stats.companiesAwaiting],
+                ['unreachable', 'Nobody can reach', stats.unreachable],
+              ] as const
+            ).map(([id, label, count]) => (
+              <TabsTrigger key={id} value={id}>
+                {label}
+                <span className="text-fg-subtle ml-1.5 text-xs">{count}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
-        {filtered.length === 0 ? (
-          <p className="text-fg-muted py-6 text-center text-sm">
-            No company on this page matches that.
-          </p>
-        ) : (
-          <Table aria-label="Companies">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Company</TableHead>
-                <TableHead>Employees</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Added</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((tenant) => (
-                <TableRow key={tenant.id} interactive className="relative">
-                  <TableCell>
-                    <span className="flex items-center gap-3">
-                      <Avatar
-                        size="md"
-                        shape="rounded"
-                        fit="contain"
-                        src={tenant.logoUrl ?? undefined}
-                        name={tenant.displayName}
-                      />
-                      <span className="flex min-w-0 flex-col">
-                        {/*
-                          One real link, stretched over the whole row by a
-                          pseudo-element. A 4px target beside a 700px row is
-                          the difference between clicking a company and
-                          clicking nothing — and doing it this way keeps the
-                          row a row for a screen reader, which a nest of links
-                          inside table cells would not.
-                        */}
-                        <Link
-                          href={`/companies/${tenant.id}`}
-                          className="focus-visible:outline-border-focus truncate font-medium after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
-                        >
-                          {tenant.displayName}
-                        </Link>
-                        <code className="text-fg-muted truncate text-xs">
-                          {tenant.slug}.{hostSuffix}
-                        </code>
-                      </span>
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">
-                      {tenant.admins} active
-                      {tenant.pendingInvites > 0 ? (
-                        <span className="text-fg-muted">
-                          {', '}
-                          {tenant.pendingInvites} invited
-                        </span>
-                      ) : null}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge dot tone={tenant.status === 'active' ? 'success' : 'warning'}>
-                      {tenant.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell numeric>
-                    <time dateTime={tenant.createdAt} className="text-fg-muted text-sm">
-                      {formatDate(tenant.createdAt)}
-                    </time>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <DataTable<CompanyRow>
+          label="Companies"
+          rows={filtered}
+          rowId={companyId}
+          describeRow={companyName}
+          stickyHeader
+          containerClassName="max-h-[70dvh] min-h-64"
+          {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+          loadingMore={pages.loading}
+          empty="No company listed matches that."
+          columns={columns}
+        />
       </PageSection>
     </Stack>
   );
+}
+
+const companyId = (c: CompanyRow): string => c.id;
+const companyName = (c: CompanyRow): string => c.displayName;
+
+/** The list: who they are, who can reach them, and since when. */
+function companyColumns(hostSuffix: string): readonly DataColumn<CompanyRow>[] {
+  return [
+    {
+      id: 'company',
+      header: 'Company',
+      sortBy: (c) => c.displayName,
+      cell: (c) => (
+        <span className="flex items-center gap-3">
+          <Avatar
+            size="md"
+            shape="rounded"
+            fit="contain"
+            src={c.logoUrl ?? undefined}
+            name={c.displayName}
+          />
+          <span className="flex min-w-0 flex-col">
+            <Link href={`/companies/${c.id}`} className="truncate font-medium">
+              {c.displayName}
+            </Link>
+            <code className="text-fg-muted truncate text-xs">
+              {c.slug}.{hostSuffix}
+            </code>
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: 'employees',
+      header: 'Employees',
+      sortBy: (c) => c.admins,
+      cell: (c) => (
+        <span className="text-sm">
+          {c.admins} active
+          {c.pendingInvites > 0 ? (
+            <span className="text-fg-muted">
+              {', '}
+              {c.pendingInvites} invited
+            </span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cardTrailing: true,
+      sortBy: (c) => c.status,
+      cell: (c) => (
+        <Badge dot tone={c.status === 'active' ? 'success' : 'warning'}>
+          {c.status}
+        </Badge>
+      ),
+    },
+    {
+      id: 'added',
+      header: 'Added',
+      numeric: true,
+      sortBy: (c) => c.createdAt,
+      cell: (c) => (
+        <time dateTime={c.createdAt} className="text-fg-muted text-sm">
+          {formatDate(c.createdAt)}
+        </time>
+      ),
+    },
+  ];
 }
 
 /** The date an operator reads, not the timestamp the database stores. */

@@ -1,5 +1,6 @@
 import type * as z from 'zod';
 import {
+  EnvelopeCompleted,
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
@@ -18,13 +19,17 @@ import {
 } from '@kithena/contracts';
 import { logger } from '@kithena/telemetry';
 
-import type { Member, Tx, UnitOfWork } from '../../application/ports.js';
+import { contextOf } from '../../application/context.js';
+import { contractSignedByEnvelope } from '../../application/offers.js';
+import type { Deps, Member, Tx, UnitOfWork } from '../../application/ports.js';
 
 /**
  * People's and identity's events, into Recruiting's member projection and its
- * administrators (PRD §5.2, REC-044). Documents' consumer: idempotent by event id,
- * ordered by `effectiveFrom`, one transaction per event, somebody unknown
- * ignored, a malformed message logged by path and skipped.
+ * administrators (PRD §5.2, REC-044), and Documents' `envelope.completed`,
+ * which signs a contract and hires (PRD §21.2, REC-140). Documents' consumer:
+ * idempotent by event id, ordered by `effectiveFrom`, one transaction per
+ * event, somebody unknown ignored, a malformed message logged by path and
+ * skipped.
  */
 
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
@@ -54,7 +59,11 @@ function parse<P extends z.ZodType>(
 const dateOf = (event: EventEnvelope): CalendarDate =>
   event.effectiveFrom ?? (event.occurredAt.slice(0, 10) as CalendarDate);
 
-export function recruitingConsumer(uow: UnitOfWork): (raw: unknown) => Promise<Outcome> {
+export function recruitingConsumer(
+  uow: UnitOfWork,
+  /** The use cases' dependencies, for the one event that runs one (a signed contract). Absent, that event is ignored. */
+  deps: Deps | null = null,
+): (raw: unknown) => Promise<Outcome> {
   const change = (
     event: EventEnvelope,
     personId: PersonId,
@@ -219,6 +228,35 @@ export function recruitingConsumer(uow: UnitOfWork): (raw: unknown) => Promise<O
             asOf: event.occurredAt,
           });
           return 'applied';
+        });
+      }
+      /*
+       * A signed envelope. Only one sent for a contract carries a subject
+       * reference of Recruiting's; the contract is signed, the application
+       * hired and `recruiting.candidate.hired` published, as the system
+       * (PRD §21.2, §21.3). A reference Recruiting does not hold, or a
+       * contract already signed, changes nothing.
+       */
+      case EnvelopeCompleted.name: {
+        const event = parse(EnvelopeCompleted, raw);
+        if (!event) return 'rejected';
+        const ref = event.payload.subjectRef;
+        if (deps === null || ref === null || !ref.startsWith('recruiting:offer:')) return 'ignored';
+        return uow.run(event.tenantId, async (tx) => {
+          const ctx = await contextOf(deps, tx, {
+            tenantId: event.tenantId,
+            accountId: 'system',
+            personId: null,
+            correlationId: event.correlationId,
+          });
+          const signed = await contractSignedByEnvelope(ctx, ref, dateOf(event));
+          if (signed.ok) return 'applied';
+          if (signed.error.code === 'CONTRACT_STATE') return 'unchanged';
+          logger.warn(
+            { eventId: event.eventId, code: signed.error.code },
+            'signed contract not applied',
+          );
+          return 'rejected';
         });
       }
       default:

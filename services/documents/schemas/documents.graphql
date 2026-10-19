@@ -182,6 +182,11 @@ type DocumentsDraftFiled {
   id: String!
 }
 
+type DocumentsDraftPreview {
+  base64: String!
+  mediaType: String!
+}
+
 type DocumentsEnvelope {
   completedAt: String
   createdAt: String!
@@ -759,6 +764,14 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): DocumentsCreated!
+  """
+  The draft drawn as the PDF fileDraft would file, to read over before sending
+  """
+  previewDraft(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): DocumentsDraftPreview!
   """
   Where each document in a scanned stack starts, what it is and whom it is about (C2)
   """

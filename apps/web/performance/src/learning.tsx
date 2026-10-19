@@ -22,6 +22,8 @@ import {
   Progress,
   SegmentedControl,
   SegmentedControlItem,
+  DataTable,
+  type DataColumn,
   Table,
   TableBody,
   TableCell,
@@ -142,6 +144,77 @@ export interface LearningData {
   readonly manager: boolean;
 }
 
+type CatalogueRow = LearningData['catalogue'][number];
+const itemId = (i: CatalogueRow): string => i.id;
+const itemTitle = (i: CatalogueRow): string => i.title;
+
+/** PF15's catalogue: every course, session and document, assigned from the row. */
+function catalogueColumns(
+  onNavigate: ScreenProps<LearningData>['onNavigate'],
+  assign: ((itemId: string) => void) | null,
+): readonly DataColumn<CatalogueRow>[] {
+  return [
+    {
+      id: 'item',
+      header: 'Item',
+      sortBy: (i) => i.title,
+      cell: (i) => (
+        <>
+          <To href={`/performance/learning/items/${i.id}`} onNavigate={onNavigate}>
+            {i.title}
+          </To>
+          <span className="block text-xs text-fg-muted">
+            {[i.provider, ...i.skills].join(' · ')}
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'kind',
+      header: 'Kind',
+      sortBy: (i) => i.kind,
+      cell: (i) => <span className="text-sm">{kindWord(i.kind)}</span>,
+    },
+    {
+      id: 'length',
+      header: 'Length',
+      numeric: true,
+      hideOnCard: true,
+      sortBy: (i) => i.minutes,
+      cell: (i) => (
+        <span className="text-sm">{i.minutes === 0 ? '—' : `${String(i.minutes)} min`}</span>
+      ),
+    },
+    {
+      id: 'assigned',
+      header: 'Assigned',
+      numeric: true,
+      sortBy: (i) => i.assigned,
+      cell: (i) => <span className="text-sm">{plural(i.assigned, 'person', 'people')}</span>,
+    },
+    ...(assign === null
+      ? []
+      : [
+          {
+            id: 'assign',
+            header: <span className="sr-only">Assign</span>,
+            cardTrailing: true,
+            cell: (i: CatalogueRow) => (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  assign(i.id);
+                }}
+              >
+                Assign
+              </Button>
+            ),
+          },
+        ]),
+  ];
+}
+
 export function Learning(props: ScreenProps<LearningData>): JSX.Element {
   const act = useAct(props);
   const [assigning, setAssigning] = useState<string | null>(null);
@@ -233,62 +306,18 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
             </Card>
           ) : null}
           {data.tab === 'catalogue' ? (
-            <Card>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Kind</TableHead>
-                      <TableHead>Length</TableHead>
-                      <TableHead>Assigned</TableHead>
-                      {data.hr || data.manager ? (
-                        <TableHead>
-                          <span className="sr-only">Assign</span>
-                        </TableHead>
-                      ) : null}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.catalogue.map((i) => (
-                      <TableRow key={i.id}>
-                        <TableCell>
-                          <To
-                            href={`/performance/learning/items/${i.id}`}
-                            onNavigate={props.onNavigate}
-                          >
-                            {i.title}
-                          </To>
-                          <span className="block text-xs text-fg-muted">
-                            {[i.provider, ...i.skills].join(' · ')}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-sm">{kindWord(i.kind)}</TableCell>
-                        <TableCell className="text-sm">
-                          {i.minutes === 0 ? '—' : `${String(i.minutes)} min`}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {plural(i.assigned, 'person', 'people')}
-                        </TableCell>
-                        {data.hr || data.manager ? (
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                setAssigning(i.id);
-                              }}
-                            >
-                              Assign
-                            </Button>
-                          </TableCell>
-                        ) : null}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <DataTable<CatalogueRow>
+              label="Catalogue"
+              rows={data.catalogue}
+              rowId={itemId}
+              describeRow={itemTitle}
+              fill
+              empty="Nothing in the catalogue yet"
+              columns={catalogueColumns(
+                props.onNavigate,
+                data.hr || data.manager ? setAssigning : null,
+              )}
+            />
           ) : null}
           {data.tab === 'sessions' ? (
             <Card>

@@ -217,8 +217,7 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                 rowId={(c) => c.id}
                 describeRow={(c) => c.name}
                 estimateRowHeight={57}
-                containerClassName="page-fill max-h-dvh min-h-96"
-                stickyHeader
+                fill
                 columns={[
                   {
                     id: 'cycle',

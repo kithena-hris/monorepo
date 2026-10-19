@@ -7,7 +7,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Checkbox,
+  DataTable,
+  type DataColumn,
   Dialog,
   DialogBody,
   DialogContent,
@@ -30,15 +31,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   icons,
 } from '@reach/ui';
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { CATEGORY_TONE, Refusal, Search, To, day, useAct, when, words } from './shared';
@@ -310,6 +305,65 @@ function UndoBar({
   );
 }
 
+const NO_STAGES: PipelineData['stages'] = [];
+const applicationOf = (c: CardData): string => c.applicationId;
+const nameOf = (c: CardData): string => c.name;
+
+/** The table view's columns (R10): the candidate, where they are and since when. */
+function pipelineColumns(
+  stages: PipelineData['stages'],
+  onNavigate: ScreenProps<PipelineData>['onNavigate'],
+): readonly DataColumn<CardData>[] {
+  return [
+    {
+      id: 'candidate',
+      header: 'Candidate',
+      sortBy: (c) => c.name,
+      cell: (c) => (
+        <To href={`/recruiting/candidates/${c.candidateId}`} onNavigate={onNavigate}>
+          {c.name}
+        </To>
+      ),
+    },
+    {
+      id: 'stage',
+      header: 'Stage',
+      sortBy: (c) => stages.findIndex((s) => s.id === c.stageId),
+      cell: (c) => <Badge size="sm">{stages.find((s) => s.id === c.stageId)?.name ?? ''}</Badge>,
+    },
+    {
+      id: 'source',
+      header: 'Source',
+      hideOnCard: true,
+      sortBy: (c) => c.source,
+      cell: (c) => <span className="text-sm text-fg-muted">{words(c.source)}</span>,
+    },
+    {
+      id: 'inStage',
+      header: 'In stage',
+      numeric: true,
+      sortBy: (c) => c.daysInStage,
+      cell: (c) => `${String(c.daysInStage)} d`,
+    },
+    {
+      id: 'next',
+      header: 'Next',
+      sortBy: (c) => c.nextInterview?.startsAt ?? '',
+      cell: (c) => (
+        <span className="text-sm text-fg-muted">
+          {c.nextInterview === null ? '' : when(c.nextInterview.startsAt)}
+        </span>
+      ),
+    },
+    {
+      id: 'applied',
+      header: 'Applied',
+      sortBy: (c) => c.appliedAt,
+      cell: (c) => <span className="text-sm text-fg-muted">{day(c.appliedAt)}</span>,
+    },
+  ];
+}
+
 export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   const view = props.search?.['view'] === 'table' ? 'table' : 'board';
   const act = useAct(props);
@@ -325,6 +379,10 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   } | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [moveTo, setMoveTo] = useState('');
+  // Held while the stages and the navigation hold, so a selection redraws only its rows.
+  const stages = props.load.status === 'ready' ? props.load.data.stages : NO_STAGES;
+  const { onNavigate } = props;
+  const columns = useMemo(() => pipelineColumns(stages, onNavigate), [stages, onNavigate]);
 
   return (
     <Loaded load={props.load} what="the pipeline">
@@ -549,79 +607,21 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                     </Button>
                   </div>
                 )}
-                <Card>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>
-                            <Checkbox
-                              aria-label="Select all"
-                              checked={selected.size > 0 && selected.size === active.length}
-                              onCheckedChange={(on) => {
-                                setSelected(
-                                  on === true
-                                    ? new Set(active.map((c) => c.applicationId))
-                                    : new Set(),
-                                );
-                              }}
-                            />
-                          </TableHead>
-                          <TableHead>Candidate</TableHead>
-                          <TableHead>Stage</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>In stage</TableHead>
-                          <TableHead>Next</TableHead>
-                          <TableHead>Applied</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {active.map((c) => (
-                          <TableRow
-                            key={c.applicationId}
-                            data-state={selected.has(c.applicationId) ? 'selected' : undefined}
-                          >
-                            <TableCell>
-                              <Checkbox
-                                aria-label={`Select ${c.name}`}
-                                checked={selected.has(c.applicationId)}
-                                onCheckedChange={(on) => {
-                                  const next = new Set(selected);
-                                  if (on === true) next.add(c.applicationId);
-                                  else next.delete(c.applicationId);
-                                  setSelected(next);
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <To
-                                href={`/recruiting/candidates/${c.candidateId}`}
-                                onNavigate={props.onNavigate}
-                              >
-                                {c.name}
-                              </To>
-                            </TableCell>
-                            <TableCell>
-                              <Badge size="sm">
-                                {data.stages.find((s) => s.id === c.stageId)?.name ?? ''}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-fg-muted">
-                              {words(c.source)}
-                            </TableCell>
-                            <TableCell>{`${String(c.daysInStage)} d`}</TableCell>
-                            <TableCell className="text-sm text-fg-muted">
-                              {c.nextInterview === null ? '' : when(c.nextInterview.startsAt)}
-                            </TableCell>
-                            <TableCell className="text-sm text-fg-muted">
-                              {day(c.appliedAt)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+                {/* Infinite: the page's one scroll, only the rows on screen drawn. */}
+                <DataTable<CardData>
+                  label="Candidates"
+                  rows={active}
+                  rowId={applicationOf}
+                  describeRow={nameOf}
+                  fill
+                  selectable
+                  selected={[...selected]}
+                  onSelectedChange={(ids) => {
+                    setSelected(new Set(ids));
+                  }}
+                  empty="Nobody at this stage"
+                  columns={columns}
+                />
               </>
             )}
             <div className="pointer-events-none fixed inset-x-0 bottom-6 flex justify-center">

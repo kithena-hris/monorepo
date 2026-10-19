@@ -16,12 +16,12 @@ export default async function SignPage({
 }): Promise<JSX.Element> {
   const { token } = await params;
   const company = (await headers()).get('x-tenant-slug') ?? '';
-  const [envelope, file] = await Promise.all([
-    call<LinkEnvelope>(token, ''),
-    call<{ url: string | null; base64: string | null; mediaType: string }>(token, '/file'),
-  ]);
-  const url = file.ok
-    ? (file.data.url ?? `data:${file.data.mediaType};base64,${file.data.base64 ?? ''}`)
+  const envelope = await call<LinkEnvelope>(token, '');
+  // The file comes through the page's own route (`./file`), fetched by the
+  // viewer: the page itself carries no base64. `?v=` is the signer's state, so
+  // the copy with their signature drawn in is fetched afresh after Finish.
+  const url = envelope.ok
+    ? `/sign/${encodeURIComponent(token)}/file?v=${encodeURIComponent(envelope.data.me?.status ?? envelope.data.status)}`
     : null;
   return (
     <SignByLink

@@ -19,12 +19,8 @@ import {
   RadioCard,
   RadioGroup,
   Stat,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
+  type DataColumn,
   Textarea,
   Timeline,
   TimelineItem,
@@ -121,6 +117,73 @@ function ConfidenceBadge({ value }: { readonly value: string }): JSX.Element {
   );
 }
 
+const goalId = (g: GoalRow): string => g.id;
+const goalTitle = (g: GoalRow): string => g.title;
+
+/** PF4's list: each goal, whose it is, how far along, and how sure. Virtualised: a company's every goal is one list. */
+function goalColumns(
+  onNavigate: ScreenProps<GoalsData>['onNavigate'],
+  weighted: boolean,
+): readonly DataColumn<GoalRow>[] {
+  return [
+    {
+      id: 'goal',
+      header: 'Goal',
+      sortBy: (g) => g.title,
+      cell: (g) => (
+        <>
+          <To href={`/performance/goals/${g.id}`} onNavigate={onNavigate}>
+            {g.title}
+          </To>
+          {g.alignedTo === null ? null : (
+            <span className="block text-xs text-fg-muted">{`Aligned to ${g.alignedTo}`}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'owner',
+      header: 'Owner',
+      sortBy: (g) => g.owner,
+      cell: (g) => <span className="text-sm">{g.owner}</span>,
+    },
+    {
+      id: 'progress',
+      header: 'Progress',
+      width: '10rem',
+      sortBy: (g) => g.progress,
+      cell: (g) => (
+        <Progress value={g.progress} label={`${g.title}: ${String(g.progress)}%`} showValue />
+      ),
+    },
+    {
+      id: 'confidence',
+      header: 'Confidence',
+      cardTrailing: true,
+      sortBy: (g) => (g.status === 'active' ? g.confidence : g.status),
+      cell: (g) =>
+        g.status === 'active' ? (
+          <ConfidenceBadge value={g.confidence} />
+        ) : (
+          <Badge size="sm">{g.status.charAt(0).toUpperCase() + g.status.slice(1)}</Badge>
+        ),
+    },
+    ...(weighted
+      ? [
+          {
+            id: 'weight',
+            header: 'Weight',
+            numeric: true,
+            sortBy: (g: GoalRow) => g.weight ?? 0,
+            cell: (g: GoalRow) => (
+              <span className="text-sm">{g.weight === null ? '—' : `${String(g.weight)}%`}</span>
+            ),
+          },
+        ]
+      : []),
+  ];
+}
+
 export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
   const act = useAct(props);
   const [creating, setCreating] = useState(props.search?.['new'] === '1');
@@ -200,66 +263,21 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
             ) : null}
             {data.tab === 'alignment' ? (
               <Tree rows={data.tree} onNavigate={props.onNavigate} />
+            ) : rows.length === 0 ? (
+              <EmptyState
+                icon={<icons.goal aria-hidden />}
+                title="No goals here"
+                description="A goal has at least one key result; its progress is worked out from them."
+              />
             ) : (
-              <Card>
-                <CardContent className="overflow-x-auto">
-                  {rows.length === 0 ? (
-                    <EmptyState
-                      icon={<icons.goal aria-hidden />}
-                      title="No goals here"
-                      description="A goal has at least one key result; its progress is worked out from them."
-                    />
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Goal</TableHead>
-                          <TableHead>Owner</TableHead>
-                          <TableHead>Progress</TableHead>
-                          <TableHead>Confidence</TableHead>
-                          {data.weighted ? <TableHead>Weight</TableHead> : null}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {rows.map((g) => (
-                          <TableRow key={g.id}>
-                            <TableCell>
-                              <To href={`/performance/goals/${g.id}`} onNavigate={props.onNavigate}>
-                                {g.title}
-                              </To>
-                              {g.alignedTo === null ? null : (
-                                <span className="block text-xs text-fg-muted">{`Aligned to ${g.alignedTo}`}</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm">{g.owner}</TableCell>
-                            <TableCell className="w-40">
-                              <Progress
-                                value={g.progress}
-                                label={`${g.title}: ${String(g.progress)}%`}
-                                showValue
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {g.status === 'active' ? (
-                                <ConfidenceBadge value={g.confidence} />
-                              ) : (
-                                <Badge size="sm">
-                                  {g.status.charAt(0).toUpperCase() + g.status.slice(1)}
-                                </Badge>
-                              )}
-                            </TableCell>
-                            {data.weighted ? (
-                              <TableCell className="text-sm">
-                                {g.weight === null ? '—' : `${String(g.weight)}%`}
-                              </TableCell>
-                            ) : null}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              <DataTable<GoalRow>
+                label="Goals"
+                rows={rows}
+                rowId={goalId}
+                describeRow={goalTitle}
+                fill
+                columns={goalColumns(props.onNavigate, data.weighted)}
+              />
             )}
             {creating ? (
               <NewGoal

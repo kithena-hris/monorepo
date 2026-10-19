@@ -1,18 +1,18 @@
 import { Kafka } from 'kafkajs';
-import { PersonHired, TenantAdministratorNamed } from '@kithena/contracts';
+import { EnvelopeCompleted, PersonHired, TenantAdministratorNamed } from '@kithena/contracts';
 import { kafkaConfigFrom } from '@kithena/db-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
-import type { UnitOfWork } from '../../application/ports.js';
+import type { Deps } from '../../application/ports.js';
 import { recruitingConsumer } from './handle.js';
 
 /**
- * People's topic and identity's, each its own group, from the beginning the
- * first time: every handler is idempotent, and somebody hired before
- * Recruiting was bought is a member. Documents' wiring.
+ * People's topic, identity's and Documents', each its own group, from the
+ * beginning the first time: every handler is idempotent, and somebody hired
+ * before Recruiting was bought is a member. Documents' wiring.
  */
-export function wireConsumers(env: NodeJS.ProcessEnv, uow: UnitOfWork | null): void {
-  const started = startConsumers(env, uow);
+export function wireConsumers(env: NodeJS.ProcessEnv, deps: Deps | null): void {
+  const started = startConsumers(env, deps);
   started.catch((error: unknown) => {
     logger.error({ err: error }, 'recruiting consumers failed');
     process.exit(1);
@@ -22,20 +22,21 @@ export function wireConsumers(env: NodeJS.ProcessEnv, uow: UnitOfWork | null): v
 
 async function startConsumers(
   env: NodeJS.ProcessEnv,
-  uow: UnitOfWork | null,
+  deps: Deps | null,
 ): Promise<{ stop(): Promise<void> } | null> {
   const kafka = kafkaConfigFrom(env, 'recruiting');
-  if (uow === null || kafka === null) {
+  if (deps === null || kafka === null) {
     logger.info(
       { module: 'recruiting' },
       'RECRUITING_DATABASE_URL or KAFKA_BROKERS unset; not consuming',
     );
     return null;
   }
-  const handle = recruitingConsumer(uow);
+  const handle = recruitingConsumer(deps.uow, deps);
   const consumers = await Promise.all([
     consume(new Kafka(kafka), 'recruiting', PersonHired.topic, handle),
     consume(new Kafka(kafka), 'recruiting-identity', TenantAdministratorNamed.topic, handle),
+    consume(new Kafka(kafka), 'recruiting-documents', EnvelopeCompleted.topic, handle),
   ]);
   return {
     stop: async () => {

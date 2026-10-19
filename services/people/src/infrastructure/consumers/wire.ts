@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
-import { AccountProvisioned, SchemaPublished } from '@kithena/contracts';
+import { AccountProvisioned, CandidateHired, SchemaPublished } from '@kithena/contracts';
 import { kafkaConfigFrom } from '@kithena/db-kit';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
@@ -17,8 +17,9 @@ import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-r
 import { openFgaFrom } from '../openfga.js';
 import { roleReportFrom } from '../role-report.js';
 import { signupReportFrom } from '../signup-report.js';
-import { personAccess } from '../../application/person/person-access.js';
-import { enterAsSelf, type EnterAsSelf } from '../../application/person/self-entry.js';
+import { hiresFromRecruiting } from '../../application/person/hire-from-recruiting.js';
+import { personAccess, type PersonAccess } from '../../application/person/person-access.js';
+import { enterAsSelf } from '../../application/person/self-entry.js';
 import { withSources, withSubjects, withSupport } from '../../application/person/subject.js';
 import { drizzleEmployeeNumbers } from '../drizzle-org-store.js';
 import { drizzlePersonRepository } from '../drizzle-person-repository.js';
@@ -92,8 +93,9 @@ export async function startConsumers(
   // first deployed is an account People should still know about.
   // `SchemaPublished.topic` is People's own topic, so the person events the
   // OpenFGA tuples are written from (PEO-092) arrive here too.
+  // Recruiting's topic too: a hire it made becomes a `pre_hire` here (PRD §21.4).
   await consumer.subscribe({
-    topics: [AccountProvisioned.topic, SchemaPublished.topic],
+    topics: [AccountProvisioned.topic, SchemaPublished.topic, CandidateHired.topic],
     fromBeginning: true,
   });
   await consumer.run({
@@ -133,12 +135,17 @@ export function consumerFrom(
   const authz = openFgaFrom(env);
   const reportRoles = roleReportFrom(env, inTenant, systemClock);
   const reportSignup = signupReportFrom(env, inTenant, systemClock);
-  const selfEntry = selfEntryFrom(env);
+  const access = accessFrom(env);
   const handle = peopleConsumer({
     ...(authz === null ? {} : { authz }),
     ...(reportRoles === null ? {} : { reportRoles }),
     ...(reportSignup === null ? {} : { reportSignup }),
-    ...(selfEntry === null ? {} : { enterAsSelf: selfEntry }),
+    ...(access === null
+      ? {}
+      : {
+          enterAsSelf: enterAsSelf(access, drizzlePersonReader()),
+          hires: hiresFromRecruiting(access, drizzleSchemaVersions()),
+        }),
     ...(approvals === null ? {} : { approvals }),
     inTenant,
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
@@ -173,14 +180,15 @@ export function consumerFrom(
 
 /**
  * People's write path, for what a person entered about themselves on
- * identity's page (`self-entry.ts`): the same `personAccess` the transports
- * use, with the same relations — OpenFGA when configured, the owning
- * upstream systems (mirror mode) on every answer — and the same holding of
- * changes that need approval. Null without `PEOPLE_SECRET_KEYS`, which a
- * unique claim and a held sealed value need; the consumer then only fills an
- * empty name, as it did before.
+ * identity's page (`self-entry.ts`) and for a hire Recruiting made
+ * (`hire-from-recruiting.ts`): the same `personAccess` the transports use,
+ * with the same relations — OpenFGA when configured, the owning upstream
+ * systems (mirror mode) on every answer — and the same holding of changes
+ * that need approval. Null without `PEOPLE_SECRET_KEYS`, which a unique
+ * claim and a held sealed value need; the consumer then only fills an empty
+ * name, as it did before, and applies no hire.
  */
-function selfEntryFrom(env: NodeJS.ProcessEnv): EnterAsSelf | null {
+function accessFrom(env: NodeJS.ProcessEnv): PersonAccess | null {
   const keys = keysFrom(env['PEOPLE_SECRET_KEYS']);
   if (keys.length === 0) {
     logger.warn('PEOPLE_SECRET_KEYS unset; names and sign-up answers only fill empty fields');
@@ -190,7 +198,7 @@ function selfEntryFrom(env: NodeJS.ProcessEnv): EnterAsSelf | null {
   const org = drizzleOrgStore();
   const reader = drizzlePersonReader();
   const secrets = drizzleSecretStore(ring, logger);
-  const access = personAccess({
+  return personAccess({
     people: drizzlePersonRepository(),
     reader,
     schemas: drizzleSchemaVersions(),
@@ -224,7 +232,6 @@ function selfEntryFrom(env: NodeJS.ProcessEnv): EnterAsSelf | null {
       calendars: org,
     }),
   });
-  return enterAsSelf(access, reader);
 }
 
 /**

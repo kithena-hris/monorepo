@@ -477,10 +477,28 @@ async function prepareContract(
     terms.value,
     await documentsPresent(ctx),
   );
-  const out = contract.route === 'documents' ? sendForSignature(contract) : ok(contract);
+  await ctx.tx.contracts.save({ ...contract, fileId: null });
+  return ok(contract);
+}
+
+/**
+ * The shell filed the contract in Documents and sent its envelope, carrying
+ * the contract's `subjectRef` (PRD §21.2, §28): from now on only Documents'
+ * `envelope.completed` signs it. A retry on a contract already out is the
+ * same answer, not a second send.
+ */
+export async function contractSent(ctx: Ctx, offerId: string): Promise<Result<true>> {
+  const offer = await ctx.tx.offers.get(offerId);
+  if (offer === null) return err(notFound('offer'));
+  const loaded = await editableOffer(ctx, offer.applicationId);
+  if (!loaded.ok) return loaded;
+  const contract = await ctx.tx.contracts.forOffer(offerId);
+  if (contract === null) return err(notFound('contract'));
+  if (contract.state === 'out_for_signature') return ok(true);
+  const out = sendForSignature(contract);
   if (!out.ok) return out;
-  await ctx.tx.contracts.save({ ...out.value, fileId: null });
-  return ok(out.value);
+  await ctx.tx.contracts.save({ ...out.value, fileId: contract.fileId });
+  return ok(true);
 }
 
 /** Documents' `envelope.completed`, matched on the subject reference (PRD §21.2). */
@@ -684,13 +702,19 @@ export async function cancelThePrehire(
   const cancelled = cancelPrehire(held, reason);
   if (!cancelled.ok) return cancelled;
   await ctx.tx.prehires.save(cancelled.value);
+  const candidate = await ctx.tx.candidates.get(held.candidateId);
   await publish(
     ctx,
     event(
       ctx,
       'recruiting.prehire.cancelled',
       { type: 'Application', id: applicationId },
-      { candidateId: held.candidateId, applicationId, reasonKey: reason },
+      {
+        candidateId: held.candidateId,
+        applicationId,
+        reasonKey: reason,
+        email: candidate?.email ?? null,
+      },
     ),
   );
   return ok(cancelled.value);

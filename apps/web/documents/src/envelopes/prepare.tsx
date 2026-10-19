@@ -150,8 +150,8 @@ export function WhereTheySign({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <Card>
           <CardHeader>
             <CardTitle level={2}>Add a box</CardTitle>

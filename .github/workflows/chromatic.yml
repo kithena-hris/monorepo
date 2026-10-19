@@ -3,22 +3,18 @@ name: chromatic
 # `push: main` is what establishes the baseline, and without it the rest does
 # not work: `onlyChanged` compares against the last accepted build on the base
 # branch, and `autoAcceptChanges: main` is the instruction to accept it there.
-# Triggering only on pull requests leaves every PR comparing against a baseline
-# that was never taken. `merge_group` alone would not have covered it either —
-# a merge queue needs branch protection, which is not available on this plan.
+#
+# Main and by hand only, since 2026-10-19. It ran on every pull request that
+# touched Reach, and Chromatic's free snapshot quota is spent: each run then
+# sat "pending" forever ("Update your plan to resume testing"), a runner
+# minute and a check that never finished, on a check the ruleset does not
+# require. The baseline on main still moves on each merge, so a run started
+# by hand (`gh workflow run chromatic.yml`) compares against the last
+# accepted one. Put `pull_request` back here when the plan allows it.
 on:
   push:
     branches: [main]
-  pull_request:
-    paths:
-      # Only what a story can render: Reach itself and Storybook's own config.
-      # `packages/**` used to be here, which snapshotted every contract, telemetry
-      # or db-kit change for nothing — Storybook imports none of them (Reach may
-      # not, by the dependency rules). The lockfile and workspace stay, because a
-      # dependency bump can change what a story draws.
-      - 'apps/storybook/**'
-      - 'packages/ui/**'
-  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -424,6 +424,14 @@ export const OPERATIONS = {
     'available reply action draft { title typeKey typeName about aboutPersonId body figures ready signers { name email order personId } }',
   ),
   FileDraft: write('FileDraft', 'fileDraft', '$input: JSON!, ', 'input: $input, ', 'id envelopeId'),
+  /** The draft drawn as it would be filed, to read over before sending */
+  PreviewDraft: write(
+    'PreviewDraft',
+    'previewDraft',
+    '$input: JSON!, ',
+    'input: $input, ',
+    'base64 mediaType',
+  ),
   /** S7: the company's switches */
   SetDocumentsAiSettings: write(
     'SetDocumentsAiSettings',

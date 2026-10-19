@@ -110,13 +110,39 @@ async function stampFields(
       return writeCentred(page, font === body ? drawable(text) : text, font, b, ink, 0.95);
     };
     let bottom: number;
-    if ((field.kind === 'signature' || field.kind === 'initials') && mark !== null) {
-      bottom = await stamp(box, field.kind === 'initials');
-    } else if (field.kind === 'date' && mark !== null) {
-      // A dated signature: the signature over the box, the day right under it.
-      const under = box.h * 0.3;
-      const signed = await stamp({ ...box, y: box.y + under, h: box.h - under }, false);
-      bottom = writeUnder(page, drawable(field.value), body, box, signed - DAY_GAP, ink, 9);
+    if (SIGNED.has(field.kind) && mark !== null) {
+      // The signature's own frame, as e-signature services stamp one: a thin
+      // rule around it, "Signed by" and the name in small print along its
+      // top, the ink below, so a printed page shows at a glance that this is
+      // an electronic signature and whose.
+      const head = STAMP_HEAD + 2;
+      page.drawRectangle({
+        x: box.x,
+        y: box.y,
+        width: box.w,
+        height: box.h,
+        borderColor: rgb(0.62, 0.66, 0.78),
+        borderWidth: 0.6,
+        opacity: 0,
+        borderOpacity: 1,
+      });
+      page.drawText(drawable(`Signed by ${signer?.name ?? ''}`.slice(0, 60)), {
+        x: box.x + 2,
+        y: box.y + box.h - head + 1.5,
+        size: STAMP_HEAD,
+        font: body,
+        color: rgb(0.42, 0.44, 0.5),
+      });
+      const inkBox = { ...box, h: box.h - head };
+      if (field.kind === 'date') {
+        // A dated signature: the signature over the box, the day right under it.
+        const under = inkBox.h * 0.3;
+        const signed = await stamp({ ...inkBox, y: inkBox.y + under, h: inkBox.h - under }, false);
+        bottom = writeUnder(page, drawable(field.value), body, inkBox, signed - DAY_GAP, ink, 9);
+      } else {
+        bottom = await stamp(inkBox, field.kind === 'initials');
+      }
+      bottom = Math.min(bottom, box.y);
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
       bottom = writeCentred(page, drawable(text), body, box, ink, 0.8, 12);
@@ -220,6 +246,10 @@ interface Box {
   readonly h: number;
 }
 
+/** The boxes a signature fills, framed and headed as one. */
+const SIGNED: ReadonlySet<string> = new Set(['signature', 'initials', 'date']);
+/** "Signed by …" along the top of a signature's frame. */
+const STAMP_HEAD = 5;
 /** The print under a signed field: its size, and the gap above it (6pt, 8px on screen). */
 const TRACE_SIZE = 5.5;
 const TRACE_GAP = 6;

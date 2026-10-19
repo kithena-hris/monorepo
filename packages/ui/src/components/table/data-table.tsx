@@ -500,6 +500,14 @@ export interface DataTableProps<T extends TableRow> {
   empty?: ReactNode;
   stickyHeader?: boolean;
   /**
+   * The page's list: the table takes the height left under what is above it
+   * (`page-fill`, never taller than the window), its header pins, only the
+   * rows on screen are drawn and `onEndReached` fires near its end. What a
+   * directory, a queue or a log is; `stickyHeader` and the height classes in
+   * one word, so every such list is sized the same.
+   */
+  fill?: boolean;
+  /**
    * What scrolls. `self` (the default): the table's own box, given a height
    * through `containerClassName`. `page`: the window, with the table as tall
    * as its rows, so a page with more above the table has one scroll, not a
@@ -578,7 +586,8 @@ export function DataTable<T extends TableRow>({
   rowMenuOnCard = false,
   activeRowId = null,
   empty = 'Nothing to show.',
-  stickyHeader = false,
+  fill = false,
+  stickyHeader = fill,
   scroll = 'self',
   dense = false,
   containerClassName,
@@ -597,7 +606,7 @@ export function DataTable<T extends TableRow>({
   const [ownWidths, setOwnWidths] = useState<Readonly<Record<string, number>>>({});
   const widths = columnWidths ?? ownWidths;
   const fixed = columnSizing === 'fixed' || columnSizing === 'fill';
-  const fill = columnSizing === 'fill';
+  const fillsWidth = columnSizing === 'fill';
   // Width a column was given to show what it truncates (`stretchOverflowing`),
   // measured once per set of columns: measuring again as rows arrive, as the
   // container gained a scrollbar or as a column was dragged moved every
@@ -1179,7 +1188,7 @@ export function DataTable<T extends TableRow>({
                 leadingColumns * 40 +
                 (rowActions ? 48 : 0);
               // Filling, the widths are shares of the box and their sum its least.
-              return fill ? { width: '100%', minWidth: sum } : { width: sum };
+              return fillsWidth ? { width: '100%', minWidth: sum } : { width: sum };
             })(),
           }
         : {})}
@@ -1191,6 +1200,7 @@ export function DataTable<T extends TableRow>({
         // Not a scroll container at all: the header pins to the window, which
         // a box that scrolls, even one that never needs to, would stop.
         page && 'overflow-visible',
+        fill && 'page-fill max-h-dvh min-h-64',
         containerClassName,
       )}
       {...(virtualized && !page

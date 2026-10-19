@@ -24,17 +24,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
+  type DataColumn,
   Textarea,
   icons,
   DatePicker,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, newId, range, useAct, words } from './shared';
@@ -49,8 +45,83 @@ import type { Requisition, ScreenProps } from './types';
 const STATES = ['all', 'draft', 'pending_approval', 'approved', 'filled', 'rejected'] as const;
 const REASONS = ['new_role', 'backfill', 'temporary_cover', 'growth'] as const;
 
+type RequisitionRow = Requisition;
+const idOf = (r: RequisitionRow): string => r.id;
+const titleOf = (r: RequisitionRow): string => r.title;
+
+/** R2's columns: where each requisition stands, and what it asks for. */
+function requisitionColumns(
+  onNavigate: ScreenProps<unknown>['onNavigate'],
+): readonly DataColumn<RequisitionRow>[] {
+  return [
+    {
+      id: 'title',
+      header: 'Title',
+      sortBy: (r) => r.title,
+      cell: (r) => (
+        <To
+          href={
+            r.approval?.mine === true
+              ? `/recruiting/requisitions/${r.id}/approve`
+              : `/recruiting/requisitions/${r.id}`
+          }
+          onNavigate={onNavigate}
+        >
+          {r.title}
+        </To>
+      ),
+    },
+    {
+      id: 'manager',
+      header: 'Hiring manager',
+      sortBy: (r) => r.hiringManager ?? '',
+      cell: (r) => r.hiringManager ?? '—',
+    },
+    {
+      id: 'reason',
+      header: 'Reason',
+      hideOnCard: true,
+      sortBy: (r) => r.reason,
+      cell: (r) => <span className="text-sm text-fg-muted">{words(r.reason)}</span>,
+    },
+    {
+      id: 'openings',
+      header: 'Openings',
+      numeric: true,
+      sortBy: (r) => r.openings,
+      cell: (r) => `${String(r.filled)} of ${String(r.openings)}`,
+    },
+    {
+      id: 'budget',
+      header: 'Budget',
+      hideOnCard: true,
+      sortBy: (r) => r.budget?.to.amountMinor ?? 0,
+      cell: (r) =>
+        r.budget === null
+          ? '—'
+          : range(r.budget.from.amountMinor, r.budget.to.amountMinor, r.budget.to.currency),
+    },
+    {
+      id: 'state',
+      header: 'State',
+      cardTrailing: true,
+      sortBy: (r) => r.state,
+      cell: (r) => (
+        <span className="flex flex-col gap-1">
+          <StateBadge state={r.state} />
+          {r.approval == null ? null : (
+            <span className="text-xs text-fg-muted">{`Step ${String(r.approval.step)} of ${String(r.approval.steps)}`}</span>
+          )}
+        </span>
+      ),
+    },
+  ];
+}
+
 export function Requisitions(props: ScreenProps<readonly Requisition[]>): JSX.Element {
   const state = props.search?.['state'] ?? 'all';
+  const { onNavigate } = props;
+  const columns = useMemo(() => requisitionColumns(onNavigate), [onNavigate]);
   return (
     <Loaded load={props.load} what="requisitions">
       {(all) => {
@@ -80,64 +151,18 @@ export function Requisitions(props: ScreenProps<readonly Requisition[]>): JSX.El
                 </Chip>
               ))}
             </ChipRow>
-            <Card>
-              <CardContent>
-                {rows.length === 0 ? (
-                  <EmptyState icon={<icons.work aria-hidden />} title="No requisitions here" />
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Hiring manager</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Openings</TableHead>
-                        <TableHead>Budget</TableHead>
-                        <TableHead>State</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell>
-                            <To
-                              href={
-                                r.approval?.mine === true
-                                  ? `/recruiting/requisitions/${r.id}/approve`
-                                  : `/recruiting/requisitions/${r.id}`
-                              }
-                              onNavigate={props.onNavigate}
-                            >
-                              {r.title}
-                            </To>
-                          </TableCell>
-                          <TableCell>{r.hiringManager ?? '—'}</TableCell>
-                          <TableCell className="text-sm text-fg-muted">{words(r.reason)}</TableCell>
-                          <TableCell>{`${String(r.filled)} of ${String(r.openings)}`}</TableCell>
-                          <TableCell>
-                            {r.budget === null
-                              ? '—'
-                              : range(
-                                  r.budget.from.amountMinor,
-                                  r.budget.to.amountMinor,
-                                  r.budget.to.currency,
-                                )}
-                          </TableCell>
-                          <TableCell>
-                            <span className="flex flex-col gap-1">
-                              <StateBadge state={r.state} />
-                              {r.approval == null ? null : (
-                                <span className="text-xs text-fg-muted">{`Step ${String(r.approval.step)} of ${String(r.approval.steps)}`}</span>
-                              )}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            {rows.length === 0 ? (
+              <EmptyState icon={<icons.work aria-hidden />} title="No requisitions here" />
+            ) : (
+              <DataTable<RequisitionRow>
+                label="Requisitions"
+                rows={rows}
+                rowId={idOf}
+                describeRow={titleOf}
+                fill
+                columns={columns}
+              />
+            )}
           </div>
         );
       }}

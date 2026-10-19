@@ -97,6 +97,10 @@ type Mutation {
   ): JSON
   """Record the works council’s consent (§ 94 BetrVG)"""
   consentQuestionnaire(id: String!, idempotencyKey: String!): JSON
+  """
+  R22: the contract is out for signature in Documents (the shell filed it, PRD §21.2)
+  """
+  contractSent(idempotencyKey: String!, offerId: String!): JSON
   """Correct a move, with a reason"""
   correctMove(
     applicationId: String!

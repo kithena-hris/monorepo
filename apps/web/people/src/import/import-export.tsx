@@ -629,8 +629,8 @@ function History({
             rows={shown}
             rowId={(e) => e.id}
             describeRow={titleOf}
-            stickyHeader
-            containerClassName="page-fill max-h-dvh min-h-96 touch:hidden"
+            fill
+            containerClassName="touch:hidden"
             {...infinite}
             columns={columns}
           />

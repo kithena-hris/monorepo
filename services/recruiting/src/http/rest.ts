@@ -85,6 +85,7 @@ import {
   candidateAccepts,
   candidateDeclines,
   composeOffer,
+  contractSent,
   decideOffer,
   decidePrehireCondition,
   offerForCandidate,
@@ -1226,6 +1227,14 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ fileId: Id, signedOn: CalendarDate }),
     run: (ctx, { params, body }) =>
       uploadSignedContract(ctx, params.offerId, body.fileId, body.signedOn),
+  }),
+  route({
+    name: 'contractSent',
+    method: 'POST',
+    path: `${V1}/offers/{offerId}/contract/sent`,
+    summary: 'R22: the contract is out for signature in Documents (the shell filed it, PRD §21.2)',
+    params: z.object({ offerId: Id }),
+    run: (ctx, { params }) => contractSent(ctx, params.offerId),
   }),
   route({
     name: 'decideCondition',

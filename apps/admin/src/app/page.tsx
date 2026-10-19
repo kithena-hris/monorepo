@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { CompaniesOverview, type CompanyRow } from '../components/companies-overview';
+import { moreCompanies } from './actions';
 import { readIdentity } from '../lib/identity';
 import { tenantHostSuffix } from '../lib/tenant-host';
 import { currentOperator } from '../lib/session';
@@ -18,13 +19,7 @@ import { currentOperator } from '../lib/session';
  * number on this screen is derived from the rows themselves rather than asked
  * for separately.
  */
-export default async function Companies({
-  searchParams,
-}: {
-  searchParams: Promise<{ cursor?: string }>;
-}): Promise<JSX.Element> {
-  const { cursor } = await searchParams;
-
+export default async function Companies(): Promise<JSX.Element> {
   /*
    * Both reads at once.
    *
@@ -37,9 +32,10 @@ export default async function Companies({
    */
   const [operator, page] = await Promise.all([
     currentOperator(),
-    readIdentity(
-      `/api/internal/admin/tenants?limit=50${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
-    ) as Promise<{ tenants?: CompanyRow[]; nextCursor?: string | null } | null>,
+    readIdentity('/api/internal/admin/tenants?limit=50') as Promise<{
+      tenants?: CompanyRow[];
+      nextCursor?: string | null;
+    } | null>,
   ]);
 
   // Fail closed. This is the only surface that crosses tenants and it is served
@@ -90,24 +86,11 @@ export default async function Companies({
           */}
           <CompaniesOverview
             rows={tenants}
+            next={nextCursor}
+            onMore={moreCompanies}
             hostSuffix={tenantHostSuffix()}
-            partial={nextCursor !== null}
           />
         </div>
-      )}
-
-      {nextCursor === null ? null : (
-        <nav className="mt-8 flex justify-center" aria-label="More companies">
-          {/*
-            A cursor, not a page number. The list is ordered by creation and
-            only grows, so `?page=7` names a different set of companies each
-            time somebody is added — and the last page of an OFFSET query is
-            the slowest, which is the one a long list is read from.
-          */}
-          <Button asChild variant="secondary">
-            <Link href={`/?cursor=${encodeURIComponent(nextCursor)}`}>Show more</Link>
-          </Button>
-        </nav>
       )}
     </Container>
   );

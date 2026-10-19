@@ -6,7 +6,9 @@ import { recruitingEvents } from './recruiting.js';
 
 /**
  * Recruiting's events (PRD §27). No payload may hold a CV, a note, a message
- * body, an answer or a score explanation; only the hire hands over a name.
+ * body, an answer or a score explanation; only the hire hands over a name,
+ * and its undoing names the same mailbox, so People can find the record the
+ * hire made (§21.4).
  */
 
 function keysOf(schema: z.ZodType, out = new Set<string>()): Set<string> {
@@ -32,13 +34,15 @@ function keysOf(schema: z.ZodType, out = new Set<string>()): Set<string> {
 
 const FORBIDDEN = /cv|note|body|message|answer|explanation|text|comment|score/iu;
 const NAMES = /name|email|phone/iu;
+/** The hire hands a person over; its cancellation names the same mailbox and nothing more. */
+const HANDS_OVER = new Set(['recruiting.candidate.hired', 'recruiting.prehire.cancelled']);
 
 describe('no Recruiting payload can hold what a candidate wrote or what was said of them', () => {
   it.each(recruitingEvents.map((event) => [event.name, event] as const))('%s', (_name, event) => {
     const keys = [...keysOf(event.payload)];
     expect(keys.length).toBeGreaterThan(0);
     expect(keys.filter((key) => FORBIDDEN.test(key))).toEqual([]);
-    if (event.name !== 'recruiting.candidate.hired') {
+    if (!HANDS_OVER.has(event.name)) {
       expect(keys.filter((key) => NAMES.test(key))).toEqual([]);
     }
   });

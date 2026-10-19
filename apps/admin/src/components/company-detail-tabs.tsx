@@ -6,12 +6,8 @@ import {
   DonutChart,
   PageSection,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
+  type DataColumn,
   Tabs,
   TabsContent,
   TabsList,
@@ -33,6 +29,9 @@ export interface DetailPerson {
   status: string;
   createdAt: string;
 }
+
+const personId = (p: DetailPerson): string => p.id;
+const personEmail = (p: DetailPerson): string => p.email;
 
 export interface DetailTheme {
   name: string;
@@ -101,6 +100,58 @@ export function CompanyDetailTabs({
     const invited = people.filter((person) => person.status === 'invited').length;
     return { active, invited, other: people.length - active - invited };
   }, [people]);
+  // The actions are bound to each row here rather than passed the row and
+  // asked to remember it: a server action closed over one account id cannot
+  // be pointed at another by anything happening in the browser.
+  const peopleColumns = useMemo<readonly DataColumn<DetailPerson>[]>(
+    () => [
+      {
+        id: 'email',
+        header: 'Work email',
+        sortBy: (p) => p.email,
+        cell: (p) => <span className="truncate">{p.email}</span>,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        sortBy: (p) => p.status,
+        cell: (p) => (
+          <Badge dot tone={badgeTone(p.status)}>
+            {p.status}
+          </Badge>
+        ),
+      },
+      {
+        id: 'added',
+        header: 'Added',
+        numeric: true,
+        sortBy: (p) => p.createdAt,
+        cell: (p) => (
+          <time dateTime={p.createdAt} className="text-fg-muted text-sm">
+            {formatDate(p.createdAt)}
+          </time>
+        ),
+      },
+      {
+        // Named for assistive tech, blank on screen: a column of identical
+        // menu buttons does not need a heading read out before each one.
+        id: 'actions',
+        header: <span className="sr-only">Actions</span>,
+        width: '3rem',
+        cardTrailing: true,
+        cell: (p) => (
+          <EmployeeActions
+            email={p.email}
+            status={p.status}
+            companyName={companyName}
+            resend={() => resend(p.id, p.email, p.status)}
+            withdraw={() => withdraw(p.id)}
+          />
+        ),
+      },
+    ],
+    [companyName, resend, withdraw],
+  );
 
   return (
     <Stack gap={8}>
@@ -160,53 +211,15 @@ export function CompanyDetailTabs({
                 This company has no employee accounts at all.
               </Alert>
             ) : (
-              <Table aria-label={`People at ${companyName}`}>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Work email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Added</TableHead>
-                    {/* Named for assistive tech, blank on screen: a column of
-                        identical menu buttons does not need a heading read out
-                        before each one. */}
-                    <TableHead>
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {people.map((person) => (
-                    <TableRow key={person.id}>
-                      <TableCell className="truncate">{person.email}</TableCell>
-                      <TableCell>
-                        <Badge dot tone={badgeTone(person.status)}>
-                          {person.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell numeric>
-                        <time dateTime={person.createdAt} className="text-fg-muted text-sm">
-                          {formatDate(person.createdAt)}
-                        </time>
-                      </TableCell>
-                      <TableCell className="w-px">
-                        {/*
-                          The actions are bound to this row here rather than
-                          passed the row and asked to remember it: a server
-                          action closed over one account id cannot be pointed at
-                          another by anything happening in the browser.
-                        */}
-                        <EmployeeActions
-                          email={person.email}
-                          status={person.status}
-                          companyName={companyName}
-                          resend={() => resend(person.id, person.email, person.status)}
-                          withdraw={() => withdraw(person.id)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable<DetailPerson>
+                label={`People at ${companyName}`}
+                rows={people}
+                rowId={personId}
+                describeRow={personEmail}
+                stickyHeader
+                containerClassName="max-h-[70dvh] min-h-64"
+                columns={peopleColumns}
+              />
             )}
           </PageSection>
         </TabsContent>

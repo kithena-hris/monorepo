@@ -271,6 +271,7 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
         candidateId: randomUUID(),
         applicationId: second,
         reasonKey: 'reneged',
+        email: null,
       }),
     ),
   ).toBe('applied');

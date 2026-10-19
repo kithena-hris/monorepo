@@ -29,8 +29,25 @@ export const OwnerRole = z
   .register(policy, asPublic());
 export type OwnerRole = z.infer<typeof OwnerRole>;
 
+/**
+ * What a task is, beyond a line to tick: `form` links People's onboarding
+ * section, `document` a Documents request, `acknowledge` a Documents policy;
+ * `goal` and `training` open Performance, where the first goals are agreed
+ * and the onboarding learning assigned (Performance PRD §15, Recruiting PRD
+ * §O3). A company without that module sees a plain task.
+ */
 export const TaskKind = z
-  .enum(['todo', 'form', 'document', 'acknowledge', 'meeting', 'equipment', 'account'])
+  .enum([
+    'todo',
+    'form',
+    'document',
+    'acknowledge',
+    'meeting',
+    'equipment',
+    'account',
+    'goal',
+    'training',
+  ])
   .register(policy, asPublic());
 export type TaskKind = z.infer<typeof TaskKind>;
 

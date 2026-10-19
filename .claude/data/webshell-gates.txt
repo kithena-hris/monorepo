@@ -1,0 +1,20 @@
+ Tasks:    33 successful, 33 total
+Cached:    32 cached, 33 total
+  Time:    2.337s 
+
+== lint
+  176:9  warning  Unused eslint-disable directive (no problems were reported from 'no-await-in-loop')
+  178:9  warning  Unused eslint-disable directive (no problems were reported from 'no-await-in-loop')
+  69:5  warning  Unused eslint-disable directive (no problems were reported from 'no-await-in-loop')
+✖ 89 problems (0 errors, 89 warnings)
+  0 errors and 89 warnings potentially fixable with the `--fix` option.
+x 1 dependency violations (0 errors, 1 warnings). 2248 modules, 8396 dependencies cruised.
+== ui
+ Test Files  45 passed (45)
+      Tests  338 passed (338)
+== web
+ Test Files  29 passed (29)
+      Tests  213 passed (213)
+== remote
+ Test Files  3 passed (3)
+      Tests  14 passed (14)

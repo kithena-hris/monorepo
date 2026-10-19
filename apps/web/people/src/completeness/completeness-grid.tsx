@@ -817,7 +817,8 @@ function Missing({
             // Infinite: the table scrolls in a box of its own the height the
             // window has left, the next page loads near its end, and only
             // the rows on screen are drawn.
-            containerClassName="page-fill max-h-dvh min-h-96 touch:hidden"
+            fill
+            containerClassName="touch:hidden"
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
             virtualize
@@ -1202,7 +1203,7 @@ function FillGrid({
             rows={rows}
             columns={columns}
             rowId={personOf}
-            containerClassName="page-fill max-h-dvh min-h-96"
+            fill
             {...(loadMore === undefined ? {} : { onEndReached: loadMore })}
             loadingMore={loading}
             virtualize

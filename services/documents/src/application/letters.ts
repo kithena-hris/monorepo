@@ -411,6 +411,7 @@ export async function fileDraft(
       readonly order: number;
     }[];
     readonly send: boolean;
+    readonly subjectRef?: string | null;
   } & Origin,
 ): Promise<Result<{ id: string; envelopeId: string | null }>> {
   const inOrder = input.signers.toSorted((a, b) => a.order - b.order);
@@ -441,8 +442,32 @@ export async function fileDraft(
     fields: [],
     message: '',
     dueOn: null,
+    subjectRef: input.subjectRef ?? null,
     origin: input.origin,
     companyName: input.companyName,
   });
   return sent.ok ? ok({ id: filed.value.id, envelopeId: sent.value.id }) : sent;
+}
+
+/**
+ * The draft as `fileDraft` would draw it, filed nowhere: what HR reads over
+ * before saying "send it", with each signer's line where their box will be.
+ * The same drawing, so what they preview is what is filed.
+ */
+export async function previewDraft(
+  deps: Deps,
+  caller: Caller,
+  input: {
+    readonly title: string;
+    readonly body: string;
+    readonly signers: readonly { readonly name: string; readonly order: number }[];
+  },
+): Promise<Result<{ base64: string; mediaType: 'application/pdf' }>> {
+  const allowed = await deps.uow.run(caller.tenantId, async (tx) =>
+    hrOnly(await contextOf(deps, tx, caller)),
+  );
+  if (!allowed.ok) return allowed;
+  const names = input.signers.toSorted((a, b) => a.order - b.order).map((s) => s.name);
+  const bytes = await draw(input.title, input.body + signingBlock(names));
+  return ok({ base64: Buffer.from(bytes).toString('base64'), mediaType: 'application/pdf' });
 }

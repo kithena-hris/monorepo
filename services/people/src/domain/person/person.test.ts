@@ -193,8 +193,14 @@ describe('discarding', () => {
     expect(p.deletable).toBe(true);
   });
 
-  it('is refused from every other state', () => {
-    for (const status of ['pre_hire', 'active', 'on_leave', 'notice'] as const) {
+  it('is permitted from pre-hire: a hire that fell through never became employment', () => {
+    const p = person({ status: 'pre_hire', hireDate: '2026-01-01' });
+    expect(p.discard(ctx).ok).toBe(true);
+    expect(p.status).toBe('discarded');
+  });
+
+  it('is refused once employment has begun', () => {
+    for (const status of ['active', 'on_leave', 'notice'] as const) {
       expect(person({ status, hireDate: '2026-01-01' }).discard(ctx).ok, status).toBe(false);
     }
   });

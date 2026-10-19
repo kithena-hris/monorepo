@@ -143,6 +143,16 @@ export interface Plan {
   readonly tasks: readonly PlanTask[];
 }
 
+/**
+ * Where a task of a kind opens when its template names no link: Performance's
+ * goals and learning. The shell owns the addresses, as it does for every
+ * link a task carries.
+ */
+const OPENS: Partial<Record<TaskTemplate['kind'], string>> = {
+  goal: '/performance/goals',
+  training: '/performance/learning',
+};
+
 /** The review the manager owes thirty days before probation ends (§O8). */
 const REVIEW: TaskTemplate = {
   key: 'probation_review',
@@ -177,6 +187,7 @@ export function buildPlan(input: {
     tasks.push({
       ...task,
       id: input.newId(),
+      link: task.link ?? OPENS[task.kind] ?? null,
       dueOn,
       state: 'open',
       doneAt: null,

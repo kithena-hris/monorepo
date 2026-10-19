@@ -216,6 +216,8 @@ export const EnvelopeCompleted = defineEvent(
     documentId: DocumentId,
     signedVersion: z.int().positive().register(policy, asInternal()),
     subjectPersonId: subject(),
+    /** What another module sent it for (`recruiting:offer:<id>:<version>`), so it can match without asking. */
+    subjectRef: z.string().max(160).nullable().register(policy, asInternal()),
   }),
 );
 

@@ -27,7 +27,15 @@ export type PlanState = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 export type OwnerRole = 'new_hire' | 'manager' | 'buddy' | 'hr' | 'it' | 'person';
 export type Phase = 'before_start' | 'day_one' | 'first_week' | 'first_month' | 'probation';
 export type TaskKind =
-  'todo' | 'form' | 'document' | 'acknowledge' | 'meeting' | 'equipment' | 'account';
+  | 'todo'
+  | 'form'
+  | 'document'
+  | 'acknowledge'
+  | 'meeting'
+  | 'equipment'
+  | 'account'
+  | 'goal'
+  | 'training';
 
 export interface BoardData {
   readonly rows: readonly {

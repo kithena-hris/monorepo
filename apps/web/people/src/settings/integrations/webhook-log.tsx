@@ -128,8 +128,7 @@ function Log({
           describeRow={(d) => d.eventName}
           // Infinite: the log is the page's one scroll, older deliveries load
           // near its end, and only the rows on screen are drawn.
-          stickyHeader
-          containerClassName="page-fill max-h-dvh min-h-96"
+          fill
           {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
           loadingMore={pages.loading}
           columns={[

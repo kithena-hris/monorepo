@@ -254,7 +254,8 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
         ) : null}
       </div>
       {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {/* One column, top to bottom: the document, then everything about it. */}
+      <div className="flex flex-col gap-6">
         <Preview doc={doc} onFileLink={props.onFileLink} />
         <div className="flex flex-col gap-4">
           {deleted || !(row.mine || row.aboutMe) || row.typeKey !== 'certificate' ? null : (

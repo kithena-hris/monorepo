@@ -747,12 +747,17 @@ export class Person extends AggregateRoot<string> {
   /**
    * Withdraw a record nobody ever employed.
    *
-   * From `provisional` only. An account created by mistake is a mistake worth
-   * erasing; anything past that point is somebody's employment history, and
-   * the operation for those is anonymisation on a retention schedule.
+   * From `provisional`, and from `pre_hire`: an account created by mistake is
+   * a mistake worth erasing, and a hire that fell through before the start
+   * (Recruiting's `prehire.cancelled`, PRD §21.4) never became employment —
+   * they were never on the headcount. Anything past a start is somebody's
+   * employment history, and the operation for those is anonymisation on a
+   * retention schedule.
    */
   discard(ctx: EventContext): Result<void> {
-    if (this.#status !== 'provisional') return err(InvalidTransition(this.#status, 'discarded'));
+    if (this.#status !== 'provisional' && this.#status !== 'pre_hire') {
+      return err(InvalidTransition(this.#status, 'discarded'));
+    }
     return this.#moveTo('discarded', 'discarded', ctx);
   }
 

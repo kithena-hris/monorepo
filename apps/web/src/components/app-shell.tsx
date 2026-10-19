@@ -494,31 +494,46 @@ export function AppShell({
   const route = isCurrent('/people', pathname)
     ? (matchPath(shell.routes, pathname)?.path ?? null)
     : null;
-  // Time Off's places, from its own manifest, and which of its routes this is.
+  // Time Off's and Performance's places, from their own manifests, for the pages warmed below.
   const timeOff = shell.remotes?.['timeoff'];
-  const timeOffRoute =
-    timeOff !== undefined && isCurrent('/time-off', pathname)
-      ? (matchPath(timeOff.routes, pathname)?.path ?? null)
-      : null;
-  // Performance's, the same way: its sections differ by role (PRF-070).
   const perf = shell.remotes?.['performance'];
-  const perfRoute =
-    perf !== undefined && isCurrent('/performance', pathname)
-      ? (matchPath(perf.routes, pathname)?.path ?? null)
-      : null;
-  // A remote area's sections as the collapsed rail's flyout, as People's are.
-  const railFlyout = (href: string, label: string) => {
+  /** A remote area by its home, and which of its routes the address is while you are in it. */
+  const remoteOf = (href: string) => {
     const remote = shell.remotes?.[Object.values(REMOTES).find((r) => r.home === href)?.name ?? ''];
-    if (remote === undefined || remote.sections.length === 0) return {};
+    if (remote === undefined || remote.sections.length === 0) return null;
+    return {
+      ...remote,
+      route: isCurrent(href, pathname) ? (matchPath(remote.routes, pathname)?.path ?? null) : null,
+    };
+  };
+  // Every area's sections inline under its item while you are in it (V2), as
+  // People's: Time Off, Documents, Recruiting, Onboarding and Performance alike.
+  const inlineSubnav = (href: string, label: string) => {
+    const remote = remoteOf(href);
+    if (remote === null) return {};
+    return {
+      subnav: (
+        <PeopleSubnav
+          sections={remote.sections}
+          route={remote.route}
+          counts={remote.counts ?? {}}
+          label={`${label} sections`}
+        />
+      ),
+      expanded: isCurrent(href, pathname),
+    };
+  };
+  // The same sections as the collapsed rail's flyout (V8), as People's are.
+  const railFlyout = (href: string, label: string) => {
+    const remote = remoteOf(href);
+    if (remote === null) return {};
     return {
       flyout: (
         <PeopleSections
           title={label}
           home={href}
           sections={remote.sections}
-          route={
-            isCurrent(href, pathname) ? (matchPath(remote.routes, pathname)?.path ?? null) : null
-          }
+          route={remote.route}
           counts={remote.counts ?? {}}
         />
       ),
@@ -608,31 +623,58 @@ export function AppShell({
           rail, where the name is hidden, the link's label still does.
         */
             sidebarHeader={
-              <Link
-                href="/"
-                aria-label={`${companyName}, home`}
-                className="flex min-w-0 items-center gap-2.5"
-              >
-                <Avatar
-                  size="md"
-                  shape="rounded"
-                  // A designed mark is never cropped; initials take the company's
-                  // own tone rather than a grey square.
-                  fit={logoUrl === null ? 'cover' : 'contain'}
-                  src={logoUrl ?? undefined}
-                  name={companyName}
-                  aria-hidden
-                />
-                <span
-                  data-rail-label=""
-                  className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
+              <div className="flex min-w-0 flex-1 items-center gap-2 group-data-[collapsed]/sidebar:flex-col">
+                <Link
+                  href="/"
+                  aria-label={`${companyName}, home`}
+                  className="flex min-w-0 flex-1 items-center gap-2.5"
                 >
-                  {companyName}
-                </span>
-              </Link>
+                  <Avatar
+                    size="md"
+                    shape="rounded"
+                    // A designed mark is never cropped; initials take the company's
+                    // own tone rather than a grey square.
+                    fit={logoUrl === null ? 'cover' : 'contain'}
+                    src={logoUrl ?? undefined}
+                    name={companyName}
+                    aria-hidden
+                  />
+                  <span
+                    data-rail-label=""
+                    className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
+                  >
+                    {companyName}
+                  </span>
+                </Link>
+                {/* What is waiting for them, by the company's name: the same list the phone's Inbox tab shows. */}
+                <InboxBell inbox={inbox} />
+              </div>
             }
             sidebar={
               <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
+                {/* Search first: the command palette, every page and anybody they may read. */}
+                <Nav label="Search">
+                  <NavList>
+                    <NavItem
+                      asChild
+                      icon={<icons.search aria-hidden />}
+                      shortcut={
+                        <KbdShortcut
+                          keys={keys.table.find((s) => s.id === 'palette')?.keys ?? []}
+                        />
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaletteOpen(true);
+                        }}
+                      >
+                        Search
+                      </button>
+                    </NavItem>
+                  </NavList>
+                </Nav>
                 <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
                   <NavList>
                     {areas.map((area) =>
@@ -667,34 +709,12 @@ export function AppShell({
                                 ),
                                 flyoutSize: 'compact' as const,
                               }
-                            : area.href === '/time-off' && timeOff !== undefined
-                              ? {
-                                  // Its five sections inline while you are in it, as People's.
-                                  subnav: (
-                                    <PeopleSubnav
-                                      sections={timeOff.sections}
-                                      route={timeOffRoute}
-                                      counts={timeOff.counts ?? {}}
-                                      label="Time off sections"
-                                    />
-                                  ),
-                                  expanded: isCurrent(area.href, pathname),
-                                }
-                              : area.href === '/performance' && perf !== undefined
-                                ? {
-                                    subnav: (
-                                      <PeopleSubnav
-                                        sections={perf.sections}
-                                        route={perfRoute}
-                                        counts={perf.counts ?? {}}
-                                        label="Performance sections"
-                                      />
-                                    ),
-                                    expanded: isCurrent(area.href, pathname),
-                                  }
-                                : {})}
-                          // Every other area with sections opens them from the collapsed rail too.
-                          {...(area.href === '/people' ? {} : railFlyout(area.href, area.label))}
+                            : {
+                                // Every other area with sections: inline while you
+                                // are in it, and from the collapsed rail as a flyout.
+                                ...inlineSubnav(area.href, area.label),
+                                ...railFlyout(area.href, area.label),
+                              })}
                         >
                           {/* Where the area's address redirects (`firstUnder`, as the
                               server does), so a press is one round trip, not two:
@@ -750,6 +770,14 @@ export function AppShell({
                       </NavItem>
                     </NavList>
                   </Nav>
+                  {/* The clock (Time Off's, TOF-059), above the person; not in the rail, where it has no room. */}
+                  {slots.length === 0 ? null : (
+                    <div className="flex flex-col gap-2 group-data-[collapsed]/sidebar:hidden">
+                      {slots.map((s) => (
+                        <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
+                      ))}
+                    </div>
+                  )}
                   <PersonMenu
                     person={person}
                     subtitle={
@@ -766,15 +794,13 @@ export function AppShell({
               </div>
             }
           >
-            <TopCorner
-              shell={shell}
+            <SearchPalette
               open={paletteOpen}
               onOpenChange={setPaletteOpen}
+              shell={shell}
               dark={dark}
               onTheme={setTheme}
               viewing={person.viewing == null ? null : person.name}
-              slots={slots}
-              inbox={inbox}
             />
             {/*
           The page's own `loading.tsx` stands in for it while it is fetched: a
@@ -788,64 +814,6 @@ export function AppShell({
         </TooltipProvider>
       </Shortcuts>
     </ShellContext>
-  );
-}
-
-/**
- * Search and the bell, in the top corner of the content at a desk.
- *
- * Search is the command palette: every People page this person may open, and
- * anybody they may read, found as they type (`searchPeople`). The bell is
- * what People says is waiting for them — approvals to decide, details to add —
- * which is the same list the phone's Inbox tab shows.
- */
-function TopCorner({
-  shell,
-  open,
-  onOpenChange: setOpen,
-  dark,
-  onTheme,
-  viewing,
-  slots,
-  inbox,
-}: {
-  readonly shell: ShellData;
-  readonly inbox: Promise<InboxPeek> | undefined;
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-  readonly dark: boolean;
-  readonly onTheme: (dark: boolean) => void;
-  /** Whose view this is, while an administrator views as them; null otherwise. */
-  readonly viewing: string | null;
-  /** What the remotes draw here, between search and the bell: Time Off's clock. */
-  readonly slots: readonly ShellSlot[];
-}): JSX.Element {
-  return (
-    <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @min-[40rem]/page:flex">
-      <Button
-        size="sm"
-        className="w-56 justify-start rounded-control text-fg-muted"
-        startIcon={<icons.search aria-hidden />}
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <span className="flex-1 text-start font-normal">Search people</span>
-        <KbdShortcut keys={useShortcuts().table.find((s) => s.id === 'palette')?.keys ?? []} />
-      </Button>
-      <SearchPalette
-        open={open}
-        onOpenChange={setOpen}
-        shell={shell}
-        dark={dark}
-        onTheme={onTheme}
-        viewing={viewing}
-      />
-      {slots.map((s) => (
-        <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
-      ))}
-      <InboxBell inbox={inbox} />
-    </div>
   );
 }
 

@@ -8,7 +8,7 @@ import { wireConsumers } from './infrastructure/consumers/wire.js';
 
 startTelemetry(`kithena-${manifest.key}`);
 const { listener, storage } = await composeRecruiting(process.env);
-wireConsumers(process.env, storage?.uow ?? null);
+wireConsumers(process.env, storage?.deps ?? null);
 
 // The thread's emails every minute; offers, pool consents and retention daily.
 // ponytail: timers in one process; BullMQ repeatable jobs when Recruiting runs twice.

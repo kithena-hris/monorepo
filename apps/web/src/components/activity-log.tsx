@@ -17,15 +17,15 @@ import {
   DataTable,
   type DataColumn,
   DatePicker,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   PageHeader,
   SearchField,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
   Stack,
   icons,
   usePages,
@@ -201,7 +201,8 @@ export function ActivityLog({
 
   const readerZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
   // One module's log keeps to the areas a module's activity falls in.
-  const own = filters.module !== null && filters.module !== 'people' && filters.module !== 'identity';
+  const own =
+    filters.module !== null && filters.module !== 'people' && filters.module !== 'identity';
   const areas = own ? AREAS.filter((a) => MODULE_AREAS.includes(a.value)) : AREAS;
   const title = filters.module === null ? 'Activity' : `${moduleName(filters.module)} activity`;
   const actorName = filters.actor === null ? null : (named[filters.actor]?.name ?? 'one person');
@@ -532,8 +533,7 @@ function Entries({
         rowId={entryId}
         // Infinite: the table is the page's one scroll, older entries load
         // near its end, and only the rows on screen are drawn.
-        stickyHeader
-        containerClassName="page-fill max-h-dvh min-h-96"
+        fill
         {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
         loadingMore={pages.loading}
         describeRow={entryAction}
@@ -541,27 +541,27 @@ function Entries({
         onRowClick={showEntry}
         columns={columns}
       />
-      {/* One entry in full beside the log, its place in the address. */}
-      <Sheet
+      {/* One entry in full over the log, its place in the address. */}
+      <Dialog
         open={opened !== undefined}
         onOpenChange={(o) => {
           if (!o) show(null);
         }}
       >
         {opened === undefined ? null : (
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>{opened.action}</SheetTitle>
-              <SheetDescription>
+          <DialogContent sheetOnTouch>
+            <DialogHeader>
+              <DialogTitle>{opened.action}</DialogTitle>
+              <DialogDescription>
                 {`${who(opened, named).name} · ${when(opened.occurredAt)}`}
-              </SheetDescription>
-            </SheetHeader>
-            <SheetBody>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogBody>
               <Detail entry={opened} named={named} when={when} onFilter={onFilter} />
-            </SheetBody>
-          </SheetContent>
+            </DialogBody>
+          </DialogContent>
         )}
-      </Sheet>
+      </Dialog>
     </>
   );
 }
@@ -646,7 +646,9 @@ function Detail({
             Only {WHO.find((w) => w.value === e.actorKind)?.label ?? actor}
           </Button>
         )}
-        {e.subjectId === null || e.subjectKind === null || OPENS[e.module]?.[e.subjectKind] === undefined ? null : (
+        {e.subjectId === null ||
+        e.subjectKind === null ||
+        OPENS[e.module]?.[e.subjectKind] === undefined ? null : (
           <Button size="sm" variant="ghost" asChild>
             <a href={`${OPENS[e.module]?.[e.subjectKind] ?? ''}${e.subjectId}`}>
               Open {e.subjectLabel ?? `the ${e.subjectKind}`}
