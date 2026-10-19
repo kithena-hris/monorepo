@@ -565,8 +565,19 @@ function Writing({
     setMissing(data.missing);
     setSaving({ state: 'saved', at: data.review.savedAt, revision: data.review.revision });
   }, [data]);
+  // Required questions with no answer, as form-kit counts them, worked out
+  // here on every change: waiting for the save to say so left the Required
+  // mark turning red, or back, a second after the typing.
+  const requiredIds = data.form.sections
+    .flatMap((s) => s.questions)
+    .filter((q) => q.required && q.type !== 'performance_score')
+    .map((q) => q.id);
   const change = (id: string, a: Answer): void => {
-    setAnswers((prev) => ({ ...prev, [id]: a }));
+    setAnswers((prev) => {
+      const next = { ...prev, [id]: a };
+      setMissing(requiredIds.filter((q) => !answered(next[q])));
+      return next;
+    });
     pending.current = { ...pending.current, [id]: a };
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -1352,6 +1363,15 @@ function Tone({
     </div>
   );
 }
+
+/** Whether an answer counts, as form-kit's `isAnswered` does; the save's reply settles any doubt. */
+const answered = (a: Answer | undefined): boolean => {
+  const v = a?.value;
+  if (v === undefined || v === null) return false;
+  if (typeof v === 'string') return v.trim() !== '';
+  if (Array.isArray(v)) return v.length > 0;
+  return true;
+};
 
 /** Required questions answered, at the top and centre: the count springs as it moves. */
 function AnswerProgress({

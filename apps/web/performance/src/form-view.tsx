@@ -490,36 +490,44 @@ export function QuestionBlock({
     );
   }
   const isMissing = missing?.includes(q.id) === true;
+  const required = q.required && q.type !== 'performance_score';
+  const isDrafted = drafted?.includes(q.id) === true;
+  const marks = required || q.private || isDrafted;
   return (
     <div
       className={`flex flex-col gap-2.5 py-4 first:pt-0 last:pb-0 ${s !== undefined && !s.confirmed ? 'rounded-md bg-accent-subtle/40 px-3' : ''}`}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-xs text-fg-muted">{number}</span>
-        {/* One mark: Required, turned red while it still has no answer. */}
-        {q.required && q.type !== 'performance_score' ? (
-          isMissing ? (
-            <Badge size="sm" tone="danger">
-              Required
-            </Badge>
-          ) : (
-            <span className="text-xs text-fg-muted">Required</span>
-          )
-        ) : null}
-        {q.private ? (
-          <Badge size="sm" tone="warning">
-            {`Private: hidden from ${subject ?? 'the subject'}`}
-          </Badge>
-        ) : null}
-        {drafted?.includes(q.id) === true ? (
-          <Badge size="sm" tone="accent">
-            Drafted by AI
-          </Badge>
-        ) : null}
+      {/* The question beside its number, wrapping under itself; its marks on the line below. */}
+      <div className="flex items-baseline gap-2">
+        <span className="shrink-0 font-mono text-xs text-fg-muted">{number}</span>
+        <p id={`q-${q.id}`} className="min-w-0 flex-1 font-semibold">
+          {q.prompt}
+        </p>
       </div>
-      <p id={`q-${q.id}`} className="font-semibold">
-        {q.prompt}
-      </p>
+      {marks ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* One mark: Required, turned red while it still has no answer. */}
+          {required ? (
+            isMissing ? (
+              <Badge size="sm" tone="danger">
+                Required
+              </Badge>
+            ) : (
+              <span className="text-xs text-fg-muted">Required</span>
+            )
+          ) : null}
+          {q.private ? (
+            <Badge size="sm" tone="warning">
+              {`Private: hidden from ${subject ?? 'the subject'}`}
+            </Badge>
+          ) : null}
+          {isDrafted ? (
+            <Badge size="sm" tone="accent">
+              Drafted by AI
+            </Badge>
+          ) : null}
+        </div>
+      ) : null}
       {q.help === null ? null : <p className="text-sm text-fg-muted">{q.help}</p>}
       {control}
       {s !== undefined && !s.confirmed ? (
