@@ -83,6 +83,9 @@ function MeterSlider({
 }): JSX.Element {
   const percent = max === min ? 0 : Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
   const shown = typeof tip === 'function' ? tip(value) : tip ? value : null;
+  // Near either end the tip hangs off the knob's inner side rather than
+  // centred over it, so it never reaches past the meter's edge.
+  const tipSide = percent < 15 ? 'start' : percent > 85 ? 'end' : 'centre';
   return (
     <div className={cn('w-full', tip && 'pt-9', className)}>
       <div
@@ -92,27 +95,39 @@ function MeterSlider({
         aria-valuemax={max}
         aria-valuenow={value}
         aria-valuetext={typeof shown === 'string' ? shown : undefined}
-        className="relative flex h-9 items-center"
+        // The knob travels inside a track inset by half its width on each
+        // side, so at 0 or 100 it ends flush with the meter and nothing
+        // overflows, which in a popover or a dialog was a sideways scroll.
+        className="flex h-9 items-center px-4.5"
       >
-        <span
-          aria-hidden
-          className="h-2 w-full rounded-full bg-linear-to-r from-danger via-warning to-success opacity-80"
-        />
-        <span
-          aria-hidden
-          className={cn(
-            'absolute top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-surface text-xl leading-none',
-            'shadow-[0_2px_8px_oklch(0%_0_0/0.25),0_0_0_0.5px_oklch(0%_0_0/0.12)]',
-            'motion-safe:transition-[left] motion-safe:duration-(--animate-duration-spring-move) motion-safe:ease-spring-move',
-          )}
-          style={{ left: `${String(percent)}%` }}
-        >
-          {knob?.(value)}
-          {shown === null ? null : (
-            <span className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 rounded-[0.5rem] bg-invert px-2 py-1 text-xs leading-none font-semibold whitespace-nowrap text-fg-on-invert tabular-nums">
-              {shown}
-            </span>
-          )}
+        <span className="relative flex w-full items-center">
+          <span
+            aria-hidden
+            className="h-2 w-full rounded-full bg-linear-to-r from-danger via-warning to-success opacity-80"
+          />
+          <span
+            aria-hidden
+            className={cn(
+              'absolute top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-surface text-xl leading-none',
+              'shadow-[0_2px_8px_oklch(0%_0_0/0.25),0_0_0_0.5px_oklch(0%_0_0/0.12)]',
+              'motion-safe:transition-[left] motion-safe:duration-(--animate-duration-spring-move) motion-safe:ease-spring-move',
+            )}
+            style={{ left: `${String(percent)}%` }}
+          >
+            {knob?.(value)}
+            {shown === null ? null : (
+              <span
+                className={cn(
+                  'pointer-events-none absolute bottom-[calc(100%+0.5rem)] rounded-[0.5rem] bg-invert px-2 py-1 text-xs leading-none font-semibold whitespace-nowrap text-fg-on-invert tabular-nums',
+                  tipSide === 'centre' && 'left-1/2 -translate-x-1/2',
+                  tipSide === 'start' && '-left-4.5',
+                  tipSide === 'end' && '-right-4.5',
+                )}
+              >
+                {shown}
+              </span>
+            )}
+          </span>
         </span>
       </div>
       {labels && labels.length > 0 ? (
