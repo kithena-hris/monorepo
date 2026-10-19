@@ -159,8 +159,7 @@ export function Requisitions(props: ScreenProps<readonly Requisition[]>): JSX.El
                 rows={rows}
                 rowId={idOf}
                 describeRow={titleOf}
-                stickyHeader
-                containerClassName="page-fill max-h-dvh min-h-96"
+                fill
                 columns={columns}
               />
             )}

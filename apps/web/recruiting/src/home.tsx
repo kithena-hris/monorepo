@@ -157,8 +157,7 @@ function JobsTable({
       rows={data.jobs}
       rowId={idOf}
       describeRow={titleOf}
-      stickyHeader
-      containerClassName="page-fill max-h-dvh min-h-64"
+      fill
       columns={columns}
     />
   );

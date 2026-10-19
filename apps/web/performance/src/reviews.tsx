@@ -239,8 +239,7 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
                   rows={data.rows}
                   rowId={reviewId}
                   describeRow={reviewTitle}
-                  stickyHeader
-                  containerClassName="page-fill max-h-dvh min-h-64"
+                  fill
                   columns={reviewColumns(props.onNavigate)}
                 />
               )}

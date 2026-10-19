@@ -613,8 +613,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   rows={active}
                   rowId={applicationOf}
                   describeRow={nameOf}
-                  stickyHeader
-                  containerClassName="page-fill max-h-dvh min-h-96"
+                  fill
                   selectable
                   selected={[...selected]}
                   onSelectedChange={(ids) => {

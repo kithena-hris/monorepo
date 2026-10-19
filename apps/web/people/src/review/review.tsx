@@ -1476,8 +1476,7 @@ function Decided({
             describeRow={decisionName}
             // Infinite: the page's one scroll, older decisions loading near its
             // end, only the rows on screen drawn; cards under a finger.
-            stickyHeader
-            containerClassName="page-fill max-h-dvh min-h-96"
+            fill
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
             columns={DECIDED_COLUMNS}

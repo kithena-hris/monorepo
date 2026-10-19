@@ -108,7 +108,10 @@ export async function recruitingAct(
   name: string,
   variables: Readonly<Record<string, unknown>>,
 ): Promise<Done> {
-  if (name === 'SendContract') return sendContract(String(variables['offerId'] ?? ''));
+  if (name === 'SendContract') {
+    const offerId = variables['offerId'];
+    return sendContract(typeof offerId === 'string' ? offerId : '');
+  }
   if (!WRITES.has(name as OperationName))
     return { ok: false, message: 'Not something this page can do' };
   const answer = await recruiting<unknown>(name as OperationName, { ...variables });

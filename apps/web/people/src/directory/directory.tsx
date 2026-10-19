@@ -1646,7 +1646,7 @@ function Body({
       // it scrolls as well, rather than hiding the rest. Outside a layout
       // that fills, it is at most the window's height.
       estimateRowHeight={57}
-      containerClassName="page-fill max-h-dvh min-h-96"
+      fill
       {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
       columns={columns}
       rowId={(p) => p.id}

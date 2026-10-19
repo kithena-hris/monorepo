@@ -204,7 +204,9 @@ function Roles({
               disabled={locked}
               title={included ? 'Included with People administrator' : undefined}
               aria-label={
-                included ? `${label} for ${who}, included with People administrator` : `${label} for ${who}`
+                included
+                  ? `${label} for ${who}, included with People administrator`
+                  : `${label} for ${who}`
               }
               onCheckedChange={(on) => {
                 setPending({ person, role, grant: on === true });
@@ -301,8 +303,7 @@ function Roles({
             describeRow={nameOf}
             // Infinite: the page's one scroll, the next people loading near its
             // end, only the rows on screen drawn; cards under a finger.
-            stickyHeader
-            containerClassName="page-fill max-h-dvh min-h-96"
+            fill
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
             empty="Nobody matches"

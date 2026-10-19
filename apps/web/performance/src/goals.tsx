@@ -275,8 +275,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
                 rows={rows}
                 rowId={goalId}
                 describeRow={goalTitle}
-                stickyHeader
-                containerClassName="page-fill max-h-dvh min-h-64"
+                fill
                 columns={goalColumns(props.onNavigate, data.weighted)}
               />
             )}

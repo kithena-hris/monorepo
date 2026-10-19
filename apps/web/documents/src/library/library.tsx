@@ -168,11 +168,6 @@ function Ready({
       setAnswer(r.ok ? { q, a: r.data } : { q, a: null, error: r.message });
     });
   };
-  const go = (to: string) => (event: { preventDefault: () => void }) => {
-    if (props.onNavigate === undefined) return;
-    event.preventDefault();
-    props.onNavigate(to);
-  };
   // Held while what they close over holds, so opening a dialog redraws no row.
   const { onNavigate, onRestore, onChangeSection, onRemindSigners } = props;
   const columns = useMemo(
@@ -419,8 +414,7 @@ function Ready({
               rows={data.rows}
               rowId={rowId}
               describeRow={rowTitle}
-              stickyHeader
-              containerClassName="page-fill max-h-dvh min-h-64"
+              fill
               columns={columns}
             />
           )}

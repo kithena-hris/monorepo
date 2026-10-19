@@ -533,8 +533,7 @@ function Entries({
         rowId={entryId}
         // Infinite: the table is the page's one scroll, older entries load
         // near its end, and only the rows on screen are drawn.
-        stickyHeader
-        containerClassName="page-fill max-h-dvh min-h-96"
+        fill
         {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
         loadingMore={pages.loading}
         describeRow={entryAction}

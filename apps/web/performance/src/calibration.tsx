@@ -173,8 +173,7 @@ export function Calibrations(props: ScreenProps<CalibrationsData>): JSX.Element 
               rows={data.rows}
               rowId={sessionId}
               describeRow={sessionName}
-              stickyHeader
-              containerClassName="page-fill max-h-dvh min-h-64"
+              fill
               columns={sessionColumns(props.onNavigate)}
             />
           )}

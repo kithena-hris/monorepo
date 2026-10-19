@@ -311,8 +311,7 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
               rows={data.catalogue}
               rowId={itemId}
               describeRow={itemTitle}
-              stickyHeader
-              containerClassName="page-fill max-h-dvh min-h-64"
+              fill
               empty="Nothing in the catalogue yet"
               columns={catalogueColumns(
                 props.onNavigate,

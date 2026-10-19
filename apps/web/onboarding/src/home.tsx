@@ -61,8 +61,7 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
                   rows={data.rows}
                   rowId={planId}
                   describeRow={planName}
-                  stickyHeader
-                  containerClassName="page-fill max-h-dvh min-h-64"
+                  fill
                   columns={planColumns(props.onNavigate)}
                 />
               )}
@@ -192,8 +191,7 @@ export function Tasks(props: ScreenProps<TasksData>): JSX.Element {
                   rows={data.rows}
                   rowId={taskId}
                   describeRow={taskTitle}
-                  stickyHeader
-                  containerClassName="page-fill max-h-dvh min-h-64"
+                  fill
                   columns={taskColumns(props.onNavigate)}
                 />
               )}
