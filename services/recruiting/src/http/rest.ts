@@ -124,6 +124,7 @@ import {
   requisitionsScreen,
   settingsScreen,
 } from '../application/screens.js';
+import { settingsInWords } from '../application/settings-in-words.js';
 import {
   removeBenefit,
   removeChain,
@@ -144,7 +145,6 @@ import {
   savePayBand,
   savePipeline,
   saveQuestionnaire,
-  settingsInWords,
   saveScorecardTemplate,
   saveTemplate,
   recordWorksCouncilConsent,
