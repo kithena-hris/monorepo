@@ -1,39 +1,19 @@
 'use client';
 
-import {
-  Avatar,
-  Badge,
-  Button,
-  EmptyState,
-  KbdShortcut,
-  NavItem,
-  NotificationCenter,
-  NotificationGroup,
-  NotificationItem,
-  SegmentedControl,
-  SegmentedControlItem,
-  icons,
-  useToast,
-} from '@reach/ui';
+import { Badge, ToastProvider, useToast } from '@reach/ui';
 import { Suspense, use, useEffect, useState, type JSX } from 'react';
 
 import type { InboxPeek } from '../../lib/inbox/peek';
-import { markAllRead } from '../../app/(app)/inbox/actions';
-import { since } from '../since';
-import { iconOf } from './format';
 
 /**
- * The bell and the red number (B1–B3): the Inbox's first rows in a peek, so
- * nobody loses their page, and the count of tasks only — updates are a dot,
- * never a number. Both arrive after the page has painted: the layout passes
- * the read as a promise and nothing waits for it.
- *
- * A task that arrives while the page is open shows a short toast under the
- * bell (B3); updates never interrupt.
+ * The Inbox in the sidebar (B1–B3): the count of tasks beside its name (a dot
+ * when only updates are unread), and a short toast when a task arrives while
+ * the page is open. Both read the Inbox's peek, which the layout passes as a
+ * promise so nothing waits for it. Notifications are the Inbox: there is no
+ * second list of them anywhere.
  */
 
 const SEEN = 'kithena.inbox.seen';
-
 function seenTasks(): ReadonlySet<string> | null {
   try {
     const raw = sessionStorage.getItem(SEEN);
@@ -105,61 +85,25 @@ export function useInboxTodo(inbox: Promise<InboxPeek> | undefined): number {
   return n;
 }
 
-/**
- * The bell as a sidebar row, under Search: the same row as every area, with
- * the count where an area's count goes. In the rail the count is the dot on
- * the icon and the number stays in the tooltip, as `NavItem` does for Inbox.
- * The `...props` are the popover trigger's (`onClick`, `aria-expanded`), put
- * on the button the row renders.
- */
-function BellButton({
-  todo,
-  updates,
-  ...props
-}: {
-  readonly todo: number;
-  readonly updates: number;
-}): JSX.Element {
-  const badge = <CountBadge todo={todo} updates={updates} />;
-  return (
-    <NavItem
-      asChild
-      icon={<icons.notifications aria-hidden />}
-      {...(todo > 0 || updates > 0 ? { badge } : {})}
-    >
-      <button type="button" {...props}>
-        Notifications
-      </button>
-    </NavItem>
-  );
-}
-
-/**
- * The sidebar's Notifications row: the Inbox's peek opens beside it. A
- * `NavItem`, so it goes inside a `NavList`, and the `ToastProvider` it needs
- * (B3) sits outside that list: the provider renders the toasts' viewport, a
- * list of its own, which cannot be a list's item.
- */
-export function InboxBell({
+/** B3: a task new since this tab last looked, said once, under its own toast viewport. */
+export function InboxToasts({
   inbox,
 }: {
   readonly inbox: Promise<InboxPeek> | undefined;
-}): JSX.Element {
+}): JSX.Element | null {
+  if (inbox === undefined) return null;
   return (
-    <Suspense fallback={<BellButton todo={0} updates={0} />}>
-      {inbox === undefined ? <BellButton todo={0} updates={0} /> : <Bell inbox={inbox} />}
-    </Suspense>
+    <ToastProvider>
+      <Suspense fallback={null}>
+        <Arrivals inbox={inbox} />
+      </Suspense>
+    </ToastProvider>
   );
 }
 
-function Bell({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
+function Arrivals({ inbox }: { readonly inbox: Promise<InboxPeek> }): null {
   const peek = use(inbox);
   const { toast } = useToast();
-  const [lane, setLane] = useState<'todo' | 'updates'>('todo');
-  const [cleared, setCleared] = useState(false);
-  const updates = cleared ? 0 : peek.counts.updates;
-
-  // B3: a task new since this tab last looked, said once.
   useEffect(() => {
     const ids = peek.todo.map((t) => t.id);
     const seen = seenTasks();
@@ -179,89 +123,5 @@ function Bell({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
       },
     });
   }, [peek, toast]);
-
-  const rows = lane === 'todo' ? peek.todo : peek.updates;
-  return (
-    <NotificationCenter
-      title="Inbox"
-      action={
-        <span className="flex items-center gap-1">
-          {updates > 0 ? (
-            <Button
-              variant="ghost"
-              size="xs"
-              aria-label="Mark all updates read"
-              startIcon={<icons.confirm aria-hidden />}
-              onClick={() => {
-                setCleared(true);
-                void markAllRead();
-              }}
-            />
-          ) : null}
-          <Button
-            asChild
-            variant="ghost"
-            size="xs"
-            aria-label="Notification settings"
-            startIcon={<icons.settings aria-hidden />}
-          >
-            <a href="/settings/notifications" />
-          </Button>
-        </span>
-      }
-      side="right"
-      trigger={<BellButton todo={peek.counts.todo} updates={updates} />}
-    >
-      <div className="px-3.5 pt-3 pb-1">
-        <SegmentedControl
-          aria-label="Show"
-          fullWidth
-          size="sm"
-          value={lane}
-          onValueChange={(v) => {
-            if (v === 'todo' || v === 'updates') setLane(v);
-          }}
-        >
-          <SegmentedControlItem value="todo">{`To do · ${String(peek.counts.todo)}`}</SegmentedControlItem>
-          <SegmentedControlItem value="updates">{`Updates · ${String(updates)}`}</SegmentedControlItem>
-        </SegmentedControl>
-      </div>
-      {rows.length === 0 ? (
-        <EmptyState
-          icon={lane === 'todo' ? <icons.success /> : <icons.notifications />}
-          title={lane === 'todo' ? 'Nothing needs you' : 'No updates'}
-          description={
-            lane === 'todo' ? 'New tasks appear here.' : 'News from every module lands here.'
-          }
-        />
-      ) : (
-        <NotificationGroup aria-label={lane === 'todo' ? 'To do' : 'Updates'}>
-          {rows.map((r) => {
-            const Icon = iconOf(r.icon);
-            return (
-              <NotificationItem
-                key={r.id}
-                title={r.title}
-                description={r.summary ?? undefined}
-                time={r.count === null ? since(r.at, peek.now) : String(r.count)}
-                unread={r.unread && !cleared}
-                href={`/inbox/${lane}?item=${encodeURIComponent(r.id)}`}
-                {...(lane === 'updates' && r.from?.name != null
-                  ? { avatar: <Avatar name={r.from.name} size="lg" /> }
-                  : { icon: <Icon aria-hidden />, tone: r.tone ?? 'neutral' })}
-              />
-            );
-          })}
-        </NotificationGroup>
-      )}
-      <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-        <Button asChild variant="link" size="sm">
-          <a href={`/inbox/${lane}`}>Open Inbox</a>
-        </Button>
-        <span className="flex items-center gap-1.5 text-xs text-fg-subtle">
-          Go to Inbox <KbdShortcut keys={['G', 'N']} />
-        </span>
-      </div>
-    </NotificationCenter>
-  );
+  return null;
 }

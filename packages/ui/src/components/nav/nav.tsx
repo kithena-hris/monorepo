@@ -272,8 +272,11 @@ export function NavItem({
   const compact = use(CompactMenu) && described;
   const fly = useFlyout();
   const showSubnav = subnav !== undefined && expanded && !collapsed;
-  // The page under it carries the mark; the parent as well would be two for one place.
-  const marked = current && !showSubnav;
+  // The parent stays marked while its pages are open under it: the page
+  // under it says which, the parent says where. `aria-current` is the page's
+  // alone; two "current pages" would be one too many for a screen reader.
+  const marked = current;
+  const page = current && !showSubnav;
   // With its pages inline, nothing hovers: the flyout is the collapsed rail's.
   const flies = flyout !== undefined && (subnav === undefined || collapsed);
   const Comp = asChild ? Slot : 'a';
@@ -364,13 +367,18 @@ export function NavItem({
           </span>
         </span>
       ) : (
-        <span data-rail-label="" className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>
-          {label}
+        // The count sits by the name it counts, not at the far end of the row.
+        <span
+          data-rail-label=""
+          className={cn('flex min-w-0 flex-1 items-center gap-2', asIcon && 'sr-only')}
+        >
+          <span className="min-w-0 truncate">{label}</span>
+          {badge && !asIcon ? <span className="shrink-0">{badge}</span> : null}
         </span>
       )}
 
       {/* In a compact menu the count ends the row, where a list puts it. */}
-      {badge && !asIcon && (!described || compact) ? (
+      {badge && !asIcon && described && compact ? (
         <span data-rail-label="" className="shrink-0">
           {badge}
         </span>
@@ -419,7 +427,7 @@ export function NavItem({
   const link = (
     <Comp
       // `aria-current` is the state. The background is the reminder.
-      aria-current={marked ? 'page' : undefined}
+      aria-current={page ? 'page' : undefined}
       aria-describedby={described && !asIcon ? describedBy : undefined}
       className={cn(
         // A filled, rounded row, so the current item reads as a place the
