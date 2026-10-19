@@ -378,6 +378,9 @@ export const OPERATIONS = {
   SavePerformanceTemplate: `mutation SavePerformanceTemplate($id: String!, $key: String!, $input: JSON!) {
     savePerformanceTemplate(id: $id, idempotencyKey: $key, input: $input)
   }`,
+  ScorePerformanceTemplateSample: `mutation ScorePerformanceTemplateSample($key: String!, $input: JSON!) {
+    scorePerformanceTemplateSample(idempotencyKey: $key, input: $input)
+  }`,
   ScanPerformanceSession: `mutation ScanPerformanceSession($key: String!, $input: JSON!) {
     scanPerformanceSession(idempotencyKey: $key, input: $input)
   }`,

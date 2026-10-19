@@ -338,18 +338,18 @@ export function QuestionBlock({
   const write = editable === true && q.type !== 'performance_score';
   let control: ReactNode;
   if (q.type === 'performance_score') {
-    control = (
-      <div className="flex items-baseline gap-3">
-        <span className="text-3xl font-bold tabular-nums">
-          {score === null || score === undefined ? '—' : score.display}
-        </span>
-        <span className="text-sm text-fg-muted">
-          {score === null || score === undefined
-            ? 'Computed once the rating questions are answered'
-            : `${score.label} · computed from ${String(score.rated)} rated answers, by section`}
-        </span>
-      </div>
-    );
+    // No number until there is one: a bold dash at this size read as a bar.
+    control =
+      score === null || score === undefined ? (
+        <p className="text-sm text-fg-muted">Computed once the rating questions are answered</p>
+      ) : (
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-bold tabular-nums">{score.display}</span>
+          <span className="text-sm text-fg-muted">
+            {`${score.label} · computed from ${String(score.rated)} rated answers, by section`}
+          </span>
+        </div>
+      );
   } else if (!write) {
     control =
       q.type === 'text' ? (

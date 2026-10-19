@@ -547,8 +547,28 @@ export async function newTemplate(
   });
   if (!made.ok) return made;
   await ctx.tx.templates.save(made.value);
-  await audit(ctx, { kind: 'template', action: 'Created a template', target: input.name, targetId: made.value.id });
+  await audit(ctx, {
+    kind: 'template',
+    action: 'Created a template',
+    target: input.name,
+    targetId: made.value.id,
+  });
   return ok({ id: made.value.id });
+}
+
+/**
+ * The performance score a draft would give the answers HR tries in the builder,
+ * on the company's scale: the builder's own rows show what a reviewer will see,
+ * the number included, without anything being saved.
+ */
+export async function scoreSample(
+  ctx: Ctx,
+  input: { definition: FormDefinition; answers: FormAnswers },
+): Promise<Result<{ score: ReturnType<typeof score> }>> {
+  const may = hrOnly(ctx);
+  if (!may.ok) return may;
+  const scale = (await settingsOf(ctx)).general.scale;
+  return ok({ score: score(input.definition, input.answers, scale) });
 }
 
 export async function saveTemplate(
@@ -588,7 +608,8 @@ export async function publishTemplate(ctx: Ctx, id: string): Promise<Result<{ ve
       { templateId: id, version: v },
     ),
   );
-  await audit(ctx, { kind: 'template',
+  await audit(ctx, {
+    kind: 'template',
     action: 'Published a template',
     target: `${t.name} v${String(v)}`,
     targetId: id,
@@ -617,7 +638,8 @@ export async function archiveTemplate(
           : v,
     ),
   });
-  await audit(ctx, { kind: 'template',
+  await audit(ctx, {
+    kind: 'template',
     action: archived ? 'Archived a template' : 'Unarchived a template',
     target: t.name,
     targetId: id,
@@ -635,7 +657,12 @@ export async function deleteTemplate(ctx: Ctx, id: string): Promise<Result<{ ok:
   const allowed = mayDelete(t);
   if (!allowed.ok) return allowed;
   await ctx.tx.templates.remove(id);
-  await audit(ctx, { kind: 'template', action: 'Deleted a template', target: t.name, targetId: id });
+  await audit(ctx, {
+    kind: 'template',
+    action: 'Deleted a template',
+    target: t.name,
+    targetId: id,
+  });
   return ok({ ok: true });
 }
 

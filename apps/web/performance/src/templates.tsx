@@ -39,7 +39,7 @@ import {
   Separator,
   cn,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
 import { FormView, QuestionBlock } from './form-view';
 import { Loaded } from './load';
@@ -58,7 +58,15 @@ import {
   when,
   type Act,
 } from './shared';
-import type { Answers, FormDefinition, Question, ScaleOption, ScreenProps, Section } from './types';
+import type {
+  Answers,
+  FormDefinition,
+  Question,
+  ScaleOption,
+  Score,
+  ScreenProps,
+  Section,
+} from './types';
 
 /**
  * Form templates (PRD §11, design PF2–PF3 v2): the list with its filters, the
@@ -595,6 +603,24 @@ function Building({
     readonly { questionId: string; level: string; title: string }[] | null
   >(null);
   const scored = def.sections.some((s) => s.questions.some((q) => q.type === 'performance_score'));
+  // The score a reviewer would see for the answers tried here, as Performance
+  // computes it: read again a moment after the form or an answer changes.
+  const [score, setScore] = useState<Score | null>(null);
+  useEffect(() => {
+    if (!scored) return undefined;
+    let live = true;
+    const timer = setTimeout(() => {
+      void act
+        .call('ScorePerformanceTemplateSample', { input: { definition: def, answers } })
+        .then((d) => {
+          if (live && d.ok) setScore((d.data as { score: Score | null }).score);
+        });
+    }, 300);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [scored, def, answers]);
   const set = (next: FormDefinition): void => {
     setDef(next);
     setDirty(true);
@@ -841,6 +867,7 @@ function Building({
                             definition={def}
                             answers={answers}
                             scale={data.scale}
+                            score={score}
                             editable
                             onChange={(id, a) => {
                               setAnswers({ ...answers, [id]: a });
@@ -958,6 +985,7 @@ function Building({
                   definition={shown}
                   answers={answers}
                   scale={data.scale}
+                  score={score}
                   editable={as === 'reviewer'}
                   onChange={(id, a) => {
                     setAnswers({ ...answers, [id]: a });
