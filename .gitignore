@@ -91,3 +91,12 @@ __screenshots__
 
 # Lint stamps CI keeps in its cache (tools/lint/eslint-in-parts.mjs).
 /.cache/
+
+# Claude Code tooling installed on this machine, not the product: plugin
+# skills and their lock, local data and design exports.
+.agents/
+.claude/data/
+.claude/design/
+.claude/skills/*
+!.claude/skills/reach-ui/
+skills-lock.json
