@@ -36,6 +36,8 @@ import {
   Tooltip,
   ChangeDiff,
   icons,
+  Separator,
+  cn,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -815,9 +817,10 @@ function Building({
                       ) : (
                         <div
                           className={
+                            // The open editor's own padding, so a question keeps its place as it opens.
                             q.type === 'performance_score'
-                              ? 'px-1'
-                              : 'cursor-text rounded-md px-1 hover:bg-surface-sunken'
+                              ? 'p-3'
+                              : 'cursor-text rounded-md p-3 hover:bg-surface-sunken'
                           }
                           {...(q.type === 'performance_score'
                             ? {}
@@ -914,7 +917,8 @@ function Building({
         </div>
       </div>
       <ModalPage open={previewing} onOpenChange={setPreviewing}>
-        <ModalPageContent size="column">
+        {/* Wide enough for a five-point scale's labels, the form at the review screen's width. */}
+        <ModalPageContent size="inset">
           <ModalPageHeader
             title={`Preview: ${name}`}
             description="As it will be answered. Nothing here is saved."
@@ -945,8 +949,8 @@ function Building({
               </>
             }
           />
-          <ModalPageBody>
-            <div className={device === 'phone' ? 'mx-auto w-full max-w-sm' : ''}>
+          <ModalPageBody className="px-6 py-8 touch:px-4 touch:py-6">
+            <div className={cn('mx-auto w-full', device === 'phone' ? 'max-w-sm' : 'max-w-3xl')}>
               {shown.sections.length === 0 ? (
                 <p className="text-sm text-fg-muted">Add a question to see the form.</p>
               ) : (
@@ -1069,7 +1073,9 @@ function QuestionEditor({
     private: q.private,
   };
   return (
-    <div className="flex flex-col gap-3 rounded-md bg-surface-sunken p-3">
+    // No fill of its own: the list item frames it, and a sunken fill here is
+    // the fields' own, which left every input and select without an edge.
+    <div className="flex flex-col gap-3 p-3">
       <Field required>
         <FieldLabel>Question</FieldLabel>
         <Input
@@ -1257,28 +1263,35 @@ function QuestionEditor({
           </Field>
         </div>
       ) : null}
-      <SwitchRow
-        label="Required"
-        checked={q.required}
-        onChange={(on) => {
-          onChange({ ...q, required: on });
-        }}
-      />
-      <SwitchRow
-        label="Allow a comment"
-        checked={q.allowComment}
-        onChange={(on) => {
-          onChange({ ...q, allowComment: on });
-        }}
-      />
-      <SwitchRow
-        label="Private"
-        hint="Hidden from the subject; managers, HR and calibrators see it"
-        checked={q.private}
-        onChange={(on) => {
-          onChange({ ...q, private: on });
-        }}
-      />
+      <Separator />
+      <div className="flex flex-col">
+        <p className="text-sm font-semibold">Settings</p>
+        <SwitchRow
+          dense
+          label="Required"
+          checked={q.required}
+          onChange={(on) => {
+            onChange({ ...q, required: on });
+          }}
+        />
+        <SwitchRow
+          dense
+          label="Allow a comment"
+          checked={q.allowComment}
+          onChange={(on) => {
+            onChange({ ...q, allowComment: on });
+          }}
+        />
+        <SwitchRow
+          dense
+          label="Private"
+          hint="Hidden from the subject; managers, HR and calibrators see it"
+          checked={q.private}
+          onChange={(on) => {
+            onChange({ ...q, private: on });
+          }}
+        />
+      </div>
       <div className="flex justify-between gap-2">
         <Button size="sm" variant="danger" onClick={onRemove}>
           Remove question

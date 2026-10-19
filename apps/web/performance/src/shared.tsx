@@ -270,6 +270,7 @@ export function SwitchRow({
   disabled,
   locked,
   info,
+  dense = false,
 }: {
   readonly label: string;
   readonly hint?: ReactNode;
@@ -280,9 +281,14 @@ export function SwitchRow({
   readonly locked?: string;
   /** More about it, behind an info button beside the label. */
   readonly info?: string;
+  /** Tighter rows, for a short group of settings inside an editor. */
+  readonly dense?: boolean;
 }): JSX.Element {
   return (
-    <Field orientation="horizontal" className="justify-between gap-4 py-2.5">
+    <Field
+      orientation="horizontal"
+      className={cn('justify-between gap-4', dense ? 'py-1' : 'py-2.5')}
+    >
       <span className="flex min-w-0 flex-col">
         <span className="flex items-center gap-1">
           <FieldLabel>{label}</FieldLabel>

@@ -208,14 +208,20 @@ export function ModalPageHeader({
   );
 }
 
-/** The one scroll container. Page padding belongs here. */
+/**
+ * The one scroll container. Page padding belongs here.
+ *
+ * Smooth for programmatic scrolling (an anchor, a `scrollIntoView`), as the
+ * page layout's scroller is; a wheel and a finger stay the browser's, and
+ * `base.css` turns it off under reduced motion.
+ */
 export function ModalPageBody({
   className,
   ...props
 }: ComponentPropsWithoutRef<'div'>): JSX.Element {
   return (
     <div
-      className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', className)}
+      className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth', className)}
       {...props}
     />
   );
