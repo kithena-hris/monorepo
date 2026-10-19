@@ -10,15 +10,11 @@ import {
   EmptyState,
   PageHeader,
   Stat,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
+  type DataColumn,
   icons,
 } from '@reach/ui';
-import type { JSX } from 'react';
+import { useMemo, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { StateBadge, To, day } from './shared';
@@ -129,6 +125,8 @@ function JobsTable({
   readonly data: HomeData;
   readonly props: ScreenProps<HomeData>;
 }): JSX.Element {
+  const { onNavigate } = props;
+  const columns = useMemo(() => jobColumns(onNavigate), [onNavigate]);
   if (data.jobs.length === 0) {
     return (
       <EmptyState
@@ -154,44 +152,62 @@ function JobsTable({
     );
   }
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Job</TableHead>
-          <TableHead>Pipeline</TableHead>
-          <TableHead>State</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {data.jobs.map((j) => (
-          <TableRow key={j.id}>
-            <TableCell>
-              <span className="flex flex-col">
-                <To href={`/recruiting/jobs/${j.id}`} onNavigate={props.onNavigate}>
-                  {j.title}
-                </To>
-                <span className="text-sm text-fg-muted">
-                  {[
-                    j.department,
-                    `${String(j.counts.active)} candidates`,
-                    `${String(j.counts.newThisWeek)} new`,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-              </span>
-            </TableCell>
-            <TableCell>
-              <MiniPipeline counts={j.counts} />
-            </TableCell>
-            <TableCell>
-              <StateBadge state={j.state} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable<JobRow>
+      label="My jobs"
+      rows={data.jobs}
+      rowId={idOf}
+      describeRow={titleOf}
+      stickyHeader
+      containerClassName="page-fill max-h-dvh min-h-64"
+      columns={columns}
+    />
   );
+}
+
+type JobRow = HomeData['jobs'][number];
+const idOf = (j: JobRow): string => j.id;
+const titleOf = (j: JobRow): string => j.title;
+
+/** R1's jobs: each with its pipeline in miniature. */
+function jobColumns(
+  onNavigate: ScreenProps<HomeData>['onNavigate'],
+): readonly DataColumn<JobRow>[] {
+  return [
+    {
+      id: 'job',
+      header: 'Job',
+      sortBy: (j) => j.title,
+      cell: (j) => (
+        <span className="flex flex-col">
+          <To href={`/recruiting/jobs/${j.id}`} onNavigate={onNavigate}>
+            {j.title}
+          </To>
+          <span className="text-sm text-fg-muted">
+            {[
+              j.department,
+              `${String(j.counts.active)} candidates`,
+              `${String(j.counts.newThisWeek)} new`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: 'pipeline',
+      header: 'Pipeline',
+      hideOnCard: true,
+      cell: (j) => <MiniPipeline counts={j.counts} />,
+    },
+    {
+      id: 'state',
+      header: 'State',
+      cardTrailing: true,
+      sortBy: (j) => j.state,
+      cell: (j) => <StateBadge state={j.state} />,
+    },
+  ];
 }
 
 export function Home(props: ScreenProps<HomeData>): JSX.Element {

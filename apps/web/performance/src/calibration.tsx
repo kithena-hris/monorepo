@@ -17,6 +17,8 @@ import {
   Input,
   NumberField,
   PageHeader,
+  DataTable,
+  type DataColumn,
   Table,
   TableBody,
   TableCell,
@@ -72,6 +74,68 @@ const STATE: Readonly<Record<string, string>> = {
   finalised: 'Finalised',
 };
 
+type SessionRow = CalibrationsData['rows'][number];
+const sessionId = (s: SessionRow): string => s.id;
+const sessionName = (s: SessionRow): string => s.name;
+
+function sessionColumns(
+  onNavigate: ScreenProps<CalibrationsData>['onNavigate'],
+): readonly DataColumn<SessionRow>[] {
+  return [
+    {
+      id: 'session',
+      header: 'Session',
+      sortBy: (s) => s.name,
+      cell: (s) => (
+        <To href={`/performance/calibration/${s.id}`} onNavigate={onNavigate}>
+          {s.name}
+        </To>
+      ),
+    },
+    {
+      id: 'cycle',
+      header: 'Cycle',
+      sortBy: (s) => s.cycle,
+      cell: (s) => <span className="text-sm">{s.cycle}</span>,
+    },
+    {
+      id: 'calibrators',
+      header: 'Calibrators',
+      hideOnCard: true,
+      cell: (s) => <span className="text-sm">{s.calibrators.join(', ')}</span>,
+    },
+    {
+      id: 'people',
+      header: 'People',
+      numeric: true,
+      sortBy: (s) => s.people,
+      cell: (s) => <span className="text-sm">{String(s.people)}</span>,
+    },
+    {
+      id: 'meets',
+      header: 'Meets',
+      sortBy: (s) => s.meetsOn ?? '',
+      cell: (s) => <span className="text-sm">{day(s.meetsOn)}</span>,
+    },
+    {
+      id: 'state',
+      header: 'State',
+      cardTrailing: true,
+      sortBy: (s) => s.state,
+      cell: (s) => (
+        <Badge
+          size="sm"
+          tone={
+            s.state === 'finalised' ? 'success' : s.state === 'in_progress' ? 'warning' : 'neutral'
+          }
+        >
+          {STATE[s.state] ?? s.state}
+        </Badge>
+      ),
+    },
+  ];
+}
+
 export function Calibrations(props: ScreenProps<CalibrationsData>): JSX.Element {
   const act = useAct(props);
   const [creating, setCreating] = useState(props.search?.['cycle'] !== undefined);
@@ -97,62 +161,23 @@ export function Calibrations(props: ScreenProps<CalibrationsData>): JSX.Element 
             }
           />
           <Refusal error={act.error} />
-          <Card>
-            <CardContent className="overflow-x-auto">
-              {data.rows.length === 0 ? (
-                <EmptyState
-                  icon={<icons.people aria-hidden />}
-                  title="No sessions"
-                  description="A session takes the scores of a cycle, or one department of it, and holds them until it is finalised."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Session</TableHead>
-                      <TableHead>Cycle</TableHead>
-                      <TableHead>Calibrators</TableHead>
-                      <TableHead>People</TableHead>
-                      <TableHead>Meets</TableHead>
-                      <TableHead>State</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rows.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell>
-                          <To
-                            href={`/performance/calibration/${s.id}`}
-                            onNavigate={props.onNavigate}
-                          >
-                            {s.name}
-                          </To>
-                        </TableCell>
-                        <TableCell className="text-sm">{s.cycle}</TableCell>
-                        <TableCell className="text-sm">{s.calibrators.join(', ')}</TableCell>
-                        <TableCell className="text-sm">{String(s.people)}</TableCell>
-                        <TableCell className="text-sm">{day(s.meetsOn)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            size="sm"
-                            tone={
-                              s.state === 'finalised'
-                                ? 'success'
-                                : s.state === 'in_progress'
-                                  ? 'warning'
-                                  : 'neutral'
-                            }
-                          >
-                            {STATE[s.state] ?? s.state}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          {data.rows.length === 0 ? (
+            <EmptyState
+              icon={<icons.people aria-hidden />}
+              title="No sessions"
+              description="A session takes the scores of a cycle, or one department of it, and holds them until it is finalised."
+            />
+          ) : (
+            <DataTable<SessionRow>
+              label="Calibration sessions"
+              rows={data.rows}
+              rowId={sessionId}
+              describeRow={sessionName}
+              stickyHeader
+              containerClassName="page-fill max-h-dvh min-h-64"
+              columns={sessionColumns(props.onNavigate)}
+            />
+          )}
           {creating && data.hr ? (
             <NewSession
               act={act}

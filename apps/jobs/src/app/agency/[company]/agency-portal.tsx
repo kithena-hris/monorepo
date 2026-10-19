@@ -20,12 +20,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
+  type DataColumn,
   icons,
 } from '@reach/ui';
 import { useCallback, useEffect, useState, useTransition, type JSX } from 'react';
@@ -56,6 +52,38 @@ const remembered = (company: string): string => {
     return '';
   }
 };
+
+type Submission = Portal['submissions'][number];
+const submissionId = (s: Submission): string => s.id;
+const submissionName = (s: Submission): string => s.candidate;
+
+const SUBMISSION_COLUMNS: readonly DataColumn<Submission>[] = [
+  { id: 'candidate', header: 'Candidate', sortBy: (s) => s.candidate, cell: (s) => s.candidate },
+  { id: 'job', header: 'Job', sortBy: (s) => s.job, cell: (s) => s.job },
+  {
+    id: 'stage',
+    header: 'Stage',
+    cardTrailing: true,
+    sortBy: (s) => s.outcome,
+    cell: (s) => (
+      <Badge size="sm" tone={s.outcome === 'active' ? 'info' : 'neutral'}>
+        {s.outcome === 'active'
+          ? (s.stage ?? 'In review')
+          : s.outcome === 'hired'
+            ? 'Hired'
+            : s.outcome === 'rejected'
+              ? 'Not progressed'
+              : 'Withdrawn'}
+      </Badge>
+    ),
+  },
+  {
+    id: 'submitted',
+    header: 'Submitted',
+    sortBy: (s) => s.submittedOn,
+    cell: (s) => s.submittedOn,
+  },
+];
 
 export function AgencyPortal({ company }: { readonly company: string }): JSX.Element {
   const [token, setToken] = useState('');
@@ -282,36 +310,15 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
           {portal.submissions.length === 0 ? (
             <EmptyState icon={<icons.people aria-hidden />} title="Nobody submitted yet" />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Candidate</TableHead>
-                  <TableHead>Job</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead>Submitted</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {portal.submissions.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell>{s.candidate}</TableCell>
-                    <TableCell>{s.job}</TableCell>
-                    <TableCell>
-                      <Badge size="sm" tone={s.outcome === 'active' ? 'info' : 'neutral'}>
-                        {s.outcome === 'active'
-                          ? (s.stage ?? 'In review')
-                          : s.outcome === 'hired'
-                            ? 'Hired'
-                            : s.outcome === 'rejected'
-                              ? 'Not progressed'
-                              : 'Withdrawn'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{s.submittedOn}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable<Submission>
+              label="Submitted candidates"
+              rows={portal.submissions}
+              rowId={submissionId}
+              describeRow={submissionName}
+              stickyHeader
+              containerClassName="max-h-[70dvh] min-h-64"
+              columns={SUBMISSION_COLUMNS}
+            />
           )}
         </CardContent>
       </Card>

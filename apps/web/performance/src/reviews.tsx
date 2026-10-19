@@ -30,6 +30,8 @@ import {
   PopoverTrigger,
   Slider,
   Spinner,
+  DataTable,
+  type DataColumn,
   Table,
   TableBody,
   TableCell,
@@ -132,6 +134,55 @@ export interface MyReviewsData {
   readonly about: readonly AboutCycle[] | null;
 }
 
+type ReviewRow = Row;
+const reviewId = (r: ReviewRow): string => r.id;
+const reviewTitle = (r: ReviewRow): string => r.title;
+
+/** PF2's list: what to write and what was written. Virtualised: a long cycle asks hundreds of one manager. */
+function reviewColumns(
+  onNavigate: ScreenProps<MyReviewsData>['onNavigate'],
+): readonly DataColumn<ReviewRow>[] {
+  return [
+    {
+      id: 'review',
+      header: 'Review',
+      sortBy: (r) => r.title,
+      cell: (r) => (
+        <>
+          <To href={`/performance/reviews/${r.id}`} onNavigate={onNavigate}>
+            {r.title}
+          </To>
+          {r.savedAt === null ? null : (
+            <span className="block text-xs text-fg-muted">{`Saved ${when(r.savedAt)}`}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'about',
+      header: 'About',
+      sortBy: (r) => r.about,
+      cell: (r) => <Person name={r.about} sub={r.aboutTitle} />,
+    },
+    {
+      id: 'cycle',
+      header: 'Cycle',
+      hideOnCard: true,
+      sortBy: (r) => r.cycle ?? '',
+      cell: (r) => <span className="text-sm text-fg-muted">{r.cycle ?? '—'}</span>,
+    },
+    { id: 'kind', header: 'Kind', sortBy: (r) => r.kind, cell: (r) => <KindBadge kind={r.kind} /> },
+    { id: 'due', header: 'Due', sortBy: (r) => r.due, cell: (r) => day(r.due) },
+    {
+      id: 'state',
+      header: 'State',
+      cardTrailing: true,
+      sortBy: (r) => r.state,
+      cell: (r) => <ReviewBadge state={r.state} />,
+    },
+  ];
+}
+
 export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
   return (
     <Loaded load={props.load} what="your reviews">
@@ -176,60 +227,23 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
             <AboutMe cycles={data.about ?? []} onNavigate={props.onNavigate} />
           ) : (
             <>
-              <Card>
-                <CardContent className="overflow-x-auto">
-                  {data.rows.length === 0 ? (
-                    <EmptyState
-                      icon={<icons.review aria-hidden />}
-                      title={data.tab === 'written' ? 'Nothing written yet' : 'No reviews to write'}
-                      description="When a cycle asks you for a review, it shows here and in your Inbox."
-                    />
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Review</TableHead>
-                          <TableHead>About</TableHead>
-                          <TableHead>Cycle</TableHead>
-                          <TableHead>Kind</TableHead>
-                          <TableHead>Due</TableHead>
-                          <TableHead>State</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data.rows.map((r) => (
-                          <TableRow key={r.id}>
-                            <TableCell>
-                              <To
-                                href={`/performance/reviews/${r.id}`}
-                                onNavigate={props.onNavigate}
-                              >
-                                {r.title}
-                              </To>
-                              {r.savedAt === null ? null : (
-                                <span className="block text-xs text-fg-muted">{`Saved ${when(r.savedAt)}`}</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Person name={r.about} sub={r.aboutTitle} />
-                            </TableCell>
-                            <TableCell className="text-sm text-fg-muted">
-                              {r.cycle ?? '—'}
-                            </TableCell>
-                            <TableCell>
-                              <KindBadge kind={r.kind} />
-                            </TableCell>
-                            <TableCell>{day(r.due)}</TableCell>
-                            <TableCell>
-                              <ReviewBadge state={r.state} />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              {data.rows.length === 0 ? (
+                <EmptyState
+                  icon={<icons.review aria-hidden />}
+                  title={data.tab === 'written' ? 'Nothing written yet' : 'No reviews to write'}
+                  description="When a cycle asks you for a review, it shows here and in your Inbox."
+                />
+              ) : (
+                <DataTable<ReviewRow>
+                  label="Reviews"
+                  rows={data.rows}
+                  rowId={reviewId}
+                  describeRow={reviewTitle}
+                  stickyHeader
+                  containerClassName="page-fill max-h-dvh min-h-64"
+                  columns={reviewColumns(props.onNavigate)}
+                />
+              )}
               {data.tab === 'write' ? (
                 <Alert tone="info" title="Upward and peer reviews are confidential">
                   Your manager sees upward answers only once enough of their reports have answered,
