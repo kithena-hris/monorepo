@@ -98,8 +98,8 @@ const SignOut = icons.signOut;
 const ThemeDark = icons.themeDark;
 
 /**
- * The signed-in shell: the sidebar with its People menu, search and the bell
- * in the top corner, the assistant in the bottom one, and a tab bar where
+ * The signed-in shell: the sidebar with search and the bell under the logo,
+ * its People menu, the assistant in the bottom corner, and a tab bar where
  * there is no room for a sidebar.
  *
  * `PageLayout` owns the grid, the collapsed rail (its buttons, its edge, the
@@ -623,37 +623,36 @@ export function AppShell({
           rail, where the name is hidden, the link's label still does.
         */
             sidebarHeader={
-              <div className="flex min-w-0 flex-1 items-center gap-2 group-data-[collapsed]/sidebar:flex-col">
-                <Link
-                  href="/"
-                  aria-label={`${companyName}, home`}
-                  className="flex min-w-0 flex-1 items-center gap-2.5"
+              <Link
+                href="/"
+                aria-label={`${companyName}, home`}
+                className="flex min-w-0 flex-1 items-center gap-2.5"
+              >
+                <Avatar
+                  size="md"
+                  shape="rounded"
+                  // A designed mark is never cropped; initials take the company's
+                  // own tone rather than a grey square.
+                  fit={logoUrl === null ? 'cover' : 'contain'}
+                  src={logoUrl ?? undefined}
+                  name={companyName}
+                  aria-hidden
+                />
+                <span
+                  data-rail-label=""
+                  className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
                 >
-                  <Avatar
-                    size="md"
-                    shape="rounded"
-                    // A designed mark is never cropped; initials take the company's
-                    // own tone rather than a grey square.
-                    fit={logoUrl === null ? 'cover' : 'contain'}
-                    src={logoUrl ?? undefined}
-                    name={companyName}
-                    aria-hidden
-                  />
-                  <span
-                    data-rail-label=""
-                    className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
-                  >
-                    {companyName}
-                  </span>
-                </Link>
-                {/* What is waiting for them, by the company's name: the same list the phone's Inbox tab shows. */}
-                <InboxBell inbox={inbox} />
-              </div>
+                  {companyName}
+                </span>
+              </Link>
             }
             sidebar={
               <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
-                {/* Search first: the command palette, every page and anybody they may read. */}
-                <Nav label="Search">
+                {/* Under the logo, before any area, the order every workspace tool has
+                    settled on: search (the command palette, every page and anybody they
+                    may read), then what is waiting for them (the Inbox's peek, the same
+                    list the phone's Inbox tab shows), then the areas. */}
+                <Nav label="Search and notifications">
                   <NavList>
                     <NavItem
                       asChild
@@ -673,6 +672,7 @@ export function AppShell({
                         Search
                       </button>
                     </NavItem>
+                    <InboxBell inbox={inbox} />
                   </NavList>
                 </Nav>
                 <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">

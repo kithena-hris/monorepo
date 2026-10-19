@@ -237,6 +237,11 @@ export interface NotificationCenterProps {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Where the panel opens: under the bell (`bottom`, the default, for a bell
+   * in a header) or beside it (`right`, for a row in a sidebar).
+   */
+  side?: 'bottom' | 'right';
   children: ReactNode;
 }
 
@@ -261,6 +266,7 @@ export function NotificationCenter({
   trigger,
   title = 'Notifications',
   action,
+  side = 'bottom',
   children,
   // open, defaultOpen, onOpenChange: the same meaning for either surface.
   ...root
@@ -288,7 +294,11 @@ export function NotificationCenter({
       ) : (
         <Popover {...root}>
           <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-          <PopoverContent align="end" className="w-95 p-0">
+          <PopoverContent
+            side={side}
+            align={side === 'bottom' ? 'end' : 'start'}
+            className="w-95 p-0"
+          >
             <NotificationPanel
               title={title}
               action={action}

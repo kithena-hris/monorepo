@@ -424,7 +424,9 @@ export function NavItem({
       className={cn(
         // A filled, rounded row, so the current item reads as a place the
         // reader is standing rather than as a selected row in a table.
-        'group/nav-item relative flex items-center rounded-[0.75rem]',
+        // `w-full text-start`: an `<a>` has both by being a flex container, a
+        // `<button>` rendered `asChild` (a command palette's trigger) has neither.
+        'group/nav-item relative flex w-full items-center rounded-[0.75rem] text-start',
         // A described item is two lines and a tile: aligned to the top, with
         // room around it, and a floor that is a tap target on any pointer.
         described && !asIcon && 'min-h-tap items-start py-2',
