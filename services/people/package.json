@@ -17,8 +17,8 @@
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1148.0",
-    "@aws-sdk/s3-request-presigner": "^3.1148.0",
+    "@aws-sdk/client-s3": "^3.1149.0",
+    "@aws-sdk/s3-request-presigner": "^3.1149.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",
@@ -40,7 +40,7 @@
     "kafkajs": "^2.2.4",
     "pdfkit": "0.20.2",
     "postgres": "^3.4.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",

@@ -17,8 +17,8 @@
     "bucket": "tsx --env-file-if-exists=../../.env src/configure-bucket.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1148.0",
-    "@aws-sdk/s3-request-presigner": "^3.1148.0",
+    "@aws-sdk/client-s3": "^3.1149.0",
+    "@aws-sdk/s3-request-presigner": "^3.1149.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",
@@ -34,7 +34,7 @@
     "pdf-lib": "1.17.1",
     "postgres": "^3.4.5",
     "unpdf": "1.8.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",

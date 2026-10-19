@@ -12,23 +12,23 @@
     "test:acceptance": "vitest run --config vitest.acceptance.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-ec2": "^3.1148.0",
+    "@aws-sdk/client-ec2": "^3.1149.0",
     "@hookform/resolvers": "^5.9.1",
     "@kithena/contracts": "workspace:*",
     "@kithena/web-documents": "workspace:*",
     "@module-federation/runtime": "2.9.2",
     "@reach/ui": "workspace:*",
     "@simplewebauthn/browser": "^14.0.0",
-    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-query": "^5.104.2",
     "@vercel/oidc-aws-credentials-provider": "^3.3.11",
     "@vercel/speed-insights": "^2.0.0",
     "next": "^16.4.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-hook-form": "^7.89.0",
+    "react-hook-form": "^7.90.0",
     "tesseract.js": "7.0.0",
     "unpdf": "1.8.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",

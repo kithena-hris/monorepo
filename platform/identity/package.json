@@ -27,7 +27,7 @@
     "jose": "^6.2.12",
     "kafkajs": "^2.2.4",
     "postgres": "^3.4.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
