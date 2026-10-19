@@ -349,8 +349,11 @@ function SortableRow({
             // Their room is kept, only faded: taking it when they appeared
             // squeezed the row's own content — and an input in the row has
             // visible focus while typing, so it shrank on the first key.
+            moveButtons === 'on-focus' && 'pointer-events-none opacity-0 transition-opacity',
+            // A locked row never moves, so hovering or focusing it offers nothing to press.
             moveButtons === 'on-focus' &&
-              'pointer-events-none opacity-0 transition-opacity group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-has-[:focus-visible]/row:pointer-events-auto group-has-[:focus-visible]/row:opacity-100',
+              !locked &&
+              'group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-has-[:focus-visible]/row:pointer-events-auto group-has-[:focus-visible]/row:opacity-100',
           )}
         >
           <Button

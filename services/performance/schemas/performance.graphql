@@ -484,6 +484,14 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """
+  PF2: the score a draft gives the answers tried in the builder; nothing is kept
+  """
+  scorePerformanceTemplateSample(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Complete, miss or cancel a goal"""
   setPerformanceGoalStatus(
     id: String!

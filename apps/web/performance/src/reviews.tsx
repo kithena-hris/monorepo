@@ -889,7 +889,8 @@ function Writing({
           {`${subject} sees your answers ${data.review.cycle?.names === 'shown' ? 'with' : 'without'} your name, and only once at least ${String(data.review.cycle?.minimum ?? 3)} have answered. Their manager and HR see your name.`}
         </Alert>
       ) : null}
-      <div className="mx-auto w-full max-w-3xl">
+      {/* Wide enough for a five-point scale's labels on one row (four, then one, at 3xl). */}
+      <div className="mx-auto w-full max-w-4xl">
         <div className="flex min-w-0 flex-col gap-3">
           <FormView
             definition={data.form}

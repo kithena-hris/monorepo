@@ -464,6 +464,14 @@ export const ROUTES: readonly Route[] = [
       }),
   }),
   route({
+    name: 'scorePerformanceTemplateSample',
+    method: 'POST',
+    path: `${V1}/templates/score`,
+    summary: 'PF2: the score a draft gives the answers tried in the builder; nothing is kept',
+    body: z.object({ definition: FormDefinition, answers: FormAnswers }),
+    run: (ctx, { body }) => templates.scoreSample(ctx, body),
+  }),
+  route({
     name: 'publishPerformanceTemplate',
     method: 'POST',
     path: `${V1}/templates/{id}/publish`,
@@ -910,7 +918,10 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params }) =>
       managerChange.managerChangeImpact(
         ctx,
-        params.personIds.split(',').filter((p) => p !== '').slice(0, 500),
+        params.personIds
+          .split(',')
+          .filter((p) => p !== '')
+          .slice(0, 500),
         params.managerId ?? null,
       ),
   }),
@@ -918,7 +929,8 @@ export const ROUTES: readonly Route[] = [
     name: 'choosePerformanceManagerHandover',
     method: 'POST',
     path: `${V1}/manager-change`,
-    summary: '§8.8: HR’s choice for their manager reviews, carried out when the change takes effect',
+    summary:
+      '§8.8: HR’s choice for their manager reviews, carried out when the change takes effect',
     body: z.object({
       personIds: z.array(Id).min(1).max(500),
       managerId: Id.nullable(),
