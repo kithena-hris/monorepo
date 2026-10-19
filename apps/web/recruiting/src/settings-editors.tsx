@@ -759,7 +759,7 @@ export function ChainEditor({
               appliesTo,
               priority: priority ?? 10,
               when: {
-                ...(held?.when ?? {}),
+                ...held?.when,
                 ...(budget === ''
                   ? { budgetAboveMinor: undefined }
                   : { budgetAboveMinor: Number(budget) }),
@@ -1293,7 +1293,7 @@ export function BenefitEditor({
               key: held?.key ?? keyOf(name),
               legalEntityId: entityId,
               category,
-              names: { ...(held?.names ?? {}), en: name.trim() },
+              names: { ...held?.names, en: name.trim() },
               value: value(),
               eligibility: {
                 employmentTypes: employmentTypes.length === 0 ? null : employmentTypes,
@@ -1709,7 +1709,7 @@ function operationOf(
             appliesTo: c['appliesTo'],
             priority: c['priority'],
             when: {
-              ...(held?.when ?? {}),
+              ...held?.when,
               ...(c['budgetAboveMinor'] === null
                 ? {}
                 : { budgetAboveMinor: c['budgetAboveMinor'] }),
@@ -1731,7 +1731,7 @@ function operationOf(
             key: held?.key ?? keyOf(name),
             legalEntityId: c['legalEntityId'],
             category: c['category'],
-            names: { ...(held?.names ?? {}), en: name },
+            names: { ...held?.names, en: name },
             value: c['value'],
             eligibility: {
               employmentTypes: held?.eligibility.employmentTypes ?? null,
