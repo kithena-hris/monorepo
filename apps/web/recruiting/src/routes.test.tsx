@@ -239,6 +239,7 @@ const job: JobData = {
   plan: [],
   counts: { total: 0, active: 0, newThisWeek: 0, byStage: [] },
   locations: [],
+  orgUnits: [],
   entities: [],
   questionnaires: [],
   scorecards: [],

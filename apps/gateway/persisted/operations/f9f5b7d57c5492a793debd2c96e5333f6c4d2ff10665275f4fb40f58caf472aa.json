@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemovePayBand($id: String!, $key: String!) {\n    removePayBand(id: $id, idempotencyKey: $key)\n  }"}

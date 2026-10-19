@@ -175,7 +175,11 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-085** R23, R24 analytics dashboards with Reach charts and data
       tables.
 - [x] **REC-086** R26 all candidates.
-- [x] **REC-087** S1–S8 settings.
+- [x] **REC-087** S1–S8 settings. Managed end to end on 2026-10-20: every list adds, edits and
+      removes (a pipeline's stages reordered, a chain's steps, a questionnaire's questions, a
+      template's body, a benefit's worth and eligibility); People's legal entities, locations and
+      org units arrive as events and are tied to, never edited here; departments picked on a job;
+      and each page takes a request in words that the model turns into a proposal to apply.
 - [x] **REC-088** Reach additions (PRD §30), each in Reach first with
       stories and axe. Checked first, as §30 asks, and nothing was needed for
       Phase 1: `Kanban` already counts each column and takes a column footer,

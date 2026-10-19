@@ -274,6 +274,9 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
       save: (q) => {
         questionnaires.set(q.id, q);
       },
+      remove: (id) => {
+        questionnaires.del(id);
+      },
       answers: (applicationId) => answers.values().filter((a) => a.applicationId === applicationId),
       saveAnswers: (applicationId, questionnaireId, _version, given, score) => {
         answers.set(`${applicationId}:${questionnaireId}`, {

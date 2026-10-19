@@ -205,6 +205,12 @@ type Mutation {
   presentToWorksCouncil(applicationId: String!, idempotencyKey: String!): JSON
   """R7: publish to a target"""
   publishJob(idempotencyKey: String!, jobId: String!, target: String!): JSON
+  """Propose settings changes from a request in words; nothing is written"""
+  recruitingSettingsInWords(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """
   R10: pool members with live consent, read against this job’s criteria, strongest first
   """
@@ -229,8 +235,28 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Remove a company benefit; statutory ones stay"""
+  removeBenefit(id: String!, idempotencyKey: String!): JSON
   """Stop serving the careers page on its own domain; admin"""
   removeCareersDomain(idempotencyKey: String!): JSON
+  """Remove an approval chain"""
+  removeChain(id: String!, idempotencyKey: String!): JSON
+  """Remove a legal entity of Recruiting’s own"""
+  removeEntity(id: String!, idempotencyKey: String!): JSON
+  """Remove a location of Recruiting’s own"""
+  removeLocation(id: String!, idempotencyKey: String!): JSON
+  """Remove a department of Recruiting’s own"""
+  removeOrgUnit(id: String!, idempotencyKey: String!): JSON
+  """Remove a pay band of Recruiting’s own"""
+  removePayBand(id: String!, idempotencyKey: String!): JSON
+  """Remove a pipeline template; jobs keep their copies"""
+  removePipeline(id: String!, idempotencyKey: String!): JSON
+  """Archive a questionnaire; given answers stay"""
+  removeQuestionnaire(id: String!, idempotencyKey: String!): JSON
+  """Remove a scorecard template"""
+  removeScorecardTemplate(id: String!, idempotencyKey: String!): JSON
+  """Remove an email or letter template no stage sends"""
+  removeTemplate(id: String!, idempotencyKey: String!): JSON
   """R18: ask a named referee"""
   requestReference(applicationId: String!, idempotencyKey: String!, referenceId: String!): JSON
   """R9: an agency and the jobs it may submit to"""
@@ -285,6 +311,13 @@ type Mutation {
   ): JSON
   """A location"""
   saveLocation(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """A department, where People is absent or beside People’s"""
+  saveOrgUnit(
     id: String!
     idempotencyKey: String!
     """The REST body"""

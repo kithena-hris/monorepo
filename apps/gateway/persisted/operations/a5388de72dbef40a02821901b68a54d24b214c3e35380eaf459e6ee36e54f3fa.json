@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemoveScorecardTemplate($id: String!, $key: String!) {\n    removeScorecardTemplate(id: $id, idempotencyKey: $key)\n  }"}

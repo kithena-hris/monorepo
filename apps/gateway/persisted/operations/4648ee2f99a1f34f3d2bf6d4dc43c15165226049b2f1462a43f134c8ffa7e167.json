@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemovePipeline($id: String!, $key: String!) {\n    removePipeline(id: $id, idempotencyKey: $key)\n  }"}

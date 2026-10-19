@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
+  RowMenu,
   Table,
   TableBody,
   TableCell,
@@ -36,29 +37,73 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
+import {
+  BenefitEditor,
+  ChainEditor,
+  DepartmentEditor,
+  EntityEditor,
+  InWords,
+  LocationEditor,
+  PipelineEditor,
+  QuestionnaireEditor,
+  TemplateEditor,
+} from './settings-editors';
 import { Refusal, money, newId, useAct, words } from './shared';
-import type { CareersDomain, GeneralSettings, ScreenProps, SettingsData } from './types';
+import type {
+  ApprovalChain,
+  Benefit,
+  CareersDomain,
+  GeneralSettings,
+  MessageTemplate,
+  OrgUnit,
+  Questionnaire,
+  ScreenProps,
+  SettingsData,
+  SettingsEntity,
+  SettingsLocation,
+} from './types';
 
 /**
  * S1–S9 under Settings, one place per address (`/settings/recruiting/*`).
  * Administrators only; Recruiting checks every write again.
  */
 
-const COUNTRIES = ['DE', 'ES', 'GB', 'IN', 'US'] as const;
-const CURRENCY: Readonly<Record<string, string>> = {
-  DE: 'EUR',
-  ES: 'EUR',
-  GB: 'GBP',
-  IN: 'INR',
-  US: 'USD',
-};
-const ZONE: Readonly<Record<string, string>> = {
-  DE: 'Europe/Berlin',
-  ES: 'Europe/Madrid',
-  GB: 'Europe/London',
-  IN: 'Asia/Kolkata',
-  US: 'America/New_York',
-};
+/** The row's menu: change it, and remove it where Recruiting owns it. */
+function rowActions(
+  name: string,
+  onEdit: () => void,
+  onRemove: (() => void) | null,
+): readonly {
+  id: string;
+  label: string;
+  icon?: JSX.Element;
+  destructive?: boolean;
+  onSelect: () => void;
+}[] {
+  return [
+    { id: 'edit', label: `Edit ${name}`, icon: <icons.edit aria-hidden />, onSelect: onEdit },
+    ...(onRemove === null
+      ? []
+      : [
+          {
+            id: 'remove',
+            label: `Remove ${name}`,
+            icon: <icons.remove aria-hidden />,
+            destructive: true,
+            onSelect: onRemove,
+          },
+        ]),
+  ];
+}
+
+/** Where a row came from, when not from here. */
+function FromPeople(): JSX.Element {
+  return (
+    <Badge size="sm" variant="outline">
+      From People
+    </Badge>
+  );
+}
 
 interface Template {
   readonly id: string;
@@ -430,150 +475,245 @@ function Entities({
   readonly props: ScreenProps<SettingsData>;
 }): JSX.Element {
   const act = useAct(props);
-  const [name, setName] = useState('');
-  const [country, setCountry] = useState<string>('DE');
-  const [city, setCity] = useState('');
+  const [entity, setEntity] = useState<SettingsEntity | null | 'new'>(null);
+  const [location, setLocation] = useState<SettingsLocation | null | 'new'>(null);
+  const [unit, setUnit] = useState<OrgUnit | null | 'new'>(null);
+  const fromPeople = data.entities.some((e) => e.source === 'people');
+  const entityName = (id: string | null): string =>
+    data.entities.find((e) => e.id === id)?.name ?? '—';
   return (
     <FormSections>
       <Refusal error={act.error} />
+      <InWords
+        data={data}
+        props={props}
+        placeholder="Ask in words: add a Berlin office under Acme GmbH, or a Platform team under Engineering"
+      />
       <FormSection
         title="Legal entities"
-        description="Each hires in one country; its country pack decides the terms"
+        description={
+          fromPeople
+            ? 'People’s entities, as they are there; Recruiting adds the currency, the week and the works council.'
+            : 'Each hires in one country; its country pack decides the terms.'
+        }
       >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Entity</TableHead>
-              <TableHead>Country</TableHead>
-              <TableHead>Currency</TableHead>
-              <TableHead>Works council</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.entities.map((e) => (
-              <TableRow key={e.id}>
-                <TableCell>{e.name}</TableCell>
-                <TableCell>{e.country}</TableCell>
-                <TableCell>{e.currency}</TableCell>
-                <TableCell>{e.worksCouncil ? 'Yes' : 'No'}</TableCell>
+        {data.entities.length === 0 ? (
+          <EmptyState icon={<icons.company aria-hidden />} title="No legal entity yet" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Entity</TableHead>
+                <TableHead>Country</TableHead>
+                <TableHead>Currency</TableHead>
+                <TableHead>Works council</TableHead>
+                <TableHead className="w-10">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <form
-          className="mt-3 flex flex-wrap items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            act.run('SaveEntity', {
-              id: newId(),
-              input: {
-                name,
-                country,
-                currency: CURRENCY[country],
-                fullTimeWeeklyMinutes: 2400,
-                headcount: 0,
-                foundedOn: null,
-                worksCouncil: false,
-                worksCouncilIds: [],
-              },
-            });
-            setName('');
-          }}
-        >
-          <Field className="min-w-64 flex-1">
-            <FieldLabel>New entity</FieldLabel>
-            <FieldControl>
-              <Input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                }}
-                placeholder="Acme GmbH"
-              />
-            </FieldControl>
-          </Field>
-          <Select value={country} onValueChange={setCountry}>
-            <SelectTrigger aria-label="Country" className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {COUNTRIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
+            </TableHeader>
+            <TableBody>
+              {data.entities.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell>
+                    <span className="flex items-center gap-2">
+                      {e.name}
+                      {e.source === 'people' ? <FromPeople /> : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>{e.country}</TableCell>
+                  <TableCell>{e.currency}</TableCell>
+                  <TableCell>{e.worksCouncil ? 'Yes' : 'No'}</TableCell>
+                  <TableCell>
+                    <RowMenu
+                      name={e.name}
+                      actions={rowActions(
+                        'entity',
+                        () => {
+                          setEntity(e);
+                        },
+                        e.source === 'people'
+                          ? null
+                          : () => {
+                              act.run('RemoveEntity', { id: e.id });
+                            },
+                      )}
+                    />
+                  </TableCell>
+                </TableRow>
               ))}
-            </SelectContent>
-          </Select>
+            </TableBody>
+          </Table>
+        )}
+        <div>
           <Button
-            type="submit"
             variant="secondary"
-            disabled={name.trim() === ''}
-            loading={act.pending}
+            startIcon={<icons.add aria-hidden />}
+            onClick={() => {
+              setEntity('new');
+            }}
           >
-            Add
+            Add legal entity
           </Button>
-        </form>
+        </div>
       </FormSection>
-      <FormSection title="Locations">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Location</TableHead>
-              <TableHead>Country</TableHead>
-              <TableHead>Time zone</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.locations.map((l) => (
-              <TableRow key={l.id}>
-                <TableCell>{l.name}</TableCell>
-                <TableCell>{l.country}</TableCell>
-                <TableCell>{l.timeZone}</TableCell>
+      <FormSection
+        title="Locations"
+        description="Where people work; each under the entity that hires there."
+      >
+        {data.locations.length === 0 ? (
+          <EmptyState icon={<icons.location aria-hidden />} title="No location yet" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Location</TableHead>
+                <TableHead>Entity</TableHead>
+                <TableHead>Country</TableHead>
+                <TableHead>Time zone</TableHead>
+                <TableHead className="w-10">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <form
-          className="mt-3 flex flex-wrap items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const entity = data.entities.find((x) => x.country === country);
-            act.run('SaveLocation', {
-              id: newId(),
-              input: {
-                name: city,
-                entityId: entity?.id ?? null,
-                country,
-                region: null,
-                city,
-                timeZone: ZONE[country],
-              },
-            });
-            setCity('');
-          }}
-        >
-          <Field className="min-w-64 flex-1">
-            <FieldLabel>New location</FieldLabel>
-            <FieldControl>
-              <Input
-                value={city}
-                onChange={(e) => {
-                  setCity(e.target.value);
-                }}
-                placeholder="Berlin"
-              />
-            </FieldControl>
-          </Field>
+            </TableHeader>
+            <TableBody>
+              {data.locations.map((l) => (
+                <TableRow key={l.id}>
+                  <TableCell>
+                    <span className="flex items-center gap-2">
+                      {l.name}
+                      {l.source === 'people' ? <FromPeople /> : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>{entityName(l.entityId)}</TableCell>
+                  <TableCell>{l.country}</TableCell>
+                  <TableCell>{l.timeZone}</TableCell>
+                  <TableCell>
+                    {l.source === 'people' ? null : (
+                      <RowMenu
+                        name={l.name}
+                        actions={rowActions(
+                          'location',
+                          () => {
+                            setLocation(l);
+                          },
+                          () => {
+                            act.run('RemoveLocation', { id: l.id });
+                          },
+                        )}
+                      />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <div>
           <Button
-            type="submit"
             variant="secondary"
-            disabled={city.trim() === ''}
-            loading={act.pending}
+            startIcon={<icons.add aria-hidden />}
+            onClick={() => {
+              setLocation('new');
+            }}
           >
-            Add
+            Add location
           </Button>
-        </form>
+        </div>
       </FormSection>
+      <FormSection
+        title="Departments"
+        description="What a job is in. People’s where People is here; your own otherwise, or beside them."
+      >
+        {data.orgUnits.length === 0 ? (
+          <EmptyState icon={<icons.people aria-hidden />} title="No department yet" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Department</TableHead>
+                <TableHead>Under</TableHead>
+                <TableHead className="w-10">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.orgUnits.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell>
+                    <span className="flex items-center gap-2">
+                      {u.name}
+                      {u.source === 'people' ? <FromPeople /> : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {u.parentId === null
+                      ? '—'
+                      : (data.orgUnits.find((x) => x.id === u.parentId)?.name ?? '—')}
+                  </TableCell>
+                  <TableCell>
+                    {u.source === 'people' ? null : (
+                      <RowMenu
+                        name={u.name}
+                        actions={rowActions(
+                          'department',
+                          () => {
+                            setUnit(u);
+                          },
+                          () => {
+                            act.run('RemoveOrgUnit', { id: u.id });
+                          },
+                        )}
+                      />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <div>
+          <Button
+            variant="secondary"
+            startIcon={<icons.add aria-hidden />}
+            onClick={() => {
+              setUnit('new');
+            }}
+          >
+            Add department
+          </Button>
+        </div>
+      </FormSection>
+      {entity === null ? null : (
+        <EntityEditor
+          held={entity === 'new' ? null : entity}
+          act={act}
+          onClose={() => {
+            setEntity(null);
+          }}
+        />
+      )}
+      {location === null ? null : (
+        <LocationEditor
+          held={location === 'new' ? null : location}
+          entities={data.entities}
+          act={act}
+          onClose={() => {
+            setLocation(null);
+          }}
+        />
+      )}
+      {unit === null ? null : (
+        <DepartmentEditor
+          held={unit === 'new' ? null : unit}
+          units={data.orgUnits}
+          act={act}
+          onClose={() => {
+            setUnit(null);
+          }}
+        />
+      )}
     </FormSections>
   );
 }
@@ -617,6 +757,22 @@ function Scorecards({
                 >
                   Suggest questions
                 </Button>
+                <span className="ms-auto">
+                  <RowMenu
+                    name={s.name}
+                    actions={[
+                      {
+                        id: 'remove',
+                        label: 'Remove scorecard',
+                        icon: <icons.remove aria-hidden />,
+                        destructive: true,
+                        onSelect: () => {
+                          act.run('RemoveScorecardTemplate', { id: s.id });
+                        },
+                      },
+                    ]}
+                  />
+                </span>
               </div>
               <span className="block text-sm text-fg-muted">
                 {s.competencies.map((c) => c.name).join(' · ')}
@@ -769,6 +925,9 @@ function PayBands({
               <TableHead>Grade</TableHead>
               <TableHead>Range</TableHead>
               <TableHead>From</TableHead>
+              <TableHead className="w-10">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -777,6 +936,24 @@ function PayBands({
                 <TableCell>{b.grade}</TableCell>
                 <TableCell>{`${money(b.minMinor, b.currency)} – ${money(b.maxMinor, b.currency)}`}</TableCell>
                 <TableCell>{b.source === 'people' ? 'People' : 'Recruiting'}</TableCell>
+                <TableCell>
+                  {b.source === 'people' ? null : (
+                    <RowMenu
+                      name={b.grade}
+                      actions={[
+                        {
+                          id: 'remove',
+                          label: 'Remove pay band',
+                          icon: <icons.remove aria-hidden />,
+                          destructive: true,
+                          onSelect: () => {
+                            act.run('RemovePayBand', { id: b.id });
+                          },
+                        },
+                      ]}
+                    />
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -908,7 +1085,8 @@ function Ai({
               },
             },
             {
-              label: 'Job assistant on Kithena Jobs',
+              label: 'Job assistant on Kithena Jobs, and settings asked for in words',
+              hint: 'Proposes changes to these settings from a request; an administrator applies them.',
               checked: ai.assistant,
               onChange: (on) => {
                 setAi({ ...ai, assistant: on });
@@ -1002,98 +1180,344 @@ function Ai({
   );
 }
 
-function Lists({ data }: { readonly data: SettingsData }): JSX.Element {
+/** A row of one of the process lists: the name, a line under it, and its menu. */
+function ProcessRow({
+  name,
+  detail,
+  badge,
+  onEdit,
+  onRemove,
+}: {
+  readonly name: string;
+  readonly detail: string;
+  readonly badge?: JSX.Element;
+  readonly onEdit: () => void;
+  readonly onRemove: () => void;
+}): JSX.Element {
+  return (
+    <ListItem
+      description={detail}
+      trailing={<RowMenu name={name} actions={rowActions(name, onEdit, onRemove)} />}
+    >
+      <span className="flex items-center gap-2">
+        {name}
+        {badge}
+      </span>
+    </ListItem>
+  );
+}
+
+function AddRow({
+  label,
+  onClick,
+}: {
+  readonly label: string;
+  readonly onClick: () => void;
+}): JSX.Element {
+  return (
+    <div>
+      <Button variant="secondary" startIcon={<icons.add aria-hidden />} onClick={onClick}>
+        {label}
+      </Button>
+    </div>
+  );
+}
+
+function Lists({
+  data,
+  props,
+}: {
+  readonly data: SettingsData;
+  readonly props: ScreenProps<SettingsData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const [pipeline, setPipeline] = useState<SettingsData['pipelines'][number] | null | 'new'>(null);
+  const [chain, setChain] = useState<ApprovalChain | null | 'new'>(null);
+  const [questionnaire, setQuestionnaire] = useState<Questionnaire | null | 'new'>(null);
+  const [template, setTemplate] = useState<MessageTemplate | null | 'new'>(null);
   return (
     <FormSections>
+      <Refusal error={act.error} />
+      <InWords
+        data={data}
+        props={props}
+        placeholder="Ask in words: a pipeline for interns with no assessment, or an approval chain for budgets over 100k"
+      />
       <FormSection
         title="Pipelines"
-        description="A job copies its template; changes here don’t touch open jobs"
+        description="A job copies its template; changes here don’t touch open jobs."
       >
-        {data.pipelines.map((p) => (
-          <div key={p.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
-            <span className="flex items-center gap-2 font-medium">
-              {p.name}
-              {p.isDefault ? (
-                <Badge size="sm" tone="accent">
-                  Default
-                </Badge>
-              ) : null}
-            </span>
-            <span className="block text-sm text-fg-muted">
-              {p.stages.map((s) => s.name).join(' → ')}
-            </span>
-          </div>
-        ))}
+        <List>
+          {data.pipelines.map((p) => (
+            <ProcessRow
+              key={p.id}
+              name={p.name}
+              detail={p.stages.map((s) => s.name).join(' → ')}
+              {...(p.isDefault
+                ? {
+                    badge: (
+                      <Badge size="sm" tone="accent">
+                        Default
+                      </Badge>
+                    ),
+                  }
+                : {})}
+              onEdit={() => {
+                setPipeline(p);
+              }}
+              onRemove={() => {
+                act.run('RemovePipeline', { id: p.id });
+              }}
+            />
+          ))}
+        </List>
+        <AddRow
+          label="Add pipeline"
+          onClick={() => {
+            setPipeline('new');
+          }}
+        />
       </FormSection>
       <FormSection
         title="Approval chains"
-        description="The first chain whose conditions match is used"
+        description="The first chain whose conditions match is used; none, and requisitions and offers go through without approval."
       >
-        {data.chains.length === 0 ? (
-          <p className="text-sm text-fg-muted">
-            None: requisitions and offers go through without approval.
-          </p>
-        ) : null}
-        {data.chains.map((c) => (
-          <div key={c.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
-            <span className="font-medium">{c.name}</span>
-            <span className="block text-sm text-fg-muted">{`${words(c.appliesTo)} · ${String(c.steps.length)} step${c.steps.length === 1 ? '' : 's'}`}</span>
-          </div>
-        ))}
+        {data.chains.length === 0 ? null : (
+          <List>
+            {data.chains.map((c) => (
+              <ProcessRow
+                key={c.id}
+                name={c.name}
+                detail={`${words(c.appliesTo)}s · ${String(c.steps.length)} step${c.steps.length === 1 ? '' : 's'} · priority ${String(c.priority)}`}
+                onEdit={() => {
+                  setChain(c);
+                }}
+                onRemove={() => {
+                  act.run('RemoveChain', { id: c.id });
+                }}
+              />
+            ))}
+          </List>
+        )}
+        <AddRow
+          label="Add approval chain"
+          onClick={() => {
+            setChain('new');
+          }}
+        />
       </FormSection>
-      <FormSection title="Questionnaires">
-        {data.questionnaires.length === 0 ? <p className="text-sm text-fg-muted">None.</p> : null}
-        {data.questionnaires.map((q) => (
-          <div key={q.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
-            <span className="font-medium">{`${q.name} · v${String(q.version)}`}</span>
-          </div>
-        ))}
+      <FormSection
+        title="Questionnaires"
+        description="Asked on the apply form or sent at a stage. A change makes a new version; a DE job needs the works council’s consent to the version it uses."
+      >
+        {data.questionnaires.length === 0 ? null : (
+          <List>
+            {data.questionnaires.map((q) => (
+              <ProcessRow
+                key={q.id}
+                name={q.name}
+                detail={`Version ${String(q.version)} · ${String(q.questions.length)} question${q.questions.length === 1 ? '' : 's'}${q.worksCouncilConsentVersion === q.version ? ' · works council consented' : ''}`}
+                onEdit={() => {
+                  setQuestionnaire(q);
+                }}
+                onRemove={() => {
+                  act.run('RemoveQuestionnaire', { id: q.id });
+                }}
+              />
+            ))}
+          </List>
+        )}
+        <AddRow
+          label="Add questionnaire"
+          onClick={() => {
+            setQuestionnaire('new');
+          }}
+        />
       </FormSection>
-      <FormSection title="Email and letter templates">
-        {data.templates.map((t) => (
-          <div key={t.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
-            <span className="font-medium">{t.name}</span>
-            <span className="block text-sm text-fg-muted">{`${words(t.kind)} · ${words(t.purpose)} · ${t.language.toUpperCase()}`}</span>
-          </div>
-        ))}
+      <FormSection
+        title="Email and letter templates"
+        description="What a stage sends, and what an offer or a contract starts from."
+      >
+        {data.templates.length === 0 ? null : (
+          <List>
+            {data.templates.map((t) => (
+              <ProcessRow
+                key={t.id}
+                name={t.name}
+                detail={`${words(t.kind)} · ${words(t.purpose)} · ${t.language.toUpperCase()}`}
+                onEdit={() => {
+                  setTemplate(t);
+                }}
+                onRemove={() => {
+                  act.run('RemoveTemplate', { id: t.id });
+                }}
+              />
+            ))}
+          </List>
+        )}
+        <AddRow
+          label="Add template"
+          onClick={() => {
+            setTemplate('new');
+          }}
+        />
       </FormSection>
+      {pipeline === null ? null : (
+        <PipelineEditor
+          held={pipeline === 'new' ? null : pipeline}
+          act={act}
+          onClose={() => {
+            setPipeline(null);
+          }}
+        />
+      )}
+      {chain === null ? null : (
+        <ChainEditor
+          held={chain === 'new' ? null : chain}
+          data={data}
+          act={act}
+          onClose={() => {
+            setChain(null);
+          }}
+        />
+      )}
+      {questionnaire === null ? null : (
+        <QuestionnaireEditor
+          held={questionnaire === 'new' ? null : questionnaire}
+          act={act}
+          onClose={() => {
+            setQuestionnaire(null);
+          }}
+        />
+      )}
+      {template === null ? null : (
+        <TemplateEditor
+          held={template === 'new' ? null : template}
+          act={act}
+          onClose={() => {
+            setTemplate(null);
+          }}
+        />
+      )}
     </FormSections>
   );
 }
 
-function Benefits({ data }: { readonly data: SettingsData }): JSX.Element {
+const worth = (b: Benefit): string => {
+  switch (b.value.kind) {
+    case 'money':
+      return `${money(b.value.yearlyMinor, b.value.currency)} a year`;
+    case 'percent':
+      return `${String(b.value.basisPoints / 100)}% of pay`;
+    case 'days':
+      return `${String(b.value.days)} days`;
+    default:
+      return 'Described';
+  }
+};
+
+function Benefits({
+  data,
+  props,
+}: {
+  readonly data: SettingsData;
+  readonly props: ScreenProps<SettingsData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const [benefit, setBenefit] = useState<Benefit | null | 'new'>(null);
   return (
-    <FormSection
-      title="Benefits catalogue"
-      description="Per legal entity: shown on ads, the careers page, the composer and offers. Tax notes describe, never calculate."
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Benefit</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Entity</TableHead>
-            <TableHead>Kind</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.benefits.map((b) => (
-            <TableRow key={b.id}>
-              <TableCell>{b.names['en'] ?? Object.values(b.names)[0] ?? words(b.key)}</TableCell>
-              <TableCell>{words(b.category)}</TableCell>
-              <TableCell>
-                {data.entities.find((e) => e.id === b.legalEntityId)?.name ?? '—'}
-              </TableCell>
-              <TableCell>
-                <Badge size="sm" tone={b.statutory ? 'neutral' : 'accent'}>
-                  {b.statutory ? 'Statutory' : 'Company'}
-                </Badge>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </FormSection>
+    <FormSections>
+      <Refusal error={act.error} />
+      <InWords
+        data={data}
+        props={props}
+        placeholder="Ask in words: a €50 a month meal allowance for Acme GmbH, after probation"
+      />
+      <FormSection
+        title="Benefits catalogue"
+        description="Per legal entity: shown on ads, the careers page, the composer and offers. Statutory ones come with the country pack and stay; tax notes describe, never calculate."
+      >
+        {data.entities.length === 0 ? (
+          <Alert tone="info" title="Add a legal entity first">
+            A benefit belongs to the entity that offers it.
+          </Alert>
+        ) : null}
+        {data.benefits.length === 0 ? null : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Benefit</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Entity</TableHead>
+                <TableHead>Worth</TableHead>
+                <TableHead>Kind</TableHead>
+                <TableHead className="w-10">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.benefits.map((b) => {
+                const name = b.names['en'] ?? Object.values(b.names)[0] ?? words(b.key);
+                return (
+                  <TableRow key={b.id}>
+                    <TableCell>{name}</TableCell>
+                    <TableCell>{words(b.category)}</TableCell>
+                    <TableCell>
+                      {data.entities.find((e) => e.id === b.legalEntityId)?.name ?? '—'}
+                    </TableCell>
+                    <TableCell>{worth(b)}</TableCell>
+                    <TableCell>
+                      <Badge size="sm" tone={b.statutory ? 'neutral' : 'accent'}>
+                        {b.statutory ? 'Statutory' : 'Company'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {b.statutory ? null : (
+                        <RowMenu
+                          name={name}
+                          actions={rowActions(
+                            'benefit',
+                            () => {
+                              setBenefit(b);
+                            },
+                            () => {
+                              act.run('RemoveBenefit', { id: b.id });
+                            },
+                          )}
+                        />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+        <div>
+          <Button
+            variant="secondary"
+            startIcon={<icons.add aria-hidden />}
+            disabled={data.entities.length === 0}
+            onClick={() => {
+              setBenefit('new');
+            }}
+          >
+            Add benefit
+          </Button>
+        </div>
+      </FormSection>
+      {benefit === null ? null : (
+        <BenefitEditor
+          held={benefit === 'new' ? null : benefit}
+          data={data}
+          act={act}
+          onClose={() => {
+            setBenefit(null);
+          }}
+        />
+      )}
+    </FormSections>
   );
 }
 

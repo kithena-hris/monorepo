@@ -1,6 +1,14 @@
 import type * as z from 'zod';
 import {
   EnvelopeCompleted,
+  LaunchCountry,
+  LegalEntityCreated,
+  LegalEntityUpdated,
+  LocationCreated,
+  LocationUpdated,
+  LocationZoneChanged,
+  OrgUnitCreated,
+  OrgUnitUpdated,
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
@@ -22,6 +30,16 @@ import { logger } from '@kithena/telemetry';
 import { contextOf } from '../../application/context.js';
 import { contractSignedByEnvelope } from '../../application/offers.js';
 import type { Deps, Member, Tx, UnitOfWork } from '../../application/ports.js';
+import { statutoryBenefits } from '../../domain/benefits/benefits.js';
+
+/** The currency a launch country's entity pays in, until Recruiting is told otherwise. */
+const CURRENCY_OF: Readonly<Record<LaunchCountry, string>> = {
+  DE: 'EUR',
+  ES: 'EUR',
+  GB: 'GBP',
+  IN: 'INR',
+  US: 'USD',
+};
 
 /**
  * People's and identity's events, into Recruiting's member projection and its
@@ -214,6 +232,136 @@ export function recruitingConsumer(
             : tx.admins.remove(event.payload.accountId),
         );
         return 'applied';
+      }
+      /*
+       * People's organisation (PRD §5.2): its legal entities, locations and
+       * org units become Recruiting's, marked as People's so its settings show
+       * them and refuse to rename or remove them. An entity is only one
+       * Recruiting can hire in (a launch country); Recruiting adds the currency
+       * from the country's pack and what only it knows stays editable here.
+       */
+      case LegalEntityCreated.name: {
+        const event = parse(LegalEntityCreated, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        const country = LaunchCountry.safeParse(p.country);
+        if (!country.success) return 'ignored';
+        return uow.run(event.tenantId, async (tx) => {
+          const held = await tx.entities.get(p.legalEntityId);
+          if (held?.name === p.name && held.source === 'people') return 'unchanged';
+          await tx.entities.save({
+            id: p.legalEntityId,
+            name: p.name,
+            country: country.data,
+            currency: held?.currency ?? CURRENCY_OF[country.data],
+            fullTimeWeeklyMinutes: held?.fullTimeWeeklyMinutes ?? 2400,
+            headcount: held?.headcount ?? 0,
+            foundedOn: held?.foundedOn ?? null,
+            worksCouncil: held?.worksCouncil ?? false,
+            worksCouncilIds: held?.worksCouncilIds ?? [],
+            source: 'people',
+          });
+          for (const benefit of statutoryBenefits(country.data, null, p.legalEntityId))
+            if ((await tx.benefits.get(benefit.id)) === null) await tx.benefits.save(benefit);
+          return 'applied';
+        });
+      }
+      case LegalEntityUpdated.name: {
+        const event = parse(LegalEntityUpdated, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        return uow.run(event.tenantId, async (tx) => {
+          const held = await tx.entities.get(p.legalEntityId);
+          if (held === null) return 'ignored';
+          if (p.archived) {
+            for (const l of await tx.locations.list())
+              if (l.entityId === p.legalEntityId) await tx.locations.remove(l.id);
+            for (const b of await tx.benefits.list())
+              if (b.legalEntityId === p.legalEntityId) await tx.benefits.remove(b.id);
+            await tx.entities.remove(p.legalEntityId);
+            return 'applied';
+          }
+          if (held.name === p.name) return 'unchanged';
+          await tx.entities.save({ ...held, name: p.name, source: 'people' });
+          return 'applied';
+        });
+      }
+      case LocationCreated.name: {
+        const event = parse(LocationCreated, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        const country = LaunchCountry.safeParse(p.country);
+        if (!country.success) return 'ignored';
+        return uow.run(event.tenantId, async (tx) => {
+          const held = await tx.locations.get(p.locationId);
+          if (held?.name === p.name && held.timeZone === p.timeZone && held.source === 'people')
+            return 'unchanged';
+          const entity = await tx.entities.get(p.legalEntityId);
+          await tx.locations.save({
+            id: p.locationId,
+            name: p.name,
+            entityId: entity === null ? null : entity.id,
+            country: country.data,
+            region: held?.region ?? null,
+            city: held?.city ?? null,
+            timeZone: p.timeZone,
+            source: 'people',
+          });
+          return 'applied';
+        });
+      }
+      case LocationUpdated.name: {
+        const event = parse(LocationUpdated, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        return uow.run(event.tenantId, async (tx) => {
+          const held = await tx.locations.get(p.locationId);
+          if (held === null) return 'ignored';
+          if (p.archived) {
+            await tx.locations.remove(p.locationId);
+            return 'applied';
+          }
+          if (held.name === p.name) return 'unchanged';
+          await tx.locations.save({ ...held, name: p.name, source: 'people' });
+          return 'applied';
+        });
+      }
+      case LocationZoneChanged.name: {
+        const event = parse(LocationZoneChanged, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        return uow.run(event.tenantId, async (tx) => {
+          const held = await tx.locations.get(p.locationId);
+          if (held === null) return 'ignored';
+          if (held.timeZone === p.timeZone) return 'unchanged';
+          await tx.locations.save({ ...held, timeZone: p.timeZone, source: 'people' });
+          return 'applied';
+        });
+      }
+      case OrgUnitCreated.name:
+      case OrgUnitUpdated.name: {
+        const event =
+          name === OrgUnitCreated.name ? parse(OrgUnitCreated, raw) : parse(OrgUnitUpdated, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        const archived = 'archived' in p && p.archived;
+        return uow.run(event.tenantId, async (tx) => {
+          const held = await tx.orgUnits.get(p.orgUnitId);
+          if (archived) {
+            if (held === null) return 'ignored';
+            await tx.orgUnits.remove(p.orgUnitId);
+            return 'applied';
+          }
+          if (held?.name === p.name && held.parentId === p.parentId && held.source === 'people')
+            return 'unchanged';
+          await tx.orgUnits.save({
+            id: p.orgUnitId,
+            name: p.name,
+            parentId: p.parentId,
+            source: 'people',
+          });
+          return 'applied';
+        });
       }
       case TenantEntitlementsChanged.name: {
         const event = parse(TenantEntitlementsChanged, raw);
