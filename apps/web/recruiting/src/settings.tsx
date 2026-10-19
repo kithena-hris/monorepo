@@ -2,11 +2,6 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Chip,
   ChipRow,
   EmptyState,
@@ -14,6 +9,11 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  FormSaveBar,
+  FormSection,
+  FormSections,
+  List,
+  ListItem,
   Input,
   CurrencyField,
   PageHeader,
@@ -33,7 +33,7 @@ import {
   icons,
   DatePicker,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, money, newId, useAct, words } from './shared';
@@ -71,48 +71,31 @@ interface Template {
   }[];
 }
 
-/** A switch with its label and what it does: the label leads, the switch sits at the trailing edge. */
-function Toggle({
-  label,
-  hint,
-  checked,
-  onChange,
+/** Switches, each with what it does: a list, the switch at the trailing edge (Reach's settings list). */
+function Toggles({
+  items,
 }: {
-  readonly label: string;
-  readonly hint?: string;
-  readonly checked: boolean;
-  readonly onChange: (on: boolean) => void;
+  readonly items: readonly {
+    readonly label: string;
+    readonly hint?: string;
+    readonly checked: boolean;
+    readonly onChange: (on: boolean) => void;
+  }[];
 }): JSX.Element {
   return (
-    <Field orientation="horizontal" className="py-2.5">
-      <span className="flex min-w-0 flex-col">
-        <FieldLabel>{label}</FieldLabel>
-        {hint === undefined ? null : <FieldDescription>{hint}</FieldDescription>}
-      </span>
-      <FieldControl>
-        <Switch checked={checked} onCheckedChange={onChange} />
-      </FieldControl>
-    </Field>
-  );
-}
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  readonly title: string;
-  readonly description?: string;
-  readonly children: ReactNode;
-}): JSX.Element {
-  return (
-    <Card>
-      <CardHeader className="flex-col">
-        <CardTitle level={2}>{title}</CardTitle>
-        {description === undefined ? null : <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <List>
+      {items.map((i) => (
+        <ListItem
+          key={i.label}
+          description={i.hint}
+          trailing={
+            <Switch aria-label={i.label} checked={i.checked} onCheckedChange={i.onChange} />
+          }
+        >
+          {i.label}
+        </ListItem>
+      ))}
+    </List>
   );
 }
 
@@ -124,24 +107,26 @@ function General({
   readonly props: ScreenProps<SettingsData>;
 }): JSX.Element {
   const act = useAct(props);
+  const [saved, setSaved] = useState<GeneralSettings>(data.general);
   const [g, setG] = useState<GeneralSettings>(data.general);
   const [reason, setReason] = useState('');
-  const save = () => {
-    act.run('SaveRecruitingSettings', { input: g });
-  };
   return (
-    <div className="flex flex-col gap-4">
+    <FormSections>
       <Refusal error={act.error} />
-      <Section title="Process">
-        <Toggle
-          label="Use requisitions"
-          hint="Off: jobs open directly, without approval."
-          checked={g.requisitionsOn}
-          onChange={(on) => {
-            setG({ ...g, requisitionsOn: on });
-          }}
+      <FormSection title="Process">
+        <Toggles
+          items={[
+            {
+              label: 'Use requisitions',
+              hint: 'Off: jobs open directly, without approval.',
+              checked: g.requisitionsOn,
+              onChange: (on) => {
+                setG({ ...g, requisitionsOn: on });
+              },
+            },
+          ]}
         />
-        <Field className="py-2.5">
+        <Field>
           <FieldLabel>Show internal applicants to their manager from</FieldLabel>
           <Select
             value={g.revealInternalAt}
@@ -163,25 +148,28 @@ function General({
             </SelectContent>
           </Select>
         </Field>
-        <Toggle
-          label="Referral bonus"
-          hint={
-            g.referralBonus === null
-              ? 'Off'
-              : `${money(g.referralBonus.amountMinor, g.referralBonus.currency)}, after ${words(g.referralBonus.after).toLowerCase()}`
-          }
-          checked={g.referralBonus !== null}
-          onChange={(on) => {
-            setG({
-              ...g,
-              referralBonus: on
-                ? { amountMinor: 200_000, currency: 'EUR', after: 'probation' }
-                : null,
-            });
-          }}
+        <Toggles
+          items={[
+            {
+              label: 'Referral bonus',
+              hint:
+                g.referralBonus === null
+                  ? 'Off'
+                  : `${money(g.referralBonus.amountMinor, g.referralBonus.currency)}, after ${words(g.referralBonus.after).toLowerCase()}`,
+              checked: g.referralBonus !== null,
+              onChange: (on) => {
+                setG({
+                  ...g,
+                  referralBonus: on
+                    ? { amountMinor: 200_000, currency: 'EUR', after: 'probation' }
+                    : null,
+                });
+              },
+            },
+          ]}
         />
         {g.referralBonus === null ? null : (
-          <Field className="py-2.5">
+          <Field>
             <FieldLabel>Bonus amount</FieldLabel>
             <FieldControl>
               <CurrencyField
@@ -203,8 +191,8 @@ function General({
             </FieldDescription>
           </Field>
         )}
-      </Section>
-      <Section title="Rejection reasons" description="Internal; never sent to candidates">
+      </FormSection>
+      <FormSection title="Rejection reasons" description="Internal; never sent to candidates">
         <ChipRow aria-label="Rejection reasons">
           {g.rejectionReasons.map((r) => (
             <Chip
@@ -243,81 +231,91 @@ function General({
             Add
           </Button>
         </form>
-      </Section>
-      <Section title="Careers page" description="The company’s page on Kithena Jobs">
-        <div className="flex flex-col gap-3">
-          <Field required>
-            <FieldLabel>Company name</FieldLabel>
-            <FieldControl>
-              <Input
-                value={g.companyName}
-                onChange={(e) => {
-                  setG({ ...g, companyName: e.target.value });
-                }}
-              />
-            </FieldControl>
-          </Field>
-          <Field required>
-            <FieldLabel>Address on Kithena Jobs</FieldLabel>
-            <FieldControl>
-              <Input
-                value={g.companySlug}
-                onChange={(e) => {
-                  setG({ ...g, companySlug: e.target.value.toLowerCase() });
-                }}
-              />
-            </FieldControl>
-            <FieldDescription>{`jobs.kithena.com/${g.companySlug}`}</FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel>About the company</FieldLabel>
-            <FieldControl>
-              <Textarea
-                autoResize
-                value={g.about ?? ''}
-                onChange={(e) => {
-                  setG({ ...g, about: e.target.value === '' ? null : e.target.value });
-                }}
-              />
-            </FieldControl>
-          </Field>
-          <Field>
-            <FieldLabel>Reply-to address</FieldLabel>
-            <FieldControl>
-              <Input
-                type="email"
-                value={g.replyAddress ?? ''}
-                onChange={(e) => {
-                  setG({ ...g, replyAddress: e.target.value === '' ? null : e.target.value });
-                }}
-              />
-            </FieldControl>
-          </Field>
-          <Toggle
-            label="On Kithena Jobs’ search"
-            hint="Beside your careers page, in the cross-company search."
-            checked={g.searchable}
-            onChange={(on) => {
-              setG({ ...g, searchable: on });
-            }}
-          />
-          <Toggle
-            label="US federal contractor"
-            hint="Adds the equal-opportunity statement to US jobs."
-            checked={g.federalContractor}
-            onChange={(on) => {
-              setG({ ...g, federalContractor: on });
-            }}
-          />
-        </div>
-      </Section>
+      </FormSection>
+      <FormSection title="Careers page" description="The company’s page on Kithena Jobs">
+        <Field required>
+          <FieldLabel>Company name</FieldLabel>
+          <FieldControl>
+            <Input
+              value={g.companyName}
+              onChange={(e) => {
+                setG({ ...g, companyName: e.target.value });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Field required>
+          <FieldLabel>Address on Kithena Jobs</FieldLabel>
+          <FieldControl>
+            <Input
+              value={g.companySlug}
+              onChange={(e) => {
+                setG({ ...g, companySlug: e.target.value.toLowerCase() });
+              }}
+            />
+          </FieldControl>
+          <FieldDescription>{`jobs.kithena.com/${g.companySlug}`}</FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel>About the company</FieldLabel>
+          <FieldControl>
+            <Textarea
+              autoResize
+              value={g.about ?? ''}
+              onChange={(e) => {
+                setG({ ...g, about: e.target.value === '' ? null : e.target.value });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Field>
+          <FieldLabel>Reply-to address</FieldLabel>
+          <FieldControl>
+            <Input
+              type="email"
+              value={g.replyAddress ?? ''}
+              onChange={(e) => {
+                setG({ ...g, replyAddress: e.target.value === '' ? null : e.target.value });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Toggles
+          items={[
+            {
+              label: 'On Kithena Jobs’ search',
+              hint: 'Beside your careers page, in the cross-company search.',
+              checked: g.searchable,
+              onChange: (on) => {
+                setG({ ...g, searchable: on });
+              },
+            },
+            {
+              label: 'US federal contractor',
+              hint: 'Adds the equal-opportunity statement to US jobs.',
+              checked: g.federalContractor,
+              onChange: (on) => {
+                setG({ ...g, federalContractor: on });
+              },
+            },
+          ]}
+        />
+      </FormSection>
       {data.domainsOn ? <OwnDomain domain={data.careersDomain} props={props} /> : null}
-      <div className="flex justify-end">
-        <Button loading={act.pending} onClick={save}>
-          Save
-        </Button>
-      </div>
-    </div>
+      <FormSaveBar
+        open={JSON.stringify(g) !== JSON.stringify(saved)}
+        saving={act.pending}
+        message="Jobs opened from now on follow these."
+        onDiscard={() => {
+          setG(saved);
+        }}
+        onSave={() => {
+          act.run('SaveRecruitingSettings', { input: g }, () => {
+            setSaved(g);
+          });
+        }}
+      />
+    </FormSections>
   );
 }
 
@@ -332,7 +330,7 @@ function OwnDomain({
   const act = useAct(props);
   const [host, setHost] = useState('');
   return (
-    <Section
+    <FormSection
       title="Your own domain"
       description="Your careers page at an address of yours, such as careers.yourcompany.com"
     >
@@ -420,7 +418,7 @@ function OwnDomain({
           </>
         )}
       </div>
-    </Section>
+    </FormSection>
   );
 }
 
@@ -436,9 +434,9 @@ function Entities({
   const [country, setCountry] = useState<string>('DE');
   const [city, setCity] = useState('');
   return (
-    <div className="flex flex-col gap-4">
+    <FormSections>
       <Refusal error={act.error} />
-      <Section
+      <FormSection
         title="Legal entities"
         description="Each hires in one country; its country pack decides the terms"
       >
@@ -515,8 +513,8 @@ function Entities({
             Add
           </Button>
         </form>
-      </Section>
-      <Section title="Locations">
+      </FormSection>
+      <FormSection title="Locations">
         <Table>
           <TableHeader>
             <TableRow>
@@ -575,8 +573,8 @@ function Entities({
             Add
           </Button>
         </form>
-      </Section>
-    </div>
+      </FormSection>
+    </FormSections>
   );
 }
 
@@ -592,9 +590,9 @@ function Scorecards({
   const [competencies, setCompetencies] = useState('');
   const [suggested, setSuggested] = useState<Template | null>(null);
   return (
-    <div className="flex flex-col gap-4">
+    <FormSections>
       <Refusal error={act.error} />
-      <Section
+      <FormSection
         title="Scorecards"
         description="Competencies with descriptions and probing questions; rated on the fixed four-point scale"
       >
@@ -669,8 +667,8 @@ function Scorecards({
             </div>
           );
         })}
-      </Section>
-      <Section title="New scorecard">
+      </FormSection>
+      <FormSection title="New scorecard">
         <div className="flex flex-col gap-3">
           <Field required>
             <FieldLabel>Name</FieldLabel>
@@ -731,16 +729,16 @@ function Scorecards({
             </Button>
           </div>
         </div>
-      </Section>
-      <Section title="The scale" description="Fixed: four points, no midpoint">
+      </FormSection>
+      <FormSection title="The scale" description="Fixed: four points, no midpoint">
         <ol className="flex flex-col gap-1 text-sm">
           <li>1 · Strong no: clear evidence against</li>
           <li>2 · No: more against than for</li>
           <li>3 · Yes: more for than against</li>
           <li>4 · Strong yes: clear, repeated evidence for</li>
         </ol>
-      </Section>
-    </div>
+      </FormSection>
+    </FormSections>
   );
 }
 
@@ -759,9 +757,9 @@ function PayBands({
   const [entity, setEntity] = useState(data.entities[0]?.id ?? '');
   const currency = data.entities.find((e) => e.id === entity)?.currency ?? 'EUR';
   return (
-    <div className="flex flex-col gap-4">
+    <FormSections>
       <Refusal error={act.error} />
-      <Section
+      <FormSection
         title="Pay bands"
         description="Every offer is checked against its grade’s band; outside it needs a reason and an approval"
       >
@@ -859,8 +857,8 @@ function PayBands({
             Add band
           </Button>
         </div>
-      </Section>
-    </div>
+      </FormSection>
+    </FormSections>
   );
 }
 
@@ -872,88 +870,104 @@ function Ai({
   readonly props: ScreenProps<SettingsData>;
 }): JSX.Element {
   const act = useAct(props);
-  const [ai, setAi] = useState(data.general.ai);
-  const [selfId, setSelfId] = useState(data.general.selfId ?? { gender: false, ethnicity: false });
+  const [saved, setSaved] = useState({
+    ai: data.general.ai,
+    selfId: data.general.selfId ?? { gender: false, ethnicity: false },
+  });
+  const [ai, setAi] = useState(saved.ai);
+  const [selfId, setSelfId] = useState(saved.selfId);
   return (
-    <div className="flex flex-col gap-4">
+    <FormSections>
       <Refusal error={act.error} />
       <Alert tone="info" title="Every screen works without these">
         A model plans and drafts; it never decides. Applications are never used to train a model.
       </Alert>
-      <Section title="Features" description="Each switched on or off on its own">
-        <Toggle
-          label="Write and translate job ads"
-          checked={ai.writer}
-          onChange={(on) => {
-            setAi({ ...ai, writer: on });
-          }}
+      <FormSection title="Features" description="Each switched on or off on its own">
+        <Toggles
+          items={[
+            {
+              label: 'Write and translate job ads',
+              checked: ai.writer,
+              onChange: (on) => {
+                setAi({ ...ai, writer: on });
+              },
+            },
+            {
+              label: 'Parse CVs',
+              checked: ai.parser,
+              onChange: (on) => {
+                setAi({ ...ai, parser: on });
+              },
+            },
+            {
+              label: 'Evidence matrix',
+              hint: 'Met, partly met, not met or not evidenced per criterion, with the passages; a label, never a stage.',
+              checked: ai.matrix,
+              onChange: (on) => {
+                setAi({ ...ai, matrix: on });
+              },
+            },
+            {
+              label: 'Job assistant on Kithena Jobs',
+              checked: ai.assistant,
+              onChange: (on) => {
+                setAi({ ...ai, assistant: on });
+              },
+            },
+            {
+              label: 'Ask for a chart',
+              checked: ai.charts,
+              onChange: (on) => {
+                setAi({ ...ai, charts: on });
+              },
+            },
+          ]}
         />
-        <Toggle
-          label="Parse CVs"
-          checked={ai.parser}
-          onChange={(on) => {
-            setAi({ ...ai, parser: on });
-          }}
-        />
-        <Toggle
-          label="Evidence matrix"
-          hint="Met, partly met, not met or not evidenced per criterion, with the passages; a label, never a stage."
-          checked={ai.matrix}
-          onChange={(on) => {
-            setAi({ ...ai, matrix: on });
-          }}
-        />
-        <Toggle
-          label="Job assistant on Kithena Jobs"
-          checked={ai.assistant}
-          onChange={(on) => {
-            setAi({ ...ai, assistant: on });
-          }}
-        />
-        <Toggle
-          label="Ask for a chart"
-          checked={ai.charts}
-          onChange={(on) => {
-            setAi({ ...ai, charts: on });
-          }}
-        />
-      </Section>
-      <Section title="What the model never sees">
+      </FormSection>
+      <FormSection title="What the model never sees">
         <p className="text-sm">
           Name, photo, age, gender markers, nationality, address beyond the city, marital status,
           religion, health and union membership are always masked.
         </p>
-        <Toggle
-          label="Mask schools too"
-          hint="Removes the names of universities and schools, against prestige bias."
-          checked={ai.maskSchools ?? false}
-          onChange={(on) => {
-            setAi({ ...ai, maskSchools: on });
-          }}
+        <Toggles
+          items={[
+            {
+              label: 'Mask schools too',
+              hint: 'Removes the names of universities and schools, against prestige bias.',
+              checked: ai.maskSchools ?? false,
+              onChange: (on) => {
+                setAi({ ...ai, maskSchools: on });
+              },
+            },
+          ]}
         />
-      </Section>
-      <Section
+      </FormSection>
+      <FormSection
         title="Voluntary self-ID"
         description="Asked after applying, sealed, counted only in groups of five; never seen by a hiring team or a model"
       >
-        <Toggle
-          label="Gender"
-          hint="Where it is lawful to ask in the countries you hire in."
-          checked={selfId.gender}
-          onChange={(on) => {
-            setSelfId({ ...selfId, gender: on });
-          }}
+        <Toggles
+          items={[
+            {
+              label: 'Gender',
+              hint: 'Where it is lawful to ask in the countries you hire in.',
+              checked: selfId.gender,
+              onChange: (on) => {
+                setSelfId({ ...selfId, gender: on });
+              },
+            },
+            {
+              label: 'Race or ethnicity (US EEO-1)',
+              hint: 'For a US employer.',
+              checked: selfId.ethnicity,
+              onChange: (on) => {
+                setSelfId({ ...selfId, ethnicity: on });
+              },
+            },
+          ]}
         />
-        <Toggle
-          label="Race or ethnicity (US EEO-1)"
-          hint="For a US employer."
-          checked={selfId.ethnicity}
-          onChange={(on) => {
-            setSelfId({ ...selfId, ethnicity: on });
-          }}
-        />
-      </Section>
-      <Section
+      </FormSection>
+      <FormSection
         title="New York City"
         description="Until a bias audit is recorded, NYC jobs keep the matrix off"
       >
@@ -969,25 +983,29 @@ function Ai({
             />
           </FieldControl>
         </Field>
-      </Section>
-      <div className="flex justify-end">
-        <Button
-          loading={act.pending}
-          onClick={() => {
-            act.run('SaveRecruitingSettings', { input: { ...data.general, ai, selfId } });
-          }}
-        >
-          Save
-        </Button>
-      </div>
-    </div>
+      </FormSection>
+      <FormSaveBar
+        open={JSON.stringify({ ai, selfId }) !== JSON.stringify(saved)}
+        saving={act.pending}
+        message="Applications read from now on follow these."
+        onDiscard={() => {
+          setAi(saved.ai);
+          setSelfId(saved.selfId);
+        }}
+        onSave={() => {
+          act.run('SaveRecruitingSettings', { input: { ...data.general, ai, selfId } }, () => {
+            setSaved({ ai, selfId });
+          });
+        }}
+      />
+    </FormSections>
   );
 }
 
 function Lists({ data }: { readonly data: SettingsData }): JSX.Element {
   return (
-    <div className="flex flex-col gap-4">
-      <Section
+    <FormSections>
+      <FormSection
         title="Pipelines"
         description="A job copies its template; changes here don’t touch open jobs"
       >
@@ -1006,8 +1024,11 @@ function Lists({ data }: { readonly data: SettingsData }): JSX.Element {
             </span>
           </div>
         ))}
-      </Section>
-      <Section title="Approval chains" description="The first chain whose conditions match is used">
+      </FormSection>
+      <FormSection
+        title="Approval chains"
+        description="The first chain whose conditions match is used"
+      >
         {data.chains.length === 0 ? (
           <p className="text-sm text-fg-muted">
             None: requisitions and offers go through without approval.
@@ -1019,30 +1040,30 @@ function Lists({ data }: { readonly data: SettingsData }): JSX.Element {
             <span className="block text-sm text-fg-muted">{`${words(c.appliesTo)} · ${String(c.steps.length)} step${c.steps.length === 1 ? '' : 's'}`}</span>
           </div>
         ))}
-      </Section>
-      <Section title="Questionnaires">
+      </FormSection>
+      <FormSection title="Questionnaires">
         {data.questionnaires.length === 0 ? <p className="text-sm text-fg-muted">None.</p> : null}
         {data.questionnaires.map((q) => (
           <div key={q.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
             <span className="font-medium">{`${q.name} · v${String(q.version)}`}</span>
           </div>
         ))}
-      </Section>
-      <Section title="Email and letter templates">
+      </FormSection>
+      <FormSection title="Email and letter templates">
         {data.templates.map((t) => (
           <div key={t.id} className="border-b border-[var(--reach-line)] py-2 last:border-b-0">
             <span className="font-medium">{t.name}</span>
             <span className="block text-sm text-fg-muted">{`${words(t.kind)} · ${words(t.purpose)} · ${t.language.toUpperCase()}`}</span>
           </div>
         ))}
-      </Section>
-    </div>
+      </FormSection>
+    </FormSections>
   );
 }
 
 function Benefits({ data }: { readonly data: SettingsData }): JSX.Element {
   return (
-    <Section
+    <FormSection
       title="Benefits catalogue"
       description="Per legal entity: shown on ads, the careers page, the composer and offers. Tax notes describe, never calculate."
     >
@@ -1072,7 +1093,7 @@ function Benefits({ data }: { readonly data: SettingsData }): JSX.Element {
           ))}
         </TableBody>
       </Table>
-    </Section>
+    </FormSection>
   );
 }
 
@@ -1088,7 +1109,7 @@ function Integrations({ data }: { readonly data: SettingsData }): JSX.Element {
     ['Background checks', 'Provider', 'None chosen yet', 'Port only'],
   ];
   return (
-    <Section
+    <FormSection
       title="Integrations"
       description="Named by what they do; a vendor’s name only on its own row"
     >
@@ -1116,7 +1137,7 @@ function Integrations({ data }: { readonly data: SettingsData }): JSX.Element {
           ))}
         </TableBody>
       </Table>
-    </Section>
+    </FormSection>
   );
 }
 
