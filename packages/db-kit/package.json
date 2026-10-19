@@ -23,7 +23,7 @@
     "@kithena/domain-kit": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
