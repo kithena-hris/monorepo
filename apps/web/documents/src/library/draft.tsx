@@ -7,6 +7,8 @@ import {
   ChatLog,
   ChatMessage,
   ChatTyping,
+  Chip,
+  ChipRow,
   Dialog,
   DialogBody,
   DialogContent,
@@ -16,6 +18,8 @@ import {
   DialogTitle,
   List,
   ListItem,
+  PdfPages,
+  icons,
 } from '@reach/ui';
 import { useState, useTransition, type JSX } from 'react';
 
@@ -68,6 +72,10 @@ export interface DraftProps {
         readonly draft: Readonly<Record<string, unknown>> | null;
       }) => Promise<Read<DraftReply>>)
     | undefined;
+  /** The draft drawn as it would be filed: the PDF's URL, to read over before sending. */
+  readonly onPreviewDraft?:
+    | ((draft: Readonly<Record<string, unknown>>) => Promise<Read<{ readonly url: string }>>)
+    | undefined;
   readonly onFileDraft?:
     | ((
         draft: Readonly<Record<string, unknown>>,
@@ -79,10 +87,20 @@ export interface DraftProps {
 const OPENING =
   'What do you need? Tell me what the document is, whom it is for and who signs it, in which order.';
 
+/** What HR usually asks for next, offered as a press once there is a draft. */
+const SUGGESTIONS = [
+  'Make it shorter',
+  'Make it warmer',
+  'Add a probation period',
+  'Add a confidentiality clause',
+  'Use plainer words',
+] as const;
+
 export function DraftDialog({
   open,
   onOpenChange,
   onDraftDocument,
+  onPreviewDraft,
   onFileDraft,
   onDone,
 }: {
@@ -95,6 +113,26 @@ export function DraftDialog({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // The draft drawn as it would be filed, for the one it was drawn from: a
+  // later turn changes the draft, and the preview is asked for again.
+  const [preview, setPreview] = useState<{ readonly of: Draft; readonly url: string } | null>(null);
+  const [previewing, startPreview] = useTransition();
+  const shown = preview !== null && preview.of === draft ? preview.url : null;
+
+  const previewNow = (): void => {
+    if (draft === null || onPreviewDraft === undefined) return;
+    const of = draft;
+    setError(null);
+    startPreview(async () => {
+      const r = await onPreviewDraft({
+        title: of.title,
+        body: of.body,
+        signers: of.signers.map(({ name, order }) => ({ name, order })),
+      });
+      if (!r.ok) setError(r.message);
+      else setPreview({ of, url: r.data.url });
+    });
+  };
 
   const send = (text: string): void => {
     if (onDraftDocument === undefined || text.trim() === '') return;
@@ -174,30 +212,8 @@ export function DraftDialog({
             each signer in the order you give. Say “send it” when it is right.
           </DialogDescription>
         </DialogHeader>
-        <DialogBody className="grid gap-4 md:grid-cols-2">
-          <div className="flex min-h-80 flex-col gap-3">
-            <ChatLog label="Conversation with Kithena" className="max-h-[50vh] flex-1">
-              <ChatMessage author="Kithena">{OPENING}</ChatMessage>
-              {said.map((m, i) => (
-                <ChatMessage
-                  // The conversation only grows; a turn's place is its identity.
-                  key={i}
-                  from={m.role === 'user' ? 'self' : 'other'}
-                  author={m.role === 'user' ? 'You' : 'Kithena'}
-                >
-                  {m.text}
-                </ChatMessage>
-              ))}
-              {pending ? <ChatTyping author="Kithena" /> : null}
-            </ChatLog>
-            <ChatComposer
-              label="Message Kithena"
-              placeholder="An offer letter for Omar Lewis, 85,000 a year from 1 November. He signs, then me."
-              busy={pending}
-              disabled={onDraftDocument === undefined}
-              onSend={send}
-            />
-          </div>
+        {/* One column, top to bottom: the draft as it stands, its preview, then the conversation that changes it. */}
+        <DialogBody className="flex flex-col gap-4">
           {draft === null ? (
             <Card variant="outlined" padded className="text-sm text-fg-muted">
               The draft appears here as Kithena writes it.
@@ -207,13 +223,33 @@ export function DraftDialog({
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base font-semibold">{draft.title}</h3>
                 {draft.typeName === null ? null : <Badge>{draft.typeName}</Badge>}
+                {onPreviewDraft === undefined ? null : (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="ms-auto"
+                    loading={previewing}
+                    startIcon={<icons.document aria-hidden />}
+                    onClick={previewNow}
+                  >
+                    {shown === null ? 'Preview the PDF' : 'Preview again'}
+                  </Button>
+                )}
               </div>
               {draft.about === null ? null : (
                 <p className="text-sm text-fg-muted">About {draft.about}</p>
               )}
-              <p className="max-h-[40vh] overflow-y-auto text-sm whitespace-pre-wrap">
-                {draft.body}
-              </p>
+              {shown === null ? (
+                <p className="max-h-[40vh] overflow-y-auto text-sm whitespace-pre-wrap">
+                  {draft.body}
+                </p>
+              ) : (
+                <PdfPages
+                  src={shown}
+                  label={draft.title}
+                  className="max-h-[60dvh] overflow-y-auto overscroll-y-contain rounded-md bg-surface-sunken p-3"
+                />
+              )}
               {draft.figures.length === 0 ? null : (
                 <Alert tone="warning">
                   Check {draft.figures.join(', ')}: nobody gave Kithena{' '}
@@ -241,8 +277,44 @@ export function DraftDialog({
                     ))}
                 </List>
               ) : null}
+              <ChipRow aria-label="Ask for a change">
+                {SUGGESTIONS.map((s) => (
+                  <Chip
+                    key={s}
+                    disabled={pending || onDraftDocument === undefined}
+                    onClick={() => {
+                      send(s);
+                    }}
+                  >
+                    {s}
+                  </Chip>
+                ))}
+              </ChipRow>
             </Card>
           )}
+          <div className="flex min-h-64 flex-col gap-3">
+            <ChatLog label="Conversation with Kithena" className="max-h-[40vh] flex-1">
+              <ChatMessage author="Kithena">{OPENING}</ChatMessage>
+              {said.map((m, i) => (
+                <ChatMessage
+                  // The conversation only grows; a turn's place is its identity.
+                  key={i}
+                  from={m.role === 'user' ? 'self' : 'other'}
+                  author={m.role === 'user' ? 'You' : 'Kithena'}
+                >
+                  {m.text}
+                </ChatMessage>
+              ))}
+              {pending ? <ChatTyping author="Kithena" /> : null}
+            </ChatLog>
+            <ChatComposer
+              label="Message Kithena"
+              placeholder="An offer letter for Omar Lewis, 85,000 a year from 1 November. He signs, then me."
+              busy={pending}
+              disabled={onDraftDocument === undefined}
+              onSend={send}
+            />
+          </div>
         </DialogBody>
         {error === null ? null : (
           <Alert tone="danger" className="mx-6">

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PreviewDraft($input: JSON!, $key: String!) {\n    previewDraft(input: $input, idempotencyKey: $key) { base64 mediaType }\n  }"}

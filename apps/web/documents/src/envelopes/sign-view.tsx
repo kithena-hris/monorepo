@@ -338,9 +338,12 @@ export function DocumentToSign({
   return (
     // A double tap on the page fills a box; it never zooms the page.
     <div className="flex touch-manipulation flex-col gap-3">
+      {/* The reader scrolls in a box of its own, the window's height at most,
+          so the step bar and everything after the document stay in reach. */}
       <PdfPages
         src={url}
         label={env.title}
+        className="max-h-[80dvh] overflow-y-auto overscroll-y-contain rounded-md bg-surface-sunken p-3"
         onLoad={() => {
           setShown(true);
           setLoaded(url);
@@ -388,13 +391,26 @@ export function DocumentToSign({
                     label={`${name}’s ${f.kind === 'initials' ? 'initials' : 'signature'}`}
                   />
                 );
-                return f.kind === 'date' ? (
-                  <span className="grid size-full grid-rows-[minmax(0,1fr)_auto]">
+                // Framed as the sealed file stamps it: a thin rule, "Signed by"
+                // and the name along the top, the ink under, the day under
+                // that on a dated one; the print follows under the box.
+                return (
+                  <span className="grid size-full grid-rows-[auto_minmax(0,1fr)_auto] rounded-[2px] bg-white/80 ring-1 ring-[var(--reach-neutral-400)]">
+                    <span
+                      className="truncate px-0.5 text-left text-[max(6px,0.75cqw)] leading-none text-[var(--reach-neutral-600)]"
+                      aria-hidden
+                    >
+                      Signed by {name}
+                    </span>
                     {mark}
-                    <span className="truncate px-1 text-center text-2xs font-normal">{value}</span>
+                    {f.kind === 'date' ? (
+                      <span className="truncate px-1 text-center text-2xs font-normal">
+                        {value}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
                   </span>
-                ) : (
-                  mark
                 );
               }
               return (

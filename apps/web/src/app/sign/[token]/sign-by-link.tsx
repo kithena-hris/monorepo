@@ -208,22 +208,9 @@ function SignNow({
           {envelope.message}
         </Alert>
       )}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card variant="fill" padded>
-          {fileUrl === null ? (
-            <Alert tone="danger">The document could not be opened.</Alert>
-          ) : (
-            <DocumentToSign
-              env={envelope}
-              url={fileUrl}
-              signing={signing}
-              name={name}
-              onFinish={finish}
-              finishing={pending}
-            />
-          )}
-        </Card>
-        <Card variant="assistant" className="lg:sticky lg:top-4 lg:self-start">
+      {/* One column: their part first, then the document with its step bar under it. */}
+      <div className="flex flex-col gap-6">
+        <Card variant="assistant">
           <CardHeader>
             <CardTitle level={2}>Your part</CardTitle>
           </CardHeader>
@@ -296,6 +283,20 @@ function SignNow({
               </Button>
             )}
           </CardContent>
+        </Card>
+        <Card variant="fill" padded>
+          {fileUrl === null ? (
+            <Alert tone="danger">The document could not be opened.</Alert>
+          ) : (
+            <DocumentToSign
+              env={envelope}
+              url={fileUrl}
+              signing={signing}
+              name={name}
+              onFinish={finish}
+              finishing={pending}
+            />
+          )}
         </Card>
       </div>
       <AdoptDialog

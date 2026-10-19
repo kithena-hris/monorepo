@@ -664,7 +664,11 @@ function EnvelopePage({
           {env.voidReason}
         </Alert>
       )}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      {/* One column, top to bottom: the signer's part, the document, who signs, what happened. */}
+      <div className="flex flex-col gap-6">
+        {signingNow ? (
+          <SignPanel env={env} signing={signing} name={myName} problem={finish.error} {...props} />
+        ) : null}
         {/* No overflow clipping: the step bar sticks to the bottom of the page through it. */}
         <Card variant="fill">
           {link === null ? (
@@ -686,15 +690,6 @@ function EnvelopePage({
           )}
         </Card>
         <div className="flex flex-col gap-4">
-          {signingNow ? (
-            <SignPanel
-              env={env}
-              signing={signing}
-              name={myName}
-              problem={finish.error}
-              {...props}
-            />
-          ) : null}
           <Card>
             <CardHeader>
               <CardTitle level={2}>Signers</CardTitle>

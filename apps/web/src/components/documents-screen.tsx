@@ -102,6 +102,7 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
               }
             : {}),
           onDraftDocument: actions.draftDocument,
+          onPreviewDraft: actions.previewDraft,
           onFileDraft: actions.fileDraft,
           onProposeSplit: actions.proposeSplit,
           onFileSplit: actions.fileSplit,

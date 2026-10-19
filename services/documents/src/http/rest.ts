@@ -52,6 +52,7 @@ import {
   draftDocument,
   fileDraft,
   generateLetters,
+  previewDraft,
   readTemplate,
 } from '../application/letters.js';
 import {
@@ -1255,6 +1256,28 @@ export const ROUTES: readonly Route[] = [
     body: DraftTurn.extend({ companyName: OriginBody.companyName }),
     answer: DraftView,
     run: (deps, caller, { body }) => draftDocument(deps, caller, body),
+  }),
+  route({
+    name: 'previewDraft',
+    method: 'POST',
+    path: `${V1}/drafts/preview`,
+    summary: 'The draft drawn as the PDF fileDraft would file, to read over before sending',
+    body: z.strictObject({
+      title: z.string().trim().min(1).max(200),
+      body: z.string().trim().min(1).max(20_000),
+      signers: z
+        .array(
+          z.strictObject({
+            name: z.string().trim().min(1).max(120),
+            order: z.int().min(1).max(10),
+          }),
+        )
+        .max(10),
+    }),
+    answer: z
+      .object({ base64: z.string(), mediaType: z.literal('application/pdf') })
+      .meta({ title: 'DocumentsDraftPreview' }),
+    run: (deps, caller, { body }) => previewDraft(deps, caller, body),
   }),
   route({
     name: 'fileDraft',

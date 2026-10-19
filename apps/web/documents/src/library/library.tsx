@@ -120,6 +120,7 @@ export interface LibraryProps {
   readonly onGenerateLetters?: LettersProps['onGenerateLetters'];
   /** §14.2: a document drafted with Kithena, filed and sent to sign (HR). */
   readonly onDraftDocument?: DraftProps['onDraftDocument'];
+  readonly onPreviewDraft?: DraftProps['onPreviewDraft'];
   readonly onFileDraft?: DraftProps['onFileDraft'];
   /** C2: a scanned stack split into its documents (HR). */
   readonly onProposeSplit?: SplitProps['onProposeSplit'];
@@ -478,6 +479,7 @@ function Ready({
           open
           onOpenChange={setDrafting}
           onDraftDocument={props.onDraftDocument}
+          onPreviewDraft={props.onPreviewDraft}
           onFileDraft={props.onFileDraft}
           onDone={(to) => {
             setDrafting(false);
