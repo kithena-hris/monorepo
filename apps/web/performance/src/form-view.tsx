@@ -394,7 +394,7 @@ export function QuestionBlock({
         {/* Pressing the chosen rating again leaves the question unanswered. */}
         <RadioGroup
           aria-labelledby={`q-${q.id}`}
-          className="grid gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))]"
+          className="grid gap-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]"
           deselectable
           value={typeof a?.value === 'number' ? String(a.value) : ''}
           onValueChange={(v) => {

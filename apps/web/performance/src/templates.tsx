@@ -944,7 +944,7 @@ function Building({
         </div>
       </div>
       <ModalPage open={previewing} onOpenChange={setPreviewing}>
-        {/* Wide enough for a five-point scale's labels, the form at the review screen's width. */}
+        {/* Wide enough for a five-point scale's labels, the form at the review screen's width (4xl). */}
         <ModalPageContent size="inset">
           <ModalPageHeader
             title={`Preview: ${name}`}
@@ -977,7 +977,7 @@ function Building({
             }
           />
           <ModalPageBody className="px-6 py-8 touch:px-4 touch:py-6">
-            <div className={cn('mx-auto w-full', device === 'phone' ? 'max-w-sm' : 'max-w-3xl')}>
+            <div className={cn('mx-auto w-full', device === 'phone' ? 'max-w-sm' : 'max-w-4xl')}>
               {shown.sections.length === 0 ? (
                 <p className="text-sm text-fg-muted">Add a question to see the form.</p>
               ) : (
