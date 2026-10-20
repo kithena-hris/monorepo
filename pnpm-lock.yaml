@@ -2087,6 +2087,9 @@ importers:
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4
+      pdfkit:
+        specifier: 0.20.2
+        version: 0.20.2
       postgres:
         specifier: ^3.4.5
         version: 3.4.9
@@ -2100,6 +2103,9 @@ importers:
       '@kithena/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@types/pdfkit':
+        specifier: ^0.17.6
+        version: 0.17.6
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(@vitest/browser-playwright@5.0.3)(@vitest/coverage-v8@5.0.3)(@vitest/ui@5.0.3)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -20440,9 +20446,7 @@ snapshots:
       metro-runtime: 0.84.6
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

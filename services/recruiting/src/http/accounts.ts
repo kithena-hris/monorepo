@@ -2,9 +2,12 @@ import * as z from 'zod';
 import { failure, type Result } from '@kithena/domain-kit';
 
 import {
+  CvDraft,
   accountByToken,
   accountHome,
   addCv,
+  cvFromDraft,
+  draftCv,
   removeCv,
   renameAccount,
   requestAccountCode,
@@ -15,6 +18,7 @@ import {
   signOut,
   type AccountDeps,
 } from '../application/accounts.js';
+import { renderCv } from '../infrastructure/cv-pdf.js';
 
 /**
  * Candidate accounts' routes, outside the route table because they have no
@@ -50,6 +54,8 @@ const STATUS: Readonly<Record<string, number>> = {
   FILE_SIZE: 413,
   CV_LIMIT: 409,
   UNAUTHENTICATED: 401,
+  AI_OFF: 503,
+  AI_UNAVAILABLE: 503,
 };
 
 const answer = <T>(result: Result<T>, status = 200): AccountsAnswer =>
@@ -137,6 +143,29 @@ export async function accountsAnswer(
       ),
       201,
     );
+  }
+  // The CV writer: a draft from what they said, and the edited draft kept as a PDF.
+  if (method === 'POST' && path === '/cv-draft') {
+    const input = parsed(
+      z.object({
+        targetRole: z.string().max(200).default(''),
+        about: z.string().max(4000).default(''),
+        experience: z.string().max(8000).default(''),
+        education: z.string().max(3000).default(''),
+        skills: z.string().max(2000).default(''),
+        languages: z.string().max(500).default(''),
+        location: z.string().max(120).default(''),
+        phone: z.string().max(40).default(''),
+      }),
+      body,
+    );
+    if (input === null) return refused('INVALID', 'Check what you wrote');
+    return answer(await draftCv(d, account, input));
+  }
+  if (method === 'POST' && path === '/cvs/from-draft') {
+    const input = parsed(CvDraft, body);
+    if (input === null) return refused('INVALID', 'Check the CV');
+    return answer(await cvFromDraft(d, account, input, renderCv), 201);
   }
   const cv = /^\/cvs\/([0-9a-f-]{36})(\/default)?$/u.exec(path);
   if (cv !== null && method === 'POST' && cv[2] === '/default')

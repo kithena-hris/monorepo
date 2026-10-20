@@ -3,6 +3,7 @@
 import type { CandidatePage } from '@kithena/contracts';
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Dropzone,
@@ -148,9 +149,12 @@ export function AccountHome({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-[-0.02em]">{`Hello, ${home.name.split(' ')[0] ?? home.name}`}</h1>
-          <p className="text-fg-muted">{`${String(rows.length)} application${rows.length === 1 ? '' : 's'} across ${String(home.companies.length)} compan${home.companies.length === 1 ? 'y' : 'ies'}`}</p>
+        <div className="flex items-center gap-4">
+          <Avatar name={home.name} src={home.pictureUrl ?? undefined} size="xl" aria-hidden />
+          <div className="flex flex-col gap-1">
+            <h1 className="text-3xl font-bold tracking-[-0.02em]">{`Hello, ${home.name.split(' ')[0] ?? home.name}`}</h1>
+            <p className="text-fg-muted">{`${String(rows.length)} application${rows.length === 1 ? '' : 's'} across ${String(home.companies.length)} compan${home.companies.length === 1 ? 'y' : 'ies'}`}</p>
+          </div>
         </div>
         <form action="/auth/sign-out" method="post">
           <Button type="submit" variant="ghost" size="sm" startIcon={<icons.signOut aria-hidden />}>
@@ -353,6 +357,14 @@ export function AccountHome({
             <p className="text-sm text-fg-muted">
               Keep up to five. The default one goes with an application when you attach none.
             </p>
+            <Button
+              asChild
+              variant="secondary"
+              size="sm"
+              startIcon={<icons.assistant aria-hidden />}
+            >
+              <Link href="/me/cv">Write one from scratch with AI</Link>
+            </Button>
             {home.cvs.length === 0 ? null : (
               <List>
                 {home.cvs.map((cv) => (

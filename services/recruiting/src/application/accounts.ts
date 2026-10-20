@@ -1,3 +1,4 @@
+import * as z from 'zod';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { TenantId, type Instant } from '@kithena/contracts';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
@@ -56,6 +57,7 @@ const freshAccount = (d: AccountDeps, email: string, name: string): CandidateAcc
   emailNorm: normalEmail(email),
   name: name.trim().slice(0, 200),
   googleSub: null,
+  pictureUrl: null,
   consentedAt: null,
   consentNotice: null,
   codeHash: null,
@@ -140,7 +142,11 @@ export async function signInWithGoogle(d: AccountDeps, idToken: string): Promise
     bySub ??
     (await d.accounts.byEmail(normalEmail(identity.email))) ??
     freshAccount(d, identity.email, identity.name ?? identity.email.split('@')[0] ?? '');
-  const linked: CandidateAccount = { ...account, googleSub: identity.sub };
+  const linked: CandidateAccount = {
+    ...account,
+    googleSub: identity.sub,
+    pictureUrl: identity.picture ?? account.pictureUrl,
+  };
   await d.accounts.save(linked);
   return ok(await startSession(d, linked));
 }
@@ -162,6 +168,7 @@ export interface AccountHome {
   readonly name: string;
   readonly email: string;
   readonly google: boolean;
+  readonly pictureUrl: string | null;
   readonly consentedAt: Instant | null;
   readonly cvs: readonly {
     readonly id: string;
@@ -212,6 +219,7 @@ export async function accountHome(d: AccountDeps, account: CandidateAccount): Pr
     name: account.name,
     email: account.email,
     google: account.googleSub !== null,
+    pictureUrl: account.pictureUrl,
     consentedAt: account.consentedAt,
     cvs: cvs.map((c) => ({
       id: c.id,
@@ -340,9 +348,105 @@ export function googleVerifier(
         email: claims['email'],
         emailVerified: claims['email_verified'] === 'true' || claims['email_verified'] === true,
         name: typeof claims['name'] === 'string' ? claims['name'] : null,
+        picture: typeof claims['picture'] === 'string' ? claims['picture'] : null,
       };
     } catch {
       return null;
     }
   };
+}
+
+/* ------------------------------------------------------- the CV writer -- */
+
+/**
+ * A CV written from scratch (the candidate asked for it): the person says
+ * what they have done in their own words, the model lays it out as a CV, the
+ * person edits every line, and only then is it kept as a PDF in their
+ * library. The model sees what the candidate typed here and nothing else; it
+ * assesses nobody.
+ */
+
+const CvEntry = z.object({
+  title: z.string().max(120),
+  organisation: z.string().max(160),
+  from: z.string().max(20),
+  to: z.string().max(20),
+  bullets: z.array(z.string().max(300)).max(8),
+});
+export const CvDraft = z.object({
+  name: z.string().max(200),
+  headline: z.string().max(160),
+  location: z.string().max(120).nullable(),
+  email: z.string().max(320),
+  phone: z.string().max(40).nullable(),
+  summary: z.string().max(1200),
+  experience: z.array(CvEntry).max(10),
+  education: z.array(CvEntry).max(6),
+  skills: z.array(z.string().max(60)).max(30),
+  languages: z.array(z.string().max(60)).max(10),
+});
+export type CvDraft = z.infer<typeof CvDraft>;
+
+const WRITE_CV = `You write a candidate's CV from what they tell you about themselves. Return a JSON object {"name":"","headline":"","location":""|null,"email":"","phone":""|null,"summary":"","experience":[{"title":"","organisation":"","from":"","to":"","bullets":[""]}],"education":[{"title":"","organisation":"","from":"","to":"","bullets":[]}],"skills":[""],"languages":[""]}.
+Use only what they said: never invent an employer, a date, a degree or a number; where something is missing leave it blank or out. Dates as the person gave them ("2021", "Mar 2023", "now"). The summary is three or four plain sentences in the first person, specific, no clichés. Each experience bullet starts with a verb and says what was done and, where they said so, what it led to. Keep their wording where it is good. Write in the language they wrote in.`;
+
+export interface CvAnswers {
+  readonly targetRole: string;
+  readonly about: string;
+  readonly experience: string;
+  readonly education: string;
+  readonly skills: string;
+  readonly languages: string;
+  readonly location: string;
+  readonly phone: string;
+}
+
+export async function draftCv(
+  d: AccountDeps,
+  account: CandidateAccount,
+  answers: CvAnswers,
+): Promise<Result<CvDraft>> {
+  const model = d.deps.model;
+  if (model === undefined) return err(failure('AI_OFF', 'Writing a CV with AI is not set up here'));
+  if (answers.experience.trim().length < 20 && answers.about.trim().length < 20)
+    return err(failure('INVALID', 'Say a little more about what you have done'));
+  const raw = await model.complete('kithena-jobs', {
+    instruction: WRITE_CV,
+    context: {
+      name: account.name,
+      email: account.email,
+      ...answers,
+    },
+  });
+  let parsed: unknown;
+  try {
+    parsed = raw === null ? null : JSON.parse(raw);
+  } catch {
+    parsed = null;
+  }
+  const draft = CvDraft.safeParse(parsed);
+  if (!draft.success)
+    return err(failure('AI_UNAVAILABLE', 'The writer could not draft this just now'));
+  return ok({ ...draft.data, name: account.name, email: account.email });
+}
+
+/** The edited draft as a PDF in the library, the default when there was none. */
+export async function cvFromDraft(
+  d: AccountDeps,
+  account: CandidateAccount,
+  draft: CvDraft,
+  render: (draft: CvDraft) => Promise<Uint8Array>,
+): Promise<Result<CandidateCv>> {
+  const bytes = await render(draft);
+  const stem =
+    draft.name
+      .trim()
+      .replace(/[^\p{L}\p{N}]+/gu, '-')
+      .replace(/^-+|-+$/gu, '') || 'cv';
+  return addCv(
+    d,
+    account,
+    { fileName: `${stem}-cv.pdf`, mediaType: 'application/pdf', bytes },
+    false,
+  );
 }

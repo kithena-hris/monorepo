@@ -992,6 +992,8 @@ export interface CandidateAccount {
   readonly emailNorm: string;
   readonly name: string;
   readonly googleSub: string | null;
+  /** The picture Google vouched for, when they signed in with it. */
+  readonly pictureUrl: string | null;
   readonly consentedAt: Instant | null;
   readonly consentNotice: string | null;
   readonly codeHash: string | null;
@@ -1031,6 +1033,7 @@ export interface GoogleIdentity {
   readonly email: string;
   readonly emailVerified: boolean;
   readonly name: string | null;
+  readonly picture: string | null;
 }
 
 export interface IncomingUpload {
