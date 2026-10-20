@@ -1,4 +1,6 @@
 import {
+  Chip,
+  ChipRow,
   Alert,
   Badge,
   Button,
@@ -32,6 +34,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 import { EmailFields, PURPOSE_LABEL } from './composer';
 import { Refusal, newId, useAct, words } from './shared';
 import type {
+  Knockout,
   ApprovalChain,
   Approver,
   Benefit,
@@ -935,6 +938,119 @@ const question = (): Question => ({
   knockout: null,
 });
 
+/**
+ * A knockout on one question (PRD §15): which answers knock out, or the
+ * number below which one does; whether that flags for review (the default)
+ * or rejects on its own, and whether the question is a legal requirement,
+ * the only case a German or Spanish job may auto-reject.
+ */
+function KnockoutEditor({
+  question: q,
+  onChange,
+}: {
+  readonly question: Question;
+  readonly onChange: (knockout: Knockout | null) => void;
+}): JSX.Element {
+  const held = q.knockout;
+  const on = held !== null;
+  const blank: Knockout = { answers: [], autoReject: false, legalRequirement: false };
+  const set = (patch: Partial<Knockout>): void => {
+    onChange({ ...(held ?? blank), ...patch });
+  };
+  const choices = q.kind === 'yes_no' ? ['yes', 'no'] : q.options;
+  return (
+    <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
+      <Field orientation="horizontal" className="gap-2">
+        <span className="flex min-w-0 flex-col">
+          <FieldLabel>Knockout</FieldLabel>
+          <FieldDescription>
+            {q.kind === 'number'
+              ? 'An answer below a number flags the application, or rejects it.'
+              : 'Certain answers flag the application, or reject it.'}
+          </FieldDescription>
+        </span>
+        <FieldControl>
+          <Switch
+            checked={on}
+            onCheckedChange={(next) => {
+              onChange(next ? blank : null);
+            }}
+          />
+        </FieldControl>
+      </Field>
+      {!on ? null : (
+        <>
+          {q.kind === 'number' ? (
+            <NumberField
+              label="Knocks out below"
+              value={held.below ?? null}
+              onChange={(below) => {
+                set(below === null ? { below: undefined } : { below });
+              }}
+            />
+          ) : choices.length === 0 ? (
+            <p className="text-sm text-fg-muted">
+              Add the options first, then pick which knock out.
+            </p>
+          ) : (
+            <ChipRow aria-label="Answers that knock out">
+              {choices.map((c) => (
+                <Chip
+                  key={c}
+                  selected={held.answers.includes(c)}
+                  onClick={() => {
+                    set({
+                      answers: held.answers.includes(c)
+                        ? held.answers.filter((x) => x !== c)
+                        : [...held.answers, c],
+                    });
+                  }}
+                >
+                  {c === 'yes' ? 'Yes' : c === 'no' ? 'No' : c}
+                </Chip>
+              ))}
+            </ChipRow>
+          )}
+          <Field orientation="horizontal" className="gap-2">
+            <span className="flex min-w-0 flex-col">
+              <FieldLabel>A legal requirement</FieldLabel>
+              <FieldDescription>
+                A licence, the right to work: what the law needs for this job.
+              </FieldDescription>
+            </span>
+            <FieldControl>
+              <Switch
+                checked={held.legalRequirement}
+                onCheckedChange={(legalRequirement) => {
+                  set({ legalRequirement });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field orientation="horizontal" className="gap-2">
+            <span className="flex min-w-0 flex-col">
+              <FieldLabel>Reject on its own</FieldLabel>
+              <FieldDescription>
+                Off: a knockout flags the application for a person to review. On: it is rejected,
+                and the email offers a human review. A German or Spanish job allows this only for a
+                legal requirement.
+              </FieldDescription>
+            </span>
+            <FieldControl>
+              <Switch
+                checked={held.autoReject}
+                onCheckedChange={(autoReject) => {
+                  set({ autoReject });
+                }}
+              />
+            </FieldControl>
+          </Field>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function QuestionnaireEditor({
   held,
   act,
@@ -1050,6 +1166,14 @@ export function QuestionnaireEditor({
                 </FieldControl>
               </Field>
             </div>
+            {['single', 'multiple', 'yes_no', 'number'].includes(q.kind) ? (
+              <KnockoutEditor
+                question={q}
+                onChange={(knockout) => {
+                  update(q.id, { knockout });
+                }}
+              />
+            ) : null}
             {q.kind === 'single' || q.kind === 'multiple' ? (
               <Field>
                 <FieldLabel>Options, one per line</FieldLabel>

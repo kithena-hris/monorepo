@@ -1062,6 +1062,11 @@ function Form({
                 ))}
               </SelectContent>
             </Select>
+            <FieldDescription>
+              Screening questions asked on the apply form, written under Settings, Pipelines and
+              approvals. A knockout answer flags the application on the board, or rejects it where
+              the questionnaire says so.
+            </FieldDescription>
           </Field>
           <div className="flex justify-end">
             <Button

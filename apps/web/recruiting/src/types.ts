@@ -893,7 +893,18 @@ export interface Question {
   readonly required: boolean;
   readonly options: readonly string[];
   readonly points: Readonly<Record<string, number>> | null;
-  readonly knockout: unknown;
+  readonly knockout: Knockout | null;
+}
+
+/** A knockout rule a person wrote (PRD §15): by default it flags the application for review. */
+export interface Knockout {
+  /** The answers that knock out: options, or "yes"/"no". */
+  readonly answers: readonly string[];
+  /** For a number: below this knocks out. */
+  readonly below?: number;
+  readonly autoReject: boolean;
+  /** The question asks a legal requirement for the job: the only case a German or Spanish job may auto-reject. */
+  readonly legalRequirement: boolean;
 }
 
 export interface Questionnaire {
