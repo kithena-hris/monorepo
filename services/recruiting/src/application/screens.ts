@@ -13,6 +13,7 @@ import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
 import { jobFacts, notFound, recruiterOnly, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
+import { previewTokenFor } from './intake.js';
 import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
 import { checkOffer } from './offers.js';
@@ -165,6 +166,8 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     stages: await ctx.tx.jobs.stages(jobId),
     form: await ctx.tx.jobs.form(jobId),
     ads: await ctx.tx.jobs.ads(jobId),
+    // The ad as Kithena Jobs will show it, before and after publishing (R7).
+    preview: `${ctx.deps.jobsOrigin}/preview/${(await generalSettings(ctx)).companySlug}/${await previewTokenFor(ctx, jobId)}`,
     targets: await ctx.tx.jobs.targets(jobId),
     // Boards with an adapter configured here (Indeed once its agreement is signed).
     boards: (ctx.deps.boards ?? []).map((b) => b.target),
@@ -377,6 +380,12 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
     messages: profile ? await ctx.tx.messages.thread(candidateId) : [],
     consents: profile ? await ctx.tx.consents.of(candidateId) : [],
     pools: profile ? await ctx.tx.pools.of(candidateId) : [],
+    // For the profile's own actions: a rejection's reasons and emails, and every pool to add to.
+    rejectionReasons: (await generalSettings(ctx)).rejectionReasons,
+    templates: (await ctx.tx.templates.list())
+      .filter((t) => t.kind === 'email')
+      .map((t) => ({ id: t.id, name: t.name, purpose: t.purpose })),
+    allPools: profile ? (await ctx.tx.pools.list()).map((p) => ({ id: p.id, name: p.name })) : [],
     applications,
   });
 }
@@ -391,7 +400,11 @@ export async function poolsScreen(ctx: Ctx, poolId: string | undefined): Promise
       count: (await ctx.tx.pools.members(p.id)).length,
     })),
   );
-  if (poolId === undefined) return ok({ pools, pool: null });
+  // Open jobs a member can be put forward for (PRD §13.3).
+  const jobs = (await myJobs(ctx))
+    .filter((j) => j.state === 'open')
+    .map((j) => ({ id: j.id, title: j.title }));
+  if (poolId === undefined) return ok({ pools, pool: null, jobs });
   const members = await Promise.all(
     (await ctx.tx.pools.members(poolId)).map(async (m) => {
       const c = await ctx.tx.candidates.get(m.candidateId);
@@ -404,7 +417,7 @@ export async function poolsScreen(ctx: Ctx, poolId: string | undefined): Promise
       return { ...m, name: c?.name ?? '', email: c?.email ?? '', consentUntil: consent };
     }),
   );
-  return ok({ pools, pool: { ...(await ctx.tx.pools.get(poolId)), members } });
+  return ok({ pools, pool: { ...(await ctx.tx.pools.get(poolId)), members }, jobs });
 }
 
 /** RM1 and the interviews tab: mine coming up and scorecards I owe. */

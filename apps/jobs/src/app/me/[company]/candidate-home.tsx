@@ -18,6 +18,7 @@ import {
   EmptyState,
   Field,
   FieldControl,
+  FieldDescription,
   FieldLabel,
   Input,
   KeyValues,
@@ -169,17 +170,21 @@ function OfferDialog({
           />
         )}
         {declining ? (
-          <Field>
-            <FieldLabel>Why, if you’d like to say</FieldLabel>
+          <Field required>
+            <FieldLabel>Why you are declining</FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
                 value={reason}
+                placeholder="The pay, the start date, another offer…"
                 onChange={(e) => {
                   setReason(e.target.value);
                 }}
               />
             </FieldControl>
+            <FieldDescription>
+              The recruiter reads this. They may come back with an updated offer.
+            </FieldDescription>
           </Field>
         ) : null}
         <DialogFooter>
@@ -188,8 +193,9 @@ function OfferDialog({
               <Button
                 variant="secondary"
                 loading={pending}
+                disabled={reason.trim().length < 3}
                 onClick={() => {
-                  act('/decline', { reason: reason === '' ? null : reason });
+                  act('/decline', { reason: reason.trim() });
                 }}
               >
                 Decline the offer
@@ -321,6 +327,32 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                 {a.requests.map((r) => (
                   <Alert key={r.id} tone="warning" title={r.label} />
                 ))}
+                {a.contract === null ? null : a.contract.signedOn !== null ? (
+                  <Alert tone="success" title={`Contract signed on ${day(a.contract.signedOn)}`}>
+                    {a.outcome === 'hired'
+                      ? `You are hired. ${a.job.company} will be in touch about your first day.`
+                      : 'Your start is being arranged.'}
+                  </Alert>
+                ) : a.contract.state === 'out_for_signature' ? (
+                  <Alert
+                    tone="info"
+                    title={
+                      a.contract.route === 'documents'
+                        ? 'Your contract is ready to sign'
+                        : a.contract.route === 'wet_ink'
+                          ? 'Your contract is on paper'
+                          : 'Your contract is on its way'
+                    }
+                  >
+                    {a.contract.route === 'documents'
+                      ? 'You have an email with a link and a code to sign it online. Once you sign, you are hired.'
+                      : a.contract.route === 'wet_ink'
+                        ? 'This contract is signed by hand, by both sides, before you start. The company will send it.'
+                        : 'The company will send it to you to sign and return.'}
+                  </Alert>
+                ) : (
+                  <Alert tone="neutral" title="Your contract is being prepared" />
+                )}
                 <ReadProfile company={company} token={token} applicationId={a.applicationId} />
                 <SelfIdForm company={company} token={token} applicationId={a.applicationId} />
                 <div className="flex flex-wrap gap-2">

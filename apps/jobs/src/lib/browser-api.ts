@@ -10,12 +10,20 @@ const base = () =>
 
 export type Answer<T> = { ok: true; data: T } | { ok: false; message: string };
 
+/** The account's session token, from its cookie on this host; empty when signed out. */
+export const accountToken = (): string => {
+  if (typeof document === 'undefined') return '';
+  const found = document.cookie.split('; ').find((c) => c.startsWith('kj_session='));
+  return found === undefined ? '' : decodeURIComponent(found.slice('kj_session='.length));
+};
+
 export async function publicApi<T>(
   company: string,
   path: string,
   options: { method?: 'GET' | 'POST'; body?: unknown; token?: string } = {},
 ): Promise<Answer<T>> {
   try {
+    const account = accountToken();
     const response = await fetch(
       `${base()}/v1/recruiting/public/${encodeURIComponent(company)}${path}`,
       {
@@ -23,10 +31,36 @@ export async function publicApi<T>(
         headers: {
           'content-type': 'application/json',
           ...(options.token === undefined ? {} : { 'x-candidate-token': options.token }),
+          ...(account === '' ? {} : { 'x-account-token': account }),
         },
         ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
       },
     );
+    const body = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    return response.ok
+      ? { ok: true, data: body as T }
+      : { ok: false, message: body?.error?.message ?? 'That did not go through. Try again.' };
+  } catch {
+    return {
+      ok: false,
+      message: 'Kithena Jobs is not reachable right now. Try again in a moment.',
+    };
+  }
+}
+
+/** One of the account's own routes, from the browser (a CV is up to 10 MB). */
+export async function accountApi<T>(
+  path: string,
+  options: { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown } = {},
+): Promise<Answer<T>> {
+  try {
+    const response = await fetch(`${base()}/v1/recruiting/public/accounts${path}`, {
+      method: options.method ?? 'GET',
+      headers: { 'content-type': 'application/json', 'x-account-token': accountToken() },
+      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+    });
     const body = (await response.json().catch(() => null)) as {
       error?: { message?: string };
     } | null;
@@ -62,15 +96,24 @@ export async function asUpload(
 export const tokenFromHash = (): string =>
   typeof window === 'undefined' ? '' : decodeURIComponent(window.location.hash.replace(/^#/u, ''));
 
-/** J8 on search: a sentence turned into the search's own filters, or null. */
-export async function planSearch(sentence: string): Promise<Record<string, unknown> | null> {
+/** J8 on search: a sentence turned into the search's own filters, and what the AI understood, or null. */
+export async function planSearch(
+  sentence: string,
+): Promise<{ readonly filters: Record<string, unknown>; readonly say: string } | null> {
   try {
     const response = await fetch(`${base()}/v1/recruiting/public/search-plan`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sentence }),
     });
-    return response.ok ? ((await response.json()) as Record<string, unknown>) : null;
+    if (!response.ok) return null;
+    const plan = (await response.json()) as { filters?: unknown; say?: unknown };
+    return typeof plan.filters === 'object' && plan.filters !== null
+      ? {
+          filters: plan.filters as Record<string, unknown>,
+          say: typeof plan.say === 'string' ? plan.say : '',
+        }
+      : null;
   } catch {
     return null;
   }

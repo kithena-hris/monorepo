@@ -43,6 +43,9 @@ import type {
   PlannedInterview,
   CareersDomain,
   ConnectionKind,
+  Accounts,
+  CandidateAccount,
+  CandidateCv,
 } from '../application/ports.js';
 
 /**
@@ -797,3 +800,53 @@ export function memoryBlobs(): Blobs & { readonly keys: () => readonly string[] 
 
 export const sha256 = (bytes: Uint8Array | string): string =>
   createHash('sha256').update(bytes).digest('hex');
+
+/** Candidate accounts in memory, for tests and a local run without Postgres. */
+export function memoryAccounts(): Accounts {
+  const accounts = new Map<string, CandidateAccount>();
+  const sessions = new Map<string, { accountId: string; expiresAt: string }>();
+  const cvs = new Map<string, CandidateCv>();
+  return {
+    byEmail: (emailNorm) =>
+      Promise.resolve([...accounts.values()].find((a) => a.emailNorm === emailNorm) ?? null),
+    byGoogleSub: (sub) =>
+      Promise.resolve([...accounts.values()].find((a) => a.googleSub === sub) ?? null),
+    save: (a) => {
+      accounts.set(a.id, a);
+      return Promise.resolve();
+    },
+    putSession: (tokenHash, accountId, expiresAt) => {
+      sessions.set(tokenHash, { accountId, expiresAt });
+      return Promise.resolve();
+    },
+    bySession: (tokenHash, now) => {
+      const s = sessions.get(tokenHash);
+      return Promise.resolve(
+        s === undefined || s.expiresAt <= now ? null : (accounts.get(s.accountId) ?? null),
+      );
+    },
+    endSession: (tokenHash) => {
+      sessions.delete(tokenHash);
+      return Promise.resolve();
+    },
+    cvs: (accountId) =>
+      Promise.resolve(
+        [...cvs.values()]
+          .filter((c) => c.accountId === accountId)
+          .toSorted((a, b) => Number(b.isDefault) - Number(a.isDefault)),
+      ),
+    saveCv: (cv) => {
+      cvs.set(cv.id, cv);
+      return Promise.resolve();
+    },
+    setDefaultCv: (accountId, cvId) => {
+      for (const c of cvs.values())
+        if (c.accountId === accountId) cvs.set(c.id, { ...c, isDefault: c.id === cvId });
+      return Promise.resolve();
+    },
+    removeCv: (cvId) => {
+      cvs.delete(cvId);
+      return Promise.resolve();
+    },
+  };
+}

@@ -62,8 +62,12 @@ export interface Parsed {
 
 const key = (applicationId: string) => `parsed_profile:${applicationId}`;
 
-export async function parseCv(ctx: Ctx, applicationId: string): Promise<Result<Parsed>> {
-  const read = await readApplication(ctx, applicationId, PARSER);
+export async function parseCv(
+  ctx: Ctx,
+  applicationId: string,
+  system = false,
+): Promise<Result<Parsed>> {
+  const read = await readApplication(ctx, applicationId, PARSER, {}, undefined, system);
   if (!read.ok) return read;
   const checked = checkProfile(read.value.answer, read.value.text, ctx.today);
   const parsed: Parsed = {

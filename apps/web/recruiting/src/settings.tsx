@@ -328,14 +328,6 @@ function General({
         <Toggles
           items={[
             {
-              label: 'On Kithena Jobs’ search',
-              hint: 'Beside your careers page, in the cross-company search.',
-              checked: g.searchable,
-              onChange: (on) => {
-                setG({ ...g, searchable: on });
-              },
-            },
-            {
               label: 'US federal contractor',
               hint: 'Adds the equal-opportunity statement to US jobs.',
               checked: g.federalContractor,

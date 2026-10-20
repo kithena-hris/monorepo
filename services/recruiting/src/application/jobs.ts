@@ -489,10 +489,9 @@ export async function pagesFor(
   targets: readonly Target[],
 ): Promise<{ page: PublicJob; text: string }[]> {
   const settings = await generalSettings(ctx);
-  const searchable =
-    settings.searchable &&
-    job.searchable &&
-    targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
+  // Every job published to Kithena Jobs is on its search: a careers page is a
+  // company's own, the shared search is where candidates look.
+  const searchable = targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
   const stages = await ctx.tx.jobs.stages(job.id);
   const form = await ctx.tx.jobs.form(job.id);
   const ads = await ctx.tx.jobs.ads(job.id);

@@ -80,11 +80,14 @@ export async function askRecruiter(
   return ok({ sent: true });
 }
 
-const Plan = z.object({ filters: z.record(z.string(), z.unknown()) });
+const Plan = z.object({
+  filters: z.record(z.string(), z.unknown()),
+  say: z.string().max(200).default(''),
+});
 
 const PLAN = {
-  version: 'search-plan@1',
-  instruction: `You turn a job seeker's sentence into search filters. Return a JSON object {"filters":{}} using only these keys: q (keywords), country (ES, DE, GB, IN or US), city, workMode (array of onsite, hybrid, remote), hours (full_time or part_time), seniority (array of entry, mid, senior, lead, executive), salaryFromMinor (yearly, in the currency's minor units), currency (ISO code), postedWithinDays. Leave out anything the sentence does not say.`,
+  version: 'search-plan@2',
+  instruction: `You turn a job seeker's sentence into search filters. Return a JSON object {"filters":{},"say":""}. "say" is one short, friendly sentence on what you understood ("Remote design roles in Spain from 50k a year"), no questions. "filters" uses only these keys: q (keywords), country (ES, DE, GB, IN or US), city, workMode (array of onsite, hybrid, remote), hours (full_time or part_time), seniority (array of entry, mid, senior, lead, executive), salaryFromMinor (yearly, in the currency's minor units), currency (ISO code), postedWithinDays. Leave out anything the sentence does not say.`,
 };
 
 /**
@@ -95,7 +98,7 @@ const PLAN = {
 export async function planSearch(
   model: Model | undefined,
   sentence: string,
-): Promise<Result<JobSearch>> {
+): Promise<Result<{ readonly filters: JobSearch; readonly say: string }>> {
   if (model === undefined) return err(aiOff());
   const raw = await model.complete('kithena-jobs', {
     instruction: PLAN.instruction,
@@ -109,7 +112,7 @@ export async function planSearch(
   }
   const plan = Plan.safeParse(parsed);
   const search = plan.success ? JobSearch.safeParse(plan.data.filters) : null;
-  return search?.success === true
-    ? ok(search.data)
+  return search?.success === true && plan.success
+    ? ok({ filters: search.data, say: plan.data.say })
     : err(failure('AI_UNAVAILABLE', 'Try the filters instead'));
 }

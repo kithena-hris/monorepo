@@ -232,6 +232,7 @@ const job: JobData = {
       ],
     },
   ],
+  preview: 'https://jobs.example/preview/acme/token',
   targets: [],
   boards: [],
   chat: null,
@@ -268,6 +269,9 @@ const candidate: CandidateData = {
   messages: [],
   consents: [],
   pools: [],
+  rejectionReasons: ['not_qualified'],
+  templates: [],
+  allPools: [],
   applications: [
     {
       applicationId: 'a1',

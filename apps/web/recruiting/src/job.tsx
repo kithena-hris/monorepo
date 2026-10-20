@@ -1,4 +1,11 @@
 import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   Combobox,
   Alert,
   Badge,
@@ -401,16 +408,6 @@ function Details({
                 <label htmlFor="confidential">
                   Confidential: the company is not named in the ad
                 </label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="searchable"
-                  checked={job.searchable}
-                  onCheckedChange={(on) => {
-                    setJob({ ...job, searchable: on });
-                  }}
-                />
-                <label htmlFor="searchable">On Kithena Jobs’ search, beside the careers page</label>
               </div>
             </CardContent>
           </Card>
@@ -1119,6 +1116,7 @@ function Publishing({
   readonly props: ScreenProps<JobData>;
 }): JSX.Element {
   const act = useAct(props);
+  const [previewing, setPreviewing] = useState(false);
   const share = data.targets.find((t) => t.target === 'share_link' && t.state === 'live');
   return (
     <div className="flex flex-col gap-4">
@@ -1191,6 +1189,44 @@ function Publishing({
               })}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>How it looks on Kithena Jobs</CardTitle>
+          <CardDescription>
+            The ad as a candidate will see it, before and after publishing. The preview is the
+            team’s for a day; search engines never see it and nobody can apply from it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Dialog open={previewing} onOpenChange={setPreviewing}>
+            <div className="flex flex-wrap gap-2">
+              <DialogTrigger asChild>
+                <Button variant="secondary" startIcon={<icons.visible aria-hidden />}>
+                  Preview the ad
+                </Button>
+              </DialogTrigger>
+              <Button asChild variant="ghost" startIcon={<icons.externalLink aria-hidden />}>
+                <a href={data.preview} target="_blank" rel="noreferrer">
+                  Open in a new tab
+                </a>
+              </Button>
+            </div>
+            <DialogContent className="h-[90vh] w-[min(96vw,80rem)] max-w-none p-0">
+              <DialogHeader className="px-6 pt-5">
+                <DialogTitle>Preview on Kithena Jobs</DialogTitle>
+                <DialogDescription>{`${data.job.title} · as a candidate sees it`}</DialogDescription>
+              </DialogHeader>
+              <DialogBody className="min-h-0 flex-1 p-0">
+                <iframe
+                  title="Preview on Kithena Jobs"
+                  src={data.preview}
+                  className="size-full rounded-b-[inherit] border-0 bg-canvas"
+                />
+              </DialogBody>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
       {share?.url == null ? null : <CopyField label="Share link" value={share.url} />}

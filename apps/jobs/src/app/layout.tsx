@@ -1,35 +1,65 @@
-import { KithenaMark, TooltipProvider } from '@reach/ui';
+import { Button, KithenaMark, TooltipProvider } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
 import './globals.css';
+import { SESSION_COOKIE } from '../lib/account';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com'),
   title: { default: 'Kithena Jobs', template: '%s · Kithena Jobs' },
-  description: 'Jobs at companies that hire on Kithena. No account needed to search or apply.',
+  description: 'Every open job at companies that hire on Kithena. No account needed to apply.',
   icons: { icon: kithenaMarkDataUri },
 };
 
-/** Kithena Jobs (REC-090): one header, the page, nothing else. */
-export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {
+/** Kithena Jobs (REC-090): one header, the page, a short footer, nothing else. */
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}): Promise<JSX.Element> {
+  const signedIn = (await cookies()).get(SESSION_COOKIE) !== undefined;
   return (
     <html lang="en">
-      <body className="bg-[var(--reach-bg)] text-fg">
+      <body className="flex min-h-dvh flex-col bg-[var(--reach-bg)] text-fg">
         <TooltipProvider>
-          <header className="border-b border-[var(--reach-line)]">
+          <header className="sticky top-0 z-20 border-b border-border bg-canvas/90 backdrop-blur">
             <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-              <Link href="/" className="flex items-center gap-2 text-lg font-bold">
+              <Link
+                href="/"
+                className="flex items-center gap-2 text-lg font-bold tracking-[-0.01em]"
+              >
                 <KithenaMark className="size-6 text-accent" />
                 Kithena Jobs
               </Link>
+              <nav aria-label="Site" className="ms-auto flex items-center gap-1">
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/search">Search</Link>
+                </Button>
+                {signedIn ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href="/me">Your applications</Link>
+                  </Button>
+                ) : (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href="/sign-in">Sign in</Link>
+                  </Button>
+                )}
+              </nav>
             </div>
           </header>
-          <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 pb-24 sm:px-6 lg:pb-8">
             {children}
           </main>
+          <footer className="border-t border-border">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-fg-muted sm:px-6">
+              <span>Jobs published by companies that hire on Kithena.</span>
+              <span>Your data stays with the company you apply to.</span>
+            </div>
+          </footer>
         </TooltipProvider>
       </body>
     </html>

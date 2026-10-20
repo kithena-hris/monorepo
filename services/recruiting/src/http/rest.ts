@@ -37,6 +37,9 @@ import {
   refer,
   requestCode,
   type IncomingFile,
+  previewJob,
+  type ApplyingAccount,
+  putForward,
 } from '../application/intake.js';
 import {
   answerReference,
@@ -125,6 +128,8 @@ import {
   settingsScreen,
 } from '../application/screens.js';
 import { settingsInWords } from '../application/settings-in-words.js';
+import { accountByToken, defaultCv } from '../application/accounts.js';
+import { readOnArrival } from '../application/arrival.js';
 import {
   removeBenefit,
   removeChain,
@@ -763,6 +768,15 @@ export const ROUTES: readonly Route[] = [
     summary: 'R7: take the job down everywhere',
     params: z.object({ jobId: Id }),
     run: (ctx, { params }) => unpublish(ctx, params.jobId),
+  }),
+  route({
+    name: 'putForward',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/candidates/{candidateId}/put-forward`,
+    summary: 'A known candidate into an open job’s first stage, told by email (PRD §13.3)',
+    params: z.object({ jobId: Id, candidateId: Id }),
+    status: 201,
+    run: (ctx, { params }) => putForward(ctx, params.jobId, params.candidateId),
   }),
   route({
     name: 'addCandidate',
@@ -1686,6 +1700,15 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { body }) => receiveGrant(ctx, body.state, body.code),
   }),
   route({
+    name: 'publicPreview',
+    method: 'GET',
+    path: `${V1}/public/{company}/preview/{token}`,
+    summary: 'R7: a job as Kithena Jobs will show it, by the token its team holds',
+    params: z.object({ company: text(63), token: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/u) }),
+    public: true,
+    run: (ctx, { params }) => previewJob(ctx, params.token, null),
+  }),
+  route({
     name: 'publicCode',
     method: 'POST',
     path: `${V1}/public/{company}/codes`,
@@ -1704,7 +1727,16 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ payload: z.unknown(), files: z.array(File).max(6).optional() }),
     status: 201,
     public: true,
-    run: (ctx, { body }) => apply(ctx, body.payload, files(body.files)),
+    run: async (ctx, { body, headers }) => {
+      const applied = await apply(
+        ctx,
+        body.payload,
+        files(body.files),
+        await applyingAccount(ctx, headers),
+      );
+      if (applied.ok) await readOnArrival(ctx, applied.value.applicationId);
+      return applied;
+    },
   }),
   route({
     name: 'publicMe',
@@ -1758,9 +1790,9 @@ export const ROUTES: readonly Route[] = [
     name: 'publicDecline',
     method: 'POST',
     path: `${V1}/public/{company}/me/offers/{offerId}/decline`,
-    summary: 'J7: decline',
+    summary: 'J7: decline, with a reason the recruiter reads',
     params: z.object({ company: text(63), offerId: Id }),
-    body: z.object({ reason: text(1000).nullable() }),
+    body: z.object({ reason: text(1000).min(3) }),
     public: true,
     run: (ctx, { params, body, headers }) =>
       asCandidate(ctx, headers, (id) => candidateDeclines(ctx, id, params.offerId, body.reason)),
@@ -2029,6 +2061,27 @@ const header = (headers: RestRequest['headers'], name: string): string => {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
 };
 const tokenOf = (headers: RestRequest['headers']) => header(headers, 'x-candidate-token');
+
+/** The signed-in Kithena Jobs account behind an apply, with its default CV, or null. */
+async function applyingAccount(
+  ctx: Ctx,
+  headers: RestRequest['headers'],
+): Promise<ApplyingAccount | null> {
+  const token = header(headers, 'x-account-token');
+  const accounts = ctx.deps.accounts;
+  if (token === '' || accounts === undefined) return null;
+  const d = { accounts, deps: ctx.deps, at: ctx.at };
+  const account = await accountByToken(d, token);
+  if (account === null) return null;
+  const cv = await defaultCv(d, account);
+  return {
+    email: account.email,
+    defaultCv:
+      cv === null
+        ? null
+        : { field: 'cv', fileName: cv.fileName, mediaType: cv.mediaType, bytes: cv.bytes },
+  };
+}
 const ipOf = (headers: RestRequest['headers']) =>
   header(headers, 'x-forwarded-for').split(',')[0]?.trim() ?? '';
 

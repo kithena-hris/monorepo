@@ -4,3 +4,59 @@
 /* The components live in the workspace package, outside this app's tree. */
 @source '../../../../packages/ui/src';
 @source '../';
+
+/*
+ * The ad, read as an article: Recruiting's allow-listed HTML (headings,
+ * paragraphs, lists, emphasis, links) at a reading measure, with one scale
+ * from the title down. Nothing here styles a component; it styles prose.
+ */
+.job-ad {
+  max-width: 68ch;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+.job-ad > * + * {
+  margin-block-start: 1em;
+}
+.job-ad h2,
+.job-ad h3 {
+  margin-block-start: 2em;
+  margin-block-end: 0.5em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.job-ad h2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+.job-ad h3 {
+  font-size: 1.1875rem;
+  line-height: 1.35;
+}
+.job-ad ul,
+.job-ad ol {
+  padding-inline-start: 1.5rem;
+}
+.job-ad ul {
+  list-style: disc;
+}
+.job-ad ol {
+  list-style: decimal;
+}
+.job-ad li + li {
+  margin-block-start: 0.35em;
+}
+.job-ad a {
+  color: var(--reach-color-accent-fg);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.job-ad strong {
+  font-weight: 650;
+}
+
+/* The parts the browser draws, in the page's own palette. */
+::selection {
+  background: color-mix(in oklch, var(--reach-color-accent) 24%, transparent);
+}

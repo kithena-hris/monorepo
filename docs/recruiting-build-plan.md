@@ -205,6 +205,19 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [x] **REC-095** J9 agency portal.
 - [x] **REC-096** J10 company careers page and the embed script.
 - [x] **REC-097** J11 job alerts: double opt-in, digest, unsubscribe.
+- [x] **REC-098** Kithena Jobs closed end to end (2026-10-20). The front page is every job
+      published there, newest first; the shared search needs no opt-in; one bar takes keywords or a
+      sentence the AI turns into filters, and shows the closest jobs when nothing matches every word.
+      The ad is one component for the candidate and the recruiter, previewed from Publishing by a
+      one-day token before it is published. A candidate account across every company, by code or
+      Google, with a CV library (one default) and every application in one place; applying signed
+      in needs no code and takes the default CV. Every application is read on arrival where the
+      readers are on; the ideal candidate is set apart on the board; the profile rejects and adds
+      to a pool; a pool's member is put forward for a job and told by email. Declining an offer
+      says why; the contract shows on the candidate's page. Needs `GOOGLE_CLIENT_ID` and
+      `GOOGLE_CLIENT_SECRET` on the Kithena Jobs project, `JOBS_GOOGLE_CLIENT_ID` in Recruiting's
+      environment, and `https://jobs.kithena.com/auth/google/callback` as a redirect URI on the
+      Google client.
 
 ### Standalone
 

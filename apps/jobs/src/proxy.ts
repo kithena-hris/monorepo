@@ -12,6 +12,9 @@ const OURS = /(?:^|\.)(?:kithena\.com|vercel\.app)$|^(?:localhost|127\.0\.0\.1)$
 const SHARED = new Set([
   'agency',
   'alerts',
+  'auth',
+  'preview',
+  'sign-in',
   'embed',
   'embed.js',
   'feeds',

@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import {
   ApplyPayload,
   type ApplicationSource,
+  type PublicJob,
   type PublicationTarget,
   type TenantId,
 } from '@kithena/contracts';
@@ -16,6 +17,7 @@ import { score, type Answer } from '../domain/screening/questionnaire.js';
 import { asPerson, event, notFound, publish, type Ctx } from './context.js';
 import type { ApplicationRecord, Candidate, CandidateFile, Deps, JobRecord } from './ports.js';
 import { generalSettings } from './setup.js';
+import { pagesFor } from './jobs.js';
 
 /** A board's name as a person reads it: `indeed` is Indeed. */
 const words = (target: PublicationTarget) =>
@@ -53,6 +55,45 @@ export async function publicJob(ctx: Ctx, slug: string): Promise<JobRecord | nul
   )
     ? job
     : null;
+}
+
+/**
+ * A preview of a job as Kithena Jobs will show it (R7): the page built the
+ * way publishing builds it, for a job that may not be open yet, behind a
+ * token the job's screen hands its team for a day. The page says it is a
+ * preview; search engines never see it and nobody can apply from it.
+ */
+export async function previewJob(
+  ctx: Ctx,
+  token: string,
+  language: string | null,
+): Promise<Result<PublicJob>> {
+  const held = (await ctx.tx.settings.get(`preview-token:${token}`)) as {
+    readonly jobId: string;
+    readonly expires: string;
+  } | null;
+  if (held === null || Date.parse(held.expires) < Date.parse(ctx.at))
+    return err(failure('NOT_FOUND', 'This preview has expired'));
+  const job = await ctx.tx.jobs.get(held.jobId);
+  if (job === null) return err(failure('NOT_FOUND', 'No such job'));
+  const pages = await pagesFor(ctx, job, await ctx.tx.jobs.targets(job.id));
+  const page = pages.find((p) => p.page.language === language) ?? pages[0];
+  if (page === undefined) return err(failure('NO_AD', 'Write the ad first'));
+  return ok({ ...page.page, closed: false });
+}
+
+/** The token a job's team previews it with: one per job, good for a day, made when the screen loads. */
+export async function previewTokenFor(ctx: Ctx, jobId: string): Promise<string> {
+  const held = (await ctx.tx.settings.get(`preview:${jobId}`)) as {
+    readonly token: string;
+    readonly expires: string;
+  } | null;
+  if (held !== null && Date.parse(held.expires) > Date.parse(ctx.at) + 3_600_000) return held.token;
+  const token = randomBytes(24).toString('base64url');
+  const expires = new Date(Date.parse(ctx.at) + 86_400_000).toISOString();
+  await ctx.tx.settings.set(`preview:${jobId}`, { token, expires });
+  await ctx.tx.settings.set(`preview-token:${token}`, { jobId, expires });
+  return token;
 }
 
 /** Send the six-digit code that confirms the address (PRD §10.4). Same answer whether or not the job exists. */
@@ -285,11 +326,25 @@ async function land(
   return ok(app);
 }
 
+/** The signed-in account applying (PRD §10.5, extended): its address is proven, and its default CV stands in for one not attached. */
+export interface ApplyingAccount {
+  readonly email: string;
+  readonly defaultCv: IncomingFile | null;
+}
+
 export async function apply(
   ctx: Ctx,
   input: unknown,
-  files: readonly IncomingFile[],
+  given: readonly IncomingFile[],
+  account: ApplyingAccount | null = null,
 ): Promise<Result<Applied>> {
+  // Signed in, with no CV attached: the library's default one applies.
+  const files =
+    account?.defaultCv !== null &&
+    account?.defaultCv !== undefined &&
+    !given.some((f) => f.field === 'cv')
+      ? [...given, account.defaultCv]
+      : given;
   const parsed = ApplyPayload.safeParse(input);
   if (!parsed.success)
     return err(failure('INVALID', parsed.error.issues[0]?.message ?? 'Check the form'));
@@ -324,17 +379,20 @@ export async function apply(
       ),
     );
   const email = String(checked.data['email']);
-  const held = await ctx.tx.codes.get(normalEmail(email), job.id);
-  if (held === null || held.expiresAt < ctx.at)
-    return err(failure('CODE_EXPIRED', 'Ask for a new code'));
-  if (held.attempts >= MAX_ATTEMPTS)
-    return err(failure('CODE_ATTEMPTS', 'Too many tries; ask for a new code'));
-  const given = Buffer.from(sha256(payload.code));
-  if (!timingSafeEqual(given, Buffer.from(held.codeHash))) {
-    await ctx.tx.codes.attempt(normalEmail(email), job.id);
-    return err(failure('CODE_WRONG', 'That code is not right'));
+  // An account already proved the address; anyone else proves it with the emailed code.
+  if (account === null || normalEmail(account.email) !== normalEmail(email)) {
+    const held = await ctx.tx.codes.get(normalEmail(email), job.id);
+    if (held === null || held.expiresAt < ctx.at)
+      return err(failure('CODE_EXPIRED', 'Ask for a new code'));
+    if (held.attempts >= MAX_ATTEMPTS)
+      return err(failure('CODE_ATTEMPTS', 'Too many tries; ask for a new code'));
+    const typed = Buffer.from(sha256(payload.code));
+    if (!timingSafeEqual(typed, Buffer.from(held.codeHash))) {
+      await ctx.tx.codes.attempt(normalEmail(email), job.id);
+      return err(failure('CODE_WRONG', 'That code is not right'));
+    }
+    await ctx.tx.codes.remove(normalEmail(email), job.id);
   }
-  await ctx.tx.codes.remove(normalEmail(email), job.id);
   const name = String(checked.data['name']);
   const phone = typeof checked.data['phone'] === 'string' ? checked.data['phone'] : null;
   const cv = files.find((f) => f.field === 'cv');
@@ -524,6 +582,49 @@ export async function addCandidate(
       dedupeKey: `sourced:${candidate.id}`,
     });
   }
+  return landed;
+}
+
+/**
+ * A candidate already known here, put forward for an open job by a recruiter
+ * (PRD §13.3): from a talent pool, or from their profile. They enter the
+ * job's first stage with no new form, and are told by email, with the ad's
+ * address and their own page, so nothing moves without their knowing.
+ */
+export async function putForward(
+  ctx: Ctx,
+  jobId: string,
+  candidateId: string,
+): Promise<Result<ApplicationRecord>> {
+  const job = await ctx.tx.jobs.get(jobId);
+  if (job === null || job.state !== 'open') return err(failure('JOB_CLOSED', 'Choose an open job'));
+  const team = await ctx.tx.jobs.team(jobId);
+  if (
+    !ctx.viewer.admin &&
+    !team.some((t) => t.personId === ctx.viewer.personId && t.role === 'recruiter')
+  )
+    return err(failure('FORBIDDEN', 'Only a recruiter on this job can put someone forward'));
+  const candidate = await ctx.tx.candidates.get(candidateId);
+  if (candidate === null || candidate.mergedInto !== null || candidate.anonymisedAt !== null)
+    return err(notFound('candidate'));
+  const landed = await land(
+    ctx,
+    job,
+    candidate,
+    { kind: 'recruiter' },
+    { name: candidate.name, email: candidate.email },
+    'en',
+    null,
+    [],
+  );
+  if (!landed.ok) return landed;
+  const settings = await generalSettings(ctx);
+  ctx.mail.push({
+    to: candidate.email,
+    subject: `${settings.companyName} would like to consider you for ${job.title}`,
+    text: `Hello ${candidate.name},\n\n${settings.companyName} has put your application forward for a new opening, ${job.title}. The ad is here:\n${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}\n\nYou can follow it, or withdraw, here:\n${await portalLink(ctx, candidate.id)}`,
+    dedupeKey: `put-forward:${landed.value.id}`,
+  });
   return landed;
 }
 

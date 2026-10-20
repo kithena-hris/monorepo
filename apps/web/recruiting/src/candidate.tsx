@@ -1,4 +1,16 @@
 import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Alert,
   Avatar,
   Badge,
@@ -38,6 +50,7 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, money, useAct, when, words } from './shared';
+import { RejectDialog, type Rejecting } from './reject-dialog';
 import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './types';
 
 /**
@@ -528,6 +541,8 @@ function Notes({
 export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
   const tab: Tab = TABS.find((t) => t === props.search?.['tab']) ?? 'profile';
   const act = useAct(props);
+  const [rejecting, setRejecting] = useState<Rejecting | null>(null);
+  const [poolId, setPoolId] = useState('');
   return (
     <Loaded load={props.load} what="the candidate">
       {(data) => {
@@ -547,15 +562,66 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                 .filter(Boolean)
                 .join(' · ')}
               actions={
-                data.candidate.email === undefined ? null : (
-                  <Button
-                    variant="secondary"
-                    startIcon={<icons.email aria-hidden />}
-                    onClick={() => props.onFilter?.({ tab: 'messages' })}
-                  >
-                    Email
-                  </Button>
-                )
+                <span className="flex flex-wrap items-center gap-2">
+                  {/* PRD §13: into a pool by a recruiter's hand; without consent the candidate is asked by email first. */}
+                  {data.allPools.length === 0 ? null : (
+                    <>
+                      <Select
+                        value={poolId === '' ? 'none' : poolId}
+                        onValueChange={(v) => {
+                          setPoolId(v === 'none' ? '' : v);
+                        }}
+                      >
+                        <SelectTrigger aria-label="Talent pool" size="sm" className="w-48">
+                          <SelectValue placeholder="Add to a talent pool…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Add to a talent pool…</SelectItem>
+                          {data.allPools
+                            .filter((p) => !data.pools.some((m) => m.poolId === p.id))
+                            .map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={poolId === ''}
+                        loading={act.pending}
+                        onClick={() => {
+                          act.run(
+                            'AddToPool',
+                            {
+                              poolId,
+                              input: {
+                                candidateId: data.candidate.id,
+                                reason: 'Added from the profile',
+                              },
+                            },
+                            () => {
+                              setPoolId('');
+                            },
+                          );
+                        }}
+                      >
+                        Ask to join
+                      </Button>
+                    </>
+                  )}
+                  {data.candidate.email === undefined ? null : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      startIcon={<icons.email aria-hidden />}
+                      onClick={() => props.onFilter?.({ tab: 'messages' })}
+                    >
+                      Email
+                    </Button>
+                  )}
+                </span>
               }
             />
             <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
@@ -666,6 +732,20 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           }}
                         >
                           {`Move to ${nextStage.name}`}
+                        </Button>
+                      ) : null}
+                      {chosen.outcome === 'active' && chosen.may.includes('pipeline.move') ? (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => {
+                            setRejecting({
+                              ids: [chosen.applicationId],
+                              names: [data.candidate.name],
+                            });
+                          }}
+                        >
+                          Reject…
                         </Button>
                       ) : null}
                       {chosen.outcome === 'active' &&
@@ -876,6 +956,19 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                 </div>
               )}
             </div>
+            <RejectDialog
+              options={{
+                jobTitle: chosen?.job.title ?? '',
+                rejectionReasons: data.rejectionReasons,
+                templates: data.templates,
+                pools: data.allPools,
+              }}
+              rejecting={rejecting}
+              onClose={() => {
+                setRejecting(null);
+              }}
+              props={props}
+            />
           </div>
         );
       }}
@@ -981,6 +1074,8 @@ function SearchBox({
 export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
   const act = useAct(props);
   const [name, setName] = useState('');
+  const [forward, setForward] = useState<{ candidateId: string; name: string } | null>(null);
+  const [jobId, setJobId] = useState('');
   return (
     <Loaded load={props.load} what="talent pools">
       {(data) => (
@@ -1068,6 +1163,17 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                         <Badge size="sm" tone={m.consentUntil === null ? 'warning' : 'neutral'}>
                           {m.consentUntil === null ? 'No consent' : `Until ${day(m.consentUntil)}`}
                         </Badge>
+                        <Button
+                          size="xs"
+                          variant="secondary"
+                          disabled={data.jobs.length === 0 || m.consentUntil === null}
+                          onClick={() => {
+                            setJobId(data.jobs[0]?.id ?? '');
+                            setForward({ candidateId: m.candidateId, name: m.name });
+                          }}
+                        >
+                          Put forward…
+                        </Button>
                       </li>
                     ))}
                   </ul>
@@ -1075,6 +1181,64 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
               </CardContent>
             </Card>
           </div>
+          {/* PRD §13.3: into an open job's first stage, told by email with the ad's address. */}
+          <Dialog
+            open={forward !== null}
+            onOpenChange={(open) => {
+              if (!open) setForward(null);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{`Put ${forward?.name ?? ''} forward`}</DialogTitle>
+                <DialogDescription>
+                  They enter the job’s first stage and get an email with the ad and their own page.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogBody className="flex flex-col gap-4">
+                <Refusal error={act.error} />
+                <Field required>
+                  <FieldLabel>Job</FieldLabel>
+                  <Select value={jobId} onValueChange={setJobId}>
+                    <FieldControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose an open job" />
+                      </SelectTrigger>
+                    </FieldControl>
+                    <SelectContent>
+                      {data.jobs.map((j) => (
+                        <SelectItem key={j.id} value={j.id}>
+                          {j.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </DialogBody>
+              <DialogFooter>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setForward(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={jobId === ''}
+                  loading={act.pending}
+                  onClick={() => {
+                    if (forward === null) return;
+                    act.run('PutForward', { jobId, candidateId: forward.candidateId }, () => {
+                      setForward(null);
+                    });
+                  }}
+                >
+                  Put forward
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </Loaded>

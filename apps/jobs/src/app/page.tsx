@@ -1,32 +1,94 @@
-import { Button } from '@reach/ui';
+import { Alert, Button, EmptyState, icons } from '@reach/ui';
 import Link from 'next/link';
 import type { JSX } from 'react';
 
+import { JobCard } from '../components/job-card';
 import { SearchBar } from '../components/search-bar';
+import { search } from '../lib/api';
 
-/** J1: the search, and a few ways in. */
-export default function Home(): JSX.Element {
+/**
+ * J1: the front page is every open job, newest first, under one search.
+ * There is no empty landing page to get past: a candidate sees work on the
+ * first viewport, and narrows it by keywords, a country, or a sentence.
+ */
+export default async function Home(): Promise<JSX.Element> {
+  const answer = await search(new URLSearchParams({ sort: 'newest' }));
   const shortcuts: readonly [string, string][] = [
-    ['Remote in Spain', '/search?country=ES&workMode=remote'],
-    ['Backend', '/search?q=backend'],
+    ['Remote', '/search?workMode=remote'],
+    ['Engineering', '/search?q=engineer'],
     ['Design', '/search?q=design'],
-    ['Berlin', '/search?q=berlin&country=DE'],
+    ['Sales', '/search?q=sales'],
     ['Part time', '/search?hours=part_time'],
+    ['Spain', '/search?country=ES'],
+    ['Germany', '/search?country=DE'],
   ];
   return (
-    <section className="flex flex-col items-center gap-6 py-16 text-center">
-      <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-        Find work at companies that hire on Kithena
-      </h1>
-      <p className="text-lg text-fg-muted">No account needed to search or apply.</p>
-      <SearchBar />
-      <nav aria-label="Popular searches" className="flex flex-wrap justify-center gap-2">
-        {shortcuts.map(([label, href]) => (
-          <Button key={label} asChild variant="secondary" size="sm">
-            <Link href={href}>{label}</Link>
-          </Button>
-        ))}
-      </nav>
-    </section>
+    <>
+      <section className="-mx-4 bg-accent-subtle/60 px-4 py-14 sm:-mx-6 sm:px-6 sm:py-20">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-7">
+          <h1 className="max-w-3xl text-4xl font-bold tracking-[-0.02em] text-balance animate-enter motion-reduce:animate-none sm:text-5xl lg:text-6xl">
+            Work at companies that hire on Kithena
+          </h1>
+          <p
+            className="max-w-2xl text-lg text-fg-muted animate-enter motion-reduce:animate-none"
+            style={{ animationDelay: '60ms' }}
+          >
+            Every open job, from every company here. Search it, or describe the job you want and let
+            the filters follow. No account needed to apply.
+          </p>
+          <div
+            className="w-full animate-enter motion-reduce:animate-none"
+            style={{ animationDelay: '120ms' }}
+          >
+            <SearchBar size="lg" />
+          </div>
+          <nav
+            aria-label="Popular searches"
+            className="flex flex-wrap gap-2 animate-enter motion-reduce:animate-none"
+            style={{ animationDelay: '180ms' }}
+          >
+            {shortcuts.map(([label, href]) => (
+              <Button key={label} asChild variant="secondary" size="sm">
+                <Link href={href}>{label}</Link>
+              </Button>
+            ))}
+          </nav>
+        </div>
+      </section>
+      <section aria-label="Open jobs" className="flex flex-col gap-3">
+        {!answer.ok ? (
+          <Alert tone="danger" title="The jobs did not load">
+            {answer.message}
+          </Alert>
+        ) : answer.data.rows.length === 0 ? (
+          <EmptyState
+            icon={<icons.work aria-hidden />}
+            title="No open jobs right now"
+            description="Companies publish here as they hire. Set an alert on a company’s page to hear first."
+          />
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="text-xl font-bold tracking-[-0.01em]">
+                {`${answer.data.total.toLocaleString('en-GB')} open job${answer.data.total === 1 ? '' : 's'}`}
+              </h2>
+              <Button asChild variant="link" size="sm">
+                <Link href="/search?sort=salary">By salary</Link>
+              </Button>
+            </div>
+            {answer.data.rows.map((job, i) => (
+              <JobCard key={`${job.jobId}:${job.language}`} job={job} index={i} />
+            ))}
+            {answer.data.total > answer.data.rows.length ? (
+              <div className="flex justify-center pt-2">
+                <Button asChild variant="secondary">
+                  <Link href="/search?sort=newest&page=2">More jobs</Link>
+                </Button>
+              </div>
+            ) : null}
+          </>
+        )}
+      </section>
+    </>
   );
 }

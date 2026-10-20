@@ -19,7 +19,6 @@ import {
   EmptyState,
   Field,
   FieldControl,
-  FieldDescription,
   FieldLabel,
   Input,
   Kanban,
@@ -36,6 +35,7 @@ import {
 import { useEffect, useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
+import { RejectDialog, type Rejecting } from './reject-dialog';
 import { CATEGORY_TONE, Refusal, Search, To, day, useAct, when, words } from './shared';
 import type { Card as CardData, PipelineData, ScreenProps } from './types';
 
@@ -61,8 +61,16 @@ function CandidateCard({
   readonly card: CardData;
   readonly onNavigate?: ((to: string) => void) | undefined;
 }): JSX.Element {
+  // The ideal candidate (PRD §22.4, a strong match on every must) is set apart on the board.
+  const ideal = card.match?.band === 'strong';
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      className={
+        ideal
+          ? '-m-2 flex flex-col gap-2 rounded-[inherit] bg-success-subtle/40 p-2 shadow-[inset_0_0_0_2px_var(--reach-color-success)]'
+          : 'flex flex-col gap-2'
+      }
+    >
       <div className="flex items-center gap-2">
         <Avatar name={card.name} size="sm" />
         <To
@@ -90,7 +98,20 @@ function CandidateCard({
           </Badge>
         ) : null}
         {card.match == null ? null : (
-          <Badge size="sm" tone="neutral">{`${words(card.match.band)} match`}</Badge>
+          <Badge
+            size="sm"
+            tone={
+              card.match.band === 'strong'
+                ? 'success'
+                : card.match.band === 'good'
+                  ? 'accent'
+                  : 'neutral'
+            }
+            variant={card.match.band === 'strong' ? 'solid' : 'soft'}
+            aria-label={`AI match ${String(Math.round(card.match.scoreBp / 100))} percent, ${card.match.band}`}
+          >
+            {`${String(Math.round(card.match.scoreBp / 100))}% · ${card.match.band === 'strong' ? 'ideal' : card.match.band}`}
+          </Badge>
         )}
         <span
           className={card.daysInStage > 4 ? 'text-[var(--reach-warning-text)]' : 'text-fg-muted'}
@@ -103,174 +124,6 @@ function CandidateCard({
         </div>
       )}
     </div>
-  );
-}
-
-interface Rejecting {
-  readonly ids: readonly string[];
-  readonly names: readonly string[];
-}
-
-function RejectDialog({
-  data,
-  rejecting,
-  onClose,
-  props,
-}: {
-  readonly data: PipelineData;
-  readonly rejecting: Rejecting | null;
-  readonly onClose: () => void;
-  readonly props: ScreenProps<PipelineData>;
-}): JSX.Element {
-  const act = useAct(props);
-  const [reason, setReason] = useState(data.rejectionReasons[0] ?? 'not_qualified');
-  const [template, setTemplate] = useState<string>(
-    data.templates.find((t) => t.purpose === 'rejection')?.id ?? 'none',
-  );
-  const [send, setSend] = useState<'now' | 'later_today' | 'none'>('later_today');
-  const [pool, setPool] = useState<string>('none');
-  const many = (rejecting?.ids.length ?? 0) > 1;
-  const submit = (): void => {
-    if (rejecting === null) return;
-    const templateId = template === 'none' ? null : template;
-    if (many) {
-      act.run(
-        'BulkApplications',
-        {
-          input: {
-            action: 'reject',
-            ids: rejecting.ids,
-            reasonKey: reason,
-            templateId,
-            send: templateId === null ? 'none' : send,
-          },
-        },
-        onClose,
-      );
-    } else {
-      act.run(
-        'RejectApplication',
-        {
-          applicationId: rejecting.ids[0],
-          input: {
-            reasonKey: reason,
-            templateId,
-            send: templateId === null ? 'none' : send,
-            poolId: pool === 'none' ? null : pool,
-          },
-        },
-        onClose,
-      );
-    }
-  };
-  return (
-    <Dialog
-      open={rejecting !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {many
-              ? `Reject ${String(rejecting?.ids.length ?? 0)} candidates`
-              : `Reject ${rejecting?.names[0] ?? ''}`}
-          </DialogTitle>
-          <DialogDescription>{`${data.job.title}${many ? ` · ${rejecting?.names.join(', ') ?? ''}` : ''}`}</DialogDescription>
-        </DialogHeader>
-        <DialogBody className="flex flex-col gap-4">
-          <Refusal error={act.error} />
-          <Field required>
-            <FieldLabel>Reason</FieldLabel>
-            <Select value={reason} onValueChange={setReason}>
-              <FieldControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FieldControl>
-              <SelectContent>
-                {data.rejectionReasons.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {words(r)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>
-              Internal. The email never states a reason the candidate hasn’t seen in writing.
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel>Email</FieldLabel>
-            <Select value={template} onValueChange={setTemplate}>
-              <FieldControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FieldControl>
-              <SelectContent>
-                <SelectItem value="none">No email</SelectItem>
-                {data.templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          {template === 'none' ? null : (
-            <Field>
-              <FieldLabel>Send</FieldLabel>
-              <SegmentedControl
-                value={send}
-                onValueChange={(v) => {
-                  setSend(v as typeof send);
-                }}
-              >
-                <SegmentedControlItem value="now">Now</SegmentedControlItem>
-                <SegmentedControlItem value="later_today">Later today</SegmentedControlItem>
-              </SegmentedControl>
-              <FieldDescription>
-                Later today: a few hours on, and never between 21:00 and 08:00 in the candidate’s
-                time zone.
-              </FieldDescription>
-            </Field>
-          )}
-          {many || data.pools.length === 0 ? null : (
-            <Field>
-              <FieldLabel>Add to a talent pool</FieldLabel>
-              <Select value={pool} onValueChange={setPool}>
-                <FieldControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FieldControl>
-                <SelectContent>
-                  <SelectItem value="none">Not now</SelectItem>
-                  {data.pools.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldDescription>
-                Without pool consent the candidate is asked by email first.
-              </FieldDescription>
-            </Field>
-          )}
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="danger" loading={act.pending} onClick={submit}>
-            {many ? `Reject ${String(rejecting?.ids.length ?? 0)}` : 'Reject'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -642,7 +495,12 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
               </div>
             </div>
             <RejectDialog
-              data={data}
+              options={{
+                jobTitle: data.job.title,
+                rejectionReasons: data.rejectionReasons,
+                templates: data.templates,
+                pools: data.pools,
+              }}
               rejecting={rejecting}
               onClose={() => {
                 setRejecting(null);
