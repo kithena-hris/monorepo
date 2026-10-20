@@ -8,6 +8,7 @@ import {
   DialogTrigger,
   Combobox,
   Alert,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -23,7 +24,9 @@ import {
   FieldLabel,
   Input,
   NumberField,
+  KeyValues,
   PageHeader,
+  RichTextContent,
   RichTextEditor,
   SegmentedControl,
   SegmentedControlItem,
@@ -32,6 +35,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
   Switch,
   Table,
   TableBody,
@@ -39,17 +47,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Textarea,
+  cn,
   icons,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, newId, range, useAct, words } from './shared';
+import { StepDialog } from './step-dialog';
 import type { FormField, JobData, ScreenProps } from './types';
 
 /**
@@ -58,8 +64,6 @@ import type { FormField, JobData, ScreenProps } from './types';
  * where it is published. Each tab is in the address; each saves on its own.
  */
 
-const TABS = ['details', 'hiring', 'ad', 'publishing'] as const;
-type Tab = (typeof TABS)[number];
 const ROLES = ['recruiter', 'hiring_manager', 'interviewer', 'coordinator'] as const;
 
 const TARGETS: readonly {
@@ -183,7 +187,7 @@ function NewJob(props: ScreenProps<JobData>): JSX.Element {
                     hiringManagerId: null,
                   },
                 },
-                () => props.onNavigate?.(`/recruiting/jobs/${id}/setup`),
+                () => props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1`),
               );
             }}
           >
@@ -1320,119 +1324,371 @@ function ChatChannel({
   );
 }
 
+/** The parts of a job a person edits, each in its own sheet off the ad. */
+type Part = 'details' | 'team' | 'criteria' | 'plan' | 'ad' | 'form' | 'publishing';
+
+const PART_TITLE: Readonly<Record<Part, string>> = {
+  details: 'Job details',
+  team: 'Hiring team',
+  criteria: 'Criteria',
+  plan: 'Interview plan',
+  ad: 'The ad',
+  form: 'Apply form',
+  publishing: 'Publishing',
+};
+
+const STEPS: readonly { readonly label: string; readonly parts: readonly Part[] }[] = [
+  { label: 'Job and team', parts: ['details', 'team'] },
+  { label: 'Criteria', parts: ['criteria'] },
+  { label: 'Interviews', parts: ['plan'] },
+  { label: 'Apply form', parts: ['form'] },
+  { label: 'The ad', parts: ['ad'] },
+];
+
+const MODE: Readonly<Record<string, string>> = {
+  onsite: 'On site',
+  hybrid: 'Hybrid',
+  remote: 'Remote',
+};
+
+function PartBody({
+  part,
+  data,
+  props,
+}: {
+  readonly part: Part;
+  readonly data: JobData;
+  readonly props: ScreenProps<JobData>;
+}): JSX.Element {
+  switch (part) {
+    case 'details':
+      return <Details data={data} props={props} />;
+    case 'team':
+      return <Team data={data} props={props} />;
+    case 'criteria':
+      return <Criteria data={data} props={props} />;
+    case 'plan':
+      return <Plan data={data} props={props} />;
+    case 'ad':
+      return <Ad data={data} props={props} />;
+    case 'form':
+      return <Form data={data} props={props} />;
+    case 'publishing':
+      return <Publishing data={data} props={props} />;
+  }
+}
+
+/** One region of the ad as the team sees it: press anywhere on it to edit that part. */
+function Region({
+  title,
+  part,
+  onEdit,
+  children,
+  className,
+}: {
+  readonly title: string;
+  readonly part: Part;
+  readonly onEdit: (part: Part) => void;
+  readonly children: ReactNode;
+  readonly className?: string;
+}): JSX.Element {
+  return (
+    <Card padded interactive className={cn('group/region relative', className)}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-fg-muted">{title}</h2>
+        <Button
+          size="xs"
+          variant="ghost"
+          startIcon={<icons.edit aria-hidden />}
+          className="after:absolute after:inset-0"
+          onClick={() => {
+            onEdit(part);
+          }}
+        >
+          Edit
+        </Button>
+      </div>
+      {children}
+    </Card>
+  );
+}
+
+/**
+ * R4–R7 and R14, a job's setup. A new job is a stepper in a dialog: job and
+ * team, criteria, interviews, the apply form, then the ad, drafted with AI
+ * from everything before it. After that the page is the ad as a candidate
+ * will read it, every region pressed to edit that part in a sheet, and one
+ * primary press to publish.
+ */
 export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
   if (props.params?.['id'] === 'new') return <NewJob {...props} />;
-  const tab: Tab = TABS.find((t) => t === props.search?.['tab']) ?? 'details';
+  const wizard = props.search?.['setup'] === '1';
+  const step = Math.min(STEPS.length - 1, Math.max(0, Number(props.search?.['step'] ?? '0') || 0));
+  const part = (['details', 'team', 'criteria', 'plan', 'ad', 'form', 'publishing'] as const).find(
+    (p) => p === props.search?.['edit'],
+  );
+  const edit = (next: Part | null) => props.onFilter?.({ edit: next });
   return (
     <Loaded load={props.load} what="the job">
-      {(data) => (
-        <div className="flex flex-col gap-4">
-          <PageHeader
-            title={data.job.title}
-            meta={<StateBadge state={data.job.state} />}
-            description={[
-              data.job.department,
+      {(data) => {
+        const ad = data.ads[0];
+        const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
+        const places = data.locations.filter((l) => data.job.locationIds.includes(l.id));
+        const facts = [
+          {
+            label: 'Location',
+            value: places.length === 0 ? 'Not set' : places.map((l) => l.name).join(', '),
+          },
+          { label: 'Work mode', value: MODE[data.job.workMode] ?? data.job.workMode },
+          { label: 'Contract', value: data.job.outline.contractType ?? 'Not set' },
+          { label: 'Hours', value: words(data.job.outline.hours) },
+          {
+            label: 'Level',
+            value: data.job.outline.seniority ? words(data.job.outline.seniority) : 'Not set',
+          },
+          { label: 'Team', value: data.job.department ?? 'Not set' },
+          { label: 'Openings', value: String(data.job.openings) },
+          {
+            label: 'Pay',
+            value:
               data.job.salary === null
-                ? null
-                : range(
-                    data.job.salary.minMinor,
-                    data.job.salary.maxMinor,
-                    data.job.salary.currency,
-                  ),
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-            actions={
-              <>
-                <Button
-                  variant="secondary"
-                  startIcon={<icons.people aria-hidden />}
-                  onClick={() => props.onNavigate?.(`/recruiting/jobs/${data.job.id}`)}
-                >
-                  Pipeline
-                </Button>
-                {data.job.state === 'open' ? (
+                ? 'Not set'
+                : `${range(data.job.salary.minMinor, data.job.salary.maxMinor, data.job.salary.currency)} a ${data.job.salary.period}${data.job.salaryShown ? '' : ' (not shown)'}`,
+          },
+        ];
+        return (
+          <div className="flex flex-col gap-4">
+            <PageHeader
+              title={data.job.title}
+              meta={<StateBadge state={data.job.state} />}
+              description={
+                ad === undefined
+                  ? 'No ad yet. Set the job up and draft one.'
+                  : 'The ad as a candidate reads it. Press a part to change it.'
+              }
+              actions={
+                <>
                   <Button
                     variant="secondary"
-                    loading={act.pending}
-                    onClick={() => {
-                      act.run('MoveJob', { jobId: data.job.id, input: { to: 'on_hold' } });
-                    }}
+                    startIcon={<icons.people aria-hidden />}
+                    onClick={() => props.onNavigate?.(`/recruiting/jobs/${data.job.id}`)}
                   >
-                    Put on hold
+                    Pipeline
                   </Button>
-                ) : null}
-                {/* The one press that matters: open if needed, then live on Kithena Jobs. */}
-                {data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live') ? (
                   <Button
                     variant="secondary"
-                    startIcon={<icons.externalLink aria-hidden />}
-                    onClick={() => props.onFilter?.({ tab: 'publishing' })}
+                    startIcon={<icons.settings aria-hidden />}
+                    onClick={() => props.onFilter?.({ setup: '1', step: null })}
                   >
-                    Live on Kithena Jobs
+                    Set up step by step
                   </Button>
-                ) : (
-                  <Button
-                    startIcon={<icons.send aria-hidden />}
-                    loading={act.pending}
-                    onClick={() => {
-                      const publish = (): void => {
-                        act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
-                      };
-                      if (data.job.state === 'open') publish();
-                      else
-                        act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } }, publish);
-                    }}
-                  >
-                    {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
-                  </Button>
-                )}
-              </>
-            }
-          />
-          <Refusal error={act.error} />
-          <Tabs
-            value={tab}
-            onValueChange={(v) => props.onFilter?.({ tab: v === 'details' ? null : v })}
-          >
-            <TabsList>
-              {TABS.map((t) => (
-                <TabsTrigger key={t} value={t}>
-                  {t === 'hiring'
-                    ? 'Criteria and interviews'
-                    : t === 'ad'
-                      ? 'Ad and apply form'
-                      : t === 'details'
-                        ? 'Job and team'
-                        : words(t)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <TabsContent value="details">
-              <div className="flex flex-col gap-6">
-                <Details data={data} props={props} />
-                <Team data={data} props={props} />
+                  {data.job.state === 'open' ? (
+                    <Button
+                      variant="secondary"
+                      loading={act.pending}
+                      onClick={() => {
+                        act.run('MoveJob', { jobId: data.job.id, input: { to: 'on_hold' } });
+                      }}
+                    >
+                      Put on hold
+                    </Button>
+                  ) : null}
+                  {live ? (
+                    <Button
+                      variant="secondary"
+                      startIcon={<icons.externalLink aria-hidden />}
+                      onClick={() => {
+                        edit('publishing');
+                      }}
+                    >
+                      Live on Kithena Jobs
+                    </Button>
+                  ) : (
+                    <Button
+                      startIcon={<icons.send aria-hidden />}
+                      loading={act.pending}
+                      disabled={ad === undefined}
+                      onClick={() => {
+                        const publish = (): void => {
+                          act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
+                        };
+                        if (data.job.state === 'open') publish();
+                        else
+                          act.run(
+                            'MoveJob',
+                            { jobId: data.job.id, input: { to: 'open' } },
+                            publish,
+                          );
+                      }}
+                    >
+                      {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
+                    </Button>
+                  )}
+                </>
+              }
+            />
+            <Refusal error={act.error} />
+            {/* The ad as Kithena Jobs lays it out: the facts, the words, the rail. */}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="flex min-w-0 flex-col gap-4">
+                <Region title="Title, pay and the facts" part="details" onEdit={edit}>
+                  <h3 className="text-2xl font-bold tracking-[-0.01em]">{data.job.title}</h3>
+                  <KeyValues
+                    items={facts}
+                    layout="aligned"
+                    labelWidth="7rem"
+                    className="mt-3 text-sm"
+                  />
+                </Region>
+                <Region title="The ad" part="ad" onEdit={edit}>
+                  {ad === undefined ? (
+                    <EmptyState
+                      icon={<icons.document aria-hidden />}
+                      title="No ad yet"
+                      description="Draft one with AI from the job, its criteria and the interview plan, or write it."
+                      action={
+                        <Button
+                          size="sm"
+                          startIcon={<icons.assistant aria-hidden />}
+                          onClick={() => {
+                            edit('ad');
+                          }}
+                        >
+                          Draft the ad
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <RichTextContent sanitisedHtml={ad.html} />
+                  )}
+                </Region>
+                <Region title="How to apply" part="form" onEdit={edit}>
+                  {data.form === null || data.form.fields.length === 0 ? (
+                    <p className="text-sm text-fg-muted">The standard form: name, email, CV.</p>
+                  ) : (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {data.form.fields
+                        .filter((f) => f.shown)
+                        .map((f) => (
+                          <li key={f.key}>
+                            <Badge size="sm" variant={f.required ? 'solid' : 'outline'}>
+                              {f.label}
+                            </Badge>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </Region>
               </div>
-            </TabsContent>
-            <TabsContent value="hiring">
+              <aside className="flex min-w-0 flex-col gap-4">
+                <Region title="Hiring team" part="team" onEdit={edit}>
+                  {data.team.length === 0 ? (
+                    <p className="text-sm text-fg-muted">Nobody yet.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {data.team.map((m) => (
+                        <li key={m.personId} className="flex items-center gap-2 text-sm">
+                          <Avatar name={m.name ?? m.personId} size="xs" aria-hidden />
+                          <span className="min-w-0 flex-1 truncate">{m.name ?? m.personId}</span>
+                          <span className="text-xs text-fg-muted">{words(m.role)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Region>
+                <Region title="What we look for" part="criteria" onEdit={edit}>
+                  {data.criteria.length === 0 ? (
+                    <p className="text-sm text-fg-muted">
+                      No criteria yet; the AI matrix needs them.
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {data.criteria.map((c) => (
+                        <li key={c.id} className="flex items-start gap-2">
+                          <Badge size="xs" tone={c.must ? 'accent' : 'neutral'}>
+                            {c.must ? 'Must' : 'Nice'}
+                          </Badge>
+                          <span>{c.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Region>
+                <Region title="The process" part="plan" onEdit={edit}>
+                  {data.plan.length === 0 ? (
+                    <p className="text-sm text-fg-muted">No interviews planned yet.</p>
+                  ) : (
+                    <ol className="flex flex-col gap-1 text-sm">
+                      {data.plan.map((p, i) => (
+                        <li key={p.key} className="flex items-center gap-2">
+                          <span className="text-xs text-fg-muted tabular-nums">
+                            {String(i + 1)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{p.title}</span>
+                          <span className="text-xs text-fg-muted">{`${String(p.minutes)} min`}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </Region>
+                <Region title="Where it is published" part="publishing" onEdit={edit}>
+                  {data.targets.filter((t) => t.state === 'live').length === 0 ? (
+                    <p className="text-sm text-fg-muted">Nowhere yet.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {data.targets
+                        .filter((t) => t.state === 'live')
+                        .map((t) => (
+                          <li key={t.target}>
+                            {TARGETS.find((x) => x.key === t.target)?.label ?? words(t.target)}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </Region>
+              </aside>
+            </div>
+
+            {/* A part, edited in a sheet off the ad. */}
+            <Sheet
+              open={part !== undefined}
+              onOpenChange={(open) => {
+                if (!open) edit(null);
+              }}
+            >
+              <SheetContent size="xl">
+                <SheetHeader>
+                  <SheetTitle>{part === undefined ? '' : PART_TITLE[part]}</SheetTitle>
+                </SheetHeader>
+                <SheetBody>
+                  {part === undefined ? null : <PartBody part={part} data={data} props={props} />}
+                </SheetBody>
+              </SheetContent>
+            </Sheet>
+
+            {/* A new job: the steps, with the bar that stays at the top as each scrolls. */}
+            <StepDialog
+              open={wizard}
+              wide
+              title={`Set up ${data.job.title}`}
+              description="Each step saves on its own; the last drafts the ad from all of them."
+              steps={STEPS.map((s) => s.label)}
+              step={step}
+              onStep={(i) => props.onFilter?.({ setup: '1', step: i === 0 ? null : String(i) })}
+              onClose={() => props.onFilter?.({ setup: null, step: null })}
+              finish={() => props.onFilter?.({ setup: null, step: null })}
+              finishLabel="Done, show the ad"
+            >
               <div className="flex flex-col gap-6">
-                <Criteria data={data} props={props} />
-                <Plan data={data} props={props} />
+                {STEPS[step]?.parts.map((p) => (
+                  <PartBody key={p} part={p} data={data} props={props} />
+                ))}
               </div>
-            </TabsContent>
-            <TabsContent value="ad">
-              <div className="flex flex-col gap-6">
-                <Ad data={data} props={props} />
-                <Form data={data} props={props} />
-              </div>
-            </TabsContent>
-            <TabsContent value="publishing">
-              <Publishing data={data} props={props} />
-            </TabsContent>
-          </Tabs>
-        </div>
-      )}
+            </StepDialog>
+          </div>
+        );
+      }}
     </Loaded>
   );
 }
