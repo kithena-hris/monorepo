@@ -532,7 +532,11 @@ function KitBody({
 
 const DAY_KEY = (iso: string) => iso.slice(0, 10);
 const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
-const LONG_DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+const LONG_DAY = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
 
 /** One ask as a row: what was offered or asked, where it stands, and the answer. */
 function AskRow({
@@ -645,8 +649,8 @@ function ScheduleBody({
   for (const s of data.slots) byDay.set(DAY_KEY(s), [...(byDay.get(DAY_KEY(s)) ?? []), s]);
   const today = DAY_KEY(data.from);
   const firstWithSlot = [...byDay.keys()][0] ?? today;
-  const [day, setDay] = useState<string>(firstWithSlot);
-  const times = byDay.get(day) ?? [];
+  const [chosenDay, setChosenDay] = useState<string>(firstWithSlot);
+  const times = byDay.get(chosenDay) ?? [];
   const booked = data.booked.map((b) => DAY_KEY(b.startsAt));
   const markers = Object.fromEntries([
     ...[...byDay.keys()].map((d) => [d, { tone: 'success', label: 'Free slot' }] as const),
@@ -710,22 +714,24 @@ function ScheduleBody({
                     today={today}
                     min={today}
                     month={today}
-                    selected={day}
+                    selected={chosenDay}
                     onSelect={(d) => {
-                      if (d !== null) setDay(d);
+                      if (d !== null) setChosenDay(d);
                     }}
                     onMonthChange={(m) => props.onFilter?.({ week: `${m.slice(0, 7)}-01` })}
                     markers={markers}
                   />
                   <div className="flex min-w-0 flex-col gap-3">
-                    <h3 className="font-semibold">{LONG_DAY.format(new Date(`${day}T00:00:00Z`))}</h3>
+                    <h3 className="font-semibold">
+                      {LONG_DAY.format(new Date(`${chosenDay}T00:00:00Z`))}
+                    </h3>
                     {times.length === 0 ? (
                       <p className="text-sm text-fg-muted">
                         No slot fits everyone that day. Pick a day with a green dot, or let the
                         candidate choose.
                       </p>
                     ) : (
-                      <ChipRow aria-label={`Times on ${day}`}>
+                      <ChipRow aria-label={`Times on ${chosenDay}`}>
                         {times.map((t) => (
                           <Chip
                             key={t}
@@ -777,7 +783,7 @@ function ScheduleBody({
                       </Badge>
                       <span className="font-medium">{b.title}</span>
                       <span className="text-fg-muted">{when(b.startsAt)}</span>
-                      {b.videoUrl ?? b.place ? (
+                      {(b.videoUrl ?? b.place) ? (
                         <span className="text-fg-muted">{b.videoUrl ?? b.place}</span>
                       ) : null}
                     </div>
@@ -800,7 +806,10 @@ function ScheduleBody({
                   setPicked([]);
                 }}
               >
-                <RadioCard value="book" description="One time, booked now. The invitation goes at once.">
+                <RadioCard
+                  value="book"
+                  description="One time, booked now. The invitation goes at once."
+                >
                   Book a time
                 </RadioCard>
                 <RadioCard

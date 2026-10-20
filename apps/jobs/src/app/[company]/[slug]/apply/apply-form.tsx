@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Checkbox,
+  DatePicker,
   Dropzone,
   EmptyState,
   Field,
@@ -31,6 +32,17 @@ import { useEffect, useState, useTransition, type JSX } from 'react';
 import { asUpload, publicApi } from '../../../../lib/browser-api';
 
 type FormField = PublicJob['form'][number];
+
+/** What goes in a box, by the field's key first and its kind after: a shape, never an instruction. */
+const PLACEHOLDER: Readonly<Record<string, string>> = {
+  name: 'Ada Lovelace',
+  email: 'ada@example.com',
+  phone: '+44 7700 900123',
+  url: 'https://',
+  linkedin: 'https://www.linkedin.com/in/…',
+  portfolio: 'https://',
+  number: '0',
+};
 type Value = string | boolean | readonly string[];
 
 const STEPS = [
@@ -108,6 +120,21 @@ function Answer({
     );
   }
   const text = typeof value === 'string' ? value : '';
+  if (field.kind === 'date')
+    return (
+      <Field required={field.required}>
+        <FieldLabel>{field.label}</FieldLabel>
+        <FieldControl>
+          <DatePicker
+            label={field.label}
+            value={text === '' ? null : text}
+            onChange={(d) => {
+              onChange(d ?? '');
+            }}
+          />
+        </FieldControl>
+      </Field>
+    );
   return (
     <Field required={field.required}>
       <FieldLabel>{field.label}</FieldLabel>
@@ -129,12 +156,11 @@ function Answer({
                   ? 'tel'
                   : field.kind === 'url'
                     ? 'url'
-                    : field.kind === 'date'
-                      ? 'date'
-                      : field.kind === 'number'
-                        ? 'number'
-                        : 'text'
+                    : field.kind === 'number'
+                      ? 'number'
+                      : 'text'
             }
+            placeholder={PLACEHOLDER[field.key] ?? PLACEHOLDER[field.kind]}
             autoComplete={
               field.key === 'name'
                 ? 'name'

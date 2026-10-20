@@ -1059,7 +1059,8 @@ export const ROUTES: readonly Route[] = [
     name: 'proposeSlots',
     method: 'POST',
     path: `${V1}/applications/{applicationId}/proposals`,
-    summary: 'R16: offer the candidate fixed times; they pick one or ask for others, by email at once',
+    summary:
+      'R16: offer the candidate fixed times; they pick one or ask for others, by email at once',
     params: z.object({ applicationId: Id }),
     body: z.object({
       planKey: text(40),
@@ -1075,7 +1076,8 @@ export const ROUTES: readonly Route[] = [
     name: 'requestInformation',
     method: 'POST',
     path: `${V1}/applications/{applicationId}/requests`,
-    summary: 'R11: ask the candidate for something; it lands on their page and in their inbox at once',
+    summary:
+      'R11: ask the candidate for something; it lands on their page and in their inbox at once',
     params: z.object({ applicationId: Id }),
     body: z.object({ label: text(200), detail: text(4000).nullable() }),
     status: 201,

@@ -552,14 +552,15 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     '';
   const mailed: Outgoing[] = [];
   const asMailing = <T>(who: 'ada' | 'public', fn: (ctx: Ctx) => Promise<T>): Promise<T> =>
-    uow.run(tenantId, async (tx) =>
-      fn(await contextOf(deps, tx, callerOf(who), mailed)),
-    );
+    uow.run(tenantId, async (tx) => fn(await contextOf(deps, tx, callerOf(who), mailed)));
   const offered = await asMailing('ada', async (ctx) =>
     value(
       await proposeSlots(ctx, applied.applicationId, {
         planKey: 'portfolio',
-        times: [Instant.parse('2026-10-22T09:00:00.000Z'), Instant.parse('2026-10-22T14:00:00.000Z')],
+        times: [
+          Instant.parse('2026-10-22T09:00:00.000Z'),
+          Instant.parse('2026-10-22T14:00:00.000Z'),
+        ],
         place: null,
         videoUrl: null,
         note: null,
@@ -568,7 +569,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   );
   expect(mailed.at(-1)?.subject).toMatch(/^Appointment requested/u);
   const notOffered = await asMailing('public', (ctx) =>
-    answerAsk(ctx, yukiId, offered.id, { time: Instant.parse('2026-10-23T09:00:00.000Z'), text: null }),
+    answerAsk(ctx, yukiId, offered.id, {
+      time: Instant.parse('2026-10-23T09:00:00.000Z'),
+      text: null,
+    }),
   );
   expect(notOffered.ok ? null : notOffered.error.code).toBe('NOT_OFFERED');
   const declined = await asMailing('public', async (ctx) =>
@@ -576,9 +580,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   );
   expect(declined.state).toBe('answered');
   expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/^Received:/u));
-  expect(mailed.map((m) => m.subject)).toContainEqual(
-    expect.stringMatching(/needs other times/u),
-  );
+  expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/needs other times/u));
   const question = await asMailing('ada', async (ctx) =>
     value(
       await requestInformation(ctx, applied.applicationId, {

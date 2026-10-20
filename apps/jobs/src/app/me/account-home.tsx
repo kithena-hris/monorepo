@@ -33,6 +33,7 @@ import { useMemo, useState, useTransition, type JSX } from 'react';
 
 import type { AccountHome as Home } from '../../lib/account';
 import { accountApi, asUpload, publicApi } from '../../lib/browser-api';
+import { NoticeDialog, NoticeList, noticesOf, type Notice } from '../../components/asks';
 
 /**
  * Every application, across every company, in one place: searched, filtered
@@ -80,7 +81,10 @@ export function AccountHome({
   const [group, setGroup] = useState<'company' | 'state'>('company');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [opened, setOpened] = useState<Notice | null>(null);
   const [pending, start] = useTransition();
+  const notices = useMemo(() => noticesOf(pages), [pages]);
+  const waiting = notices.filter((n) => n.open).length;
 
   const rows = useMemo<readonly Row[]>(
     () =>
@@ -178,178 +182,210 @@ export function AccountHome({
       )}
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <section aria-label="Your applications" className="flex min-w-0 flex-col gap-4">
-          {rows.length === 0 ? (
-            <EmptyState
-              icon={<icons.work aria-hidden />}
-              title="No applications yet"
-              description="Apply to a job and it will be here, with every step it goes through."
-              action={
-                <Button asChild variant="secondary">
-                  <Link href="/">Every open job</Link>
-                </Button>
-              }
-            />
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <Field className="min-w-56 flex-1">
-                  <FieldControl>
-                    <Input
-                      aria-label="Search your applications"
-                      placeholder="Search by job or company"
-                      value={q}
-                      onChange={(e) => {
-                        setQ(e.target.value);
-                      }}
-                    />
-                  </FieldControl>
-                </Field>
-                <SegmentedControl
-                  aria-label="Which applications"
-                  size="sm"
-                  value={state}
-                  onValueChange={(v) => {
-                    if (v === 'all' || v === 'active' || v === 'hired' || v === 'closed')
-                      setState(v);
-                  }}
-                >
-                  <SegmentedControlItem value="all">All</SegmentedControlItem>
-                  <SegmentedControlItem value="active">In progress</SegmentedControlItem>
-                  <SegmentedControlItem value="hired">Hired</SegmentedControlItem>
-                  <SegmentedControlItem value="closed">Closed</SegmentedControlItem>
-                </SegmentedControl>
-                <Select
-                  value={group}
-                  onValueChange={(v) => {
-                    if (v === 'company' || v === 'state') setGroup(v);
-                  }}
-                >
-                  <SelectTrigger aria-label="Group by" size="sm" className="w-44">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="company">By company</SelectItem>
-                    <SelectItem value="state">By state</SelectItem>
-                  </SelectContent>
-                </Select>
+        <div className="flex min-w-0 flex-col gap-8">
+          {notices.length === 0 ? null : (
+            <section aria-label="Notifications" className="flex min-w-0 flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold tracking-[-0.01em]">Notifications</h2>
+                {waiting === 0 ? null : (
+                  <Badge
+                    size="sm"
+                    tone="warning"
+                  >{`${String(waiting)} need${waiting === 1 ? 's' : ''} you`}</Badge>
+                )}
               </div>
-              {shown.length === 0 ? (
-                <p className="text-sm text-fg-muted">
-                  Nothing matches. Clear the search or the filter.
-                </p>
-              ) : null}
-              {[...groups.entries()].map(([title, members]) => (
-                <section key={title} className="flex flex-col gap-2">
-                  <h2 className="text-lg font-semibold tracking-[-0.01em]">{title}</h2>
-                  <List>
-                    {members.map((row) => {
-                      const a = row.application;
-                      const current = Math.max(
-                        0,
-                        a.steps.findIndex((s) => s.state === 'current'),
-                      );
-                      const ownPage = `/me/${row.company.slug}#${row.company.token}`;
-                      return (
-                        <ListItem
-                          key={a.applicationId}
-                          description={
-                            <span className="flex flex-col gap-2">
-                              <span>
-                                {group === 'company'
-                                  ? (OUTCOME[a.outcome] ?? a.outcome)
-                                  : row.company.name}
-                                {a.outcome === 'active' && a.stage !== null ? ` · ${a.stage}` : ''}
-                              </span>
-                              {a.outcome === 'active' && a.steps.length > 0 ? (
-                                <Stepper
-                                  label="Where it stands"
-                                  size="sm"
-                                  orientation="horizontal"
-                                  steps={a.steps.map((s, i) => ({ id: String(i), label: s.name }))}
-                                  current={current}
-                                />
-                              ) : null}
-                              {a.interviews.length > 0 ? (
-                                <span className="text-fg">
-                                  {`Interview: ${a.interviews
-                                    .map((i) =>
-                                      new Date(i.startsAt).toLocaleString('en-GB', {
-                                        weekday: 'short',
-                                        day: 'numeric',
-                                        month: 'short',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      }),
-                                    )
-                                    .join(', ')}`}
-                                </span>
-                              ) : null}
-                            </span>
-                          }
-                          trailing={
-                            <span className="flex items-center gap-2">
-                              <Badge size="sm" tone={TONE[a.outcome] ?? 'neutral'}>
-                                {a.offer !== null && a.outcome === 'active'
-                                  ? 'Offer'
-                                  : (OUTCOME[a.outcome] ?? a.outcome)}
-                              </Badge>
-                              <RowMenu
-                                name={a.job.title}
-                                actions={[
-                                  {
-                                    id: 'open',
-                                    label: `Open at ${row.company.name}`,
-                                    icon: <icons.externalLink aria-hidden />,
-                                    onSelect: () => {
-                                      window.location.assign(ownPage);
-                                    },
-                                  },
-                                  {
-                                    id: 'job',
-                                    label: 'See the job',
-                                    icon: <icons.work aria-hidden />,
-                                    onSelect: () => {
-                                      router.push(`/${row.company.slug}/${a.job.slug}`);
-                                    },
-                                  },
-                                  ...(a.outcome === 'active'
-                                    ? [
-                                        {
-                                          id: 'withdraw',
-                                          label: 'Withdraw application',
-                                          icon: <icons.close aria-hidden />,
-                                          destructive: true,
-                                          disabled: pending,
-                                          onSelect: () => {
-                                            withdraw(row);
-                                          },
-                                        },
-                                      ]
-                                    : []),
-                                ]}
-                              />
-                            </span>
-                          }
-                        >
-                          <span className="font-semibold">{a.job.title}</span>
-                          {a.offer !== null && a.outcome === 'active' ? (
-                            <a
-                              href={ownPage}
-                              className="ms-2 text-sm text-accent-fg underline underline-offset-4"
-                            >
-                              Read your offer
-                            </a>
-                          ) : null}
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                </section>
-              ))}
-            </>
+              <NoticeList
+                notices={notices}
+                onOpen={setOpened}
+                onOffer={(n) => {
+                  window.location.assign(`/me/${n.company.slug}#${n.company.token}`);
+                }}
+              />
+            </section>
           )}
-        </section>
+          <section aria-label="Your applications" className="flex min-w-0 flex-col gap-4">
+            {rows.length === 0 ? (
+              <EmptyState
+                icon={<icons.work aria-hidden />}
+                title="No applications yet"
+                description="Apply to a job and it will be here, with every step it goes through."
+                action={
+                  <Button asChild variant="secondary">
+                    <Link href="/">Every open job</Link>
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Field className="min-w-56 flex-1">
+                    <FieldControl>
+                      <Input
+                        aria-label="Search your applications"
+                        placeholder="Search by job or company"
+                        value={q}
+                        onChange={(e) => {
+                          setQ(e.target.value);
+                        }}
+                      />
+                    </FieldControl>
+                  </Field>
+                  <SegmentedControl
+                    aria-label="Which applications"
+                    size="sm"
+                    value={state}
+                    onValueChange={(v) => {
+                      if (v === 'all' || v === 'active' || v === 'hired' || v === 'closed')
+                        setState(v);
+                    }}
+                  >
+                    <SegmentedControlItem value="all">All</SegmentedControlItem>
+                    <SegmentedControlItem value="active">In progress</SegmentedControlItem>
+                    <SegmentedControlItem value="hired">Hired</SegmentedControlItem>
+                    <SegmentedControlItem value="closed">Closed</SegmentedControlItem>
+                  </SegmentedControl>
+                  <Select
+                    value={group}
+                    onValueChange={(v) => {
+                      if (v === 'company' || v === 'state') setGroup(v);
+                    }}
+                  >
+                    <SelectTrigger aria-label="Group by" size="sm" className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="company">By company</SelectItem>
+                      <SelectItem value="state">By state</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {shown.length === 0 ? (
+                  <p className="text-sm text-fg-muted">
+                    Nothing matches. Clear the search or the filter.
+                  </p>
+                ) : null}
+                {[...groups.entries()].map(([title, members]) => (
+                  <section key={title} className="flex flex-col gap-2">
+                    <h2 className="text-lg font-semibold tracking-[-0.01em]">{title}</h2>
+                    <List>
+                      {members.map((row) => {
+                        const a = row.application;
+                        const current = Math.max(
+                          0,
+                          a.steps.findIndex((s) => s.state === 'current'),
+                        );
+                        const ownPage = `/me/${row.company.slug}#${row.company.token}`;
+                        return (
+                          <ListItem
+                            key={a.applicationId}
+                            description={
+                              <span className="flex flex-col gap-2">
+                                <span>
+                                  {group === 'company'
+                                    ? (OUTCOME[a.outcome] ?? a.outcome)
+                                    : row.company.name}
+                                  {a.outcome === 'active' && a.stage !== null
+                                    ? ` · ${a.stage}`
+                                    : ''}
+                                </span>
+                                {a.outcome === 'active' && a.steps.length > 0 ? (
+                                  <Stepper
+                                    label="Where it stands"
+                                    size="sm"
+                                    orientation="horizontal"
+                                    steps={a.steps.map((s, i) => ({
+                                      id: String(i),
+                                      label: s.name,
+                                    }))}
+                                    current={current}
+                                  />
+                                ) : null}
+                                {a.interviews.length > 0 ? (
+                                  <span className="text-fg">
+                                    {`Interview: ${a.interviews
+                                      .map((i) =>
+                                        new Date(i.startsAt).toLocaleString('en-GB', {
+                                          weekday: 'short',
+                                          day: 'numeric',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        }),
+                                      )
+                                      .join(', ')}`}
+                                  </span>
+                                ) : null}
+                              </span>
+                            }
+                            trailing={
+                              <span className="flex items-center gap-2">
+                                <Badge size="sm" tone={TONE[a.outcome] ?? 'neutral'}>
+                                  {a.offer !== null && a.outcome === 'active'
+                                    ? 'Offer'
+                                    : (OUTCOME[a.outcome] ?? a.outcome)}
+                                </Badge>
+                                <RowMenu
+                                  name={a.job.title}
+                                  actions={[
+                                    {
+                                      id: 'open',
+                                      label: `Open at ${row.company.name}`,
+                                      icon: <icons.externalLink aria-hidden />,
+                                      onSelect: () => {
+                                        window.location.assign(ownPage);
+                                      },
+                                    },
+                                    {
+                                      id: 'job',
+                                      label: 'See the job',
+                                      icon: <icons.work aria-hidden />,
+                                      onSelect: () => {
+                                        router.push(`/${row.company.slug}/${a.job.slug}`);
+                                      },
+                                    },
+                                    ...(a.outcome === 'active'
+                                      ? [
+                                          {
+                                            id: 'withdraw',
+                                            label: 'Withdraw application',
+                                            icon: <icons.close aria-hidden />,
+                                            destructive: true,
+                                            disabled: pending,
+                                            onSelect: () => {
+                                              withdraw(row);
+                                            },
+                                          },
+                                        ]
+                                      : []),
+                                  ]}
+                                />
+                              </span>
+                            }
+                          >
+                            <Link
+                              href={`/${row.company.slug}/${a.job.slug}`}
+                              className="font-semibold hover:underline"
+                            >
+                              {a.job.title}
+                            </Link>
+                            {a.offer !== null && a.outcome === 'active' ? (
+                              <a
+                                href={ownPage}
+                                className="ms-2 text-sm text-accent-fg underline underline-offset-4"
+                              >
+                                Read your offer
+                              </a>
+                            ) : null}
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  </section>
+                ))}
+              </>
+            )}
+          </section>
+        </div>
 
         <aside className="flex flex-col gap-6">
           <section className="flex flex-col gap-3 rounded-2xl bg-surface p-5 shadow-sm">
@@ -375,6 +411,22 @@ export function AccountHome({
                       <RowMenu
                         name={cv.fileName}
                         actions={[
+                          {
+                            id: 'open',
+                            label: 'Open',
+                            icon: <icons.externalLink aria-hidden />,
+                            onSelect: () => {
+                              window.open(`/me/cv/${cv.id}`, '_blank', 'noopener');
+                            },
+                          },
+                          {
+                            id: 'download',
+                            label: 'Download',
+                            icon: <icons.download aria-hidden />,
+                            onSelect: () => {
+                              window.location.assign(`/me/cv/${cv.id}?download=1`);
+                            },
+                          },
                           ...(cv.isDefault
                             ? []
                             : [
@@ -480,6 +532,17 @@ export function AccountHome({
           </section>
         </aside>
       </div>
+      <NoticeDialog
+        notice={opened}
+        onClose={() => {
+          setOpened(null);
+        }}
+        onDone={(said) => {
+          setOpened(null);
+          setNotice(said);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
