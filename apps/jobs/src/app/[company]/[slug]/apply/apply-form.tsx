@@ -161,20 +161,31 @@ const missing = (fields: readonly FormField[], answers: Readonly<Record<string, 
     return f.required && (v === undefined || v === '' || (Array.isArray(v) && v.length === 0));
   });
 
-/** J4, J5: apply on a phone; CV first, then the fields, then consent, then the emailed code. */
+/** The signed-in account, when there is one: its address is proven, so no code; its default CV stands in for one not attached. */
+export interface ApplyingAccount {
+  readonly name: string;
+  readonly email: string;
+  readonly defaultCv: string | null;
+}
+
+/** J4, J5: apply on a phone; CV first, then the fields, then consent, then the emailed code, or none when signed in. */
 export function ApplyForm({
   job,
   source,
+  account = null,
 }: {
   readonly job: PublicJob;
   readonly source: string | null;
+  readonly account?: ApplyingAccount | null;
 }): JSX.Element {
   const company = job.company.slug;
   const fileFields = job.form.filter((f) => f.kind === 'file');
   const answerFields = job.form.filter((f) => f.kind !== 'file');
   const [step, setStep] = useState(0);
   const [files, setFiles] = useState<Readonly<Record<string, File>>>({});
-  const [answers, setAnswers] = useState<Readonly<Record<string, Value>>>({});
+  const [answers, setAnswers] = useState<Readonly<Record<string, Value>>>(
+    account === null ? {} : { name: account.name, email: account.email },
+  );
   const [adjustments, setAdjustments] = useState('');
   const [consent, setConsent] = useState(false);
   const [pool, setPool] = useState(false);
@@ -197,7 +208,11 @@ export function ApplyForm({
 
   const name = typeof answers['name'] === 'string' ? answers['name'] : '';
   const email = typeof answers['email'] === 'string' ? answers['email'] : '';
-  const filesMissing = fileFields.filter((f) => f.required && files[f.key] === undefined);
+  // A required CV is met by the library's default when signed in.
+  const filesMissing = fileFields.filter(
+    (f) =>
+      f.required && files[f.key] === undefined && !(f.key === 'cv' && account?.defaultCv != null),
+  );
   const answersMissing = missing(answerFields, answers);
 
   const askCode = () => {
@@ -240,7 +255,7 @@ export function ApplyForm({
             },
             adjustments: adjustments.trim() === '' ? null : adjustments,
             source: source === null ? { target: 'kithena_jobs' } : { link: source.slice(0, 80) },
-            code,
+            code: account === null ? code : '000000',
             ...(website === '' ? {} : { website }),
           },
           files: uploads,
@@ -269,7 +284,13 @@ export function ApplyForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <Stepper label="Applying" steps={STEPS} current={step} orientation="horizontal" size="sm" />
+      <Stepper
+        label="Applying"
+        steps={account === null ? STEPS : STEPS.slice(0, 3)}
+        current={step}
+        orientation="horizontal"
+        size="sm"
+      />
       {error === null ? null : (
         <Alert tone="danger" title="That did not go through">
           {error}
@@ -310,7 +331,11 @@ export function ApplyForm({
                   setFiles({ ...files, [f.key]: file });
                 }}
               />
-              {files[f.key] === undefined ? null : (
+              {files[f.key] === undefined ? (
+                f.key === 'cv' && account?.defaultCv != null ? (
+                  <p className="text-sm text-fg-muted">{`Nothing attached: ${account.defaultCv}, your default CV, goes with this application.`}</p>
+                ) : null
+              ) : (
                 <p className="text-sm">{`${files[f.key]?.name ?? ''} · ${String(Math.ceil((files[f.key]?.size ?? 0) / 1024))} KB`}</p>
               )}
             </div>
@@ -441,13 +466,27 @@ export function ApplyForm({
             >
               Back
             </Button>
-            <Button
-              disabled={!consent || name === '' || !email.includes('@') || (job.nycNotice && !nyc)}
-              loading={pending}
-              onClick={askCode}
-            >
-              Email me a code
-            </Button>
+            {account === null ? (
+              <Button
+                disabled={
+                  !consent || name === '' || !email.includes('@') || (job.nycNotice && !nyc)
+                }
+                loading={pending}
+                onClick={askCode}
+              >
+                Email me a code
+              </Button>
+            ) : (
+              <Button
+                disabled={
+                  !consent || name === '' || !email.includes('@') || (job.nycNotice && !nyc)
+                }
+                loading={pending}
+                onClick={send}
+              >
+                Send application
+              </Button>
+            )}
           </div>
         </section>
       ) : null}

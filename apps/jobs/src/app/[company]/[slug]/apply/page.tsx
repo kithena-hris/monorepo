@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { me } from '../../../../lib/account';
 import { job as readJob } from '../../../../lib/api';
 import { ApplyForm } from './apply-form';
 
@@ -22,11 +24,31 @@ export default async function Apply({
   const { lang, src } = await searchParams;
   const answer = await readJob(company, slug, lang);
   if (!answer.ok || answer.data.closed) notFound();
+  const home = await me();
+  const account =
+    home === null
+      ? null
+      : {
+          name: home.name,
+          email: home.email,
+          defaultCv: home.cvs.find((c) => c.isDefault)?.fileName ?? null,
+        };
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
       <p className="text-sm text-fg-muted">{answer.data.company.name}</p>
       <h1 className="text-2xl font-bold">{`Apply: ${answer.data.title}`}</h1>
-      <ApplyForm job={answer.data} source={src ?? null} />
+      {account === null ? (
+        <p className="text-sm text-fg-muted">
+          <Link
+            href={`/sign-in?next=/${company}/${slug}/apply`}
+            className="text-accent-fg underline underline-offset-4"
+          >
+            Sign in
+          </Link>
+          {' to apply without a code, with the CV you keep here.'}
+        </p>
+      ) : null}
+      <ApplyForm job={answer.data} source={src ?? null} account={account} />
     </div>
   );
 }

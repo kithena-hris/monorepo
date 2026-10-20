@@ -38,6 +38,7 @@ import {
   requestCode,
   type IncomingFile,
   previewJob,
+  type ApplyingAccount,
 } from '../application/intake.js';
 import {
   answerReference,
@@ -126,6 +127,7 @@ import {
   settingsScreen,
 } from '../application/screens.js';
 import { settingsInWords } from '../application/settings-in-words.js';
+import { accountByToken, defaultCv } from '../application/accounts.js';
 import {
   removeBenefit,
   removeChain,
@@ -1714,7 +1716,8 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ payload: z.unknown(), files: z.array(File).max(6).optional() }),
     status: 201,
     public: true,
-    run: (ctx, { body }) => apply(ctx, body.payload, files(body.files)),
+    run: async (ctx, { body, headers }) =>
+      apply(ctx, body.payload, files(body.files), await applyingAccount(ctx, headers)),
   }),
   route({
     name: 'publicMe',
@@ -2039,6 +2042,27 @@ const header = (headers: RestRequest['headers'], name: string): string => {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
 };
 const tokenOf = (headers: RestRequest['headers']) => header(headers, 'x-candidate-token');
+
+/** The signed-in Kithena Jobs account behind an apply, with its default CV, or null. */
+async function applyingAccount(
+  ctx: Ctx,
+  headers: RestRequest['headers'],
+): Promise<ApplyingAccount | null> {
+  const token = header(headers, 'x-account-token');
+  const accounts = ctx.deps.accounts;
+  if (token === '' || accounts === undefined) return null;
+  const d = { accounts, deps: ctx.deps, at: ctx.at };
+  const account = await accountByToken(d, token);
+  if (account === null) return null;
+  const cv = await defaultCv(d, account);
+  return {
+    email: account.email,
+    defaultCv:
+      cv === null
+        ? null
+        : { field: 'cv', fileName: cv.fileName, mediaType: cv.mediaType, bytes: cv.bytes },
+  };
+}
 const ipOf = (headers: RestRequest['headers']) =>
   header(headers, 'x-forwarded-for').split(',')[0]?.trim() ?? '';
 

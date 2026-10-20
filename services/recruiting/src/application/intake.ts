@@ -326,11 +326,25 @@ async function land(
   return ok(app);
 }
 
+/** The signed-in account applying (PRD §10.5, extended): its address is proven, and its default CV stands in for one not attached. */
+export interface ApplyingAccount {
+  readonly email: string;
+  readonly defaultCv: IncomingFile | null;
+}
+
 export async function apply(
   ctx: Ctx,
   input: unknown,
-  files: readonly IncomingFile[],
+  given: readonly IncomingFile[],
+  account: ApplyingAccount | null = null,
 ): Promise<Result<Applied>> {
+  // Signed in, with no CV attached: the library's default one applies.
+  const files =
+    account?.defaultCv !== null &&
+    account?.defaultCv !== undefined &&
+    !given.some((f) => f.field === 'cv')
+      ? [...given, account.defaultCv]
+      : given;
   const parsed = ApplyPayload.safeParse(input);
   if (!parsed.success)
     return err(failure('INVALID', parsed.error.issues[0]?.message ?? 'Check the form'));
@@ -365,17 +379,20 @@ export async function apply(
       ),
     );
   const email = String(checked.data['email']);
-  const held = await ctx.tx.codes.get(normalEmail(email), job.id);
-  if (held === null || held.expiresAt < ctx.at)
-    return err(failure('CODE_EXPIRED', 'Ask for a new code'));
-  if (held.attempts >= MAX_ATTEMPTS)
-    return err(failure('CODE_ATTEMPTS', 'Too many tries; ask for a new code'));
-  const given = Buffer.from(sha256(payload.code));
-  if (!timingSafeEqual(given, Buffer.from(held.codeHash))) {
-    await ctx.tx.codes.attempt(normalEmail(email), job.id);
-    return err(failure('CODE_WRONG', 'That code is not right'));
+  // An account already proved the address; anyone else proves it with the emailed code.
+  if (account === null || normalEmail(account.email) !== normalEmail(email)) {
+    const held = await ctx.tx.codes.get(normalEmail(email), job.id);
+    if (held === null || held.expiresAt < ctx.at)
+      return err(failure('CODE_EXPIRED', 'Ask for a new code'));
+    if (held.attempts >= MAX_ATTEMPTS)
+      return err(failure('CODE_ATTEMPTS', 'Too many tries; ask for a new code'));
+    const typed = Buffer.from(sha256(payload.code));
+    if (!timingSafeEqual(typed, Buffer.from(held.codeHash))) {
+      await ctx.tx.codes.attempt(normalEmail(email), job.id);
+      return err(failure('CODE_WRONG', 'That code is not right'));
+    }
+    await ctx.tx.codes.remove(normalEmail(email), job.id);
   }
-  await ctx.tx.codes.remove(normalEmail(email), job.id);
   const name = String(checked.data['name']);
   const phone = typeof checked.data['phone'] === 'string' ? checked.data['phone'] : null;
   const cv = files.find((f) => f.field === 'cv');

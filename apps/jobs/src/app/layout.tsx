@@ -2,9 +2,11 @@ import { Button, KithenaMark, TooltipProvider } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
 import './globals.css';
+import { SESSION_COOKIE } from '../lib/account';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com'),
@@ -14,7 +16,12 @@ export const metadata: Metadata = {
 };
 
 /** Kithena Jobs (REC-090): one header, the page, a short footer, nothing else. */
-export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}): Promise<JSX.Element> {
+  const signedIn = (await cookies()).get(SESSION_COOKIE) !== undefined;
   return (
     <html lang="en">
       <body className="flex min-h-dvh flex-col bg-[var(--reach-bg)] text-fg">
@@ -32,6 +39,15 @@ export default function RootLayout({ children }: { children: ReactNode }): JSX.E
                 <Button asChild variant="ghost" size="sm">
                   <Link href="/search">Search</Link>
                 </Button>
+                {signedIn ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href="/me">Your applications</Link>
+                  </Button>
+                ) : (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href="/sign-in">Sign in</Link>
+                  </Button>
+                )}
               </nav>
             </div>
           </header>

@@ -5,6 +5,7 @@ import { systemClock } from '@kithena/domain-kit';
 import type { Deps, Listings } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import type { CallerFrom } from './caller.js';
+import { accountsAnswer, type AccountsAnswer } from './accounts.js';
 import { listingsAnswer } from './listings.js';
 import { allowed } from './limits.js';
 import { planSearch } from '../application/job-assistant.js';
@@ -56,6 +57,13 @@ export function recruitingListener(
   plan?: (
     sentence: string,
   ) => Promise<Result<{ readonly filters: JobSearch; readonly say: string }>>,
+  /** Candidate accounts' routes, when accounts are configured. */
+  accounts?: (
+    method: string,
+    url: string,
+    headers: Readonly<Record<string, string | string[] | undefined>>,
+    body: string | null,
+  ) => Promise<AccountsAnswer | null>,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
@@ -88,7 +96,7 @@ export function recruitingListener(
           response
             .writeHead(204, {
               'access-control-allow-methods': 'GET, POST',
-              'access-control-allow-headers': 'content-type, x-candidate-token',
+              'access-control-allow-headers': 'content-type, x-candidate-token, x-account-token',
               'access-control-max-age': '600',
             })
             .end();
@@ -130,6 +138,23 @@ export function recruitingListener(
         return;
       }
       const body = await bodyOf(request);
+      if (accounts !== undefined) {
+        const own = await accounts(
+          request.method ?? 'GET',
+          request.url ?? '/',
+          request.headers,
+          body,
+        );
+        if (own !== null) {
+          response
+            .writeHead(own.status, {
+              'content-type': 'application/json',
+              'cache-control': 'no-store',
+            })
+            .end(JSON.stringify(own.body));
+          return;
+        }
+      }
       if (request.method === 'POST' && request.url === INDEED_APPLY && body !== null) {
         // `jobMeta` is what Kithena sent with the posting: `<company>/<jobId>`.
         let company = '';
@@ -245,6 +270,8 @@ export interface RecruitingServerOptions extends Pick<
   readonly chat?: Deps['chat'];
   /** Kithena Jobs' reads, when the read-only role is configured. */
   readonly listings?: Listings;
+  readonly accounts?: Deps['accounts'];
+  readonly verifyGoogle?: Deps['verifyGoogle'];
 }
 
 /** Recruiting's transports over a unit of work and a blob store. */
@@ -276,7 +303,10 @@ export function recruitingServer(
       ? {}
       : { workspaceCalendar: options.workspaceCalendar }),
     ...(options.chat === undefined ? {} : { chat: options.chat }),
+    ...(options.accounts === undefined ? {} : { accounts: options.accounts }),
+    ...(options.verifyGoogle === undefined ? {} : { verifyGoogle: options.verifyGoogle }),
   };
+  const accounts = deps.accounts;
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });
   const graphql = createYoga(yogaOptions);
@@ -291,6 +321,16 @@ export function recruitingServer(
       options.listings,
       options.jobsOrigin,
       (sentence) => planSearch(deps.model, sentence),
+      accounts === undefined
+        ? undefined
+        : (method, url, headers, body) =>
+            accountsAnswer(
+              { accounts, deps, at: deps.clock.instant() },
+              method,
+              url,
+              headers,
+              body,
+            ),
     ),
   };
 }

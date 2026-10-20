@@ -980,12 +980,75 @@ export interface Listings {
   companyForHost(host: string): Promise<string | null>;
 }
 
+/* ------------------------------------------------- candidate accounts -- */
+
+/**
+ * A candidate's account on Kithena Jobs (PRD §10.5, extended): one across
+ * every company, holding only what is the candidate's own. No tenant.
+ */
+export interface CandidateAccount {
+  readonly id: string;
+  readonly email: string;
+  readonly emailNorm: string;
+  readonly name: string;
+  readonly googleSub: string | null;
+  readonly consentedAt: Instant | null;
+  readonly consentNotice: string | null;
+  readonly codeHash: string | null;
+  readonly codeExpiresAt: Instant | null;
+  readonly codeAttempts: number;
+  readonly createdAt: Instant;
+  readonly lastSeenAt: Instant;
+}
+
+export interface CandidateCv {
+  readonly id: string;
+  readonly accountId: string;
+  readonly fileName: string;
+  readonly mediaType: string;
+  readonly blobKey: string;
+  readonly size: number;
+  readonly isDefault: boolean;
+  readonly uploadedAt: Instant;
+}
+
+export interface Accounts {
+  byEmail(emailNorm: string): Promise<CandidateAccount | null>;
+  byGoogleSub(sub: string): Promise<CandidateAccount | null>;
+  save(account: CandidateAccount): Promise<void>;
+  putSession(tokenHash: string, accountId: string, expiresAt: Instant): Promise<void>;
+  bySession(tokenHash: string, now: Instant): Promise<CandidateAccount | null>;
+  endSession(tokenHash: string): Promise<void>;
+  cvs(accountId: string): Promise<readonly CandidateCv[]>;
+  saveCv(cv: CandidateCv): Promise<void>;
+  setDefaultCv(accountId: string, cvId: string): Promise<void>;
+  removeCv(cvId: string): Promise<void>;
+}
+
+/** What Google vouched for, checked against this site's client id. */
+export interface GoogleIdentity {
+  readonly sub: string;
+  readonly email: string;
+  readonly emailVerified: boolean;
+  readonly name: string | null;
+}
+
+export interface IncomingUpload {
+  readonly fileName: string;
+  readonly mediaType: string;
+  readonly bytes: Uint8Array;
+}
+
 export interface Deps {
   readonly uow: UnitOfWork;
   readonly blobs: Blobs;
   readonly clock: Clock;
   readonly newId: () => string;
   readonly mailer?: Mailer;
+  /** Candidate accounts on Kithena Jobs; absent, the site has no sign-in and applying needs a code every time. */
+  readonly accounts?: Accounts;
+  /** Google's answer to an ID token from the site's own client; absent, there is no Google sign-in. */
+  readonly verifyGoogle?: (idToken: string) => Promise<GoogleIdentity | null>;
   /**
    * Where candidates' replies arrive (PRD §12.7): Resend receives mail for
    * `domain`, and messaging hands each reply back presenting `token`. Absent,

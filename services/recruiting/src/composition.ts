@@ -25,6 +25,8 @@ import { chatFrom } from './infrastructure/slack.js';
 import { ownBoards } from './application/boards.js';
 import { mailerFrom } from './infrastructure/messaging.js';
 import { listingsFrom } from './infrastructure/listings.js';
+import { postgresAccounts } from './infrastructure/accounts.js';
+import { googleVerifier } from './application/accounts.js';
 import { extract } from './infrastructure/text.js';
 import { drizzleUnitOfWork, recruitingDatabase } from './infrastructure/unit-of-work.js';
 
@@ -95,6 +97,10 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
       ...(mailer === undefined ? {} : { mailer }),
       ...(listings === null ? {} : { listings }),
+      accounts: postgresAccounts(db),
+      ...(env['JOBS_GOOGLE_CLIENT_ID']
+        ? { verifyGoogle: googleVerifier(env['JOBS_GOOGLE_CLIENT_ID']) }
+        : {}),
       ...(model === undefined ? {} : { model }),
       ...(sealer === undefined ? {} : { sealer }),
       ...(domains === undefined ? {} : { domains }),
