@@ -58,36 +58,36 @@ export function SearchBar({
         <SegmentedControlItem value="describe">Describe it</SegmentedControlItem>
       </SegmentedControl>
       {mode === 'keywords' ? (
-        <form
-          action="/search"
-          method="get"
-          role="search"
-          className="flex w-full flex-col gap-2 sm:flex-row"
-        >
-          <Input
-            name="q"
-            size={control}
-            defaultValue={q}
-            aria-label="Job title, skill or company"
-            placeholder="Job title, skill or company"
-            className="flex-1"
-          />
-          <Select name="country" defaultValue={country === '' ? 'any' : country}>
-            <SelectTrigger aria-label="Country" size={control} className="sm:w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Anywhere</SelectItem>
-              {['DE', 'ES', 'GB', 'IN', 'US'].map((c) => (
-                <SelectItem key={c} value={c}>
-                  {countryName(c)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button type="submit" size={control} startIcon={<icons.search aria-hidden />}>
-            Search
-          </Button>
+        <form action="/search" method="get" role="search" className="flex w-full flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              name="q"
+              size={control}
+              defaultValue={q}
+              aria-label="Job title, skill or company"
+              placeholder="Job title, skill or company"
+              className="flex-1"
+            />
+            <Select name="country" defaultValue={country === '' ? 'any' : country}>
+              <SelectTrigger aria-label="Country" size={control} className="sm:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Anywhere</SelectItem>
+                {['DE', 'ES', 'GB', 'IN', 'US'].map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {countryName(c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="submit" size={control} startIcon={<icons.search aria-hidden />}>
+              Search
+            </Button>
+          </div>
+          <p className="text-sm text-fg-muted">
+            A title, a skill or a company; a country narrows it. Every filter is in the address.
+          </p>
         </form>
       ) : (
         <form
