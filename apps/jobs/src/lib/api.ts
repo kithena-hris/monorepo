@@ -42,6 +42,8 @@ async function call<T>(
 export interface Results {
   readonly rows: readonly PublicListing[];
   readonly total: number;
+  /** When words matched nothing whole: the closest jobs, by any of them. */
+  readonly nearby?: readonly PublicListing[];
 }
 
 /** The search's address, passed through: it is already the API's query. */
@@ -54,6 +56,12 @@ export const job = (company: string, slug: string, language?: string): Promise<A
       language === undefined ? '' : `?language=${encodeURIComponent(language)}`
     }`,
     { revalidate: 60 },
+  );
+
+/** R7: a job as it will look here, by the token its team holds; never cached. */
+export const preview = (company: string, token: string): Promise<Answer<PublicJob>> =>
+  call<PublicJob>(
+    `/v1/recruiting/public/${encodeURIComponent(company)}/preview/${encodeURIComponent(token)}`,
   );
 
 export const company = (

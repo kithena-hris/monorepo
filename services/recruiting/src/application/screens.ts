@@ -13,6 +13,7 @@ import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
 import { jobFacts, notFound, recruiterOnly, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
+import { previewTokenFor } from './intake.js';
 import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
 import { checkOffer } from './offers.js';
@@ -165,6 +166,8 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     stages: await ctx.tx.jobs.stages(jobId),
     form: await ctx.tx.jobs.form(jobId),
     ads: await ctx.tx.jobs.ads(jobId),
+    // The ad as Kithena Jobs will show it, before and after publishing (R7).
+    preview: `${ctx.deps.jobsOrigin}/preview/${(await generalSettings(ctx)).companySlug}/${await previewTokenFor(ctx, jobId)}`,
     targets: await ctx.tx.jobs.targets(jobId),
     // Boards with an adapter configured here (Indeed once its agreement is signed).
     boards: (ctx.deps.boards ?? []).map((b) => b.target),

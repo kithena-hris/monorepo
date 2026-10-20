@@ -62,15 +62,24 @@ export async function asUpload(
 export const tokenFromHash = (): string =>
   typeof window === 'undefined' ? '' : decodeURIComponent(window.location.hash.replace(/^#/u, ''));
 
-/** J8 on search: a sentence turned into the search's own filters, or null. */
-export async function planSearch(sentence: string): Promise<Record<string, unknown> | null> {
+/** J8 on search: a sentence turned into the search's own filters, and what the AI understood, or null. */
+export async function planSearch(
+  sentence: string,
+): Promise<{ readonly filters: Record<string, unknown>; readonly say: string } | null> {
   try {
     const response = await fetch(`${base()}/v1/recruiting/public/search-plan`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sentence }),
     });
-    return response.ok ? ((await response.json()) as Record<string, unknown>) : null;
+    if (!response.ok) return null;
+    const plan = (await response.json()) as { filters?: unknown; say?: unknown };
+    return typeof plan.filters === 'object' && plan.filters !== null
+      ? {
+          filters: plan.filters as Record<string, unknown>,
+          say: typeof plan.say === 'string' ? plan.say : '',
+        }
+      : null;
   } catch {
     return null;
   }

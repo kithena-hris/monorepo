@@ -53,7 +53,9 @@ export function recruitingListener(
   listings?: Listings,
   publicOrigin?: string,
   /** J8 on search: a sentence to filters, when there is a model. */
-  plan?: (sentence: string) => Promise<Result<JobSearch>>,
+  plan?: (
+    sentence: string,
+  ) => Promise<Result<{ readonly filters: JobSearch; readonly say: string }>>,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {

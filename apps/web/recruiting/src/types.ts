@@ -197,6 +197,8 @@ export interface JobData {
     readonly checks: readonly AdCheck[];
   }[];
   readonly targets: readonly Target[];
+  /** The ad on Kithena Jobs, before and after publishing: a preview address the team holds for a day. */
+  readonly preview: string;
   /** Boards Recruiting has an adapter for here, beyond its own pages. */
   readonly boards: readonly string[];
   /** The chat channel new applicants are posted to; null when no chat app is set up. */

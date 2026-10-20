@@ -772,7 +772,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     ),
   );
   expect(answered).toEqual({ ai: true, answer: 'It is hybrid.', answered: true });
-  const planned = value(await planSearch(writing.model, 'remote jobs in Spain'));
+  const planned = value(await planSearch(writing.model, 'remote jobs in Spain')).filters;
   expect([planned.workMode, planned.country, 'bogus' in planned]).toEqual([
     ['remote'],
     'ES',

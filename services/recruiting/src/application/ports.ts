@@ -964,7 +964,16 @@ export interface Mailer {
  * companies, through a role that may read nothing else. No tenant, no caller.
  */
 export interface Listings {
-  search(query: JobSearch): Promise<{ rows: readonly PublicListing[]; total: number }>;
+  /**
+   * The search. When words were given and nothing matches them whole, `nearby`
+   * carries the closest listings instead (any of the words, the country kept,
+   * every other filter dropped), so a search never ends on nothing.
+   */
+  search(query: JobSearch): Promise<{
+    rows: readonly PublicListing[];
+    total: number;
+    nearby?: readonly PublicListing[];
+  }>;
   job(company: string, slug: string, language: string | null): Promise<PublicJob | null>;
   company(slug: string): Promise<{ company: PublicCompany; jobs: readonly PublicListing[] } | null>;
   /** The company a verified careers domain shows, or null (REC-136). */

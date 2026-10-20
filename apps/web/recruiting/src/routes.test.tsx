@@ -232,6 +232,7 @@ const job: JobData = {
       ],
     },
   ],
+  preview: 'https://jobs.example/preview/acme/token',
   targets: [],
   boards: [],
   chat: null,

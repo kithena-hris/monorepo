@@ -37,6 +37,7 @@ import {
   refer,
   requestCode,
   type IncomingFile,
+  previewJob,
 } from '../application/intake.js';
 import {
   answerReference,
@@ -1684,6 +1685,15 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ state: text(200).min(1), code: text(2000).nullable() }),
     public: true,
     run: (ctx, { body }) => receiveGrant(ctx, body.state, body.code),
+  }),
+  route({
+    name: 'publicPreview',
+    method: 'GET',
+    path: `${V1}/public/{company}/preview/{token}`,
+    summary: 'R7: a job as Kithena Jobs will show it, by the token its team holds',
+    params: z.object({ company: text(63), token: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/u) }),
+    public: true,
+    run: (ctx, { params }) => previewJob(ctx, params.token, null),
   }),
   route({
     name: 'publicCode',

@@ -61,7 +61,7 @@ export function postgresListings(sql: postgres.Sql): Listings {
         SELECT page, count(*) OVER () AS total
         FROM recruiting_public.listing
         WHERE NOT closed
-          ${query.company === undefined ? sql`AND searchable` : sql`AND company_slug = ${query.company}`}
+          ${query.company === undefined ? sql`` : sql`AND company_slug = ${query.company}`}
           ${q === '' ? sql`` : sql`AND tsv @@ ${tsq}`}
           ${query.country === undefined ? sql`` : sql`AND ${query.country} = ANY(country)`}
           ${query.workMode === undefined || query.workMode.length === 0 ? sql`` : sql`AND work_mode = ANY(${[...query.workMode]})`}
@@ -71,10 +71,26 @@ export function postgresListings(sql: postgres.Sql): Listings {
           ${query.salaryFromMinor === undefined ? sql`` : sql`AND salary_max_minor >= ${query.salaryFromMinor}`}
         ${order}
         LIMIT ${PAGE} OFFSET ${(query.page - 1) * PAGE}`;
-      return {
-        rows: rows.map((r) => PublicListing.parse(r.page)),
-        total: Number(rows[0]?.total ?? 0),
-      };
+      const total = Number(rows[0]?.total ?? 0);
+      if (total > 0 || q === '')
+        return { rows: rows.map((r) => PublicListing.parse(r.page)), total };
+      // Nothing matched every word: the closest, by any of them, with only the country kept.
+      const words = q
+        .split(/[^\p{L}\p{N}+#.]+/u)
+        .filter((w) => w.length > 1)
+        .slice(0, 8);
+      if (words.length === 0) return { rows: [], total: 0 };
+      const any = sql`(to_tsquery('simple', ${words.map((w) => `'${w.replaceAll("'", '')}':*`).join(' | ')})
+        || to_tsquery('english', ${words.map((w) => `'${w.replaceAll("'", '')}':*`).join(' | ')}))`;
+      const near = await sql<{ page: unknown }[]>`
+        SELECT page FROM recruiting_public.listing
+        WHERE NOT closed
+          ${query.company === undefined ? sql`` : sql`AND company_slug = ${query.company}`}
+          ${query.country === undefined ? sql`` : sql`AND ${query.country} = ANY(country)`}
+          AND tsv @@ ${any}
+        ORDER BY ts_rank(tsv, ${any}) DESC, posted_at DESC
+        LIMIT 10`;
+      return { rows: [], total: 0, nearby: near.map((r) => PublicListing.parse(r.page)) };
     },
     async job(company, slug, language) {
       const rows = await sql<{ page: unknown }[]>`

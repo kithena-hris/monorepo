@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Checkbox,
   EmptyState,
   Field,
@@ -21,7 +20,6 @@ import type { JSX } from 'react';
 
 import { JobCard } from '../../components/job-card';
 import { SearchBar } from '../../components/search-bar';
-import { SearchSentence } from '../../components/search-sentence';
 import { search } from '../../lib/api';
 import { queryOf, type Search } from '../../lib/query';
 
@@ -72,16 +70,23 @@ function Choose({
   );
 }
 
-/** J2: results, server-rendered; every filter is in the address, so every page is bookmarkable. */
+/**
+ * J2: results, server-rendered; every filter is in the address, so every page
+ * is bookmarkable. When nothing matches every word, the closest jobs are
+ * shown instead of nothing, and the page says so.
+ */
 export default async function Results({
   searchParams,
 }: {
   searchParams: Search;
 }): Promise<JSX.Element> {
   const query = queryOf(await searchParams);
+  const said = query.get('said') ?? '';
+  query.delete('said');
   const answer = await search(query);
   const modes = new Set((query.get('workMode') ?? '').split(','));
   const page = Number(query.get('page') ?? '1');
+  const q = query.get('q') ?? '';
   const at = (n: number) => {
     const next = new URLSearchParams(query);
     next.set('page', String(n));
@@ -89,8 +94,13 @@ export default async function Results({
   };
   return (
     <>
-      <SearchBar q={query.get('q') ?? ''} country={query.get('country') ?? ''} />
-      <SearchSentence />
+      <SearchBar q={q} country={query.get('country') ?? ''} said={said} />
+      {said === '' ? null : (
+        <p className="flex items-center gap-2 text-sm text-fg-muted">
+          <icons.assistant aria-hidden className="size-4 text-accent-fg" />
+          {`Understood: ${said}. The filters are in the address; change any of them.`}
+        </p>
+      )}
       <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <form action="/search" method="get" aria-label="Filters" className="flex flex-col gap-4">
           {(['q', 'country'] as const).map((k) =>
@@ -159,18 +169,36 @@ export default async function Results({
               {answer.message}
             </Alert>
           ) : answer.data.rows.length === 0 ? (
-            <Card padded>
+            answer.data.nearby !== undefined && answer.data.nearby.length > 0 ? (
+              <>
+                <Alert
+                  tone="info"
+                  icon={<icons.assistant aria-hidden />}
+                  title={`Nothing matches “${q}” exactly`}
+                >
+                  {`These are the closest to what you asked for${said === '' ? '' : ` (${said.replace(/\.$/u, '')})`}: they share the skills or the field, so one may fit better than its title suggests.`}
+                </Alert>
+                {answer.data.nearby.map((job, i) => (
+                  <JobCard key={`${job.jobId}:${job.language}`} job={job} index={i} />
+                ))}
+              </>
+            ) : (
               <EmptyState
                 icon={<icons.search aria-hidden />}
                 title="No jobs match"
-                description="Try fewer filters, or another word."
+                description="Try fewer filters, another word, or describe what you want and let the AI set the filters."
+                action={
+                  <Button asChild variant="secondary">
+                    <Link href="/">Every open job</Link>
+                  </Button>
+                }
               />
-            </Card>
+            )
           ) : (
             <>
               <h2 className="font-semibold">{`${answer.data.total.toLocaleString('en-GB')} job${answer.data.total === 1 ? '' : 's'}`}</h2>
-              {answer.data.rows.map((job) => (
-                <JobCard key={`${job.jobId}:${job.language}`} job={job} />
+              {answer.data.rows.map((job, i) => (
+                <JobCard key={`${job.jobId}:${job.language}`} job={job} index={i} />
               ))}
               <nav aria-label="Pages" className="flex justify-center gap-2">
                 {page > 1 ? (

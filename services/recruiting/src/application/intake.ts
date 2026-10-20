@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import {
   ApplyPayload,
   type ApplicationSource,
+  type PublicJob,
   type PublicationTarget,
   type TenantId,
 } from '@kithena/contracts';
@@ -16,6 +17,7 @@ import { score, type Answer } from '../domain/screening/questionnaire.js';
 import { asPerson, event, notFound, publish, type Ctx } from './context.js';
 import type { ApplicationRecord, Candidate, CandidateFile, Deps, JobRecord } from './ports.js';
 import { generalSettings } from './setup.js';
+import { pagesFor } from './jobs.js';
 
 /** A board's name as a person reads it: `indeed` is Indeed. */
 const words = (target: PublicationTarget) =>
@@ -53,6 +55,45 @@ export async function publicJob(ctx: Ctx, slug: string): Promise<JobRecord | nul
   )
     ? job
     : null;
+}
+
+/**
+ * A preview of a job as Kithena Jobs will show it (R7): the page built the
+ * way publishing builds it, for a job that may not be open yet, behind a
+ * token the job's screen hands its team for a day. The page says it is a
+ * preview; search engines never see it and nobody can apply from it.
+ */
+export async function previewJob(
+  ctx: Ctx,
+  token: string,
+  language: string | null,
+): Promise<Result<PublicJob>> {
+  const held = (await ctx.tx.settings.get(`preview-token:${token}`)) as {
+    readonly jobId: string;
+    readonly expires: string;
+  } | null;
+  if (held === null || Date.parse(held.expires) < Date.parse(ctx.at))
+    return err(failure('NOT_FOUND', 'This preview has expired'));
+  const job = await ctx.tx.jobs.get(held.jobId);
+  if (job === null) return err(failure('NOT_FOUND', 'No such job'));
+  const pages = await pagesFor(ctx, job, await ctx.tx.jobs.targets(job.id));
+  const page = pages.find((p) => p.page.language === language) ?? pages[0];
+  if (page === undefined) return err(failure('NO_AD', 'Write the ad first'));
+  return ok({ ...page.page, closed: false });
+}
+
+/** The token a job's team previews it with: one per job, good for a day, made when the screen loads. */
+export async function previewTokenFor(ctx: Ctx, jobId: string): Promise<string> {
+  const held = (await ctx.tx.settings.get(`preview:${jobId}`)) as {
+    readonly token: string;
+    readonly expires: string;
+  } | null;
+  if (held !== null && Date.parse(held.expires) > Date.parse(ctx.at) + 3_600_000) return held.token;
+  const token = randomBytes(24).toString('base64url');
+  const expires = new Date(Date.parse(ctx.at) + 86_400_000).toISOString();
+  await ctx.tx.settings.set(`preview:${jobId}`, { token, expires });
+  await ctx.tx.settings.set(`preview-token:${token}`, { jobId, expires });
+  return token;
 }
 
 /** Send the six-digit code that confirms the address (PRD §10.4). Same answer whether or not the job exists. */
