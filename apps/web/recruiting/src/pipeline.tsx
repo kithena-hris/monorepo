@@ -289,6 +289,37 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                     <SegmentedControlItem value="board">Board</SegmentedControlItem>
                     <SegmentedControlItem value="table">Table</SegmentedControlItem>
                   </SegmentedControl>
+                  {/* R7, from the board: open the job if it is a draft, then put it on Kithena Jobs. */}
+                  {data.job.onKithenaJobs ? (
+                    <Button
+                      asChild
+                      variant="secondary"
+                      startIcon={<icons.externalLink aria-hidden />}
+                    >
+                      <a href={data.job.publicUrl} target="_blank" rel="noreferrer">
+                        On Kithena Jobs
+                      </a>
+                    </Button>
+                  ) : data.may.includes('job.edit') ? (
+                    <Button
+                      startIcon={<icons.send aria-hidden />}
+                      loading={act.pending}
+                      onClick={() => {
+                        const publish = (): void => {
+                          act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
+                        };
+                        if (data.job.state === 'open') publish();
+                        else
+                          act.run(
+                            'MoveJob',
+                            { jobId: data.job.id, input: { to: 'open' } },
+                            publish,
+                          );
+                      }}
+                    >
+                      {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
+                    </Button>
+                  ) : null}
                   <Button
                     variant="secondary"
                     startIcon={<icons.settings aria-hidden />}

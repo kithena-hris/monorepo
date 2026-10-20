@@ -267,8 +267,18 @@ export async function pipelineScreen(
           : b.appliedAt.localeCompare(a.appliedAt),
   );
   const settings = await generalSettings(ctx);
+  // Whether it is on Kithena Jobs, for the board's own Publish button (R7).
+  const onKithenaJobs = (await ctx.tx.jobs.targets(job.id)).some(
+    (t) => t.target === 'kithena_jobs' && t.state === 'live',
+  );
   return ok({
-    job: { id: job.id, title: job.title, state: job.state },
+    job: {
+      id: job.id,
+      title: job.title,
+      state: job.state,
+      onKithenaJobs,
+      publicUrl: `${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}`,
+    },
     stages,
     cards: sorted,
     may: [...jobPermissions(ctx.viewer, facts)],
