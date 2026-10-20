@@ -217,6 +217,14 @@ export const CandidatePage = z.object({
           hash: z.string().max(64).register(policy, asInternal()),
         })
         .nullable(),
+      /** The contract after an accepted offer (§21.2): where it is, and how it is signed. */
+      contract: z
+        .object({
+          state: z.string().max(40).register(policy, asInternal()),
+          route: z.enum(['documents', 'upload', 'wet_ink']).register(policy, asInternal()),
+          signedOn: CalendarDate.nullable(),
+        })
+        .nullable(),
     }),
   ),
 });

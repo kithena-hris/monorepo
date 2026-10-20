@@ -55,9 +55,13 @@ export async function candidatePage(ctx: Ctx, candidate: Candidate): Promise<Can
         where: i.videoUrl ?? i.place,
         rescheduleUrl: null,
       }));
-    const offer = (await ctx.tx.offers.forApplication(app.id)).find((o) =>
-      ['sent', 'accepted', 'declined', 'expired'].includes(o.state),
-    );
+    // The offer that matters: one open to answer, else one accepted, else the last declined or expired.
+    const offers = await ctx.tx.offers.forApplication(app.id);
+    const offer =
+      offers.find((o) => o.state === 'sent') ??
+      offers.find((o) => o.state === 'accepted') ??
+      offers.findLast((o) => ['declined', 'expired'].includes(o.state));
+    const contract = offer === undefined ? null : await ctx.tx.contracts.forOffer(offer.id);
     out.push({
       applicationId: app.id,
       job: { title: job.title, company: settings.companyName, slug: job.slug },
@@ -76,6 +80,10 @@ export async function candidatePage(ctx: Ctx, candidate: Candidate): Promise<Can
               expiresOn: latest(offer).expiresOn,
               hash: versionHash(latest(offer)),
             },
+      contract:
+        contract === null
+          ? null
+          : { state: contract.state, route: contract.route, signedOn: contract.signedOn },
     });
   }
   return { name: candidate.name, applications: out };

@@ -1790,9 +1790,9 @@ export const ROUTES: readonly Route[] = [
     name: 'publicDecline',
     method: 'POST',
     path: `${V1}/public/{company}/me/offers/{offerId}/decline`,
-    summary: 'J7: decline',
+    summary: 'J7: decline, with a reason the recruiter reads',
     params: z.object({ company: text(63), offerId: Id }),
-    body: z.object({ reason: text(1000).nullable() }),
+    body: z.object({ reason: text(1000).min(3) }),
     public: true,
     run: (ctx, { params, body, headers }) =>
       asCandidate(ctx, headers, (id) => candidateDeclines(ctx, id, params.offerId, body.reason)),
