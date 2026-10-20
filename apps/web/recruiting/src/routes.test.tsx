@@ -87,7 +87,13 @@ describe('R1, home', () => {
 });
 
 const pipeline: PipelineData = {
-  job: { id: 'j1', title: 'Senior Backend Engineer (m/w/d)', state: 'open' },
+  job: {
+    id: 'j1',
+    title: 'Senior Backend Engineer (m/w/d)',
+    state: 'open',
+    onKithenaJobs: false,
+    publicUrl: 'https://jobs.example/acme/x',
+  },
   stages: [
     { id: 's1', name: 'Applied', candidateName: 'Received', category: 'applied', automations: [] },
     {

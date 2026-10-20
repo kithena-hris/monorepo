@@ -267,7 +267,14 @@ export interface Card {
 }
 
 export interface PipelineData {
-  readonly job: { readonly id: string; readonly title: string; readonly state: string };
+  readonly job: {
+    readonly id: string;
+    readonly title: string;
+    readonly state: string;
+    /** Live on Kithena Jobs, and where it is there. */
+    readonly onKithenaJobs: boolean;
+    readonly publicUrl: string;
+  };
   readonly stages: readonly Stage[];
   readonly cards: readonly Card[];
   readonly may: readonly string[];
