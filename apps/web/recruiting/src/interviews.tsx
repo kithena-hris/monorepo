@@ -662,7 +662,7 @@ function ScheduleBody({
   };
   const back = () =>
     props.onNavigate?.(
-      `/recruiting/candidates/${data.candidate.id}?application=${applicationId}&tab=interviews`,
+      `/recruiting/candidates/${data.candidate.id}?application=${applicationId}&tab=process`,
     );
   const whereInput = {
     place: place === '' ? null : place,

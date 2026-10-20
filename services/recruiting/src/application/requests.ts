@@ -52,7 +52,7 @@ const jobTitle = async (ctx: Ctx, loaded: Loaded): Promise<string> =>
 
 /** Where the team opens it: the tenant app when its address is known (as the chat app's links), else the path. */
 async function candidateLink(ctx: Ctx, loaded: Loaded): Promise<string> {
-  const path = `/recruiting/candidates/${loaded.candidate.id}?application=${loaded.app.id}&tab=interviews`;
+  const path = `/recruiting/candidates/${loaded.candidate.id}?application=${loaded.app.id}&tab=process`;
   const base = ctx.deps.chat?.appBase;
   return base === undefined
     ? path

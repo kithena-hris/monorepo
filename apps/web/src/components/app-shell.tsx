@@ -676,7 +676,7 @@ export function AppShell({
                     </NavItem>
                   </NavList>
                 </Nav>
-                <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
+                <Nav label="Areas" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
                   <NavList>
                     {areas.map((area) =>
                       area.built ? (

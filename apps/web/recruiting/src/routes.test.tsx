@@ -257,7 +257,7 @@ const job: JobData = {
 describe('R4–R7, a job’s setup', () => {
   it('opens on the details tab', async () => {
     const { container } = render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} />);
-    expect(screen.getByRole('tab', { name: 'Details', selected: true })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Job and team', selected: true })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -293,6 +293,7 @@ const candidate: CandidateData = {
       adjustments: null,
       history: [],
       interviews: [],
+      asks: [],
       scorecards: [],
       offers: [],
       prehire: null,

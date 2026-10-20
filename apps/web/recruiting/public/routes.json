@@ -140,31 +140,70 @@
       "label": "Jobs",
       "group": "Recruiting",
       "icon": "work",
-      "description": "Every job you hire for, its pipeline and its setup",
-      "summary": "Jobs and pipelines",
-      "owns": ["/recruiting/jobs/:id", "/recruiting/jobs/:id/setup"]
-    },
-    {
-      "path": "/recruiting/interviews",
-      "label": "My interviews",
-      "group": "Recruiting",
-      "icon": "meeting",
-      "description": "Interviews you run and the scorecards you owe",
-      "summary": "Interviews and scorecards",
-      "owns": ["/recruiting/interviews/:id"]
+      "description": "Every job: its pipeline and setup, the headcount behind it, how it performs",
+      "summary": "Jobs, requisitions, analytics",
+      "owns": [
+        "/recruiting/analytics/:id",
+        "/recruiting/jobs/:id",
+        "/recruiting/jobs/:id/setup",
+        "/recruiting/requisitions/:id",
+        "/recruiting/requisitions/:id/approve"
+      ],
+      "tabs": [
+        {
+          "path": "/recruiting/jobs",
+          "label": "Jobs"
+        },
+        {
+          "path": "/recruiting/requisitions",
+          "label": "Requisitions"
+        },
+        {
+          "path": "/recruiting/analytics",
+          "label": "Analytics"
+        },
+        {
+          "path": "/recruiting/board",
+          "label": "Internal board"
+        }
+      ]
     },
     {
       "path": "/recruiting/candidates",
       "label": "Candidates",
       "group": "Recruiting",
       "icon": "people",
-      "description": "Everyone who applied or was sourced, across jobs",
-      "summary": "Candidates",
+      "description": "Everyone who applied or was sourced, the pools they are kept in, the agencies who send them",
+      "summary": "Candidates, pools, agencies",
       "owns": [
-        "/recruiting/candidates/:id",
+        "/recruiting/applications/:id/debrief",
         "/recruiting/applications/:id/schedule",
-        "/recruiting/applications/:id/debrief"
+        "/recruiting/candidates/:id",
+        "/recruiting/pools/:id"
+      ],
+      "tabs": [
+        {
+          "path": "/recruiting/candidates",
+          "label": "Candidates"
+        },
+        {
+          "path": "/recruiting/pools",
+          "label": "Talent pools"
+        },
+        {
+          "path": "/recruiting/agencies",
+          "label": "Agencies"
+        }
       ]
+    },
+    {
+      "path": "/recruiting/interviews",
+      "label": "Interviews",
+      "group": "Recruiting",
+      "icon": "meeting",
+      "description": "Interviews you run and the scorecards you owe",
+      "summary": "Interviews and scorecards",
+      "owns": ["/recruiting/interviews/:id"]
     },
     {
       "path": "/recruiting/offers",
@@ -178,49 +217,6 @@
         "/recruiting/offers/:id/approve",
         "/recruiting/offers/:id/contract"
       ]
-    },
-    {
-      "path": "/recruiting/pools",
-      "label": "Talent pools",
-      "group": "Recruiting",
-      "icon": "starred",
-      "description": "People kept for later, with their consent",
-      "summary": "Talent pools",
-      "owns": ["/recruiting/pools/:id"]
-    },
-    {
-      "path": "/recruiting/requisitions",
-      "label": "Requisitions",
-      "group": "Recruiting",
-      "icon": "approve",
-      "description": "Headcount asked for and approved before a job opens",
-      "summary": "Requisitions",
-      "owns": ["/recruiting/requisitions/:id", "/recruiting/requisitions/:id/approve"]
-    },
-    {
-      "path": "/recruiting/analytics",
-      "label": "Analytics",
-      "group": "Recruiting",
-      "icon": "analytics",
-      "description": "Funnel, speed, sources and offers, from the stage history",
-      "summary": "Dashboards",
-      "owns": ["/recruiting/analytics/:id"]
-    },
-    {
-      "path": "/recruiting/board",
-      "label": "Open jobs",
-      "group": "Recruiting",
-      "icon": "hire",
-      "description": "Jobs inside the company: refer someone or apply yourself",
-      "summary": "Refer and apply"
-    },
-    {
-      "path": "/recruiting/agencies",
-      "label": "Agencies",
-      "group": "Recruiting",
-      "icon": "company",
-      "description": "Agencies, their fees and the jobs they may submit to",
-      "summary": "Agencies"
     }
   ],
   "slots": {},

@@ -77,7 +77,7 @@ function CandidateCard({
         <To
           href={`/recruiting/candidates/${card.candidateId}`}
           onNavigate={onNavigate}
-          className="min-w-0 flex-1 truncate font-semibold text-fg hover:underline"
+          className="min-w-0 flex-1 font-semibold text-fg hover:underline [overflow-wrap:anywhere]"
         >
           {card.name}
         </To>
@@ -291,7 +291,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 moveId: moved.moveId,
               });
               if (moved.opensOffer)
-                props.onNavigate?.(`/recruiting/candidates/${card.candidateId}?tab=offers`);
+                props.onNavigate?.(`/recruiting/candidates/${card.candidateId}?tab=process`);
             },
           );
         };
@@ -493,6 +493,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 <h2 className="sr-only">Candidates by stage</h2>
                 <Kanban
                   label={`${data.job.title} pipeline`}
+                  columnWidth="300px"
                   columns={data.stages
                     .filter((s) => s.category !== 'hired')
                     .map((s) => ({

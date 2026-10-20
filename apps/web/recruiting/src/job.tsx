@@ -58,7 +58,7 @@ import type { FormField, JobData, ScreenProps } from './types';
  * where it is published. Each tab is in the address; each saves on its own.
  */
 
-const TABS = ['details', 'team', 'criteria', 'plan', 'ad', 'form', 'publishing'] as const;
+const TABS = ['details', 'hiring', 'ad', 'publishing'] as const;
 type Tab = (typeof TABS)[number];
 const ROLES = ['recruiter', 'hiring_manager', 'interviewer', 'coordinator'] as const;
 
@@ -1342,22 +1342,12 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               <>
                 <Button
                   variant="secondary"
+                  startIcon={<icons.people aria-hidden />}
                   onClick={() => props.onNavigate?.(`/recruiting/jobs/${data.job.id}`)}
                 >
                   Pipeline
                 </Button>
-                {data.job.state === 'draft' ||
-                data.job.state === 'on_hold' ||
-                data.job.state === 'closed' ? (
-                  <Button
-                    loading={act.pending}
-                    onClick={() => {
-                      act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } });
-                    }}
-                  >
-                    Open job
-                  </Button>
-                ) : data.job.state === 'open' ? (
+                {data.job.state === 'open' ? (
                   <Button
                     variant="secondary"
                     loading={act.pending}
@@ -1368,6 +1358,31 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     Put on hold
                   </Button>
                 ) : null}
+                {/* The one press that matters: open if needed, then live on Kithena Jobs. */}
+                {data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live') ? (
+                  <Button
+                    variant="secondary"
+                    startIcon={<icons.externalLink aria-hidden />}
+                    onClick={() => props.onFilter?.({ tab: 'publishing' })}
+                  >
+                    Live on Kithena Jobs
+                  </Button>
+                ) : (
+                  <Button
+                    startIcon={<icons.send aria-hidden />}
+                    loading={act.pending}
+                    onClick={() => {
+                      const publish = (): void => {
+                        act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
+                      };
+                      if (data.job.state === 'open') publish();
+                      else
+                        act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } }, publish);
+                    }}
+                  >
+                    {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
+                  </Button>
+                )}
               </>
             }
           />
@@ -1379,27 +1394,33 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
             <TabsList>
               {TABS.map((t) => (
                 <TabsTrigger key={t} value={t}>
-                  {t === 'plan' ? 'Interview plan' : t === 'form' ? 'Apply form' : words(t)}
+                  {t === 'hiring'
+                    ? 'Criteria and interviews'
+                    : t === 'ad'
+                      ? 'Ad and apply form'
+                      : t === 'details'
+                        ? 'Job and team'
+                        : words(t)}
                 </TabsTrigger>
               ))}
             </TabsList>
             <TabsContent value="details">
-              <Details data={data} props={props} />
+              <div className="flex flex-col gap-6">
+                <Details data={data} props={props} />
+                <Team data={data} props={props} />
+              </div>
             </TabsContent>
-            <TabsContent value="team">
-              <Team data={data} props={props} />
-            </TabsContent>
-            <TabsContent value="criteria">
-              <Criteria data={data} props={props} />
-            </TabsContent>
-            <TabsContent value="plan">
-              <Plan data={data} props={props} />
+            <TabsContent value="hiring">
+              <div className="flex flex-col gap-6">
+                <Criteria data={data} props={props} />
+                <Plan data={data} props={props} />
+              </div>
             </TabsContent>
             <TabsContent value="ad">
-              <Ad data={data} props={props} />
-            </TabsContent>
-            <TabsContent value="form">
-              <Form data={data} props={props} />
+              <div className="flex flex-col gap-6">
+                <Ad data={data} props={props} />
+                <Form data={data} props={props} />
+              </div>
             </TabsContent>
             <TabsContent value="publishing">
               <Publishing data={data} props={props} />
