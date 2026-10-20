@@ -6,7 +6,9 @@ import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
 import './globals.css';
+import { ThemeToggle } from '../components/theme-toggle';
 import { SESSION_COOKIE } from '../lib/account';
+import { THEME_KEY, themeScript } from '../lib/theme';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com'),
@@ -21,10 +23,16 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }): Promise<JSX.Element> {
-  const signedIn = (await cookies()).get(SESSION_COOKIE) !== undefined;
+  const jar = await cookies();
+  const signedIn = jar.get(SESSION_COOKIE) !== undefined;
+  // The chosen theme on the server too, so the first paint is already right; the script covers the system default.
+  const dark = jar.get(THEME_KEY)?.value === 'dark';
   return (
-    <html lang="en">
-      <body className="flex min-h-dvh flex-col bg-[var(--reach-bg)] text-fg">
+    <html lang="en" className={dark ? 'dark' : undefined} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="flex min-h-dvh flex-col bg-canvas text-fg">
         <TooltipProvider>
           <header className="sticky top-0 z-20 border-b border-border bg-canvas/90 backdrop-blur">
             <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
@@ -36,6 +44,7 @@ export default async function RootLayout({
                 Kithena Jobs
               </Link>
               <nav aria-label="Site" className="ms-auto flex items-center gap-1">
+                <ThemeToggle />
                 <Button asChild variant="ghost" size="sm">
                   <Link href="/search">Search</Link>
                 </Button>
