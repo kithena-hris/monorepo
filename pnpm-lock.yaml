@@ -16,7 +16,7 @@ overrides:
   '@opentelemetry/propagator-jaeger': '>=2.9.0'
   ts-deepmerge: '>=8.0.0'
   fast-uri@<3.1.6: '>=3.1.8 <4'
-  hono@<4.13.5: '>=4.13.8 <5'
+  hono@<4.13.11: '>=4.13.11 <5'
   undici@>=6 <6.28.1: ^6.28.1
   js-yaml@>=4 <4.3.2: ^4.3.2
   tmp@<0.2.6: ^0.2.6
@@ -3532,7 +3532,7 @@ packages:
     resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: '>=4.13.8 <5'
+      hono: '>=4.13.11 <5'
 
   '@hookform/resolvers@5.9.1':
     resolution: {integrity: sha512-7b7vsbraJxKgjVSA1Nur9tLwj539WGJUBLA7QNvXnFoT2pM5Z7G+6rlukk4B2/QrTZy6huRtH6wKeESPKuIr6w==}
@@ -10693,10 +10693,6 @@ packages:
     resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
     engines: {node: '>=16.9.0'}
 
-  hono@4.13.8:
-    resolution: {integrity: sha512-/Gng7NfoykZl2pjukW5Z6+8Yxm3BPRf86GTbQnt0SbySkvax4fyL4H3HhY1cCpBGmiW9XDRFzRV+CXK2W8QudQ==}
-    engines: {node: '>=16.9.0'}
-
   hookified@1.15.1:
     resolution: {integrity: sha512-MvG/clsADq1GPM2KGo2nyfaWVyn9naPiXrqIe4jYjXNZQt238kWyOGrsyc/DmRAQ+Re6yeo6yX/yoNCG5KAEVg==}
 
@@ -17559,7 +17555,7 @@ snapshots:
       '@web-std/stream': 1.0.3
       cloneable-readable: 3.0.0
       flatted: 3.4.4
-      hono: 4.13.8
+      hono: 4.13.13
       ts-deepmerge: 8.0.0
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
@@ -20444,7 +20440,9 @@ snapshots:
       metro-runtime: 0.84.6
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
@@ -25458,8 +25456,6 @@ snapshots:
       react-is: 16.13.1
 
   hono@4.13.13: {}
-
-  hono@4.13.8: {}
 
   hookified@1.15.1: {}
 
