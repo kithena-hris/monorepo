@@ -841,6 +841,8 @@ jobs:
           # route under the Recruiting–messaging pair's secret.
           RECRUITING_API_TOKEN: ${{ secrets.RECRUITING_API_TOKEN }}
           RECRUITING_ENV: ${{ secrets.RECRUITING_ENV }}
+          # Kithena Jobs' Google sign-in: Recruiting checks each token against the same client.
+          GOOGLE_SIGN_IN_CLIENT_ID: ${{ secrets.GOOGLE_SIGN_IN_CLIENT_ID }}
           MESSAGING_RECRUITING_TOKEN: ${{ secrets.MESSAGING_RECRUITING_TOKEN }}
           # Where candidates' replies arrive (Resend receiving); unset, they
           # go to the company's own reply address.
@@ -946,6 +948,7 @@ jobs:
           # messaging for its emails when the pair's secret exists.
           {
             printf '%s\nRECRUITING_API_TOKEN=%s\nJOBS_ORIGIN=https://jobs.kithena.com\n' "$RECRUITING_ENV" "$RECRUITING_API_TOKEN"
+            if [ -n "$GOOGLE_SIGN_IN_CLIENT_ID" ]; then printf 'JOBS_GOOGLE_CLIENT_ID=%s\n' "$GOOGLE_SIGN_IN_CLIENT_ID"; fi
             if [ -n "$ASSISTANT_API_KEY" ]; then printf 'ASSISTANT_API_KEY=%s\n' "$ASSISTANT_API_KEY"; fi
             if [ -n "$MESSAGING_RECRUITING_TOKEN" ]; then
               printf 'MESSAGING_URL=https://messaging.kithena.com\nMESSAGING_RECRUITING_TOKEN=%s\n' "$MESSAGING_RECRUITING_TOKEN"
@@ -1971,9 +1974,20 @@ jobs:
         id: deploy
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_JOBS_PRODUCTION }}
+          # Sign in with Google on Kithena Jobs: the same client identity uses, with the site's own callback.
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_SIGN_IN_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_SIGN_IN_CLIENT_SECRET }}
         run: |
           set -o pipefail
-          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          args=(--prod --yes --archive=tgz --token "$VERCEL_TOKEN" --env JOBS_ORIGIN=https://jobs.kithena.com)
+          for name in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+            if [ -n "${!name}" ]; then
+              args+=(--env "$name=${!name}")
+            else
+              echo "::warning::$name is unset for Kithena Jobs; Google sign-in stays off"
+            fi
+          done
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy "${args[@]}" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
             exit 1
