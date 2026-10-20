@@ -29,6 +29,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
+import { EmailFields, PURPOSE_LABEL } from './composer';
 import { Refusal, newId, useAct, words } from './shared';
 import type {
   ApprovalChain,
@@ -1104,12 +1105,14 @@ export function TemplateEditor({
   const [name, setName] = useState(held?.name ?? '');
   const [subject, setSubject] = useState(held?.subject ?? '');
   const [body, setBody] = useState(held?.body ?? '');
+  const known = Object.keys(PURPOSE_LABEL).includes(purpose);
+  const [customPurpose, setCustomPurpose] = useState(!known && purpose !== '');
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New template' : held.name}
-      description="Placeholders: {{candidate}}, {{job}}, {{company}}, {{stage}}."
+      description="What a stage, a decision or an offer sends. Placeholders are filled in for each candidate."
       canSave={name.trim() !== '' && purpose.trim() !== '' && body.trim() !== ''}
       pending={act.pending}
       error={act.error}
@@ -1167,16 +1170,46 @@ export function TemplateEditor({
       </Field>
       <Field required>
         <FieldLabel>Used for</FieldLabel>
-        <FieldControl>
-          <Input
-            value={purpose}
-            placeholder="interview_invite"
-            onChange={(e) => {
-              setPurpose(e.target.value);
-            }}
+        <Select
+          value={customPurpose ? 'custom' : purpose === '' ? 'rejection' : purpose}
+          onValueChange={(v) => {
+            if (v === 'custom') {
+              setCustomPurpose(true);
+              setPurpose('');
+            } else {
+              setCustomPurpose(false);
+              setPurpose(v);
+            }
+          }}
+        >
+          <FieldControl>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+          </FieldControl>
+          <Options
+            items={[
+              ...Object.entries(PURPOSE_LABEL),
+              ['custom', 'Something else, for a stage’s automation'],
+            ]}
           />
-        </FieldControl>
-        <FieldDescription>A short key a stage’s automation picks it by.</FieldDescription>
+        </Select>
+        {customPurpose ? (
+          <FieldControl>
+            <Input
+              value={purpose}
+              placeholder="interview_invite"
+              onChange={(e) => {
+                setPurpose(e.target.value);
+              }}
+            />
+          </FieldControl>
+        ) : null}
+        <FieldDescription>
+          {customPurpose
+            ? 'A short key a stage’s automation picks it by.'
+            : 'The composer opens with this template at that moment.'}
+        </FieldDescription>
       </Field>
       <Field>
         <FieldLabel>Language</FieldLabel>
@@ -1190,30 +1223,27 @@ export function TemplateEditor({
         </Select>
       </Field>
       {kind === 'email' ? (
-        <Field>
-          <FieldLabel>Subject</FieldLabel>
+        <EmailFields
+          value={{ subject, body }}
+          onChange={(next) => {
+            setSubject(next.subject);
+            setBody(next.body);
+          }}
+        />
+      ) : (
+        <Field required>
+          <FieldLabel>Body</FieldLabel>
           <FieldControl>
-            <Input
-              value={subject}
+            <Textarea
+              autoResize
+              value={body}
               onChange={(e) => {
-                setSubject(e.target.value);
+                setBody(e.target.value);
               }}
             />
           </FieldControl>
         </Field>
-      ) : null}
-      <Field required>
-        <FieldLabel>Body</FieldLabel>
-        <FieldControl>
-          <Textarea
-            autoResize
-            value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
-            }}
-          />
-        </FieldControl>
-      </Field>
+      )}
     </Editor>
   );
 }

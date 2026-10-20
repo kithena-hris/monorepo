@@ -20,7 +20,8 @@ import { tellInterviewers } from './chat.js';
 import { asPerson, event, forbidden, nameOf, notFound, publish, type Ctx } from './context.js';
 import { sha256, portalLink } from './intake.js';
 import { asksOf } from './asks.js';
-import { loadApplication, sendNow } from './moves.js';
+import { emailFor, emailValues } from './emails.js';
+import { loadApplication, render, sendNow } from './moves.js';
 import type { Ask } from './asks.js';
 import type { InterviewRecord, PlannedInterview, WorkingHours } from './ports.js';
 import { generalSettings } from './setup.js';
@@ -243,16 +244,40 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     timeStyle: 'short',
     timeZone: candidate.timeZone ?? 'UTC',
   }).format(new Date(interview.startsAt));
-  // Sent now, not by the next sweep: a candidate waits on this one.
-  const page = cancelled ? '' : await portalLink(ctx, candidate.id);
+  // Sent now, not by the next sweep: a candidate waits on this one. The words are
+  // the company's confirmation template when it has one (`emails.ts`).
+  if (cancelled) {
+    await sendNow(
+      ctx,
+      candidate,
+      interview.applicationId,
+      `Cancelled: ${interview.title} with ${settings.companyName}`,
+      `Hello ${candidate.name},\n\nThis interview is cancelled.\n\n${invitation}`,
+    );
+    return;
+  }
+  const loaded = await loadApplication(ctx, interview.applicationId);
+  const words = await emailFor(ctx, 'interview_confirmation', candidate.language);
+  const values = loaded.ok
+    ? await emailValues(ctx, loaded.value)
+    : {
+        candidate: candidate.name,
+        first_name: candidate.name.split(' ')[0] ?? candidate.name,
+        job: job?.title ?? '',
+        company: settings.companyName,
+        link: await portalLink(ctx, candidate.id),
+      };
+  const filled = {
+    ...values,
+    interview: `${interview.title}, ${when} (${candidate.timeZone ?? 'UTC'})`,
+    where: where ?? 'To be confirmed',
+  };
   await sendNow(
     ctx,
     candidate,
     interview.applicationId,
-    cancelled
-      ? `Cancelled: ${interview.title} with ${settings.companyName}`
-      : `Appointment scheduled: ${interview.title} with ${settings.companyName}, ${when}`,
-    `Hello ${candidate.name},\n\n${cancelled ? 'This interview is cancelled.' : `Your ${interview.title.toLowerCase()} for ${job?.title ?? 'the role'} is on ${when} (${candidate.timeZone ?? 'UTC'}).`}${where === null ? '' : `\nWhere: ${where}`}${cancelled ? '' : `\n\nIf that time no longer works, ask for a change from your page:\n${page}`}\n\n${invitation}`,
+    render(words.subject, filled),
+    `${render(words.body, filled)}\n\n${invitation}`,
   );
 }
 

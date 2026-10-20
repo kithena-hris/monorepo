@@ -208,6 +208,15 @@ type Mutation {
   """§ 99 BetrVG: present the hire"""
   presentToWorksCouncil(applicationId: String!, idempotencyKey: String!): JSON
   """
+  R10, R12: the email a composer opens with, filled in for this candidate
+  """
+  previewEmail(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """
   R16: offer the candidate fixed times; they pick one or ask for others, by email at once
   """
   proposeSlots(
@@ -424,6 +433,10 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """
+  The built-in email for each purpose the company has none for, as templates to edit
+  """
+  seedEmailTemplates(idempotencyKey: String!): JSON
   """Send a self-scheduling link"""
   selfScheduleLink(
     applicationId: String!

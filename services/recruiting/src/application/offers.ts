@@ -60,12 +60,11 @@ import { validateTerms, type EntityFacts, type Validated } from '../domain/terms
 import type { TermsIssue } from '@kithena/contracts';
 import { asPerson, event, forbidden, notFound, publish, type Ctx } from './context.js';
 import { refreshProjection } from './jobs.js';
-import { portalLink } from './intake.js';
 import { askApprovers } from './chat.js';
-import { loadApplication, worksCouncilCleared } from './moves.js';
+import { emailFor, emailValues } from './emails.js';
+import { loadApplication, render, worksCouncilCleared } from './moves.js';
 import type { ApplicationRecord, JobRecord } from './ports.js';
 import { reportingOf } from './requisitions.js';
-import { generalSettings } from './setup.js';
 
 /**
  * Offers to the hire (PRD §18, §21, REC-054, REC-055, REC-058): composed on
@@ -356,11 +355,13 @@ export async function sendTheOffer(ctx: Ctx, offerId: string): Promise<Result<Of
   if (!sent.ok) return sent;
   await ctx.tx.offers.save(sent.value);
   await publish(ctx, offerEvent(ctx, 'sent', sent.value));
-  const settings = await generalSettings(ctx);
+  // The company's offer email when it has one (`emails.ts`), with the page link and the date it is open until.
+  const words = await emailFor(ctx, 'offer', loaded.value.candidate.language);
+  const values = await emailValues(ctx, loaded.value);
   ctx.mail.push({
     to: loaded.value.candidate.email,
-    subject: `Your offer from ${settings.companyName}`,
-    text: `Hello ${loaded.value.candidate.name},\n\nWe are delighted to offer you the role of ${loaded.value.job.title}. Read the offer, and accept or decline it, on your page:\n${await portalLink(ctx, loaded.value.candidate.id)}\n\nThe offer is open until ${latest(sent.value).expiresOn}.`,
+    subject: render(words.subject, values),
+    text: `${render(words.body, values)}\n\nThe offer is open until ${latest(sent.value).expiresOn}.`,
     dedupeKey: `offer:${offerId}:${String(latest(sent.value).version)}`,
   });
   return ok(sent.value);

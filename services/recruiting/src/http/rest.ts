@@ -59,6 +59,13 @@ import {
   scheduleScreen,
 } from '../application/interviews.js';
 import {
+  EMAIL_PURPOSES,
+  moveAndEmail,
+  previewEmail,
+  rejectAndEmail,
+  seedEmailTemplates,
+} from '../application/emails.js';
+import {
   answerAsk,
   closeAsk,
   proposeSlots,
@@ -84,7 +91,6 @@ import {
   bulk,
   correctMove,
   moveApplication,
-  rejectApplication,
   sendMessage,
   undoMove,
   withdrawApplication,
@@ -324,6 +330,8 @@ const files = (list: readonly z.infer<typeof File>[] | undefined): IncomingFile[
     bytes: new Uint8Array(Buffer.from(f.base64, 'base64')),
   }));
 const text = (max: number) => z.string().max(max);
+/** What a composer settled on: subject and body, placeholders allowed. */
+const ComposedEmail = z.object({ subject: text(300).min(1), body: text(20_000).min(1) });
 
 const Stage = z.object({
   id: Id,
@@ -844,14 +852,33 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/applications/{applicationId}/move`,
     summary: 'R10: move to a stage',
     params: z.object({ applicationId: Id }),
-    body: z.object({ to: Id, interviewType: text(40).optional() }),
+    body: z.object({
+      to: Id,
+      interviewType: text(40).optional(),
+      /** The composer's words to the candidate, sent at once; none moves quietly. */
+      message: ComposedEmail.nullable().default(null),
+    }),
     run: (ctx, { params, body }) =>
-      moveApplication(
+      moveAndEmail(
         ctx,
         params.applicationId,
         body.to,
         body.interviewType === undefined ? {} : { interviewType: body.interviewType },
+        body.message,
       ),
+  }),
+  route({
+    name: 'previewEmail',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/email-preview`,
+    summary: 'R10, R12: the email a composer opens with, filled in for this candidate',
+    params: z.object({ applicationId: Id }),
+    body: z.object({
+      purpose: z.enum(EMAIL_PURPOSES),
+      templateId: Id.nullable().default(null),
+      fill: z.boolean().default(true),
+    }),
+    run: (ctx, { params, body }) => previewEmail(ctx, params.applicationId, body),
   }),
   route({
     name: 'undoMove',
@@ -883,8 +910,10 @@ export const ROUTES: readonly Route[] = [
       templateId: Id.nullable(),
       send: z.enum(['now', 'later_today', 'none']),
       poolId: Id.nullable(),
+      /** The composer's words, placeholders filled at the send; wins over the template. */
+      message: ComposedEmail.nullable().default(null),
     }),
-    run: (ctx, { params, body }) => rejectApplication(ctx, params.applicationId, body),
+    run: (ctx, { params, body }) => rejectAndEmail(ctx, params.applicationId, body),
   }),
   route({
     name: 'bulkApplications',
@@ -899,6 +928,7 @@ export const ROUTES: readonly Route[] = [
         reasonKey: z.string().max(63),
         templateId: Id.nullable(),
         send: z.enum(['now', 'later_today', 'none']),
+        message: ComposedEmail.nullable().default(null),
       }),
       z.object({ action: z.literal('pool'), ids: z.array(Id).max(500), poolId: Id }),
     ]),
@@ -907,11 +937,12 @@ export const ROUTES: readonly Route[] = [
         await bulk(ctx, body.ids, async (id) => {
           if (body.action === 'move') return moveApplication(ctx, id, body.to);
           if (body.action === 'reject')
-            return rejectApplication(ctx, id, {
+            return rejectAndEmail(ctx, id, {
               reasonKey: body.reasonKey,
               templateId: body.templateId,
               send: body.send,
               poolId: null,
+              message: body.message,
             });
           const app = await ctx.tx.applications.get(id);
           return app === null
@@ -1487,6 +1518,13 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ id: Id }),
     body: z.record(z.string(), z.unknown()),
     run: (ctx, { params, body }) => saveTemplate(ctx, { ...body, id: params.id } as never),
+  }),
+  route({
+    name: 'seedEmailTemplates',
+    method: 'POST',
+    path: `${V1}/settings/templates/seed`,
+    summary: 'The built-in email for each purpose the company has none for, as templates to edit',
+    run: (ctx) => seedEmailTemplates(ctx),
   }),
   route({
     name: 'saveBenefit',

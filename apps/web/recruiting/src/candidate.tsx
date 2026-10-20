@@ -50,6 +50,7 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, money, useAct, when, words } from './shared';
+import { EmailComposer, type ComposedEmail } from './composer';
 import { AskList } from './interviews';
 import { RejectDialog, type Rejecting } from './reject-dialog';
 import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './types';
@@ -536,6 +537,11 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
   const [rejecting, setRejecting] = useState<Rejecting | null>(null);
   const [poolId, setPoolId] = useState('');
   const [asking, setAsking] = useState<string | null>(null);
+  const [moving, setMoving] = useState<{ applicationId: string; to: string; name: string } | null>(
+    null,
+  );
+  const [moveEmailing, setMoveEmailing] = useState(true);
+  const [moveMessage, setMoveMessage] = useState<ComposedEmail | null>(null);
   const [askLabel, setAskLabel] = useState('');
   const [askDetail, setAskDetail] = useState('');
   return (
@@ -730,11 +736,13 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       nextStage.category !== 'interview' ? (
                         <Button
                           size="sm"
-                          loading={act.pending}
+                          startIcon={<icons.next aria-hidden />}
                           onClick={() => {
-                            act.run('MoveApplication', {
+                            setMoveMessage(null);
+                            setMoving({
                               applicationId: chosen.applicationId,
-                              input: { to: nextStage.id },
+                              to: nextStage.id,
+                              name: nextStage.name,
                             });
                           }}
                         >
@@ -1061,6 +1069,70 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                     }}
                   >
                     Send
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog
+              open={moving !== null}
+              onOpenChange={(open) => {
+                if (!open) setMoving(null);
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{`Move to ${moving?.name ?? ''}`}</DialogTitle>
+                  <DialogDescription>
+                    {`${data.candidate.name} moves on. Tell them, in the company’s words or your own.`}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                  <EmailComposer
+                    applicationId={moving?.applicationId}
+                    purpose="selection"
+                    templates={data.templates}
+                    act={act}
+                    enabled={moveEmailing}
+                    onEnabledChange={setMoveEmailing}
+                    value={moveMessage}
+                    onChange={setMoveMessage}
+                  />
+                </DialogBody>
+                <DialogFooter>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setMoving(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    loading={act.pending}
+                    disabled={
+                      moveEmailing &&
+                      (moveMessage === null ||
+                        moveMessage.subject.trim() === '' ||
+                        moveMessage.body.trim() === '')
+                    }
+                    onClick={() => {
+                      if (moving === null) return;
+                      act.run(
+                        'MoveApplication',
+                        {
+                          applicationId: moving.applicationId,
+                          input: {
+                            to: moving.to,
+                            message: moveEmailing ? moveMessage : null,
+                          },
+                        },
+                        () => {
+                          setMoving(null);
+                        },
+                      );
+                    }}
+                  >
+                    {moveEmailing ? 'Move and send' : 'Move without an email'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
