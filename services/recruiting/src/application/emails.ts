@@ -96,7 +96,7 @@ export async function emailValues(
   const sender =
     ctx.caller.personId === null
       ? settings.companyName
-      : ((await ctx.tx.members.get(ctx.caller.personId as never))?.displayName ??
+      : ((await ctx.tx.members.get(ctx.caller.personId))?.displayName ??
         settings.companyName);
   return {
     candidate: loaded.candidate.name,
