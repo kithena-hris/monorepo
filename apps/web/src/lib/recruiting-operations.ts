@@ -136,6 +136,7 @@ export const OPERATIONS = {
   PublishJob: write('PublishJob', 'publishJob', ...two('jobId', 'target'), false),
   UnpublishJob: write('UnpublishJob', 'unpublishJob', ...ID('jobId'), false),
   AddCandidate: write('AddCandidate', 'addCandidate', ...ID('jobId')),
+  PutForward: write('PutForward', 'putForward', ...two('jobId', 'candidateId'), false),
   Refer: write('Refer', 'refer', ...ID('jobId')),
   ApplyInternally: write('ApplyInternally', 'applyInternally', ...ID('jobId')),
 

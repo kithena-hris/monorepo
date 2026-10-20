@@ -39,6 +39,7 @@ import {
   type IncomingFile,
   previewJob,
   type ApplyingAccount,
+  putForward,
 } from '../application/intake.js';
 import {
   answerReference,
@@ -128,6 +129,7 @@ import {
 } from '../application/screens.js';
 import { settingsInWords } from '../application/settings-in-words.js';
 import { accountByToken, defaultCv } from '../application/accounts.js';
+import { readOnArrival } from '../application/arrival.js';
 import {
   removeBenefit,
   removeChain,
@@ -766,6 +768,15 @@ export const ROUTES: readonly Route[] = [
     summary: 'R7: take the job down everywhere',
     params: z.object({ jobId: Id }),
     run: (ctx, { params }) => unpublish(ctx, params.jobId),
+  }),
+  route({
+    name: 'putForward',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/candidates/{candidateId}/put-forward`,
+    summary: 'A known candidate into an open job’s first stage, told by email (PRD §13.3)',
+    params: z.object({ jobId: Id, candidateId: Id }),
+    status: 201,
+    run: (ctx, { params }) => putForward(ctx, params.jobId, params.candidateId),
   }),
   route({
     name: 'addCandidate',
@@ -1716,8 +1727,16 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ payload: z.unknown(), files: z.array(File).max(6).optional() }),
     status: 201,
     public: true,
-    run: async (ctx, { body, headers }) =>
-      apply(ctx, body.payload, files(body.files), await applyingAccount(ctx, headers)),
+    run: async (ctx, { body, headers }) => {
+      const applied = await apply(
+        ctx,
+        body.payload,
+        files(body.files),
+        await applyingAccount(ctx, headers),
+      );
+      if (applied.ok) await readOnArrival(ctx, applied.value.applicationId);
+      return applied;
+    },
   }),
   route({
     name: 'publicMe',

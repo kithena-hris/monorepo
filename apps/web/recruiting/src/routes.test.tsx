@@ -269,6 +269,9 @@ const candidate: CandidateData = {
   messages: [],
   consents: [],
   pools: [],
+  rejectionReasons: ['not_qualified'],
+  templates: [],
+  allPools: [],
   applications: [
     {
       applicationId: 'a1',

@@ -205,6 +205,10 @@ type Mutation {
   presentToWorksCouncil(applicationId: String!, idempotencyKey: String!): JSON
   """R7: publish to a target"""
   publishJob(idempotencyKey: String!, jobId: String!, target: String!): JSON
+  """
+  A known candidate into an open job’s first stage, told by email (PRD §13.3)
+  """
+  putForward(candidateId: String!, idempotencyKey: String!, jobId: String!): JSON
   """Propose settings changes from a request in words; nothing is written"""
   recruitingSettingsInWords(
     idempotencyKey: String!

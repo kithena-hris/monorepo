@@ -71,10 +71,12 @@ export async function readApplication<T>(
   extra: Readonly<Record<string, unknown>> = {},
   /** What the domain makes of the answer before it is kept: the checked output, a score, a band. */
   judge?: Judge<T>,
+  /** The system reading as an application arrives (§22.2): nobody asked, so no person is checked or recorded. */
+  system = false,
 ): Promise<Result<{ readonly assessmentId: string; readonly answer: T; readonly text: string }>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
-  if (!may(ctx.viewer, loaded.value.facts, 'candidate.profile')) return err(forbidden());
+  if (!system && !may(ctx.viewer, loaded.value.facts, 'candidate.profile')) return err(forbidden());
   return readMasked(
     ctx,
     loaded.value.app.id,
@@ -82,6 +84,7 @@ export async function readApplication<T>(
     spec,
     extra,
     judge,
+    system ? 'system' : undefined,
   );
 }
 
@@ -97,11 +100,12 @@ export async function readMasked<T>(
   spec: PromptSpec<T>,
   extra: Readonly<Record<string, unknown>>,
   judge?: Judge<T>,
+  requestedBy?: 'system',
 ): Promise<Result<{ readonly assessmentId: string; readonly answer: T; readonly text: string }>> {
   const settings = await generalSettings(ctx);
   const model = ctx.deps.model;
   if (model === undefined || !settings.ai[spec.feature]) return err(aiOff());
-  const person = asPerson(ctx);
+  const person = requestedBy === undefined ? asPerson(ctx) : ok(requestedBy);
   if (!person.ok) return person;
   const raw = await model.complete(ctx.caller.tenantId, {
     instruction: spec.instruction,

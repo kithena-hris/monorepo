@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PutForward($jobId: String!, $candidateId: String!, $key: String!) {\n    putForward(jobId: $jobId, candidateId: $candidateId, idempotencyKey: $key)\n  }"}

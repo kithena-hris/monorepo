@@ -82,7 +82,11 @@ export interface Matrix {
   readonly band: Band;
 }
 
-export async function assessMatrix(ctx: Ctx, applicationId: string): Promise<Result<Matrix>> {
+export async function assessMatrix(
+  ctx: Ctx,
+  applicationId: string,
+  system = false,
+): Promise<Result<Matrix>> {
   if (!(await aiOn(ctx, 'matrix'))) return err(aiOff());
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -107,6 +111,7 @@ export async function assessMatrix(ctx: Ctx, applicationId: string): Promise<Res
         ...scored,
       };
     },
+    system,
   );
   if (!read.ok) return read;
   await ctx.tx.verdicts.save(

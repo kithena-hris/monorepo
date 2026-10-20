@@ -585,6 +585,49 @@ export async function addCandidate(
   return landed;
 }
 
+/**
+ * A candidate already known here, put forward for an open job by a recruiter
+ * (PRD §13.3): from a talent pool, or from their profile. They enter the
+ * job's first stage with no new form, and are told by email, with the ad's
+ * address and their own page, so nothing moves without their knowing.
+ */
+export async function putForward(
+  ctx: Ctx,
+  jobId: string,
+  candidateId: string,
+): Promise<Result<ApplicationRecord>> {
+  const job = await ctx.tx.jobs.get(jobId);
+  if (job === null || job.state !== 'open') return err(failure('JOB_CLOSED', 'Choose an open job'));
+  const team = await ctx.tx.jobs.team(jobId);
+  if (
+    !ctx.viewer.admin &&
+    !team.some((t) => t.personId === ctx.viewer.personId && t.role === 'recruiter')
+  )
+    return err(failure('FORBIDDEN', 'Only a recruiter on this job can put someone forward'));
+  const candidate = await ctx.tx.candidates.get(candidateId);
+  if (candidate === null || candidate.mergedInto !== null || candidate.anonymisedAt !== null)
+    return err(notFound('candidate'));
+  const landed = await land(
+    ctx,
+    job,
+    candidate,
+    { kind: 'recruiter' },
+    { name: candidate.name, email: candidate.email },
+    'en',
+    null,
+    [],
+  );
+  if (!landed.ok) return landed;
+  const settings = await generalSettings(ctx);
+  ctx.mail.push({
+    to: candidate.email,
+    subject: `${settings.companyName} would like to consider you for ${job.title}`,
+    text: `Hello ${candidate.name},\n\n${settings.companyName} has put your application forward for a new opening, ${job.title}. The ad is here:\n${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}\n\nYou can follow it, or withdraw, here:\n${await portalLink(ctx, candidate.id)}`,
+    dedupeKey: `put-forward:${landed.value.id}`,
+  });
+  return landed;
+}
+
 /** A member refers someone (PRD §9.3): the person completes the application themselves, by their own consent. */
 export async function refer(
   ctx: Ctx,

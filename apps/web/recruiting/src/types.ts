@@ -326,6 +326,14 @@ export interface CandidateData {
     readonly reason: string;
     readonly addedAt: string;
   }[];
+  /** For the profile's own actions: a rejection's reasons and emails, and every pool to add to. */
+  readonly rejectionReasons: readonly string[];
+  readonly templates: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly purpose: string;
+  }[];
+  readonly allPools: readonly { readonly id: string; readonly name: string }[];
   readonly applications: readonly {
     readonly applicationId: string;
     readonly job: { readonly id: string; readonly title: string };
@@ -442,6 +450,8 @@ export interface PoolsData {
       readonly consentUntil: string | null;
     }[];
   } | null;
+  /** Open jobs a member can be put forward for. */
+  readonly jobs: readonly { readonly id: string; readonly title: string }[];
 }
 
 export type Recommendation = 'strong_no' | 'no' | 'yes' | 'strong_yes';
