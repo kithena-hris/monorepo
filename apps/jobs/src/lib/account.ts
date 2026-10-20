@@ -23,6 +23,7 @@ export interface AccountHome {
   readonly name: string;
   readonly email: string;
   readonly google: boolean;
+  readonly pictureUrl: string | null;
   readonly consentedAt: string | null;
   readonly cvs: readonly {
     readonly id: string;
@@ -83,9 +84,7 @@ export async function me(): Promise<AccountHome | null> {
 }
 
 /** Each company's own page for this account, by the token Recruiting minted for it. */
-export async function applicationsOf(
-  home: AccountHome,
-): Promise<
+export async function applicationsOf(home: AccountHome): Promise<
   readonly {
     readonly company: AccountHome['companies'][number];
     readonly page: CandidatePage | null;

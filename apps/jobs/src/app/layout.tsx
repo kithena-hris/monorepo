@@ -1,4 +1,4 @@
-import { Button, KithenaMark, TooltipProvider } from '@reach/ui';
+import { Avatar, Button, KithenaMark, TooltipProvider, icons } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -7,7 +7,7 @@ import type { JSX, ReactNode } from 'react';
 
 import './globals.css';
 import { ThemeToggle } from '../components/theme-toggle';
-import { SESSION_COOKIE } from '../lib/account';
+import { SESSION_COOKIE, me } from '../lib/account';
 import { THEME_KEY, themeScript } from '../lib/theme';
 
 export const metadata: Metadata = {
@@ -24,7 +24,8 @@ export default async function RootLayout({
   children: ReactNode;
 }): Promise<JSX.Element> {
   const jar = await cookies();
-  const signedIn = jar.get(SESSION_COOKIE) !== undefined;
+  // Who is signed in, for the header: the account's name and the picture Google vouched for.
+  const account = jar.get(SESSION_COOKIE) === undefined ? null : await me();
   // The chosen theme on the server too, so the first paint is already right; the script covers the system default.
   const dark = jar.get(THEME_KEY)?.value === 'dark';
   return (
@@ -48,10 +49,29 @@ export default async function RootLayout({
                 <Button asChild variant="ghost" size="sm">
                   <Link href="/search">Search</Link>
                 </Button>
-                {signedIn ? (
-                  <Button asChild variant="secondary" size="sm">
-                    <Link href="/me">Your applications</Link>
-                  </Button>
+                {account !== null ? (
+                  <>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link href="/me" className="flex items-center gap-2">
+                        <Avatar
+                          name={account.name}
+                          src={account.pictureUrl ?? undefined}
+                          size="xs"
+                          aria-hidden
+                        />
+                        Your applications
+                      </Link>
+                    </Button>
+                    <form action="/auth/sign-out" method="post">
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Sign out"
+                        startIcon={<icons.signOut aria-hidden />}
+                      />
+                    </form>
+                  </>
                 ) : (
                   <Button asChild variant="secondary" size="sm">
                     <Link href="/sign-in">Sign in</Link>

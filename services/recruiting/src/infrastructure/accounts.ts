@@ -21,7 +21,7 @@ const iso = (column: SQL) =>
 const str = (v: unknown): string | null =>
   typeof v === 'string' ? v : v instanceof Date ? v.toISOString() : null;
 
-const ACCOUNT = sql`id, email_norm, email, name, google_sub, consent_notice, code_hash, code_attempts,
+const ACCOUNT = sql`id, email_norm, email, name, google_sub, picture_url, consent_notice, code_hash, code_attempts,
   ${iso(sql`consented_at`)} AS consented_at, ${iso(sql`code_expires_at`)} AS code_expires_at,
   ${iso(sql`created_at`)} AS created_at, ${iso(sql`last_seen_at`)} AS last_seen_at`;
 
@@ -31,6 +31,7 @@ const accountOf = (r: Row): CandidateAccount => ({
   email: String(r['email']),
   name: String(r['name']),
   googleSub: str(r['google_sub']),
+  pictureUrl: str(r['picture_url']),
   consentedAt: str(r['consented_at']) as Instant | null,
   consentNotice: str(r['consent_notice']),
   codeHash: str(r['code_hash']),
@@ -64,10 +65,10 @@ export function postgresAccounts(db: PostgresJsDatabase): Accounts {
     byGoogleSub: (sub) => account(sql`google_sub = ${sub}`),
     async save(a) {
       await db.execute(sql`INSERT INTO recruiting_public.candidate_account
-          (id, email_norm, email, name, google_sub, consented_at, consent_notice, code_hash, code_expires_at, code_attempts, created_at, last_seen_at)
-        VALUES (${a.id}, ${a.emailNorm}, ${a.email}, ${a.name}, ${a.googleSub}, ${a.consentedAt}, ${a.consentNotice},
+          (id, email_norm, email, name, google_sub, picture_url, consented_at, consent_notice, code_hash, code_expires_at, code_attempts, created_at, last_seen_at)
+        VALUES (${a.id}, ${a.emailNorm}, ${a.email}, ${a.name}, ${a.googleSub}, ${a.pictureUrl}, ${a.consentedAt}, ${a.consentNotice},
           ${a.codeHash}, ${a.codeExpiresAt}, ${a.codeAttempts}, ${a.createdAt}, ${a.lastSeenAt})
-        ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, google_sub = EXCLUDED.google_sub,
+        ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, google_sub = EXCLUDED.google_sub, picture_url = EXCLUDED.picture_url,
           consented_at = EXCLUDED.consented_at, consent_notice = EXCLUDED.consent_notice, code_hash = EXCLUDED.code_hash,
           code_expires_at = EXCLUDED.code_expires_at, code_attempts = EXCLUDED.code_attempts, last_seen_at = EXCLUDED.last_seen_at`);
     },

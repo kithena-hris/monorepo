@@ -1,0 +1,15 @@
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import type { JSX } from 'react';
+
+import { me } from '../../../lib/account';
+import { CvWriter } from './cv-writer';
+
+export const metadata: Metadata = { title: 'Write your CV', robots: { index: false } };
+
+/** A CV from scratch: the candidate says what they have done, the AI lays it out, they edit every line, and it joins their library as a PDF. */
+export default async function WriteCv(): Promise<JSX.Element> {
+  const home = await me();
+  if (home === null) redirect('/sign-in?next=/me/cv');
+  return <CvWriter name={home.name} email={home.email} />;
+}

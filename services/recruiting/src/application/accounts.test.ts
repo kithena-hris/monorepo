@@ -88,7 +88,13 @@ describe('a candidate account', () => {
     const d = world((idToken) =>
       Promise.resolve(
         idToken === 'good'
-          ? { sub: 'g-1', email: 'marco@example.com', emailVerified: true, name: 'Marco' }
+          ? {
+              sub: 'g-1',
+              email: 'marco@example.com',
+              emailVerified: true,
+              name: 'Marco',
+              picture: null,
+            }
           : null,
       ),
     );
