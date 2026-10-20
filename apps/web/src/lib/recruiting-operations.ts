@@ -154,6 +154,9 @@ export const OPERATIONS = {
   /* ---------------------------------------------------------- interviews -- */
   ScheduleInterview: write('ScheduleInterview', 'scheduleInterview', ...ID('applicationId')),
   SelfScheduleLink: write('SelfScheduleLink', 'selfScheduleLink', ...ID('applicationId')),
+  ProposeSlots: write('ProposeSlots', 'proposeSlots', ...ID('applicationId')),
+  RequestInformation: write('RequestInformation', 'requestInformation', ...ID('applicationId')),
+  CloseAsk: write('CloseAsk', 'closeAsk', ...two('applicationId', 'askId'), false),
   SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   RecruitingConnections: query('RecruitingConnections', 'recruitingConnections'),
@@ -170,6 +173,7 @@ export const OPERATIONS = {
   ),
   ParseCv: write('ParseCv', 'parseCv', ...ID('applicationId'), false),
   AssessMatrix: write('AssessMatrix', 'assessMatrix', ...ID('applicationId'), false),
+  AssessJob: write('AssessJob', 'assessJob', ...ID('jobId'), false),
   SummariseDebrief: write('SummariseDebrief', 'summariseDebrief', ...ID('applicationId'), false),
   DraftEmail: write('DraftEmail', 'draftEmail', ...ID('applicationId')),
   AskForChart: write('AskForChart', 'askForChart'),

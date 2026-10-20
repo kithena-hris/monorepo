@@ -50,6 +50,7 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, money, useAct, when, words } from './shared';
+import { AskList } from './interviews';
 import { RejectDialog, type Rejecting } from './reject-dialog';
 import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './types';
 
@@ -543,6 +544,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
   const act = useAct(props);
   const [rejecting, setRejecting] = useState<Rejecting | null>(null);
   const [poolId, setPoolId] = useState('');
+  const [asking, setAsking] = useState<string | null>(null);
+  const [askLabel, setAskLabel] = useState('');
+  const [askDetail, setAskDetail] = useState('');
   return (
     <Loaded load={props.load} what="the candidate">
       {(data) => {
@@ -701,6 +705,18 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           }
                         >
                           Schedule
+                        </Button>
+                      ) : null}
+                      {chosen.outcome === 'active' && chosen.may.includes('candidate.message') ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          startIcon={<icons.help aria-hidden />}
+                          onClick={() => {
+                            setAsking(chosen.applicationId);
+                          }}
+                        >
+                          Ask for information…
                         </Button>
                       ) : null}
                       {chosen.may.includes('scorecards.all') ? (
@@ -863,6 +879,18 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                               title="No interviews yet"
                             />
                           ) : null}
+                          {chosen.asks.length === 0 ? null : (
+                            <div className="flex flex-col gap-2">
+                              <h3 className="text-sm font-semibold text-fg-muted">
+                                With the candidate
+                              </h3>
+                              <AskList
+                                asks={chosen.asks}
+                                applicationId={chosen.applicationId}
+                                act={act}
+                              />
+                            </div>
+                          )}
                           {chosen.interviews.map((i) => {
                             const cards = chosen.scorecards.filter(
                               (c) => c.interviewId === i.id && c.submittedAt !== null,
@@ -956,6 +984,80 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                 </div>
               )}
             </div>
+            <Dialog
+              open={asking !== null}
+              onOpenChange={(open) => {
+                if (!open) setAsking(null);
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Ask the candidate for something</DialogTitle>
+                  <DialogDescription>
+                    {`It lands on ${data.candidate.name}’s page and in their inbox the moment you send it; the answer comes back here.`}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogBody className="flex flex-col gap-3">
+                  <Field required>
+                    <FieldLabel>What you need</FieldLabel>
+                    <FieldControl>
+                      <Input
+                        value={askLabel}
+                        onChange={(e) => {
+                          setAskLabel(e.target.value);
+                        }}
+                        placeholder="Your notice period, a portfolio link, two references…"
+                      />
+                    </FieldControl>
+                  </Field>
+                  <Field>
+                    <FieldLabel>More detail (optional)</FieldLabel>
+                    <FieldControl>
+                      <Textarea
+                        autoResize
+                        value={askDetail}
+                        onChange={(e) => {
+                          setAskDetail(e.target.value);
+                        }}
+                      />
+                    </FieldControl>
+                  </Field>
+                </DialogBody>
+                <DialogFooter>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setAsking(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={askLabel.trim() === ''}
+                    loading={act.pending}
+                    onClick={() => {
+                      act.run(
+                        'RequestInformation',
+                        {
+                          applicationId: asking,
+                          input: {
+                            label: askLabel.trim(),
+                            detail: askDetail.trim() === '' ? null : askDetail.trim(),
+                          },
+                        },
+                        () => {
+                          setAsking(null);
+                          setAskLabel('');
+                          setAskDetail('');
+                        },
+                      );
+                    }}
+                  >
+                    Send
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <RejectDialog
               options={{
                 jobTitle: chosen?.job.title ?? '',

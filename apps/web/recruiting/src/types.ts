@@ -369,6 +369,7 @@ export interface CandidateData {
       readonly state: string;
       readonly interviewerIds: readonly string[];
     }[];
+    readonly asks: readonly Ask[];
     readonly scorecards: readonly {
       readonly interviewId: string;
       readonly interviewerId: string;
@@ -510,6 +511,25 @@ export interface KitData {
   readonly me: string;
 }
 
+/** What the team asked of the candidate, or the candidate of the team (`asks.ts` in Recruiting). */
+export interface Ask {
+  readonly id: string;
+  readonly applicationId: string;
+  readonly kind: 'slots' | 'info' | 'change';
+  readonly createdAt: string;
+  readonly by: string | null;
+  readonly planKey: string | null;
+  readonly times: readonly string[];
+  readonly place: string | null;
+  readonly videoUrl: string | null;
+  readonly label: string;
+  readonly detail: string | null;
+  readonly interviewId: string | null;
+  readonly state: 'open' | 'answered' | 'closed';
+  readonly answeredAt: string | null;
+  readonly answer: { readonly time: string | null; readonly text: string | null } | null;
+}
+
 export interface ScheduleData {
   readonly candidate: { readonly id: string; readonly name: string };
   readonly job: { readonly id: string; readonly title: string };
@@ -519,6 +539,15 @@ export interface ScheduleData {
   readonly to: string;
   readonly slots: readonly string[];
   readonly names: Readonly<Record<string, string>>;
+  readonly asks: readonly Ask[];
+  readonly booked: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly startsAt: string;
+    readonly minutes: number;
+    readonly place: string | null;
+    readonly videoUrl: string | null;
+  }[];
 }
 
 export interface DebriefData {

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -232,6 +233,11 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   } | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [moveTo, setMoveTo] = useState('');
+  const [assessed, setAssessed] = useState<{
+    assessed: number;
+    skipped: number;
+    failed: readonly string[];
+  } | null>(null);
   // Held while the stages and the navigation hold, so a selection redraws only its rows.
   const stages = props.load.status === 'ready' ? props.load.data.stages : NO_STAGES;
   const { onNavigate } = props;
@@ -240,7 +246,22 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   return (
     <Loaded load={props.load} what="the pipeline">
       {(data) => {
-        const active = data.cards.filter((c) => c.outcome === 'active');
+        const band = props.search?.['band'] ?? '';
+        const active = data.cards.filter(
+          (c) =>
+            c.outcome === 'active' &&
+            (band === '' || (band === 'none' ? c.match == null : c.match?.band === band)),
+        );
+        // The strong matches still at the first stage: one press moves them on (PRD §22.4).
+        const first = data.stages[0];
+        const second = data.stages[1];
+        const strongAtStart =
+          first === undefined || second === undefined
+            ? []
+            : data.cards.filter(
+                (c) =>
+                  c.outcome === 'active' && c.stageId === first.id && c.match?.band === 'strong',
+              );
         const byStage = Object.fromEntries(
           data.stages.map((s) => [
             s.id,
@@ -335,21 +356,48 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                     Job dashboard
                   </Button>
                   {data.may.includes('job.edit') ? (
-                    <Button
-                      variant="secondary"
-                      loading={act.pending}
-                      onClick={() => {
-                        act.run('Rediscover', { jobId: data.job.id }, (found) => {
-                          setFound(found as readonly Rediscovered[]);
-                        });
-                      }}
-                    >
-                      Rediscover from pools
-                    </Button>
+                    <>
+                      <Button
+                        variant="secondary"
+                        startIcon={<icons.assistant aria-hidden />}
+                        loading={act.pending}
+                        onClick={() => {
+                          act.run('AssessJob', { jobId: data.job.id }, (done) => {
+                            setAssessed(done as typeof assessed);
+                          });
+                        }}
+                      >
+                        Read everyone with AI
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        loading={act.pending}
+                        onClick={() => {
+                          act.run('Rediscover', { jobId: data.job.id }, (found) => {
+                            setFound(found as readonly Rediscovered[]);
+                          });
+                        }}
+                      >
+                        Rediscover from pools
+                      </Button>
+                    </>
                   ) : null}
                 </>
               }
             />
+            {assessed === null ? null : (
+              <Alert
+                tone={assessed.failed.length === 0 ? 'success' : 'warning'}
+                title={`${String(assessed.assessed)} read against the criteria, ${String(assessed.skipped)} already were`}
+                onDismiss={() => {
+                  setAssessed(null);
+                }}
+              >
+                {assessed.failed.length === 0
+                  ? 'A label on each card, not a decision: every finding cites the CV and a person agrees or not.'
+                  : `${String(assessed.failed.length)} could not be read: ${[...new Set(assessed.failed)].join('; ')}`}
+              </Alert>
+            )}
             {found === null ? null : (
               <Card>
                 <CardHeader>
@@ -405,6 +453,39 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   <SelectItem value="match">Match, strongest first</SelectItem>
                 </SelectContent>
               </Select>
+              <Select
+                value={band === '' ? 'any' : band}
+                onValueChange={(v) => props.onFilter?.({ band: v === 'any' ? null : v })}
+              >
+                <SelectTrigger aria-label="AI match" className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any match</SelectItem>
+                  <SelectItem value="strong">Ideal candidates</SelectItem>
+                  <SelectItem value="good">Good matches</SelectItem>
+                  <SelectItem value="weak">Weak matches</SelectItem>
+                  <SelectItem value="none">Not read yet</SelectItem>
+                </SelectContent>
+              </Select>
+              {strongAtStart.length > 0 && canMove && second !== undefined ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run('BulkApplications', {
+                      input: {
+                        action: 'move',
+                        ids: strongAtStart.map((c) => c.applicationId),
+                        to: second.id,
+                      },
+                    });
+                  }}
+                >
+                  {`Shortlist ${String(strongAtStart.length)} ideal to ${second.name}`}
+                </Button>
+              ) : null}
             </div>
             <Refusal error={act.error} />
             {view === 'board' ? (
