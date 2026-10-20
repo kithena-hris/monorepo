@@ -54,6 +54,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """R10: the matrix for every active candidate on the job who has none yet"""
+  assessJob(idempotencyKey: String!, jobId: String!): JSON
   """
   R10, R11: the evidence matrix against the job’s criteria; the domain scores it
   """
@@ -81,6 +83,8 @@ type Mutation {
   ): JSON
   """Ask again whether its DNS points at Kithena Jobs; admin"""
   checkCareersDomain(idempotencyKey: String!): JSON
+  """R11, R16: the team has dealt with what was asked"""
+  closeAsk(applicationId: String!, askId: String!, idempotencyKey: String!): JSON
   """R19: compose or revise the offer"""
   composeOffer(
     applicationId: String!
@@ -203,6 +207,15 @@ type Mutation {
   ): JSON
   """§ 99 BetrVG: present the hire"""
   presentToWorksCouncil(applicationId: String!, idempotencyKey: String!): JSON
+  """
+  R16: offer the candidate fixed times; they pick one or ask for others, by email at once
+  """
+  proposeSlots(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R7: publish to a target"""
   publishJob(idempotencyKey: String!, jobId: String!, target: String!): JSON
   """
@@ -261,6 +274,15 @@ type Mutation {
   removeScorecardTemplate(id: String!, idempotencyKey: String!): JSON
   """Remove an email or letter template no stage sends"""
   removeTemplate(id: String!, idempotencyKey: String!): JSON
+  """
+  R11: ask the candidate for something; it lands on their page and in their inbox at once
+  """
+  requestInformation(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R18: ask a named referee"""
   requestReference(applicationId: String!, idempotencyKey: String!, referenceId: String!): JSON
   """R9: an agency and the jobs it may submit to"""

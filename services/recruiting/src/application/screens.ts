@@ -11,6 +11,7 @@ import { TERMS_STEPS } from '@kithena/contracts';
 import { approvalState } from '../domain/requisition/requisition.js';
 import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
+import { asksOf } from './asks.js';
 import { jobFacts, notFound, recruiterOnly, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
 import { previewTokenFor } from './intake.js';
@@ -359,6 +360,7 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
       adjustments: may(ctx.viewer, facts, 'candidate.profile') ? app.adjustments : null,
       history: app.history,
       interviews,
+      asks: (await asksOf(ctx, app.id)).toReversed(),
       scorecards: team
         ? cards.filter((c) => c.submittedAt !== null)
         : visibleScorecards(cards, { kind: 'interviewer', personId: ctx.viewer.personId ?? '' }),

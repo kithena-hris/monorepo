@@ -3,6 +3,7 @@ import type { CandidatePage, Instant, LaunchCountry } from '@kithena/contracts';
 
 import { currentStage, effectiveHistory } from '../domain/pipeline/application.js';
 import { retentionAction } from '../domain/privacy/retention.js';
+import { asksOf } from './asks.js';
 import { adminOnly, event, notFound, publish, type Ctx } from './context.js';
 import { sha256 } from './intake.js';
 import type { Candidate } from './ports.js';
@@ -69,7 +70,18 @@ export async function candidatePage(ctx: Ctx, candidate: Candidate): Promise<Can
       steps,
       outcome: app.outcome,
       interviews,
-      requests: [],
+      requests: (await asksOf(ctx, app.id)).toReversed().map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        label: a.label,
+        detail: a.detail,
+        createdAt: a.createdAt,
+        times: [...a.times],
+        where: a.videoUrl ?? a.place,
+        interviewId: a.interviewId,
+        state: a.state,
+        answer: a.answer,
+      })),
       offer:
         offer === undefined
           ? null

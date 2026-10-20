@@ -37,7 +37,14 @@ import {
   submitOfferForApproval,
   uploadSignedContract,
 } from '../application/offers.js';
-import { candidateByToken } from '../application/privacy.js';
+import { candidateByToken, candidatePage } from '../application/privacy.js';
+import {
+  answerAsk,
+  closeAsk,
+  proposeSlots,
+  requestChange,
+  requestInformation,
+} from '../application/requests.js';
 import {
   decideRequisition,
   saveRequisition,
@@ -538,6 +545,66 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   const interviewId =
     (await uow.run(tenantId, (tx) => tx.interviews.forApplication(applied.applicationId)))[0]?.id ??
     '';
+  // The loop neither side waits on (§10.5, §16.4): times offered and declined, a question
+  // answered, a booked time questioned. Each step mails the other side at once.
+  const yukiId =
+    (await uow.run(tenantId, (tx) => tx.applications.get(applied.applicationId)))?.candidateId ??
+    '';
+  const mailed: Outgoing[] = [];
+  const asMailing = <T>(who: 'ada' | 'public', fn: (ctx: Ctx) => Promise<T>): Promise<T> =>
+    uow.run(tenantId, async (tx) =>
+      fn(await contextOf(deps, tx, callerOf(who), mailed)),
+    );
+  const offered = await asMailing('ada', async (ctx) =>
+    value(
+      await proposeSlots(ctx, applied.applicationId, {
+        planKey: 'portfolio',
+        times: [Instant.parse('2026-10-22T09:00:00.000Z'), Instant.parse('2026-10-22T14:00:00.000Z')],
+        place: null,
+        videoUrl: null,
+        note: null,
+      }),
+    ),
+  );
+  expect(mailed.at(-1)?.subject).toMatch(/^Appointment requested/u);
+  const notOffered = await asMailing('public', (ctx) =>
+    answerAsk(ctx, yukiId, offered.id, { time: Instant.parse('2026-10-23T09:00:00.000Z'), text: null }),
+  );
+  expect(notOffered.ok ? null : notOffered.error.code).toBe('NOT_OFFERED');
+  const declined = await asMailing('public', async (ctx) =>
+    value(await answerAsk(ctx, yukiId, offered.id, { time: null, text: 'Away that week' })),
+  );
+  expect(declined.state).toBe('answered');
+  expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/^Received:/u));
+  expect(mailed.map((m) => m.subject)).toContainEqual(
+    expect.stringMatching(/needs other times/u),
+  );
+  const question = await asMailing('ada', async (ctx) =>
+    value(
+      await requestInformation(ctx, applied.applicationId, {
+        label: 'Your notice period',
+        detail: null,
+      }),
+    ),
+  );
+  const replied = await asMailing('public', async (ctx) =>
+    value(await answerAsk(ctx, yukiId, question.id, { time: null, text: 'One month' })),
+  );
+  expect(replied.answer?.text).toBe('One month');
+  const change = await asMailing('public', async (ctx) =>
+    value(await requestChange(ctx, yukiId, interviewId, 'A clash at work')),
+  );
+  expect(change.kind).toBe('change');
+  await as('ada', async (ctx) => value(await closeAsk(ctx, applied.applicationId, change.id)));
+  const page = await as('public', async (ctx) =>
+    candidatePage(ctx, (await ctx.tx.candidates.get(yukiId)) as never),
+  );
+  expect(page.applications[0]?.requests.map((r) => r.state)).toEqual([
+    'closed',
+    'answered',
+    'answered',
+  ]);
+
   // The day before, the candidate is reminded; messaging drops a repeat by its key.
   now = Date.parse('2026-10-18T06:00:00Z');
   const sent: string[] = [];

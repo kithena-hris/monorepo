@@ -59,6 +59,13 @@ import {
   scheduleScreen,
 } from '../application/interviews.js';
 import {
+  answerAsk,
+  closeAsk,
+  proposeSlots,
+  requestChange,
+  requestInformation,
+} from '../application/requests.js';
+import {
   createJob,
   moveJobState,
   publishTo,
@@ -161,7 +168,13 @@ import {
   submitAsAgency,
 } from '../application/agency-portal.js';
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
-import { agreeWithFinding, assessMatrix, jobNotices, rediscover } from '../application/matrix.js';
+import {
+  agreeWithFinding,
+  assessJob,
+  assessMatrix,
+  jobNotices,
+  rediscover,
+} from '../application/matrix.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
 import { askForChart } from '../application/chart-ask.js';
@@ -1043,6 +1056,40 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params, body }) => selfScheduleLink(ctx, params.applicationId, body.planKey),
   }),
   route({
+    name: 'proposeSlots',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/proposals`,
+    summary: 'R16: offer the candidate fixed times; they pick one or ask for others, by email at once',
+    params: z.object({ applicationId: Id }),
+    body: z.object({
+      planKey: text(40),
+      times: z.array(Instant).min(1).max(12),
+      place: text(500).nullable(),
+      videoUrl: z.url().nullable(),
+      note: text(1000).nullable(),
+    }),
+    status: 201,
+    run: (ctx, { params, body }) => proposeSlots(ctx, params.applicationId, body),
+  }),
+  route({
+    name: 'requestInformation',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/requests`,
+    summary: 'R11: ask the candidate for something; it lands on their page and in their inbox at once',
+    params: z.object({ applicationId: Id }),
+    body: z.object({ label: text(200), detail: text(4000).nullable() }),
+    status: 201,
+    run: (ctx, { params, body }) => requestInformation(ctx, params.applicationId, body),
+  }),
+  route({
+    name: 'closeAsk',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/asks/{askId}/close`,
+    summary: 'R11, R16: the team has dealt with what was asked',
+    params: z.object({ applicationId: Id, askId: Id }),
+    run: (ctx, { params }) => closeAsk(ctx, params.applicationId, params.askId),
+  }),
+  route({
     name: 'setInterviewState',
     method: 'POST',
     path: `${V1}/interviews/{interviewId}/state`,
@@ -1089,6 +1136,14 @@ export const ROUTES: readonly Route[] = [
     summary: 'R10, R11: the evidence matrix against the job’s criteria; the domain scores it',
     params: z.object({ applicationId: Id }),
     run: (ctx, { params }) => assessMatrix(ctx, params.applicationId),
+  }),
+  route({
+    name: 'assessJob',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/assess`,
+    summary: 'R10: the matrix for every active candidate on the job who has none yet',
+    params: z.object({ jobId: Id }),
+    run: (ctx, { params }) => assessJob(ctx, params.jobId),
   }),
   route({
     name: 'rediscover',
@@ -1889,6 +1944,28 @@ export const ROUTES: readonly Route[] = [
     public: true,
     run: (ctx, { headers }) =>
       asCandidate(ctx, headers, async (id) => done(await anonymise(ctx, id))),
+  }),
+  route({
+    name: 'publicAnswerAsk',
+    method: 'POST',
+    path: `${V1}/public/{company}/me/asks/{askId}`,
+    summary: 'J6: pick one of the times offered, or answer what was asked',
+    params: z.object({ company: text(63), askId: Id }),
+    body: z.object({ time: Instant.nullable(), text: text(4000).nullable() }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      asCandidate(ctx, headers, (id) => answerAsk(ctx, id, params.askId, body)),
+  }),
+  route({
+    name: 'publicRequestChange',
+    method: 'POST',
+    path: `${V1}/public/{company}/me/interviews/{interviewId}/change`,
+    summary: 'J6: ask for a booked interview to move',
+    params: z.object({ company: text(63), interviewId: Id }),
+    body: z.object({ reason: text(1000) }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      asCandidate(ctx, headers, (id) => requestChange(ctx, id, params.interviewId, body.reason)),
   }),
   route({
     name: 'publicSlots',

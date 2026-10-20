@@ -202,10 +202,25 @@ export const CandidatePage = z.object({
           rescheduleUrl: z.url().nullable().register(policy, asInternal()),
         }),
       ),
+      /** What the company asks of the candidate, and what they asked back (`asks.ts`). */
       requests: z.array(
         z.object({
           id: z.uuid().register(policy, asPublic()),
+          kind: z.enum(['slots', 'info', 'change']).register(policy, asInternal()),
           label: z.string().max(200).register(policy, asInternal()),
+          detail: z.string().max(4000).nullable().register(policy, asFreeText()),
+          createdAt: Instant,
+          /** `slots`: the times offered, and where it would be. */
+          times: z.array(Instant),
+          where: z.string().max(500).nullable().register(policy, asInternal()),
+          interviewId: z.uuid().nullable().register(policy, asPublic()),
+          state: z.enum(['open', 'answered', 'closed']).register(policy, asInternal()),
+          answer: z
+            .object({
+              time: Instant.nullable(),
+              text: z.string().max(4000).nullable().register(policy, asFreeText()),
+            })
+            .nullable(),
         }),
       ),
       offer: z

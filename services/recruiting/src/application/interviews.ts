@@ -18,8 +18,10 @@ import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interv
 import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
 import { tellInterviewers } from './chat.js';
 import { asPerson, event, forbidden, nameOf, notFound, publish, type Ctx } from './context.js';
-import { sha256 } from './intake.js';
-import { loadApplication, queueEmail } from './moves.js';
+import { sha256, portalLink } from './intake.js';
+import { asksOf } from './asks.js';
+import { loadApplication, sendNow } from './moves.js';
+import type { Ask } from './asks.js';
 import type { InterviewRecord, PlannedInterview, WorkingHours } from './ports.js';
 import { generalSettings } from './setup.js';
 
@@ -112,6 +114,9 @@ export async function scheduleScreen(
     to: Instant;
     slots: readonly string[];
     names: Readonly<Record<string, string>>;
+    /** What the candidate has been asked (times proposed, a change wanted), newest first. */
+    asks: readonly Ask[];
+    booked: readonly InterviewRecord[];
   }>
 > {
   const loaded = await loadApplication(ctx, applicationId);
@@ -119,8 +124,9 @@ export async function scheduleScreen(
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
   const plan = await ctx.tx.jobs.plan(loaded.value.app.jobId);
   const chosen = plan.find((p) => p.key === planKey) ?? plan[0] ?? null;
+  // A month of days at once: the screen's calendar marks the days with a slot and lists one day's times.
   const start = from ?? (`${ctx.today}T00:00:00.000Z` as Instant);
-  const end = new Date(Date.parse(start) + 5 * 86_400_000).toISOString() as Instant;
+  const end = new Date(Date.parse(start) + 35 * 86_400_000).toISOString() as Instant;
   const slots =
     chosen === null
       ? ok([] as readonly string[])
@@ -140,6 +146,10 @@ export async function scheduleScreen(
       ctx,
       plan.flatMap((p) => p.interviewerIds),
     ),
+    asks: (await asksOf(ctx, applicationId)).toReversed(),
+    booked: (await ctx.tx.interviews.forApplication(applicationId)).filter(
+      (i) => i.state === 'scheduled',
+    ),
   });
 }
 
@@ -151,7 +161,7 @@ export interface Booking {
   readonly videoUrl: string | null;
 }
 
-async function book(
+export async function bookInterview(
   ctx: Ctx,
   applicationId: string,
   booking: Booking,
@@ -233,16 +243,16 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     timeStyle: 'short',
     timeZone: candidate.timeZone ?? 'UTC',
   }).format(new Date(interview.startsAt));
-  await queueEmail(
+  // Sent now, not by the next sweep: a candidate waits on this one.
+  const page = cancelled ? '' : await portalLink(ctx, candidate.id);
+  await sendNow(
     ctx,
     candidate,
     interview.applicationId,
     cancelled
       ? `Cancelled: ${interview.title} with ${settings.companyName}`
-      : `${interview.title} with ${settings.companyName}, ${when}`,
-    `${cancelled ? 'This interview is cancelled.' : `Your ${interview.title.toLowerCase()} is on ${when} (${candidate.timeZone ?? 'UTC'}).`}${where === null ? '' : `\nWhere: ${where}`}\n\n${invitation}`,
-    ctx.at,
-    null,
+      : `Appointment scheduled: ${interview.title} with ${settings.companyName}, ${when}`,
+    `Hello ${candidate.name},\n\n${cancelled ? 'This interview is cancelled.' : `Your ${interview.title.toLowerCase()} for ${job?.title ?? 'the role'} is on ${when} (${candidate.timeZone ?? 'UTC'}).`}${where === null ? '' : `\nWhere: ${where}`}${cancelled ? '' : `\n\nIf that time no longer works, ask for a change from your page:\n${page}`}\n\n${invitation}`,
   );
 }
 
@@ -254,7 +264,7 @@ export async function scheduleInterview(
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
-  return book(ctx, applicationId, booking, 'team');
+  return bookInterview(ctx, applicationId, booking, 'team');
 }
 
 /** A self-scheduling link (PRD §16.4): the candidate picks a slot that fits every interviewer. */
@@ -276,14 +286,12 @@ export async function selfScheduleLink(
   });
   const company = (await generalSettings(ctx)).companySlug;
   const link = `${ctx.deps.jobsOrigin}/schedule/${company}#${token}`;
-  await queueEmail(
+  await sendNow(
     ctx,
     loaded.value.candidate,
     applicationId,
-    'Choose a time for your interview',
-    `Please choose a time that suits you:\n${link}`,
-    ctx.at,
-    null,
+    `Appointment requested: choose a time with ${(await generalSettings(ctx)).companyName}`,
+    `Hello ${loaded.value.candidate.name},\n\nPlease choose a time that suits you:\n${link}\n\nThe link works for fourteen days.`,
   );
   return ok(link);
 }
@@ -342,7 +350,7 @@ export async function bookByLink(
     await takeOffCalendar(ctx, existing.id);
     await invite(ctx, existing, true);
   }
-  return book(
+  return bookInterview(
     ctx,
     link.applicationId,
     { planKey: link.planKey, startsAt, place: null, videoUrl: null },

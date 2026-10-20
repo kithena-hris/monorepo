@@ -235,6 +235,34 @@ const REDISCOVER_AT_MOST = 25;
  * ponytail: the first 25 members, in one request. A queue and a page that
  * fills as reads land, when pools grow past that.
  */
+/**
+ * R10: the matrix for everyone active on the job who has none yet, one
+ * after another, as the caller; a refusal for one (AI off, NYC gate) does
+ * not stop the rest. The board shows the band on every card afterwards.
+ */
+export async function assessJob(
+  ctx: Ctx,
+  jobId: string,
+): Promise<Result<{ assessed: number; skipped: number; failed: readonly string[] }>> {
+  const job = await ctx.tx.jobs.get(jobId);
+  if (job === null) return err(notFound('job'));
+  if (!may(ctx.viewer, await jobFacts(ctx, job), 'job.edit')) return err(forbidden());
+  let assessed = 0;
+  let skipped = 0;
+  const failed: string[] = [];
+  for (const app of await ctx.tx.applications.forJob(jobId)) {
+    if (app.outcome !== 'active') continue;
+    if ((await latestMatrix(ctx, app.id)) !== null) {
+      skipped += 1;
+      continue;
+    }
+    const result = await assessMatrix(ctx, app.id);
+    if (result.ok) assessed += 1;
+    else failed.push(result.error.message);
+  }
+  return ok({ assessed, skipped, failed });
+}
+
 export async function rediscover(
   ctx: Ctx,
   jobId: string,

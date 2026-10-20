@@ -329,6 +329,19 @@ export async function defaultCv(
   return bytes === null ? null : { ...cv, bytes };
 }
 
+/** One of the account's CVs with its bytes: to open or download again. */
+export async function cvFile(
+  d: AccountDeps,
+  account: CandidateAccount,
+  cvId: string,
+): Promise<Result<CandidateCv & { readonly bytes: Uint8Array }>> {
+  const cv = (await d.accounts.cvs(account.id)).find((c) => c.id === cvId);
+  const bytes = cv === undefined ? null : await d.deps.blobs.get(cv.blobKey);
+  return cv === undefined || bytes === null
+    ? err(failure('NOT_FOUND', 'No such CV'))
+    : ok({ ...cv, bytes });
+}
+
 /** Google's answer to an ID token, checked against this site's client id: who they are, or null. */
 export function googleVerifier(
   clientId: string,

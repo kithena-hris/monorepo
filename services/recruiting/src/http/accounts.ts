@@ -6,6 +6,7 @@ import {
   accountByToken,
   accountHome,
   addCv,
+  cvFile,
   cvFromDraft,
   draftCv,
   removeCv,
@@ -167,7 +168,22 @@ export async function accountsAnswer(
     if (input === null) return refused('INVALID', 'Check the CV');
     return answer(await cvFromDraft(d, account, input, renderCv), 201);
   }
-  const cv = /^\/cvs\/([0-9a-f-]{36})(\/default)?$/u.exec(path);
+  const cv = /^\/cvs\/([0-9a-f-]{36})(\/default|\/file)?$/u.exec(path);
+  if (cv !== null && method === 'GET' && cv[2] === '/file') {
+    const file = await cvFile(d, account, cv[1] ?? '');
+    return answer(
+      file.ok
+        ? {
+            ok: true,
+            value: {
+              fileName: file.value.fileName,
+              mediaType: file.value.mediaType,
+              base64: Buffer.from(file.value.bytes).toString('base64'),
+            },
+          }
+        : file,
+    );
+  }
   if (cv !== null && method === 'POST' && cv[2] === '/default')
     return answer(await setDefaultCv(d, account, cv[1] ?? ''));
   if (cv !== null && method === 'DELETE' && cv[2] === undefined)
