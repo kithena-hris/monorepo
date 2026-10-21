@@ -86,6 +86,21 @@ export async function sightOf(
 }
 
 /**
+ * How much of a member's time off the caller sees: everyone in the company
+ * sees that a colleague is away (the company's decision, 2026-10-21); the
+ * type as `sightOf` and `seesType` decide, so a private type such as sick or
+ * parental leave stays "Off" to anyone but the person, their approvers and HR.
+ */
+export async function leaveSight(
+  deps: Pick<Deps, 'authz'>,
+  caller: Caller,
+  member: Member,
+  hr: boolean,
+): Promise<Sight> {
+  return (await sightOf(deps, caller, member, hr)) ?? 'teammate';
+}
+
+/**
  * Whether an absence shows its leave type to somebody with `sight` of the
  * member: always to the member, their approvers and HR; to a teammate only
  * where the type says so — never sick or parental leave (§6.1). Otherwise it
@@ -145,24 +160,21 @@ export async function calendarIn(
   const seen = new Map<PersonId, { member: Member; sight: Sight }>();
   // Whom the caller approves, covers for and works beside: three questions
   // to OpenFGA, not three per member. `sightOf`'s rule, over the sets.
+  // Everyone sees a colleague's absence (`leaveSight`); approvers, delegates
+  // and HR see its type. Two questions to OpenFGA, not two per member.
   const none: ReadonlySet<string> = new Set();
-  const [approver, delegate, teammate] = hr
-    ? [none, none, none]
+  const [approver, delegate] = hr
+    ? [none, none]
     : await Promise.all([
         relatedIds(deps, caller, 'approver'),
         relatedIds(deps, caller, 'delegate'),
-        relatedIds(deps, caller, 'teammate'),
       ]);
   for (const member of found.value) {
     if (member.status === 'left') continue;
     const id = member.personId;
-    const sight: Sight | null =
-      hr || caller.personId === id || approver.has(id) || delegate.has(id)
-        ? 'type'
-        : teammate.has(id)
-          ? 'teammate'
-          : null;
-    if (sight !== null) seen.set(id, { member, sight });
+    const sight: Sight =
+      hr || caller.personId === id || approver.has(id) || delegate.has(id) ? 'type' : 'teammate';
+    seen.set(id, { member, sight });
   }
 
   const visibility = new Map(
