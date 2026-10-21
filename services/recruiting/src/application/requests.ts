@@ -5,9 +5,10 @@ import { may } from '../domain/access/access.js';
 import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
 import { forbidden, jobFacts, notFound, type Ctx } from './context.js';
 import { portalLink } from './intake.js';
-import { bookInterview } from './interviews.js';
+import { bookInterview, byDay } from './interviews.js';
 import { loadApplication, sendNow, type Loaded } from './moves.js';
 import type { ApplicationRecord } from './ports.js';
+import { tellMembers } from './notify.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -23,18 +24,7 @@ const fmt = (iso: string, timeZone: string): string =>
   );
 
 /** Everyone on the hiring team with a work address, the asker first. */
-async function teamEmails(ctx: Ctx, loaded: Loaded, first: string | null): Promise<string[]> {
-  const ids = [first, ...loaded.facts.team.map((t) => t.personId)].filter(
-    (id): id is string => id !== null,
-  );
-  const out: string[] = [];
-  for (const id of new Set(ids)) {
-    const member = await ctx.tx.members.get(id as never);
-    if (member?.workEmail && !out.includes(member.workEmail)) out.push(member.workEmail);
-  }
-  return out;
-}
-
+/** The team hears of a candidate's answer by email only where each member asked to (`notify.ts`). */
 async function tellTeam(
   ctx: Ctx,
   loaded: Loaded,
@@ -43,8 +33,13 @@ async function tellTeam(
   text: string,
   dedupe: string,
 ): Promise<void> {
-  for (const to of await teamEmails(ctx, loaded, first))
-    ctx.mail.push({ to, subject, text, dedupeKey: `${dedupe}:${to}` });
+  await tellMembers(
+    ctx,
+    [first, ...loaded.facts.team.map((t) => t.personId)],
+    subject,
+    text,
+    dedupe,
+  );
 }
 
 const jobTitle = async (ctx: Ctx, loaded: Loaded): Promise<string> =>
@@ -102,7 +97,12 @@ export async function proposeSlots(
     candidate,
     applicationId,
     `Appointment requested: ${plan.title} with ${settings.companyName}`,
-    `Hello ${candidate.name},\n\n${settings.companyName} would like to meet you for a ${plan.title.toLowerCase()} (${String(plan.minutes)} minutes)${input.note === null ? '.' : `: ${input.note}`}\n\nChoose one of these times (${zone}):\n${times.map((t) => `- ${fmt(t, zone)}`).join('\n')}\n\nPick one, or ask for other times, from your page:\n${await portalLink(ctx, candidate.id)}`,
+    `Hello ${candidate.name.split(' ')[0] ?? candidate.name},\n\n${settings.companyName} would like to meet you for a ${plan.title.toLowerCase()} (${String(plan.minutes)} minutes)${input.note === null ? '.' : `: ${input.note}`}\n\nPick the time that suits you, or ask for others if none does.`,
+    {
+      heading: `Choose a time for your ${plan.title.toLowerCase()}`,
+      times: { title: `Times offered · ${zone}`, days: byDay(times, zone, plan.minutes) },
+      action: { label: 'Choose a time', href: await portalLink(ctx, candidate.id) },
+    },
   );
   return ok(ask);
 }
@@ -129,7 +129,11 @@ export async function requestInformation(
     candidate,
     applicationId,
     `${settings.companyName} needs something from you: ${label}`,
-    `Hello ${candidate.name},\n\nFor your application to ${await jobTitle(ctx, loaded.value)}, ${settings.companyName} asks:\n\n${label}${input.detail === null ? '' : `\n${input.detail}`}\n\nAnswer from your page:\n${await portalLink(ctx, candidate.id)}`,
+    `Hello ${candidate.name.split(' ')[0] ?? candidate.name},\n\nFor your application to ${await jobTitle(ctx, loaded.value)}, ${settings.companyName} asks:\n\n${label}${input.detail === null ? '' : `\n${input.detail}`}`,
+    {
+      heading: 'A question about your application',
+      action: { label: 'Answer', href: await portalLink(ctx, candidate.id) },
+    },
   );
   return ok(ask);
 }

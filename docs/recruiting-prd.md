@@ -1128,20 +1128,20 @@ convention:
 
 ### 22.3 Features
 
-| Feature                    | Screen    | The domain does                                                           | The model does                                                          |
-| -------------------------- | --------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Write a job ad             | R5        | Runs the ad checks (§8.3); fills benefits and terms from data             | Drafts sections from the intake; rewrites a paragraph on request        |
-| Inclusive-language hints   | R5        | Flags from a word list per language                                       | Explains a flagged phrase and offers a neutral one                      |
-| Translate an ad            | R5        | Keeps the structured parts (salary, terms) from data                      | Translates the prose; a person approves each language                   |
-| Parse a CV                 | R11, J4   | Extracts text; validates dates; the candidate confirms                    | Returns the typed profile with passages                                 |
-| Evidence matrix            | R11, R10  | Checks every quote exists; computes score and band                        | Returns a verdict and passages per criterion                            |
-| Rediscover from pools      | R13       | Selects only consented members; computes scores                           | Same as the matrix                                                      |
-| Interview kit              | R14       | Keeps competencies and scale from the scorecard                           | Suggests questions per competency                                       |
-| Debrief summary            | R17       | Computes averages and disagreements                                       | Summarises the scorecards, citing each                                  |
-| Draft an email             | R12       | Fills variables from data                                                 | Drafts the text from a template's intent                                |
-| Job assistant (candidates) | J8        | Restricts sources to the job, FAQ and process; turns filters into a query | Answers from the sources; fills search filters                          |
-| Ask for a chart            | R25       | Validates the plan; computes; renders with Reach charts                   | Picks metric, breakdown, filters, period and chart kind by name (§23.4) |
-| Recruiting assistant       | Slack, R1 | Runs each capability as the asker (Assistant PRD)                         | Plans which capabilities to call (§22.9)                                |
+| Feature                    | Screen    | The domain does                                                           | The model does                                                                                                           |
+| -------------------------- | --------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Write a job ad             | R5        | Runs the ad checks (§8.3); fills benefits and terms from data             | Drafts sections from the intake; rewrites a paragraph on request                                                         |
+| Inclusive-language hints   | R5        | Flags from a word list per language                                       | Explains a flagged phrase and offers a neutral one                                                                       |
+| Translate an ad            | R5        | Keeps the structured parts (salary, terms) from data                      | Translates the prose; a person approves each language                                                                    |
+| Parse a CV                 | R11, J4   | Extracts text; validates dates; the candidate confirms                    | Returns the typed profile with passages                                                                                  |
+| Evidence matrix            | R11, R10  | Checks every quote exists; computes score and band                        | Returns a verdict and passages per criterion                                                                             |
+| Rediscover from pools      | R13       | Selects only consented members; computes scores                           | Same as the matrix                                                                                                       |
+| Interview kit              | R14       | Keeps competencies and scale from the scorecard                           | Suggests questions per competency                                                                                        |
+| Debrief summary            | R17       | Computes averages and disagreements                                       | Summarises the scorecards, citing each; reads the tone and suggests proceed, reject or more evidence (owner, 2026-10-21) |
+| Draft an email             | R12       | Fills variables from data                                                 | Drafts the text from a template's intent                                                                                 |
+| Job assistant (candidates) | J8        | Restricts sources to the job, FAQ and process; turns filters into a query | Answers from the sources; fills search filters                                                                           |
+| Ask for a chart            | R25       | Validates the plan; computes; renders with Reach charts                   | Picks metric, breakdown, filters, period and chart kind by name (§23.4)                                                  |
+| Recruiting assistant       | Slack, R1 | Runs each capability as the asker (Assistant PRD)                         | Plans which capabilities to call (§22.9)                                                                                 |
 
 Every feature degrades to a working screen without the key. CI runs the
 standalone suite with and without it.
@@ -1159,6 +1159,12 @@ The evidence matrix never hides a candidate, never sorts the list by default
 band beside the human's stage, never instead of it. The AI Act's human
 oversight duty (art. 14) is met by design: the person decides, sees why, and
 can override per criterion.
+
+The debrief summary's suggestion (the owner's decision, 2026-10-21) is the
+same kind of thing: a label with a one-sentence why drawn from the
+scorecards, shown beside the averages, kept as an assessment, and never acted
+on by itself. The job's recruiter or hiring manager records the decision with
+a reason. Before launch it falls under the conformity work parked as REC-127.
 
 ### 22.6 Fairness checks
 

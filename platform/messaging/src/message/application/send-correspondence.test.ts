@@ -20,6 +20,32 @@ describe('correspondence (Recruiting PRD §12.7)', () => {
     expect(renderCorrespondence('Two\nlines', 'x', 'Acme').ok).toBe(false);
   });
 
+  it('draws times by day, facts and a button in the company’s colour, escaping every value', () => {
+    const rendered = renderCorrespondence('Your times', 'Thank you.', 'Acme', {
+      heading: 'We have your <times>',
+      times: {
+        title: 'Your 2 times',
+        days: [{ day: 'Tuesday 4 November', times: ['10:00 – 10:45', '<script>'] }],
+      },
+      facts: [{ label: 'Where', value: 'Google Meet' }],
+      action: { label: 'Change my times', href: 'https://jobs.example/schedule/acme#t' },
+      secondary: { label: 'Bad', href: 'javascript:alert(1)' },
+      themeId: 'emerald',
+    });
+    if (!rendered.ok) throw new Error('not rendered');
+    const { html, text } = rendered.value;
+    expect(html).toContain('We have your &lt;times&gt;');
+    expect(html).toContain('Tuesday 4 November');
+    expect(html).toContain('10:00 – 10:45');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('href="https://jobs.example/schedule/acme#t"');
+    // A link that is not https is dropped, not rendered.
+    expect(html).not.toContain('javascript:');
+    expect(text).toContain('Tuesday 4 November: 10:00 – 10:45');
+    expect(text).toContain('Change my times:\nhttps://jobs.example/schedule/acme#t');
+  });
+
   it('sends with the company’s reply address and records the outcome, never the body', async () => {
     const sent: OutgoingEmail[] = [];
     const recorded: DeliveryRecord[] = [];
@@ -71,7 +97,10 @@ describe('correspondence (Recruiting PRD §12.7)', () => {
         },
       } as never,
     });
-    const invite = { filename: 'invite.ics', base64: Buffer.from('BEGIN:VCALENDAR').toString('base64') };
+    const invite = {
+      filename: 'invite.ics',
+      base64: Buffer.from('BEGIN:VCALENDAR').toString('base64'),
+    };
     await send({
       tenantId: '00000000-0000-4000-8000-000000000001',
       to: 'ada@example.com',

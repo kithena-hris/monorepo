@@ -34,13 +34,15 @@ import type { useAct } from './shared';
  * at once the placeholders stay, since each gets their own name.
  */
 
-export type EmailPurpose = 'rejection' | 'selection' | 'interview_confirmation' | 'offer';
+export type EmailPurpose =
+  'rejection' | 'selection' | 'interview_confirmation' | 'offer' | 'stage_expectations';
 
 export const PURPOSE_LABEL: Readonly<Record<EmailPurpose, string>> = {
   rejection: 'Application not taken forward',
   selection: 'Moving to the next step',
   interview_confirmation: 'Interview confirmed',
   offer: 'Offer sent',
+  stage_expectations: 'What to expect at this stage',
 };
 
 /** Every placeholder, as Recruiting fills it (`emails.ts`). */
@@ -50,6 +52,7 @@ export const PLACEHOLDERS = [
   { key: 'job', label: 'Job title' },
   { key: 'company', label: 'Company name' },
   { key: 'stage', label: 'Current stage' },
+  { key: 'expectations', label: 'What happens at the current stage' },
   { key: 'interview', label: 'Next interview, date and time' },
   { key: 'where', label: 'Where the interview is' },
   { key: 'sender', label: 'Your name' },
@@ -190,6 +193,7 @@ export function EmailComposer({
   value,
   onChange,
   many = false,
+  optional = true,
 }: {
   /** The application the preview is filled from; the first of many. */
   readonly applicationId: string | undefined;
@@ -206,6 +210,8 @@ export function EmailComposer({
   readonly onChange: (next: ComposedEmail | null) => void;
   /** Several candidates: the placeholders stay and are filled per person. */
   readonly many?: boolean;
+  /** False where the email is the whole point: no switch to turn it off. */
+  readonly optional?: boolean;
 }): JSX.Element {
   const mine = templates.filter((t) => t.purpose === purpose);
   const others = templates.filter((t) => t.purpose !== purpose);
@@ -231,19 +237,21 @@ export function EmailComposer({
   }, [enabled, applicationId, purpose, templateId, many]);
   return (
     <div className="flex flex-col gap-4 rounded-2xl bg-[var(--reach-fill)] p-4">
-      <Field orientation="horizontal">
-        <span className="flex min-w-0 flex-col">
-          <FieldLabel>Email the candidate</FieldLabel>
-          <FieldDescription>
-            {enabled
-              ? `${PURPOSE_LABEL[purpose]}: read it, change what you like, and it goes with the decision.`
-              : 'No email goes with this.'}
-          </FieldDescription>
-        </span>
-        <FieldControl>
-          <Switch checked={enabled} onCheckedChange={onEnabledChange} />
-        </FieldControl>
-      </Field>
+      {optional ? (
+        <Field orientation="horizontal">
+          <span className="flex min-w-0 flex-col">
+            <FieldLabel>Email the candidate</FieldLabel>
+            <FieldDescription>
+              {enabled
+                ? `${PURPOSE_LABEL[purpose]}: read it, change what you like, and it goes with the decision.`
+                : 'No email goes with this.'}
+            </FieldDescription>
+          </span>
+          <FieldControl>
+            <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+          </FieldControl>
+        </Field>
+      ) : null}
       {!enabled ? null : (
         <>
           {mine.length + others.length === 0 ? null : (

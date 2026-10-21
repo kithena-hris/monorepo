@@ -1353,8 +1353,8 @@ function Lists({
             setTemplate('new');
           }}
         />
-        {['rejection', 'selection', 'interview_confirmation', 'offer'].every((purpose) =>
-          data.templates.some((t) => t.kind === 'email' && t.purpose === purpose),
+        {['rejection', 'selection', 'interview_confirmation', 'offer', 'stage_expectations'].every(
+          (purpose) => data.templates.some((t) => t.kind === 'email' && t.purpose === purpose),
         ) ? null : (
           <Button
             variant="secondary"
@@ -1369,8 +1369,9 @@ function Lists({
           </Button>
         )}
         <p className="text-sm text-fg-muted">
-          Rejection, moving on, interview confirmed and the offer: each goes out at that moment,
-          from the matching template here or the built-in words, shown to the recruiter first.
+          Rejection, moving on, interview confirmed, the offer and what to expect at a stage: each
+          goes out at that moment, from the matching template here or the built-in words, shown to
+          the recruiter first.
         </p>
       </FormSection>
       {pipeline === null ? null : (

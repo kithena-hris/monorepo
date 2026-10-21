@@ -3,6 +3,7 @@ import { useMemo, useState, type JSX } from 'react';
 import { Calendar, type CalendarMarker, type IsoDate } from '../calendar/calendar';
 import { Chip, ChipRow } from '../chip/chip';
 import { Combobox } from '../combobox/combobox';
+import { Progress } from '../progress/progress';
 import { cn } from '../../lib/cn';
 
 /**
@@ -68,10 +69,28 @@ export function SlotPicker({
     () => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }),
     [locale, timeZone],
   );
+  const weekday = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }),
+    [locale],
+  );
+  const dayNumber = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' }),
+    [locale],
+  );
+  const month = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }),
+    [locale],
+  );
   const longDay = useMemo(
     () =>
-      new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone }),
-    [locale, timeZone],
+      // Days are calendar dates, keyed already in the viewer's zone: drawn at noon UTC, read in UTC.
+      new Intl.DateTimeFormat(locale, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        timeZone: 'UTC',
+      }),
+    [locale],
   );
   const byDay = useMemo(() => {
     const map = new Map<IsoDate, string[]>();
@@ -172,32 +191,69 @@ export function SlotPicker({
             }}
           />
         )}
-        {value.length === 0 ? null : (
-          <div className="flex flex-col gap-2" aria-label={`${label}: picked`}>
-            {[...chosenByDay.entries()].map(([d, times]) => (
-              <div key={d} className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-fg-muted">
-                  {longDay.format(new Date(`${d}T12:00:00Z`))}
-                </span>
-                <ChipRow aria-label={`Picked on ${d}`}>
-                  {times.map((s) => (
-                    <Chip
-                      key={s}
-                      onRemove={() => {
-                        onChange(value.filter((v) => v !== s));
-                      }}
-                      removeLabel={`Remove ${range(s)}`}
-                    >
-                      {range(s)}
-                    </Chip>
-                  ))}
-                </ChipRow>
-              </div>
-            ))}
+        {max === undefined || max === 1 ? null : (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="font-medium">
+                {value.length === max ? 'All picked' : `Pick ${String(max - value.length)} more`}
+              </span>
+              <span className="text-fg-muted tabular-nums">{`${String(value.length)} of ${String(max)}`}</span>
+            </div>
+            <Progress
+              value={value.length}
+              max={max}
+              size="sm"
+              label={`${String(value.length)} of ${String(max)} times picked`}
+            />
           </div>
         )}
-        {max === undefined || max === 1 ? null : (
-          <p className="text-xs text-fg-muted">{`${String(value.length)} of ${String(max)}`}</p>
+        {value.length === 0 ? null : (
+          <ul className="flex flex-col gap-2" aria-label={`${label}: picked`}>
+            {[...chosenByDay.entries()].map(([d, times]) => {
+              const at = new Date(`${d}T12:00:00Z`);
+              return (
+                <li
+                  key={d}
+                  className="flex items-start gap-3 rounded-lg bg-surface-sunken p-2.5 animate-enter motion-reduce:animate-none"
+                >
+                  {/* A date tile: the day read before its times, the way a calendar shows it. */}
+                  <button
+                    type="button"
+                    className="flex w-12 shrink-0 flex-col items-center rounded-md bg-surface py-1 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                    onClick={() => {
+                      setDay(d);
+                    }}
+                  >
+                    {/* The name is the tile's own words, so a voice command can say what it sees. */}
+                    <span className="sr-only">Show </span>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-accent-fg">
+                      {weekday.format(at)}
+                    </span>{' '}
+                    <span className="text-lg font-bold leading-tight tabular-nums">
+                      {dayNumber.format(at)}
+                    </span>{' '}
+                    <span className="text-[0.6875rem] text-fg-muted">{month.format(at)}</span>
+                  </button>
+                  <ChipRow
+                    aria-label={`Picked on ${longDay.format(at)}`}
+                    className="min-w-0 flex-1 pt-0.5"
+                  >
+                    {times.map((s) => (
+                      <Chip
+                        key={s}
+                        onRemove={() => {
+                          onChange(value.filter((v) => v !== s));
+                        }}
+                        removeLabel={`Remove ${range(s)}`}
+                      >
+                        {range(s)}
+                      </Chip>
+                    ))}
+                  </ChipRow>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </div>

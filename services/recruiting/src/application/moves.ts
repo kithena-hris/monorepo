@@ -23,7 +23,7 @@ import {
   recruiterOnly,
   type Ctx,
 } from './context.js';
-import type { ApplicationRecord, Candidate, Message, Template } from './ports.js';
+import type { ApplicationRecord, Candidate, MailParts, Message, Template } from './ports.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -113,6 +113,7 @@ export async function sendNow(
   applicationId: string | null,
   subject: string,
   body: string,
+  parts: MailParts = {},
 ): Promise<Message> {
   const message: Message = {
     id: ctx.deps.newId(),
@@ -129,7 +130,16 @@ export async function sendNow(
     createdAt: ctx.at,
   };
   await ctx.tx.messages.add(message);
-  ctx.mail.push({ to: candidate.email, subject, text: body, dedupeKey: `message:${message.id}` });
+  // In the company's colours, with its name and mark, as its careers page shows them.
+  const settings = await generalSettings(ctx);
+  ctx.mail.push({
+    to: candidate.email,
+    subject,
+    text: body,
+    dedupeKey: `message:${message.id}`,
+    companyName: settings.companyName,
+    parts: { themeId: settings.themeId, logoUrl: settings.logoUrl, ...parts },
+  });
   return message;
 }
 

@@ -2,7 +2,7 @@
 
 import { refresh } from 'next/cache';
 
-import { documents, people, timeOff } from '../../../lib/people';
+import { documents, people, recruiting, timeOff } from '../../../lib/people';
 import { changed, type InboxState, type Mute } from '../../../lib/inbox/model';
 import { changeState, inboxNow } from '../../../lib/inbox/server';
 import { answerInbox, type InboxReply } from '../../../lib/inbox/ask';
@@ -279,6 +279,25 @@ async function documentCenterOf(personId: string | null): Promise<readonly unkno
 /* ------------------------------------------------------- Time Off -- */
 
 /** G1, M:F2: approve or decline in place, with a note. */
+/** R16 from the Inbox: book one of the times a candidate gave, with the where and agenda saved on the link. */
+export async function bookCandidateTime(
+  applicationId: string,
+  askId: string,
+  startsAt: string,
+): Promise<Outcome> {
+  return done(await recruiting('BookFromAsk', { applicationId, askId, input: { startsAt } }));
+}
+
+/** R16 from the Inbox: none of the candidate's times works; they are asked for others. */
+export async function askCandidateForMoreTimes(
+  applicationId: string,
+  askId: string,
+): Promise<Outcome> {
+  return done(
+    await recruiting('RequestMoreTimes', { applicationId, askId, input: { note: null } }),
+  );
+}
+
 export async function decideTimeOff(
   requestId: string,
   decision: 'approve' | 'decline',

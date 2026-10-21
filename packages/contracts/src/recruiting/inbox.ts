@@ -26,6 +26,8 @@ export const RECRUITING_INBOX_KINDS = {
   conditionOpen: 'recruiting.condition-open',
   /** A works council asked to consent to a hire (§ 99 BetrVG). */
   worksCouncil: 'recruiting.works-council',
+  /** A candidate gave times through a scheduling link: choose one, or ask for more. */
+  chooseTime: 'recruiting.choose-time',
 } as const;
 
 export const RecruitingApprovalDetail = z.object({
@@ -54,3 +56,18 @@ export const RecruitingScorecardDetail = z.object({
   dueOn: CalendarDate,
 });
 export type RecruitingScorecardDetail = z.infer<typeof RecruitingScorecardDetail>;
+
+/** The times a candidate gave, to book one from the Inbox (`recruiting.choose-time`). */
+export const RecruitingChooseTimeDetail = z.object({
+  applicationId: z.uuid().register(policy, asPublic()),
+  askId: z.uuid().register(policy, asPublic()),
+  candidate: z.string().max(200).register(policy, asInternal('identity')),
+  job: z.string().max(200).register(policy, asInternal()),
+  interview: z.string().max(120).register(policy, asInternal()),
+  minutes: z.int().min(1).register(policy, asPublic()),
+  times: z.array(Instant),
+  /** Where it will happen and the agenda, as chosen when the link was sent. */
+  where: z.string().max(500).nullable().register(policy, asInternal()),
+  agenda: z.string().max(4000).nullable().register(policy, asInternal()),
+});
+export type RecruitingChooseTimeDetail = z.infer<typeof RecruitingChooseTimeDetail>;

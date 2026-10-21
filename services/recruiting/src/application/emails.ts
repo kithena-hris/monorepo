@@ -34,6 +34,7 @@ export const EMAIL_PURPOSES = [
   'selection',
   'interview_confirmation',
   'offer',
+  'stage_expectations',
 ] as const;
 export type EmailPurpose = (typeof EMAIL_PURPOSES)[number];
 
@@ -46,6 +47,7 @@ export const PLACEHOLDERS = [
   { key: 'stage', label: 'Current stage, as the candidate sees it' },
   { key: 'interview', label: 'Next interview: name, date and time' },
   { key: 'where', label: 'Where the next interview is' },
+  { key: 'expectations', label: 'What happens at the current stage' },
   { key: 'sender', label: 'Who is writing' },
   { key: 'link', label: 'The candidate’s own page' },
 ] as const;
@@ -67,6 +69,11 @@ export const DEFAULT_EMAILS: Readonly<
     name: 'Interview confirmed',
     subject: 'Appointment scheduled: {{interview}} with {{company}}',
     body: 'Hello {{first_name}},\n\nYour {{interview}} for {{job}} is confirmed.\nWhere: {{where}}\n\nIf that time no longer works, ask for a change from your page:\n{{link}}\n\nWe look forward to meeting you.\n{{sender}}\n{{company}}',
+  },
+  stage_expectations: {
+    name: 'What to expect at this stage',
+    subject: 'What to expect next: {{stage}} with {{company}}',
+    body: 'Hello {{first_name}},\n\nYour application for {{job}} is now at {{stage}}. Here is what to expect:\n\n{{expectations}}\n\nIf anything is unclear, reply to this email and we will help.\n\n{{sender}}\n{{company}}',
   },
   offer: {
     name: 'Your offer',
@@ -96,9 +103,9 @@ export async function emailValues(
   const sender =
     ctx.caller.personId === null
       ? settings.companyName
-      : ((await ctx.tx.members.get(ctx.caller.personId))?.displayName ??
-        settings.companyName);
+      : ((await ctx.tx.members.get(ctx.caller.personId))?.displayName ?? settings.companyName);
   return {
+    expectations: await expectationsOf(ctx, loaded, stage?.category ?? 'applied'),
     candidate: loaded.candidate.name,
     first_name: loaded.candidate.name.split(' ')[0] ?? loaded.candidate.name,
     job: job?.title ?? '',
@@ -109,6 +116,45 @@ export async function emailValues(
     sender,
     link: options.link ? await portalLink(ctx, loaded.candidate.id) : '{{link}}',
   };
+}
+
+/**
+ * What happens at a stage, in plain words, from what Recruiting knows: the
+ * interviews in the job's plan with their length and who runs them, or what
+ * the stage's kind means. A starting point the recruiter edits in the composer.
+ */
+async function expectationsOf(ctx: Ctx, loaded: Loaded, category: string): Promise<string> {
+  switch (category) {
+    case 'interview': {
+      const plan = await ctx.tx.jobs.plan(loaded.app.jobId);
+      if (plan.length === 0)
+        return 'One or more interviews with the team. We will send each invitation with the time, the place or link, and an agenda.';
+      const lines: string[] = [];
+      for (const p of plan) {
+        const names: string[] = [];
+        for (const id of p.interviewerIds) {
+          const n = (await ctx.tx.members.get(id as never))?.displayName;
+          if (n !== undefined) names.push(n);
+        }
+        lines.push(
+          `- ${p.title}, ${String(p.minutes)} minutes${names.length === 0 ? '' : `, with ${names.join(', ')}`}`,
+        );
+      }
+      return `${lines.join('\n')}\n\nEach invitation comes with the time, the place or video link, and an agenda. You can ask to move one from your page.`;
+    }
+    case 'screening':
+      return 'A short conversation with a recruiter, around 20 to 30 minutes, about the role, what you are looking for and the practical details. No preparation is needed.';
+    case 'assessment':
+      return 'A task that shows how you work, with clear instructions and a time to send it back. Tell us if you need any adjustment.';
+    case 'works_council':
+      return 'The works council is asked to agree to the hire, as the law requires. It takes up to a week and needs nothing from you.';
+    case 'offer':
+      return 'We are preparing an offer. You will read it on your page, with the pay, the start date and the terms, and can accept or decline it there.';
+    case 'hired':
+      return 'Welcome aboard. Your start is being arranged and you will hear about your first day.';
+    default:
+      return 'We are reading your application and will tell you what happens next either way.';
+  }
 }
 
 /** The company's template for a purpose, in the candidate's language first, else the built-in words. */
@@ -232,6 +278,37 @@ export async function rejectAndEmail(
       null,
     );
   return rejected;
+}
+
+/**
+ * At any stage, tell the candidate what to expect there, in the composer's
+ * words (the expectations template, edited), sent at once with their page.
+ */
+export async function sendStageExpectations(
+  ctx: Ctx,
+  applicationId: string,
+  message: ComposedEmail,
+): Promise<Result<true>> {
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'candidate.message')) return err(forbidden());
+  const values = await emailValues(ctx, loaded.value);
+  const link = values['link'] ?? '';
+  const stage = values['stage'] ?? '';
+  await sendNow(
+    ctx,
+    loaded.value.candidate,
+    applicationId,
+    render(message.subject, values),
+    render(message.body, values),
+    {
+      heading: `What to expect: ${stage === '' ? 'your next step' : stage}`,
+      ...(link.startsWith('https://')
+        ? { action: { label: 'See your application', href: link } }
+        : {}),
+    },
+  );
+  return ok(true);
 }
 
 /** R10: move, and tell the candidate in the composer's words at once. */

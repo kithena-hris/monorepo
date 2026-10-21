@@ -145,14 +145,18 @@ export function debrief(
 export type DebriefDecision = 'advance' | 'reject' | 'offer';
 
 /** The decision is the hiring manager's, with a reason (§16.7). */
+/**
+ * The debrief's decision: the job's recruiter or its hiring manager records
+ * it, with a reason. A model's suggestion, when there is one, is only that.
+ */
 export function decideDebrief(
   deciderId: string,
-  hiringManagerId: string,
+  deciders: readonly string[],
   decision: DebriefDecision,
   reason: string,
 ): Result<{ decision: DebriefDecision; reason: string }> {
-  if (deciderId !== hiringManagerId)
-    return err(failure('NOT_HIRING_MANAGER', 'The hiring manager decides'));
+  if (!deciders.includes(deciderId))
+    return err(failure('NOT_A_DECIDER', 'The job’s recruiter or hiring manager decides'));
   if (reason.trim() === '') return err(failure('REASON_REQUIRED', 'Say why'));
   return ok({ decision, reason });
 }

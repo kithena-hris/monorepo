@@ -158,6 +158,12 @@ export const OPERATIONS = {
   RequestInformation: write('RequestInformation', 'requestInformation', ...ID('applicationId')),
   CloseAsk: write('CloseAsk', 'closeAsk', ...two('applicationId', 'askId'), false),
   BookFromAsk: write('BookFromAsk', 'bookFromAsk', ...two('applicationId', 'askId')),
+  RequestMoreTimes: write('RequestMoreTimes', 'requestMoreTimes', ...two('applicationId', 'askId')),
+  RecruitingMyNotifications: query('RecruitingMyNotifications', 'recruitingMyNotifications'),
+  SaveRecruitingMyNotifications: write(
+    'SaveRecruitingMyNotifications',
+    'saveRecruitingMyNotifications',
+  ),
   SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   RecruitingConnections: query('RecruitingConnections', 'recruitingConnections'),
@@ -178,6 +184,11 @@ export const OPERATIONS = {
   SummariseDebrief: write('SummariseDebrief', 'summariseDebrief', ...ID('applicationId'), false),
   DraftEmail: write('DraftEmail', 'draftEmail', ...ID('applicationId')),
   PreviewEmail: write('PreviewEmail', 'previewEmail', ...ID('applicationId')),
+  SendStageExpectations: write(
+    'SendStageExpectations',
+    'sendStageExpectations',
+    ...ID('applicationId'),
+  ),
   SeedEmailTemplates: write('SeedEmailTemplates', 'seedEmailTemplates', '', '', false),
   AskForChart: write('AskForChart', 'askForChart'),
   RecruitingFairness: query(

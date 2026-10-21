@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { toAddress } from '../domain/address.js';
-import { CORRESPONDENCE_KIND, renderCorrespondence } from '../domain/correspondence.js';
+import {
+  CORRESPONDENCE_KIND,
+  renderCorrespondence,
+  type CorrespondenceParts,
+} from '../domain/correspondence.js';
 import type { DeliveryLog } from './delivery-log.js';
 import type { EmailTransport } from './email-transport.js';
 import type { SendRefusal } from './send-invitation.js';
@@ -26,8 +30,9 @@ export interface SendCorrespondenceRequest {
    * holds neither its name nor its bytes.
    */
   readonly attachments?:
-    | readonly { readonly filename: string; readonly base64: string }[]
-    | undefined;
+    readonly { readonly filename: string; readonly base64: string }[] | undefined;
+  /** Structure beside the words, drawn by this service (`correspondence.ts`), never markup. */
+  readonly parts?: CorrespondenceParts | undefined;
 }
 
 export type SendCorrespondence = (
@@ -48,7 +53,12 @@ export function sendCorrespondence(deps: {
     if (!recipient.ok) return refuse('address');
     const replyTo = request.replyTo === null ? null : toAddress(request.replyTo);
     if (replyTo !== null && !replyTo.ok) return refuse('address');
-    const message = renderCorrespondence(request.subject, request.text, request.companyName);
+    const message = renderCorrespondence(
+      request.subject,
+      request.text,
+      request.companyName,
+      request.parts ?? {},
+    );
     if (!message.ok) return refuse('unrenderable');
     const digest = createHash('sha256')
       .update(`${request.tenantId}/${request.dedupeKey}`)

@@ -302,6 +302,16 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """
+  R16: none of the candidate’s times works; they get a new link that leaves those out
+  """
+  requestMoreTimes(
+    applicationId: String!
+    askId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R18: ask a named referee"""
   requestReference(applicationId: String!, idempotencyKey: String!, referenceId: String!): JSON
   """R9: an agency and the jobs it may submit to"""
@@ -396,6 +406,12 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Email me when a candidate acts, or not"""
+  saveRecruitingMyNotifications(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Set my working hours"""
   saveRecruitingWorkingHours(
     idempotencyKey: String!
@@ -470,6 +486,15 @@ type Mutation {
   ): JSON
   """Send the offer to the candidate"""
   sendOffer(idempotencyKey: String!, offerId: String!): JSON
+  """
+  R11: tell the candidate what to expect at the stage they are at, in the composer’s words
+  """
+  sendStageExpectations(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """The company's own domain for its careers page; admin"""
   setCareersDomain(
     idempotencyKey: String!
@@ -592,6 +617,8 @@ type Query {
   recruitingJob(jobId: String!): JSON
   """R15: an interview kit and my scorecard"""
   recruitingKit(interviewId: String!): JSON
+  """Whether I am emailed when a candidate acts"""
+  recruitingMyNotifications: JSON
   """R19–R22: an offer, its terms, approval and contract"""
   recruitingOffer(offerId: String!): JSON
   """Offers"""

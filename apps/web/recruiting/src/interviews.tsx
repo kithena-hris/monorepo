@@ -23,6 +23,7 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   SlotPicker,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -121,6 +122,7 @@ export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
             </Card>
           ))}
           <Hours props={props} />
+          <Notifications props={props} />
         </div>
       )}
     </Loaded>
@@ -288,6 +290,55 @@ function Connections({
       </ul>
       <Refusal error={act.error} />
     </CardContent>
+  );
+}
+
+/**
+ * Whether you are emailed when a candidate gives times, asks for a change or
+ * answers a question. Your Inbox has each one either way.
+ */
+function Notifications({
+  props,
+}: {
+  readonly props: ScreenProps<InterviewsData>;
+}): JSX.Element | null {
+  const act = useAct(props);
+  const [email, setEmail] = useState<boolean | null>(null);
+  const { call } = act;
+  useEffect(() => {
+    void call('RecruitingMyNotifications', {}).then((done) => {
+      if (done.ok) setEmail((done.data as { email: boolean }).email);
+    });
+  }, [call]);
+  if (email === null) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>Notifications</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Field orientation="horizontal">
+          <span className="flex min-w-0 flex-col">
+            <FieldLabel>Email me when a candidate acts</FieldLabel>
+            <FieldDescription>
+              When they give times, ask to move an interview or answer a question. Your Inbox has
+              each one either way.
+            </FieldDescription>
+          </span>
+          <FieldControl>
+            <Switch
+              checked={email}
+              disabled={act.pending}
+              onCheckedChange={(on) => {
+                setEmail(on);
+                act.run('SaveRecruitingMyNotifications', { input: { email: on } });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Refusal error={act.error} />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -564,7 +615,11 @@ function AskRow({
               ? ask.kind === 'slots' && ask.answer?.time != null
                 ? 'Booked'
                 : 'Answered'
-              : 'Closed'}
+              : ask.closedBecause === 'replaced'
+                ? 'Replaced by new times'
+                : ask.closedBecause === 'more_times'
+                  ? 'Asked for more times'
+                  : 'Closed'}
         </Badge>
         <span className="text-xs text-fg-muted">{when(ask.createdAt)}</span>
         {onClose !== undefined && ask.state !== 'closed' ? (
@@ -820,7 +875,7 @@ function ScheduleBody({
                     level={2}
                   >{`${data.candidate.name} offered ${String(a.times.length)} time${a.times.length === 1 ? '' : 's'}`}</CardTitle>
                   <CardDescription>
-                    Pick one and book it. The invitation goes with the link and the agenda.
+                    {`Pick one and book it: the invitation goes with ${a.videoUrl ?? a.place ?? 'a Google Meet link'}${a.agenda === null ? '' : ' and the agenda you wrote'}. None works? Ask for more and these are left out.`}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -836,24 +891,37 @@ function ScheduleBody({
                       setFromAsk({ askId: a.id, time: v[0] ?? '' });
                     }}
                   />
-                  <Button
-                    disabled={fromAsk?.askId !== a.id || fromAsk.time === '' || !whereReady}
-                    loading={act.pending}
-                    onClick={() => {
-                      if (fromAsk === null) return;
-                      act.run(
-                        'BookFromAsk',
-                        {
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      disabled={fromAsk?.askId !== a.id || fromAsk.time === ''}
+                      loading={act.pending}
+                      startIcon={<icons.send aria-hidden />}
+                      onClick={() => {
+                        if (fromAsk === null) return;
+                        // Where and the agenda are the ones chosen when the link was sent.
+                        act.run(
+                          'BookFromAsk',
+                          { applicationId, askId: a.id, input: { startsAt: fromAsk.time } },
+                          back,
+                        );
+                      }}
+                    >
+                      Book this time and send the invitation
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      loading={act.pending}
+                      onClick={() => {
+                        act.run('RequestMoreTimes', {
                           applicationId,
                           askId: a.id,
-                          input: { startsAt: fromAsk.time, ...whereInput },
-                        },
-                        back,
-                      );
-                    }}
-                  >
-                    Book this time and send the invitation
-                  </Button>
+                          input: { note: null },
+                        });
+                      }}
+                    >
+                      None works: ask for more times
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -963,17 +1031,15 @@ function ScheduleBody({
                   Ask for their availability
                 </RadioCard>
               </RadioGroup>
-              {how === 'link' ? null : (
-                <WhereFields
-                  where={where}
-                  onWhere={setWhere}
-                  video={video}
-                  onVideo={setVideo}
-                  place={place}
-                  onPlace={setPlace}
-                  meet={data.meet}
-                />
-              )}
+              <WhereFields
+                where={where}
+                onWhere={setWhere}
+                video={video}
+                onVideo={setVideo}
+                place={place}
+                onPlace={setPlace}
+                meet={data.meet}
+              />
               {how === 'offer' ? (
                 <Field>
                   <FieldLabel>A line for the candidate (optional)</FieldLabel>
@@ -1030,7 +1096,7 @@ function ScheduleBody({
                 </Button>
               ) : (
                 <Button
-                  disabled={data.planKey === null}
+                  disabled={data.planKey === null || !whereReady}
                   loading={act.pending}
                   onClick={() => {
                     act.run(
@@ -1042,6 +1108,8 @@ function ScheduleBody({
                           away: data.away,
                           holidays: data.holidays,
                           weeks: data.weeks,
+                          // Kept for the booking from the times that come back.
+                          ...whereInput,
                         },
                       },
                       back,
@@ -1087,6 +1155,10 @@ function DebriefBody({
   const [summary, setSummary] = useState<{
     sentences: readonly { text: string; cites: readonly string[] }[];
     sources: readonly { id: string; interviewerId: string }[];
+    tone: 'positive' | 'mixed' | 'negative';
+    direction: string;
+    suggestion: 'proceed' | 'reject' | 'more_evidence';
+    why: string;
   } | null>(null);
   const applicationId = props.params?.['id'] ?? '';
   const people = [...new Set(data.rows.flatMap((r) => r.ratings.map((x) => x.interviewerId)))];
@@ -1102,8 +1174,8 @@ function DebriefBody({
         <CardHeader>
           <CardTitle level={2}>Summary</CardTitle>
           <CardDescription>
-            Written by a model from the scorecards; every line names the scorecards it came from. It
-            never recommends: that is yours.
+            Written by a model from the scorecards; every line names the scorecards it came from.
+            Its suggestion is only that: the decision is yours.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -1121,21 +1193,59 @@ function DebriefBody({
               Summarise the scorecards
             </Button>
           ) : (
-            <ul className="flex flex-col gap-1 text-sm">
-              {summary.sentences.map((x) => (
-                <li key={x.text}>
-                  {x.text}{' '}
-                  <span className="text-fg-muted">
-                    {`(${x.cites
-                      .map((c) => {
-                        const by = summary.sources.find((s) => s.id === c)?.interviewerId ?? '';
-                        return data.names[by] ?? c;
-                      })
-                      .join(', ')})`}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    tone={
+                      summary.suggestion === 'proceed'
+                        ? 'success'
+                        : summary.suggestion === 'reject'
+                          ? 'danger'
+                          : 'warning'
+                    }
+                    variant="solid"
+                  >
+                    {summary.suggestion === 'proceed'
+                      ? 'Suggests: proceed'
+                      : summary.suggestion === 'reject'
+                        ? 'Suggests: reject'
+                        : 'Suggests: gather more evidence'}
+                  </Badge>
+                  <Badge
+                    tone={
+                      summary.tone === 'positive'
+                        ? 'success'
+                        : summary.tone === 'negative'
+                          ? 'danger'
+                          : 'neutral'
+                    }
+                    variant="soft"
+                  >
+                    {`Tone: ${summary.tone}`}
+                  </Badge>
+                </div>
+                {summary.direction === '' ? null : (
+                  <p className="text-sm font-medium">{summary.direction}</p>
+                )}
+                {summary.why === '' ? null : <p className="text-sm text-fg-muted">{summary.why}</p>}
+              </div>
+              <ul className="flex flex-col gap-1 text-sm">
+                {summary.sentences.map((x) => (
+                  <li key={x.text}>
+                    {x.text}{' '}
+                    <span className="text-fg-muted">
+                      {`(${x.cites
+                        .map((c) => {
+                          const by = summary.sources.find((s) => s.id === c)?.interviewerId ?? '';
+                          return data.names[by] ?? c;
+                        })
+                        .join(', ')})`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1202,7 +1312,9 @@ function DebriefBody({
         <Card>
           <CardHeader>
             <CardTitle level={2}>Decision</CardTitle>
-            <CardDescription>The hiring manager decides, with a reason</CardDescription>
+            <CardDescription>
+              The job’s recruiter or hiring manager decides, with a reason
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <SegmentedControl
@@ -1245,7 +1357,7 @@ function DebriefBody({
             </Button>
             {data.decider ? null : (
               <p className="text-xs text-fg-muted">
-                Only the job’s hiring manager records the decision.
+                Only the job’s recruiter or hiring manager records the decision.
               </p>
             )}
           </CardContent>

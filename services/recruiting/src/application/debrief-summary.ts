@@ -17,18 +17,30 @@ import { generalSettings } from './setup.js';
  * hiring team's (`scorecards.all`), the notes are masked, and the read is
  * kept like any assessment. Interviewers are `s1`, `s2`… to the model, never
  * names.
+ *
+ * It also reads the room (the owner's decision, 2026-10-21): the panel's
+ * tone, where the evidence points, and a suggestion to proceed, reject or
+ * gather more evidence, with a why drawn from the scorecards. A suggestion,
+ * kept with the read; the job's recruiter or hiring manager decides.
  */
 
 const Summary = z.object({
   sentences: z
     .array(z.object({ text: z.string().max(400), cites: z.array(z.string().max(8)).max(10) }))
     .max(12),
+  /** How the panel reads overall, from what they wrote and rated. */
+  tone: z.enum(['positive', 'mixed', 'negative']).catch('mixed'),
+  /** Where the evidence points, in a sentence. */
+  direction: z.string().max(300).catch(''),
+  /** A suggestion for the person deciding, never a decision. */
+  suggestion: z.enum(['proceed', 'reject', 'more_evidence']).catch('more_evidence'),
+  why: z.string().max(400).catch(''),
 });
 
 const SUMMARY: PromptSpec<z.infer<typeof Summary>> = {
   feature: 'writer',
-  version: 'debrief-summary@1',
-  instruction: `You summarise interview scorecards for a hiring debrief. Each source in "application" starts with its id in brackets. Return a JSON object {"sentences":[{"text":"","cites":["s1"]}]}: at most eight short sentences on where the interviewers agree, where they differ, and what evidence they gave. Every sentence cites the sources it draws on. Never recommend a decision, never average or score, and never guess at anything [masked].`,
+  version: 'debrief-summary@2',
+  instruction: `You summarise interview scorecards for a hiring debrief. Each source in "application" starts with its id in brackets. Return a JSON object {"sentences":[{"text":"","cites":["s1"]}],"tone":"positive|mixed|negative","direction":"","suggestion":"proceed|reject|more_evidence","why":""}: at most eight short sentences on where the interviewers agree, where they differ, and what evidence they gave, every sentence citing the sources it draws on; then the overall tone of the panel, the direction the evidence points in one sentence, and a suggestion for the person deciding, to proceed, to reject, or to gather more evidence where the scorecards are too few or split, with a one-sentence why drawn only from the scorecards. A person decides. Never average or score, never judge anything but the evidence written, and never guess at anything [masked].`,
   answer: Summary,
 };
 
@@ -36,6 +48,11 @@ export interface DebriefSummary {
   readonly assessmentId: string;
   readonly sentences: readonly Cited[];
   readonly sources: readonly { readonly id: string; readonly interviewerId: string }[];
+  readonly tone: 'positive' | 'mixed' | 'negative';
+  readonly direction: string;
+  /** A suggestion only: the job's recruiter or hiring manager decides (`decideDebrief`). */
+  readonly suggestion: 'proceed' | 'reject' | 'more_evidence';
+  readonly why: string;
 }
 
 export async function summariseDebrief(
@@ -72,6 +89,10 @@ export async function summariseDebrief(
   const read = await readMasked(ctx, applicationId, masked, SUMMARY, {}, (answer) => ({
     output: {
       sentences: keepCited(answer.sentences, ids).map((s) => ({ ...s, cites: [...s.cites] })),
+      tone: answer.tone,
+      direction: answer.direction,
+      suggestion: answer.suggestion,
+      why: answer.why,
     },
     scoreBp: null,
     band: null,
@@ -81,5 +102,10 @@ export async function summariseDebrief(
     assessmentId: read.value.assessmentId,
     sentences: read.value.answer.sentences,
     sources: sources.map((s) => ({ id: s.id, interviewerId: s.card.interviewerId })),
+    // Too little to go on is said, not guessed: with one scorecard or none, more evidence.
+    tone: read.value.answer.tone,
+    direction: read.value.answer.direction,
+    suggestion: cards.length === 0 ? 'more_evidence' : read.value.answer.suggestion,
+    why: read.value.answer.why,
   });
 }
