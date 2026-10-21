@@ -23,8 +23,13 @@ import {
 } from '../application/jobs.js';
 import { moveApplication } from '../application/moves.js';
 import {
+  bookFromAvailability,
+  linkSlots,
+  offerAvailability,
   saveScorecard,
   scheduleInterview,
+  scheduleScreen,
+  selfScheduleLink,
   setInterviewState,
   slotsFor,
 } from '../application/interviews.js';
@@ -533,6 +538,35 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       ),
     );
     expect(slots.length).toBeGreaterThan(0);
+    // A company holiday strikes the day for everyone, and is named for the calendar.
+    const onHoliday = value(
+      await scheduleScreen(
+        ctx,
+        applied.applicationId,
+        'portfolio',
+        Instant.parse('2026-10-19T00:00:00.000Z'),
+        {},
+        [{ date: '2026-10-19', name: 'Founders’ day' }],
+      ),
+    );
+    expect(onHoliday.slots.filter((t) => t.startsWith('2026-10-19'))).toEqual([]);
+    expect(onHoliday.slots.length).toBeGreaterThan(0);
+    expect(onHoliday.holidays).toEqual([{ date: '2026-10-19', name: 'Founders’ day' }]);
+    // A working week from Time Off bounds the day: 10:00 to 11:00 holds one hour-long slot.
+    const short = value(
+      await scheduleScreen(
+        ctx,
+        applied.applicationId,
+        'portfolio',
+        Instant.parse('2026-10-19T00:00:00.000Z'),
+        {},
+        [],
+        { [people.adam]: { timeZone: 'UTC', week: { '1': [[600, 660]] } } },
+      ),
+    );
+    expect(short.slots.filter((t) => t.startsWith('2026-10-19'))).toEqual([
+      '2026-10-19T10:00:00.000Z',
+    ]);
     value(
       await scheduleInterview(ctx, applied.applicationId, {
         planKey: 'portfolio',
@@ -564,6 +598,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         place: null,
         videoUrl: null,
         note: null,
+        agenda: {
+          html: '<p>Your portfolio, then questions.</p>',
+          text: 'Your portfolio, then questions.',
+        },
       }),
     ),
   );
@@ -581,6 +619,40 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(declined.state).toBe('answered');
   expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/^Received:/u));
   expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/needs other times/u));
+  // The link: the candidate offers times, the team books one, and the invitation carries the agenda.
+  const link = await asMailing('ada', async (ctx) =>
+    value(await selfScheduleLink(ctx, applied.applicationId, 'portfolio')),
+  );
+  const linkToken = link.split('#')[1] ?? '';
+  const free = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));
+  expect(free.wanted).toBe(10);
+  // The candidate sees whose calendars the times fit: the recruiter who shared it, then the panel.
+  expect(free.organiser).not.toBeNull();
+  expect(free.interviewers.length).toBe(1);
+  const tooFew = await as('public', (ctx) =>
+    offerAvailability(ctx, linkToken, free.slots.slice(0, 3) as Instant[]),
+  );
+  expect(tooFew.ok ? null : tooFew.error.code).toBe('TIMES');
+  const availability = await asMailing('public', async (ctx) =>
+    value(await offerAvailability(ctx, linkToken, free.slots.slice(0, 10) as Instant[])),
+  );
+  expect(availability.times).toHaveLength(10);
+  expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/offered 10 times/u));
+  const bookedFromLink = await asMailing('ada', async (ctx) =>
+    value(
+      await bookFromAvailability(ctx, applied.applicationId, availability.id, {
+        startsAt: availability.times[1] as Instant,
+        place: null,
+        videoUrl: null,
+        agenda: { html: '<p>Agenda</p>', text: 'Walk us through two projects.' },
+      }),
+    ),
+  );
+  expect(bookedFromLink.startsAt).toBe(availability.times[1]);
+  expect(mailed.at(-1)?.text).toContain('Walk us through two projects.');
+  await as('ada', async (ctx) =>
+    value(await setInterviewState(ctx, bookedFromLink.id, 'cancelled')),
+  );
   const question = await asMailing('ada', async (ctx) =>
     value(
       await requestInformation(ctx, applied.applicationId, {
@@ -601,10 +673,11 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   const page = await as('public', async (ctx) =>
     candidatePage(ctx, (await ctx.tx.candidates.get(yukiId)) as never),
   );
-  expect(page.applications[0]?.requests.map((r) => r.state)).toEqual([
-    'closed',
-    'answered',
-    'answered',
+  expect(page.applications[0]?.requests.map((r) => [r.kind, r.state])).toEqual([
+    ['change', 'closed'],
+    ['info', 'answered'],
+    ['availability', 'answered'],
+    ['slots', 'answered'],
   ]);
 
   // The day before, the candidate is reminded; messaging drops a repeat by its key.

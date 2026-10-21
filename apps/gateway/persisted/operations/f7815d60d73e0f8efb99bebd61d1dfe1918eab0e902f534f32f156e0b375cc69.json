@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffWorkingWeeks($personIds: String!) {\n    timeOffWorkingWeeks(personIds: $personIds) {\n      weeks { days { end start weekday } personId timeZone }\n    }\n  }"}

@@ -828,6 +828,8 @@ export type { TagsInputProps } from './components/tags-input/tags-input';
 export { Timeline, TimelineItem } from './components/timeline/timeline';
 export type { TimelineItemProps } from './components/timeline/timeline';
 
+export { SlotPicker } from './components/slot-picker/slot-picker';
+export type { SlotPickerProps } from './components/slot-picker/slot-picker';
 export { TimePicker, formatTime, parseTime, timeSlots } from './components/time-picker/time-picker';
 export type { TimePickerProps } from './components/time-picker/time-picker';
 

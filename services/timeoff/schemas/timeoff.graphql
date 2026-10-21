@@ -293,6 +293,14 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): TimeOffDone!
+  """
+  T33: the company’s working week, for anyone without a schedule of their own; HR
+  """
+  setTimeOffDefaultSchedule(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffDone!
   """Who covers for an approver: they set it, or HR does"""
   setTimeOffDelegation(
     approverId: String!
@@ -491,6 +499,10 @@ type Query {
   Whether the caller approves anyone, is HR, and the counts on Requests and Attendance (TOF-058a)
   """
   timeOffViewer: TimeOffViewer!
+  """
+  When each named member works, their own week or the company’s, in their zone
+  """
+  timeOffWorkingWeeks(personIds: String!): TimeOffWorkingWeeks!
 }
 
 type TimeOffAlternative {
@@ -1899,6 +1911,22 @@ type TimeOffWhoIsOff {
 type TimeOffWhy {
   requestId: String!
   text: TimeOffWritten!
+}
+
+type TimeOffWorkingDay {
+  end: Int!
+  start: Int!
+  weekday: Int!
+}
+
+type TimeOffWorkingWeek {
+  days: [TimeOffWorkingDay!]!
+  personId: String!
+  timeZone: String!
+}
+
+type TimeOffWorkingWeeks {
+  weeks: [TimeOffWorkingWeek!]!
 }
 
 type TimeOffWritten {

@@ -2,7 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { Instant } from '@kithena/contracts';
 
 import { may } from '../domain/access/access.js';
-import { asksOf, newAsk, saveAsk, type Ask } from './asks.js';
+import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
 import { forbidden, jobFacts, notFound, type Ctx } from './context.js';
 import { portalLink } from './intake.js';
 import { bookInterview } from './interviews.js';
@@ -69,6 +69,7 @@ export async function proposeSlots(
     readonly place: string | null;
     readonly videoUrl: string | null;
     readonly note: string | null;
+    readonly agenda: Agenda | null;
   },
 ): Promise<Result<Ask>> {
   const loaded = await loadApplication(ctx, applicationId);
@@ -90,6 +91,7 @@ export async function proposeSlots(
       times,
       place: input.place,
       videoUrl: input.videoUrl,
+      agenda: input.agenda,
     }),
   );
   const { candidate } = loaded.value;
@@ -186,6 +188,7 @@ export async function answerAsk(
         startsAt: input.time,
         place: ask.place,
         videoUrl: ask.videoUrl,
+        agenda: ask.agenda,
       },
       'team',
     );

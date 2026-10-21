@@ -2,7 +2,6 @@ import {
   Alert,
   Badge,
   Button,
-  Calendar,
   Card,
   CardContent,
   CardDescription,
@@ -13,14 +12,17 @@ import {
   EmptyState,
   Field,
   FieldControl,
+  FieldDescription,
   FieldLabel,
   Input,
   KeyValues,
   PageHeader,
   RadioCard,
   RadioGroup,
+  RichTextEditor,
   SegmentedControl,
   SegmentedControlItem,
+  SlotPicker,
   Table,
   TableBody,
   TableCell,
@@ -31,7 +33,7 @@ import {
   TimePicker,
   icons,
 } from '@reach/ui';
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, useAct, when, words } from './shared';
@@ -531,12 +533,6 @@ function KitBody({
 }
 
 const DAY_KEY = (iso: string) => iso.slice(0, 10);
-const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
-const LONG_DAY = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-});
 
 /** One ask as a row: what was offered or asked, where it stands, and the answer. */
 function AskRow({
@@ -554,7 +550,9 @@ function AskRow({
       ? `${ask.times.length === 1 ? 'A time' : `${String(ask.times.length)} times`} offered for the ${ask.label.toLowerCase()}`
       : ask.kind === 'info'
         ? `Asked: ${ask.label}`
-        : `Candidate asks to move the ${ask.label.toLowerCase()}`;
+        : ask.kind === 'availability'
+          ? `Candidate offered ${String(ask.times.length)} time${ask.times.length === 1 ? '' : 's'} for the ${ask.label.toLowerCase()}`
+          : `Candidate asks to move the ${ask.label.toLowerCase()}`;
   return (
     <div className="flex flex-col gap-1 border-b border-[var(--reach-line)] pb-3 last:border-b-0 last:pb-0">
       <div className="flex flex-wrap items-center gap-2">
@@ -575,9 +573,12 @@ function AskRow({
           </Button>
         ) : null}
       </div>
-      {ask.kind === 'slots' ? (
+      {ask.kind === 'slots' || ask.kind === 'availability' ? (
         <span className="text-sm text-fg-muted">{ask.times.map(when).join(' · ')}</span>
       ) : null}
+      {ask.agenda === null ? null : (
+        <span className="text-sm text-fg-muted">{`Agenda: ${ask.agenda.text}`}</span>
+      )}
       {ask.detail === null ? null : <span className="text-sm text-fg-muted">{ask.detail}</span>}
       {ask.answer === null ? null : (
         <span className="text-sm">
@@ -616,11 +617,145 @@ export function AskList({
   );
 }
 
+/** Where an interview happens: a Meet made at booking, a link pasted, or an address. */
+type Where = 'meet' | 'link' | 'place';
+
+/** A ProseMirror node, as the editor hands its document over. */
+interface DocNode {
+  readonly type?: string;
+  readonly text?: string;
+  readonly content?: readonly DocNode[];
+}
+
+/** The document's words, a line per block, read from the editor's tree rather than its HTML. */
+function plainText(node: DocNode): string {
+  if (node.text !== undefined) return node.text;
+  if (node.type === 'hardBreak') return '\n';
+  const inner = (node.content ?? []).map(plainText);
+  const block = ['paragraph', 'heading', 'listItem', 'blockquote', 'codeBlock'].includes(
+    node.type ?? '',
+  );
+  return block ? `${inner.join('')}\n` : inner.join('');
+}
+
+/** The agenda, written once as rich text and kept with its plain words for mail and calendars. */
+function AgendaEditor({
+  value,
+  onChange,
+}: {
+  readonly value: { html: string; text: string } | null;
+  readonly onChange: (next: { html: string; text: string } | null) => void;
+}): JSX.Element {
+  // The editor reports its HTML, then its tree, on every change: the HTML is held for the tree's turn.
+  const html = useRef(value?.html ?? '');
+  return (
+    <Field>
+      <FieldLabel>Agenda</FieldLabel>
+      <FieldDescription>
+        What the interview is about and how to prepare. It goes in the invitation and as the
+        calendar event’s description.
+      </FieldDescription>
+      <FieldControl>
+        <RichTextEditor
+          label="Agenda"
+          value={value?.html ?? ''}
+          minHeight="8rem"
+          onChange={(next) => {
+            html.current = next;
+          }}
+          onChangeJson={(doc) => {
+            const text = plainText(doc)
+              .replaceAll(/\n{3,}/gu, '\n\n')
+              .trim();
+            onChange(text === '' ? null : { html: html.current, text });
+          }}
+        />
+      </FieldControl>
+    </Field>
+  );
+}
+
+/** The where: Meet when it can be made, else a link or an address. */
+function WhereFields({
+  where,
+  onWhere,
+  video,
+  onVideo,
+  place,
+  onPlace,
+  meet,
+}: {
+  readonly where: Where;
+  readonly onWhere: (w: Where) => void;
+  readonly video: string;
+  readonly onVideo: (v: string) => void;
+  readonly place: string;
+  readonly onPlace: (v: string) => void;
+  readonly meet: boolean;
+}): JSX.Element {
+  return (
+    <>
+      <Field>
+        <FieldLabel>Where</FieldLabel>
+        <SegmentedControl
+          aria-label="Where"
+          value={where}
+          onValueChange={(v) => {
+            onWhere(v as Where);
+          }}
+        >
+          <SegmentedControlItem value="meet">Google Meet</SegmentedControlItem>
+          <SegmentedControlItem value="link">A link</SegmentedControlItem>
+          <SegmentedControlItem value="place">An address</SegmentedControlItem>
+        </SegmentedControl>
+        {where === 'meet' ? (
+          <FieldDescription>
+            {meet
+              ? 'A Meet link is made on the organiser’s calendar at booking and sent with the invitation.'
+              : 'No calendar is connected for these interviewers: connect one under Settings, Integrations, or paste a link.'}
+          </FieldDescription>
+        ) : null}
+      </Field>
+      {where === 'link' ? (
+        <Field required>
+          <FieldLabel>Video link</FieldLabel>
+          <FieldControl>
+            <Input
+              type="url"
+              value={video}
+              onChange={(e) => {
+                onVideo(e.target.value);
+              }}
+              placeholder="https://meet.google.com/abc-defg-hij"
+            />
+          </FieldControl>
+        </Field>
+      ) : null}
+      {where === 'place' ? (
+        <Field required>
+          <FieldLabel>Address</FieldLabel>
+          <FieldControl>
+            <Input
+              value={place}
+              onChange={(e) => {
+                onPlace(e.target.value);
+              }}
+              placeholder="Berlin office, 3rd floor"
+            />
+          </FieldControl>
+        </Field>
+      ) : null}
+    </>
+  );
+}
+
 /**
- * R16: book one interview of the plan on a calendar, offer the candidate a
- * few times to choose from, or send them a link to pick any that fits. The
- * calendar marks the days with a free slot; one day's times are listed
- * beside it. Whatever is chosen, the candidate's email leaves at once.
+ * R16: book one interview of the plan from a calendar, offer the candidate a
+ * few times to choose from, or send them a link to offer up to ten times of
+ * their own. The calendar strikes the days with nothing free (a weekend, a
+ * holiday, everyone away, hours over); a day's free times are a list, and
+ * what was picked is grouped by day. A Meet is made at booking unless a
+ * link or an address is given; the agenda goes with every invitation.
  */
 export function Schedule(props: ScreenProps<ScheduleData>): JSX.Element {
   return (
@@ -640,34 +775,28 @@ function ScheduleBody({
   const act = useAct(props);
   const [how, setHow] = useState<'book' | 'offer' | 'link'>('book');
   const [picked, setPicked] = useState<readonly string[]>([]);
+  const [where, setWhere] = useState<Where>(data.meet ? 'meet' : 'link');
   const [video, setVideo] = useState('');
   const [place, setPlace] = useState('');
   const [note, setNote] = useState('');
+  const [agenda, setAgenda] = useState<{ html: string; text: string } | null>(null);
+  const [fromAsk, setFromAsk] = useState<{ askId: string; time: string } | null>(null);
   const applicationId = props.params?.['id'] ?? '';
   const plan = data.plan.find((p) => p.key === data.planKey);
-  const byDay = new Map<string, string[]>();
-  for (const s of data.slots) byDay.set(DAY_KEY(s), [...(byDay.get(DAY_KEY(s)) ?? []), s]);
   const today = DAY_KEY(data.from);
-  const firstWithSlot = [...byDay.keys()][0] ?? today;
-  const [chosenDay, setChosenDay] = useState<string>(firstWithSlot);
-  const times = byDay.get(chosenDay) ?? [];
-  const booked = data.booked.map((b) => DAY_KEY(b.startsAt));
-  const markers = Object.fromEntries([
-    ...[...byDay.keys()].map((d) => [d, { tone: 'success', label: 'Free slot' }] as const),
-    ...booked.map((d) => [d, { tone: 'accent', label: 'Interview booked' }] as const),
-  ]) as Readonly<Record<string, { tone: 'success' | 'accent'; label: string }>>;
-  const single = how === 'book';
-  const toggle = (t: string): void => {
-    setPicked(single ? [t] : picked.includes(t) ? picked.filter((x) => x !== t) : [...picked, t]);
-  };
   const back = () =>
     props.onNavigate?.(
       `/recruiting/candidates/${data.candidate.id}?application=${applicationId}&tab=process`,
     );
   const whereInput = {
-    place: place === '' ? null : place,
-    videoUrl: video === '' ? null : video,
+    place: where === 'place' && place !== '' ? place : null,
+    videoUrl: where === 'link' && video !== '' ? video : null,
+    agenda,
   };
+  const whereReady =
+    where === 'meet' || (where === 'link' && video !== '') || (where === 'place' && place !== '');
+  const offered = data.asks.filter((a) => a.kind === 'availability' && a.state === 'open');
+  const unavailable = Object.fromEntries(data.holidays.map((h) => [h.date, h.name]));
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -684,13 +813,59 @@ function ScheduleBody({
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
           <div className="flex flex-col gap-4">
+            {offered.map((a) => (
+              <Card key={a.id}>
+                <CardHeader>
+                  <CardTitle
+                    level={2}
+                  >{`${data.candidate.name} offered ${String(a.times.length)} time${a.times.length === 1 ? '' : 's'}`}</CardTitle>
+                  <CardDescription>
+                    Pick one and book it. The invitation goes with the link and the agenda.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <SlotPicker
+                    label="Times the candidate offered"
+                    slots={a.times}
+                    max={1}
+                    today={today}
+                    unavailable={unavailable}
+                    {...(plan === undefined ? {} : { minutes: plan.minutes })}
+                    value={fromAsk?.askId === a.id && fromAsk.time !== '' ? [fromAsk.time] : []}
+                    onChange={(v) => {
+                      setFromAsk({ askId: a.id, time: v[0] ?? '' });
+                    }}
+                  />
+                  <Button
+                    disabled={fromAsk?.askId !== a.id || fromAsk.time === '' || !whereReady}
+                    loading={act.pending}
+                    onClick={() => {
+                      if (fromAsk === null) return;
+                      act.run(
+                        'BookFromAsk',
+                        {
+                          applicationId,
+                          askId: a.id,
+                          input: { startsAt: fromAsk.time, ...whereInput },
+                        },
+                        back,
+                      );
+                    }}
+                  >
+                    Book this time and send the invitation
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
             <Card>
               <CardHeader>
-                <CardTitle level={2}>Pick a day, then a time</CardTitle>
+                <CardTitle level={2}>
+                  {how === 'link' ? 'The candidate picks' : 'Pick a day, then a time'}
+                </CardTitle>
                 <CardDescription>
                   {plan === undefined
                     ? ''
-                    : `${String(plan.minutes)} min · ${plan.interviewerIds.map((id) => data.names[id] ?? id).join(', ') || 'No interviewers yet'} · free for everyone, from their calendars or working hours; a day away in Time Off is never offered.`}
+                    : `${String(plan.minutes)} min · ${plan.interviewerIds.map((id) => data.names[id] ?? id).join(', ') || 'No interviewers yet'} · free for you and every interviewer; a struck day has nothing free: a weekend, a holiday, someone away, or the hours over.`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
@@ -707,66 +882,23 @@ function ScheduleBody({
                     ))}
                   </ChipRow>
                 ) : null}
-                <div className="grid gap-6 md:grid-cols-[auto_minmax(0,1fr)]">
-                  <Calendar
-                    label="Interview day"
-                    mode="single"
+                {how === 'link' ? (
+                  <p className="text-sm text-fg-muted">
+                    {`${data.candidate.name} gets a link to the same free times, in their own time zone, holidays and days away left out, and gives ten. You book one from here.`}
+                  </p>
+                ) : (
+                  <SlotPicker
+                    label="Interview times"
+                    slots={data.slots}
+                    booked={data.booked.map((b) => b.startsAt)}
                     today={today}
-                    min={today}
-                    month={today}
-                    selected={chosenDay}
-                    onSelect={(d) => {
-                      if (d !== null) setChosenDay(d);
-                    }}
-                    onMonthChange={(m) => props.onFilter?.({ week: `${m.slice(0, 7)}-01` })}
-                    markers={markers}
+                    unavailable={unavailable}
+                    {...(plan === undefined ? {} : { minutes: plan.minutes })}
+                    {...(how === 'book' ? { max: 1 } : { max: 12 })}
+                    value={picked}
+                    onChange={setPicked}
                   />
-                  <div className="flex min-w-0 flex-col gap-3">
-                    <h3 className="font-semibold">
-                      {LONG_DAY.format(new Date(`${chosenDay}T00:00:00Z`))}
-                    </h3>
-                    {times.length === 0 ? (
-                      <p className="text-sm text-fg-muted">
-                        No slot fits everyone that day. Pick a day with a green dot, or let the
-                        candidate choose.
-                      </p>
-                    ) : (
-                      <ChipRow aria-label={`Times on ${chosenDay}`}>
-                        {times.map((t) => (
-                          <Chip
-                            key={t}
-                            selected={picked.includes(t)}
-                            onClick={() => {
-                              toggle(t);
-                            }}
-                          >
-                            {TIME.format(new Date(t))}
-                          </Chip>
-                        ))}
-                      </ChipRow>
-                    )}
-                    {picked.length === 0 ? null : (
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-medium">
-                          {single ? 'Booking' : `Offering ${String(picked.length)}`}
-                        </span>
-                        <ChipRow aria-label="Chosen times">
-                          {[...picked].toSorted().map((t) => (
-                            <Chip
-                              key={t}
-                              selected
-                              onClick={() => {
-                                setPicked(picked.filter((x) => x !== t));
-                              }}
-                            >
-                              {when(t)}
-                            </Chip>
-                          ))}
-                        </ChipRow>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
             {data.asks.length === 0 && data.booked.length === 0 ? null : (
@@ -788,7 +920,13 @@ function ScheduleBody({
                       ) : null}
                     </div>
                   ))}
-                  <AskList asks={data.asks} applicationId={applicationId} act={act} />
+                  <AskList
+                    asks={data.asks.filter(
+                      (a) => !(a.kind === 'availability' && a.state === 'open'),
+                    )}
+                    applicationId={applicationId}
+                    act={act}
+                  />
                 </CardContent>
               </Card>
             )}
@@ -820,38 +958,21 @@ function ScheduleBody({
                 </RadioCard>
                 <RadioCard
                   value="link"
-                  description={`A link with every slot that fits, in ${data.candidate.name}’s time zone.`}
+                  description={`${data.candidate.name} gives ten times that fit everyone; you book one.`}
                 >
-                  Let the candidate choose freely
+                  Ask for their availability
                 </RadioCard>
               </RadioGroup>
               {how === 'link' ? null : (
-                <>
-                  <Field>
-                    <FieldLabel>Video link</FieldLabel>
-                    <FieldControl>
-                      <Input
-                        type="url"
-                        value={video}
-                        onChange={(e) => {
-                          setVideo(e.target.value);
-                        }}
-                        placeholder="https://meet.google.com/…"
-                      />
-                    </FieldControl>
-                  </Field>
-                  <Field>
-                    <FieldLabel>Or an address</FieldLabel>
-                    <FieldControl>
-                      <Input
-                        value={place}
-                        onChange={(e) => {
-                          setPlace(e.target.value);
-                        }}
-                      />
-                    </FieldControl>
-                  </Field>
-                </>
+                <WhereFields
+                  where={where}
+                  onWhere={setWhere}
+                  video={video}
+                  onVideo={setVideo}
+                  place={place}
+                  onPlace={setPlace}
+                  meet={data.meet}
+                />
               )}
               {how === 'offer' ? (
                 <Field>
@@ -867,9 +988,10 @@ function ScheduleBody({
                   </FieldControl>
                 </Field>
               ) : null}
+              <AgendaEditor value={agenda} onChange={setAgenda} />
               {how === 'book' ? (
                 <Button
-                  disabled={picked.length === 0 || data.planKey === null}
+                  disabled={picked.length === 0 || data.planKey === null || !whereReady}
                   loading={act.pending}
                   onClick={() => {
                     act.run(
@@ -886,7 +1008,7 @@ function ScheduleBody({
                 </Button>
               ) : how === 'offer' ? (
                 <Button
-                  disabled={picked.length === 0 || data.planKey === null}
+                  disabled={picked.length === 0 || data.planKey === null || !whereReady}
                   loading={act.pending}
                   onClick={() => {
                     act.run(
@@ -913,7 +1035,15 @@ function ScheduleBody({
                   onClick={() => {
                     act.run(
                       'SelfScheduleLink',
-                      { applicationId, input: { planKey: data.planKey } },
+                      {
+                        applicationId,
+                        input: {
+                          planKey: data.planKey,
+                          away: data.away,
+                          holidays: data.holidays,
+                          weeks: data.weeks,
+                        },
+                      },
                       back,
                     );
                   }}

@@ -143,6 +143,8 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
       };
     },
     setRules: (rules) => writeSetting(tx, tenantId, 'attendance_rules', rules),
+    defaultSchedule: () => readSetting<Schedule | null>(tx, 'default_schedule', null),
+    setDefaultSchedule: (s) => writeSetting(tx, tenantId, 'default_schedule', s),
 
     async periods() {
       const rows = await tx.select().from(payPeriod).orderBy(asc(payPeriod.startsOn));

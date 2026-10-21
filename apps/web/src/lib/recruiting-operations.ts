@@ -157,6 +157,7 @@ export const OPERATIONS = {
   ProposeSlots: write('ProposeSlots', 'proposeSlots', ...ID('applicationId')),
   RequestInformation: write('RequestInformation', 'requestInformation', ...ID('applicationId')),
   CloseAsk: write('CloseAsk', 'closeAsk', ...two('applicationId', 'askId'), false),
+  BookFromAsk: write('BookFromAsk', 'bookFromAsk', ...two('applicationId', 'askId')),
   SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   RecruitingConnections: query('RecruitingConnections', 'recruitingConnections'),

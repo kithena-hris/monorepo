@@ -1,7 +1,7 @@
 import { ok, type Result } from '@kithena/domain-kit';
 import type { LeaveTypeKey, LocationKey, TeamKey } from '@kithena/contracts';
 
-import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
+import { companySchedule } from '../attendance/attendance.js';
 import { de } from '../../country-packs/de.js';
 import { es } from '../../country-packs/es.js';
 import { gb } from '../../country-packs/gb.js';
@@ -214,7 +214,7 @@ export const attendanceSettings =
   (deps: ReadDeps) =>
   (caller: Caller): Promise<Result<AttendanceSettingsView>> =>
     asHr(deps, caller, async (tx) =>
-      ok({ rules: await tx.attendance.rules(), defaultSchedule: DEFAULT_SCHEDULE }),
+      ok({ rules: await tx.attendance.rules(), defaultSchedule: await companySchedule(tx) }),
     );
 
 /** T34: the approval rules, what is approved automatically, and each team's minimum. */

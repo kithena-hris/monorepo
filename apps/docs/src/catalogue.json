@@ -49,6 +49,7 @@
       "RichTextEditor",
       "FileUploader",
       "TimePicker",
+      "SlotPicker",
       "Form sections",
       "Access matrix",
       "KeyRecorder"

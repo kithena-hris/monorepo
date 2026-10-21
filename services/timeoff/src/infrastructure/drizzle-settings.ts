@@ -40,7 +40,8 @@ import {
  * one tenant transaction.
  */
 
-type SettingKey = 'auto_approval' | 'attendance_rules' | 'parental_company' | keyof Settings;
+type SettingKey =
+  'auto_approval' | 'attendance_rules' | 'parental_company' | 'default_schedule' | keyof Settings;
 
 /** A tenant setting stored as one document, or `fallback` when none is. */
 export async function readSetting<T>(

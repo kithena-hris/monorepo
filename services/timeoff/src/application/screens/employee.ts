@@ -9,12 +9,13 @@ import {
 import { bridgesFor, writeBridges, yearAhead, type BridgeFacts } from '../assist/bridges.js';
 import type { Writer } from '../assist/ports.js';
 import { mayDecide } from '../approval/decide.js';
-import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
+import { companySchedule } from '../attendance/attendance.js';
 import { calendarIn } from '../calendar/calendar.js';
 import { AttendanceClock, standing } from '../../domain/attendance/clock.js';
 import { dayOf } from '../../domain/attendance/day.js';
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { addDays, daysBetween } from '../../domain/days.js';
+import type { Schedule, Week } from '../../domain/attendance/schedule.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
 import { needsNote } from '../../domain/request/sick.js';
@@ -46,6 +47,7 @@ import type {
   RequestDetailView,
   RequestItem,
   RequestPanelView,
+  WorkingWeeksView,
 } from './views.js';
 
 /**
@@ -217,7 +219,7 @@ export const overview =
         const rules = await tx.attendance.rules();
         const day = dayOf({
           date: today,
-          schedule: (await tx.attendance.schedule(me.personId)) ?? DEFAULT_SCHEDULE,
+          schedule: (await tx.attendance.schedule(me.personId)) ?? (await companySchedule(tx)),
           shifts: clock.shifts,
           now: deps.clock.instant(),
           timeZone: me.timeZone,
@@ -463,6 +465,50 @@ export const balanceLedger =
  * bridge days still ahead in it, in date order. Their lines are templates:
  * a list of every holiday is not worth a model call per visit.
  */
+/** The usual week in a schedule: a seasonal one's base; a rotating one has none. */
+function usualWeek(schedule: Schedule): Week | null {
+  switch (schedule.kind) {
+    case 'fixed':
+    case 'flexible':
+      return schedule.week;
+    case 'seasonal':
+      return usualWeek(schedule.base);
+    case 'rotating':
+      return null;
+  }
+}
+
+/**
+ * When each named member works, for booking a meeting with them: their own
+ * schedule's usual week, else the company's, in their zone. Readable by any
+ * member, as a shared calendar's working hours are; it says nothing about
+ * leave. A rotating schedule, or someone Time Off does not know, is left out.
+ */
+export const workingWeeks =
+  (deps: ReadDeps) =>
+  async (caller: Caller, personIds: readonly PersonId[]): Promise<Result<WorkingWeeksView>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      if (caller.personId === null) return forbidden();
+      const standard = await companySchedule(tx);
+      const own = await tx.attendance.schedulesOf(personIds);
+      const weeks: WorkingWeeksView['weeks'][number][] = [];
+      for (const personId of new Set(personIds)) {
+        const member = await tx.members.get(personId);
+        const week = usualWeek(own.get(personId) ?? standard);
+        if (member === null || week === null) continue;
+        weeks.push({
+          personId,
+          timeZone: member.timeZone,
+          days: Object.entries(week).map(([weekday, w]) => ({
+            weekday: Number(weekday),
+            start: w.start,
+            end: w.end,
+          })),
+        });
+      }
+      return ok({ weeks });
+    });
+
 export const holidays =
   (deps: ReadDeps) =>
   async (caller: Caller, query: { readonly year: number }): Promise<Result<HolidaysView>> =>

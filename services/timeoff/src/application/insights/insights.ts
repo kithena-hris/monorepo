@@ -17,7 +17,7 @@ import {
 } from '../../domain/insights/insights.js';
 import type { Writer } from '../assist/ports.js';
 import { written, type Line } from '../assist/written.js';
-import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
+import { companySchedule } from '../attendance/attendance.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
 import { forbidden, isHrAdmin, leaveYear, policyFrom, relatedIds, transact } from '../shared.js';
 
@@ -339,7 +339,7 @@ function factsOf(
     readonly rules: AttendanceRules;
     readonly annual: AnnualFacts | undefined;
     readonly punches: readonly Punch[];
-    readonly schedule: Schedule | undefined;
+    readonly schedule: Schedule;
   },
 ): MemberYear {
   const { rules } = read;
@@ -356,7 +356,7 @@ function factsOf(
     timeZone: m.timeZone,
     punches: read.punches,
   });
-  const schedule = read.schedule ?? DEFAULT_SCHEDULE;
+  const schedule = read.schedule;
   const now = deps.clock.instant();
   // Only a day with a shift can be open or carry overtime; the rest count for
   // neither, so they are never built.
@@ -469,18 +469,19 @@ export const insights =
         // What every member's year is built from, read for all of them at
         // once: a handful of queries, not several per member.
         const ids = scope.members.map((m) => m.personId);
-        const [rules, annual, punches, schedules] = await Promise.all([
+        const [rules, annual, punches, schedules, standard] = await Promise.all([
           tx.attendance.rules(),
           annualFactsOf(tx, scope.members, (m) => deps.clock.date(m.timeZone)),
           tx.attendance.punchesOf(ids),
           tx.attendance.schedulesOf(ids),
+          companySchedule(tx),
         ]);
         const years: MemberYear[] = scope.members.map((m) =>
           factsOf(deps, caller.tenantId, m, months, {
             rules,
             annual: annual.get(m.personId),
             punches: punches.get(m.personId) ?? [],
-            schedule: schedules.get(m.personId),
+            schedule: schedules.get(m.personId) ?? standard,
           }),
         );
 

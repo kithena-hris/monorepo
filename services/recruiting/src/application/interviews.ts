@@ -17,12 +17,20 @@ import {
 import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interview/slots.js';
 import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
 import { tellInterviewers } from './chat.js';
-import { asPerson, event, forbidden, nameOf, notFound, publish, type Ctx } from './context.js';
+import {
+  asPerson,
+  event,
+  forbidden,
+  jobFacts,
+  nameOf,
+  notFound,
+  publish,
+  type Ctx,
+} from './context.js';
 import { sha256, portalLink } from './intake.js';
-import { asksOf } from './asks.js';
+import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
 import { emailFor, emailValues } from './emails.js';
 import { loadApplication, render, sendNow } from './moves.js';
-import type { Ask } from './asks.js';
 import type { InterviewRecord, PlannedInterview, WorkingHours } from './ports.js';
 import { generalSettings } from './setup.js';
 
@@ -35,12 +43,56 @@ import { generalSettings } from './setup.js';
 /** Away days by interviewer, as the shell passes them from Time Off (PRD §28); absent means none known. */
 export type Absences = Readonly<Record<string, readonly string[]>>;
 
+/**
+ * When each person works, as the shell reads it from Time Off: their own
+ * schedule or the company's week, in their zone. Used for anyone who has not
+ * set working hours in Recruiting; without either, the office week in UTC.
+ */
+export type Weeks = Readonly<
+  Record<
+    string,
+    {
+      readonly timeZone: string;
+      readonly week: Readonly<Record<string, readonly (readonly [number, number])[]>>;
+    }
+  >
+>;
+
+/** The company's holidays, as the shell reads them from Time Off: no one is booked on one. */
+export interface Holiday {
+  readonly date: string;
+  readonly name: string;
+}
+
+/** Each interviewer's away days with every holiday added: nobody is offered on either. */
+function withHolidays(
+  people: readonly string[],
+  away: Absences,
+  holidays: readonly Holiday[],
+): Absences {
+  const dates = holidays.map((h) => h.date);
+  return Object.fromEntries(people.map((p) => [p, [...(away[p] ?? []), ...dates]]));
+}
+
+/** Everyone the interview needs: the interviewers and whoever arranges it, once each. */
+const withOrganiser = (interviewers: readonly string[], organiser: string | null | undefined) =>
+  organiser == null || interviewers.includes(organiser)
+    ? [...interviewers]
+    : [...interviewers, organiser];
+
+/**
+ * Everyone who must be free, each in their own working week and zone: their
+ * own Recruiting hours, else Time Off's week, else the office week in UTC;
+ * not on a day away; not in an interview or a meeting on their Google or
+ * Microsoft 365 calendar.
+ */
 async function availability(
   ctx: Ctx,
   people: readonly string[],
   from: Instant,
   to: Instant,
   away: Absences,
+  weeks: Weeks = {},
 ): Promise<Availability[]> {
   const out: Availability[] = [];
   for (const personId of people) {
@@ -55,10 +107,11 @@ async function availability(
           ] as const,
       )
       .concat(await calendarBusy(ctx, personId, from, to));
+    const known = weeks[personId];
     out.push({
       personId,
-      timeZone: hours?.timeZone ?? 'UTC',
-      week: hours?.week ?? OFFICE_WEEK,
+      timeZone: hours?.timeZone ?? known?.timeZone ?? 'UTC',
+      week: hours?.week ?? known?.week ?? OFFICE_WEEK,
       away: away[personId] ?? [],
       busy,
     });
@@ -77,6 +130,7 @@ export async function slotsFor(
   from: Instant,
   to: Instant,
   away: Absences = {},
+  weeks: Weeks = {},
 ): Promise<Result<readonly string[]>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -85,7 +139,14 @@ export async function slotsFor(
   if (plan === null) return err(notFound('interview in the plan'));
   return ok(
     freeSlots(
-      await availability(ctx, plan.interviewerIds, from, to, away),
+      await availability(
+        ctx,
+        withOrganiser(plan.interviewerIds, ctx.caller.personId),
+        from,
+        to,
+        away,
+        weeks,
+      ),
       from,
       to,
       plan.minutes,
@@ -105,6 +166,8 @@ export async function scheduleScreen(
   planKey: string | undefined,
   from: Instant | undefined,
   away: Absences = {},
+  holidays: readonly Holiday[] = [],
+  weeks: Weeks = {},
 ): Promise<
   Result<{
     candidate: { id: string; name: string };
@@ -118,6 +181,16 @@ export async function scheduleScreen(
     /** What the candidate has been asked (times proposed, a change wanted), newest first. */
     asks: readonly Ask[];
     booked: readonly InterviewRecord[];
+    /** A Meet (or Teams, or Zoom) link can be made at booking: a calendar is connected or delegated. */
+    meet: boolean;
+    /** The holidays in view, named, for the calendar to strike. */
+    holidays: readonly Holiday[];
+    /** Who among the interviewers is away when, for the link the candidate gets. */
+    away: Absences;
+    /** The interviewers' working weeks from Time Off, kept with the link too. */
+    weeks: Weeks;
+    /** Whoever is arranging it, free alongside the interviewers; the shell reads their week too. */
+    organiser: string | null;
   }>
 > {
   const loaded = await loadApplication(ctx, applicationId);
@@ -128,10 +201,13 @@ export async function scheduleScreen(
   // A month of days at once: the screen's calendar marks the days with a slot and lists one day's times.
   const start = from ?? (`${ctx.today}T00:00:00.000Z` as Instant);
   const end = new Date(Date.parse(start) + 35 * 86_400_000).toISOString() as Instant;
+  // The recruiter arranging it is one of the people who must be free.
+  const people = withOrganiser(chosen?.interviewerIds ?? [], ctx.caller.personId);
+  const off = withHolidays(people, away, holidays);
   const slots =
     chosen === null
       ? ok([] as readonly string[])
-      : await slotsFor(ctx, applicationId, chosen.key, start, end, away);
+      : await slotsFor(ctx, applicationId, chosen.key, start, end, off, weeks);
   if (!slots.ok) return slots;
   const candidate = await ctx.tx.candidates.get(loaded.value.app.candidateId);
   const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
@@ -151,15 +227,36 @@ export async function scheduleScreen(
     booked: (await ctx.tx.interviews.forApplication(applicationId)).filter(
       (i) => i.state === 'scheduled',
     ),
+    meet: await canMakeVideo(ctx, chosen?.interviewerIds ?? []),
+    holidays: holidays.filter((h) => h.date >= start.slice(0, 10) && h.date < end.slice(0, 10)),
+    away: Object.fromEntries(people.map((p) => [p, away[p] ?? []])),
+    organiser: ctx.caller.personId,
+    weeks: Object.fromEntries(
+      people.flatMap((p) => {
+        const w = weeks[p];
+        return w === undefined ? [] : [[p, w] as const];
+      }),
+    ),
   });
+}
+
+/** Whether booking will yield a video link: Workspace delegation, or one interviewer's own calendar or Zoom. */
+async function canMakeVideo(ctx: Ctx, interviewerIds: readonly string[]): Promise<boolean> {
+  if (ctx.deps.workspaceCalendar !== undefined) return true;
+  if ((ctx.deps.connections ?? []).length === 0) return false;
+  for (const id of interviewerIds) if ((await ctx.tx.connections.list(id)).length > 0) return true;
+  return false;
 }
 
 export interface Booking {
   readonly planKey: string;
   readonly startsAt: Instant;
   readonly interviewerIds?: readonly string[] | undefined;
+  /** Neither a place nor a link: a Meet (or Teams, or Zoom) is made on the organiser's calendar. */
   readonly place: string | null;
   readonly videoUrl: string | null;
+  /** What the interview is about: the calendar event's description and part of the invitation. */
+  readonly agenda?: Agenda | null | undefined;
 }
 
 export async function bookInterview(
@@ -198,11 +295,12 @@ export async function bookInterview(
     videoUrl: booking.videoUrl,
   };
   const job = await ctx.tx.jobs.get(app.jobId);
+  if (booking.agenda != null) await ctx.tx.settings.set(`agenda:${interview.id}`, booking.agenda);
   const videoUrl = await putOnCalendar(ctx, interview, {
     title: `${plan.title}: ${job?.title ?? ''}`,
     startsAt: booking.startsAt,
     minutes: plan.minutes,
-    description: 'Scheduled in Kithena Recruiting.',
+    description: booking.agenda?.text ?? 'Scheduled in Kithena Recruiting.',
   });
   const booked = videoUrl === null ? interview : { ...interview, videoUrl };
   await ctx.tx.interviews.save(booked);
@@ -267,6 +365,7 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
         company: settings.companyName,
         link: await portalLink(ctx, candidate.id),
       };
+  const agenda = (await ctx.tx.settings.get(`agenda:${interview.id}`)) as Agenda | null;
   const filled = {
     ...values,
     interview: `${interview.title}, ${when} (${candidate.timeZone ?? 'UTC'})`,
@@ -277,7 +376,7 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     candidate,
     interview.applicationId,
     render(words.subject, filled),
-    `${render(words.body, filled)}\n\n${invitation}`,
+    `${render(words.body, filled)}${agenda === null ? '' : `\n\nAgenda\n${agenda.text}`}\n\n${invitation}`,
   );
 }
 
@@ -297,6 +396,9 @@ export async function selfScheduleLink(
   ctx: Ctx,
   applicationId: string,
   planKey: string,
+  away: Absences = {},
+  holidays: readonly Holiday[] = [],
+  weeks: Weeks = {},
 ): Promise<Result<string>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -304,9 +406,15 @@ export async function selfScheduleLink(
   if ((await planned(ctx, loaded.value.app.jobId, planKey)) === null)
     return err(notFound('interview in the plan'));
   const token = randomBytes(24).toString('base64url');
+  // The days off known now go with the link: the candidate's page has no Time Off to ask.
   await ctx.tx.settings.set(`schedule:${sha256(token)}`, {
     applicationId,
     planKey,
+    away,
+    holidays,
+    weeks,
+    // Whoever sent it: their calendar's meetings block a time the candidate may pick.
+    recruiterId: ctx.caller.personId,
     expiresAt: new Date(Date.parse(ctx.at) + 14 * 86_400_000).toISOString(),
   });
   const company = (await generalSettings(ctx)).companySlug;
@@ -316,20 +424,23 @@ export async function selfScheduleLink(
     loaded.value.candidate,
     applicationId,
     `Appointment requested: choose a time with ${(await generalSettings(ctx)).companyName}`,
-    `Hello ${loaded.value.candidate.name},\n\nPlease choose a time that suits you:\n${link}\n\nThe link works for fourteen days.`,
+    `Hello ${loaded.value.candidate.name},\n\nPlease pick up to ten times that suit you, and we will confirm one:\n${link}\n\nThe link works for fourteen days.`,
   );
   return ok(link);
 }
 
-async function linkOf(
-  ctx: Ctx,
-  token: string,
-): Promise<{ applicationId: string; planKey: string } | null> {
-  const held = (await ctx.tx.settings.get(`schedule:${sha256(token)}`)) as {
-    applicationId: string;
-    planKey: string;
-    expiresAt: string;
-  } | null;
+interface Link {
+  readonly applicationId: string;
+  readonly planKey: string;
+  readonly away?: Absences;
+  readonly holidays?: readonly Holiday[];
+  readonly weeks?: Weeks;
+  readonly recruiterId?: string | null;
+  readonly expiresAt: string;
+}
+
+async function linkOf(ctx: Ctx, token: string): Promise<Link | null> {
+  const held = (await ctx.tx.settings.get(`schedule:${sha256(token)}`)) as Link | null;
   return held === null || held.expiresAt < ctx.at ? null : held;
 }
 
@@ -337,7 +448,19 @@ async function linkOf(
 export async function linkSlots(
   ctx: Ctx,
   token: string,
-): Promise<Result<{ slots: readonly string[]; minutes: number; title: string }>> {
+): Promise<
+  Result<{
+    slots: readonly string[];
+    minutes: number;
+    title: string;
+    holidays: readonly Holiday[];
+    /** How many times the candidate gives: ten, or every free one when there are fewer. */
+    wanted: number;
+    /** Whose calendars the times fit: the recruiter who shared the link, then the interviewers. */
+    organiser: string | null;
+    interviewers: readonly string[];
+  }>
+> {
   const link = await linkOf(ctx, token);
   if (link === null) return err(notFound('link'));
   const app = await ctx.tx.applications.get(link.applicationId);
@@ -345,42 +468,138 @@ export async function linkSlots(
   if (app === null || plan === null || app.outcome !== 'active') return err(notFound('link'));
   const from = new Date(Date.parse(ctx.at) + 86_400_000).toISOString() as Instant;
   const to = new Date(Date.parse(ctx.at) + 15 * 86_400_000).toISOString() as Instant;
-  return ok({
-    slots: freeSlots(
-      await availability(ctx, plan.interviewerIds, from, to, {}),
+  const holidays = link.holidays ?? [];
+  const people = withOrganiser(plan.interviewerIds, link.recruiterId);
+  const slots = freeSlots(
+    await availability(
+      ctx,
+      people,
       from,
       to,
-      plan.minutes,
-      30,
-      ctx.at,
+      withHolidays(people, link.away ?? {}, holidays),
+      link.weeks ?? {},
     ),
+    from,
+    to,
+    plan.minutes,
+    30,
+    ctx.at,
+  );
+  return ok({
+    slots,
     minutes: plan.minutes,
     title: plan.title,
+    holidays: holidays.filter((h) => h.date >= from.slice(0, 10) && h.date < to.slice(0, 10)),
+    wanted: Math.min(10, slots.length),
+    organiser: link.recruiterId == null ? null : ((await nameOf(ctx, link.recruiterId)) ?? null),
+    interviewers: (
+      await Promise.all(
+        plan.interviewerIds
+          .filter((p) => p !== link.recruiterId)
+          .map(async (p) => (await nameOf(ctx, p)) ?? null),
+      )
+    ).filter((n): n is string => n !== null),
   });
 }
 
-export async function bookByLink(
+/**
+ * The candidate's side of the link (PRD §16.4): up to ten times that suit
+ * them, from the slots that fit every interviewer. The team hears at once
+ * and books one of them; the invitation then carries the link and agenda.
+ */
+export async function offerAvailability(
   ctx: Ctx,
   token: string,
-  startsAt: Instant,
-): Promise<Result<InterviewRecord>> {
+  times: readonly Instant[],
+): Promise<Result<Ask>> {
   const link = await linkOf(ctx, token);
   if (link === null) return err(notFound('link'));
-  const existing = (await ctx.tx.interviews.forApplication(link.applicationId)).find(
-    (i) => i.planKey === link.planKey && i.state === 'scheduled',
-  );
-  if (existing !== undefined) {
-    // Rescheduling from the same link (PRD §16.4): the earlier one is marked rescheduled.
-    await ctx.tx.interviews.save({ ...existing, state: 'rescheduled' });
-    await takeOffCalendar(ctx, existing.id);
-    await invite(ctx, existing, true);
-  }
-  return bookInterview(
+  const offered = await linkSlots(ctx, token);
+  if (!offered.ok) return offered;
+  const chosen = [...new Set(times)].toSorted();
+  const wanted = offered.value.wanted;
+  if (chosen.length !== wanted || wanted === 0)
+    return err(
+      failure(
+        'TIMES',
+        `Choose ${String(wanted)} time${wanted === 1 ? '' : 's'}, so the team can find one that fits`,
+      ),
+    );
+  const stale = chosen.find((t) => !offered.value.slots.includes(t));
+  if (stale !== undefined)
+    return err(failure('SLOT_TAKEN', 'One of those times has just gone; choose again'));
+  const app = await ctx.tx.applications.get(link.applicationId);
+  const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+  if (app === null || candidate === null) return err(notFound('link'));
+  const ask = await saveAsk(
     ctx,
-    link.applicationId,
-    { planKey: link.planKey, startsAt, place: null, videoUrl: null },
-    'candidate',
+    newAsk(ctx, app.id, {
+      kind: 'availability',
+      by: null,
+      label: offered.value.title,
+      planKey: link.planKey,
+      times: chosen,
+    }),
   );
+  const settings = await generalSettings(ctx);
+  await sendNow(
+    ctx,
+    candidate,
+    app.id,
+    `Received: your times for the ${offered.value.title.toLowerCase()} with ${settings.companyName}`,
+    `Hello ${candidate.name},\n\nThank you. ${settings.companyName} has the ${String(chosen.length)} time${chosen.length === 1 ? '' : 's'} you offered and will confirm one of them by email, with the link or the address.\n\nYour page:\n${await portalLink(ctx, candidate.id)}`,
+  );
+  const job = await ctx.tx.jobs.get(app.jobId);
+  const facts = await jobFacts(ctx, job as never);
+  const zone = 'UTC';
+  for (const personId of new Set(facts.team.map((t) => t.personId))) {
+    const member = await ctx.tx.members.get(personId as never);
+    if (!member?.workEmail) continue;
+    ctx.mail.push({
+      to: member.workEmail,
+      subject: `${candidate.name} offered ${String(chosen.length)} time${chosen.length === 1 ? '' : 's'} for the ${offered.value.title}`,
+      text: `${candidate.name} (${job?.title ?? ''}) can do:\n${chosen.map((t) => `- ${new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone: zone }).format(new Date(t))} (${zone})`).join('\n')}\n\nPick one on the Schedule screen and the invitation goes out with the link and the agenda.`,
+      dedupeKey: `availability:${ask.id}:${member.workEmail}`,
+    });
+  }
+  return ok(ask);
+}
+
+/** The team books one of the times the candidate offered; the ask is answered by it. */
+export async function bookFromAvailability(
+  ctx: Ctx,
+  applicationId: string,
+  askId: string,
+  input: {
+    readonly startsAt: Instant;
+    readonly place: string | null;
+    readonly videoUrl: string | null;
+    readonly agenda: Agenda | null;
+  },
+): Promise<Result<InterviewRecord>> {
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
+  const ask = (await asksOf(ctx, applicationId)).find((a) => a.id === askId);
+  if (ask === undefined || ask.kind !== 'availability' || ask.state !== 'open')
+    return err(notFound('request'));
+  if (!ask.times.includes(input.startsAt))
+    return err(failure('NOT_OFFERED', 'Choose one of the times the candidate offered'));
+  const booked = await bookInterview(
+    ctx,
+    applicationId,
+    { planKey: ask.planKey ?? '', ...input },
+    'team',
+  );
+  if (!booked.ok) return booked;
+  await saveAsk(ctx, {
+    ...ask,
+    state: 'answered',
+    answeredAt: ctx.at,
+    answer: { time: input.startsAt, text: null },
+    interviewId: booked.value.id,
+  });
+  return booked;
 }
 
 export async function setInterviewState(
