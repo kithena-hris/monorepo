@@ -537,6 +537,8 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
   const [rejecting, setRejecting] = useState<Rejecting | null>(null);
   const [poolId, setPoolId] = useState('');
   const [asking, setAsking] = useState<string | null>(null);
+  const [telling, setTelling] = useState<string | null>(null);
+  const [tellMessage, setTellMessage] = useState<ComposedEmail | null>(null);
   const [moving, setMoving] = useState<{ applicationId: string; to: string; name: string } | null>(
     null,
   );
@@ -714,6 +716,19 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           }}
                         >
                           Ask for information…
+                        </Button>
+                      ) : null}
+                      {chosen.outcome === 'active' && chosen.may.includes('candidate.message') ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          startIcon={<icons.email aria-hidden />}
+                          onClick={() => {
+                            setTellMessage(null);
+                            setTelling(chosen.applicationId);
+                          }}
+                        >
+                          What to expect…
                         </Button>
                       ) : null}
                       {chosen.may.includes('scorecards.all') ? (
@@ -1133,6 +1148,64 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                     }}
                   >
                     {moveEmailing ? 'Move and send' : 'Move without an email'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog
+              open={telling !== null}
+              onOpenChange={(open) => {
+                if (!open) setTelling(null);
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Tell them what to expect</DialogTitle>
+                  <DialogDescription>
+                    {`What happens at ${data.candidate.name}’s current stage, from the job’s own plan. Change anything before it goes.`}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                  <EmailComposer
+                    applicationId={telling ?? undefined}
+                    purpose="stage_expectations"
+                    templates={data.templates}
+                    act={act}
+                    enabled
+                    optional={false}
+                    onEnabledChange={() => undefined}
+                    value={tellMessage}
+                    onChange={setTellMessage}
+                  />
+                </DialogBody>
+                <DialogFooter>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setTelling(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    loading={act.pending}
+                    disabled={
+                      tellMessage === null ||
+                      tellMessage.subject.trim() === '' ||
+                      tellMessage.body.trim() === ''
+                    }
+                    onClick={() => {
+                      if (telling === null || tellMessage === null) return;
+                      act.run(
+                        'SendStageExpectations',
+                        { applicationId: telling, input: tellMessage },
+                        () => {
+                          setTelling(null);
+                        },
+                      );
+                    }}
+                  >
+                    Send
                   </Button>
                 </DialogFooter>
               </DialogContent>

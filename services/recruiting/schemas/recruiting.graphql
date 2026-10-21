@@ -486,6 +486,15 @@ type Mutation {
   ): JSON
   """Send the offer to the candidate"""
   sendOffer(idempotencyKey: String!, offerId: String!): JSON
+  """
+  R11: tell the candidate what to expect at the stage they are at, in the composer’s words
+  """
+  sendStageExpectations(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """The company's own domain for its careers page; admin"""
   setCareersDomain(
     idempotencyKey: String!

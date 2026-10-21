@@ -66,6 +66,7 @@ import {
   previewEmail,
   rejectAndEmail,
   seedEmailTemplates,
+  sendStageExpectations,
 } from '../application/emails.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
@@ -888,6 +889,16 @@ export const ROUTES: readonly Route[] = [
         body.interviewType === undefined ? {} : { interviewType: body.interviewType },
         body.message,
       ),
+  }),
+  route({
+    name: 'sendStageExpectations',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/expectations`,
+    summary:
+      'R11: tell the candidate what to expect at the stage they are at, in the composer’s words',
+    params: z.object({ applicationId: Id }),
+    body: ComposedEmail,
+    run: (ctx, { params, body }) => sendStageExpectations(ctx, params.applicationId, body),
   }),
   route({
     name: 'previewEmail',

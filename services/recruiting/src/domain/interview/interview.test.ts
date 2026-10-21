@@ -98,12 +98,17 @@ describe('interviews and scorecards (PRD §16)', () => {
     expect(result).toMatchObject({ submitted: 3, expected: 4, recommendations: { yes: 3 } });
   });
 
-  it('lets only the hiring manager decide, with a reason', () => {
-    expect(decideDebrief('adam', 'marco', 'offer', 'Strong').ok).toBe(false);
-    expect(decideDebrief('marco', 'marco', 'offer', '')).toMatchObject({
+  it('lets the recruiter or the hiring manager decide, with a reason', () => {
+    const deciders = ['marco', 'ada'];
+    expect(decideDebrief('adam', deciders, 'offer', 'Strong')).toMatchObject({
+      ok: false,
+      error: { code: 'NOT_A_DECIDER' },
+    });
+    expect(decideDebrief('marco', deciders, 'offer', '')).toMatchObject({
       ok: false,
       error: { code: 'REASON_REQUIRED' },
     });
-    expect(decideDebrief('marco', 'marco', 'offer', 'Strong on systems').ok).toBe(true);
+    expect(decideDebrief('marco', deciders, 'offer', 'Strong on systems').ok).toBe(true);
+    expect(decideDebrief('ada', deciders, 'reject', 'Not the level we need').ok).toBe(true);
   });
 });

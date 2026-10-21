@@ -31,7 +31,7 @@ import { sha256, portalLink } from './intake.js';
 import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
 import { tellMembers } from './notify.js';
 import { emailFor, emailValues } from './emails.js';
-import { loadApplication, render, sendNow } from './moves.js';
+import { loadApplication, render, sendNow, type Loaded } from './moves.js';
 import type { InterviewRecord, PlannedInterview, WorkingHours } from './ports.js';
 import { generalSettings } from './setup.js';
 
@@ -1031,11 +1031,15 @@ export async function debriefOf(
     ),
     candidate: { id: candidate?.id ?? '', name: candidate?.name ?? '' },
     job: { id: job?.id ?? '', title: job?.title ?? '' },
-    decider: loaded.value.facts.team.some(
-      (t) => t.role === 'hiring_manager' && t.personId === ctx.viewer.personId,
-    ),
+    decider: decidersOf(loaded.value.facts).includes(ctx.viewer.personId ?? ''),
   });
 }
+
+/** Who records a debrief's decision: the job's recruiters and its hiring manager. */
+const decidersOf = (facts: Loaded['facts']): string[] =>
+  facts.team
+    .filter((t) => t.role === 'recruiter' || t.role === 'hiring_manager')
+    .map((t) => t.personId);
 
 export async function decide(
   ctx: Ctx,
@@ -1047,8 +1051,7 @@ export async function decide(
   if (!person.ok) return person;
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
-  const manager = loaded.value.facts.team.find((t) => t.role === 'hiring_manager')?.personId ?? '';
-  const decided = decideDebrief(person.value, manager, decision, reason);
+  const decided = decideDebrief(person.value, decidersOf(loaded.value.facts), decision, reason);
   if (!decided.ok) return decided;
   await ctx.tx.settings.set(`decision:${applicationId}:${ctx.at}`, {
     decision,

@@ -184,6 +184,11 @@ export const OPERATIONS = {
   SummariseDebrief: write('SummariseDebrief', 'summariseDebrief', ...ID('applicationId'), false),
   DraftEmail: write('DraftEmail', 'draftEmail', ...ID('applicationId')),
   PreviewEmail: write('PreviewEmail', 'previewEmail', ...ID('applicationId')),
+  SendStageExpectations: write(
+    'SendStageExpectations',
+    'sendStageExpectations',
+    ...ID('applicationId'),
+  ),
   SeedEmailTemplates: write('SeedEmailTemplates', 'seedEmailTemplates', '', '', false),
   AskForChart: write('AskForChart', 'askForChart'),
   RecruitingFairness: query(

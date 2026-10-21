@@ -1155,6 +1155,10 @@ function DebriefBody({
   const [summary, setSummary] = useState<{
     sentences: readonly { text: string; cites: readonly string[] }[];
     sources: readonly { id: string; interviewerId: string }[];
+    tone: 'positive' | 'mixed' | 'negative';
+    direction: string;
+    suggestion: 'proceed' | 'reject' | 'more_evidence';
+    why: string;
   } | null>(null);
   const applicationId = props.params?.['id'] ?? '';
   const people = [...new Set(data.rows.flatMap((r) => r.ratings.map((x) => x.interviewerId)))];
@@ -1170,8 +1174,8 @@ function DebriefBody({
         <CardHeader>
           <CardTitle level={2}>Summary</CardTitle>
           <CardDescription>
-            Written by a model from the scorecards; every line names the scorecards it came from. It
-            never recommends: that is yours.
+            Written by a model from the scorecards; every line names the scorecards it came from.
+            Its suggestion is only that: the decision is yours.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -1189,21 +1193,59 @@ function DebriefBody({
               Summarise the scorecards
             </Button>
           ) : (
-            <ul className="flex flex-col gap-1 text-sm">
-              {summary.sentences.map((x) => (
-                <li key={x.text}>
-                  {x.text}{' '}
-                  <span className="text-fg-muted">
-                    {`(${x.cites
-                      .map((c) => {
-                        const by = summary.sources.find((s) => s.id === c)?.interviewerId ?? '';
-                        return data.names[by] ?? c;
-                      })
-                      .join(', ')})`}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    tone={
+                      summary.suggestion === 'proceed'
+                        ? 'success'
+                        : summary.suggestion === 'reject'
+                          ? 'danger'
+                          : 'warning'
+                    }
+                    variant="solid"
+                  >
+                    {summary.suggestion === 'proceed'
+                      ? 'Suggests: proceed'
+                      : summary.suggestion === 'reject'
+                        ? 'Suggests: reject'
+                        : 'Suggests: gather more evidence'}
+                  </Badge>
+                  <Badge
+                    tone={
+                      summary.tone === 'positive'
+                        ? 'success'
+                        : summary.tone === 'negative'
+                          ? 'danger'
+                          : 'neutral'
+                    }
+                    variant="soft"
+                  >
+                    {`Tone: ${summary.tone}`}
+                  </Badge>
+                </div>
+                {summary.direction === '' ? null : (
+                  <p className="text-sm font-medium">{summary.direction}</p>
+                )}
+                {summary.why === '' ? null : <p className="text-sm text-fg-muted">{summary.why}</p>}
+              </div>
+              <ul className="flex flex-col gap-1 text-sm">
+                {summary.sentences.map((x) => (
+                  <li key={x.text}>
+                    {x.text}{' '}
+                    <span className="text-fg-muted">
+                      {`(${x.cites
+                        .map((c) => {
+                          const by = summary.sources.find((s) => s.id === c)?.interviewerId ?? '';
+                          return data.names[by] ?? c;
+                        })
+                        .join(', ')})`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1270,7 +1312,9 @@ function DebriefBody({
         <Card>
           <CardHeader>
             <CardTitle level={2}>Decision</CardTitle>
-            <CardDescription>The hiring manager decides, with a reason</CardDescription>
+            <CardDescription>
+              The job’s recruiter or hiring manager decides, with a reason
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <SegmentedControl
@@ -1313,7 +1357,7 @@ function DebriefBody({
             </Button>
             {data.decider ? null : (
               <p className="text-xs text-fg-muted">
-                Only the job’s hiring manager records the decision.
+                Only the job’s recruiter or hiring manager records the decision.
               </p>
             )}
           </CardContent>

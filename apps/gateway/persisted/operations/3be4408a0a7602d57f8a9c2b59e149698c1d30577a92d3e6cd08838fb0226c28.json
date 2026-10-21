@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SendStageExpectations($applicationId: String!, $input: JSON!, $key: String!) {\n    sendStageExpectations(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

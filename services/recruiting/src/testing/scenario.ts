@@ -97,6 +97,7 @@ import { askForChart } from '../application/chart-ask.js';
 import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
+import { previewEmail, sendStageExpectations } from '../application/emails.js';
 import { setMyNotifications } from '../application/notify.js';
 import { poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -719,6 +720,21 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     const held = await tx.interviews.get(interviewId);
     if (held !== null) await tx.interviews.save({ ...held, state: 'scheduled' });
   });
+  // At any stage, what to expect, from the job's own plan, edited in the composer and sent at once.
+  const expect_ = await as('ada', async (ctx) =>
+    value(
+      await previewEmail(ctx, applied.applicationId, {
+        purpose: 'stage_expectations',
+        templateId: null,
+        fill: true,
+      }),
+    ),
+  );
+  expect(expect_.body).toContain('Portfolio review, 60 minutes');
+  await asMailing('ada', async (ctx) =>
+    value(await sendStageExpectations(ctx, applied.applicationId, expect_)),
+  );
+  expect(toYuki()?.parts?.heading).toMatch(/^What to expect/u);
   const question = await asMailing('ada', async (ctx) =>
     value(
       await requestInformation(ctx, applied.applicationId, {
@@ -943,6 +959,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
                           { text: 'Craft was rated strong.', cites: ['s1'] },
                           { text: 'Hire.', cites: [] },
                         ],
+                        tone: 'positive',
+                        direction: 'The panel leans towards the candidate on craft.',
+                        suggestion: 'proceed',
+                        why: 'The one scorecard in rates craft strongly and says strong yes.',
                       })
                     : prompt.instruction.startsWith('You suggest interview questions')
                       ? JSON.stringify({
@@ -1162,9 +1182,12 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       }),
     );
   });
-  // R17: a summary keeps only sentences that cite a scorecard; "Hire." is the manager's to say.
+  // R17: a summary keeps only sentences that cite a scorecard; "Hire." is not a cited sentence.
   const summary = value(await asWriter((ctx) => summariseDebrief(ctx, applied.applicationId)));
   expect(summary.sentences.map((x) => x.text)).toEqual(['Craft was rated strong.']);
+  // Its reading of the room is a suggestion with a why; the recruiter or hiring manager decides.
+  expect(summary).toMatchObject({ tone: 'positive', suggestion: 'proceed' });
+  expect(summary.why).toContain('strong yes');
 
   const offer = await as('ada', async (ctx) => {
     value(await moveApplication(ctx, applied.applicationId, offerStage));
