@@ -60,10 +60,12 @@ export function jobPosting(job: PublicJob, url: string): Record<string, unknown>
           baseSalary: {
             '@type': 'MonetaryAmount',
             currency: job.salary.currency,
+            // Google's form: one `value` for a fixed salary, `minValue` and `maxValue` for a range.
             value: {
               '@type': 'QuantitativeValue',
-              minValue: job.salary.minMinor / 100,
-              maxValue: job.salary.maxMinor / 100,
+              ...(job.salary.minMinor === job.salary.maxMinor
+                ? { value: job.salary.minMinor / 100 }
+                : { minValue: job.salary.minMinor / 100, maxValue: job.salary.maxMinor / 100 }),
               unitText: UNIT[job.salary.period],
             },
           },

@@ -22,6 +22,12 @@ export interface InputProps
   endAdornment?: ReactNode;
   /** Applied to the outer shell; `className` still lands on the `<input>`. */
   containerClassName?: string;
+  /**
+   * `plain` drops the fill until the field is hovered or focused: for words
+   * edited where they are read, such as a name in a page's header, where a
+   * filled box would look like a form that was left open.
+   */
+  appearance?: 'filled' | 'plain';
 }
 
 /**
@@ -85,6 +91,7 @@ export function Input({
   startAdornment,
   endAdornment,
   type = 'text',
+  appearance = 'filled',
   ...props
 }: InputProps): JSX.Element {
   // Profile first, caller second: an explicit `autoComplete="off"` on a search
@@ -94,7 +101,7 @@ export function Input({
   // Under a thumb a 56px field carries its label inside it (see
   // `field-styles`). A leading icon would sit where the label starts, so a
   // field with one keeps its label above.
-  const float = size !== 'sm' && !startAdornment;
+  const float = size !== 'sm' && !startAdornment && appearance === 'filled';
 
   return (
     <div
@@ -103,6 +110,7 @@ export function Input({
         fieldShell({ size }),
         fieldShellHas,
         float && floatShell,
+        appearance === 'plain' && 'bg-transparent',
         'cursor-text',
         containerClassName,
       )}

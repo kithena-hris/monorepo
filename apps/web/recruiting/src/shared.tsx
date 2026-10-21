@@ -106,8 +106,9 @@ export function money(minor: number, currency: string, compact = false): string 
   return f.format(minor / 100);
 }
 
+/** A range, or one figure when it is fixed. */
 export const range = (min: number, max: number, currency: string): string =>
-  `${money(min, currency)} – ${money(max, currency)}`;
+  min === max ? money(min, currency) : `${money(min, currency)} – ${money(max, currency)}`;
 
 const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const DAY_YEAR = new Intl.DateTimeFormat('en-GB', {

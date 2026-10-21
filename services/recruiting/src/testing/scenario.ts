@@ -100,7 +100,7 @@ import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
 import { previewEmail, sendStageExpectations } from '../application/emails.js';
-import { saveJobTerms } from '../application/job-terms.js';
+import { saveJobTerms, suggestPay } from '../application/job-terms.js';
 import { setMyNotifications } from '../application/notify.js';
 import { poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -552,6 +552,28 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     if ((hours.options.leave?.days ?? 0) > 0)
       expect(below.ok ? null : below.error.code).toBe('LEAVE_MIN');
     value(await saveJobTerms(ctx, jobId, { vacationDays: (hours.options.leave?.days ?? 0) + 5 }));
+    // Pay: one figure when fixed, never below the legal minimum at these hours, in the entity's currency.
+    const floor = hours.options.minimumPayMinor ?? 0;
+    const fixed = await saveJobTerms(ctx, jobId, {
+      payKind: 'fixed',
+      pay: { minMinor: floor + 100_000, maxMinor: floor + 200_000 },
+    });
+    expect(fixed.ok ? null : fixed.error.code).toBe('PAY_FIXED');
+    if (floor > 0) {
+      const under = await saveJobTerms(ctx, jobId, { pay: { minMinor: 1, maxMinor: 1 } });
+      expect(under.ok ? null : under.error.code).toBe('PAY_MIN');
+    }
+    value(
+      await saveJobTerms(ctx, jobId, {
+        payKind: 'range',
+        pay: { minMinor: floor + 100_000, maxMinor: floor + 200_000 },
+      }),
+    );
+    expect((await ctx.tx.jobs.get(jobId))?.salary).toMatchObject({
+      minMinor: floor + 100_000,
+      maxMinor: floor + 200_000,
+      period: 'year',
+    });
     // The ad says what was chosen: the contract by its legal name, the hours as the week works out.
     const job = await ctx.tx.jobs.get(jobId);
     expect(job?.outline.contractType).toBe(lawful?.label);
@@ -1040,24 +1062,32 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
                         suggestion: 'proceed',
                         why: 'The one scorecard in rates craft strongly and says strong yes.',
                       })
-                    : prompt.instruction.startsWith('You suggest interview questions')
+                    : prompt.instruction.startsWith('You estimate the market pay')
                       ? JSON.stringify({
-                          competencies: [
-                            { key: 'craft', questions: ['Tell us about a design you shipped.'] },
-                            { key: 'made_up', questions: ['Ignored.'] },
-                          ],
+                          low: 70_000,
+                          median: 60_000,
+                          high: 80_250,
+                          basis: 'Typical published ranges for the role there.',
+                          confidence: 'medium',
                         })
-                      : prompt.instruction.startsWith('You translate')
+                      : prompt.instruction.startsWith('You suggest interview questions')
                         ? JSON.stringify({
-                            title: 'Diseño de producto',
-                            pieces: (prompt.context['pieces'] as string[]).map((x) =>
-                              x.toUpperCase(),
-                            ),
+                            competencies: [
+                              { key: 'craft', questions: ['Tell us about a design you shipped.'] },
+                              { key: 'made_up', questions: ['Ignored.'] },
+                            ],
                           })
-                        : JSON.stringify({
-                            title: place.jobTitle,
-                            sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
-                          }),
+                        : prompt.instruction.startsWith('You translate')
+                          ? JSON.stringify({
+                              title: 'Diseño de producto',
+                              pieces: (prompt.context['pieces'] as string[]).map((x) =>
+                                x.toUpperCase(),
+                              ),
+                            })
+                          : JSON.stringify({
+                              title: place.jobTitle,
+                              sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
+                            }),
         ),
     },
   };
@@ -1067,6 +1097,13 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     value(await asWriter((ctx) => draftAd(ctx, jobId, { language: 'en', intake: 'A designer.' })))
       .html,
   ).toContain('Design with us.');
+  // R4: the model estimates the market pay; the domain sorts it, rounds it and keeps it lawful.
+  const fixedPay = value(await asWriter((ctx) => suggestPay(ctx, jobId, 'fixed')));
+  expect(fixedPay.minMinor).toBe(fixedPay.maxMinor);
+  const rangePay = value(await asWriter((ctx) => suggestPay(ctx, jobId, 'range')));
+  expect(rangePay.minMinor).toBeLessThanOrEqual(fixedPay.minMinor);
+  expect(rangePay.maxMinor).toBeGreaterThanOrEqual(fixedPay.maxMinor);
+  expect(rangePay.maxMinor % 50_000).toBe(0);
   expect(
     value(await asWriter((ctx) => translateAd(ctx, jobId, { from: 'en', to: 'es' }))).html,
   ).toContain('DESIGN THE PRODUCT WITH US.');

@@ -1,3 +1,4 @@
+import * as z from 'zod';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { WorkMode } from '@kithena/contracts';
 
@@ -9,6 +10,7 @@ import type {
   MinimumLeave,
   TermsAnswers,
 } from '../domain/terms/pack.js';
+import { write, type PromptSpec } from './ai.js';
 import type { Ctx } from './context.js';
 import { editable, refreshProjection } from './jobs.js';
 import type { Entity, JobRecord, Location } from './ports.js';
@@ -39,8 +41,16 @@ export interface JobTerms {
   /** Unpaid, inside the day. */
   readonly breakMinutes: number;
   readonly vacationDays: number | null;
+  /** One figure, or a range from and to; the figures are the job's salary. */
+  readonly payKind: 'fixed' | 'range' | null;
   /** Chosen from the entity's catalogue; its statutory benefits are always in. */
   readonly benefitIds: readonly string[];
+}
+
+/** What a save may carry beyond the terms: the pay itself, yearly, in the entity's currency. */
+export interface TermsPatch extends Partial<JobTerms> {
+  readonly pay?: { readonly minMinor: number; readonly maxMinor: number } | null | undefined;
+  readonly salaryShown?: boolean | undefined;
 }
 
 export interface TermsOptions {
@@ -50,7 +60,11 @@ export interface TermsOptions {
   readonly relationships: readonly Choice[];
   readonly contractTypes: readonly (Pick<ContractTypeChoice, 'key' | 'label' | 'fixedTerm'> & {
     readonly unavailable: string | null;
+    readonly note: string | null;
   })[];
+  readonly currency: string | null;
+  /** The lowest lawful yearly pay at these hours, minor units; null where the law sets none. */
+  readonly minimumPayMinor: number | null;
   readonly fixedTermReasons: readonly Choice[];
   readonly maxWeeklyMinutes: number | null;
   readonly fullTimeWeeklyMinutes: number | null;
@@ -77,6 +91,7 @@ const EMPTY: JobTerms = {
   dayEnd: null,
   breakMinutes: 60,
   vacationDays: null,
+  payKind: null,
   benefitIds: [],
 };
 
@@ -88,6 +103,8 @@ export async function termsOf(ctx: Ctx, job: JobRecord): Promise<JobTerms> {
     locationId: job.locationIds[0] ?? null,
     workMode: job.workMode,
     benefitIds: job.benefitIds,
+    payKind:
+      job.salary === null ? null : job.salary.minMinor === job.salary.maxMinor ? 'fixed' : 'range',
     ...held,
   };
 }
@@ -137,9 +154,7 @@ export async function termsOptions(ctx: Ctx, terms: JobTerms): Promise<TermsOpti
   const ready = pack !== null && facts !== null && location !== null && terms.workMode !== null;
   const types = ready && terms.relationship !== null ? pack.contractTypes(answers, facts) : [];
   const limits =
-    ready && terms.contractType !== null
-      ? pack.limits(answers, facts, ctx.today)
-      : null;
+    ready && terms.contractType !== null ? pack.limits(answers, facts, ctx.today) : null;
   return {
     country: entity?.country ?? null,
     entities: entities.map((e) => ({
@@ -155,7 +170,13 @@ export async function termsOptions(ctx: Ctx, terms: JobTerms): Promise<TermsOpti
       label: t.label,
       fixedTerm: t.fixedTerm,
       unavailable: t.unavailable ?? null,
+      note: t.note ?? null,
     })),
+    currency: entity?.currency ?? null,
+    minimumPayMinor:
+      ready && terms.contractType !== null && weekly !== null
+        ? pack.minimumAnnualPayMinor(answers, facts, ctx.today)
+        : null,
     fixedTermReasons:
       ready && types.find((t) => t.key === terms.contractType)?.fixedTerm === true
         ? pack.fixedTermReasons(answers)
@@ -208,12 +229,13 @@ const refused = (code: string, message: string): Result<never> => err(failure(co
 export async function saveJobTerms(
   ctx: Ctx,
   jobId: string,
-  patch: Partial<JobTerms>,
+  input: TermsPatch,
 ): Promise<Result<{ terms: JobTerms; options: TermsOptions }>> {
   const held = await editable(ctx, jobId);
   if (!held.ok) return held;
   const job = held.value;
   const before = await termsOf(ctx, job);
+  const { pay, salaryShown, ...patch } = input;
   let terms: JobTerms = { ...before, ...patch };
 
   // Where: the entity, a place of it in its country, and how the work is done.
@@ -316,6 +338,28 @@ export async function saveJobTerms(
     ],
   };
 
+  // Pay: one figure or a range, yearly, never below the law's minimum at these hours.
+  let salary = job.salary;
+  if (pay === null) salary = null;
+  else if (pay !== undefined) {
+    if (options.currency === null)
+      return refused('ENTITY', 'Choose the employing entity first: it sets the currency');
+    if (!Number.isInteger(pay.minMinor) || pay.minMinor <= 0 || pay.maxMinor < pay.minMinor)
+      return refused('PAY_ORDER', 'The pay is above zero, and a range ends above where it starts');
+    if (terms.payKind === 'fixed' && pay.maxMinor !== pay.minMinor)
+      return refused('PAY_FIXED', 'A fixed salary is one figure');
+    if (options.minimumPayMinor !== null && pay.minMinor < options.minimumPayMinor)
+      return refused(
+        'PAY_MIN',
+        `Below the legal minimum for these hours: ${String(Math.ceil(options.minimumPayMinor / 100))} ${options.currency} a year`,
+      );
+    salary = { ...pay, currency: options.currency, period: 'year' };
+  }
+  if (terms.payKind === 'fixed' && salary !== null && salary.maxMinor !== salary.minMinor)
+    salary = { ...salary, maxMinor: salary.minMinor };
+  if (salary !== null && options.currency !== null && salary.currency !== options.currency)
+    salary = null;
+
   await ctx.tx.settings.set(key(jobId), terms);
   const location = terms.locationId === null ? null : await ctx.tx.locations.get(terms.locationId);
   const contract = options.contractTypes.find((t) => t.key === terms.contractType);
@@ -331,8 +375,88 @@ export async function saveJobTerms(
       hours: options.hours ?? job.outline.hours,
     },
     benefitIds: terms.benefitIds,
+    salary,
+    ...(salaryShown === undefined ? {} : { salaryShown }),
   };
   await ctx.tx.jobs.save(next);
   await refreshProjection(ctx, next);
   return ok({ terms, options });
+}
+
+const PayEstimate = z.object({
+  low: z.number().nonnegative(),
+  median: z.number().nonnegative(),
+  high: z.number().nonnegative(),
+  basis: z.string().max(400),
+  confidence: z.enum(['low', 'medium', 'high']),
+});
+
+const PAY: PromptSpec<z.infer<typeof PayEstimate>> = {
+  feature: 'writer',
+  version: 'pay-estimate@1',
+  instruction: `You estimate the market pay for a job from the salary surveys, collective agreements and job-board data you know for that place. Return a JSON object {"low":0,"median":0,"high":0,"basis":"","confidence":"low"|"medium"|"high"}: gross yearly base pay in the currency given, in whole units (not cents), for the weekly hours given, in that city and country, as the 25th percentile, the median and the 75th percentile. "basis" says in one or two sentences which kind of data it rests on and how sure it is; never invent a named source. Leave out bonus, equity and benefits.`,
+  answer: PayEstimate,
+};
+
+/** To the nearest step a person would write in an ad: 500 below 100k, 1,000 above. */
+const tidy = (minor: number): number => {
+  const step = minor >= 10_000_000 ? 100_000 : 50_000;
+  return Math.round(minor / step) * step;
+};
+
+/**
+ * R4: the pay the market gives for this job, in this place, at these hours,
+ * as a model estimates it, for a person to keep or change. A fixed salary is
+ * the median; a range is the middle half. Never below the legal minimum,
+ * which the domain sets, not the model.
+ */
+export async function suggestPay(
+  ctx: Ctx,
+  jobId: string,
+  kind: 'fixed' | 'range',
+): Promise<
+  Result<{
+    readonly kind: 'fixed' | 'range';
+    readonly minMinor: number;
+    readonly maxMinor: number;
+    readonly currency: string;
+    readonly basis: string;
+    readonly confidence: 'low' | 'medium' | 'high';
+  }>
+> {
+  const held = await editable(ctx, jobId);
+  if (!held.ok) return held;
+  const job = held.value;
+  const terms = await termsOf(ctx, job);
+  const options = await termsOptions(ctx, terms);
+  const location = terms.locationId === null ? null : await ctx.tx.locations.get(terms.locationId);
+  if (options.currency === null || location === null)
+    return refused('WORKPLACE', 'Choose the workplace first: pay depends on where the work is');
+  const contract = options.contractTypes.find((t) => t.key === terms.contractType);
+  const estimated = await write(ctx, PAY, {
+    title: job.title,
+    seniority: job.outline.seniority,
+    department: job.department,
+    city: location.city,
+    region: location.region,
+    country: location.country,
+    workMode: terms.workMode,
+    contract: contract?.label ?? null,
+    weeklyHours: options.weeklyMinutes === null ? 40 : options.weeklyMinutes / 60,
+    currency: options.currency,
+  });
+  if (!estimated.ok) return estimated;
+  const [low, median, high] = [estimated.value.low, estimated.value.median, estimated.value.high]
+    .map((n) => tidy(Math.round(n * 100)))
+    .map((n) => Math.max(n, options.minimumPayMinor ?? 0))
+    .toSorted((a, b) => a - b) as [number, number, number];
+  if (median <= 0) return refused('AI_UNAVAILABLE', 'The assistant could not estimate this pay');
+  return ok({
+    kind,
+    minMinor: kind === 'fixed' ? median : low,
+    maxMinor: kind === 'fixed' ? median : high,
+    currency: options.currency,
+    basis: estimated.value.basis,
+    confidence: estimated.value.confidence,
+  });
 }

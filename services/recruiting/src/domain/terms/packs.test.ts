@@ -268,9 +268,9 @@ describe('the United States (PRD §19.8)', () => {
 
 describe('every pack', () => {
   it.each(Object.values(PACKS).map((pack) => [pack.country, pack] as const))(
-    '%s cites a source for every rule and is marked as awaiting a reviewer',
-    (_country, pack) => {
-      expect(pack.reviewed).toBe(false);
+    '%s cites a source for every rule; only Germany is signed off',
+    (country, pack) => {
+      expect(pack.reviewed).toBe(country === 'DE');
       for (const rule of pack.rules({}, entity(pack.country)))
         expect(rule.source.length).toBeGreaterThan(0);
     },

@@ -68,7 +68,7 @@ import {
   seedEmailTemplates,
   sendStageExpectations,
 } from '../application/emails.js';
-import { saveJobTerms } from '../application/job-terms.js';
+import { saveJobTerms, suggestPay } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
   answerAsk,
@@ -680,10 +680,29 @@ export const ROUTES: readonly Route[] = [
         dayEnd: z.int().min(0).max(1440).nullable(),
         breakMinutes: z.int().min(0).max(240),
         vacationDays: z.int().min(0).max(366).nullable(),
+        payKind: z.enum(['fixed', 'range']).nullable(),
         benefitIds: z.array(Id).max(60),
+        /** Yearly, minor units, in the entity's currency. */
+        pay: z
+          .object({
+            minMinor: z.int().min(1).max(100_000_000_000),
+            maxMinor: z.int().min(1).max(100_000_000_000),
+          })
+          .nullable(),
+        salaryShown: z.boolean(),
       })
       .partial(),
     run: (ctx, { params, body }) => saveJobTerms(ctx, params.jobId, body as never),
+  }),
+  route({
+    name: 'suggestJobPay',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/pay-suggestion`,
+    summary:
+      'R4: the market pay for the job where it is, estimated by a model, never below the legal minimum, for a person to keep or change',
+    params: z.object({ jobId: Id }),
+    body: z.object({ kind: z.enum(['fixed', 'range']) }),
+    run: (ctx, { params, body }) => suggestPay(ctx, params.jobId, body.kind),
   }),
   route({
     name: 'setJobTeam',

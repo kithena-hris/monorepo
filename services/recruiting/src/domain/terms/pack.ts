@@ -82,6 +82,8 @@ export interface Choice {
   readonly label: string;
   /** Why it is not offered for these answers; absent when it is. */
   readonly unavailable?: string;
+  /** What it means there, in a line: shown beside the choice so it is made knowingly. */
+  readonly note?: string;
 }
 
 export interface ContractTypeChoice extends Choice {
@@ -114,7 +116,7 @@ export interface Rule {
 export interface TermsPack {
   readonly country: LaunchCountry;
   readonly version: string;
-  /** False until a country reviewer signs it off (REC-150). */
+  /** False until the pack is signed off (REC-150); the screens say so beside its choices. */
   readonly reviewed: boolean;
   readonly regions: readonly Choice[];
   readonly regionRequired: boolean;

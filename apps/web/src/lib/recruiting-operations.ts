@@ -134,6 +134,8 @@ export const OPERATIONS = {
   SetJobPlan: write('SetJobPlan', 'setJobPlan', ...ID('jobId')),
   /** A job's terms, set in order (PRD §19.2). */
   SaveJobTerms: write('SaveJobTerms', 'saveJobTerms', ...ID('jobId')),
+  /** The market pay for the job, estimated by a model, for a person to keep or change. */
+  SuggestJobPay: write('SuggestJobPay', 'suggestJobPay', ...ID('jobId')),
   MoveJob: write('MoveJob', 'moveJob', ...ID('jobId')),
   PublishJob: write('PublishJob', 'publishJob', ...two('jobId', 'target'), false),
   UnpublishJob: write('UnpublishJob', 'unpublishJob', ...ID('jobId'), false),

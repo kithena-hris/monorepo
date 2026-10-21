@@ -265,6 +265,7 @@ const job: JobData = {
     dayEnd: null,
     breakMinutes: 60,
     vacationDays: null,
+    payKind: null,
     benefitIds: [],
   },
   options: {
@@ -274,6 +275,8 @@ const job: JobData = {
     relationships: [],
     contractTypes: [],
     fixedTermReasons: [],
+    currency: null,
+    minimumPayMinor: null,
     maxWeeklyMinutes: null,
     fullTimeWeeklyMinutes: null,
     weeklyMinutes: null,
@@ -287,8 +290,8 @@ const job: JobData = {
 describe('R4–R7, a job’s setup', () => {
   it('shows the ad as a candidate reads it, every part with its own Edit', async () => {
     const { container } = render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} />);
-    expect(screen.getByRole('heading', { name: 'Title and pay' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Workplace and terms' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'The role' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Workplace, terms and pay' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThan(5);
     expect(await axeViolations(container)).toEqual([]);
   });
@@ -299,10 +302,12 @@ describe('R4–R7, a job’s setup', () => {
     expect(screen.getByText('“jungen”')).toBeTruthy();
   });
 
-  it('walks a new job through its steps in a dialog', () => {
+  it('walks a new job through its steps on a page of its own', async () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ setup: '1' }} />);
     expect(screen.getByRole('dialog', { name: /Set up/u })).toBeTruthy();
-    expect(screen.getAllByText('Step 1 of 11').length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Step 1 of 17/u)).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Job title' })).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
   });
 
   it('asks for the workplace before the work type, and the work type before the contract', () => {
@@ -310,7 +315,7 @@ describe('R4–R7, a job’s setup', () => {
       <screens.JobSetup
         load={ready(job)}
         params={{ id: 'j1' }}
-        search={{ setup: '1', step: '3' }}
+        search={{ setup: '1', step: 'contract' }}
       />,
     );
     expect(screen.getByText('Choose the work type first.')).toBeTruthy();
