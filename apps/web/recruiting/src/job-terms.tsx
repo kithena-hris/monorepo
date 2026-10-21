@@ -29,7 +29,16 @@ import {
   TimePicker,
   icons,
 } from '@reach/ui';
-import { useEffect, useRef, useState, useTransition, type JSX, type ReactNode } from 'react';
+import {
+  createContext,
+  use,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { BenefitPicker } from './benefits';
 import { Refusal, useAct } from './shared';
@@ -64,21 +73,49 @@ type Patch = Partial<JobTerms> & {
   readonly salaryShown?: boolean;
 };
 
+/**
+ * Saves that are still on their way: the setup waits for them before it moves
+ * on, so the next step is drawn from what was just chosen. Outside the setup
+ * nothing waits.
+ */
+export const SaveQueue = createContext<((save: Promise<unknown>) => void) | null>(null);
+
 function useTerms(data: JobData, props: ScreenProps<JobData>) {
   const act = useAct(props);
+  const track = use(SaveQueue);
   const [error, setError] = useState<string | null>(null);
+  // A pick shows the moment it is made; the server's terms replace it when they arrive.
+  const [pick, setPick] = useState<{ base: JobTerms; patch: Partial<JobTerms> }>({
+    base: data.terms,
+    patch: {},
+  });
+  if (pick.base !== data.terms) setPick({ base: data.terms, patch: {} });
+  const patch = pick.base === data.terms ? pick.patch : {};
+  const terms: JobTerms = { ...data.terms, ...patch };
   return {
     act,
     error: error ?? act.error,
-    /** A pick: kept at once. */
-    save: (patch: Patch): void => {
+    /** The terms as they stand, the picks on their way included. */
+    terms,
+    /** A pick: shown at once, kept in the background, undone if Recruiting refuses it. */
+    save: (next: Patch): void => {
       setError(null);
-      act.run('SaveJobTerms', { jobId: data.job.id, input: patch });
+      const { pay: _pay, salaryShown: _shown, ...shown } = next;
+      setPick({ base: data.terms, patch: { ...patch, ...shown } });
+      const saving = act.call('SaveJobTerms', { jobId: data.job.id, input: next }).then((done) => {
+        if (!done.ok) {
+          setError(done.message);
+          setPick({ base: data.terms, patch: {} });
+          return;
+        }
+        props.onRefresh?.();
+      });
+      track?.(saving);
     },
     /** A typed value: kept when the person moves on, and the move waits for it. */
-    keep: async (patch: Patch): Promise<boolean> => {
+    keep: async (next: Patch): Promise<boolean> => {
       setError(null);
-      const done = await act.call('SaveJobTerms', { jobId: data.job.id, input: patch });
+      const done = await act.call('SaveJobTerms', { jobId: data.job.id, input: next });
       if (!done.ok) {
         setError(done.message);
         return false;
@@ -130,14 +167,14 @@ function Unreviewed({ data }: { readonly data: JobData }): JSX.Element | null {
 }
 
 export function EntityChoice({ data, props }: TermsProps): JSX.Element {
-  const { error, save } = useTerms(data, props);
+  const { error, save, terms } = useTerms(data, props);
   return (
     <>
       <Refusal error={error} />
       <RadioGroup
         aria-label="Employing entity"
         className="grid gap-2"
-        value={data.terms.entityId ?? ''}
+        value={terms.entityId ?? ''}
         onValueChange={(v) => {
           save({ entityId: v });
         }}
@@ -158,8 +195,8 @@ export function EntityChoice({ data, props }: TermsProps): JSX.Element {
 }
 
 export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
-  const { error, save } = useTerms(data, props);
-  const { terms, options } = data;
+  const { error, save, terms } = useTerms(data, props);
+  const { options } = data;
   if (terms.entityId === null)
     return (
       <Waiting icon={<icons.company aria-hidden />} what="Choose the employing entity first." />
@@ -203,8 +240,7 @@ const MODES = [
 ] as const;
 
 export function ModeChoice({ data, props }: TermsProps): JSX.Element {
-  const { error, save } = useTerms(data, props);
-  const { terms } = data;
+  const { error, save, terms } = useTerms(data, props);
   if (terms.locationId === null)
     return <Waiting icon={<icons.location aria-hidden />} what="Choose the workplace first." />;
   return (
@@ -254,8 +290,8 @@ const RELATIONSHIP_NOTE: Readonly<Record<string, string>> = {
 };
 
 export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
-  const { error, save } = useTerms(data, props);
-  const { terms, options } = data;
+  const { error, save, terms } = useTerms(data, props);
+  const { options } = data;
   if (options.relationships.length === 0)
     return (
       <Waiting
@@ -292,8 +328,8 @@ export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
 }
 
 export function ContractChoice({ data, props }: TermsProps): JSX.Element {
-  const { error, save } = useTerms(data, props);
-  const { terms, options } = data;
+  const { error, save, terms } = useTerms(data, props);
+  const { options } = data;
   const chosen = options.contractTypes.find((t) => t.key === terms.contractType);
   if (terms.relationship === null)
     return <Waiting icon={<icons.agreement aria-hidden />} what="Choose the work type first." />;
@@ -365,8 +401,7 @@ const DAYS = [
 ] as const;
 
 export function DaysChoice({ data, props }: TermsProps): JSX.Element {
-  const { error, save } = useTerms(data, props);
-  const { terms } = data;
+  const { error, save, terms } = useTerms(data, props);
   if (terms.contractType === null)
     return <Waiting icon={<icons.agreement aria-hidden />} what="Choose the contract first." />;
   return (
@@ -433,8 +468,8 @@ export const hoursOf = (minutes: number): string => {
 const BREAKS = [0, 15, 30, 45, 60, 90] as const;
 
 export function HoursChoice({ data, props }: TermsProps): JSX.Element {
-  const { error, save } = useTerms(data, props);
-  const { terms, options } = data;
+  const { error, save, terms } = useTerms(data, props);
+  const { options } = data;
   if (terms.workDays.length === 0)
     return <Waiting icon={<icons.calendar aria-hidden />} what="Choose the work days first." />;
   const over =

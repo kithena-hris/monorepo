@@ -329,8 +329,11 @@ describe('R4–R7, a job’s setup', () => {
   it('walks a new job through its steps on a page of its own', async () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ setup: '1' }} />);
     expect(screen.getByRole('dialog', { name: /Set up/u })).toBeTruthy();
-    expect(screen.getByText(/^Step 1 of 17/u)).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: 'Job title' })).toBeTruthy();
+    expect(screen.getByText('Step 1 of 18')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What is the job called?' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: /^Job title/u })).toBeTruthy();
+    // No step list: the foot says where you are.
+    expect(screen.queryByRole('navigation', { name: 'Set-up steps' })).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -354,6 +357,14 @@ describe('R4–R7, a job’s setup', () => {
         .getByRole('checkbox', { name: 'Gym or sports membership' })
         .getAttribute('aria-checked'),
     ).toBe('false');
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('starts a new job on the same page, with its title', async () => {
+    render(<screens.JobSetup load={ready(job)} params={{ id: 'new' }} />);
+    expect(screen.getByRole('dialog', { name: 'New job' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What is the job called?' })).toBeTruthy();
+    expect(screen.getByText('Step 1 of 18')).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
