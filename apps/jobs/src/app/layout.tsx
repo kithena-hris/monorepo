@@ -1,4 +1,4 @@
-import { Avatar, Button, KithenaMark, TooltipProvider, icons } from '@reach/ui';
+import { Button, KithenaMark, TooltipProvider } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
 import './globals.css';
+import { AccountMenu } from '../components/account-menu';
 import { ThemeToggle } from '../components/theme-toggle';
 import { SESSION_COOKIE, me } from '../lib/account';
 import { THEME_KEY, themeScript } from '../lib/theme';
@@ -44,40 +45,28 @@ export default async function RootLayout({
                 <KithenaMark className="size-6 text-accent" />
                 Kithena Jobs
               </Link>
-              <nav aria-label="Site" className="ms-auto flex items-center gap-1">
-                <ThemeToggle />
+              <nav aria-label="Site" className="flex items-center gap-1 sm:gap-2">
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/">Jobs</Link>
+                </Button>
                 <Button asChild variant="ghost" size="sm">
                   <Link href="/search">Search</Link>
                 </Button>
+              </nav>
+              <div className="ms-auto flex items-center gap-1 sm:gap-2">
+                <ThemeToggle />
                 {account !== null ? (
-                  <>
-                    <Button asChild variant="secondary" size="sm">
-                      <Link href="/me" className="flex items-center gap-2">
-                        <Avatar
-                          name={account.name}
-                          src={account.pictureUrl ?? undefined}
-                          size="xs"
-                          aria-hidden
-                        />
-                        Your applications
-                      </Link>
-                    </Button>
-                    <form action="/auth/sign-out" method="post">
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Sign out"
-                        startIcon={<icons.signOut aria-hidden />}
-                      />
-                    </form>
-                  </>
+                  <AccountMenu
+                    name={account.name}
+                    email={account.email}
+                    pictureUrl={account.pictureUrl}
+                  />
                 ) : (
-                  <Button asChild variant="secondary" size="sm">
+                  <Button asChild variant="primary" size="sm">
                     <Link href="/sign-in">Sign in</Link>
                   </Button>
                 )}
-              </nav>
+              </div>
             </div>
           </header>
           <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 pb-24 sm:px-6 lg:pb-8">

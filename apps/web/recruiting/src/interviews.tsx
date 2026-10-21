@@ -2,6 +2,7 @@ import {
   Alert,
   Badge,
   Button,
+  Calendar,
   Card,
   CardContent,
   CardDescription,
@@ -35,6 +36,7 @@ import { useEffect, useState, type JSX } from 'react';
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, useAct, when, words } from './shared';
 import type {
+  Ask,
   DebriefData,
   InterviewsData,
   KitData,
@@ -529,8 +531,97 @@ function KitBody({
 }
 
 const DAY_KEY = (iso: string) => iso.slice(0, 10);
+const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+const LONG_DAY = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
 
-/** R16: book one interview of the plan, or send the candidate a link to choose. */
+/** One ask as a row: what was offered or asked, where it stands, and the answer. */
+function AskRow({
+  ask,
+  onClose,
+  pending,
+}: {
+  readonly ask: Ask;
+  readonly onClose?: (() => void) | undefined;
+  readonly pending: boolean;
+}): JSX.Element {
+  const tone = ask.state === 'open' ? 'warning' : ask.state === 'answered' ? 'success' : 'neutral';
+  const title =
+    ask.kind === 'slots'
+      ? `${ask.times.length === 1 ? 'A time' : `${String(ask.times.length)} times`} offered for the ${ask.label.toLowerCase()}`
+      : ask.kind === 'info'
+        ? `Asked: ${ask.label}`
+        : `Candidate asks to move the ${ask.label.toLowerCase()}`;
+  return (
+    <div className="flex flex-col gap-1 border-b border-[var(--reach-line)] pb-3 last:border-b-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">{title}</span>
+        <Badge size="sm" tone={tone}>
+          {ask.state === 'open'
+            ? 'Waiting on the candidate'
+            : ask.state === 'answered'
+              ? ask.kind === 'slots' && ask.answer?.time != null
+                ? 'Booked'
+                : 'Answered'
+              : 'Closed'}
+        </Badge>
+        <span className="text-xs text-fg-muted">{when(ask.createdAt)}</span>
+        {onClose !== undefined && ask.state !== 'closed' ? (
+          <Button variant="ghost" size="sm" loading={pending} onClick={onClose} className="ms-auto">
+            Mark dealt with
+          </Button>
+        ) : null}
+      </div>
+      {ask.kind === 'slots' ? (
+        <span className="text-sm text-fg-muted">{ask.times.map(when).join(' · ')}</span>
+      ) : null}
+      {ask.detail === null ? null : <span className="text-sm text-fg-muted">{ask.detail}</span>}
+      {ask.answer === null ? null : (
+        <span className="text-sm">
+          {ask.answer.time !== null ? `Chose ${when(ask.answer.time)}. ` : ''}
+          {ask.answer.text ?? (ask.answer.time === null ? 'None of the times work.' : '')}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** The asks on an application, newest first, with the team's way to close one. */
+export function AskList({
+  asks,
+  applicationId,
+  act,
+}: {
+  readonly asks: readonly Ask[];
+  readonly applicationId: string;
+  readonly act: ReturnType<typeof useAct>;
+}): JSX.Element | null {
+  if (asks.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      {asks.map((a) => (
+        <AskRow
+          key={a.id}
+          ask={a}
+          pending={act.pending}
+          onClose={() => {
+            act.run('CloseAsk', { applicationId, askId: a.id });
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * R16: book one interview of the plan on a calendar, offer the candidate a
+ * few times to choose from, or send them a link to pick any that fits. The
+ * calendar marks the days with a free slot; one day's times are listed
+ * beside it. Whatever is chosen, the candidate's email leaves at once.
+ */
 export function Schedule(props: ScreenProps<ScheduleData>): JSX.Element {
   return (
     <Loaded load={props.load} what="the schedule">
@@ -547,19 +638,36 @@ function ScheduleBody({
   readonly props: ScreenProps<ScheduleData>;
 }): JSX.Element {
   const act = useAct(props);
-  const [how, setHow] = useState<'pick' | 'link'>('pick');
-  const [slot, setSlot] = useState<string | null>(null);
+  const [how, setHow] = useState<'book' | 'offer' | 'link'>('book');
+  const [picked, setPicked] = useState<readonly string[]>([]);
   const [video, setVideo] = useState('');
   const [place, setPlace] = useState('');
+  const [note, setNote] = useState('');
   const applicationId = props.params?.['id'] ?? '';
   const plan = data.plan.find((p) => p.key === data.planKey);
   const byDay = new Map<string, string[]>();
   for (const s of data.slots) byDay.set(DAY_KEY(s), [...(byDay.get(DAY_KEY(s)) ?? []), s]);
-  const week = (days: number) =>
-    DAY_KEY(new Date(Date.parse(data.from) + days * 86_400_000).toISOString());
-  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const today = DAY_KEY(data.from);
+  const firstWithSlot = [...byDay.keys()][0] ?? today;
+  const [chosenDay, setChosenDay] = useState<string>(firstWithSlot);
+  const times = byDay.get(chosenDay) ?? [];
+  const booked = data.booked.map((b) => DAY_KEY(b.startsAt));
+  const markers = Object.fromEntries([
+    ...[...byDay.keys()].map((d) => [d, { tone: 'success', label: 'Free slot' }] as const),
+    ...booked.map((d) => [d, { tone: 'accent', label: 'Interview booked' }] as const),
+  ]) as Readonly<Record<string, { tone: 'success' | 'accent'; label: string }>>;
+  const single = how === 'book';
+  const toggle = (t: string): void => {
+    setPicked(single ? [t] : picked.includes(t) ? picked.filter((x) => x !== t) : [...picked, t]);
+  };
   const back = () =>
-    props.onNavigate?.(`/recruiting/candidates/${data.candidate.id}?application=${applicationId}`);
+    props.onNavigate?.(
+      `/recruiting/candidates/${data.candidate.id}?application=${applicationId}&tab=process`,
+    );
+  const whereInput = {
+    place: place === '' ? null : place,
+    videoUrl: video === '' ? null : video,
+  };
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -574,83 +682,117 @@ function ScheduleBody({
           description="Add the interviews to the job’s plan first."
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>Pick a slot</CardTitle>
-              <CardDescription>
-                {plan === undefined
-                  ? ''
-                  : `${String(plan.minutes)} min · ${plan.interviewerIds.map((id) => data.names[id] ?? id).join(', ') || 'No interviewers yet'}`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <ChipRow aria-label="Interview">
-                {data.plan.map((p) => (
-                  <Chip
-                    key={p.key}
-                    selected={p.key === data.planKey}
-                    onClick={() => props.onFilter?.({ plan: p.key })}
-                  >
-                    {p.title}
-                  </Chip>
-                ))}
-              </ChipRow>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Earlier week"
-                  startIcon={<icons.previous aria-hidden />}
-                  onClick={() => props.onFilter?.({ week: week(-7) })}
-                />
-                <span className="text-sm text-fg-muted">{`${day(data.from)} – ${day(data.to)}`}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Later week"
-                  startIcon={<icons.next aria-hidden />}
-                  onClick={() => props.onFilter?.({ week: week(7) })}
-                />
-              </div>
-              {byDay.size === 0 ? (
-                <EmptyState
-                  icon={<icons.calendar aria-hidden />}
-                  title="No slot fits everyone this week"
-                  description="Try the next week, or let the candidate choose."
-                />
-              ) : (
-                [...byDay].map(([d, slots]) => (
-                  <section key={d} className="flex flex-col gap-2">
-                    <h3 className="text-sm font-semibold">
-                      {new Intl.DateTimeFormat('en-GB', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'short',
-                      }).format(new Date(d))}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle level={2}>Pick a day, then a time</CardTitle>
+                <CardDescription>
+                  {plan === undefined
+                    ? ''
+                    : `${String(plan.minutes)} min · ${plan.interviewerIds.map((id) => data.names[id] ?? id).join(', ') || 'No interviewers yet'} · free for everyone, from their calendars or working hours; a day away in Time Off is never offered.`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {data.plan.length > 1 ? (
+                  <ChipRow aria-label="Interview">
+                    {data.plan.map((p) => (
+                      <Chip
+                        key={p.key}
+                        selected={p.key === data.planKey}
+                        onClick={() => props.onFilter?.({ plan: p.key })}
+                      >
+                        {p.title}
+                      </Chip>
+                    ))}
+                  </ChipRow>
+                ) : null}
+                <div className="grid gap-6 md:grid-cols-[auto_minmax(0,1fr)]">
+                  <Calendar
+                    label="Interview day"
+                    mode="single"
+                    today={today}
+                    min={today}
+                    month={today}
+                    selected={chosenDay}
+                    onSelect={(d) => {
+                      if (d !== null) setChosenDay(d);
+                    }}
+                    onMonthChange={(m) => props.onFilter?.({ week: `${m.slice(0, 7)}-01` })}
+                    markers={markers}
+                  />
+                  <div className="flex min-w-0 flex-col gap-3">
+                    <h3 className="font-semibold">
+                      {LONG_DAY.format(new Date(`${chosenDay}T00:00:00Z`))}
                     </h3>
-                    <ChipRow aria-label={`Slots on ${d}`}>
-                      {slots.map((s) => (
-                        <Chip
-                          key={s}
-                          selected={slot === s}
-                          onClick={() => {
-                            setSlot(s);
-                          }}
-                        >
-                          {time.format(new Date(s))}
-                        </Chip>
-                      ))}
-                    </ChipRow>
-                  </section>
-                ))
-              )}
-              <p className="text-xs text-fg-muted">
-                Free for every interviewer, from their calendars or the working hours set in
-                Recruiting. A day away in Time Off is never offered.
-              </p>
-            </CardContent>
-          </Card>
+                    {times.length === 0 ? (
+                      <p className="text-sm text-fg-muted">
+                        No slot fits everyone that day. Pick a day with a green dot, or let the
+                        candidate choose.
+                      </p>
+                    ) : (
+                      <ChipRow aria-label={`Times on ${chosenDay}`}>
+                        {times.map((t) => (
+                          <Chip
+                            key={t}
+                            selected={picked.includes(t)}
+                            onClick={() => {
+                              toggle(t);
+                            }}
+                          >
+                            {TIME.format(new Date(t))}
+                          </Chip>
+                        ))}
+                      </ChipRow>
+                    )}
+                    {picked.length === 0 ? null : (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium">
+                          {single ? 'Booking' : `Offering ${String(picked.length)}`}
+                        </span>
+                        <ChipRow aria-label="Chosen times">
+                          {[...picked].toSorted().map((t) => (
+                            <Chip
+                              key={t}
+                              selected
+                              onClick={() => {
+                                setPicked(picked.filter((x) => x !== t));
+                              }}
+                            >
+                              {when(t)}
+                            </Chip>
+                          ))}
+                        </ChipRow>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            {data.asks.length === 0 && data.booked.length === 0 ? null : (
+              <Card>
+                <CardHeader>
+                  <CardTitle level={2}>With the candidate</CardTitle>
+                  <CardDescription>What is booked, offered or asked, newest first.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  {data.booked.map((b) => (
+                    <div key={b.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <Badge size="sm" tone="accent">
+                        Booked
+                      </Badge>
+                      <span className="font-medium">{b.title}</span>
+                      <span className="text-fg-muted">{when(b.startsAt)}</span>
+                      {(b.videoUrl ?? b.place) ? (
+                        <span className="text-fg-muted">{b.videoUrl ?? b.place}</span>
+                      ) : null}
+                    </div>
+                  ))}
+                  <AskList asks={data.asks} applicationId={applicationId} act={act} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
           <Card>
             <CardHeader>
               <CardTitle level={2}>How to book</CardTitle>
@@ -661,22 +803,29 @@ function ScheduleBody({
                 value={how}
                 onValueChange={(v) => {
                   setHow(v as typeof how);
+                  setPicked([]);
                 }}
               >
                 <RadioCard
-                  value="pick"
-                  description="From free/busy, or working hours when a calendar isn’t connected."
+                  value="book"
+                  description="One time, booked now. The invitation goes at once."
                 >
-                  Pick a slot myself
+                  Book a time
+                </RadioCard>
+                <RadioCard
+                  value="offer"
+                  description={`Several times; ${data.candidate.name} picks one from their page or asks for others.`}
+                >
+                  Offer times to choose from
                 </RadioCard>
                 <RadioCard
                   value="link"
-                  description={`A link with slots that fit everyone, in ${data.candidate.name}’s time zone.`}
+                  description={`A link with every slot that fits, in ${data.candidate.name}’s time zone.`}
                 >
-                  Let the candidate choose
+                  Let the candidate choose freely
                 </RadioCard>
               </RadioGroup>
-              {how === 'pick' ? (
+              {how === 'link' ? null : (
                 <>
                   <Field>
                     <FieldLabel>Video link</FieldLabel>
@@ -702,29 +851,61 @@ function ScheduleBody({
                       />
                     </FieldControl>
                   </Field>
-                  <p className="text-sm">{slot === null ? 'Choose a slot.' : when(slot)}</p>
-                  <Button
-                    disabled={slot === null || data.planKey === null}
-                    loading={act.pending}
-                    onClick={() => {
-                      act.run(
-                        'ScheduleInterview',
-                        {
-                          applicationId,
-                          input: {
-                            planKey: data.planKey,
-                            startsAt: slot,
-                            place: place === '' ? null : place,
-                            videoUrl: video === '' ? null : video,
-                          },
-                        },
-                        back,
-                      );
-                    }}
-                  >
-                    Book and send invites
-                  </Button>
                 </>
+              )}
+              {how === 'offer' ? (
+                <Field>
+                  <FieldLabel>A line for the candidate (optional)</FieldLabel>
+                  <FieldControl>
+                    <Textarea
+                      autoResize
+                      value={note}
+                      onChange={(e) => {
+                        setNote(e.target.value);
+                      }}
+                    />
+                  </FieldControl>
+                </Field>
+              ) : null}
+              {how === 'book' ? (
+                <Button
+                  disabled={picked.length === 0 || data.planKey === null}
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run(
+                      'ScheduleInterview',
+                      {
+                        applicationId,
+                        input: { planKey: data.planKey, startsAt: picked[0], ...whereInput },
+                      },
+                      back,
+                    );
+                  }}
+                >
+                  Book and send the invitation
+                </Button>
+              ) : how === 'offer' ? (
+                <Button
+                  disabled={picked.length === 0 || data.planKey === null}
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run(
+                      'ProposeSlots',
+                      {
+                        applicationId,
+                        input: {
+                          planKey: data.planKey,
+                          times: [...picked].toSorted(),
+                          note: note === '' ? null : note,
+                          ...whereInput,
+                        },
+                      },
+                      back,
+                    );
+                  }}
+                >
+                  {`Send ${picked.length === 1 ? 'this time' : `${String(picked.length)} times`} to the candidate`}
+                </Button>
               ) : (
                 <Button
                   disabled={data.planKey === null}
@@ -741,7 +922,8 @@ function ScheduleBody({
                 </Button>
               )}
               <p className="text-xs text-fg-muted">
-                Without a calendar, the invitation goes as an .ics file.
+                The email goes the moment you press. Without a calendar, the invitation carries an
+                .ics file.
               </p>
             </CardContent>
           </Card>

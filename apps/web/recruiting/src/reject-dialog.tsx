@@ -21,6 +21,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { EmailComposer, type ComposedEmail } from './composer';
 import { Refusal, useAct, words } from './shared';
 import type { ScreenProps } from './types';
 
@@ -55,15 +56,16 @@ export function RejectDialog({
 }): JSX.Element {
   const act = useAct(props);
   const [reason, setReason] = useState(data.rejectionReasons[0] ?? 'not_qualified');
-  const [template, setTemplate] = useState<string>(
-    data.templates.find((t) => t.purpose === 'rejection')?.id ?? 'none',
-  );
-  const [send, setSend] = useState<'now' | 'later_today' | 'none'>('later_today');
+  const [emailing, setEmailing] = useState(true);
+  const [message, setMessage] = useState<ComposedEmail | null>(null);
+  const [send, setSend] = useState<'now' | 'later_today'>('later_today');
   const [pool, setPool] = useState<string>('none');
   const many = (rejecting?.ids.length ?? 0) > 1;
+  const ready =
+    !emailing || (message !== null && message.subject.trim() !== '' && message.body.trim() !== '');
   const submit = (): void => {
     if (rejecting === null) return;
-    const templateId = template === 'none' ? null : template;
+    const words = emailing ? message : null;
     if (many) {
       act.run(
         'BulkApplications',
@@ -72,8 +74,9 @@ export function RejectDialog({
             action: 'reject',
             ids: rejecting.ids,
             reasonKey: reason,
-            templateId,
-            send: templateId === null ? 'none' : send,
+            templateId: null,
+            send: words === null ? 'none' : send,
+            message: words,
           },
         },
         onClose,
@@ -85,9 +88,10 @@ export function RejectDialog({
           applicationId: rejecting.ids[0],
           input: {
             reasonKey: reason,
-            templateId,
-            send: templateId === null ? 'none' : send,
+            templateId: null,
+            send: words === null ? 'none' : send,
             poolId: pool === 'none' ? null : pool,
+            message: words,
           },
         },
         onClose,
@@ -132,25 +136,18 @@ export function RejectDialog({
               Internal. The email never states a reason the candidate hasn’t seen in writing.
             </FieldDescription>
           </Field>
-          <Field>
-            <FieldLabel>Email</FieldLabel>
-            <Select value={template} onValueChange={setTemplate}>
-              <FieldControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FieldControl>
-              <SelectContent>
-                <SelectItem value="none">No email</SelectItem>
-                {data.templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          {template === 'none' ? null : (
+          <EmailComposer
+            applicationId={rejecting?.ids[0]}
+            purpose="rejection"
+            templates={data.templates}
+            act={act}
+            enabled={emailing}
+            onEnabledChange={setEmailing}
+            value={message}
+            onChange={setMessage}
+            many={many}
+          />
+          {!emailing ? null : (
             <Field>
               <FieldLabel>Send</FieldLabel>
               <SegmentedControl
@@ -196,7 +193,7 @@ export function RejectDialog({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="danger" loading={act.pending} onClick={submit}>
+          <Button variant="danger" loading={act.pending} disabled={!ready} onClick={submit}>
             {many ? `Reject ${String(rejecting?.ids.length ?? 0)}` : 'Reject'}
           </Button>
         </DialogFooter>

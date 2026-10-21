@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PreviewEmail($applicationId: String!, $input: JSON!, $key: String!) {\n    previewEmail(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

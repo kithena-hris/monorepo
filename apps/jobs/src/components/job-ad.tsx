@@ -15,6 +15,7 @@ import Link from 'next/link';
 import type { JSX, ReactNode } from 'react';
 
 import { countryName, hours as hoursOf, salary as salaryOf, where } from '../lib/format';
+import { StickyTitle } from './sticky-title';
 
 /**
  * A job as Kithena Jobs shows it (J3, R7): the page a candidate reads and the
@@ -192,6 +193,11 @@ export function JobAd({
           )}
         </div>
       </header>
+      <StickyTitle
+        title={job.title}
+        company={job.company.name}
+        applyHref={preview ? null : applyHref}
+      />
 
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-14">
         {/* The ad, read as an article. */}

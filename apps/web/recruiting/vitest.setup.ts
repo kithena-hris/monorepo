@@ -20,6 +20,11 @@ Object.assign(globalThis, {
     unobserve(): void {}
     disconnect(): void {}
   },
+  IntersectionObserver: class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  },
 });
 // A server-render test (`// @vitest-environment node`) has no DOM to stub.
 if (typeof window !== 'undefined') {

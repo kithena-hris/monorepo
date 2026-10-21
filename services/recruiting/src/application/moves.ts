@@ -101,6 +101,38 @@ export async function queueEmail(
   return message;
 }
 
+/**
+ * Email the candidate now, not when the sender job next runs: on the thread
+ * as a sent message, and out the door the moment the transaction commits.
+ * For what a candidate is waiting on: a time to choose, an invitation, a
+ * question from the team, an acknowledgement.
+ */
+export async function sendNow(
+  ctx: Ctx,
+  candidate: Candidate,
+  applicationId: string | null,
+  subject: string,
+  body: string,
+): Promise<Message> {
+  const message: Message = {
+    id: ctx.deps.newId(),
+    candidateId: candidate.id,
+    applicationId,
+    direction: 'out',
+    subject,
+    body,
+    fromPerson: ctx.caller.personId,
+    templateId: null,
+    sendAt: ctx.at,
+    sentAt: ctx.at,
+    readAt: null,
+    createdAt: ctx.at,
+  };
+  await ctx.tx.messages.add(message);
+  ctx.mail.push({ to: candidate.email, subject, text: body, dedupeKey: `message:${message.id}` });
+  return message;
+}
+
 async function runAutomations(ctx: Ctx, loaded: Loaded, stage: Stage): Promise<void> {
   const settings = await generalSettings(ctx);
   const job = await ctx.tx.jobs.get(loaded.app.jobId);

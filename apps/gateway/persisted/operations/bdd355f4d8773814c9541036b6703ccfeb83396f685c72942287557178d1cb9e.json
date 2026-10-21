@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CloseAsk($applicationId: String!, $askId: String!, $key: String!) {\n    closeAsk(applicationId: $applicationId, askId: $askId, idempotencyKey: $key)\n  }"}

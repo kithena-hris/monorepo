@@ -1353,6 +1353,25 @@ function Lists({
             setTemplate('new');
           }}
         />
+        {['rejection', 'selection', 'interview_confirmation', 'offer'].every((purpose) =>
+          data.templates.some((t) => t.kind === 'email' && t.purpose === purpose),
+        ) ? null : (
+          <Button
+            variant="secondary"
+            size="sm"
+            startIcon={<icons.email aria-hidden />}
+            loading={act.pending}
+            onClick={() => {
+              act.run('SeedEmailTemplates', {});
+            }}
+          >
+            Add the standard emails
+          </Button>
+        )}
+        <p className="text-sm text-fg-muted">
+          Rejection, moving on, interview confirmed and the offer: each goes out at that moment,
+          from the matching template here or the built-in words, shown to the recruiter first.
+        </p>
       </FormSection>
       {pipeline === null ? null : (
         <PipelineEditor

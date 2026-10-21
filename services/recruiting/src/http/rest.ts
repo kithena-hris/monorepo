@@ -59,6 +59,20 @@ import {
   scheduleScreen,
 } from '../application/interviews.js';
 import {
+  EMAIL_PURPOSES,
+  moveAndEmail,
+  previewEmail,
+  rejectAndEmail,
+  seedEmailTemplates,
+} from '../application/emails.js';
+import {
+  answerAsk,
+  closeAsk,
+  proposeSlots,
+  requestChange,
+  requestInformation,
+} from '../application/requests.js';
+import {
   createJob,
   moveJobState,
   publishTo,
@@ -77,7 +91,6 @@ import {
   bulk,
   correctMove,
   moveApplication,
-  rejectApplication,
   sendMessage,
   undoMove,
   withdrawApplication,
@@ -161,7 +174,13 @@ import {
   submitAsAgency,
 } from '../application/agency-portal.js';
 import { confirmAlert, stopAlert, subscribeAlert } from '../application/alerts.js';
-import { agreeWithFinding, assessMatrix, jobNotices, rediscover } from '../application/matrix.js';
+import {
+  agreeWithFinding,
+  assessJob,
+  assessMatrix,
+  jobNotices,
+  rediscover,
+} from '../application/matrix.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
 import { askForChart } from '../application/chart-ask.js';
@@ -311,6 +330,8 @@ const files = (list: readonly z.infer<typeof File>[] | undefined): IncomingFile[
     bytes: new Uint8Array(Buffer.from(f.base64, 'base64')),
   }));
 const text = (max: number) => z.string().max(max);
+/** What a composer settled on: subject and body, placeholders allowed. */
+const ComposedEmail = z.object({ subject: text(300).min(1), body: text(20_000).min(1) });
 
 const Stage = z.object({
   id: Id,
@@ -831,14 +852,33 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/applications/{applicationId}/move`,
     summary: 'R10: move to a stage',
     params: z.object({ applicationId: Id }),
-    body: z.object({ to: Id, interviewType: text(40).optional() }),
+    body: z.object({
+      to: Id,
+      interviewType: text(40).optional(),
+      /** The composer's words to the candidate, sent at once; none moves quietly. */
+      message: ComposedEmail.nullable().default(null),
+    }),
     run: (ctx, { params, body }) =>
-      moveApplication(
+      moveAndEmail(
         ctx,
         params.applicationId,
         body.to,
         body.interviewType === undefined ? {} : { interviewType: body.interviewType },
+        body.message,
       ),
+  }),
+  route({
+    name: 'previewEmail',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/email-preview`,
+    summary: 'R10, R12: the email a composer opens with, filled in for this candidate',
+    params: z.object({ applicationId: Id }),
+    body: z.object({
+      purpose: z.enum(EMAIL_PURPOSES),
+      templateId: Id.nullable().default(null),
+      fill: z.boolean().default(true),
+    }),
+    run: (ctx, { params, body }) => previewEmail(ctx, params.applicationId, body),
   }),
   route({
     name: 'undoMove',
@@ -870,8 +910,10 @@ export const ROUTES: readonly Route[] = [
       templateId: Id.nullable(),
       send: z.enum(['now', 'later_today', 'none']),
       poolId: Id.nullable(),
+      /** The composer's words, placeholders filled at the send; wins over the template. */
+      message: ComposedEmail.nullable().default(null),
     }),
-    run: (ctx, { params, body }) => rejectApplication(ctx, params.applicationId, body),
+    run: (ctx, { params, body }) => rejectAndEmail(ctx, params.applicationId, body),
   }),
   route({
     name: 'bulkApplications',
@@ -886,6 +928,7 @@ export const ROUTES: readonly Route[] = [
         reasonKey: z.string().max(63),
         templateId: Id.nullable(),
         send: z.enum(['now', 'later_today', 'none']),
+        message: ComposedEmail.nullable().default(null),
       }),
       z.object({ action: z.literal('pool'), ids: z.array(Id).max(500), poolId: Id }),
     ]),
@@ -894,11 +937,12 @@ export const ROUTES: readonly Route[] = [
         await bulk(ctx, body.ids, async (id) => {
           if (body.action === 'move') return moveApplication(ctx, id, body.to);
           if (body.action === 'reject')
-            return rejectApplication(ctx, id, {
+            return rejectAndEmail(ctx, id, {
               reasonKey: body.reasonKey,
               templateId: body.templateId,
               send: body.send,
               poolId: null,
+              message: body.message,
             });
           const app = await ctx.tx.applications.get(id);
           return app === null
@@ -1043,6 +1087,42 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params, body }) => selfScheduleLink(ctx, params.applicationId, body.planKey),
   }),
   route({
+    name: 'proposeSlots',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/proposals`,
+    summary:
+      'R16: offer the candidate fixed times; they pick one or ask for others, by email at once',
+    params: z.object({ applicationId: Id }),
+    body: z.object({
+      planKey: text(40),
+      times: z.array(Instant).min(1).max(12),
+      place: text(500).nullable(),
+      videoUrl: z.url().nullable(),
+      note: text(1000).nullable(),
+    }),
+    status: 201,
+    run: (ctx, { params, body }) => proposeSlots(ctx, params.applicationId, body),
+  }),
+  route({
+    name: 'requestInformation',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/requests`,
+    summary:
+      'R11: ask the candidate for something; it lands on their page and in their inbox at once',
+    params: z.object({ applicationId: Id }),
+    body: z.object({ label: text(200), detail: text(4000).nullable() }),
+    status: 201,
+    run: (ctx, { params, body }) => requestInformation(ctx, params.applicationId, body),
+  }),
+  route({
+    name: 'closeAsk',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/asks/{askId}/close`,
+    summary: 'R11, R16: the team has dealt with what was asked',
+    params: z.object({ applicationId: Id, askId: Id }),
+    run: (ctx, { params }) => closeAsk(ctx, params.applicationId, params.askId),
+  }),
+  route({
     name: 'setInterviewState',
     method: 'POST',
     path: `${V1}/interviews/{interviewId}/state`,
@@ -1089,6 +1169,14 @@ export const ROUTES: readonly Route[] = [
     summary: 'R10, R11: the evidence matrix against the job’s criteria; the domain scores it',
     params: z.object({ applicationId: Id }),
     run: (ctx, { params }) => assessMatrix(ctx, params.applicationId),
+  }),
+  route({
+    name: 'assessJob',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/assess`,
+    summary: 'R10: the matrix for every active candidate on the job who has none yet',
+    params: z.object({ jobId: Id }),
+    run: (ctx, { params }) => assessJob(ctx, params.jobId),
   }),
   route({
     name: 'rediscover',
@@ -1430,6 +1518,13 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ id: Id }),
     body: z.record(z.string(), z.unknown()),
     run: (ctx, { params, body }) => saveTemplate(ctx, { ...body, id: params.id } as never),
+  }),
+  route({
+    name: 'seedEmailTemplates',
+    method: 'POST',
+    path: `${V1}/settings/templates/seed`,
+    summary: 'The built-in email for each purpose the company has none for, as templates to edit',
+    run: (ctx) => seedEmailTemplates(ctx),
   }),
   route({
     name: 'saveBenefit',
@@ -1889,6 +1984,28 @@ export const ROUTES: readonly Route[] = [
     public: true,
     run: (ctx, { headers }) =>
       asCandidate(ctx, headers, async (id) => done(await anonymise(ctx, id))),
+  }),
+  route({
+    name: 'publicAnswerAsk',
+    method: 'POST',
+    path: `${V1}/public/{company}/me/asks/{askId}`,
+    summary: 'J6: pick one of the times offered, or answer what was asked',
+    params: z.object({ company: text(63), askId: Id }),
+    body: z.object({ time: Instant.nullable(), text: text(4000).nullable() }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      asCandidate(ctx, headers, (id) => answerAsk(ctx, id, params.askId, body)),
+  }),
+  route({
+    name: 'publicRequestChange',
+    method: 'POST',
+    path: `${V1}/public/{company}/me/interviews/{interviewId}/change`,
+    summary: 'J6: ask for a booked interview to move',
+    params: z.object({ company: text(63), interviewId: Id }),
+    body: z.object({ reason: text(1000) }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      asCandidate(ctx, headers, (id) => requestChange(ctx, id, params.interviewId, body.reason)),
   }),
   route({
     name: 'publicSlots',

@@ -50,6 +50,8 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, money, useAct, when, words } from './shared';
+import { EmailComposer, type ComposedEmail } from './composer';
+import { AskList } from './interviews';
 import { RejectDialog, type Rejecting } from './reject-dialog';
 import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './types';
 
@@ -61,16 +63,7 @@ import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './ty
  * address.
  */
 
-const TABS = [
-  'profile',
-  'answers',
-  'evidence',
-  'interviews',
-  'references',
-  'messages',
-  'activity',
-  'offers',
-] as const;
+const TABS = ['profile', 'process', 'messages'] as const;
 type Tab = (typeof TABS)[number];
 
 const VERDICT: Readonly<Record<string, { label: string; tone: 'success' | 'info' | 'neutral' }>> = {
@@ -543,6 +536,14 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
   const act = useAct(props);
   const [rejecting, setRejecting] = useState<Rejecting | null>(null);
   const [poolId, setPoolId] = useState('');
+  const [asking, setAsking] = useState<string | null>(null);
+  const [moving, setMoving] = useState<{ applicationId: string; to: string; name: string } | null>(
+    null,
+  );
+  const [moveEmailing, setMoveEmailing] = useState(true);
+  const [moveMessage, setMoveMessage] = useState<ComposedEmail | null>(null);
+  const [askLabel, setAskLabel] = useState('');
+  const [askDetail, setAskDetail] = useState('');
   return (
     <Loaded load={props.load} what="the candidate">
       {(data) => {
@@ -703,6 +704,18 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           Schedule
                         </Button>
                       ) : null}
+                      {chosen.outcome === 'active' && chosen.may.includes('candidate.message') ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          startIcon={<icons.help aria-hidden />}
+                          onClick={() => {
+                            setAsking(chosen.applicationId);
+                          }}
+                        >
+                          Ask for information…
+                        </Button>
+                      ) : null}
                       {chosen.may.includes('scorecards.all') ? (
                         <Button
                           variant="secondary"
@@ -723,11 +736,13 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       nextStage.category !== 'interview' ? (
                         <Button
                           size="sm"
-                          loading={act.pending}
+                          startIcon={<icons.next aria-hidden />}
                           onClick={() => {
-                            act.run('MoveApplication', {
+                            setMoveMessage(null);
+                            setMoving({
                               applicationId: chosen.applicationId,
-                              input: { to: nextStage.id },
+                              to: nextStage.id,
+                              name: nextStage.name,
                             });
                           }}
                         >
@@ -772,190 +787,356 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                   >
                     <TabsList>
                       <TabsTrigger value="profile">Profile</TabsTrigger>
-                      <TabsTrigger value="answers">Answers</TabsTrigger>
-                      {chosen.may.includes('candidate.profile') ? (
-                        <TabsTrigger value="evidence">Evidence</TabsTrigger>
-                      ) : null}
-                      <TabsTrigger value="interviews">{`Interviews${chosen.interviews.length > 0 ? ` (${String(chosen.interviews.length)})` : ''}`}</TabsTrigger>
-                      <TabsTrigger value="references">{`References${chosen.references.length > 0 ? ` (${String(chosen.references.length)})` : ''}`}</TabsTrigger>
+                      <TabsTrigger value="process">{`Process${chosen.interviews.length > 0 ? ` (${String(chosen.interviews.length)})` : ''}`}</TabsTrigger>
                       <TabsTrigger value="messages">{`Messages${data.messages.length > 0 ? ` (${String(data.messages.length)})` : ''}`}</TabsTrigger>
-                      <TabsTrigger value="activity">Activity</TabsTrigger>
-                      <TabsTrigger value="offers">Offers</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile">
-                      <div className="grid gap-4 xl:grid-cols-2">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle level={2}>Profile</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <KeyValues
-                              layout="aligned"
-                              items={[
-                                { label: 'Email', value: data.candidate.email ?? '—' },
-                                { label: 'Phone', value: data.candidate.phone ?? '—' },
-                                { label: 'Location', value: data.candidate.location ?? '—' },
-                                {
-                                  label: 'Links',
-                                  value: (data.candidate.links ?? []).join(' · ') || '—',
-                                },
-                                {
-                                  label: 'Files',
-                                  value:
-                                    data.files
-                                      .map((f) => `${f.fileName} (${words(f.kind)})`)
-                                      .join(', ') || '—',
-                                },
-                                {
-                                  label: 'Consent',
-                                  value:
-                                    data.consents
-                                      .filter((c) => c.withdrawnAt === null)
-                                      .map(
-                                        (c) =>
-                                          `${words(c.purpose)}${c.expiresOn === null ? '' : ` until ${day(c.expiresOn)}`}`,
-                                      )
-                                      .join(' · ') || '—',
-                                },
-                                { label: 'Adjustments', value: chosen.adjustments ?? 'None asked' },
-                              ]}
-                            />
-                          </CardContent>
-                        </Card>
-                        <Notes data={data} application={chosen} props={props} />
+                      <div className="flex flex-col gap-6">
+                        <div className="grid gap-4 xl:grid-cols-2">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle level={2}>Profile</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <KeyValues
+                                layout="aligned"
+                                items={[
+                                  { label: 'Email', value: data.candidate.email ?? '—' },
+                                  { label: 'Phone', value: data.candidate.phone ?? '—' },
+                                  { label: 'Location', value: data.candidate.location ?? '—' },
+                                  {
+                                    label: 'Links',
+                                    value: (data.candidate.links ?? []).join(' · ') || '—',
+                                  },
+                                  {
+                                    label: 'Files',
+                                    value:
+                                      data.files
+                                        .map((f) => `${f.fileName} (${words(f.kind)})`)
+                                        .join(', ') || '—',
+                                  },
+                                  {
+                                    label: 'Consent',
+                                    value:
+                                      data.consents
+                                        .filter((c) => c.withdrawnAt === null)
+                                        .map(
+                                          (c) =>
+                                            `${words(c.purpose)}${c.expiresOn === null ? '' : ` until ${day(c.expiresOn)}`}`,
+                                        )
+                                        .join(' · ') || '—',
+                                  },
+                                  {
+                                    label: 'Adjustments',
+                                    value: chosen.adjustments ?? 'None asked',
+                                  },
+                                ]}
+                              />
+                            </CardContent>
+                          </Card>
+                          <Notes data={data} application={chosen} props={props} />
+                          {chosen.may.includes('candidate.profile') ? (
+                            <ReadCv application={chosen} props={props} />
+                          ) : null}
+                        </div>
+                        <section className="flex flex-col gap-3">
+                          <h3 className="text-sm font-semibold text-fg-muted">Answers</h3>
+                          <Card>
+                            <CardContent>
+                              {Object.keys(chosen.answers).length === 0 ? (
+                                <EmptyState
+                                  icon={<icons.list aria-hidden />}
+                                  title="No answers you can see"
+                                />
+                              ) : (
+                                <KeyValues
+                                  layout="aligned"
+                                  items={Object.entries(chosen.answers).map(([k, v]) => ({
+                                    label: words(k.replace(/^q_/u, '')),
+                                    value:
+                                      typeof v === 'object' && v !== null && 'name' in v
+                                        ? (v as { name: string }).name
+                                        : String(v),
+                                  }))}
+                                />
+                              )}
+                            </CardContent>
+                          </Card>
+                        </section>
                         {chosen.may.includes('candidate.profile') ? (
-                          <ReadCv application={chosen} props={props} />
+                          <section className="flex flex-col gap-3">
+                            <h3 className="text-sm font-semibold text-fg-muted">
+                              Evidence against the criteria
+                            </h3>
+                            <Evidence application={chosen} props={props} />
+                          </section>
                         ) : null}
                       </div>
                     </TabsContent>
-                    <TabsContent value="answers">
-                      <Card>
-                        <CardContent>
-                          {Object.keys(chosen.answers).length === 0 ? (
-                            <EmptyState
-                              icon={<icons.list aria-hidden />}
-                              title="No answers you can see"
-                            />
-                          ) : (
-                            <KeyValues
-                              layout="aligned"
-                              items={Object.entries(chosen.answers).map(([k, v]) => ({
-                                label: words(k.replace(/^q_/u, '')),
-                                value:
-                                  typeof v === 'object' && v !== null && 'name' in v
-                                    ? (v as { name: string }).name
-                                    : String(v),
-                              }))}
-                            />
-                          )}
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-                    <TabsContent value="evidence">
-                      <Evidence application={chosen} props={props} />
-                    </TabsContent>
-                    <TabsContent value="interviews">
-                      <Card>
-                        <CardContent className="flex flex-col gap-3">
-                          {chosen.interviews.length === 0 ? (
-                            <EmptyState
-                              icon={<icons.meeting aria-hidden />}
-                              title="No interviews yet"
-                            />
-                          ) : null}
-                          {chosen.interviews.map((i) => {
-                            const cards = chosen.scorecards.filter(
-                              (c) => c.interviewId === i.id && c.submittedAt !== null,
-                            );
-                            return (
-                              <div
-                                key={i.id}
-                                className="flex flex-wrap items-center gap-3 border-b border-[var(--reach-line)] pb-3"
-                              >
-                                <To
-                                  href={`/recruiting/interviews/${i.id}`}
-                                  onNavigate={props.onNavigate}
-                                >
-                                  {i.title}
-                                </To>
-                                <span className="text-sm text-fg-muted">{when(i.startsAt)}</span>
-                                <StateBadge state={i.state} />
-                                <span className="text-sm text-fg-muted">{`${String(cards.length)} of ${String(i.interviewerIds.length)} scorecards`}</span>
-                              </div>
-                            );
-                          })}
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-                    <TabsContent value="references">
-                      <References application={chosen} props={props} />
+                    <TabsContent value="process">
+                      <div className="flex flex-col gap-6">
+                        <section className="flex flex-col gap-3">
+                          <h3 className="text-sm font-semibold text-fg-muted">Interviews</h3>
+                          <Card>
+                            <CardContent className="flex flex-col gap-3">
+                              {chosen.interviews.length === 0 ? (
+                                <EmptyState
+                                  icon={<icons.meeting aria-hidden />}
+                                  title="No interviews yet"
+                                />
+                              ) : null}
+                              {chosen.asks.length === 0 ? null : (
+                                <div className="flex flex-col gap-2">
+                                  <h3 className="text-sm font-semibold text-fg-muted">
+                                    With the candidate
+                                  </h3>
+                                  <AskList
+                                    asks={chosen.asks}
+                                    applicationId={chosen.applicationId}
+                                    act={act}
+                                  />
+                                </div>
+                              )}
+                              {chosen.interviews.map((i) => {
+                                const cards = chosen.scorecards.filter(
+                                  (c) => c.interviewId === i.id && c.submittedAt !== null,
+                                );
+                                return (
+                                  <div
+                                    key={i.id}
+                                    className="flex flex-wrap items-center gap-3 border-b border-[var(--reach-line)] pb-3"
+                                  >
+                                    <To
+                                      href={`/recruiting/interviews/${i.id}`}
+                                      onNavigate={props.onNavigate}
+                                    >
+                                      {i.title}
+                                    </To>
+                                    <span className="text-sm text-fg-muted">
+                                      {when(i.startsAt)}
+                                    </span>
+                                    <StateBadge state={i.state} />
+                                    <span className="text-sm text-fg-muted">{`${String(cards.length)} of ${String(i.interviewerIds.length)} scorecards`}</span>
+                                  </div>
+                                );
+                              })}
+                            </CardContent>
+                          </Card>
+                        </section>
+                        <section className="flex flex-col gap-3">
+                          <h3 className="text-sm font-semibold text-fg-muted">References</h3>
+                          <References application={chosen} props={props} />
+                        </section>
+                        <section className="flex flex-col gap-3">
+                          <h3 className="text-sm font-semibold text-fg-muted">Offers</h3>
+                          <Card>
+                            <CardContent className="flex flex-col gap-3">
+                              {chosen.offers.length === 0 ? (
+                                <EmptyState
+                                  icon={<icons.agreement aria-hidden />}
+                                  title="No offer yet"
+                                />
+                              ) : null}
+                              {chosen.offers.map((o) => (
+                                <div key={o.id} className="flex flex-wrap items-center gap-3">
+                                  <To
+                                    href={`/recruiting/offers/${o.id}`}
+                                    onNavigate={props.onNavigate}
+                                  >{`Offer v${String(o.version)}`}</To>
+                                  <StateBadge state={o.state} />
+                                  <span className="text-sm text-fg-muted">{`${money(o.baseMinor, o.currency)} · starts ${day(o.startDate)}`}</span>
+                                </div>
+                              ))}
+                              {chosen.prehire === null ? null : (
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold">Pre-hire</span>
+                                    <StateBadge state={chosen.prehire.state} />
+                                  </div>
+                                  {chosen.prehire.conditions.map((c) => (
+                                    <div key={c.kind} className="flex items-center gap-2 text-sm">
+                                      {words(c.kind)} <StateBadge state={c.state} />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </section>
+                        <section className="flex flex-col gap-3">
+                          <h3 className="text-sm font-semibold text-fg-muted">Activity</h3>
+                          <Card>
+                            <CardContent>
+                              <Timeline>
+                                {chosen.history.map((m) => (
+                                  <TimelineItem
+                                    key={m.id}
+                                    title={
+                                      chosen.stages.find((s) => s.id === m.to)?.name ?? 'Moved'
+                                    }
+                                    timestamp={when(m.at)}
+                                  >
+                                    {m.supersedes === null
+                                      ? null
+                                      : m.reason === 'undone'
+                                        ? 'Undone'
+                                        : `Corrected: ${m.reason ?? ''}`}
+                                  </TimelineItem>
+                                ))}
+                              </Timeline>
+                              {chosen.rejection === null ? null : (
+                                <p className="mt-3 text-sm">{`Rejected ${day(chosen.rejection.at)}: ${words(chosen.rejection.reasonKey)}`}</p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </section>
+                      </div>
                     </TabsContent>
                     <TabsContent value="messages">
                       <Messages data={data} application={chosen} props={props} />
-                    </TabsContent>
-                    <TabsContent value="activity">
-                      <Card>
-                        <CardContent>
-                          <Timeline>
-                            {chosen.history.map((m) => (
-                              <TimelineItem
-                                key={m.id}
-                                title={chosen.stages.find((s) => s.id === m.to)?.name ?? 'Moved'}
-                                timestamp={when(m.at)}
-                              >
-                                {m.supersedes === null
-                                  ? null
-                                  : m.reason === 'undone'
-                                    ? 'Undone'
-                                    : `Corrected: ${m.reason ?? ''}`}
-                              </TimelineItem>
-                            ))}
-                          </Timeline>
-                          {chosen.rejection === null ? null : (
-                            <p className="mt-3 text-sm">{`Rejected ${day(chosen.rejection.at)}: ${words(chosen.rejection.reasonKey)}`}</p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-                    <TabsContent value="offers">
-                      <Card>
-                        <CardContent className="flex flex-col gap-3">
-                          {chosen.offers.length === 0 ? (
-                            <EmptyState
-                              icon={<icons.agreement aria-hidden />}
-                              title="No offer yet"
-                            />
-                          ) : null}
-                          {chosen.offers.map((o) => (
-                            <div key={o.id} className="flex flex-wrap items-center gap-3">
-                              <To
-                                href={`/recruiting/offers/${o.id}`}
-                                onNavigate={props.onNavigate}
-                              >{`Offer v${String(o.version)}`}</To>
-                              <StateBadge state={o.state} />
-                              <span className="text-sm text-fg-muted">{`${money(o.baseMinor, o.currency)} · starts ${day(o.startDate)}`}</span>
-                            </div>
-                          ))}
-                          {chosen.prehire === null ? null : (
-                            <div className="flex flex-col gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">Pre-hire</span>
-                                <StateBadge state={chosen.prehire.state} />
-                              </div>
-                              {chosen.prehire.conditions.map((c) => (
-                                <div key={c.kind} className="flex items-center gap-2 text-sm">
-                                  {words(c.kind)} <StateBadge state={c.state} />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
                     </TabsContent>
                   </Tabs>
                 </div>
               )}
             </div>
+            <Dialog
+              open={asking !== null}
+              onOpenChange={(open) => {
+                if (!open) setAsking(null);
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Ask the candidate for something</DialogTitle>
+                  <DialogDescription>
+                    {`It lands on ${data.candidate.name}’s page and in their inbox the moment you send it; the answer comes back here.`}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogBody className="flex flex-col gap-3">
+                  <Field required>
+                    <FieldLabel>What you need</FieldLabel>
+                    <FieldControl>
+                      <Input
+                        value={askLabel}
+                        onChange={(e) => {
+                          setAskLabel(e.target.value);
+                        }}
+                        placeholder="Your notice period, a portfolio link, two references…"
+                      />
+                    </FieldControl>
+                  </Field>
+                  <Field>
+                    <FieldLabel>More detail (optional)</FieldLabel>
+                    <FieldControl>
+                      <Textarea
+                        autoResize
+                        value={askDetail}
+                        onChange={(e) => {
+                          setAskDetail(e.target.value);
+                        }}
+                      />
+                    </FieldControl>
+                  </Field>
+                </DialogBody>
+                <DialogFooter>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setAsking(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={askLabel.trim() === ''}
+                    loading={act.pending}
+                    onClick={() => {
+                      act.run(
+                        'RequestInformation',
+                        {
+                          applicationId: asking,
+                          input: {
+                            label: askLabel.trim(),
+                            detail: askDetail.trim() === '' ? null : askDetail.trim(),
+                          },
+                        },
+                        () => {
+                          setAsking(null);
+                          setAskLabel('');
+                          setAskDetail('');
+                        },
+                      );
+                    }}
+                  >
+                    Send
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog
+              open={moving !== null}
+              onOpenChange={(open) => {
+                if (!open) setMoving(null);
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{`Move to ${moving?.name ?? ''}`}</DialogTitle>
+                  <DialogDescription>
+                    {`${data.candidate.name} moves on. Tell them, in the company’s words or your own.`}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                  <EmailComposer
+                    applicationId={moving?.applicationId}
+                    purpose="selection"
+                    templates={data.templates}
+                    act={act}
+                    enabled={moveEmailing}
+                    onEnabledChange={setMoveEmailing}
+                    value={moveMessage}
+                    onChange={setMoveMessage}
+                  />
+                </DialogBody>
+                <DialogFooter>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setMoving(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    loading={act.pending}
+                    disabled={
+                      moveEmailing &&
+                      (moveMessage === null ||
+                        moveMessage.subject.trim() === '' ||
+                        moveMessage.body.trim() === '')
+                    }
+                    onClick={() => {
+                      if (moving === null) return;
+                      act.run(
+                        'MoveApplication',
+                        {
+                          applicationId: moving.applicationId,
+                          input: {
+                            to: moving.to,
+                            message: moveEmailing ? moveMessage : null,
+                          },
+                        },
+                        () => {
+                          setMoving(null);
+                        },
+                      );
+                    }}
+                  >
+                    {moveEmailing ? 'Move and send' : 'Move without an email'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <RejectDialog
               options={{
                 jobTitle: chosen?.job.title ?? '',

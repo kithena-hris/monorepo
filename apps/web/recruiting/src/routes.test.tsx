@@ -255,16 +255,23 @@ const job: JobData = {
 };
 
 describe('R4–R7, a job’s setup', () => {
-  it('opens on the details tab', async () => {
+  it('shows the ad as a candidate reads it, every part with its own Edit', async () => {
     const { container } = render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} />);
-    expect(screen.getByRole('tab', { name: 'Details', selected: true })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Title, pay and the facts' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThan(5);
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('shows the ad’s checks that block publishing', () => {
-    render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ tab: 'ad' }} />);
+  it('shows the ad’s checks that block publishing, in the ad’s sheet', () => {
+    render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ edit: 'ad' }} />);
     expect(screen.getByText('1 block publishing')).toBeTruthy();
     expect(screen.getByText('“jungen”')).toBeTruthy();
+  });
+
+  it('walks a new job through its steps in a dialog', () => {
+    render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ setup: '1' }} />);
+    expect(screen.getByRole('dialog', { name: /Set up/u })).toBeTruthy();
+    expect(screen.getAllByText('Step 1 of 5').length).toBeGreaterThan(0);
   });
 });
 
@@ -293,6 +300,7 @@ const candidate: CandidateData = {
       adjustments: null,
       history: [],
       interviews: [],
+      asks: [],
       scorecards: [],
       offers: [],
       prehire: null,

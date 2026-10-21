@@ -29,6 +29,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
+import { NoticeDialog, NoticeList, noticesOf, type Notice } from '../../../components/asks';
 import { publicApi, tokenFromHash } from '../../../lib/browser-api';
 import { ReadProfile } from './read-profile';
 import { SelfIdForm } from './self-id';
@@ -241,6 +242,7 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
   const [refName, setRefName] = useState('');
   const [refEmail, setRefEmail] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [opened, setOpened] = useState<Notice | null>(null);
   const [pending, start] = useTransition();
   const load = (t: string) =>
     void publicApi<CandidatePage>(company, '/me', { token: t }).then((a) => {
@@ -315,18 +317,20 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
                     )}
                   />
                 ) : null}
-                {a.interviews.map((i) => (
-                  <Alert
-                    key={i.id}
-                    tone="info"
-                    title={`${i.title} · ${new Date(i.startsAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
-                  >
-                    {i.where ?? ''}
-                  </Alert>
-                ))}
-                {a.requests.map((r) => (
-                  <Alert key={r.id} tone="warning" title={r.label} />
-                ))}
+                {a.interviews.length === 0 && a.requests.length === 0 ? null : (
+                  <NoticeList
+                    notices={noticesOf([
+                      {
+                        company: { slug: company, name: a.job.company, token },
+                        page: { name: page.name, applications: [a] },
+                      },
+                    ])}
+                    onOpen={setOpened}
+                    onOffer={() => {
+                      setOffer(a.offer?.offerId ?? null);
+                    }}
+                  />
+                )}
                 {a.contract === null ? null : a.contract.signedOn !== null ? (
                   <Alert tone="success" title={`Contract signed on ${day(a.contract.signedOn)}`}>
                     {a.outcome === 'hired'
@@ -521,6 +525,17 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <NoticeDialog
+        notice={opened}
+        onClose={() => {
+          setOpened(null);
+        }}
+        onDone={(said) => {
+          setOpened(null);
+          setNotice(said);
+          load(token);
+        }}
+      />
     </div>
   );
 }
