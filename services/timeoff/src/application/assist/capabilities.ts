@@ -21,7 +21,14 @@ import {
 import { days, type Decimal } from '../../domain/days.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
 import { approvalQueue, type QueueItem } from '../approval/decide.js';
-import { holidaysFor, runsIn, seesType, sightOf, type Sight } from '../calendar/calendar.js';
+import {
+  holidaysFor,
+  leaveSight,
+  runsIn,
+  seesType,
+  sightOf,
+  type Sight,
+} from '../calendar/calendar.js';
 import type { Caller, Deps, Member, Tx } from '../ports.js';
 import { seesBalances } from '../screens/employee.js';
 import { chatAnswersOf } from '../settings/chat.js';
@@ -285,7 +292,7 @@ export const away =
       const naming = (await chatAnswersOf(tx)).namesPrivateLeave;
       const sights = new Map<PersonId, Sight | null>();
       const sight = async (m: Member): Promise<Sight | null> => {
-        if (!sights.has(m.personId)) sights.set(m.personId, await sightOf(deps, caller, m, hr));
+        if (!sights.has(m.personId)) sights.set(m.personId, await leaveSight(deps, caller, m, hr));
         return sights.get(m.personId) ?? null;
       };
       const all = await tx.members.list();

@@ -16,7 +16,7 @@ import {
 
 import { LeaveType } from '../../domain/policy/leave-type.js';
 import { decideRequest } from '../approval/decide.js';
-import { approvals } from '../screens/manager.js';
+import { approvals, calendar } from '../screens/manager.js';
 import type { Caller } from '../ports.js';
 import { sendRequest } from '../request/request.js';
 import { setChatAnswers } from '../settings/chat.js';
@@ -206,16 +206,35 @@ describe('timeoff.away (AST-023)', () => {
     });
   });
 
-  it('shows a teammate the team as the calendar does, and nobody else', async () => {
+  it('shows everyone in the company as the calendar does, a private type as Away', async () => {
     const app = await october();
     const result = await ask(app, caller(people.omar));
+    // Zoe is in Sales, not Omar's team: everyone sees everyone's leave (2026-10-21).
     expect(lines(result)).toEqual([
       ['Adam Novak', 'Tue 6 · Away'],
       ['Leo Martin', 'Tue 6, half day · Vacation'],
       ['Omar Haddad', 'Mon 5 to Wed 7 · Vacation'],
       ['Yuki Tanaka', 'Tue 6 to Wed 7 · Away'],
+      ['Zoe Lane', 'Tue 6 · Vacation'],
     ]);
-    expect(result).toMatchObject({ total: 4, scope: 'visible' });
+    expect(result).toMatchObject({ total: 5, scope: 'visible' });
+  });
+
+  it('puts everyone’s leave on the company calendar for anyone, a private type as Off', async () => {
+    const app = await october();
+    const view = await calendar(app.deps)(caller(people.omar), {
+      scope: 'company',
+      from: '2026-10-05' as never,
+      to: '2026-10-09' as never,
+    });
+    if (!view.ok) throw new Error(view.error.message);
+    // Zoe is in Sales and nothing to Omar but a colleague: her vacation shows, with its type.
+    expect(view.value.entries.find((e) => e.personId === ZOE)).toMatchObject({
+      leaveTypeKey: 'vacation',
+    });
+    // A private type stays Off to a colleague: the day, and no type.
+    const typeOf = (e: unknown): unknown => (e as { leaveTypeKey?: unknown }).leaveTypeKey;
+    expect(view.value.entries.some((e) => typeOf(e) == null)).toBe(true);
   });
 
   it('matches a leave type only where the asker may see the type', async () => {
@@ -237,6 +256,7 @@ describe('timeoff.away (AST-023)', () => {
     expect(lines(vacation)).toEqual([
       ['Leo Martin', 'Tue 6, half day · Vacation'],
       ['Omar Haddad', 'Mon 5 to Wed 7 · Vacation'],
+      ['Zoe Lane', 'Tue 6 · Vacation'],
     ]);
     const notVacation = { filters: [{ key: 'leave_type', op: 'not_in', values: ['vacation'] }] };
     expect(await ask(app, caller(people.omar), notVacation)).toMatchObject({ total: 0 });
@@ -255,12 +275,13 @@ describe('timeoff.away (AST-023)', () => {
         ['Yuki Tanaka', 'Tue 6 to Wed 7 · Sick'],
       ]);
     }
-    // A teammate sees the day, never the type: the switch does not widen sight.
+    // A colleague sees the day, never a private type: the switch does not widen sight.
     expect(lines(await ask(app, caller(people.omar)))).toEqual([
       ['Adam Novak', 'Tue 6 · Away'],
       ['Leo Martin', 'Tue 6, half day · Vacation'],
       ['Omar Haddad', 'Mon 5 to Wed 7 · Vacation'],
       ['Yuki Tanaka', 'Tue 6 to Wed 7 · Away'],
+      ['Zoe Lane', 'Tue 6 · Vacation'],
     ]);
     expect(await ask(app, caller(people.omar), sick)).toMatchObject({ rows: [], total: 0 });
     const catalogue = await capabilityCatalogue(app.deps)(caller(people.omar));
@@ -277,25 +298,30 @@ describe('timeoff.away (AST-023)', () => {
     expect(withSick).toMatchObject({ rows: [], ids: [], total: 0 });
   });
 
-  it('narrows to a team, to an earlier step’s people, and never widens', async () => {
+  it('narrows to a team and to an earlier step’s people', async () => {
     const app = await october();
     expect(await ask(app, hr, team(['platform']))).toMatchObject({
       total: 4,
       described: 'away in Platform on Tuesday 6 October',
     });
     expect(lines(await ask(app, hr, team(['sales'])))).toEqual([['Zoe Lane', 'Tue 6 · Vacation']]);
-    // Zoe is not Omar's to see, so naming her id changes nothing.
+    // Everyone sees everyone's leave, so Omar sees Zoe's when he names her.
     expect(lines(await ask(app, caller(people.omar), { personIds: [ZOE, people.adam] }))).toEqual([
       ['Adam Novak', 'Tue 6 · Away'],
+      ['Zoe Lane', 'Tue 6 · Vacation'],
     ]);
   });
 
   it('finds a name as the asker may, or says it is ambiguous or not found', async () => {
     const app = await october();
     app.state(TENANT).members.set(OMAR_DIAZ, member(OMAR_DIAZ, 'Omar Díaz'));
-    expect(await ask(app, caller(people.adam), { name: 'zoe' })).toEqual({
+    expect(await ask(app, caller(people.adam), { name: 'zoe' })).toMatchObject({
+      kind: 'people',
+      total: 1,
+    });
+    expect(await ask(app, caller(people.adam), { name: 'nobody' })).toEqual({
       kind: 'not_found',
-      name: 'zoe',
+      name: 'nobody',
     });
     expect(await ask(app, caller(people.adam), { name: 'omar' })).toMatchObject({
       kind: 'ambiguous',
@@ -562,10 +588,13 @@ describe('timeoff.balances (AST-030)', () => {
   it('writes a private type “Away” beside a name unless the company chose to name it', async () => {
     const app = await balancesWorld();
     const sickLeave = { filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
-    expect(await left(app, hr, sickLeave)).toMatchObject({ total: 8, described: 'with a Sick balance' });
-    expect(of(await left(app, hr, { filters: [...sickLeave.filters, ...more('0').filters] }))).toEqual([
-      ['Adam Novak', '3 days left'],
-    ]);
+    expect(await left(app, hr, sickLeave)).toMatchObject({
+      total: 8,
+      described: 'with a Sick balance',
+    });
+    expect(
+      of(await left(app, hr, { filters: [...sickLeave.filters, ...more('0').filters] })),
+    ).toEqual([['Adam Novak', '3 days left']]);
     const both = { filters: [{ key: 'leave_type', op: 'in', values: ['vacation', 'Sick'] }] };
     expect(of(await left(app, caller(people.marco), { ...both, name: 'adam' }))).toEqual([
       ['Adam Novak', '3 days left · Away, 25 days left · Vacation'],
