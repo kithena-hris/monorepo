@@ -551,6 +551,10 @@ export interface ScheduleData {
   }[];
   /** A Meet (or Teams, or Zoom) is made at booking when nothing else is named. */
   readonly meet: boolean;
+  /** The company's holidays in view, from Time Off: struck on the calendar and named. */
+  readonly holidays: readonly { readonly date: string; readonly name: string }[];
+  /** The interviewers' days away, kept with the link the candidate gets. */
+  readonly away: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface DebriefData {

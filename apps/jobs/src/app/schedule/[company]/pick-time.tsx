@@ -9,6 +9,9 @@ interface Slots {
   readonly slots: readonly string[];
   readonly minutes: number;
   readonly title: string;
+  readonly holidays: readonly { readonly date: string; readonly name: string }[];
+  /** Ten, or every free time when there are fewer. */
+  readonly wanted: number;
 }
 
 /**
@@ -53,7 +56,7 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       <h1 className="text-2xl font-bold">When suits you?</h1>
-      <p className="text-fg-muted">{`${data.title} · ${String(data.minutes)} min · ${zone} (your time). Pick up to ten times; the team books one.`}</p>
+      <p className="text-fg-muted">{`${data.title} · ${String(data.minutes)} min · ${zone} (your time). Pick ${String(data.wanted)} times that suit you; the team books one and sends the invitation.`}</p>
       {error === null ? null : (
         <Alert tone="danger" title="That did not go through">
           {error}
@@ -71,13 +74,14 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
           slots={data.slots}
           value={chosen}
           onChange={setChosen}
-          max={10}
+          max={data.wanted}
           today={today}
           minutes={data.minutes}
+          unavailable={Object.fromEntries(data.holidays.map((h) => [h.date, h.name]))}
         />
       )}
       <Button
-        disabled={chosen.length === 0}
+        disabled={chosen.length !== data.wanted || data.wanted === 0}
         loading={pending}
         onClick={() => {
           start(async () => {
@@ -91,7 +95,9 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
           });
         }}
       >
-        {`Send ${String(chosen.length)} time${chosen.length === 1 ? '' : 's'}`}
+        {chosen.length === data.wanted
+          ? `Send my ${String(data.wanted)} times`
+          : `${String(chosen.length)} of ${String(data.wanted)} picked`}
       </Button>
     </div>
   );

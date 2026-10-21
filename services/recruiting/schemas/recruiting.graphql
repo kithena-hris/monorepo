@@ -609,7 +609,7 @@ type Query {
   """
   R16: the plan and free slots for one of its interviews, a week at a time
   """
-  recruitingSlots(applicationId: String!, away: String, from: String, planKey: String): JSON
+  recruitingSlots(applicationId: String!, away: String, from: String, holidays: String, planKey: String): JSON
   """My working hours, for slots without a calendar"""
   recruitingWorkingHours: JSON
 }

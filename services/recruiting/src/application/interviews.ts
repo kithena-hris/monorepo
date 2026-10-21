@@ -43,6 +43,22 @@ import { generalSettings } from './setup.js';
 /** Away days by interviewer, as the shell passes them from Time Off (PRD §28); absent means none known. */
 export type Absences = Readonly<Record<string, readonly string[]>>;
 
+/** The company's holidays, as the shell reads them from Time Off: no one is booked on one. */
+export interface Holiday {
+  readonly date: string;
+  readonly name: string;
+}
+
+/** Each interviewer's away days with every holiday added: nobody is offered on either. */
+function withHolidays(
+  people: readonly string[],
+  away: Absences,
+  holidays: readonly Holiday[],
+): Absences {
+  const dates = holidays.map((h) => h.date);
+  return Object.fromEntries(people.map((p) => [p, [...(away[p] ?? []), ...dates]]));
+}
+
 async function availability(
   ctx: Ctx,
   people: readonly string[],
@@ -113,6 +129,7 @@ export async function scheduleScreen(
   planKey: string | undefined,
   from: Instant | undefined,
   away: Absences = {},
+  holidays: readonly Holiday[] = [],
 ): Promise<
   Result<{
     candidate: { id: string; name: string };
@@ -128,6 +145,10 @@ export async function scheduleScreen(
     booked: readonly InterviewRecord[];
     /** A Meet (or Teams, or Zoom) link can be made at booking: a calendar is connected or delegated. */
     meet: boolean;
+    /** The holidays in view, named, for the calendar to strike. */
+    holidays: readonly Holiday[];
+    /** Who among the interviewers is away when, for the link the candidate gets. */
+    away: Absences;
   }>
 > {
   const loaded = await loadApplication(ctx, applicationId);
@@ -138,10 +159,11 @@ export async function scheduleScreen(
   // A month of days at once: the screen's calendar marks the days with a slot and lists one day's times.
   const start = from ?? (`${ctx.today}T00:00:00.000Z` as Instant);
   const end = new Date(Date.parse(start) + 35 * 86_400_000).toISOString() as Instant;
+  const off = withHolidays(chosen?.interviewerIds ?? [], away, holidays);
   const slots =
     chosen === null
       ? ok([] as readonly string[])
-      : await slotsFor(ctx, applicationId, chosen.key, start, end, away);
+      : await slotsFor(ctx, applicationId, chosen.key, start, end, off);
   if (!slots.ok) return slots;
   const candidate = await ctx.tx.candidates.get(loaded.value.app.candidateId);
   const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
@@ -162,6 +184,8 @@ export async function scheduleScreen(
       (i) => i.state === 'scheduled',
     ),
     meet: await canMakeVideo(ctx, chosen?.interviewerIds ?? []),
+    holidays: holidays.filter((h) => h.date >= start.slice(0, 10) && h.date < end.slice(0, 10)),
+    away: Object.fromEntries((chosen?.interviewerIds ?? []).map((p) => [p, away[p] ?? []])),
   });
 }
 
@@ -321,6 +345,8 @@ export async function selfScheduleLink(
   ctx: Ctx,
   applicationId: string,
   planKey: string,
+  away: Absences = {},
+  holidays: readonly Holiday[] = [],
 ): Promise<Result<string>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -328,9 +354,12 @@ export async function selfScheduleLink(
   if ((await planned(ctx, loaded.value.app.jobId, planKey)) === null)
     return err(notFound('interview in the plan'));
   const token = randomBytes(24).toString('base64url');
+  // The days off known now go with the link: the candidate's page has no Time Off to ask.
   await ctx.tx.settings.set(`schedule:${sha256(token)}`, {
     applicationId,
     planKey,
+    away,
+    holidays,
     expiresAt: new Date(Date.parse(ctx.at) + 14 * 86_400_000).toISOString(),
   });
   const company = (await generalSettings(ctx)).companySlug;
@@ -345,15 +374,16 @@ export async function selfScheduleLink(
   return ok(link);
 }
 
-async function linkOf(
-  ctx: Ctx,
-  token: string,
-): Promise<{ applicationId: string; planKey: string } | null> {
-  const held = (await ctx.tx.settings.get(`schedule:${sha256(token)}`)) as {
-    applicationId: string;
-    planKey: string;
-    expiresAt: string;
-  } | null;
+interface Link {
+  readonly applicationId: string;
+  readonly planKey: string;
+  readonly away?: Absences;
+  readonly holidays?: readonly Holiday[];
+  readonly expiresAt: string;
+}
+
+async function linkOf(ctx: Ctx, token: string): Promise<Link | null> {
+  const held = (await ctx.tx.settings.get(`schedule:${sha256(token)}`)) as Link | null;
   return held === null || held.expiresAt < ctx.at ? null : held;
 }
 
@@ -361,7 +391,16 @@ async function linkOf(
 export async function linkSlots(
   ctx: Ctx,
   token: string,
-): Promise<Result<{ slots: readonly string[]; minutes: number; title: string }>> {
+): Promise<
+  Result<{
+    slots: readonly string[];
+    minutes: number;
+    title: string;
+    holidays: readonly Holiday[];
+    /** How many times the candidate gives: ten, or every free one when there are fewer. */
+    wanted: number;
+  }>
+> {
   const link = await linkOf(ctx, token);
   if (link === null) return err(notFound('link'));
   const app = await ctx.tx.applications.get(link.applicationId);
@@ -369,17 +408,27 @@ export async function linkSlots(
   if (app === null || plan === null || app.outcome !== 'active') return err(notFound('link'));
   const from = new Date(Date.parse(ctx.at) + 86_400_000).toISOString() as Instant;
   const to = new Date(Date.parse(ctx.at) + 15 * 86_400_000).toISOString() as Instant;
-  return ok({
-    slots: freeSlots(
-      await availability(ctx, plan.interviewerIds, from, to, {}),
+  const holidays = link.holidays ?? [];
+  const slots = freeSlots(
+    await availability(
+      ctx,
+      plan.interviewerIds,
       from,
       to,
-      plan.minutes,
-      30,
-      ctx.at,
+      withHolidays(plan.interviewerIds, link.away ?? {}, holidays),
     ),
+    from,
+    to,
+    plan.minutes,
+    30,
+    ctx.at,
+  );
+  return ok({
+    slots,
     minutes: plan.minutes,
     title: plan.title,
+    holidays: holidays.filter((h) => h.date >= from.slice(0, 10) && h.date < to.slice(0, 10)),
+    wanted: Math.min(10, slots.length),
   });
 }
 
@@ -398,8 +447,14 @@ export async function offerAvailability(
   const offered = await linkSlots(ctx, token);
   if (!offered.ok) return offered;
   const chosen = [...new Set(times)].toSorted();
-  if (chosen.length === 0 || chosen.length > 10)
-    return err(failure('TIMES', 'Choose between one and ten times'));
+  const wanted = offered.value.wanted;
+  if (chosen.length !== wanted || wanted === 0)
+    return err(
+      failure(
+        'TIMES',
+        `Choose ${String(wanted)} time${wanted === 1 ? '' : 's'}, so the team can find one that fits`,
+      ),
+    );
   const stale = chosen.find((t) => !offered.value.slots.includes(t));
   if (stale !== undefined)
     return err(failure('SLOT_TAKEN', 'One of those times has just gone; choose again'));

@@ -331,6 +331,8 @@ const files = (list: readonly z.infer<typeof File>[] | undefined): IncomingFile[
     bytes: new Uint8Array(Buffer.from(f.base64, 'base64')),
   }));
 const text = (max: number) => z.string().max(max);
+/** The company's holidays from Time Off, through the shell. */
+const Holidays = z.array(z.object({ date: z.iso.date(), name: text(200) })).max(200);
 /** An interview's agenda as the recruiter wrote it: rich text for the page, plain for mail and calendars. */
 const Agenda = z.object({ html: text(20_000), text: text(20_000) });
 /** What a composer settled on: subject and body, placeholders allowed. */
@@ -470,7 +472,8 @@ export const ROUTES: readonly Route[] = [
       applicationId: Id,
       planKey: text(40).optional(),
       from: Instant.optional(),
-      away: text(4000).optional(),
+      away: text(100_000).optional(),
+      holidays: text(20_000).optional(),
     }),
     run: (ctx, { params }) =>
       scheduleScreen(
@@ -479,6 +482,7 @@ export const ROUTES: readonly Route[] = [
         params.planKey,
         params.from,
         params.away === undefined ? {} : (JSON.parse(params.away) as Record<string, string[]>),
+        params.holidays === undefined ? [] : Holidays.parse(JSON.parse(params.holidays)),
       ),
   }),
   route({
@@ -1087,8 +1091,14 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/applications/{applicationId}/schedule-links`,
     summary: 'Send a self-scheduling link',
     params: z.object({ applicationId: Id }),
-    body: z.object({ planKey: text(40) }),
-    run: (ctx, { params, body }) => selfScheduleLink(ctx, params.applicationId, body.planKey),
+    body: z.object({
+      planKey: text(40),
+      /** The days off known on the Schedule screen, kept with the link. */
+      away: z.record(text(80), z.array(z.iso.date()).max(400)).default({}),
+      holidays: Holidays.default([]),
+    }),
+    run: (ctx, { params, body }) =>
+      selfScheduleLink(ctx, params.applicationId, body.planKey, body.away, body.holidays),
   }),
   route({
     name: 'proposeSlots',

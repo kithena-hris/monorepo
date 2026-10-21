@@ -33,6 +33,12 @@ export interface SlotPickerProps {
   label: string;
   /** Under the day's list: "09:00 – 09:45" when given, else the start alone. */
   minutes?: number;
+  /**
+   * Why a day has nothing free, when the caller knows: "Diwali", "Public
+   * holiday". Read after the date and shown when the day is chosen; a weekend
+   * or a day with no working hours left needs none.
+   */
+  unavailable?: Readonly<Record<IsoDate, string>>;
   className?: string;
 }
 
@@ -55,6 +61,7 @@ export function SlotPicker({
   locale = 'en-GB',
   label,
   minutes,
+  unavailable = {},
   className,
 }: SlotPickerProps): JSX.Element {
   const time = useMemo(
@@ -93,6 +100,8 @@ export function SlotPicker({
   for (const d of byDay.keys()) markers[d] = [{ tone: 'success', label: 'Times free' }];
   for (const d of bookedDays)
     markers[d] = [...(markers[d] ?? []), { tone: 'accent', label: 'Already booked' }];
+  for (const [d, why] of Object.entries(unavailable))
+    markers[d] = [...(markers[d] ?? []), { tone: 'warning', label: why }];
   const weekend = (d: IsoDate): boolean => {
     const n = new Date(`${d}T12:00:00Z`).getUTCDay();
     return n === 0 || n === 6;
@@ -104,7 +113,10 @@ export function SlotPicker({
   for (let i = 1; i <= last; i += 1) {
     const d = `${day.slice(0, 7)}-${String(i).padStart(2, '0')}`;
     if (!byDay.has(d) && d >= today)
-      dayStyles[d] = { appearance: 'struck', label: weekend(d) ? 'Weekend' : 'Nothing free' };
+      dayStyles[d] = {
+        appearance: 'struck',
+        label: unavailable[d] ?? (weekend(d) ? 'Weekend' : 'Nothing free'),
+      };
   }
   const range = (s: string): string =>
     minutes === undefined

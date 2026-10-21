@@ -28,6 +28,7 @@ import {
   offerAvailability,
   saveScorecard,
   scheduleInterview,
+  scheduleScreen,
   selfScheduleLink,
   setInterviewState,
   slotsFor,
@@ -537,6 +538,20 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       ),
     );
     expect(slots.length).toBeGreaterThan(0);
+    // A company holiday strikes the day for everyone, and is named for the calendar.
+    const onHoliday = value(
+      await scheduleScreen(
+        ctx,
+        applied.applicationId,
+        'portfolio',
+        Instant.parse('2026-10-19T00:00:00.000Z'),
+        {},
+        [{ date: '2026-10-19', name: 'Founders’ day' }],
+      ),
+    );
+    expect(onHoliday.slots.filter((t) => t.startsWith('2026-10-19'))).toEqual([]);
+    expect(onHoliday.slots.length).toBeGreaterThan(0);
+    expect(onHoliday.holidays).toEqual([{ date: '2026-10-19', name: 'Founders’ day' }]);
     value(
       await scheduleInterview(ctx, applied.applicationId, {
         planKey: 'portfolio',
@@ -595,15 +610,16 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   );
   const linkToken = link.split('#')[1] ?? '';
   const free = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));
-  const tooMany = await as('public', (ctx) =>
-    offerAvailability(ctx, linkToken, free.slots.slice(0, 11) as Instant[]),
+  expect(free.wanted).toBe(10);
+  const tooFew = await as('public', (ctx) =>
+    offerAvailability(ctx, linkToken, free.slots.slice(0, 3) as Instant[]),
   );
-  expect(tooMany.ok ? null : tooMany.error.code).toBe('TIMES');
+  expect(tooFew.ok ? null : tooFew.error.code).toBe('TIMES');
   const availability = await asMailing('public', async (ctx) =>
-    value(await offerAvailability(ctx, linkToken, free.slots.slice(0, 3) as Instant[])),
+    value(await offerAvailability(ctx, linkToken, free.slots.slice(0, 10) as Instant[])),
   );
-  expect(availability.times).toHaveLength(3);
-  expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/offered 3 times/u));
+  expect(availability.times).toHaveLength(10);
+  expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/offered 10 times/u));
   const bookedFromLink = await asMailing('ada', async (ctx) =>
     value(
       await bookFromAvailability(ctx, applied.applicationId, availability.id, {

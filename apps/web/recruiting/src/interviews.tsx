@@ -779,6 +779,7 @@ function ScheduleBody({
   const whereReady =
     where === 'meet' || (where === 'link' && video !== '') || (where === 'place' && place !== '');
   const offered = data.asks.filter((a) => a.kind === 'availability' && a.state === 'open');
+  const unavailable = Object.fromEntries(data.holidays.map((h) => [h.date, h.name]));
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -811,6 +812,7 @@ function ScheduleBody({
                     slots={a.times}
                     max={1}
                     today={today}
+                    unavailable={unavailable}
                     {...(plan === undefined ? {} : { minutes: plan.minutes })}
                     value={fromAsk?.askId === a.id && fromAsk.time !== '' ? [fromAsk.time] : []}
                     onChange={(v) => {
@@ -865,7 +867,7 @@ function ScheduleBody({
                 ) : null}
                 {how === 'link' ? (
                   <p className="text-sm text-fg-muted">
-                    {`${data.candidate.name} gets a link to the same free times, in their own time zone, and offers up to ten. You book one from here.`}
+                    {`${data.candidate.name} gets a link to the same free times, in their own time zone, holidays and days away left out, and gives ten. You book one from here.`}
                   </p>
                 ) : (
                   <SlotPicker
@@ -873,6 +875,7 @@ function ScheduleBody({
                     slots={data.slots}
                     booked={data.booked.map((b) => b.startsAt)}
                     today={today}
+                    unavailable={unavailable}
                     {...(plan === undefined ? {} : { minutes: plan.minutes })}
                     {...(how === 'book' ? { max: 1 } : { max: 12 })}
                     value={picked}
@@ -938,7 +941,7 @@ function ScheduleBody({
                 </RadioCard>
                 <RadioCard
                   value="link"
-                  description={`${data.candidate.name} offers up to ten times that fit everyone; you book one.`}
+                  description={`${data.candidate.name} gives ten times that fit everyone; you book one.`}
                 >
                   Ask for their availability
                 </RadioCard>
@@ -1015,7 +1018,10 @@ function ScheduleBody({
                   onClick={() => {
                     act.run(
                       'SelfScheduleLink',
-                      { applicationId, input: { planKey: data.planKey } },
+                      {
+                        applicationId,
+                        input: { planKey: data.planKey, away: data.away, holidays: data.holidays },
+                      },
                       back,
                     );
                   }}

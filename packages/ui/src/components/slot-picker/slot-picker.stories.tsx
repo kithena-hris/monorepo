@@ -40,6 +40,7 @@ const meta = {
     today: TODAY,
     timeZone: 'UTC',
     minutes: 45,
+    unavailable: { '2026-10-21': 'Founders’ day' },
   },
 } satisfies Meta<typeof SlotPicker>;
 
