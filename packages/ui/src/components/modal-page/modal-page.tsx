@@ -140,6 +140,17 @@ export interface ModalPageHeaderProps extends Omit<ComponentPropsWithoutRef<'div
    */
   dismiss?: 'close' | 'back' | 'none';
   dismissLabel?: string;
+  /**
+   * `center` puts the title and its meta in the middle of the bar, the dismiss
+   * at the start and the actions at the end: for a page whose name is the
+   * thing being made, such as a document or a wizard, rather than a place.
+   */
+  align?: 'start' | 'center';
+  /**
+   * The page's name for assistive tech when `title` is a control rather than
+   * words, such as a name edited in place. The title then renders as given.
+   */
+  label?: string;
 }
 
 export function ModalPageHeader({
@@ -150,16 +161,22 @@ export function ModalPageHeader({
   actions,
   dismiss = 'close',
   dismissLabel,
+  align = 'start',
+  label,
   ...props
 }: ModalPageHeaderProps): JSX.Element {
+  const center = align === 'center';
   return (
     <div
       className={cn(
         'flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-2.5 pt-safe-top touch:px-3',
+        // Three tracks, the outer two equal, so the middle sits on the page's centre line.
+        center && 'grid grid-cols-[1fr_minmax(0,auto)_1fr]',
         className,
       )}
       {...props}
     >
+      {dismiss === 'none' && center ? <span aria-hidden /> : null}
       {dismiss !== 'none' ? (
         <DialogPrimitive.Close
           className={cn(
@@ -168,6 +185,7 @@ export function ModalPageHeader({
             'inline-flex min-h-control-sm min-w-control-sm shrink-0 items-center justify-center gap-1.5 rounded-control bg-surface-sunken px-2 text-sm font-semibold text-fg',
             'transition-colors hover:bg-surface-hover touch:min-h-tap touch:min-w-tap',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+            center && 'justify-self-start',
           )}
         >
           {dismiss === 'back' ? (
@@ -184,11 +202,18 @@ export function ModalPageHeader({
         </DialogPrimitive.Close>
       ) : null}
 
-      <div className="min-w-0 flex-1">
+      <div className={cn('min-w-0 flex-1', center && 'flex flex-col items-center text-center')}>
         <div className="flex min-w-0 items-center gap-2">
-          <DialogPrimitive.Title className="truncate text-md font-semibold text-fg">
-            {title}
-          </DialogPrimitive.Title>
+          {label === undefined ? (
+            <DialogPrimitive.Title className="truncate text-md font-semibold text-fg">
+              {title}
+            </DialogPrimitive.Title>
+          ) : (
+            <>
+              <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>
+              {title}
+            </>
+          )}
           {meta}
         </div>
         {description ? (
@@ -199,11 +224,19 @@ export function ModalPageHeader({
           // Radix warns when a dialog has no description, and the warning is
           // right: something has to describe the surface. When there is no
           // visible subtitle the title carries it alone, declared explicitly.
-          <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
+          <DialogPrimitive.Description className="sr-only">
+            {label ?? title}
+          </DialogPrimitive.Description>
         )}
       </div>
 
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className={cn('flex shrink-0 items-center gap-2', center && 'justify-self-end')}>
+          {actions}
+        </div>
+      ) : center ? (
+        <span aria-hidden />
+      ) : null}
     </div>
   );
 }

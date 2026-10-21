@@ -38,7 +38,10 @@ export function salary(l: Pick<PublicListing, 'salary'>): string | null {
     maximumFractionDigits: 0,
   });
   const per = l.salary.period === 'year' ? '' : ` a ${l.salary.period}`;
-  return `${f.format(l.salary.minMinor / 100)}–${f.format(l.salary.maxMinor / 100)}${per}`;
+  // A fixed salary is one figure, never a range from a number to itself.
+  return l.salary.minMinor === l.salary.maxMinor
+    ? `${f.format(l.salary.minMinor / 100)}${per}`
+    : `${f.format(l.salary.minMinor / 100)}–${f.format(l.salary.maxMinor / 100)}${per}`;
 }
 
 export const hours = (h: string): string => (h === 'part_time' ? 'Part time' : 'Full time');

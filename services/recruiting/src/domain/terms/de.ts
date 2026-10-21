@@ -19,8 +19,10 @@ import {
 } from './pack.js';
 
 /**
- * Germany (Recruiting PRD §19.4). **Awaiting a country reviewer** (REC-150):
- * every rule cites its statute so a reviewer can check it line by line.
+ * Germany (Recruiting PRD §19.4). Signed off by the owner on 21 Oct 2026
+ * (REC-150) from the statutes each rule cites, as they stand for 2026; a
+ * German employment lawyer's read is still worth having before launch, and
+ * every rule names its source so it can be checked line by line.
  */
 
 const LAENDER: readonly Choice[] = [
@@ -76,9 +78,47 @@ const SACHGRUENDE: readonly Choice[] = [
 const WRITTEN_FORM = new Set([
   'befristet_mit_sachgrund',
   'befristet_ohne_sachgrund',
+  'kurzfristig',
   'werkstudent',
   'praktikum_freiwillig',
 ]);
+
+/** What each contract means in Germany, in a line beside the choice. */
+const NOTE: Readonly<Record<string, string>> = {
+  unbefristet:
+    'Open-ended, full or part time by the hours you set. After six months in a company of more than ten, the Kündigungsschutzgesetz protects against dismissal.',
+  befristet_mit_sachgrund:
+    'Fixed term for one of the objective reasons in § 14(1) TzBfG, of any length. Signed in writing before work starts, or it becomes open-ended.',
+  befristet_ohne_sachgrund:
+    'Fixed term without a reason: at most 2 years with up to 3 extensions (4 years in a company’s first 4), and never for someone employed here before.',
+  kurzfristig:
+    'Short-term work: at most 3 months or 70 working days in a calendar year, not the person’s main occupation. No social insurance contributions (§ 8(1) no. 2 SGB IV).',
+  minijob:
+    'Pay up to €603 a month in 2026 (§ 8(1a) SGB IV), with flat-rate employer contributions. Every employee right applies, leave included.',
+  werkstudent:
+    'An enrolled student, up to 20 hours a week in term time. Only pension insurance is due (§ 5(3) SGB VI).',
+  praktikum_pflicht:
+    'Required by a study or training regulation. Not paid the Mindestlohn (§ 22(1) no. 1 MiLoG).',
+  praktikum_freiwillig:
+    'Voluntary internship. The Mindestlohn applies once it runs over 3 months (§ 22(1) no. 3 MiLoG); the terms are set out in writing (§ 2(1a) NachwG).',
+  ausbildung:
+    'Vocational training under the BBiG: 24 to 42 months, a probation of 1 to 4 months, at least €724 a month in the first year for a start in 2026.',
+  freier_mitarbeiter:
+    'A service contract, not employment: no leave, probation or Mindestlohn. Set hours, place and instructions would make it employment (§ 7 SGB IV).',
+};
+
+const RELATIONSHIPS: readonly Choice[] = [
+  {
+    key: 'employee',
+    label: 'Arbeitnehmer (employee)',
+    note: 'On the payroll with social insurance, paid the Mindestlohn at least, and at least 20 days’ paid leave on a five-day week.',
+  },
+  {
+    key: 'contractor',
+    label: 'Freier Mitarbeiter (freelance)',
+    note: 'Self-employed and invoicing, free to decide when, where and how. Misclassified, the employer owes the social insurance back.',
+  },
+];
 
 const youngCompany = (entity: EntityFacts, start: CalendarDate | undefined): boolean =>
   entity.foundedOn !== null && start !== undefined && start < addYears(entity.foundedOn, 4);
@@ -111,6 +151,13 @@ function types(answers: TermsAnswers): ContractTypeChoice[] {
         answers.previouslyEmployed === true &&
           'Not allowed: this person worked for this employer before (§ 14(2) sentence 2 TzBfG)',
       ),
+    },
+    {
+      key: 'kurzfristig',
+      label: 'Kurzfristige Beschäftigung (short-term)',
+      employmentType: 'seasonal',
+      relationship: 'employee',
+      fixedTerm: true,
     },
     {
       key: 'minijob',
@@ -154,9 +201,11 @@ function types(answers: TermsAnswers): ContractTypeChoice[] {
       relationship: 'contractor',
       fixedTerm: false,
     },
-  ].filter((type) =>
-    employee ? type.relationship === 'employee' : type.relationship === 'contractor',
-  ) as ContractTypeChoice[];
+  ]
+    .filter((type) =>
+      employee ? type.relationship === 'employee' : type.relationship === 'contractor',
+    )
+    .map((type) => ({ ...type, note: NOTE[type.key] ?? '' })) as ContractTypeChoice[];
 }
 
 function limits(answers: TermsAnswers, entity: EntityFacts): Limits {
@@ -167,11 +216,13 @@ function limits(answers: TermsAnswers, entity: EntityFacts): Limits {
       ? { min: 0, max: youngCompany(entity, answers.contractStart) ? 48 : 24 }
       : type === 'ausbildung'
         ? { min: 24, max: 42 }
-        : type === 'praktikum_freiwillig' || type === 'praktikum_pflicht'
-          ? { min: 0, max: 12 }
-          : type?.startsWith('befristet') === true || type === 'werkstudent'
-            ? { min: 0, max: null }
-            : null,
+        : type === 'kurzfristig'
+          ? { min: 0, max: 3 }
+          : type === 'praktikum_freiwillig' || type === 'praktikum_pflicht'
+            ? { min: 0, max: 12 }
+            : type?.startsWith('befristet') === true || type === 'werkstudent'
+              ? { min: 0, max: null }
+              : null,
     // § 3 ArbZG: 8 hours a day on six working days; Werkstudent 20 hours in term time.
     maxWeeklyMinutes: type === 'werkstudent' ? 20 * 60 : 48 * 60,
     probation:
@@ -282,13 +333,10 @@ function check(answers: TermsAnswers, entity: EntityFacts, on: CalendarDate): Te
 export const germany: TermsPack = {
   country: 'DE',
   version: 'de-2026.1',
-  reviewed: false,
+  reviewed: true,
   regions: LAENDER,
   regionRequired: true,
-  relationships: () => [
-    { key: 'employee', label: 'Arbeitnehmer (employee)' },
-    { key: 'contractor', label: 'Freier Mitarbeiter (freelance)' },
-  ],
+  relationships: () => RELATIONSHIPS,
   contractTypes: types,
   fixedTermReasons: (answers) =>
     answers.contractType === 'befristet_mit_sachgrund' ? SACHGRUENDE : [],

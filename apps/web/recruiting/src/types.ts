@@ -266,6 +266,8 @@ export interface JobTerms {
   readonly dayEnd: number | null;
   readonly breakMinutes: number;
   readonly vacationDays: number | null;
+  /** One figure, or a range; the figures are the job's salary. */
+  readonly payKind: 'fixed' | 'range' | null;
   readonly benefitIds: readonly string[];
 }
 
@@ -273,6 +275,8 @@ export interface TermsChoice {
   readonly key: string;
   readonly label: string;
   readonly unavailable?: string | null;
+  /** What it means in that country, in a line. */
+  readonly note?: string | null;
 }
 
 export interface TermsOptions {
@@ -292,6 +296,9 @@ export interface TermsOptions {
   readonly relationships: readonly TermsChoice[];
   readonly contractTypes: readonly (TermsChoice & { readonly fixedTerm: boolean })[];
   readonly fixedTermReasons: readonly TermsChoice[];
+  readonly currency: string | null;
+  /** The lowest lawful yearly pay at these hours, minor units. */
+  readonly minimumPayMinor: number | null;
   readonly maxWeeklyMinutes: number | null;
   readonly fullTimeWeeklyMinutes: number | null;
   readonly weeklyMinutes: number | null;

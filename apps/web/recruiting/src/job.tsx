@@ -10,6 +10,7 @@ import {
   Alert,
   Avatar,
   Badge,
+  Banner,
   Button,
   Card,
   CardContent,
@@ -17,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
   CopyField,
+  DatePicker,
   EmptyState,
   Field,
   FieldControl,
@@ -55,8 +57,8 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, newId, range, useAct, words } from './shared';
-import { Benefits, Contract, Hours, Leave, WorkType, Workplace } from './job-terms';
-import { StepDialog } from './step-dialog';
+import { TermsCards, hoursOf } from './job-terms';
+import { JobWizard } from './job-wizard';
 import type { FormField, JobData, ScreenProps } from './types';
 
 /**
@@ -209,17 +211,9 @@ function Details({
 }): JSX.Element {
   const act = useAct(props);
   const [job, setJob] = useState(data.job);
-  const [min, setMin] = useState<number | null>(
-    data.job.salary === null ? null : data.job.salary.minMinor / 100,
-  );
-  const [max, setMax] = useState<number | null>(
-    data.job.salary === null ? null : data.job.salary.maxMinor / 100,
-  );
-  // The entity, the place, the work mode, the contract and the benefits are the terms' steps:
-  // they are sent as they stand now, never as this form first saw them.
-  const entity = data.entities.find((e) => e.id === data.job.entityId);
+  // The place, the terms and the pay are the terms' own: sent as they stand now,
+  // never as this form first saw them.
   const save = (): void => {
-    const currency = entity?.currency ?? job.salary?.currency ?? 'EUR';
     act.run('SaveJobDetails', {
       jobId: job.id,
       input: {
@@ -228,7 +222,7 @@ function Details({
         department: job.department,
         locationIds: data.job.locationIds,
         workMode: data.job.workMode,
-        salaryShown: job.salaryShown,
+        salaryShown: data.job.salaryShown,
         languages: job.languages,
         internalOnly: job.internalOnly,
         confidential: job.confidential,
@@ -239,15 +233,7 @@ function Details({
           contractType: data.job.outline.contractType,
           hours: data.job.outline.hours,
         },
-        salary:
-          min === null || max === null
-            ? null
-            : {
-                minMinor: Math.round(min * 100),
-                maxMinor: Math.round(max * 100),
-                currency,
-                period: 'year',
-              },
+        salary: data.job.salary,
         searchable: job.searchable,
         benefitIds: data.job.benefitIds,
         scorecardTemplateId: job.scorecardTemplateId,
@@ -258,140 +244,129 @@ function Details({
   return (
     <div className="flex flex-col gap-4">
       <Refusal error={act.error} />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle level={2}>The job</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <Field>
-              <FieldLabel>Internal title</FieldLabel>
-              <FieldControl>
-                <Input
-                  value={job.internalTitle}
-                  onChange={(e) => {
-                    setJob({ ...job, internalTitle: e.target.value });
-                  }}
-                />
-              </FieldControl>
-            </Field>
-            <Field required>
-              <FieldLabel>Advertised title</FieldLabel>
-              <FieldControl>
-                <Input
-                  value={job.title}
-                  onChange={(e) => {
-                    setJob({ ...job, title: e.target.value });
-                  }}
-                />
-              </FieldControl>
-            </Field>
-            <Field>
-              <FieldLabel>Department</FieldLabel>
-              <FieldControl>
-                {data.orgUnits.length === 0 ? (
-                  <Input
-                    value={job.department ?? ''}
-                    onChange={(e) => {
-                      setJob({ ...job, department: e.target.value === '' ? null : e.target.value });
-                    }}
-                  />
-                ) : (
-                  // The company's departments (People's, or Recruiting's own in Settings), picked, not typed.
-                  <Combobox
-                    label="Department"
-                    clearable
-                    placeholder="Choose a department"
-                    options={data.orgUnits.map((u) => ({ value: u.name, label: u.name }))}
-                    value={job.department}
-                    onChange={(v) => {
-                      setJob({ ...job, department: typeof v === 'string' ? v : null });
-                    }}
-                  />
-                )}
-              </FieldControl>
-            </Field>
-            <NumberField
-              label="Openings"
-              value={job.openings}
-              min={1}
-              onChange={(n) => {
-                setJob({ ...job, openings: n ?? 1 });
-              }}
-            />
-          </CardContent>
-        </Card>
-        <div className="flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>Pay</CardTitle>
-              <CardDescription>
-                Shown in the ad where the law asks for it, and checked against every offer.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <NumberField
-                label={`From (yearly${entity === undefined ? '' : `, ${entity.currency}`})`}
-                value={min}
-                min={0}
-                onChange={setMin}
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>The job</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <Field required className="md:col-span-2">
+            <FieldLabel>Advertised title</FieldLabel>
+            <FieldControl>
+              <Input
+                value={job.title}
+                onChange={(e) => {
+                  setJob({ ...job, title: e.target.value });
+                }}
               />
-              <NumberField label="To (yearly)" value={max} min={0} onChange={setMax} />
-              <Field orientation="horizontal" className="md:col-span-2">
-                <span className="flex min-w-0 flex-col">
-                  <FieldLabel>Show the range in the ad</FieldLabel>
-                  <FieldDescription>
-                    Required in some places, such as New York and Spain.
-                  </FieldDescription>
-                </span>
-                <FieldControl>
-                  <Switch
-                    checked={job.salaryShown}
-                    onCheckedChange={(on) => {
-                      setJob({ ...job, salaryShown: on });
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>Visibility</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <Field orientation="horizontal">
-                <span className="flex min-w-0 flex-col">
-                  <FieldLabel>Internal only</FieldLabel>
-                  <FieldDescription>On the internal board, nowhere public.</FieldDescription>
-                </span>
-                <FieldControl>
-                  <Switch
-                    checked={job.internalOnly}
-                    onCheckedChange={(on) => {
-                      setJob({ ...job, internalOnly: on });
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-              <Field orientation="horizontal">
-                <span className="flex min-w-0 flex-col">
-                  <FieldLabel>Confidential</FieldLabel>
-                  <FieldDescription>The company is not named in the ad.</FieldDescription>
-                </span>
-                <FieldControl>
-                  <Switch
-                    checked={job.confidential}
-                    onCheckedChange={(on) => {
-                      setJob({ ...job, confidential: on });
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </FieldControl>
+          </Field>
+          <Field className="md:col-span-2">
+            <FieldLabel>Internal title</FieldLabel>
+            <FieldDescription>For the team only, when it differs from the ad.</FieldDescription>
+            <FieldControl>
+              <Input
+                value={job.internalTitle}
+                onChange={(e) => {
+                  setJob({ ...job, internalTitle: e.target.value });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field>
+            <FieldLabel>Team</FieldLabel>
+            <FieldControl>
+              <Combobox
+                label="Team"
+                clearable
+                placeholder="Choose a team"
+                options={data.orgUnits.map((u) => ({ value: u.name, label: u.name }))}
+                value={job.department}
+                onChange={(v) => {
+                  setJob({ ...job, department: typeof v === 'string' ? v : null });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field>
+            <FieldLabel>Level</FieldLabel>
+            <Select
+              value={job.outline.seniority ?? 'none'}
+              onValueChange={(v) => {
+                setJob({ ...job, outline: { ...job.outline, seniority: v === 'none' ? null : v } });
+              }}
+            >
+              <FieldControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FieldControl>
+              <SelectContent>
+                <SelectItem value="none">Not set</SelectItem>
+                {['entry', 'mid', 'senior', 'lead', 'executive'].map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {words(l)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <NumberField
+            label="Openings"
+            value={job.openings}
+            min={1}
+            onChange={(n) => {
+              setJob({ ...job, openings: n ?? 1 });
+            }}
+          />
+          <Field>
+            <FieldLabel>Target start</FieldLabel>
+            <FieldControl>
+              <DatePicker
+                label="Target start"
+                value={job.targetHireDate}
+                onChange={(d) => {
+                  setJob({ ...job, targetHireDate: d });
+                }}
+              />
+            </FieldControl>
+          </Field>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle level={2}>Visibility</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Field orientation="horizontal">
+            <span className="flex min-w-0 flex-col">
+              <FieldLabel>Internal only</FieldLabel>
+              <FieldDescription>On the internal board, nowhere public.</FieldDescription>
+            </span>
+            <FieldControl>
+              <Switch
+                checked={job.internalOnly}
+                onCheckedChange={(on) => {
+                  setJob({ ...job, internalOnly: on });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field orientation="horizontal">
+            <span className="flex min-w-0 flex-col">
+              <FieldLabel>Confidential</FieldLabel>
+              <FieldDescription>The company is not named in the ad.</FieldDescription>
+            </span>
+            <FieldControl>
+              <Switch
+                checked={job.confidential}
+                onCheckedChange={(on) => {
+                  setJob({ ...job, confidential: on });
+                }}
+              />
+            </FieldControl>
+          </Field>
+        </CardContent>
+      </Card>
       <div className="flex justify-end">
         <Button loading={act.pending} onClick={save}>
           Save details
@@ -1336,33 +1311,12 @@ function ChatChannel({
 }
 
 /** The parts of a job a person edits, each in its own sheet off the ad. */
-const PARTS = [
-  'details',
-  'terms',
-  'workplace',
-  'worktype',
-  'contract',
-  'hours',
-  'leave',
-  'benefits',
-  'team',
-  'criteria',
-  'plan',
-  'ad',
-  'form',
-  'publishing',
-] as const;
+const PARTS = ['details', 'terms', 'team', 'criteria', 'plan', 'ad', 'form', 'publishing'] as const;
 type Part = (typeof PARTS)[number];
 
 const PART_TITLE: Readonly<Record<Part, string>> = {
   details: 'Job details',
-  terms: 'Workplace and terms',
-  workplace: 'Workplace',
-  worktype: 'Work type',
-  contract: 'Contract',
-  hours: 'Hours and days',
-  leave: 'Time off',
-  benefits: 'Benefits',
+  terms: 'Workplace, terms and pay',
   team: 'Hiring team',
   criteria: 'Criteria',
   plan: 'Interview plan',
@@ -1370,23 +1324,6 @@ const PART_TITLE: Readonly<Record<Part, string>> = {
   form: 'Apply form',
   publishing: 'Publishing',
 };
-
-/** In order: each terms step offers only what the ones before it allow. */
-const STEPS: readonly { readonly label: string; readonly parts: readonly Part[] }[] = [
-  { label: 'The job', parts: ['details'] },
-  { label: 'Workplace', parts: ['workplace'] },
-  { label: 'Work type', parts: ['worktype'] },
-  { label: 'Contract', parts: ['contract'] },
-  { label: 'Hours', parts: ['hours'] },
-  { label: 'Time off', parts: ['leave'] },
-  { label: 'Benefits', parts: ['benefits'] },
-  { label: 'Team', parts: ['team', 'criteria'] },
-  { label: 'Interviews', parts: ['plan'] },
-  { label: 'Apply form', parts: ['form'] },
-  { label: 'The ad', parts: ['ad'] },
-];
-
-const TERMS: readonly Part[] = ['workplace', 'worktype', 'contract', 'hours', 'leave', 'benefits'];
 
 const MODE: Readonly<Record<string, string>> = {
   onsite: 'On site',
@@ -1407,25 +1344,7 @@ function PartBody({
     case 'details':
       return <Details data={data} props={props} />;
     case 'terms':
-      return (
-        <div className="flex flex-col gap-4">
-          {TERMS.map((t) => (
-            <PartBody key={t} part={t} data={data} props={props} />
-          ))}
-        </div>
-      );
-    case 'workplace':
-      return <Workplace data={data} props={props} />;
-    case 'worktype':
-      return <WorkType data={data} props={props} />;
-    case 'contract':
-      return <Contract data={data} props={props} />;
-    case 'hours':
-      return <Hours data={data} props={props} />;
-    case 'leave':
-      return <Leave data={data} props={props} />;
-    case 'benefits':
-      return <Benefits data={data} props={props} />;
+      return <TermsCards data={data} props={props} />;
     case 'team':
       return <Team data={data} props={props} />;
     case 'criteria':
@@ -1487,7 +1406,6 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
   if (props.params?.['id'] === 'new') return <NewJob {...props} />;
   const wizard = props.search?.['setup'] === '1';
-  const step = Math.min(STEPS.length - 1, Math.max(0, Number(props.search?.['step'] ?? '0') || 0));
   const part = PARTS.find((p) => p === props.search?.['edit']);
   const edit = (next: Part | null) => props.onFilter?.({ edit: next });
   return (
@@ -1496,6 +1414,10 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
         const ad = data.ads[0];
         const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
         const places = data.locations.filter((l) => data.job.locationIds.includes(l.id));
+        const pay =
+          data.job.salary === null
+            ? 'Not set'
+            : `${range(data.job.salary.minMinor, data.job.salary.maxMinor, data.job.salary.currency)} a ${data.job.salary.period}${data.job.salaryShown ? '' : ', not shown'}`;
         const terms = [
           {
             label: 'Workplace',
@@ -1511,7 +1433,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
             value:
               data.options.weeklyMinutes === null
                 ? words(data.job.outline.hours)
-                : `${String(Math.round((data.options.weeklyMinutes / 60) * 10) / 10)} h a week, ${words(data.job.outline.hours)}`,
+                : `${hoursOf(data.options.weeklyMinutes)} a week, ${words(data.job.outline.hours).toLowerCase()}`,
           },
           {
             label: 'Holiday',
@@ -1520,9 +1442,16 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 ? 'Not set'
                 : `${String(data.terms.vacationDays)} days a year`,
           },
+          { label: 'Pay', value: pay },
           {
             label: 'Benefits',
-            value: data.job.benefitIds.length === 0 ? 'None' : String(data.job.benefitIds.length),
+            value:
+              data.job.benefitIds.length === 0
+                ? 'None'
+                : data.options.benefits
+                    .filter((b) => data.job.benefitIds.includes(b.id))
+                    .map((b) => b.name)
+                    .join(', ') || String(data.job.benefitIds.length),
           },
         ];
         const facts = [
@@ -1532,14 +1461,15 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
           },
           { label: 'Team', value: data.job.department ?? 'Not set' },
           { label: 'Openings', value: String(data.job.openings) },
-          {
-            label: 'Pay',
-            value:
-              data.job.salary === null
-                ? 'Not set'
-                : `${range(data.job.salary.minMinor, data.job.salary.maxMinor, data.job.salary.currency)} a ${data.job.salary.period}${data.job.salaryShown ? '' : ' (not shown)'}`,
-          },
         ];
+        const blocking = (ad?.checks ?? []).filter((c) => c.severity === 'error').length;
+        const publish = (): void => {
+          const go = (): void => {
+            act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
+          };
+          if (data.job.state === 'open') go();
+          else act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } }, go);
+        };
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
@@ -1564,7 +1494,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     startIcon={<icons.settings aria-hidden />}
                     onClick={() => props.onFilter?.({ setup: '1', step: null })}
                   >
-                    Set up step by step
+                    Guided setup
                   </Button>
                   {data.job.state === 'open' ? (
                     <Button
@@ -1587,35 +1517,53 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     >
                       Live on Kithena Jobs
                     </Button>
-                  ) : (
-                    <Button
-                      startIcon={<icons.send aria-hidden />}
-                      loading={act.pending}
-                      disabled={ad === undefined}
-                      onClick={() => {
-                        const publish = (): void => {
-                          act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
-                        };
-                        if (data.job.state === 'open') publish();
-                        else
-                          act.run(
-                            'MoveJob',
-                            { jobId: data.job.id, input: { to: 'open' } },
-                            publish,
-                          );
-                      }}
-                    >
-                      {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
-                    </Button>
-                  )}
+                  ) : null}
                 </>
               }
             />
             <Refusal error={act.error} />
+            {/* Before it is live: the one thing left to do, said once, with the press that does it. */}
+            {live ? null : (
+              <Banner
+                tone={ad === undefined || blocking > 0 ? 'warning' : 'accent'}
+                rounded
+                icon={<icons.send aria-hidden />}
+                title={
+                  ad === undefined
+                    ? 'Not published. The ad has no description yet.'
+                    : blocking > 0
+                      ? `Not published. ${String(blocking)} ${blocking === 1 ? 'check blocks' : 'checks block'} publishing.`
+                      : 'Ready to publish.'
+                }
+                actions={
+                  ad === undefined || blocking > 0 ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        edit('ad');
+                      }}
+                    >
+                      {ad === undefined ? 'Write the description' : 'See the checks'}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="lg"
+                      startIcon={<icons.send aria-hidden />}
+                      loading={act.pending}
+                      onClick={publish}
+                    >
+                      {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
+                    </Button>
+                  )
+                }
+              >
+                This is the ad as candidates will read it. Press any part to change it.
+              </Banner>
+            )}
             {/* The ad as Kithena Jobs lays it out: the facts, the words, the rail. */}
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
               <div className="flex min-w-0 flex-col gap-4">
-                <Region title="Title and pay" part="details" onEdit={edit}>
+                <Region title="The role" part="details" onEdit={edit}>
                   <h3 className="text-2xl font-bold tracking-[-0.01em]">{data.job.title}</h3>
                   <KeyValues
                     items={facts}
@@ -1624,7 +1572,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     className="mt-3 text-sm"
                   />
                 </Region>
-                <Region title="Workplace and terms" part="terms" onEdit={edit}>
+                <Region title="Workplace, terms and pay" part="terms" onEdit={edit}>
                   <KeyValues items={terms} layout="aligned" labelWidth="7rem" className="text-sm" />
                 </Region>
                 <Region title="The ad" part="ad" onEdit={edit}>
@@ -1753,25 +1701,17 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               </SheetContent>
             </Sheet>
 
-            {/* A new job: the steps, with the bar that stays at the top as each scrolls. */}
-            <StepDialog
+            {/* A new job, set up on a page of its own over the ad, a small step at a time. */}
+            <JobWizard
               open={wizard}
-              wide
-              title={`Set up ${data.job.title}`}
-              description="Each step saves on its own; the last drafts the ad from all of them."
-              steps={STEPS.map((s) => s.label)}
-              step={step}
-              onStep={(i) => props.onFilter?.({ setup: '1', step: i === 0 ? null : String(i) })}
+              data={data}
+              props={props}
+              stepKey={props.search?.['step'] ?? null}
+              onStep={(key) => props.onFilter?.({ setup: '1', step: key === 'role' ? null : key })}
               onClose={() => props.onFilter?.({ setup: null, step: null })}
-              finish={() => props.onFilter?.({ setup: null, step: null })}
-              finishLabel="Done, show the ad"
-            >
-              <div className="flex flex-col gap-6">
-                {STEPS[step]?.parts.map((p) => (
-                  <PartBody key={p} part={p} data={data} props={props} />
-                ))}
-              </div>
-            </StepDialog>
+              onFinish={() => props.onFilter?.({ setup: null, step: null })}
+              part={(p) => <PartBody part={p} data={data} props={props} />}
+            />
           </div>
         );
       }}

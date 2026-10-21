@@ -37,6 +37,7 @@ const WRITES = new Set<OperationName>([
   'SetJobCriteria',
   'SetJobPlan',
   'SaveJobTerms',
+  'SuggestJobPay',
   'MoveJob',
   'PublishJob',
   'UnpublishJob',

@@ -14,10 +14,11 @@ import {
   type TermsAnswers,
   type TermsPack,
   noLeave,
+  withNotes,
 } from './pack.js';
 
 /**
- * Spain (Recruiting PRD §19.5). **Awaiting a country reviewer** (REC-150).
+ * Spain (Recruiting PRD §19.5). Signed off by the owner on 21 Oct 2026 (REC-150) from the statutes each rule cites, as they stand for 2026; a local employment lawyer's read is still worth having before launch, and the dated tables are what moves each year.
  */
 
 const COMUNIDADES: readonly Choice[] = [
@@ -47,6 +48,37 @@ const SMI_YEARLY: readonly (readonly [string, number])[] = [
   ['2025-01-01', 1_657_600],
   ['2026-01-01', 1_709_400],
 ];
+
+const RELATIONSHIPS: readonly Choice[] = withNotes(
+  [
+    { key: 'employee', label: 'Trabajador por cuenta ajena (employee)' },
+    { key: 'contractor', label: 'Autónomo (self-employed)' },
+  ],
+  {
+    employee:
+      'On the payroll with Social Security, paid at least the SMI and the convenio’s table, with 30 calendar days of paid holiday (art. 38 ET).',
+    contractor:
+      'Self-employed and invoicing, paying their own Social Security (RETA). Working inside the company’s organisation and under its direction makes it employment (art. 1 ET).',
+  },
+);
+
+/** What each contract means in Spain, in a line beside the choice. */
+const NOTE: Readonly<Record<string, string>> = {
+  indefinido:
+    'Open-ended, the rule since the 2021 labour reform. Full or part time by the hours you set.',
+  fijo_discontinuo:
+    'Open-ended, for work that comes in seasons or campaigns: the person is called back each time, in order (art. 16 ET).',
+  temporal_produccion:
+    'For an unforeseeable rise in work, up to 6 months (12 by sector agreement), or a foreseeable peak of at most 90 days a year (art. 15.2 ET). The cause goes in the contract.',
+  temporal_sustitucion:
+    'To cover someone whose job is kept for them, to complete reduced hours, or a vacancy during selection for at most 3 months (art. 15.3 ET).',
+  formativo_alternancia:
+    'Work alongside vocational or university study, 3 months to 2 years, at most 65% of the hours in the first year and 85% in the second (art. 11.2 ET).',
+  formativo_practica:
+    'A first job in the field within 3 years of the degree or qualification (5 with a disability), 6 to 12 months (art. 11.3 ET).',
+  autonomo:
+    'A service contract with a self-employed person, not employment: no SMI, holiday or dismissal rules apply.',
+};
 
 const CAUSES: Record<string, readonly Choice[]> = {
   temporal_produccion: [
@@ -218,14 +250,11 @@ function check(answers: TermsAnswers): TermsIssue[] {
 export const spain: TermsPack = {
   country: 'ES',
   version: 'es-2026.1',
-  reviewed: false,
+  reviewed: true,
   regions: COMUNIDADES,
   regionRequired: true,
-  relationships: () => [
-    { key: 'employee', label: 'Trabajador por cuenta ajena (employee)' },
-    { key: 'contractor', label: 'Autónomo (self-employed)' },
-  ],
-  contractTypes: types,
+  relationships: () => RELATIONSHIPS,
+  contractTypes: (answers) => withNotes(types(answers), NOTE),
   fixedTermReasons: (answers) => CAUSES[answers.contractType ?? ''] ?? [],
   asksPreviousEmployment: (answers) => answers.relationship === 'employee',
   agreementRequired: () => true,

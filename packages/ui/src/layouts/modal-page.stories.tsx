@@ -469,3 +469,56 @@ export const GuardingUnsavedWork: Story = {
     );
   },
 };
+
+export const CentredTitle: Story = {
+  name: 'A centred, editable title',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'With `align="center"` the title sits on the centre line, the ✕ at the start and the actions at the end. Here the title is a name edited in place (`Input appearance="plain"`), so `label` gives the page its name for a screen reader, and the progress sits beside it.',
+      },
+    },
+  },
+  render: function CentredStory(args) {
+    const [name, setName] = useState('Senior product designer');
+    return (
+      <Behind>
+        <ModalPage>
+          <ModalPageTrigger asChild>
+            <Button variant="primary">Set up a job</Button>
+          </ModalPageTrigger>
+          <ModalPageContent {...args} size="full">
+            <ModalPageHeader
+              align="center"
+              label={`Set up ${name}`}
+              title={
+                <Input
+                  appearance="plain"
+                  size="sm"
+                  aria-label="Job title"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                  }}
+                  containerClassName="w-72 font-semibold"
+                />
+              }
+              meta={
+                <div className="w-32">
+                  <Progress value={40} label="Set up" size="sm" />
+                </div>
+              }
+              actions={<Button size="sm">Save and close</Button>}
+            />
+            <ModalPageBody className="p-6">
+              <Stack gap={4}>
+                <h2 className="text-md font-semibold text-fg">Where will they work?</h2>
+              </Stack>
+            </ModalPageBody>
+          </ModalPageContent>
+        </ModalPage>
+      </Behind>
+    );
+  },
+};

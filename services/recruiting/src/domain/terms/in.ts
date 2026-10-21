@@ -12,11 +12,13 @@ import {
   type TermsAnswers,
   type TermsPack,
   noLeave,
+  withNotes,
 } from './pack.js';
 
 /**
- * India (Recruiting PRD §19.7). **Awaiting a country reviewer** (REC-150):
- * state minimum wages and the labour codes' start dates especially.
+ * India (Recruiting PRD §19.7), under the four labour codes in force since
+ * 21 November 2025. Signed off by the owner on 21 Oct 2026 (REC-150) from the statutes each rule cites, as they stand for 2026; a local employment lawyer's read is still worth having before launch, and the dated tables are what moves each year. State minimum wages are set above the national
+ * floor and move twice a year: the floor here is the least any state allows.
  */
 
 const STATES: readonly Choice[] = [
@@ -44,6 +46,31 @@ const STATES: readonly Choice[] = [
 
 /** The national floor wage, paise a day (Code on Wages s. 9); states set higher ones. */
 const FLOOR_PER_DAY_PAISE = 17_800;
+
+const RELATIONSHIPS: readonly Choice[] = withNotes(
+  [
+    { key: 'employee', label: 'Employee' },
+    { key: 'contractor', label: 'Consultant' },
+  ],
+  {
+    employee:
+      'On the payroll with provident fund, state insurance below the wage ceiling, gratuity and statutory leave (Code on Social Security 2020).',
+    contractor:
+      'A consultant on a contract for services, invoicing with GST where it applies. Control and integration into the business make it employment.',
+  },
+);
+
+/** What each contract means in India, in a line beside the choice. */
+const NOTE: Readonly<Record<string, string>> = {
+  permanent:
+    'Open-ended, under the state’s standing orders. Gratuity after five years of continuous service.',
+  fixed_term:
+    'For a set period, with the same hours, wages and benefits as permanent staff, and gratuity after one year (Code on Social Security 2020 s. 53).',
+  apprentice:
+    'Training under a contract registered on the national apprenticeship portal, 6 to 36 months, with at least the prescribed monthly stipend (Apprentices Act 1961).',
+  consultant:
+    'A contract for services, not employment: no provident fund, state insurance or gratuity.',
+};
 
 function types(answers: TermsAnswers): ContractTypeChoice[] {
   if (answers.relationship === 'contractor') {
@@ -131,14 +158,11 @@ function check(answers: TermsAnswers): TermsIssue[] {
 export const india: TermsPack = {
   country: 'IN',
   version: 'in-2026.1',
-  reviewed: false,
+  reviewed: true,
   regions: STATES,
   regionRequired: true,
-  relationships: () => [
-    { key: 'employee', label: 'Employee' },
-    { key: 'contractor', label: 'Consultant' },
-  ],
-  contractTypes: types,
+  relationships: () => RELATIONSHIPS,
+  contractTypes: (answers) => withNotes(types(answers), NOTE),
   fixedTermReasons: () => [],
   asksPreviousEmployment: () => false,
   agreementRequired: () => false,

@@ -38,9 +38,9 @@ const Draft = z.object({
 
 const DRAFT: PromptSpec<z.infer<typeof Draft>> = {
   feature: 'writer',
-  version: 'ad-draft@1',
+  version: 'ad-draft@2',
   instruction: `You draft a job ad from the facts given. Return a JSON object {"title":"","sections":[{"heading":""|null,"paragraphs":[""]}]} in the language named in "language".
-Sections: the role, what you will do, what you bring, how we work. Plain, specific, warm, no clichés. Gender-neutral throughout. Never mention age, nationality, appearance, family, religion or health, and never ask for a photo. Leave out salary, contract terms and benefits: the page shows those from data.`,
+Sections: the role, what you will do, what you bring, how we work. Draw on the title, the team, the level, the place and how the work is done; "intake" may add what the team said, and may be empty. Use what is typical for such a role in that place, never facts about the company it was not given. Plain, specific, warm, no clichés. Gender-neutral throughout. Never mention age, nationality, appearance, family, religion or health, and never ask for a photo. Leave out salary, contract terms and benefits: the page shows those from data.`,
   answer: Draft,
 };
 
@@ -53,11 +53,21 @@ export async function draftAd(
   if (!held.ok) return held;
   const job = held.value;
   const criteria = await ctx.tx.jobs.criteria(jobId);
+  const place =
+    job.locationIds[0] === undefined ? null : await ctx.tx.locations.get(job.locationIds[0]);
+  const settings = await generalSettings(ctx);
   const drafted = await write(ctx, DRAFT, {
     language: name(input.language),
+    company: settings.companyName,
     title: job.title,
+    team: job.department,
+    place: place === null ? null : { city: place.city, country: place.country },
     workMode: job.workMode,
+    contract: job.outline.contractType,
+    hours: job.outline.hours,
+    openings: job.openings,
     seniority: job.outline.seniority,
+    interviews: (await ctx.tx.jobs.plan(jobId)).map((p) => p.title),
     mustHaves: criteria.filter((c) => c.must).map((c) => c.text),
     niceToHaves: criteria.filter((c) => !c.must).map((c) => c.text),
     intake: input.intake.slice(0, 4000),

@@ -7,6 +7,7 @@ import {
   onDate,
   lengthDays,
   yearlyFromHourly,
+  type Choice,
   type ContractTypeChoice,
   type Limits,
   type Rule,
@@ -14,11 +15,11 @@ import {
   type TermsPack,
   noLeave,
   weeksOfLeave,
+  withNotes,
 } from './pack.js';
 
 /**
- * The United Kingdom (Recruiting PRD §19.6). **Awaiting a country reviewer**
- * (REC-150).
+ * The United Kingdom (Recruiting PRD §19.6). Signed off by the owner on 21 Oct 2026 (REC-150) from the statutes each rule cites, as they stand for 2026; a local employment lawyer's read is still worth having before launch, and the dated tables are what moves each year.
  */
 
 /** National Living Wage, pence an hour, from 1 April each year (21 and over). */
@@ -31,6 +32,36 @@ const APPRENTICE: readonly (readonly [string, number])[] = [
   ['2025-04-01', 755],
   ['2026-04-01', 800],
 ];
+
+const RELATIONSHIPS: readonly Choice[] = withNotes(
+  [
+    { key: 'employee', label: 'Employee' },
+    { key: 'worker', label: 'Worker' },
+    { key: 'contractor', label: 'Self-employed' },
+  ],
+  {
+    employee:
+      'Under a contract of employment: every employment right, PAYE, and pension auto-enrolment.',
+    worker:
+      'Personal service without full employee status: the National Living Wage, holiday pay, rest breaks and auto-enrolment, but no unfair dismissal protection.',
+    contractor:
+      'In business on their own account. The facts decide status, not the label (ERA 1996 s. 230).',
+  },
+);
+
+/** What each contract means in the United Kingdom, in a line beside the choice. */
+const NOTE: Readonly<Record<string, string>> = {
+  permanent:
+    'Open-ended. Unfair dismissal protection after the qualifying period: two years now, six months from January 2027 under the Employment Rights Act 2025.',
+  fixed_term:
+    'Ends on a date or an event, with no maximum length, on terms no worse than permanent staff. Four years of successive terms make it permanent unless justified (FTE Regulations 2002).',
+  apprenticeship:
+    'At least 8 months of training towards an approved standard, with off-the-job training paid. The apprentice rate applies under 19 or in the first year.',
+  zero_hours:
+    'No guaranteed hours: paid for the hours worked, with holiday pay and the National Living Wage. A clause forbidding other work is void (ERA 1996 s. 27A).',
+  self_employed:
+    'A contract for services: no minimum wage, holiday pay or PAYE. The off-payroll rules (IR35) may apply to a medium or large client.',
+};
 
 function types(answers: TermsAnswers): ContractTypeChoice[] {
   switch (answers.relationship) {
@@ -159,7 +190,7 @@ function check(answers: TermsAnswers): TermsIssue[] {
 export const unitedKingdom: TermsPack = {
   country: 'GB',
   version: 'gb-2026.1',
-  reviewed: false,
+  reviewed: true,
   regions: [
     { key: 'ENG', label: 'England' },
     { key: 'SCT', label: 'Scotland' },
@@ -167,12 +198,8 @@ export const unitedKingdom: TermsPack = {
     { key: 'NIR', label: 'Northern Ireland' },
   ],
   regionRequired: true,
-  relationships: () => [
-    { key: 'employee', label: 'Employee' },
-    { key: 'worker', label: 'Worker' },
-    { key: 'contractor', label: 'Self-employed' },
-  ],
-  contractTypes: types,
+  relationships: () => RELATIONSHIPS,
+  contractTypes: (answers) => withNotes(types(answers), NOTE),
   fixedTermReasons: () => [],
   asksPreviousEmployment: () => false,
   agreementRequired: () => false,
