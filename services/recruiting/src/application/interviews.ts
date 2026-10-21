@@ -132,6 +132,7 @@ export async function slotsFor(
   to: Instant,
   away: Absences = {},
   weeks: Weeks = {},
+  interviewers: readonly string[] | null = null,
 ): Promise<Result<readonly string[]>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -142,7 +143,7 @@ export async function slotsFor(
     freeSlots(
       await availability(
         ctx,
-        withOrganiser(plan.interviewerIds, ctx.caller.personId),
+        withOrganiser(interviewers ?? plan.interviewerIds, ctx.caller.personId),
         from,
         to,
         away,
@@ -169,6 +170,7 @@ export async function scheduleScreen(
   away: Absences = {},
   holidays: readonly Holiday[] = [],
   weeks: Weeks = {},
+  interviewers: readonly string[] | null = null,
 ): Promise<
   Result<{
     candidate: { id: string; name: string };
@@ -192,6 +194,12 @@ export async function scheduleScreen(
     weeks: Weeks;
     /** Whoever is arranging it, free alongside the interviewers; the shell reads their week too. */
     organiser: string | null;
+    /** Who runs it: the ones chosen on the screen, else the plan's, else the job's hiring team. */
+    interviewers: readonly string[];
+    /** Everyone who could be asked to interview, to choose from. */
+    members: readonly { personId: string; name: string }[];
+    /** The agenda last written for this interview of this job, to start from. */
+    agenda: Agenda | null;
   }>
 > {
   const loaded = await loadApplication(ctx, applicationId);
@@ -202,13 +210,23 @@ export async function scheduleScreen(
   // A month of days at once: the screen's calendar marks the days with a slot and lists one day's times.
   const start = from ?? (`${ctx.today}T00:00:00.000Z` as Instant);
   const end = new Date(Date.parse(start) + 35 * 86_400_000).toISOString() as Instant;
+  // Who runs it: chosen here, else the plan's, else the job's hiring manager and interviewers.
+  const team = loaded.value.facts.team
+    .filter((t) => t.role === 'hiring_manager' || t.role === 'interviewer')
+    .map((t) => t.personId);
+  const panel =
+    interviewers !== null && interviewers.length > 0
+      ? [...new Set(interviewers)]
+      : (chosen?.interviewerIds.length ?? 0) > 0
+        ? (chosen?.interviewerIds ?? [])
+        : [...new Set(team)];
   // The recruiter arranging it is one of the people who must be free.
-  const people = withOrganiser(chosen?.interviewerIds ?? [], ctx.caller.personId);
+  const people = withOrganiser(panel, ctx.caller.personId);
   const off = withHolidays(people, away, holidays);
   const slots =
     chosen === null
       ? ok([] as readonly string[])
-      : await slotsFor(ctx, applicationId, chosen.key, start, end, off, weeks);
+      : await slotsFor(ctx, applicationId, chosen.key, start, end, off, weeks, panel);
   if (!slots.ok) return slots;
   const candidate = await ctx.tx.candidates.get(loaded.value.app.candidateId);
   const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
@@ -228,10 +246,21 @@ export async function scheduleScreen(
     booked: (await ctx.tx.interviews.forApplication(applicationId)).filter(
       (i) => i.state === 'scheduled',
     ),
-    meet: await canMakeVideo(ctx, chosen?.interviewerIds ?? []),
+    meet: await canMakeVideo(ctx, panel),
     holidays: holidays.filter((h) => h.date >= start.slice(0, 10) && h.date < end.slice(0, 10)),
     away: Object.fromEntries(people.map((p) => [p, away[p] ?? []])),
     organiser: ctx.caller.personId,
+    interviewers: panel,
+    members: (await ctx.tx.members.list())
+      .filter((m) => m.status !== 'left')
+      .map((m) => ({ personId: m.personId, name: m.displayName }))
+      .toSorted((a, b) => a.name.localeCompare(b.name)),
+    agenda:
+      chosen === null
+        ? null
+        : ((await ctx.tx.settings.get(
+            agendaKey(loaded.value.app.jobId, chosen.key),
+          )) as Agenda | null),
     weeks: Object.fromEntries(
       people.flatMap((p) => {
         const w = weeks[p];
@@ -239,6 +268,20 @@ export async function scheduleScreen(
       }),
     ),
   });
+}
+
+/** The agenda last written for an interview of a job: where the next one starts from. */
+const agendaKey = (jobId: string, planKey: string): string => `agenda:${jobId}:${planKey}`;
+
+/** Keep the agenda written for an interview of a job, so the next schedule of it starts there. */
+export async function keepAgenda(
+  ctx: Ctx,
+  jobId: string,
+  planKey: string,
+  agenda: Agenda | null | undefined,
+): Promise<void> {
+  if (agenda != null && agenda.text.trim() !== '')
+    await ctx.tx.settings.set(agendaKey(jobId, planKey), agenda);
 }
 
 /** Whether booking will yield a video link: Workspace delegation, or one interviewer's own calendar or Zoom. */
@@ -270,9 +313,22 @@ export async function bookInterview(
   if (app === null) return err(notFound('application'));
   const plan = await planned(ctx, app.jobId, booking.planKey);
   if (plan === null) return err(notFound('interview in the plan'));
-  const interviewerIds = booking.interviewerIds ?? plan.interviewerIds;
+  // Who runs it: chosen on the screen, else the plan's, else the job's hiring manager and interviewers.
+  const job0 = await ctx.tx.jobs.get(app.jobId);
+  const team =
+    job0 === null
+      ? []
+      : (await jobFacts(ctx, job0)).team
+          .filter((t) => t.role === 'hiring_manager' || t.role === 'interviewer')
+          .map((t) => t.personId);
+  const interviewerIds =
+    booking.interviewerIds !== undefined && booking.interviewerIds.length > 0
+      ? booking.interviewerIds
+      : plan.interviewerIds.length > 0
+        ? plan.interviewerIds
+        : [...new Set(team)];
   if (interviewerIds.length === 0)
-    return err(failure('NO_INTERVIEWERS', 'Name the interviewers in the plan first'));
+    return err(failure('NO_INTERVIEWERS', 'Choose who runs this interview'));
   const end = new Date(Date.parse(booking.startsAt) + plan.minutes * 60_000).toISOString();
   const free = freeSlots(
     await availability(ctx, interviewerIds, booking.startsAt, end as Instant, {}),
@@ -297,6 +353,7 @@ export async function bookInterview(
   };
   const job = await ctx.tx.jobs.get(app.jobId);
   if (booking.agenda != null) await ctx.tx.settings.set(`agenda:${interview.id}`, booking.agenda);
+  await keepAgenda(ctx, app.jobId, plan.key, booking.agenda);
   const videoUrl = await putOnCalendar(ctx, interview, {
     title: `${plan.title}: ${job?.title ?? ''}`,
     startsAt: booking.startsAt,
@@ -443,11 +500,12 @@ function knownZone(zone: string | null): string | null {
   }
 }
 
-/** Where an interview happens and what it is about, chosen when the link is sent and kept for the booking. */
+/** Where an interview happens, who runs it and what it is about, chosen when the link is sent and kept for the booking. */
 export interface Setting {
   readonly place: string | null;
   readonly videoUrl: string | null;
   readonly agenda: Agenda | null;
+  readonly interviewerIds?: readonly string[];
 }
 
 interface Link extends Partial<Setting> {
@@ -492,6 +550,7 @@ export async function selfScheduleLink(
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
   const plan = await planned(ctx, loaded.value.app.jobId, planKey);
   if (plan === null) return err(notFound('interview in the plan'));
+  await keepAgenda(ctx, loaded.value.app.jobId, planKey, setting.agenda);
   // The days off known now go with the link: the candidate's page has no Time Off to ask.
   const link = await issueLink(ctx, {
     applicationId,
@@ -576,7 +635,11 @@ export async function linkSlots(
   const from = new Date(Date.parse(ctx.at) + 86_400_000).toISOString() as Instant;
   const to = new Date(Date.parse(ctx.at) + 15 * 86_400_000).toISOString() as Instant;
   const holidays = link.holidays ?? [];
-  const people = withOrganiser(plan.interviewerIds, link.recruiterId);
+  const panel =
+    link.interviewerIds !== undefined && link.interviewerIds.length > 0
+      ? link.interviewerIds
+      : plan.interviewerIds;
+  const people = withOrganiser(panel, link.recruiterId);
   const excluded = new Set(link.excluded ?? []);
   const slots = freeSlots(
     await availability(
@@ -606,7 +669,7 @@ export async function linkSlots(
     organiser: link.recruiterId == null ? null : ((await nameOf(ctx, link.recruiterId)) ?? null),
     interviewers: (
       await Promise.all(
-        plan.interviewerIds
+        panel
           .filter((p) => p !== link.recruiterId)
           .map(async (p) => (await nameOf(ctx, p)) ?? null),
       )
@@ -617,15 +680,22 @@ export async function linkSlots(
   });
 }
 
-/** Who chooses from what the candidate gave: the recruiter who sent the link, else the job's recruiters. */
+/**
+ * Who chooses from what the candidate gave: the recruiter who sent the link,
+ * and the job's recruiters and hiring manager beside them, so a link sent
+ * from an account with no person, or a job with no recruiter named, still
+ * reaches someone. The first to book closes it for all.
+ */
 async function ownersOf(ctx: Ctx, link: Link, applicationId: string): Promise<string[]> {
-  if (link.recruiterId != null) return [link.recruiterId];
   const app = await ctx.tx.applications.get(applicationId);
   const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
-  if (job === null) return [];
-  return (await jobFacts(ctx, job)).team
-    .filter((t) => t.role === 'recruiter')
-    .map((t) => t.personId);
+  const team =
+    job === null
+      ? []
+      : (await jobFacts(ctx, job)).team
+          .filter((t) => t.role === 'recruiter' || t.role === 'hiring_manager')
+          .map((t) => t.personId);
+  return [...new Set([...(link.recruiterId == null ? [] : [link.recruiterId]), ...team])];
 }
 
 /**
@@ -676,6 +746,7 @@ export async function offerAvailability(
       place: link.place ?? null,
       videoUrl: link.videoUrl ?? null,
       agenda: link.agenda ?? null,
+      ...(link.interviewerIds === undefined ? {} : { interviewerIds: link.interviewerIds }),
       owners: await ownersOf(ctx, link, app.id),
       linkHash: hash,
     }),
@@ -759,6 +830,7 @@ export async function bookFromAvailability(
       place: input.place === undefined ? ask.place : input.place,
       videoUrl: input.videoUrl === undefined ? ask.videoUrl : input.videoUrl,
       agenda: input.agenda === undefined ? ask.agenda : input.agenda,
+      ...(ask.interviewerIds === undefined ? {} : { interviewerIds: ask.interviewerIds }),
     },
     'team',
   );
@@ -865,7 +937,7 @@ export async function setInterviewState(
 
 /* ----------------------------------------------------------- scorecards -- */
 
-async function competenciesOf(
+export async function competenciesOf(
   ctx: Ctx,
   jobId: string,
   planKey: string,

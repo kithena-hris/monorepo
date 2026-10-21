@@ -5,6 +5,7 @@ import { renderAd } from '../domain/ad/render.js';
 import { docFrom, textsOf, withTexts } from '../domain/ad/rewrite.js';
 import { write, type PromptSpec } from './ai.js';
 import { adminOnly, forbidden, notFound, type Ctx } from './context.js';
+import { competenciesOf } from './interviews.js';
 import { editable } from './jobs.js';
 import { loadApplication, render } from './moves.js';
 import { may } from '../domain/access/access.js';
@@ -209,4 +210,89 @@ export async function draftEmail(
     subject: render(drafted.value.subject, values),
     body: render(drafted.value.body, values),
   });
+}
+
+const AgendaDraft = z.object({
+  intro: z.string().max(400),
+  sections: z
+    .array(
+      z.object({
+        heading: z.string().max(80),
+        minutes: z.int().min(0).max(240).nullable(),
+        points: z.array(z.string().max(240)).max(6),
+      }),
+    )
+    .max(6),
+  prepare: z.array(z.string().max(240)).max(5),
+});
+
+const AGENDA: PromptSpec<z.infer<typeof AgendaDraft>> = {
+  feature: 'writer',
+  version: 'interview-agenda@1',
+  instruction: `You draft the agenda of a job interview, for the candidate, from the job and the interview given. Return a JSON object {"intro":"","sections":[{"heading":"","minutes":0,"points":[""]}],"prepare":[""]} in English: one warm sentence on what the interview is for; its parts in order, each with the minutes it takes (together the interview's length) and what happens in it, drawn from the competencies to be assessed; and what the candidate might prepare. Plain, specific, kind. Never ask for anything personal, never mention age, nationality, appearance, family, religion or health, and never reveal how answers are scored.`,
+  answer: AgendaDraft,
+};
+
+const escapeHtml = (s: string): string =>
+  s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+
+/**
+ * R16: an interview's agenda drafted from the job, the interview's length
+ * and the competencies it assesses, as rich text for the editor and plain
+ * text for the invitation and the calendar. Nothing about the candidate goes
+ * to the model; a person edits it before it is sent.
+ */
+export async function draftAgenda(
+  ctx: Ctx,
+  applicationId: string,
+  planKey: string,
+): Promise<Result<{ readonly html: string; readonly text: string }>> {
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
+  const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
+  const plan = (await ctx.tx.jobs.plan(loaded.value.app.jobId)).find((p) => p.key === planKey);
+  if (job === null || plan === undefined) return err(notFound('interview in the plan'));
+  const competencies = await competenciesOf(ctx, job.id, plan.key);
+  const criteria = await ctx.tx.jobs.criteria(job.id);
+  const ad = (await ctx.tx.jobs.ads(job.id))[0];
+  const settings = await generalSettings(ctx);
+  const drafted = await write(ctx, AGENDA, {
+    company: settings.companyName,
+    job: job.title,
+    interview: plan.title,
+    minutes: plan.minutes,
+    competencies: competencies.map((c) => ({ name: c.name, description: c.description })),
+    mustHaves: criteria.filter((c) => c.must).map((c) => c.text),
+    ad: (ad?.plain ?? '').slice(0, 3000),
+  });
+  if (!drafted.ok) return drafted;
+  const d = drafted.value;
+  const html = [
+    `<p>${escapeHtml(d.intro)}</p>`,
+    ...d.sections.map(
+      (s) =>
+        `<h3>${escapeHtml(s.minutes === null ? s.heading : `${s.heading} (${String(s.minutes)} min)`)}</h3><ul>${s.points.map((p) => `<li><p>${escapeHtml(p)}</p></li>`).join('')}</ul>`,
+    ),
+    ...(d.prepare.length === 0
+      ? []
+      : [
+          `<h3>To prepare</h3><ul>${d.prepare.map((p) => `<li><p>${escapeHtml(p)}</p></li>`).join('')}</ul>`,
+        ]),
+  ].join('');
+  const text = [
+    d.intro,
+    ...d.sections.map(
+      (s) =>
+        `\n${s.minutes === null ? s.heading : `${s.heading} (${String(s.minutes)} min)`}\n${s.points.map((p) => `- ${p}`).join('\n')}`,
+    ),
+    ...(d.prepare.length === 0
+      ? []
+      : [`\nTo prepare\n${d.prepare.map((p) => `- ${p}`).join('\n')}`]),
+  ].join('\n');
+  return ok({ html, text });
 }

@@ -11,6 +11,7 @@ import {
   type Rule,
   type TermsAnswers,
   type TermsPack,
+  noLeave,
 } from './pack.js';
 
 /**
@@ -199,5 +200,14 @@ export const india: TermsPack = {
   documents: (answers) =>
     answers.relationship === 'contractor' ? ['consultancy_agreement'] : ['appointment_letter'],
   conditions: () => [],
+  minimumLeave: (answers) =>
+    answers.relationship !== 'employee'
+      ? noLeave('Indian Contract Act 1872', 'A consultant has no statutory leave.')
+      : {
+          days: 12,
+          unit: 'working_days',
+          source: 'State Shops and Establishments Acts; Factories Act 1948 s. 79',
+          note: 'Most states set 12 to 18 days of earned leave; check the state of the workplace.',
+        },
   signature: () => 'electronic',
 };

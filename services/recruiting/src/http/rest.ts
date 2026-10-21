@@ -68,6 +68,7 @@ import {
   seedEmailTemplates,
   sendStageExpectations,
 } from '../application/emails.js';
+import { saveJobTerms } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
   answerAsk,
@@ -205,6 +206,7 @@ import {
   startBackgroundCheck,
 } from '../application/providers.js';
 import {
+  draftAgenda,
   draftAd,
   draftEmail,
   explainPhrase,
@@ -489,6 +491,8 @@ export const ROUTES: readonly Route[] = [
       away: text(100_000).optional(),
       holidays: text(20_000).optional(),
       weeks: text(50_000).optional(),
+      /** Who runs it, chosen on the screen: ids, comma separated. */
+      interviewers: text(2000).optional(),
     }),
     run: (ctx, { params }) =>
       scheduleScreen(
@@ -499,6 +503,9 @@ export const ROUTES: readonly Route[] = [
         params.away === undefined ? {} : (JSON.parse(params.away) as Record<string, string[]>),
         params.holidays === undefined ? [] : Holidays.parse(JSON.parse(params.holidays)),
         params.weeks === undefined ? {} : Weeks.parse(JSON.parse(params.weeks)),
+        params.interviewers === undefined || params.interviewers === ''
+          ? null
+          : params.interviewers.split(',').slice(0, 20),
       ),
   }),
   route({
@@ -651,6 +658,32 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ jobId: Id }),
     body: z.record(z.string(), z.unknown()),
     run: (ctx, { params, body }) => saveJobDetails(ctx, params.jobId, body as never),
+  }),
+  route({
+    name: 'saveJobTerms',
+    method: 'PATCH',
+    path: `${V1}/jobs/{jobId}/terms`,
+    summary:
+      'R4: the job’s workplace, kind of work, contract, hours, leave and benefits, in order, within the law of its country',
+    params: z.object({ jobId: Id }),
+    body: z
+      .object({
+        entityId: Id.nullable(),
+        locationId: Id.nullable(),
+        workMode: z.enum(['onsite', 'hybrid', 'remote']).nullable(),
+        hybridDaysOnsite: z.int().min(1).max(4).nullable(),
+        relationship: text(40).nullable(),
+        contractType: text(80).nullable(),
+        fixedTermReason: text(80).nullable(),
+        workDays: z.array(z.int().min(1).max(7)).max(7),
+        dayStart: z.int().min(0).max(1440).nullable(),
+        dayEnd: z.int().min(0).max(1440).nullable(),
+        breakMinutes: z.int().min(0).max(240),
+        vacationDays: z.int().min(0).max(366).nullable(),
+        benefitIds: z.array(Id).max(60),
+      })
+      .partial(),
+    run: (ctx, { params, body }) => saveJobTerms(ctx, params.jobId, body as never),
   }),
   route({
     name: 'setJobTeam',
@@ -1127,6 +1160,7 @@ export const ROUTES: readonly Route[] = [
       place: text(500).nullable().default(null),
       videoUrl: z.url().nullable().default(null),
       agenda: Agenda.nullable().default(null),
+      interviewerIds: z.array(Id).max(20).optional(),
     }),
     run: (ctx, { params, body }) =>
       selfScheduleLink(
@@ -1136,8 +1170,22 @@ export const ROUTES: readonly Route[] = [
         body.away,
         body.holidays,
         body.weeks,
-        { place: body.place, videoUrl: body.videoUrl, agenda: body.agenda },
+        {
+          place: body.place,
+          videoUrl: body.videoUrl,
+          agenda: body.agenda,
+          ...(body.interviewerIds === undefined ? {} : { interviewerIds: body.interviewerIds }),
+        },
       ),
+  }),
+  route({
+    name: 'draftAgenda',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/agenda-draft`,
+    summary: 'R16: an interview agenda drafted from the job, as rich text, for a person to edit',
+    params: z.object({ applicationId: Id }),
+    body: z.object({ planKey: text(40) }),
+    run: (ctx, { params, body }) => draftAgenda(ctx, params.applicationId, body.planKey),
   }),
   route({
     name: 'requestMoreTimes',
@@ -1178,6 +1226,7 @@ export const ROUTES: readonly Route[] = [
       videoUrl: z.url().nullable(),
       note: text(1000).nullable(),
       agenda: Agenda.nullable().default(null),
+      interviewerIds: z.array(Id).max(20).optional(),
     }),
     status: 201,
     run: (ctx, { params, body }) => proposeSlots(ctx, params.applicationId, body),

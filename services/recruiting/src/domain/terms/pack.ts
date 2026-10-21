@@ -146,7 +146,39 @@ export interface TermsPack {
   documents(answers: TermsAnswers): readonly string[];
   conditions(answers: TermsAnswers): readonly ConditionKind[];
   signature(answers: TermsAnswers): 'electronic' | 'wet_ink';
+  /**
+   * The lowest lawful paid leave a year for someone working `daysPerWeek`
+   * days, in the unit the law counts it: 0 where no law sets one, and always
+   * 0 for the self-employed. A company may give more, never less.
+   */
+  minimumLeave(answers: Pick<TermsAnswers, 'relationship'>, daysPerWeek: number): MinimumLeave;
 }
+
+export interface MinimumLeave {
+  readonly days: number;
+  readonly unit: 'working_days' | 'calendar_days';
+  /** The law it comes from, to show beside the number. */
+  readonly source: string;
+  readonly note: string;
+}
+
+/** A minimum written in weeks of the person's own week: weeks × days a week, rounded up, at most `cap`. */
+export const weeksOfLeave = (
+  weeks: number,
+  daysPerWeek: number,
+  cap: number | null = null,
+): number => {
+  const days = Math.ceil(Math.round(weeks * daysPerWeek * 10) / 10);
+  return cap === null ? days : Math.min(days, cap);
+};
+
+/** No paid-leave minimum: the self-employed, or a country with none. */
+export const noLeave = (source: string, note: string): MinimumLeave => ({
+  days: 0,
+  unit: 'working_days',
+  source,
+  note,
+});
 
 /* ------------------------------------------------------------ helpers -- */
 

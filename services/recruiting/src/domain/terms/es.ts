@@ -13,6 +13,7 @@ import {
   type Rule,
   type TermsAnswers,
   type TermsPack,
+  noLeave,
 } from './pack.js';
 
 /**
@@ -289,5 +290,14 @@ export const spain: TermsPack = {
   documents: (answers) =>
     remoteShare(answers) >= 0.3 ? ['contrato', 'acuerdo_trabajo_a_distancia'] : ['contrato'],
   conditions: () => [],
+  minimumLeave: (answers) =>
+    answers.relationship !== 'employee'
+      ? noLeave('LETA art. 1', 'An autónomo has no statutory leave.')
+      : {
+          days: 30,
+          unit: 'calendar_days',
+          source: 'Estatuto de los Trabajadores art. 38',
+          note: 'Thirty calendar days a year, whatever the days worked; a convenio may give more.',
+        },
   signature: () => 'electronic',
 };

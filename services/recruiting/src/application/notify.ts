@@ -4,8 +4,9 @@ import { asPerson, type Ctx } from './context.js';
 
 /**
  * Whether a member is emailed when a candidate acts (gives times, asks for a
- * change, answers a question). Off until they switch it on: the Inbox task
- * is there either way, and an email per candidate is a lot of email.
+ * change, answers a question). On until they switch it off: someone waiting
+ * on a candidate's times should hear the moment they come, and the Inbox
+ * task is there either way.
  *
  * ponytail: one setting per person in Recruiting; identity's notification
  * choices once Recruiting raises Inbox notices through messaging.
@@ -14,7 +15,7 @@ import { asPerson, type Ctx } from './context.js';
 const key = (personId: string): string => `notify-email:${personId}`;
 
 export async function emailsOn(ctx: Ctx, personId: string): Promise<boolean> {
-  return (await ctx.tx.settings.get(key(personId))) === true;
+  return (await ctx.tx.settings.get(key(personId))) !== false;
 }
 
 export async function myNotifications(ctx: Ctx): Promise<Result<{ email: boolean }>> {

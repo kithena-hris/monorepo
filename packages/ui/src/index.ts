@@ -435,6 +435,7 @@ export { Kanban } from './components/kanban/kanban';
 export type {
   KanbanAction,
   KanbanAutoScroll,
+  KanbanCardTone,
   KanbanColumnDef,
   KanbanDragActivator,
   KanbanHandlePosition,
