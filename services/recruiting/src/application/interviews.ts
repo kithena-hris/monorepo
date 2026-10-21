@@ -74,26 +74,17 @@ function withHolidays(
   return Object.fromEntries(people.map((p) => [p, [...(away[p] ?? []), ...dates]]));
 }
 
-/** A person's interviews and calendar meetings in the window: when they cannot be booked. */
-async function busyOf(
-  ctx: Ctx,
-  personId: string,
-  from: Instant,
-  to: Instant,
-): Promise<(readonly [string, string])[]> {
-  return (await ctx.tx.interviews.forInterviewer(personId, from, to))
-    .filter((i) => i.state === 'scheduled')
-    .map(
-      (i) =>
-        [i.startsAt, new Date(Date.parse(i.startsAt) + i.minutes * 60_000).toISOString()] as const,
-    )
-    .concat(await calendarBusy(ctx, personId, from, to));
-}
+/** Everyone the interview needs: the interviewers and whoever arranges it, once each. */
+const withOrganiser = (interviewers: readonly string[], organiser: string | null | undefined) =>
+  organiser == null || interviewers.includes(organiser)
+    ? [...interviewers]
+    : [...interviewers, organiser];
 
 /**
- * Everyone who must be free: the interviewers in their working week, and
- * whoever is scheduling (the recruiter), whose Google or Microsoft 365
- * meetings and own interviews block a time too, though their hours do not.
+ * Everyone who must be free, each in their own working week and zone: their
+ * own Recruiting hours, else Time Off's week, else the office week in UTC;
+ * not on a day away; not in an interview or a meeting on their Google or
+ * Microsoft 365 calendar.
  */
 async function availability(
   ctx: Ctx,
@@ -102,12 +93,8 @@ async function availability(
   to: Instant,
   away: Absences,
   weeks: Weeks = {},
-  watchers: readonly (string | null)[] = [],
 ): Promise<Availability[]> {
   const out: Availability[] = [];
-  const watching: (readonly [string, string])[] = [];
-  for (const w of new Set(watchers))
-    if (w !== null && !people.includes(w)) watching.push(...(await busyOf(ctx, w, from, to)));
   for (const personId of people) {
     const hours = await ctx.tx.workingHours.get(personId);
     const busy = (await ctx.tx.interviews.forInterviewer(personId, from, to))
@@ -126,7 +113,7 @@ async function availability(
       timeZone: hours?.timeZone ?? known?.timeZone ?? 'UTC',
       week: hours?.week ?? known?.week ?? OFFICE_WEEK,
       away: away[personId] ?? [],
-      busy: [...busy, ...watching],
+      busy,
     });
   }
   return out;
@@ -152,7 +139,14 @@ export async function slotsFor(
   if (plan === null) return err(notFound('interview in the plan'));
   return ok(
     freeSlots(
-      await availability(ctx, plan.interviewerIds, from, to, away, weeks, [ctx.caller.personId]),
+      await availability(
+        ctx,
+        withOrganiser(plan.interviewerIds, ctx.caller.personId),
+        from,
+        to,
+        away,
+        weeks,
+      ),
       from,
       to,
       plan.minutes,
@@ -195,6 +189,8 @@ export async function scheduleScreen(
     away: Absences;
     /** The interviewers' working weeks from Time Off, kept with the link too. */
     weeks: Weeks;
+    /** Whoever is arranging it, free alongside the interviewers; the shell reads their week too. */
+    organiser: string | null;
   }>
 > {
   const loaded = await loadApplication(ctx, applicationId);
@@ -205,7 +201,9 @@ export async function scheduleScreen(
   // A month of days at once: the screen's calendar marks the days with a slot and lists one day's times.
   const start = from ?? (`${ctx.today}T00:00:00.000Z` as Instant);
   const end = new Date(Date.parse(start) + 35 * 86_400_000).toISOString() as Instant;
-  const off = withHolidays(chosen?.interviewerIds ?? [], away, holidays);
+  // The recruiter arranging it is one of the people who must be free.
+  const people = withOrganiser(chosen?.interviewerIds ?? [], ctx.caller.personId);
+  const off = withHolidays(people, away, holidays);
   const slots =
     chosen === null
       ? ok([] as readonly string[])
@@ -231,9 +229,10 @@ export async function scheduleScreen(
     ),
     meet: await canMakeVideo(ctx, chosen?.interviewerIds ?? []),
     holidays: holidays.filter((h) => h.date >= start.slice(0, 10) && h.date < end.slice(0, 10)),
-    away: Object.fromEntries((chosen?.interviewerIds ?? []).map((p) => [p, away[p] ?? []])),
+    away: Object.fromEntries(people.map((p) => [p, away[p] ?? []])),
+    organiser: ctx.caller.personId,
     weeks: Object.fromEntries(
-      (chosen?.interviewerIds ?? []).flatMap((p) => {
+      people.flatMap((p) => {
         const w = weeks[p];
         return w === undefined ? [] : [[p, w] as const];
       }),
@@ -457,6 +456,9 @@ export async function linkSlots(
     holidays: readonly Holiday[];
     /** How many times the candidate gives: ten, or every free one when there are fewer. */
     wanted: number;
+    /** Whose calendars the times fit: the recruiter who shared the link, then the interviewers. */
+    organiser: string | null;
+    interviewers: readonly string[];
   }>
 > {
   const link = await linkOf(ctx, token);
@@ -467,15 +469,15 @@ export async function linkSlots(
   const from = new Date(Date.parse(ctx.at) + 86_400_000).toISOString() as Instant;
   const to = new Date(Date.parse(ctx.at) + 15 * 86_400_000).toISOString() as Instant;
   const holidays = link.holidays ?? [];
+  const people = withOrganiser(plan.interviewerIds, link.recruiterId);
   const slots = freeSlots(
     await availability(
       ctx,
-      plan.interviewerIds,
+      people,
       from,
       to,
-      withHolidays(plan.interviewerIds, link.away ?? {}, holidays),
+      withHolidays(people, link.away ?? {}, holidays),
       link.weeks ?? {},
-      [link.recruiterId ?? null],
     ),
     from,
     to,
@@ -489,6 +491,14 @@ export async function linkSlots(
     title: plan.title,
     holidays: holidays.filter((h) => h.date >= from.slice(0, 10) && h.date < to.slice(0, 10)),
     wanted: Math.min(10, slots.length),
+    organiser: link.recruiterId == null ? null : ((await nameOf(ctx, link.recruiterId)) ?? null),
+    interviewers: (
+      await Promise.all(
+        plan.interviewerIds
+          .filter((p) => p !== link.recruiterId)
+          .map(async (p) => (await nameOf(ctx, p)) ?? null),
+      )
+    ).filter((n): n is string => n !== null),
   });
 }
 

@@ -12,6 +12,9 @@ interface Slots {
   readonly holidays: readonly { readonly date: string; readonly name: string }[];
   /** Ten, or every free time when there are fewer. */
   readonly wanted: number;
+  /** The recruiter who shared the link, and the interviewers: the times fit all their calendars. */
+  readonly organiser: string | null;
+  readonly interviewers: readonly string[];
 }
 
 /**
@@ -56,6 +59,18 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       <h1 className="text-2xl font-bold">When suits you?</h1>
+      {data.organiser === null && data.interviewers.length === 0 ? null : (
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <icons.people aria-hidden className="size-4 text-fg-muted" />
+          {`Every time below is free for ${[data.organiser, ...data.interviewers]
+            .filter((n): n is string => n !== null)
+            .join(', ')
+            .replace(
+              /, ([^,]*)$/u,
+              ' and $1',
+            )}: their working hours, holidays and meetings are already left out.`}
+        </p>
+      )}
       <p className="text-fg-muted">{`${data.title} · ${String(data.minutes)} min · ${zone} (your time). Pick ${String(data.wanted)} times that suit you; the team books one and sends the invitation.`}</p>
       {error === null ? null : (
         <Alert tone="danger" title="That did not go through">

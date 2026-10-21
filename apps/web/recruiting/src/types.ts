@@ -557,6 +557,8 @@ export interface ScheduleData {
   readonly away: Readonly<Record<string, readonly string[]>>;
   /** The interviewers' working weeks from Time Off, kept with the link too. */
   readonly weeks: Readonly<Record<string, unknown>>;
+  /** Whoever is arranging it, free alongside the interviewers. */
+  readonly organiser: string | null;
 }
 
 export interface DebriefData {

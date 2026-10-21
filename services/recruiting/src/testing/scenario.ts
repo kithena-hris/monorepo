@@ -626,6 +626,9 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   const linkToken = link.split('#')[1] ?? '';
   const free = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));
   expect(free.wanted).toBe(10);
+  // The candidate sees whose calendars the times fit: the recruiter who shared it, then the panel.
+  expect(free.organiser).not.toBeNull();
+  expect(free.interviewers.length).toBe(1);
   const tooFew = await as('public', (ctx) =>
     offerAvailability(ctx, linkToken, free.slots.slice(0, 3) as Instant[]),
   );

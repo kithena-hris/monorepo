@@ -848,7 +848,7 @@ function ScheduleBody({
                 <CardDescription>
                   {plan === undefined
                     ? ''
-                    : `${String(plan.minutes)} min · ${plan.interviewerIds.map((id) => data.names[id] ?? id).join(', ') || 'No interviewers yet'} · a struck day has nothing free: a weekend, a holiday, someone away, or the hours over.`}
+                    : `${String(plan.minutes)} min · ${plan.interviewerIds.map((id) => data.names[id] ?? id).join(', ') || 'No interviewers yet'} · free for you and every interviewer; a struck day has nothing free: a weekend, a holiday, someone away, or the hours over.`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
