@@ -12,6 +12,7 @@ import { expect } from 'vitest';
 import * as z from 'zod';
 
 import { contextOf, deliver, type Ctx, type Outgoing } from '../application/context.js';
+import { uuidv7 } from '../infrastructure/ids.js';
 import { apply, requestCode } from '../application/intake.js';
 import {
   createJob,
@@ -273,7 +274,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     uow,
     blobs: h.blobs,
     clock,
-    newId: () => randomUUID(),
+    // Time-ordered, as production's are: moves at the same instant then read back in the order made.
+    newId: () => uuidv7(),
     jobsOrigin: 'https://jobs.example',
     extractText: (bytes) => Promise.resolve(new TextDecoder().decode(bytes)),
   };

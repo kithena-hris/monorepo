@@ -220,17 +220,18 @@ export function SlotPicker({
                   <button
                     type="button"
                     className="flex w-12 shrink-0 flex-col items-center rounded-md bg-surface py-1 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
-                    aria-label={`Show ${longDay.format(at)}`}
                     onClick={() => {
                       setDay(d);
                     }}
                   >
+                    {/* The name is the tile's own words, so a voice command can say what it sees. */}
+                    <span className="sr-only">Show </span>
                     <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-accent-fg">
                       {weekday.format(at)}
-                    </span>
+                    </span>{' '}
                     <span className="text-lg font-bold leading-tight tabular-nums">
                       {dayNumber.format(at)}
-                    </span>
+                    </span>{' '}
                     <span className="text-[0.6875rem] text-fg-muted">{month.format(at)}</span>
                   </button>
                   <ChipRow
