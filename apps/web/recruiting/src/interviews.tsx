@@ -1020,7 +1020,12 @@ function ScheduleBody({
                       'SelfScheduleLink',
                       {
                         applicationId,
-                        input: { planKey: data.planKey, away: data.away, holidays: data.holidays },
+                        input: {
+                          planKey: data.planKey,
+                          away: data.away,
+                          holidays: data.holidays,
+                          weeks: data.weeks,
+                        },
                       },
                       back,
                     );

@@ -25,6 +25,30 @@ async function read(
 const or = (value: string | undefined): string | null =>
   value === undefined || value === '' ? null : value;
 
+/** When each interviewer works, from Time Off: their own week or the company's, in their zone. */
+async function workingWeeks(
+  personIds: readonly string[],
+): Promise<Record<string, { timeZone: string; week: Record<string, [number, number][]> }>> {
+  if (personIds.length === 0) return {};
+  const answer = await timeOff<{
+    weeks: {
+      personId: string;
+      timeZone: string;
+      days: { weekday: number; start: number; end: number }[];
+    }[];
+  }>('TimeOffWorkingWeeks', { personIds: personIds.join(',') });
+  if (!answer.ok) return {};
+  return Object.fromEntries(
+    answer.data.weeks.map((w) => [
+      w.personId,
+      {
+        timeZone: w.timeZone,
+        week: Object.fromEntries(w.days.map((d) => [String(d.weekday), [[d.start, d.end]]])),
+      },
+    ]),
+  );
+}
+
 /** The leave that keeps someone away, as Time Off names it. */
 const AWAY = new Set(['pending', 'approved', 'taken', 'change_pending']);
 
@@ -116,13 +140,27 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Schedule': {
       const from = s['week'] ?? new Date().toISOString().slice(0, 10);
       const off = await daysOff(from);
-      return read('RecruitingSlots', {
+      const variables = {
         applicationId: id,
         planKey: or(s['plan']),
         from: s['week'] === undefined ? null : `${s['week']}T00:00:00.000Z`,
         away: JSON.stringify(off.away),
         holidays: JSON.stringify(off.holidays),
-      });
+      };
+      const first = await read('RecruitingSlots', variables);
+      // The interviewers are known only once Recruiting has answered; their weeks then come
+      // from Time Off and the slots are drawn again inside them.
+      // ponytail: two reads of Recruiting; one when Recruiting learns the weeks by event.
+      if (first.status !== 'ready') return first;
+      const data = first.data as {
+        planKey: string | null;
+        plan: { key: string; interviewerIds: string[] }[];
+      };
+      const ids = data.plan.find((p) => p.key === data.planKey)?.interviewerIds ?? [];
+      const weeks = await workingWeeks(ids);
+      return Object.keys(weeks).length === 0
+        ? first
+        : read('RecruitingSlots', { ...variables, weeks: JSON.stringify(weeks) });
     }
     case 'Offers':
       return read('RecruitingOffers');

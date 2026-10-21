@@ -79,6 +79,7 @@ interface State {
   assignments: Map<string, readonly string[]>;
   punches: Map<string, Punch[]>;
   schedules: Map<string, Schedule>;
+  defaultSchedule: Schedule | null;
   attendanceRules: AttendanceRules;
   periods: Map<string, PayPeriod>;
   lines: TimeLine[];
@@ -116,6 +117,7 @@ const empty = (): State => ({
   assignments: new Map(),
   punches: new Map(),
   schedules: new Map(),
+  defaultSchedule: null,
   attendanceRules: DEFAULT_RULES,
   periods: new Map(),
   lines: [],
@@ -327,6 +329,10 @@ function stores(tenantId: TenantId, s: State): Tx {
         ),
       setSchedule: (personId, schedule) => {
         s.schedules.set(personId, schedule);
+      },
+      defaultSchedule: () => s.defaultSchedule,
+      setDefaultSchedule: (schedule) => {
+        s.defaultSchedule = schedule;
       },
       rules: () => s.attendanceRules,
       setRules: (rules) => {

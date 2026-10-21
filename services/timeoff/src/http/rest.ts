@@ -46,6 +46,7 @@ import {
   setTeamMinimum,
   setAttendanceRules,
   assignSchedule,
+  setDefaultSchedule,
   setParentalCompany,
   startShadowRun,
   stopShadowRun,
@@ -124,6 +125,7 @@ import {
 import {
   balanceLedger,
   holidays,
+  workingWeeks,
   myRequests,
   overview,
   personBalances,
@@ -159,6 +161,7 @@ import {
   AttendanceRequestsView,
   AttendanceRulesBody,
   AttendanceSettingsView,
+  WorkingWeeksView,
   AutoApprovalBody,
   ChatAnswersBody,
   BalanceLedgerView,
@@ -905,6 +908,24 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ year: Year }),
     answer: HolidaysView,
     run: (deps, caller, { params }) => holidays(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffWorkingWeeks',
+    method: 'GET',
+    path: `${V1}/working-weeks`,
+    summary: 'When each named member works, their own week or the company’s, in their zone',
+    params: z.object({ personIds: z.string().max(4000) }),
+    answer: WorkingWeeksView,
+    run: (deps, caller, { params }) =>
+      workingWeeks(deps)(
+        caller,
+        params.personIds
+          .split(',')
+          .filter((id) => id !== '')
+          .slice(0, 50)
+          .map((id) => PersonId.parse(id)),
+      ),
     shape: same,
   }),
   route({
@@ -1863,6 +1884,16 @@ export const ROUTES: readonly Route[] = [
     shape: done,
   }),
   route({
+    name: 'setTimeOffDefaultSchedule',
+    method: 'PUT',
+    path: `${V1}/default-schedule`,
+    summary: 'T33: the company’s working week, for anyone without a schedule of their own; HR',
+    body: z.strictObject({ schedule: ScheduleBody }),
+    answer: Done,
+    run: (deps, caller, { body }) => setDefaultSchedule(deps)(caller, body.schedule),
+    shape: done,
+  }),
+  route({
     name: 'assignTimeOffSchedule',
     method: 'PUT',
     path: `${V1}/schedules`,
@@ -2157,8 +2188,7 @@ export function restHandler(
         caller.value,
         input,
       );
-      if (result.ok)
-        await recordActivity(deps, caller.value, r, params.value);
+      if (result.ok) await recordActivity(deps, caller.value, r, params.value);
       return answer(r, result);
     } catch (error) {
       if (!(error instanceof Raced)) throw error;

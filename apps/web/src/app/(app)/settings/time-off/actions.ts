@@ -111,6 +111,11 @@ export async function assignHolidayCalendars(
   );
 }
 
+/** T33: the company's working week. */
+export async function saveDefaultSchedule(schedule: unknown): Promise<Outcome> {
+  return outcome(await timeOff('SetTimeOffDefaultSchedule', { input: { schedule } }));
+}
+
 /** T33: breaks, rest, the weekly limit and what overtime becomes. */
 export async function saveAttendanceRules(rules: unknown): Promise<Outcome> {
   return outcome(await timeOff('SetTimeOffAttendanceRules', { input: rules }));

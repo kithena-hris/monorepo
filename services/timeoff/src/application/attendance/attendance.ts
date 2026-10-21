@@ -83,6 +83,10 @@ export const DEFAULT_SCHEDULE: Schedule = {
   week: weekdays({ start: hm('09:00'), end: hm('17:30'), breakMinutes: 30 }),
 };
 
+/** The company's working week: what HR set, or the standard one until they do. */
+export const companySchedule = async (tx: Tx): Promise<Schedule> =>
+  (await tx.attendance.defaultSchedule()) ?? DEFAULT_SCHEDULE;
+
 /** A team key for Payroll's lines when the member is in none. */
 const NO_TEAM = TeamKey.parse('unassigned');
 
@@ -124,7 +128,7 @@ async function clockOf(
 const isCorrection = (p: Punch): boolean => p.deviceId === null && p.at !== p.recordedAt;
 
 const scheduleOf = async (tx: Tx, member: Member): Promise<Schedule> =>
-  (await tx.attendance.schedule(member.personId)) ?? DEFAULT_SCHEDULE;
+  (await tx.attendance.schedule(member.personId)) ?? (await companySchedule(tx));
 
 /** S16: HR switched this way of clocking in off. */
 export const clockInOff = (): Result<never> =>

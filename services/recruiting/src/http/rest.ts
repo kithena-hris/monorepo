@@ -331,6 +331,17 @@ const files = (list: readonly z.infer<typeof File>[] | undefined): IncomingFile[
     bytes: new Uint8Array(Buffer.from(f.base64, 'base64')),
   }));
 const text = (max: number) => z.string().max(max);
+/** Each interviewer's working week from Time Off, through the shell: minutes after local midnight. */
+const Weeks = z.record(
+  text(80),
+  z.object({
+    timeZone: text(80),
+    week: z.record(
+      z.enum(['1', '2', '3', '4', '5', '6', '7']),
+      z.array(z.tuple([z.int().min(0).max(2880), z.int().min(0).max(2880)])).max(4),
+    ),
+  }),
+);
 /** The company's holidays from Time Off, through the shell. */
 const Holidays = z.array(z.object({ date: z.iso.date(), name: text(200) })).max(200);
 /** An interview's agenda as the recruiter wrote it: rich text for the page, plain for mail and calendars. */
@@ -474,6 +485,7 @@ export const ROUTES: readonly Route[] = [
       from: Instant.optional(),
       away: text(100_000).optional(),
       holidays: text(20_000).optional(),
+      weeks: text(50_000).optional(),
     }),
     run: (ctx, { params }) =>
       scheduleScreen(
@@ -483,6 +495,7 @@ export const ROUTES: readonly Route[] = [
         params.from,
         params.away === undefined ? {} : (JSON.parse(params.away) as Record<string, string[]>),
         params.holidays === undefined ? [] : Holidays.parse(JSON.parse(params.holidays)),
+        params.weeks === undefined ? {} : Weeks.parse(JSON.parse(params.weeks)),
       ),
   }),
   route({
@@ -1096,9 +1109,17 @@ export const ROUTES: readonly Route[] = [
       /** The days off known on the Schedule screen, kept with the link. */
       away: z.record(text(80), z.array(z.iso.date()).max(400)).default({}),
       holidays: Holidays.default([]),
+      weeks: Weeks.default({}),
     }),
     run: (ctx, { params, body }) =>
-      selfScheduleLink(ctx, params.applicationId, body.planKey, body.away, body.holidays),
+      selfScheduleLink(
+        ctx,
+        params.applicationId,
+        body.planKey,
+        body.away,
+        body.holidays,
+        body.weeks,
+      ),
   }),
   route({
     name: 'proposeSlots',

@@ -6,7 +6,7 @@ import { openDays } from '../domain/attendance/correction.js';
 import { carryOverExpiry } from '../domain/balance/entitlement.js';
 import { entry } from '../domain/balance/ledger.js';
 import { addDays, amount, days } from '../domain/days.js';
-import { DEFAULT_SCHEDULE } from './attendance/attendance.js';
+import { companySchedule } from './attendance/attendance.js';
 import { postEntitlement } from './entitlement.js';
 import { contextFor, systemActor, type Deps, type Member, type Tx } from './ports.js';
 import { persist } from './request/request.js';
@@ -215,7 +215,8 @@ export const missedPunchCheck =
       const now = deps.clock.instant();
       for (const member of await current(tx)) {
         const clock = await clockOf(tx, tenantId, member);
-        const schedule = (await tx.attendance.schedule(member.personId)) ?? DEFAULT_SCHEDULE;
+        const schedule =
+          (await tx.attendance.schedule(member.personId)) ?? (await companySchedule(tx));
         for (const open of openDays({
           shifts: clock.shifts,
           schedule,

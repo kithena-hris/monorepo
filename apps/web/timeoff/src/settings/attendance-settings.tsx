@@ -1,6 +1,7 @@
 import {
   Alert,
   Badge,
+  Button,
   FormSection,
   FormSections,
   List,
@@ -10,9 +11,11 @@ import {
   PageSection,
   SegmentedControl,
   SegmentedControlItem,
+  Switch,
+  TimePicker,
   icons,
 } from '@reach/ui';
-import type { JSX } from 'react';
+import { useState, useTransition, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { SettingsSkeleton, useSaved } from './shared';
@@ -57,6 +60,12 @@ export interface AttendanceSettingsData {
 export interface AttendanceSettingsProps {
   readonly load: Loadable<AttendanceSettingsData>;
   readonly onSave?: (rules: AttendanceRules) => Promise<Outcome>;
+  /** The company's working week, saved on its own. */
+  readonly onSaveWeek?: (schedule: {
+    kind: 'fixed';
+    name: string;
+    week: Partial<Record<string, WorkWindow>>;
+  }) => Promise<Outcome>;
 }
 
 const TITLE = 'Attendance';
@@ -74,13 +83,17 @@ const page = '@container/attendance flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/attendance:grid @min-[60rem]/attendance:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[60rem]/attendance:items-start';
 
-export function AttendanceSettings({ load, onSave }: AttendanceSettingsProps): JSX.Element {
+export function AttendanceSettings({
+  load,
+  onSave,
+  onSaveWeek,
+}: AttendanceSettingsProps): JSX.Element {
   if (load.status === 'loading') return <AttendanceSettingsSkeleton />;
   return (
     <div className={page}>
       <PageHeader title={TITLE} description={DESCRIPTION} />
       <Loaded load={load} what="the attendance rules">
-        {(data) => <Ready data={data} onSave={onSave} />}
+        {(data) => <Ready data={data} onSave={onSave} onSaveWeek={onSaveWeek} />}
       </Loaded>
     </div>
   );
@@ -92,9 +105,11 @@ const hours = (minutes: number): number => minutes / 60;
 function Ready({
   data,
   onSave,
+  onSaveWeek,
 }: {
   readonly data: AttendanceSettingsData;
   readonly onSave: AttendanceSettingsProps['onSave'];
+  readonly onSaveWeek: AttendanceSettingsProps['onSaveWeek'];
 }): JSX.Element {
   const form = useSaved(data.rules);
   const rules = form.draft;
@@ -221,17 +236,22 @@ function Ready({
           </FormSection>
         </FormSections>
         <div className="flex min-w-0 flex-col gap-6">
-          <PageSection title="Schedules" surface>
-            <List aria-label="Schedules">
-              <ListItem
-                icon={<icons.scheduled aria-hidden />}
-                description={scheduleLine(data.defaultSchedule)}
-              >
-                {data.defaultSchedule.name}
-              </ListItem>
-            </List>
+          <PageSection title="Working week" surface>
+            {onSaveWeek === undefined || !editableWeek(data.defaultSchedule) ? (
+              <List aria-label="Schedules">
+                <ListItem
+                  icon={<icons.scheduled aria-hidden />}
+                  description={scheduleLine(data.defaultSchedule)}
+                >
+                  {data.defaultSchedule.name}
+                </ListItem>
+              </List>
+            ) : (
+              <WeekEditor schedule={data.defaultSchedule} onSave={onSaveWeek} />
+            )}
             <p className="mt-3 text-sm text-fg-muted">
-              Anyone without a schedule of their own works this one.
+              Anyone without a schedule of their own works this week. Interviews and meetings are
+              only offered inside it.
             </p>
           </PageSection>
           <Alert tone="info" icon={<icons.locked aria-hidden />} title="What Kithena never records">
@@ -246,6 +266,114 @@ function Ready({
 }
 
 const DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_NAME = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const toMinutes = (hhmm: string): number => {
+  const [h = 0, m = 0] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/** The company week is edited here when it is a plain week, the shape HR sets it in. */
+const editableWeek = (schedule: AttendanceSettingsData['defaultSchedule']): boolean =>
+  schedule.kind === 'fixed' || schedule.kind === 'flexible';
+
+/**
+ * The company's working week, a day at a time: worked or not, when it
+ * starts and ends, and the break inside it. Saved on its own, apart from
+ * the rules beside it.
+ */
+function WeekEditor({
+  schedule,
+  onSave,
+}: {
+  readonly schedule: AttendanceSettingsData['defaultSchedule'];
+  readonly onSave: NonNullable<AttendanceSettingsProps['onSaveWeek']>;
+}): JSX.Element {
+  const [week, setWeek] = useState<Partial<Record<string, WorkWindow>>>(schedule.week ?? {});
+  const [said, setSaid] = useState<Outcome | null>(null);
+  const [pending, start] = useTransition();
+  const standard: WorkWindow = { start: 540, end: 1050, breakMinutes: 30 };
+  const put = (day: string, w: WorkWindow | undefined): void => {
+    const rest = Object.fromEntries(Object.entries(week).filter(([d]) => d !== day));
+    setWeek(w === undefined ? rest : { ...rest, [day]: w });
+    setSaid(null);
+  };
+  const wrong = Object.values(week).some(
+    (w) => w !== undefined && (w.end <= w.start || w.breakMinutes > w.end - w.start),
+  );
+  return (
+    <div className="flex flex-col gap-3">
+      {said === null ? null : said.ok ? (
+        <Alert tone="success" title="The working week is saved" />
+      ) : (
+        <Alert tone="danger" title="That did not go through">
+          {said.message}
+        </Alert>
+      )}
+      <ul className="flex flex-col gap-2" aria-label="Working days">
+        {DAY_NAME.map((name, i) => {
+          const day = String(i + 1);
+          const w = week[day];
+          return (
+            <li key={day} className="flex flex-wrap items-center gap-3">
+              <Switch
+                aria-label={`${name} is a working day`}
+                checked={w !== undefined}
+                onCheckedChange={(on) => {
+                  put(day, on ? (week['1'] ?? standard) : undefined);
+                }}
+              />
+              <span className="w-24 text-sm font-medium">{name}</span>
+              {w === undefined ? (
+                <span className="text-sm text-fg-muted">Not worked</span>
+              ) : (
+                <>
+                  <TimePicker
+                    label={`${name} starts`}
+                    size="sm"
+                    step={15}
+                    value={clock(w.start)}
+                    onChange={(t) => {
+                      if (t !== null) put(day, { ...w, start: toMinutes(t) });
+                    }}
+                  />
+                  <span aria-hidden className="text-fg-muted">
+                    –
+                  </span>
+                  <TimePicker
+                    label={`${name} ends`}
+                    size="sm"
+                    step={15}
+                    value={clock(w.end)}
+                    onChange={(t) => {
+                      if (t !== null) put(day, { ...w, end: toMinutes(t) });
+                    }}
+                  />
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {wrong ? (
+        <p className="text-sm text-danger-fg">Each working day ends after it starts.</p>
+      ) : null}
+      <div>
+        <Button
+          size="sm"
+          loading={pending}
+          disabled={wrong || Object.keys(week).length === 0}
+          onClick={() => {
+            start(async () => {
+              setSaid(await onSave({ kind: 'fixed', name: schedule.name, week }));
+            });
+          }}
+        >
+          Save the working week
+        </Button>
+      </div>
+    </div>
+  );
+}
 const clock = (m: number): string =>
   `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 

@@ -273,6 +273,9 @@ export interface AttendanceStore {
   /** `schedule` for many members in one query; a member with none is absent. */
   schedulesOf(personIds: readonly PersonId[]): Promise<ReadonlyMap<PersonId, Schedule>>;
   setSchedule(personId: PersonId, schedule: Schedule): Promise<void>;
+  /** The company's working week, as HR set it; `null` until they do. */
+  defaultSchedule(): Promise<Schedule | null>;
+  setDefaultSchedule(schedule: Schedule): Promise<void>;
   rules(): Promise<AttendanceRules>;
   setRules(rules: AttendanceRules): Promise<void>;
   periods(): Promise<readonly PayPeriod[]>;

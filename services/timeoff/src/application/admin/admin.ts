@@ -346,6 +346,21 @@ export const setAttendanceRules =
       return ok(undefined);
     });
 
+/** T33: the company's working week, worked by anyone without a schedule of their own; HR. */
+export const setDefaultSchedule =
+  (deps: AdminDeps) =>
+  (caller: Caller, schedule: Schedule): Promise<Result<void>> =>
+    asHr(deps, caller, async (tx) => {
+      if (schedule.kind !== 'fixed' && schedule.kind !== 'flexible')
+        return refuse('SCHEDULE_KIND', 'The company week is a fixed or flexible week');
+      const days = Object.values(schedule.week);
+      if (days.length === 0) return refuse('NO_DAYS', 'Choose at least one working day');
+      if (days.some((d) => d.end <= d.start || d.breakMinutes > d.end - d.start))
+        return refuse('HOURS_ORDER', 'Each day ends after it starts, with the break inside it');
+      await tx.attendance.setDefaultSchedule(schedule);
+      return ok(undefined);
+    });
+
 export const assignSchedule =
   (deps: AdminDeps) =>
   (caller: Caller, personIds: readonly PersonId[], schedule: Schedule): Promise<Result<void>> =>

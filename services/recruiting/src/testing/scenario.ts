@@ -552,6 +552,21 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(onHoliday.slots.filter((t) => t.startsWith('2026-10-19'))).toEqual([]);
     expect(onHoliday.slots.length).toBeGreaterThan(0);
     expect(onHoliday.holidays).toEqual([{ date: '2026-10-19', name: 'Founders’ day' }]);
+    // A working week from Time Off bounds the day: 10:00 to 11:00 holds one hour-long slot.
+    const short = value(
+      await scheduleScreen(
+        ctx,
+        applied.applicationId,
+        'portfolio',
+        Instant.parse('2026-10-19T00:00:00.000Z'),
+        {},
+        [],
+        { [people.adam]: { timeZone: 'UTC', week: { '1': [[600, 660]] } } },
+      ),
+    );
+    expect(short.slots.filter((t) => t.startsWith('2026-10-19'))).toEqual([
+      '2026-10-19T10:00:00.000Z',
+    ]);
     value(
       await scheduleInterview(ctx, applied.applicationId, {
         planKey: 'portfolio',

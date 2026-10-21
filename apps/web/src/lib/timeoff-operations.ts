@@ -129,6 +129,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** When each named member works, for scheduling a meeting with them (Recruiting's Schedule screen) */
+  TimeOffWorkingWeeks: `query TimeOffWorkingWeeks($personIds: String!) {
+    timeOffWorkingWeeks(personIds: $personIds) {
+      weeks { days { end start weekday } personId timeZone }
+    }
+  }`,
+
   /** MT21: the holidays the caller’s work location observes */
   TimeOffHolidays: `query TimeOffHolidays($year: Int!) {
     timeOffHolidays(year: $year) {
@@ -571,6 +578,13 @@ export const OPERATIONS = {
   }`,
 
   /** T33: breaks, rest, the weekly limit and what overtime becomes; HR */
+  /** T33: the company's working week; HR */
+  SetTimeOffDefaultSchedule: `mutation SetTimeOffDefaultSchedule($key: String!, $input: JSON!) {
+    setTimeOffDefaultSchedule(idempotencyKey: $key, input: $input) {
+      ok
+    }
+  }`,
+
   SetTimeOffAttendanceRules: `mutation SetTimeOffAttendanceRules($key: String!, $input: JSON!) {
     setTimeOffAttendanceRules(idempotencyKey: $key, input: $input) {
       ok

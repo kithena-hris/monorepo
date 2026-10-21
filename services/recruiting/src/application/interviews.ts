@@ -43,6 +43,21 @@ import { generalSettings } from './setup.js';
 /** Away days by interviewer, as the shell passes them from Time Off (PRD §28); absent means none known. */
 export type Absences = Readonly<Record<string, readonly string[]>>;
 
+/**
+ * When each person works, as the shell reads it from Time Off: their own
+ * schedule or the company's week, in their zone. Used for anyone who has not
+ * set working hours in Recruiting; without either, the office week in UTC.
+ */
+export type Weeks = Readonly<
+  Record<
+    string,
+    {
+      readonly timeZone: string;
+      readonly week: Readonly<Record<string, readonly (readonly [number, number])[]>>;
+    }
+  >
+>;
+
 /** The company's holidays, as the shell reads them from Time Off: no one is booked on one. */
 export interface Holiday {
   readonly date: string;
@@ -59,14 +74,40 @@ function withHolidays(
   return Object.fromEntries(people.map((p) => [p, [...(away[p] ?? []), ...dates]]));
 }
 
+/** A person's interviews and calendar meetings in the window: when they cannot be booked. */
+async function busyOf(
+  ctx: Ctx,
+  personId: string,
+  from: Instant,
+  to: Instant,
+): Promise<(readonly [string, string])[]> {
+  return (await ctx.tx.interviews.forInterviewer(personId, from, to))
+    .filter((i) => i.state === 'scheduled')
+    .map(
+      (i) =>
+        [i.startsAt, new Date(Date.parse(i.startsAt) + i.minutes * 60_000).toISOString()] as const,
+    )
+    .concat(await calendarBusy(ctx, personId, from, to));
+}
+
+/**
+ * Everyone who must be free: the interviewers in their working week, and
+ * whoever is scheduling (the recruiter), whose Google or Microsoft 365
+ * meetings and own interviews block a time too, though their hours do not.
+ */
 async function availability(
   ctx: Ctx,
   people: readonly string[],
   from: Instant,
   to: Instant,
   away: Absences,
+  weeks: Weeks = {},
+  watchers: readonly (string | null)[] = [],
 ): Promise<Availability[]> {
   const out: Availability[] = [];
+  const watching: (readonly [string, string])[] = [];
+  for (const w of new Set(watchers))
+    if (w !== null && !people.includes(w)) watching.push(...(await busyOf(ctx, w, from, to)));
   for (const personId of people) {
     const hours = await ctx.tx.workingHours.get(personId);
     const busy = (await ctx.tx.interviews.forInterviewer(personId, from, to))
@@ -79,12 +120,13 @@ async function availability(
           ] as const,
       )
       .concat(await calendarBusy(ctx, personId, from, to));
+    const known = weeks[personId];
     out.push({
       personId,
-      timeZone: hours?.timeZone ?? 'UTC',
-      week: hours?.week ?? OFFICE_WEEK,
+      timeZone: hours?.timeZone ?? known?.timeZone ?? 'UTC',
+      week: hours?.week ?? known?.week ?? OFFICE_WEEK,
       away: away[personId] ?? [],
-      busy,
+      busy: [...busy, ...watching],
     });
   }
   return out;
@@ -101,6 +143,7 @@ export async function slotsFor(
   from: Instant,
   to: Instant,
   away: Absences = {},
+  weeks: Weeks = {},
 ): Promise<Result<readonly string[]>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -109,7 +152,7 @@ export async function slotsFor(
   if (plan === null) return err(notFound('interview in the plan'));
   return ok(
     freeSlots(
-      await availability(ctx, plan.interviewerIds, from, to, away),
+      await availability(ctx, plan.interviewerIds, from, to, away, weeks, [ctx.caller.personId]),
       from,
       to,
       plan.minutes,
@@ -130,6 +173,7 @@ export async function scheduleScreen(
   from: Instant | undefined,
   away: Absences = {},
   holidays: readonly Holiday[] = [],
+  weeks: Weeks = {},
 ): Promise<
   Result<{
     candidate: { id: string; name: string };
@@ -149,6 +193,8 @@ export async function scheduleScreen(
     holidays: readonly Holiday[];
     /** Who among the interviewers is away when, for the link the candidate gets. */
     away: Absences;
+    /** The interviewers' working weeks from Time Off, kept with the link too. */
+    weeks: Weeks;
   }>
 > {
   const loaded = await loadApplication(ctx, applicationId);
@@ -163,7 +209,7 @@ export async function scheduleScreen(
   const slots =
     chosen === null
       ? ok([] as readonly string[])
-      : await slotsFor(ctx, applicationId, chosen.key, start, end, off);
+      : await slotsFor(ctx, applicationId, chosen.key, start, end, off, weeks);
   if (!slots.ok) return slots;
   const candidate = await ctx.tx.candidates.get(loaded.value.app.candidateId);
   const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
@@ -186,6 +232,12 @@ export async function scheduleScreen(
     meet: await canMakeVideo(ctx, chosen?.interviewerIds ?? []),
     holidays: holidays.filter((h) => h.date >= start.slice(0, 10) && h.date < end.slice(0, 10)),
     away: Object.fromEntries((chosen?.interviewerIds ?? []).map((p) => [p, away[p] ?? []])),
+    weeks: Object.fromEntries(
+      (chosen?.interviewerIds ?? []).flatMap((p) => {
+        const w = weeks[p];
+        return w === undefined ? [] : [[p, w] as const];
+      }),
+    ),
   });
 }
 
@@ -347,6 +399,7 @@ export async function selfScheduleLink(
   planKey: string,
   away: Absences = {},
   holidays: readonly Holiday[] = [],
+  weeks: Weeks = {},
 ): Promise<Result<string>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -360,6 +413,9 @@ export async function selfScheduleLink(
     planKey,
     away,
     holidays,
+    weeks,
+    // Whoever sent it: their calendar's meetings block a time the candidate may pick.
+    recruiterId: ctx.caller.personId,
     expiresAt: new Date(Date.parse(ctx.at) + 14 * 86_400_000).toISOString(),
   });
   const company = (await generalSettings(ctx)).companySlug;
@@ -379,6 +435,8 @@ interface Link {
   readonly planKey: string;
   readonly away?: Absences;
   readonly holidays?: readonly Holiday[];
+  readonly weeks?: Weeks;
+  readonly recruiterId?: string | null;
   readonly expiresAt: string;
 }
 
@@ -416,6 +474,8 @@ export async function linkSlots(
       from,
       to,
       withHolidays(plan.interviewerIds, link.away ?? {}, holidays),
+      link.weeks ?? {},
+      [link.recruiterId ?? null],
     ),
     from,
     to,

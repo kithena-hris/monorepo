@@ -1079,6 +1079,29 @@ export const AttendanceRulesBody = named(
   }),
 );
 
+/** When each named person works, for scheduling their meetings (Recruiting through the shell). */
+export const WorkingWeeksView = named(
+  'TimeOffWorkingWeeks',
+  z.object({
+    weeks: z.array(
+      named(
+        'TimeOffWorkingWeek',
+        z.object({
+          personId: PersonId,
+          timeZone: z.string(),
+          /** ISO weekday (Monday 1) and minutes after local midnight; a day absent is not worked. */
+          days: z.array(
+            named(
+              'TimeOffWorkingDay',
+              z.object({ weekday: z.int(), start: z.int(), end: z.int() }),
+            ),
+          ),
+        }),
+      ),
+    ),
+  }),
+);
+
 export const AttendanceSettingsView = named(
   'TimeOffSettingsAttendance',
   z.object({
@@ -1529,6 +1552,7 @@ export type LeaveTypeSettingView = View<typeof LeaveTypeSettingView>;
 export type PolicyPreviewView = View<typeof PolicyPreviewView>;
 export type NegativeBalanceView = View<typeof NegativeBalanceView>;
 export type AttendanceSettingsView = View<typeof AttendanceSettingsView>;
+export type WorkingWeeksView = View<typeof WorkingWeeksView>;
 export type ApprovalsSettingsView = View<typeof ApprovalsSettingsView>;
 export type HolidaySettingsView = View<typeof HolidaySettingsView>;
 export type ViewerView = View<typeof ViewerView>;

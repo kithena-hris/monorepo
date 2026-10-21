@@ -249,7 +249,11 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       case 'NegativeBalance':
         return { load: loadable, onSave: settings.saveNegativeBalance };
       case 'AttendanceSettings':
-        return { load: loadable, onSave: settings.saveAttendanceRules };
+        return {
+          load: loadable,
+          onSave: settings.saveAttendanceRules,
+          onSaveWeek: settings.saveDefaultSchedule,
+        };
       case 'ApprovalSettings':
         return { load: loadable, onSave: settings.saveApprovals };
       case 'HolidaySettings':
