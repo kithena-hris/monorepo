@@ -11,10 +11,16 @@ import type { Ctx } from './context.js';
  * ponytail: one JSON list per application under `settings`, read and written
  * whole; a table when asks are searched across applications.
  */
+/** The agenda a recruiter writes: rich text for the page, plain for an email and a calendar. */
+export interface Agenda {
+  readonly html: string;
+  readonly text: string;
+}
+
 export interface Ask {
   readonly id: string;
   readonly applicationId: string;
-  readonly kind: 'slots' | 'info' | 'change';
+  readonly kind: 'slots' | 'info' | 'change' | 'availability';
   readonly createdAt: Instant;
   /** Who asked, when the team did; null when the candidate did. */
   readonly by: string | null;
@@ -23,6 +29,8 @@ export interface Ask {
   readonly times: readonly Instant[];
   readonly place: string | null;
   readonly videoUrl: string | null;
+  /** `slots`: what the interview is about, written for the invitation and the calendar event. */
+  readonly agenda: Agenda | null;
   /** `info`: what is asked, in the candidate's words; `change`: the interview and the reason. */
   readonly label: string;
   readonly detail: string | null;
@@ -63,6 +71,7 @@ export function newAsk(
     times: [],
     place: null,
     videoUrl: null,
+    agenda: null,
     detail: null,
     interviewId: null,
     state: 'open',

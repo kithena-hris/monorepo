@@ -206,7 +206,7 @@ export const CandidatePage = z.object({
       requests: z.array(
         z.object({
           id: z.uuid().register(policy, asPublic()),
-          kind: z.enum(['slots', 'info', 'change']).register(policy, asInternal()),
+          kind: z.enum(['slots', 'info', 'change', 'availability']).register(policy, asInternal()),
           label: z.string().max(200).register(policy, asInternal()),
           detail: z.string().max(4000).nullable().register(policy, asFreeText()),
           createdAt: Instant,

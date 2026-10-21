@@ -23,8 +23,12 @@ import {
 } from '../application/jobs.js';
 import { moveApplication } from '../application/moves.js';
 import {
+  bookFromAvailability,
+  linkSlots,
+  offerAvailability,
   saveScorecard,
   scheduleInterview,
+  selfScheduleLink,
   setInterviewState,
   slotsFor,
 } from '../application/interviews.js';
@@ -564,6 +568,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         place: null,
         videoUrl: null,
         note: null,
+        agenda: {
+          html: '<p>Your portfolio, then questions.</p>',
+          text: 'Your portfolio, then questions.',
+        },
       }),
     ),
   );
@@ -581,6 +589,36 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(declined.state).toBe('answered');
   expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/^Received:/u));
   expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/needs other times/u));
+  // The link: the candidate offers times, the team books one, and the invitation carries the agenda.
+  const link = await asMailing('ada', async (ctx) =>
+    value(await selfScheduleLink(ctx, applied.applicationId, 'portfolio')),
+  );
+  const linkToken = link.split('#')[1] ?? '';
+  const free = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));
+  const tooMany = await as('public', (ctx) =>
+    offerAvailability(ctx, linkToken, free.slots.slice(0, 11) as Instant[]),
+  );
+  expect(tooMany.ok ? null : tooMany.error.code).toBe('TIMES');
+  const availability = await asMailing('public', async (ctx) =>
+    value(await offerAvailability(ctx, linkToken, free.slots.slice(0, 3) as Instant[])),
+  );
+  expect(availability.times).toHaveLength(3);
+  expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/offered 3 times/u));
+  const bookedFromLink = await asMailing('ada', async (ctx) =>
+    value(
+      await bookFromAvailability(ctx, applied.applicationId, availability.id, {
+        startsAt: availability.times[1] as Instant,
+        place: null,
+        videoUrl: null,
+        agenda: { html: '<p>Agenda</p>', text: 'Walk us through two projects.' },
+      }),
+    ),
+  );
+  expect(bookedFromLink.startsAt).toBe(availability.times[1]);
+  expect(mailed.at(-1)?.text).toContain('Walk us through two projects.');
+  await as('ada', async (ctx) =>
+    value(await setInterviewState(ctx, bookedFromLink.id, 'cancelled')),
+  );
   const question = await asMailing('ada', async (ctx) =>
     value(
       await requestInformation(ctx, applied.applicationId, {
@@ -601,10 +639,11 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   const page = await as('public', async (ctx) =>
     candidatePage(ctx, (await ctx.tx.candidates.get(yukiId)) as never),
   );
-  expect(page.applications[0]?.requests.map((r) => r.state)).toEqual([
-    'closed',
-    'answered',
-    'answered',
+  expect(page.applications[0]?.requests.map((r) => [r.kind, r.state])).toEqual([
+    ['change', 'closed'],
+    ['info', 'answered'],
+    ['availability', 'answered'],
+    ['slots', 'answered'],
   ]);
 
   // The day before, the candidate is reminded; messaging drops a repeat by its key.
