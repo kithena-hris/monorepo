@@ -74,8 +74,8 @@ export const OPERATIONS = {
   RecruitingSlots: query(
     'RecruitingSlots',
     'recruitingSlots',
-    '$applicationId: String!, $planKey: String, $from: String, $away: String',
-    'applicationId: $applicationId, planKey: $planKey, from: $from, away: $away',
+    '$applicationId: String!, $planKey: String, $from: String, $away: String, $holidays: String, $weeks: String, $interviewers: String',
+    'applicationId: $applicationId, planKey: $planKey, from: $from, away: $away, holidays: $holidays, weeks: $weeks, interviewers: $interviewers',
   ),
   /** R17 */
   RecruitingDebrief: query(
@@ -132,6 +132,8 @@ export const OPERATIONS = {
   SaveJobAd: write('SaveJobAd', 'saveJobAd', ...two('jobId', 'language')),
   SetJobCriteria: write('SetJobCriteria', 'setJobCriteria', ...ID('jobId')),
   SetJobPlan: write('SetJobPlan', 'setJobPlan', ...ID('jobId')),
+  /** A job's terms, set in order (PRD §19.2). */
+  SaveJobTerms: write('SaveJobTerms', 'saveJobTerms', ...ID('jobId')),
   MoveJob: write('MoveJob', 'moveJob', ...ID('jobId')),
   PublishJob: write('PublishJob', 'publishJob', ...two('jobId', 'target'), false),
   UnpublishJob: write('UnpublishJob', 'unpublishJob', ...ID('jobId'), false),
@@ -155,6 +157,7 @@ export const OPERATIONS = {
   ScheduleInterview: write('ScheduleInterview', 'scheduleInterview', ...ID('applicationId')),
   SelfScheduleLink: write('SelfScheduleLink', 'selfScheduleLink', ...ID('applicationId')),
   ProposeSlots: write('ProposeSlots', 'proposeSlots', ...ID('applicationId')),
+  DraftAgenda: write('DraftAgenda', 'draftAgenda', ...ID('applicationId')),
   RequestInformation: write('RequestInformation', 'requestInformation', ...ID('applicationId')),
   CloseAsk: write('CloseAsk', 'closeAsk', ...two('applicationId', 'askId'), false),
   BookFromAsk: write('BookFromAsk', 'bookFromAsk', ...two('applicationId', 'askId')),

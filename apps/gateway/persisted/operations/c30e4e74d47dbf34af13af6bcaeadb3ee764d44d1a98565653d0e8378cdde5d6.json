@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DraftAgenda($applicationId: String!, $input: JSON!, $key: String!) {\n    draftAgenda(applicationId: $applicationId, input: $input, idempotencyKey: $key)\n  }"}

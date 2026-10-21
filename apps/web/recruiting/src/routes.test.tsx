@@ -252,12 +252,43 @@ const job: JobData = {
   scorecards: [],
   benefits: [],
   members: [],
+  terms: {
+    entityId: null,
+    locationId: null,
+    workMode: 'hybrid',
+    hybridDaysOnsite: null,
+    relationship: null,
+    contractType: null,
+    fixedTermReason: null,
+    workDays: [],
+    dayStart: null,
+    dayEnd: null,
+    breakMinutes: 60,
+    vacationDays: null,
+    benefitIds: [],
+  },
+  options: {
+    country: null,
+    entities: [],
+    locations: [],
+    relationships: [],
+    contractTypes: [],
+    fixedTermReasons: [],
+    maxWeeklyMinutes: null,
+    fullTimeWeeklyMinutes: null,
+    weeklyMinutes: null,
+    hours: null,
+    leave: null,
+    benefits: [],
+    reviewed: true,
+  },
 };
 
 describe('R4–R7, a job’s setup', () => {
   it('shows the ad as a candidate reads it, every part with its own Edit', async () => {
     const { container } = render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} />);
-    expect(screen.getByRole('heading', { name: 'Title, pay and the facts' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Title and pay' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Workplace and terms' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThan(5);
     expect(await axeViolations(container)).toEqual([]);
   });
@@ -271,7 +302,18 @@ describe('R4–R7, a job’s setup', () => {
   it('walks a new job through its steps in a dialog', () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ setup: '1' }} />);
     expect(screen.getByRole('dialog', { name: /Set up/u })).toBeTruthy();
-    expect(screen.getAllByText('Step 1 of 5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Step 1 of 11').length).toBeGreaterThan(0);
+  });
+
+  it('asks for the workplace before the work type, and the work type before the contract', () => {
+    render(
+      <screens.JobSetup
+        load={ready(job)}
+        params={{ id: 'j1' }}
+        search={{ setup: '1', step: '3' }}
+      />,
+    );
+    expect(screen.getByText('Choose the work type first.')).toBeTruthy();
   });
 });
 

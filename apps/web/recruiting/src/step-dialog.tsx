@@ -71,7 +71,7 @@ export function StepDialog({
     <Stepper
       label={`${title} steps`}
       size="sm"
-      variant={compact ? 'compact' : 'default'}
+      variant={compact || steps.length > 7 ? 'compact' : 'default'}
       free
       current={step}
       onStepChange={(i) => {
