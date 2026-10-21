@@ -32,8 +32,9 @@ goes to `main` as one pull request and one merge, so Vercel deploys once.
 - Authorization in the application layer, never only in a resolver.
 - Every filter and view in the URL; server-rendered first page.
 - The domain computes every number; a model reads, cites and writes (PRD §22).
-- Every terms pack and the retention table are **awaiting a country
-  reviewer** until REC-150.
+- The five terms packs were signed off by the owner on 21 Oct 2026; the ad
+  checks and the retention table are **awaiting a country reviewer** until
+  REC-150.
 
 ---
 
@@ -317,6 +318,8 @@ NOBYPASSRLS` and RLS on `tenant_id`; `recruiting_public` with a
 - [ ] **REC-150** Country review: Spain, the UK, Germany, India and the US
       terms packs, the ad checks and the retention table, each signed off by
       a reviewer who knows that country's employment law.
+      The terms packs were signed off by the owner on 21 Oct 2026, from the
+      statutes each rule cites; the ad checks and the retention table remain.
 
 ---
 

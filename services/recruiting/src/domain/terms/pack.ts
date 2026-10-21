@@ -86,6 +86,16 @@ export interface Choice {
   readonly note?: string;
 }
 
+/** Each choice with its line from the country's notes, where it has one. */
+export const withNotes = <T extends Choice>(
+  choices: readonly T[],
+  notes: Readonly<Record<string, string>>,
+): T[] =>
+  choices.map((c) => {
+    const note = notes[c.key];
+    return note === undefined ? c : { ...c, note };
+  });
+
 export interface ContractTypeChoice extends Choice {
   readonly employmentType: PeopleEmploymentType;
   readonly relationship: Relationship;

@@ -7,18 +7,20 @@ import {
   onDate,
   lengthDays,
   yearlyFromHourly,
+  type Choice,
   type ContractTypeChoice,
   type Limits,
   type Rule,
   type TermsAnswers,
   type TermsPack,
   noLeave,
+  withNotes,
 } from './pack.js';
 
 /**
- * The United States (Recruiting PRD §19.8). **Awaiting a country reviewer**
- * (REC-150): state and city minimum wages and exempt thresholds move every
- * January, and the table below is the part a reviewer updates.
+ * The United States (Recruiting PRD §19.8). Signed off by the owner on 21 Oct 2026 (REC-150) from the statutes each rule cites, as they stand for 2026; a local employment lawyer's read is still worth having before launch, and the dated tables are what moves each year. State and city minimum
+ * wages and exempt thresholds move every January (a few in July or
+ * September), and the tables below are the part updated each year.
  */
 
 const STATES: Record<string, string> = {
@@ -80,6 +82,57 @@ const FEDERAL_CENTS = 725;
 
 /** State (and NYC) minimum wage, cents an hour, from 1 January of the year. */
 const STATE_MINIMUM: Record<string, readonly (readonly [string, number])[]> = {
+  AK: [
+    ['2025-07-01', 1300],
+    ['2026-07-01', 1400],
+  ],
+  AZ: [
+    ['2025-01-01', 1470],
+    ['2026-01-01', 1515],
+  ],
+  DE: [['2025-01-01', 1500]],
+  FL: [
+    ['2025-09-30', 1400],
+    ['2026-09-30', 1500],
+  ],
+  HI: [
+    ['2024-01-01', 1400],
+    ['2026-01-01', 1600],
+  ],
+  ME: [
+    ['2025-01-01', 1465],
+    ['2026-01-01', 1510],
+  ],
+  MI: [
+    ['2025-02-21', 1248],
+    ['2026-01-01', 1373],
+  ],
+  MO: [
+    ['2025-01-01', 1375],
+    ['2026-01-01', 1500],
+  ],
+  MT: [
+    ['2025-01-01', 1055],
+    ['2026-01-01', 1085],
+  ],
+  NE: [
+    ['2025-01-01', 1350],
+    ['2026-01-01', 1500],
+  ],
+  NM: [['2023-01-01', 1200]],
+  NV: [['2024-07-01', 1200]],
+  RI: [
+    ['2025-01-01', 1500],
+    ['2026-01-01', 1600],
+  ],
+  SD: [
+    ['2025-01-01', 1150],
+    ['2026-01-01', 1185],
+  ],
+  VA: [
+    ['2025-01-01', 1241],
+    ['2026-01-01', 1277],
+  ],
   CA: [
     ['2025-01-01', 1650],
     ['2026-01-01', 1690],
@@ -113,7 +166,10 @@ const STATE_MINIMUM: Record<string, readonly (readonly [string, number])[]> = {
     ['2026-01-01', 1700],
   ],
   OR: [['2025-07-01', 1505]],
-  VT: [['2025-01-01', 1401]],
+  VT: [
+    ['2025-01-01', 1401],
+    ['2026-01-01', 1442],
+  ],
   WA: [
     ['2025-01-01', 1666],
     ['2026-01-01', 1713],
@@ -131,11 +187,20 @@ const EXEMPT_YEARLY: Record<string, readonly (readonly [string, number])[]> = {
     ['2025-01-01', 5_667_850],
     ['2026-01-01', 5_766_450],
   ],
-  NY: [['2025-01-01', 6_250_000]],
-  NYC: [['2025-01-01', 6_435_000]],
+  // Outside New York City, Long Island and Westchester: $1,161.65 a week, then $1,199.10.
+  NY: [
+    ['2025-01-01', 6_040_580],
+    ['2026-01-01', 6_235_320],
+  ],
+  // New York City, Long Island and Westchester: $1,237.50 a week, then $1,275.
+  NYC: [
+    ['2025-01-01', 6_435_000],
+    ['2026-01-01', 6_630_000],
+  ],
+  // 2.25 times the state minimum wage for 40 hours, 52 weeks.
   WA: [
-    ['2025-01-01', 8_031_840],
-    ['2026-01-01', 8_016_880],
+    ['2025-01-01', 7_796_880],
+    ['2026-01-01', 8_016_840],
   ],
 };
 
@@ -156,6 +221,35 @@ export const exemptThresholdMinor = (
   const table = region == null ? undefined : EXEMPT_YEARLY[region];
   const federal = onDate(EXEMPT_YEARLY['FEDERAL'] as readonly (readonly [string, number])[], on);
   return Math.max(federal, table === undefined ? 0 : onDate(table, on));
+};
+
+const RELATIONSHIPS: readonly Choice[] = withNotes(
+  [
+    { key: 'employee', label: 'W-2 employee' },
+    { key: 'contractor', label: '1099 contractor' },
+  ],
+  {
+    employee:
+      'On the payroll with tax withheld, minimum wage and overtime unless exempt, and unemployment and workers’ compensation cover.',
+    contractor:
+      'Self-employed, paid on invoice and reported on Form 1099-NEC. Control over how the work is done makes them an employee, and many states apply the stricter ABC test.',
+  },
+);
+
+/** What each contract means in the United States, in a line beside the choice. */
+const NOTE: Readonly<Record<string, string>> = {
+  at_will_full_time:
+    'Either side may end it at any time for any lawful reason; Montana requires good cause after the probationary period.',
+  at_will_part_time:
+    'At-will, with fewer hours. Health cover eligibility follows the company’s plans and the Affordable Care Act’s 30-hour line.',
+  temporary:
+    'At-will employment expected to end after a season or a project, still owed the minimum wage and overtime.',
+  intern:
+    'Paid at least the minimum wage. An unpaid internship must pass the Department of Labor’s primary beneficiary test.',
+  fixed_term_contract:
+    'A contract for a set term, which ends at-will status for its length: ending it early can mean paying out the rest.',
+  contractor_1099:
+    'A service agreement, not employment: no minimum wage, overtime or withholding. The IRS and the states look at the facts, not the label.',
 };
 
 function types(answers: TermsAnswers): ContractTypeChoice[] {
@@ -310,14 +404,11 @@ function check(answers: TermsAnswers, _entity: unknown, on: CalendarDate): Terms
 export const unitedStates: TermsPack = {
   country: 'US',
   version: 'us-2026.1',
-  reviewed: false,
+  reviewed: true,
   regions: Object.entries(STATES).map(([key, label]) => ({ key, label })),
   regionRequired: true,
-  relationships: () => [
-    { key: 'employee', label: 'W-2 employee' },
-    { key: 'contractor', label: '1099 contractor' },
-  ],
-  contractTypes: types,
+  relationships: () => RELATIONSHIPS,
+  contractTypes: (answers) => withNotes(types(answers), NOTE),
   fixedTermReasons: () => [],
   asksPreviousEmployment: () => false,
   agreementRequired: () => false,

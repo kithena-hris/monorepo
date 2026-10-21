@@ -268,9 +268,13 @@ describe('the United States (PRD §19.8)', () => {
 
 describe('every pack', () => {
   it.each(Object.values(PACKS).map((pack) => [pack.country, pack] as const))(
-    '%s cites a source for every rule; only Germany is signed off',
-    (country, pack) => {
-      expect(pack.reviewed).toBe(country === 'DE');
+    '%s cites a source for every rule, notes every choice and is signed off',
+    (_country, pack) => {
+      expect(pack.reviewed).toBe(true);
+      for (const r of pack.relationships()) expect(r.note?.length ?? 0).toBeGreaterThan(0);
+      for (const relationship of ['employee', 'contractor'] as const)
+        for (const t of pack.contractTypes({ relationship }, entity(pack.country)))
+          expect(t.note?.length ?? 0).toBeGreaterThan(0);
       for (const rule of pack.rules({}, entity(pack.country)))
         expect(rule.source.length).toBeGreaterThan(0);
     },
