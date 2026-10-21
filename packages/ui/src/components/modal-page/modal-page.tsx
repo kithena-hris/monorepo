@@ -169,7 +169,10 @@ export function ModalPageHeader({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-2.5 pt-safe-top touch:px-3',
+        // The larger of the bar's own padding and the notch: `pt-safe-top` alone is 0 on a
+        // desktop and took the bar's top padding with it.
+        'flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-2.5 touch:px-3',
+        'pt-[max(0.625rem,var(--spacing-safe-top))]',
         // Three tracks, the outer two equal, so the middle sits on the page's centre line.
         center && 'grid grid-cols-[1fr_minmax(0,auto)_1fr]',
         className,
@@ -271,7 +274,9 @@ export function ModalPageFooter({
   return (
     <div
       className={cn(
-        'flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-surface px-4 py-3 pb-safe-bottom',
+        // The larger of the bar's own padding and the home indicator, as the header does.
+        'flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-surface px-4 py-3',
+        'pb-[max(0.75rem,var(--spacing-safe-bottom))]',
         '@2xl:flex-row @2xl:items-center @2xl:justify-end',
         '[&>*]:w-full @2xl:[&>*]:w-auto',
         className,

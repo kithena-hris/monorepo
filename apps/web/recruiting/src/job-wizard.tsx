@@ -18,11 +18,19 @@ import {
   RadioCard,
   RadioGroup,
   RichTextEditor,
-  Stepper,
   Textarea,
   icons,
 } from '@reach/ui';
-import { useEffect, useRef, useState, useTransition, type JSX, type ReactNode } from 'react';
+import {
+  use,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import {
   BenefitsChoice,
@@ -34,13 +42,14 @@ import {
   ModeChoice,
   PayChoice,
   PlaceChoice,
+  SaveQueue,
   WorkTypeChoice,
   countryName,
   useCommit,
   type Commit,
   type TermsProps,
 } from './job-terms';
-import { Refusal, useAct } from './shared';
+import { Refusal, newId, useAct } from './shared';
 import type { JobData, JobRecord, ScreenProps } from './types';
 
 /**
@@ -67,16 +76,25 @@ interface Step {
 }
 
 const FIRST: Step = {
-  key: 'role',
+  key: 'title',
   group: 'The role',
-  label: 'Team and level',
-  title: 'Which team is it in, and how senior?',
-  hint: () => 'The level shapes the description and the pay estimate.',
-  done: (d) => d.job.department !== null && d.job.outline.seniority !== null,
+  label: 'Title',
+  title: 'What is the job called?',
+  hint: () =>
+    'As candidates will read it. In Germany, add a gender-neutral marker such as (m/w/d).',
+  done: (d) => d.job.title.trim() !== '',
 };
 
 export const WIZARD_STEPS: readonly Step[] = [
   FIRST,
+  {
+    key: 'role',
+    group: 'The role',
+    label: 'Team and level',
+    title: 'Which team is it in, and how senior?',
+    hint: () => 'The level shapes the description and the pay estimate.',
+    done: (d) => d.job.department !== null && d.job.outline.seniority !== null,
+  },
   {
     key: 'openings',
     group: 'The role',
@@ -246,14 +264,41 @@ const detailsOf = (job: JobRecord, change: Partial<JobRecord>): Record<string, u
   };
 };
 
+/** A value shown the moment it is picked; the server's replaces it when it arrives. */
+function useShown<T>(server: T): [T, (value: T) => void] {
+  const [held, setHeld] = useState({ server, value: server });
+  if (!Object.is(held.server, server)) setHeld({ server, value: server });
+  return [
+    Object.is(held.server, server) ? held.value : server,
+    (value) => {
+      setHeld({ server, value });
+    },
+  ];
+}
+
 function RoleStep({ data, props }: TermsProps): JSX.Element {
   const act = useAct(props);
-  const save = (change: Partial<JobRecord>): void => {
-    act.run('SaveJobDetails', { jobId: data.job.id, input: detailsOf(data.job, change) });
+  const track = use(SaveQueue);
+  const [error, setError] = useState<string | null>(null);
+  const [team, setTeam] = useShown(data.job.department);
+  const [level, setLevel] = useShown(data.job.outline.seniority);
+  const save = (change: Partial<JobRecord>, undo: () => void): void => {
+    setError(null);
+    const saving = act
+      .call('SaveJobDetails', { jobId: data.job.id, input: detailsOf(data.job, change) })
+      .then((done) => {
+        if (!done.ok) {
+          setError(done.message);
+          undo();
+          return;
+        }
+        props.onRefresh?.();
+      });
+    track?.(saving);
   };
   return (
     <>
-      <Refusal error={act.error} />
+      <Refusal error={error} />
       <Field required>
         <FieldLabel>Team</FieldLabel>
         <FieldControl>
@@ -262,10 +307,14 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
             placeholder="Choose a team"
             searchPlaceholder="Search teams"
             options={data.orgUnits.map((u) => ({ value: u.name, label: u.name }))}
-            value={data.job.department}
+            value={team}
             emptyMessage="No team by that name. Add teams under Settings."
             onChange={(v) => {
-              save({ department: typeof v === 'string' ? v : null });
+              const next = typeof v === 'string' ? v : null;
+              setTeam(next);
+              save({ department: next }, () => {
+                setTeam(data.job.department);
+              });
             }}
           />
         </FieldControl>
@@ -275,9 +324,12 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
         <RadioGroup
           aria-label="Level"
           className="grid gap-2 sm:grid-cols-2"
-          value={data.job.outline.seniority ?? ''}
+          value={level ?? ''}
           onValueChange={(v) => {
-            save({ outline: { ...data.job.outline, seniority: v } });
+            setLevel(v);
+            save({ outline: { ...data.job.outline, seniority: v } }, () => {
+              setLevel(data.job.outline.seniority);
+            });
           }}
         >
           {SENIORITY.map(([key, label, description]) => (
@@ -288,6 +340,63 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
         </RadioGroup>
       </Field>
     </>
+  );
+}
+
+/** The title, the first thing a job is given: kept when the setup moves on. */
+function TitleStep({ data, props, commit }: TermsProps): JSX.Element {
+  const act = useAct(props);
+  const [title, setTitle] = useState(data.job.title);
+  const [error, setError] = useState<string | null>(null);
+  useCommit(commit, async () => {
+    const next = title.trim();
+    if (next === '') {
+      setError('A job needs a title');
+      return false;
+    }
+    if (next === data.job.title) return true;
+    const done = await act.call('SaveJobDetails', {
+      jobId: data.job.id,
+      input: detailsOf(data.job, { title: next }),
+    });
+    if (!done.ok) {
+      setError(done.message);
+      return false;
+    }
+    props.onRefresh?.();
+    return true;
+  });
+  return (
+    <>
+      <Refusal error={error} />
+      <TitleInput value={title} onChange={setTitle} />
+    </>
+  );
+}
+
+function TitleInput({
+  value,
+  onChange,
+}: {
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+}): JSX.Element {
+  return (
+    <Field required>
+      <FieldLabel>Job title</FieldLabel>
+      <FieldControl>
+        <Input
+          size="lg"
+          value={value}
+          placeholder="Senior Backend Engineer (m/w/d)"
+          // The page opens on this question: the frame puts focus here, not on the close.
+          data-autofocus
+          onChange={(e) => {
+            onChange(e.target.value);
+          }}
+        />
+      </FieldControl>
+    </Field>
   );
 }
 
@@ -434,6 +543,8 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
 
 function body(key: string, p: TermsProps, part: (part: BorrowedPart) => ReactNode): ReactNode {
   switch (key) {
+    case 'title':
+      return <TitleStep {...p} />;
     case 'role':
       return <RoleStep {...p} />;
     case 'openings':
@@ -506,46 +617,43 @@ function TitleField({ data, props }: TermsProps): JSX.Element {
   );
 }
 
-export function JobWizard({
+/**
+ * The page the setup is drawn on: the close at the start of the bar, the
+ * title in the middle with how much is done, one step at the centre, and
+ * Back, "Step n of N" and Continue at the foot.
+ */
+function WizardFrame({
   open,
-  data,
-  props,
-  stepKey,
-  onStep,
+  label,
+  title,
+  percent,
+  index,
+  step,
+  hint,
+  moving,
+  last,
+  entered,
   onClose,
-  onFinish,
-  part,
+  onBack,
+  onNext,
+  children,
 }: {
   readonly open: boolean;
-  readonly data: JobData;
-  readonly props: ScreenProps<JobData>;
-  readonly stepKey: string | null;
-  readonly onStep: (key: string) => void;
+  readonly label: string;
+  readonly title: ReactNode;
+  readonly percent: number;
+  readonly index: number;
+  readonly step: Step;
+  readonly hint: string;
+  readonly moving: boolean;
+  readonly last: boolean;
+  /** Arriving from the page before, already open: no second entrance. */
+  readonly entered: boolean;
   readonly onClose: () => void;
-  readonly onFinish: () => void;
-  readonly part: (part: BorrowedPart) => ReactNode;
+  readonly onBack: (() => void) | null;
+  readonly onNext: () => void;
+  readonly children: ReactNode;
 }): JSX.Element {
-  const index = Math.max(
-    0,
-    WIZARD_STEPS.findIndex((s) => s.key === stepKey),
-  );
-  const step = WIZARD_STEPS[index] ?? FIRST;
-  const commit = useRef<Commit['current']>(null);
-  const [moving, setMoving] = useState(false);
-  const status = WIZARD_STEPS.map((s, i) => s.done(data) ?? i < index);
-  const percent = Math.round((status.filter(Boolean).length / WIZARD_STEPS.length) * 100);
-  const last = index === WIZARD_STEPS.length - 1;
-  const go = async (to: number | 'finish'): Promise<void> => {
-    // A typed answer is kept before the step changes; a refusal stays on the step.
-    if (commit.current !== null) {
-      setMoving(true);
-      const kept = await commit.current();
-      setMoving(false);
-      if (!kept) return;
-    }
-    if (to === 'finish') onFinish();
-    else onStep(WIZARD_STEPS[to]?.key ?? 'role');
-  };
   return (
     <ModalPage
       open={open}
@@ -553,12 +661,25 @@ export function JobWizard({
         if (!o) onClose();
       }}
     >
-      <ModalPageContent size="full">
+      <ModalPageContent
+        size="full"
+        className={entered ? 'data-[state=open]:animate-none' : undefined}
+        onOpenAutoFocus={(e) => {
+          // A step that asks for words is ready to type into; otherwise the page itself.
+          const first = (e.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>(
+            '[data-autofocus]',
+          );
+          if (first !== null && first !== undefined) {
+            e.preventDefault();
+            first.focus();
+          }
+        }}
+      >
         <ModalPageHeader
           align="center"
-          label={`Set up ${data.job.title}`}
+          label={label}
           dismissLabel="Close. Everything so far is kept."
-          title={<TitleField key={data.job.title} data={data} props={props} />}
+          title={title}
           meta={
             <div className="flex w-36 items-center gap-2 max-sm:hidden">
               <Progress value={percent} label="Set up" size="sm" />
@@ -572,70 +693,202 @@ export function JobWizard({
           }
         />
         <ModalPageBody>
-          <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-12">
-            <aside className="max-lg:hidden">
-              <div className="sticky top-0">
-                <Stepper
-                  label="Set-up steps"
-                  orientation="vertical"
-                  size="sm"
-                  free
-                  current={index}
-                  onStepChange={(i) => {
-                    void go(i);
-                  }}
-                  steps={WIZARD_STEPS.map((s, i) => ({
-                    id: s.key,
-                    label: s.label,
-                    ...(i === 0 || WIZARD_STEPS[i - 1]?.group !== s.group
-                      ? { description: s.group }
-                      : {}),
-                    status: i === index ? 'current' : status[i] ? 'complete' : 'upcoming',
-                  }))}
-                />
-              </div>
-            </aside>
-            <section
-              key={step.key}
-              aria-labelledby="setup-step-title"
-              className="mx-auto flex w-full max-w-2xl animate-enter flex-col gap-6 motion-reduce:animate-none"
-            >
-              <header className="flex flex-col gap-2">
-                <h2
-                  id="setup-step-title"
-                  className="text-2xl font-bold tracking-[-0.02em] text-balance text-fg"
-                >
-                  {step.title}
-                </h2>
-                <p className="text-fg-muted text-pretty">{step.hint(data)}</p>
-              </header>
-              {body(step.key, { data, props, commit }, part)}
-            </section>
-          </div>
+          <section
+            key={step.key}
+            aria-labelledby="setup-step-title"
+            className="mx-auto flex w-full max-w-2xl animate-enter flex-col gap-6 px-4 py-10 motion-reduce:animate-none sm:px-6 lg:py-16"
+          >
+            <header className="flex flex-col gap-2">
+              <h2
+                id="setup-step-title"
+                className="text-2xl font-bold tracking-[-0.02em] text-balance text-fg"
+              >
+                {step.title}
+              </h2>
+              <p className="text-fg-muted text-pretty">{hint}</p>
+            </header>
+            {children}
+          </section>
         </ModalPageBody>
         <ModalPageFooter className="@2xl:justify-between">
           <Button
             variant="secondary"
-            disabled={index === 0 || moving}
+            disabled={onBack === null || moving}
             startIcon={<icons.back aria-hidden />}
             onClick={() => {
-              void go(index - 1);
+              onBack?.();
             }}
           >
             Back
           </Button>
-          <span className="text-center text-sm text-fg-muted tabular-nums">{`Step ${String(index + 1)} of ${String(WIZARD_STEPS.length)} · ${step.group} · ${String(percent)}% done`}</span>
+          <span className="text-center text-sm text-fg-muted tabular-nums">{`Step ${String(index + 1)} of ${String(WIZARD_STEPS.length)}`}</span>
           <Button
             loading={moving}
             endIcon={last ? <icons.visible aria-hidden /> : <icons.forward aria-hidden />}
-            onClick={() => {
-              void go(last ? 'finish' : index + 1);
-            }}
+            onClick={onNext}
           >
             {last ? 'Review the ad' : 'Continue'}
           </Button>
         </ModalPageFooter>
       </ModalPageContent>
     </ModalPage>
+  );
+}
+
+export function JobWizard({
+  open,
+  data,
+  props,
+  stepKey,
+  entered,
+  onStep,
+  onClose,
+  onFinish,
+  part,
+}: {
+  readonly open: boolean;
+  readonly data: JobData;
+  readonly props: ScreenProps<JobData>;
+  readonly stepKey: string | null;
+  readonly entered: boolean;
+  readonly onStep: (key: string) => void;
+  readonly onClose: () => void;
+  readonly onFinish: () => void;
+  readonly part: (part: BorrowedPart) => ReactNode;
+}): JSX.Element {
+  const index = Math.max(
+    0,
+    WIZARD_STEPS.findIndex((s) => s.key === stepKey),
+  );
+  const step = WIZARD_STEPS[index] ?? FIRST;
+  const commit = useRef<Commit['current']>(null);
+  // Picks still on their way to Recruiting: a step waits for them before moving on.
+  const saving = useRef(new Set<Promise<unknown>>());
+  const track = useCallback((p: Promise<unknown>) => {
+    saving.current.add(p);
+    void p.finally(() => saving.current.delete(p));
+  }, []);
+  const [moving, setMoving] = useState(false);
+  const status = WIZARD_STEPS.map((s, i) => s.done(data) ?? i < index);
+  const percent = Math.round((status.filter(Boolean).length / WIZARD_STEPS.length) * 100);
+  const last = index === WIZARD_STEPS.length - 1;
+  const go = async (to: number | 'finish'): Promise<void> => {
+    setMoving(true);
+    await Promise.all(saving.current);
+    // A typed answer is kept before the step changes; a refusal stays on the step.
+    const kept = commit.current === null ? true : await commit.current();
+    setMoving(false);
+    if (!kept) return;
+    if (to === 'finish') onFinish();
+    else onStep(WIZARD_STEPS[to]?.key ?? FIRST.key);
+  };
+  return (
+    <WizardFrame
+      open={open}
+      label={`Set up ${data.job.title}`}
+      title={
+        // On the title's own step the bar only shows it: one place to type it at a time.
+        step.key === FIRST.key ? (
+          <span className="text-md font-semibold text-fg">{data.job.title}</span>
+        ) : (
+          <TitleField key={data.job.title} data={data} props={props} />
+        )
+      }
+      percent={percent}
+      index={index}
+      step={step}
+      hint={step.hint(data)}
+      moving={moving}
+      last={last}
+      entered={entered}
+      onClose={onClose}
+      onBack={
+        index === 0
+          ? null
+          : () => {
+              void go(index - 1);
+            }
+      }
+      onNext={() => {
+        void go(last ? 'finish' : index + 1);
+      }}
+    >
+      <SaveQueue value={track}>{body(step.key, { data, props, commit }, part)}</SaveQueue>
+    </WizardFrame>
+  );
+}
+
+/**
+ * A new job, on the same page as its setup: the first step asks for the
+ * title, and Continue creates the job and carries on to the next step.
+ */
+export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
+  const act = useAct(props);
+  const [title, setTitle] = useState('');
+  const [moving, setMoving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const requisition = props.search?.['requisition'] ?? null;
+  const create = async (): Promise<void> => {
+    const name = title.trim();
+    if (name === '') {
+      setError('A job needs a title');
+      return;
+    }
+    setMoving(true);
+    setError(null);
+    const id = newId();
+    const made = await act.call('CreateJob', {
+      input: {
+        id,
+        title: name,
+        internalTitle: name,
+        requisitionIds: requisition === null ? [] : [requisition],
+        entityId: null,
+        locationIds: [],
+        department: null,
+        // A placeholder the workplace steps ask about; it is cleared at once below.
+        workMode: 'onsite',
+        openings: 1,
+        languages: ['en'],
+        hiringManagerId: null,
+      },
+    });
+    if (!made.ok) {
+      setMoving(false);
+      setError(made.message);
+      return;
+    }
+    // How the work is done is a question for its own step, not a default.
+    await act.call('SaveJobTerms', { jobId: id, input: { workMode: null } });
+    props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&step=role&entered=1`);
+  };
+  return (
+    <WizardFrame
+      open
+      label="New job"
+      title={<span className="text-md font-semibold text-fg">New job</span>}
+      percent={0}
+      index={0}
+      step={FIRST}
+      hint={FIRST.hint({} as JobData)}
+      moving={moving}
+      last={false}
+      entered={false}
+      onClose={() => props.onNavigate?.('/recruiting/jobs')}
+      onBack={null}
+      onNext={() => {
+        void create();
+      }}
+    >
+      <Refusal error={error} />
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void create();
+        }}
+      >
+        <TitleInput value={title} onChange={setTitle} />
+      </form>
+    </WizardFrame>
   );
 }

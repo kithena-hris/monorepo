@@ -59,7 +59,7 @@ import { Loaded } from './load';
 import { Refusal, StateBadge, newId, range, useAct, words } from './shared';
 import { BenefitList } from './benefits';
 import { BenefitsChoice, TermsCards, hoursOf } from './job-terms';
-import { JobWizard } from './job-wizard';
+import { JobWizard, NewJobWizard } from './job-wizard';
 import type { FormField, JobData, ScreenProps } from './types';
 
 /**
@@ -120,88 +120,6 @@ const TARGETS: readonly {
     available: false,
   },
 ];
-
-function NewJob(props: ScreenProps<JobData>): JSX.Element {
-  const act = useAct(props);
-  const [title, setTitle] = useState('');
-  const [workMode, setWorkMode] = useState<'onsite' | 'hybrid' | 'remote'>('hybrid');
-  const [openings, setOpenings] = useState<number | null>(1);
-  const requisition = props.search?.['requisition'] ?? null;
-  return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
-        title="New job"
-        description={
-          requisition === null ? 'Open a job directly.' : 'From the approved requisition.'
-        }
-      />
-      <Refusal error={act.error} />
-      <Card padded>
-        <div className="grid gap-4 md:grid-cols-3">
-          <Field required className="md:col-span-3">
-            <FieldLabel>Advertised title</FieldLabel>
-            <FieldControl>
-              <Input
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                }}
-                placeholder="Senior Backend Engineer (m/w/d)"
-              />
-            </FieldControl>
-            <FieldDescription>
-              Germany: the title carries a gender-neutral marker such as (m/w/d).
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel>Work mode</FieldLabel>
-            <SegmentedControl
-              value={workMode}
-              onValueChange={(v) => {
-                setWorkMode(v as typeof workMode);
-              }}
-            >
-              <SegmentedControlItem value="onsite">On site</SegmentedControlItem>
-              <SegmentedControlItem value="hybrid">Hybrid</SegmentedControlItem>
-              <SegmentedControlItem value="remote">Remote</SegmentedControlItem>
-            </SegmentedControl>
-          </Field>
-          <NumberField label="Openings" value={openings} min={1} onChange={setOpenings} />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button
-            disabled={title.trim() === ''}
-            loading={act.pending}
-            onClick={() => {
-              const id = newId();
-              act.run(
-                'CreateJob',
-                {
-                  input: {
-                    id,
-                    title,
-                    internalTitle: title,
-                    requisitionIds: requisition === null ? [] : [requisition],
-                    entityId: null,
-                    locationIds: [],
-                    department: null,
-                    workMode,
-                    openings: openings ?? 1,
-                    languages: ['en'],
-                    hiringManagerId: null,
-                  },
-                },
-                () => props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1`),
-              );
-            }}
-          >
-            Create job
-          </Button>
-        </div>
-      </Card>
-    </div>
-  );
-}
 
 function Details({
   data,
@@ -1418,7 +1336,7 @@ function Region({
  */
 export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
-  if (props.params?.['id'] === 'new') return <NewJob {...props} />;
+  if (props.params?.['id'] === 'new') return <NewJobWizard {...props} />;
   const wizard = props.search?.['setup'] === '1';
   const part = PARTS.find((p) => p === props.search?.['edit']);
   const edit = (next: Part | null) => props.onFilter?.({ edit: next });
@@ -1724,9 +1642,12 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               data={data}
               props={props}
               stepKey={props.search?.['step'] ?? null}
-              onStep={(key) => props.onFilter?.({ setup: '1', step: key === 'role' ? null : key })}
-              onClose={() => props.onFilter?.({ setup: null, step: null })}
-              onFinish={() => props.onFilter?.({ setup: null, step: null })}
+              entered={props.search?.['entered'] === '1'}
+              onStep={(key) =>
+                props.onFilter?.({ setup: '1', step: key === 'title' ? null : key, entered: null })
+              }
+              onClose={() => props.onFilter?.({ setup: null, step: null, entered: null })}
+              onFinish={() => props.onFilter?.({ setup: null, step: null, entered: null })}
               part={(p) => <PartBody part={p} data={data} props={props} />}
             />
           </div>
