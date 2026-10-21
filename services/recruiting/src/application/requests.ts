@@ -5,7 +5,7 @@ import { may } from '../domain/access/access.js';
 import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
 import { forbidden, jobFacts, notFound, type Ctx } from './context.js';
 import { portalLink } from './intake.js';
-import { bookInterview, byDay } from './interviews.js';
+import { bookInterview, byDay, keepAgenda } from './interviews.js';
 import { loadApplication, sendNow, type Loaded } from './moves.js';
 import type { ApplicationRecord } from './ports.js';
 import { tellMembers } from './notify.js';
@@ -65,6 +65,7 @@ export async function proposeSlots(
     readonly videoUrl: string | null;
     readonly note: string | null;
     readonly agenda: Agenda | null;
+    readonly interviewerIds?: readonly string[] | undefined;
   },
 ): Promise<Result<Ask>> {
   const loaded = await loadApplication(ctx, applicationId);
@@ -87,8 +88,10 @@ export async function proposeSlots(
       place: input.place,
       videoUrl: input.videoUrl,
       agenda: input.agenda,
+      ...(input.interviewerIds === undefined ? {} : { interviewerIds: input.interviewerIds }),
     }),
   );
+  await keepAgenda(ctx, loaded.value.app.jobId, plan.key, input.agenda);
   const { candidate } = loaded.value;
   const settings = await generalSettings(ctx);
   const zone = candidate.timeZone ?? 'UTC';
@@ -193,6 +196,7 @@ export async function answerAsk(
         place: ask.place,
         videoUrl: ask.videoUrl,
         agenda: ask.agenda,
+        ...(ask.interviewerIds === undefined ? {} : { interviewerIds: ask.interviewerIds }),
       },
       'team',
     );

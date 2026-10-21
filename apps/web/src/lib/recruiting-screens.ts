@@ -146,21 +146,16 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         from: s['week'] === undefined ? null : `${s['week']}T00:00:00.000Z`,
         away: JSON.stringify(off.away),
         holidays: JSON.stringify(off.holidays),
+        // The interviewers chosen on the screen, kept in the address.
+        interviewers: or(s['with']),
       };
       const first = await read('RecruitingSlots', variables);
       // The interviewers are known only once Recruiting has answered; their weeks then come
       // from Time Off and the slots are drawn again inside them.
       // ponytail: two reads of Recruiting; one when Recruiting learns the weeks by event.
       if (first.status !== 'ready') return first;
-      const data = first.data as {
-        planKey: string | null;
-        organiser: string | null;
-        plan: { key: string; interviewerIds: string[] }[];
-      };
-      const ids = [
-        ...(data.plan.find((p) => p.key === data.planKey)?.interviewerIds ?? []),
-        ...(data.organiser === null ? [] : [data.organiser]),
-      ];
+      const data = first.data as { organiser: string | null; interviewers: string[] };
+      const ids = [...data.interviewers, ...(data.organiser === null ? [] : [data.organiser])];
       const weeks = await workingWeeks(ids);
       return Object.keys(weeks).length === 0
         ? first

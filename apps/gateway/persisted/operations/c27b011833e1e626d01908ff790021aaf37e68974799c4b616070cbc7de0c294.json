@@ -1,0 +1,1 @@
+{"version":1,"body":"query RecruitingSlots($applicationId: String!, $planKey: String, $from: String, $away: String, $holidays: String, $weeks: String, $interviewers: String) {\n    recruitingSlots(applicationId: $applicationId, planKey: $planKey, from: $from, away: $away, holidays: $holidays, weeks: $weeks, interviewers: $interviewers)\n  }"}

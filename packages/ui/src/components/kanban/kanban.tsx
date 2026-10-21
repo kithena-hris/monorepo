@@ -286,11 +286,28 @@ export type KanbanSelection =
       onSelectionChange: (ids: readonly string[]) => void;
     };
 
+export type KanbanCardTone = 'accent' | 'success' | 'warning' | 'danger' | 'info';
+
+const CARD_TONE: Readonly<Record<KanbanCardTone, string>> = {
+  accent: 'outline-2 -outline-offset-2 outline-accent',
+  success: 'outline-2 -outline-offset-2 outline-success',
+  warning: 'outline-2 -outline-offset-2 outline-warning',
+  danger: 'outline-2 -outline-offset-2 outline-danger',
+  info: 'outline-2 -outline-offset-2 outline-info',
+};
+
 export interface KanbanProps<T extends { id: string }> {
   columns: readonly KanbanColumnDef[];
   /** Items per column id. Order within the array is the order on the board. */
   items: Readonly<Record<string, readonly T[]>>;
   renderCard: (item: T, context: { columnId: string; dragging: boolean }) => ReactNode;
+  /**
+   * A tone for a card that stands out (the strongest match, something
+   * overdue): drawn as a 2px border in that tone around the card, never a
+   * fill, so the card reads as itself and the content does not move. Say why
+   * inside the card too; a colour alone says nothing to a screen reader.
+   */
+  cardTone?: (item: T) => KanbanCardTone | null | undefined;
   onMove: (move: KanbanMove) => void;
   /** Names the board for assistive tech. */
   label: string;
@@ -426,6 +443,7 @@ export function Kanban<T extends { id: string }>({
   columns,
   items,
   renderCard,
+  cardTone,
   onMove,
   label,
   describeItem,
@@ -780,6 +798,7 @@ export function Kanban<T extends { id: string }>({
             columns={columns}
             items={board[column.id] ?? []}
             renderCard={renderCard}
+            cardTone={cardTone}
             renderColumnFooter={renderColumnFooter}
             onMove={onMove}
             describeItem={describeItem}
@@ -979,6 +998,7 @@ interface KanbanColumnProps<T extends { id: string }> {
   columns: readonly KanbanColumnDef[];
   items: readonly T[];
   renderCard: KanbanProps<T>['renderCard'];
+  cardTone: KanbanProps<T>['cardTone'];
   renderColumnFooter: KanbanProps<T>['renderColumnFooter'];
   onMove: KanbanProps<T>['onMove'];
   describeItem: KanbanProps<T>['describeItem'];
@@ -1022,6 +1042,7 @@ function KanbanColumn<T extends { id: string }>({
   columns,
   items,
   renderCard,
+  cardTone,
   renderColumnFooter,
   onMove,
   describeItem,
@@ -1283,6 +1304,7 @@ function KanbanColumn<T extends { id: string }>({
               selected={selectedIds.includes(item.id)}
               onToggleSelected={onToggleSelected}
               onRunAction={onRunAction}
+              tone={cardTone?.(item) ?? null}
             >
               {renderCard(item, { columnId: column.id, dragging: activeId === item.id })}
             </KanbanCard>
@@ -1328,6 +1350,7 @@ interface KanbanCardProps<T extends { id: string }> {
   selected: boolean;
   onToggleSelected: (id: string) => void;
   onRunAction: <A extends { id: string }>(action: KanbanAction<A>, items: readonly A[]) => void;
+  tone: KanbanCardTone | null;
   children: ReactNode;
 }
 
@@ -1347,6 +1370,7 @@ function KanbanCard<T extends { id: string }>({
   selected,
   onToggleSelected,
   onRunAction,
+  tone,
   children,
 }: KanbanCardProps<T>): JSX.Element {
   const {
@@ -1408,6 +1432,7 @@ function KanbanCard<T extends { id: string }>({
         // lag on drag start and as a rubber band on drop.
         'transition-[box-shadow,opacity] duration-(--animate-duration-fast) ease-standard',
         'hover:shadow-md focus-within:shadow-md',
+        tone !== null && !(isDragging || dragging) && CARD_TONE[tone],
         // The original keeps its place as a dashed accent slot while the
         // overlay flies, so the hole it leaves reads as "it goes back here".
         (isDragging || dragging) &&

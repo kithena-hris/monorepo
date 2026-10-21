@@ -276,3 +276,30 @@ describe('every pack', () => {
     },
   );
 });
+
+describe('the statutory minimum of paid leave, by country', () => {
+  const employee = { relationship: 'employee' as const };
+  it('scales a working-week minimum to the days worked a week', () => {
+    // DE BUrlG § 3: 24 working days on a six-day week, so 20 on five and 16 on four.
+    expect(packFor('DE').minimumLeave(employee, 5)).toMatchObject({ days: 20 });
+    expect(packFor('DE').minimumLeave(employee, 4)).toMatchObject({ days: 16 });
+    // GB WTR reg. 13 and 13A: 5.6 weeks, capped at 28 days.
+    expect(packFor('GB').minimumLeave(employee, 5)).toMatchObject({ days: 28 });
+    expect(packFor('GB').minimumLeave(employee, 6)).toMatchObject({ days: 28 });
+    expect(packFor('GB').minimumLeave(employee, 3)).toMatchObject({ days: 17 });
+  });
+
+  it('counts Spain in calendar days, and says where each rule comes from', () => {
+    const es = packFor('ES').minimumLeave(employee, 5);
+    expect(es).toMatchObject({ days: 30, unit: 'calendar_days' });
+    expect(es.source).toContain('38');
+    for (const country of Object.keys(PACKS) as LaunchCountry[])
+      expect(packFor(country).minimumLeave(employee, 5).source).not.toBe('');
+  });
+
+  it('asks none where no law sets one, and none of the self-employed', () => {
+    expect(packFor('US').minimumLeave(employee, 5)).toMatchObject({ days: 0 });
+    for (const country of Object.keys(PACKS) as LaunchCountry[])
+      expect(packFor(country).minimumLeave({ relationship: 'contractor' }, 5).days).toBe(0);
+  });
+});

@@ -12,6 +12,7 @@ import {
   type Rule,
   type TermsAnswers,
   type TermsPack,
+  noLeave,
 } from './pack.js';
 
 /**
@@ -368,5 +369,10 @@ export const unitedStates: TermsPack = {
   check: (answers, entity, on) => check(answers, entity, on),
   documents: () => ['offer_letter'],
   conditions: (answers) => (answers.relationship === 'contractor' ? [] : ['right_to_work']),
+  minimumLeave: () =>
+    noLeave(
+      'Fair Labor Standards Act',
+      'No federal minimum; state and city law and the company’s policy decide.',
+    ),
   signature: () => 'electronic',
 };

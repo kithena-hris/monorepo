@@ -245,6 +245,70 @@ export interface JobData {
     readonly names: Readonly<Record<string, string>>;
   }[];
   readonly members: readonly { readonly personId: string; readonly name: string }[];
+  /** The terms, set in order: workplace, work type, contract, hours, leave, benefits. */
+  readonly terms: JobTerms;
+  /** What each step may offer, from the choices before it. */
+  readonly options: TermsOptions;
+}
+
+export interface JobTerms {
+  readonly entityId: string | null;
+  readonly locationId: string | null;
+  readonly workMode: 'onsite' | 'hybrid' | 'remote' | null;
+  readonly hybridDaysOnsite: number | null;
+  readonly relationship: string | null;
+  readonly contractType: string | null;
+  readonly fixedTermReason: string | null;
+  /** ISO weekdays, Monday 1. */
+  readonly workDays: readonly number[];
+  /** Minutes after midnight. */
+  readonly dayStart: number | null;
+  readonly dayEnd: number | null;
+  readonly breakMinutes: number;
+  readonly vacationDays: number | null;
+  readonly benefitIds: readonly string[];
+}
+
+export interface TermsChoice {
+  readonly key: string;
+  readonly label: string;
+  readonly unavailable?: string | null;
+}
+
+export interface TermsOptions {
+  readonly country: string | null;
+  readonly entities: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly country: string;
+    readonly currency: string;
+  }[];
+  readonly locations: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly city: string | null;
+    readonly country: string;
+  }[];
+  readonly relationships: readonly TermsChoice[];
+  readonly contractTypes: readonly (TermsChoice & { readonly fixedTerm: boolean })[];
+  readonly fixedTermReasons: readonly TermsChoice[];
+  readonly maxWeeklyMinutes: number | null;
+  readonly fullTimeWeeklyMinutes: number | null;
+  readonly weeklyMinutes: number | null;
+  readonly hours: 'full_time' | 'part_time' | null;
+  readonly leave: {
+    readonly days: number;
+    readonly unit: 'working_days' | 'calendar_days';
+    readonly source: string;
+    readonly note: string;
+  } | null;
+  readonly benefits: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly category: string;
+    readonly statutory: boolean;
+  }[];
+  readonly reviewed: boolean;
 }
 
 export interface Card {
@@ -561,6 +625,12 @@ export interface ScheduleData {
   readonly weeks: Readonly<Record<string, unknown>>;
   /** Whoever is arranging it, free alongside the interviewers. */
   readonly organiser: string | null;
+  /** Who runs this interview: chosen, else the plan's, else the hiring team. They are invited. */
+  readonly interviewers: readonly string[];
+  /** Everyone who could be chosen. */
+  readonly members: readonly { readonly personId: string; readonly name: string }[];
+  /** The agenda kept for this interview of this job; null until one is written. */
+  readonly agenda: { readonly html: string; readonly text: string } | null;
 }
 
 export interface DebriefData {

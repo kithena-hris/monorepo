@@ -12,6 +12,8 @@ import {
   type Rule,
   type TermsAnswers,
   type TermsPack,
+  noLeave,
+  weeksOfLeave,
 } from './pack.js';
 
 /**
@@ -239,5 +241,14 @@ export const unitedKingdom: TermsPack = {
       ? ['services_agreement']
       : ['contract', 'written_statement'],
   conditions: (answers) => (answers.relationship === 'contractor' ? [] : ['right_to_work']),
+  minimumLeave: (answers, daysPerWeek) =>
+    answers.relationship === 'contractor'
+      ? noLeave('WTR 1998 reg. 2', 'The self-employed have no statutory leave.')
+      : {
+          days: weeksOfLeave(5.6, daysPerWeek, 28),
+          unit: 'working_days',
+          source: 'Working Time Regulations 1998 reg. 13 and 13A',
+          note: '5.6 weeks of the days worked, at most 28 days; bank holidays may count towards it.',
+        },
   signature: () => 'electronic',
 };

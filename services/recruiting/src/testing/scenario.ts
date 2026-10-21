@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
   CalendarDate,
+  InboxItem,
   Instant,
   JobSearch,
   TenantId,
@@ -99,6 +100,7 @@ import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
 import { previewEmail, sendStageExpectations } from '../application/emails.js';
+import { saveJobTerms } from '../application/job-terms.js';
 import { setMyNotifications } from '../application/notify.js';
 import { poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -523,6 +525,50 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   );
   expect(applied.portalUrl).toMatch(/^https:\/\/jobs\.example\/me\/acme#/u);
 
+  // R4: the terms in order, each step's choices from the ones before, within the country's law.
+  await as('ada', async (ctx) => {
+    const where = value(
+      await saveJobTerms(ctx, jobId, { entityId, locationId, workMode: 'onsite' }),
+    );
+    expect(where.options.relationships.map((r) => r.key)).toContain('employee');
+    expect((await saveJobTerms(ctx, jobId, { relationship: 'astronaut' })).ok).toBe(false);
+    const work = value(await saveJobTerms(ctx, jobId, { relationship: 'employee' }));
+    const lawful = work.options.contractTypes.find((t) => t.unavailable === null && !t.fixedTerm);
+    expect(lawful).toBeDefined();
+    const hours = value(
+      await saveJobTerms(ctx, jobId, {
+        contractType: lawful?.key ?? '',
+        workDays: [1, 2, 3, 4, 5],
+        dayStart: 9 * 60,
+        dayEnd: 17 * 60,
+        breakMinutes: 30,
+      }),
+    );
+    expect(hours.options.weeklyMinutes).toBe(5 * 7.5 * 60);
+    expect(hours.options.leave?.days).toBeGreaterThanOrEqual(0);
+    const below = await saveJobTerms(ctx, jobId, {
+      vacationDays: Math.max(0, (hours.options.leave?.days ?? 0) - 1),
+    });
+    if ((hours.options.leave?.days ?? 0) > 0)
+      expect(below.ok ? null : below.error.code).toBe('LEAVE_MIN');
+    value(await saveJobTerms(ctx, jobId, { vacationDays: (hours.options.leave?.days ?? 0) + 5 }));
+    // The ad says what was chosen: the contract by its legal name, the hours as the week works out.
+    const job = await ctx.tx.jobs.get(jobId);
+    expect(job?.outline.contractType).toBe(lawful?.label);
+    // Change where, and what depended on it is asked again.
+    const moved = value(await saveJobTerms(ctx, jobId, { entityId: null }));
+    expect(moved.terms).toMatchObject({ relationship: null, contractType: null });
+    value(
+      await saveJobTerms(ctx, jobId, {
+        entityId,
+        locationId,
+        workMode: 'onsite',
+        relationship: 'employee',
+        contractType: lawful?.key ?? '',
+      }),
+    );
+  });
+
   // Interview, scorecard, offer.
   const stages = await uow.run(tenantId, (tx) => tx.jobs.stages(jobId));
   const interviewStage = stages.find((s) => s.category === 'interview')?.id ?? '';
@@ -557,6 +603,21 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(onHoliday.slots.filter((t) => t.startsWith('2026-10-19'))).toEqual([]);
     expect(onHoliday.slots.length).toBeGreaterThan(0);
     expect(onHoliday.holidays).toEqual([{ date: '2026-10-19', name: 'Founders’ day' }]);
+    // Who runs it is chosen on the screen; anyone in the company can be asked.
+    const chosenPanel = value(
+      await scheduleScreen(
+        ctx,
+        applied.applicationId,
+        'portfolio',
+        Instant.parse('2026-10-19T00:00:00.000Z'),
+        {},
+        [],
+        {},
+        [people.sofia],
+      ),
+    );
+    expect(chosenPanel.interviewers).toEqual([people.sofia]);
+    expect(chosenPanel.members.some((m) => m.personId === people.marco)).toBe(true);
     // A working week from Time Off bounds the day: 10:00 to 11:00 holds one hour-long slot.
     const short = value(
       await scheduleScreen(
@@ -618,7 +679,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     }),
   );
   expect(notOffered.ok ? null : notOffered.error.code).toBe('NOT_OFFERED');
-  // The team is emailed only where a member asked to be; the Inbox has it either way.
+  // Nothing declined yet; the team is emailed unless a member switched it off.
   expect(mailed.map((m) => m.subject)).not.toContainEqual(
     expect.stringMatching(/needs other times/u),
   );
@@ -650,6 +711,14 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     ),
   );
   expect(mailed.at(-1)?.parts?.action?.label).toBe('Choose my times');
+  // The agenda written for this interview of this job is where the next schedule starts.
+  expect(
+    (
+      await as('ada', async (ctx) =>
+        value(await scheduleScreen(ctx, applied.applicationId, 'portfolio', undefined)),
+      )
+    ).agenda?.text,
+  ).toBe(agenda.text);
   const linkToken = link.split('#')[1] ?? '';
   const free = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));
   expect(free.wanted).toBe(10);
@@ -675,6 +744,11 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       (i) => i.kind === 'recruiting.choose-time',
     );
   expect((await choosing()).map((i) => i.id)).toEqual([`recruiting:choose-time:${first.id}`]);
+  // The shell drops an item that does not parse, so the task must be a valid Inbox item.
+  for (const item of await choosing()) {
+    const parsed = InboxItem.safeParse(item);
+    expect(parsed.success ? null : parsed.error.issues).toBeNull();
+  }
 
   // Given again through the same link: the times before are shown picked, then replaced, task and all.
   const again = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));

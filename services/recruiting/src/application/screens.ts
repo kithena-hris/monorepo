@@ -12,6 +12,7 @@ import { approvalState } from '../domain/requisition/requisition.js';
 import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
 import { asksOf, openAvailability } from './asks.js';
+import { jobTerms } from './job-terms.js';
 import { jobFacts, notFound, recruiterOnly, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
 import { previewTokenFor } from './intake.js';
@@ -187,6 +188,8 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
       version: q.version,
     })),
     scorecards: (await ctx.tx.scorecardTemplates.list()).map((s) => ({ id: s.id, name: s.name })),
+    // R4: the terms in order and what each step may offer, from the ones before it.
+    ...(await jobTerms(ctx, job)),
     benefits: (await ctx.tx.benefits.list()).filter((b) => b.legalEntityId === job.entityId),
     members: (await ctx.tx.members.list()).map((m) => ({
       personId: m.personId,

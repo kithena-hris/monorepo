@@ -39,6 +39,8 @@ export interface Ask {
   readonly answeredAt: Instant | null;
   /** The time chosen (`slots`), or what the candidate wrote. */
   readonly answer: { readonly time: Instant | null; readonly text: string | null } | null;
+  /** `slots`, `availability`: who runs the interview, as chosen on the Schedule screen. */
+  readonly interviewerIds?: readonly string[];
   /** `availability`: who chooses a time from it, in their Inbox (the recruiter who sent the link). */
   readonly owners?: readonly string[];
   /** `availability`: the link it came through, by its hash, so a resubmission replaces it. */

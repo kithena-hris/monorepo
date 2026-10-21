@@ -55,6 +55,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, newId, range, useAct, words } from './shared';
+import { Benefits, Contract, Hours, Leave, WorkType, Workplace } from './job-terms';
 import { StepDialog } from './step-dialog';
 import type { FormField, JobData, ScreenProps } from './types';
 
@@ -214,7 +215,9 @@ function Details({
   const [max, setMax] = useState<number | null>(
     data.job.salary === null ? null : data.job.salary.maxMinor / 100,
   );
-  const entity = data.entities.find((e) => e.id === job.entityId);
+  // The entity, the place, the work mode, the contract and the benefits are the terms' steps:
+  // they are sent as they stand now, never as this form first saw them.
+  const entity = data.entities.find((e) => e.id === data.job.entityId);
   const save = (): void => {
     const currency = entity?.currency ?? job.salary?.currency ?? 'EUR';
     act.run('SaveJobDetails', {
@@ -223,15 +226,19 @@ function Details({
         title: job.title,
         internalTitle: job.internalTitle,
         department: job.department,
-        locationIds: job.locationIds,
-        workMode: job.workMode,
+        locationIds: data.job.locationIds,
+        workMode: data.job.workMode,
         salaryShown: job.salaryShown,
         languages: job.languages,
         internalOnly: job.internalOnly,
         confidential: job.confidential,
         openings: job.openings,
         targetHireDate: job.targetHireDate,
-        outline: job.outline,
+        outline: {
+          ...job.outline,
+          contractType: data.job.outline.contractType,
+          hours: data.job.outline.hours,
+        },
         salary:
           min === null || max === null
             ? null
@@ -242,9 +249,9 @@ function Details({
                 period: 'year',
               },
         searchable: job.searchable,
-        benefitIds: job.benefitIds,
+        benefitIds: data.job.benefitIds,
         scorecardTemplateId: job.scorecardTemplateId,
-        entityId: job.entityId,
+        entityId: data.job.entityId,
       },
     });
   };
@@ -304,48 +311,6 @@ function Details({
                 )}
               </FieldControl>
             </Field>
-            <Field>
-              <FieldLabel>Legal entity</FieldLabel>
-              <Select
-                value={job.entityId ?? 'none'}
-                onValueChange={(v) => {
-                  setJob({ ...job, entityId: v === 'none' ? null : v });
-                }}
-              >
-                <FieldControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FieldControl>
-                <SelectContent>
-                  <SelectItem value="none">Not chosen</SelectItem>
-                  {data.entities.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{`${e.name} (${e.country})`}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel>Location</FieldLabel>
-              <Select
-                value={job.locationIds[0] ?? 'none'}
-                onValueChange={(v) => {
-                  setJob({ ...job, locationIds: v === 'none' ? [] : [v] });
-                }}
-              >
-                <FieldControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FieldControl>
-                <SelectContent>
-                  <SelectItem value="none">Not chosen</SelectItem>
-                  {data.locations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{`${l.name} (${l.country})`}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
             <NumberField
               label="Openings"
               value={job.openings}
@@ -372,16 +337,22 @@ function Details({
                 onChange={setMin}
               />
               <NumberField label="To (yearly)" value={max} min={0} onChange={setMax} />
-              <div className="flex items-center gap-3 md:col-span-2">
-                <Switch
-                  id="salary-shown"
-                  checked={job.salaryShown}
-                  onCheckedChange={(on) => {
-                    setJob({ ...job, salaryShown: on });
-                  }}
-                />
-                <label htmlFor="salary-shown">Show the range in the ad</label>
-              </div>
+              <Field orientation="horizontal" className="md:col-span-2">
+                <span className="flex min-w-0 flex-col">
+                  <FieldLabel>Show the range in the ad</FieldLabel>
+                  <FieldDescription>
+                    Required in some places, such as New York and Spain.
+                  </FieldDescription>
+                </span>
+                <FieldControl>
+                  <Switch
+                    checked={job.salaryShown}
+                    onCheckedChange={(on) => {
+                      setJob({ ...job, salaryShown: on });
+                    }}
+                  />
+                </FieldControl>
+              </Field>
             </CardContent>
           </Card>
           <Card>
@@ -389,30 +360,34 @@ function Details({
               <CardTitle level={2}>Visibility</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="internal-only"
-                  checked={job.internalOnly}
-                  onCheckedChange={(on) => {
-                    setJob({ ...job, internalOnly: on });
-                  }}
-                />
-                <label htmlFor="internal-only">
-                  Internal only: the internal board, nowhere public
-                </label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="confidential"
-                  checked={job.confidential}
-                  onCheckedChange={(on) => {
-                    setJob({ ...job, confidential: on });
-                  }}
-                />
-                <label htmlFor="confidential">
-                  Confidential: the company is not named in the ad
-                </label>
-              </div>
+              <Field orientation="horizontal">
+                <span className="flex min-w-0 flex-col">
+                  <FieldLabel>Internal only</FieldLabel>
+                  <FieldDescription>On the internal board, nowhere public.</FieldDescription>
+                </span>
+                <FieldControl>
+                  <Switch
+                    checked={job.internalOnly}
+                    onCheckedChange={(on) => {
+                      setJob({ ...job, internalOnly: on });
+                    }}
+                  />
+                </FieldControl>
+              </Field>
+              <Field orientation="horizontal">
+                <span className="flex min-w-0 flex-col">
+                  <FieldLabel>Confidential</FieldLabel>
+                  <FieldDescription>The company is not named in the ad.</FieldDescription>
+                </span>
+                <FieldControl>
+                  <Switch
+                    checked={job.confidential}
+                    onCheckedChange={(on) => {
+                      setJob({ ...job, confidential: on });
+                    }}
+                  />
+                </FieldControl>
+              </Field>
             </CardContent>
           </Card>
         </div>
@@ -629,6 +604,13 @@ function Criteria({
   );
 }
 
+const LENGTHS = [15, 30, 45, 60, 90, 120, 180] as const;
+
+/**
+ * The interviews in order. Each is a card: its name, how long, who runs it
+ * (several may), and the scorecard they fill in. Scheduling starts from these
+ * and can change who runs one interview without touching the plan.
+ */
 function Plan({
   data,
   props,
@@ -639,140 +621,169 @@ function Plan({
   const act = useAct(props);
   const [plan, setPlan] = useState(data.plan);
   const [title, setTitle] = useState('');
+  const change = (i: number, patch: Partial<(typeof plan)[number]>): void => {
+    setPlan(plan.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  };
+  const changed = JSON.stringify(plan) !== JSON.stringify(data.plan);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle level={2}>Interview plan</CardTitle>
-        <CardDescription>
-          The interviews in order, each with its length, interviewers and scorecard
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <Refusal error={act.error} />
-        {plan.length === 0 ? (
-          <EmptyState icon={<icons.meeting aria-hidden />} title="No interviews planned" />
-        ) : null}
-        {plan.map((p, i) => (
-          <div
-            key={p.key}
-            className="grid gap-3 border-b border-[var(--reach-line)] pb-3 md:grid-cols-[minmax(0,1fr)_10rem_minmax(0,1fr)_minmax(0,1fr)_auto]"
-          >
-            <span className="font-semibold">{`${String(i + 1)}. ${p.title}`}</span>
-            <NumberField
-              label="Minutes"
-              size="sm"
-              value={p.minutes}
-              min={5}
-              max={480}
-              step={15}
-              onChange={(n) => {
-                setPlan(plan.map((x, j) => (j === i ? { ...x, minutes: n ?? 60 } : x)));
-              }}
-            />
-            <Select
-              value={p.interviewerIds[0] ?? 'none'}
-              onValueChange={(v) => {
-                setPlan(
-                  plan.map((x, j) =>
-                    j === i ? { ...x, interviewerIds: v === 'none' ? [] : [v] } : x,
-                  ),
-                );
-              }}
-            >
-              <SelectTrigger aria-label={`${p.title}’s interviewer`}>
-                <SelectValue placeholder="Interviewer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nobody yet</SelectItem>
-                {data.members.map((m) => (
-                  <SelectItem key={m.personId} value={m.personId}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={p.scorecardTemplateId ?? 'none'}
-              onValueChange={(v) => {
-                setPlan(
-                  plan.map((x, j) =>
-                    j === i ? { ...x, scorecardTemplateId: v === 'none' ? null : v } : x,
-                  ),
-                );
-              }}
-            >
-              <SelectTrigger aria-label={`${p.title}’s scorecard`}>
-                <SelectValue placeholder="Scorecard" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">The job’s scorecard</SelectItem>
-                {data.scorecards.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={`Remove ${p.title}`}
-              startIcon={<icons.delete aria-hidden />}
-              onClick={() => {
-                setPlan(plan.filter((_, j) => j !== i));
-              }}
-            />
-          </div>
-        ))}
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const key =
-              title
-                .trim()
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/gu, '_')
-                .replace(/^_+|_+$/gu, '')
-                .slice(0, 40) || `interview_${String(plan.length + 1)}`;
-            setPlan([
-              ...plan,
-              {
-                key: /^[a-z]/u.test(key) ? key : `i_${key}`,
-                title: title.trim(),
-                minutes: 60,
-                interviewerIds: [],
-                competencies: [],
-                scorecardTemplateId: null,
-              },
-            ]);
-            setTitle('');
+    <div className="flex flex-col gap-4">
+      <Refusal error={act.error} />
+      {plan.length === 0 ? (
+        <EmptyState
+          icon={<icons.meeting aria-hidden />}
+          title="No interviews planned"
+          description="Add the first below: a screen, a technical interview, a meeting with the team."
+        />
+      ) : (
+        <ol className="flex flex-col gap-3">
+          {plan.map((p, i) => (
+            <li key={p.key}>
+              <Card padded className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <Badge size="sm" variant="soft" tone="accent" className="tabular-nums">
+                    {String(i + 1)}
+                  </Badge>
+                  <Input
+                    aria-label={`Interview ${String(i + 1)}’s name`}
+                    value={p.title}
+                    className="min-w-0 flex-1 font-semibold"
+                    onChange={(e) => {
+                      change(i, { title: e.target.value });
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Remove ${p.title}`}
+                    startIcon={<icons.delete aria-hidden />}
+                    onClick={() => {
+                      setPlan(plan.filter((_, j) => j !== i));
+                    }}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <Field className="md:col-span-2">
+                    <FieldLabel>Length</FieldLabel>
+                    <SegmentedControl
+                      aria-label={`${p.title}’s length`}
+                      value={String(p.minutes)}
+                      onValueChange={(v) => {
+                        change(i, { minutes: Number(v) });
+                      }}
+                    >
+                      {[...new Set([...LENGTHS, p.minutes])]
+                        .toSorted((x, y) => x - y)
+                        .map((m) => (
+                          <SegmentedControlItem key={m} value={String(m)}>
+                            {m < 60 || m % 60 !== 0 ? `${String(m)} min` : `${String(m / 60)} h`}
+                          </SegmentedControlItem>
+                        ))}
+                    </SegmentedControl>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Interviewers</FieldLabel>
+                    <FieldDescription>Invited to every booking of it.</FieldDescription>
+                    <FieldControl>
+                      <Combobox
+                        label={`${p.title}’s interviewers`}
+                        multiple
+                        chips
+                        placeholder="Choose who runs it"
+                        searchPlaceholder="Search people"
+                        options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
+                        value={p.interviewerIds}
+                        onChange={(v) => {
+                          change(i, {
+                            interviewerIds: typeof v === 'string' || v === null ? [] : [...v],
+                          });
+                        }}
+                      />
+                    </FieldControl>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Scorecard</FieldLabel>
+                    <FieldDescription>What each interviewer rates.</FieldDescription>
+                    <Select
+                      value={p.scorecardTemplateId ?? 'none'}
+                      onValueChange={(v) => {
+                        change(i, { scorecardTemplateId: v === 'none' ? null : v });
+                      }}
+                    >
+                      <FieldControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FieldControl>
+                      <SelectContent>
+                        <SelectItem value="none">The job’s scorecard</SelectItem>
+                        {data.scorecards.map((sc) => (
+                          <SelectItem key={sc.id} value={sc.id}>
+                            {sc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </Card>
+            </li>
+          ))}
+        </ol>
+      )}
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const key =
+            title
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/gu, '_')
+              .replace(/^_+|_+$/gu, '')
+              .slice(0, 40) || `interview_${String(plan.length + 1)}`;
+          setPlan([
+            ...plan,
+            {
+              key: /^[a-z]/u.test(key) ? key : `i_${key}`,
+              title: title.trim(),
+              minutes: 60,
+              interviewerIds: [],
+              competencies: [],
+              scorecardTemplateId: null,
+            },
+          ]);
+          setTitle('');
+        }}
+      >
+        <Input
+          aria-label="A new interview"
+          placeholder="Add an interview, e.g. Technical interview"
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+          }}
+        />
+        <Button
+          type="submit"
+          variant="secondary"
+          startIcon={<icons.add aria-hidden />}
+          disabled={title.trim() === ''}
+        >
+          Add
+        </Button>
+      </form>
+      <div className="flex justify-end">
+        <Button
+          loading={act.pending}
+          disabled={!changed || plan.some((p) => p.title.trim() === '')}
+          onClick={() => {
+            act.run('SetJobPlan', { jobId: data.job.id, input: { plan } });
           }}
         >
-          <Input
-            aria-label="An interview"
-            placeholder="Technical interview"
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-            }}
-          />
-          <Button type="submit" variant="secondary" disabled={title.trim() === ''}>
-            Add
-          </Button>
-        </form>
-        <div className="flex justify-end">
-          <Button
-            loading={act.pending}
-            onClick={() => {
-              act.run('SetJobPlan', { jobId: data.job.id, input: { plan } });
-            }}
-          >
-            Save plan
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          Save plan
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -1325,10 +1336,33 @@ function ChatChannel({
 }
 
 /** The parts of a job a person edits, each in its own sheet off the ad. */
-type Part = 'details' | 'team' | 'criteria' | 'plan' | 'ad' | 'form' | 'publishing';
+const PARTS = [
+  'details',
+  'terms',
+  'workplace',
+  'worktype',
+  'contract',
+  'hours',
+  'leave',
+  'benefits',
+  'team',
+  'criteria',
+  'plan',
+  'ad',
+  'form',
+  'publishing',
+] as const;
+type Part = (typeof PARTS)[number];
 
 const PART_TITLE: Readonly<Record<Part, string>> = {
   details: 'Job details',
+  terms: 'Workplace and terms',
+  workplace: 'Workplace',
+  worktype: 'Work type',
+  contract: 'Contract',
+  hours: 'Hours and days',
+  leave: 'Time off',
+  benefits: 'Benefits',
   team: 'Hiring team',
   criteria: 'Criteria',
   plan: 'Interview plan',
@@ -1337,13 +1371,22 @@ const PART_TITLE: Readonly<Record<Part, string>> = {
   publishing: 'Publishing',
 };
 
+/** In order: each terms step offers only what the ones before it allow. */
 const STEPS: readonly { readonly label: string; readonly parts: readonly Part[] }[] = [
-  { label: 'Job and team', parts: ['details', 'team'] },
-  { label: 'Criteria', parts: ['criteria'] },
+  { label: 'The job', parts: ['details'] },
+  { label: 'Workplace', parts: ['workplace'] },
+  { label: 'Work type', parts: ['worktype'] },
+  { label: 'Contract', parts: ['contract'] },
+  { label: 'Hours', parts: ['hours'] },
+  { label: 'Time off', parts: ['leave'] },
+  { label: 'Benefits', parts: ['benefits'] },
+  { label: 'Team', parts: ['team', 'criteria'] },
   { label: 'Interviews', parts: ['plan'] },
   { label: 'Apply form', parts: ['form'] },
   { label: 'The ad', parts: ['ad'] },
 ];
+
+const TERMS: readonly Part[] = ['workplace', 'worktype', 'contract', 'hours', 'leave', 'benefits'];
 
 const MODE: Readonly<Record<string, string>> = {
   onsite: 'On site',
@@ -1363,6 +1406,26 @@ function PartBody({
   switch (part) {
     case 'details':
       return <Details data={data} props={props} />;
+    case 'terms':
+      return (
+        <div className="flex flex-col gap-4">
+          {TERMS.map((t) => (
+            <PartBody key={t} part={t} data={data} props={props} />
+          ))}
+        </div>
+      );
+    case 'workplace':
+      return <Workplace data={data} props={props} />;
+    case 'worktype':
+      return <WorkType data={data} props={props} />;
+    case 'contract':
+      return <Contract data={data} props={props} />;
+    case 'hours':
+      return <Hours data={data} props={props} />;
+    case 'leave':
+      return <Leave data={data} props={props} />;
+    case 'benefits':
+      return <Benefits data={data} props={props} />;
     case 'team':
       return <Team data={data} props={props} />;
     case 'criteria':
@@ -1425,9 +1488,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
   if (props.params?.['id'] === 'new') return <NewJob {...props} />;
   const wizard = props.search?.['setup'] === '1';
   const step = Math.min(STEPS.length - 1, Math.max(0, Number(props.search?.['step'] ?? '0') || 0));
-  const part = (['details', 'team', 'criteria', 'plan', 'ad', 'form', 'publishing'] as const).find(
-    (p) => p === props.search?.['edit'],
-  );
+  const part = PARTS.find((p) => p === props.search?.['edit']);
   const edit = (next: Part | null) => props.onFilter?.({ edit: next });
   return (
     <Loaded load={props.load} what="the job">
@@ -1435,14 +1496,36 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
         const ad = data.ads[0];
         const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
         const places = data.locations.filter((l) => data.job.locationIds.includes(l.id));
-        const facts = [
+        const terms = [
           {
-            label: 'Location',
+            label: 'Workplace',
             value: places.length === 0 ? 'Not set' : places.map((l) => l.name).join(', '),
           },
-          { label: 'Work mode', value: MODE[data.job.workMode] ?? data.job.workMode },
+          {
+            label: 'Work mode',
+            value: `${MODE[data.job.workMode] ?? data.job.workMode}${data.terms.workMode === 'hybrid' && data.terms.hybridDaysOnsite !== null ? `, ${String(data.terms.hybridDaysOnsite)} days on site` : ''}`,
+          },
           { label: 'Contract', value: data.job.outline.contractType ?? 'Not set' },
-          { label: 'Hours', value: words(data.job.outline.hours) },
+          {
+            label: 'Hours',
+            value:
+              data.options.weeklyMinutes === null
+                ? words(data.job.outline.hours)
+                : `${String(Math.round((data.options.weeklyMinutes / 60) * 10) / 10)} h a week, ${words(data.job.outline.hours)}`,
+          },
+          {
+            label: 'Holiday',
+            value:
+              data.terms.vacationDays === null
+                ? 'Not set'
+                : `${String(data.terms.vacationDays)} days a year`,
+          },
+          {
+            label: 'Benefits',
+            value: data.job.benefitIds.length === 0 ? 'None' : String(data.job.benefitIds.length),
+          },
+        ];
+        const facts = [
           {
             label: 'Level',
             value: data.job.outline.seniority ? words(data.job.outline.seniority) : 'Not set',
@@ -1532,7 +1615,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
             {/* The ad as Kithena Jobs lays it out: the facts, the words, the rail. */}
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
               <div className="flex min-w-0 flex-col gap-4">
-                <Region title="Title, pay and the facts" part="details" onEdit={edit}>
+                <Region title="Title and pay" part="details" onEdit={edit}>
                   <h3 className="text-2xl font-bold tracking-[-0.01em]">{data.job.title}</h3>
                   <KeyValues
                     items={facts}
@@ -1540,6 +1623,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     labelWidth="7rem"
                     className="mt-3 text-sm"
                   />
+                </Region>
+                <Region title="Workplace and terms" part="terms" onEdit={edit}>
+                  <KeyValues items={terms} layout="aligned" labelWidth="7rem" className="text-sm" />
                 </Region>
                 <Region title="The ad" part="ad" onEdit={edit}>
                   {ad === undefined ? (

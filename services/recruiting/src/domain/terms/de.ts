@@ -14,6 +14,8 @@ import {
   type Rule,
   type TermsAnswers,
   type TermsPack,
+  noLeave,
+  weeksOfLeave,
 } from './pack.js';
 
 /**
@@ -383,6 +385,15 @@ export const germany: TermsPack = {
   conditions: () => [],
   // § 14(4) TzBfG: every fixed-term employment, not the Ausbildung (ended by
   // BBiG § 21) nor a Pflichtpraktikum (not employment).
+  minimumLeave: (answers, daysPerWeek) =>
+    answers.relationship !== 'employee'
+      ? noLeave('BUrlG § 2', 'A freelancer has no statutory leave.')
+      : {
+          days: weeksOfLeave(4, daysPerWeek),
+          unit: 'working_days',
+          source: 'BUrlG § 3',
+          note: '24 working days on a six-day week, so four weeks of the days worked.',
+        },
   signature: (answers) =>
     answers.contractType !== undefined && WRITTEN_FORM.has(answers.contractType)
       ? 'wet_ink'

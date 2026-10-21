@@ -168,6 +168,15 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """
+  R16: an interview agenda drafted from the job, as rich text, for a person to edit
+  """
+  draftAgenda(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R12: an email drafted from its purpose, the variables filled from data"""
   draftEmail(
     applicationId: String!
@@ -359,6 +368,15 @@ type Mutation {
   ): JSON
   """R6: the apply form"""
   saveJobForm(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    jobId: String!
+  ): JSON
+  """
+  R4: the job’s workplace, kind of work, contract, hours, leave and benefits, in order, within the law of its country
+  """
+  saveJobTerms(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
@@ -636,7 +654,7 @@ type Query {
   """
   R16: the plan and free slots for one of its interviews, a week at a time
   """
-  recruitingSlots(applicationId: String!, away: String, from: String, holidays: String, planKey: String, weeks: String): JSON
+  recruitingSlots(applicationId: String!, away: String, from: String, holidays: String, interviewers: String, planKey: String, weeks: String): JSON
   """My working hours, for slots without a calendar"""
   recruitingWorkingHours: JSON
 }

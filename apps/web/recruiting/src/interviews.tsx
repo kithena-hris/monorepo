@@ -7,8 +7,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Chip,
-  ChipRow,
+  Combobox,
   EmptyState,
   Field,
   FieldControl,
@@ -321,8 +320,8 @@ function Notifications({
           <span className="flex min-w-0 flex-col">
             <FieldLabel>Email me when a candidate acts</FieldLabel>
             <FieldDescription>
-              When they give times, ask to move an interview or answer a question. Your Inbox has
-              each one either way.
+              On unless you switch it off: when they give times, ask to move an interview or answer
+              a question. Your Inbox has each one either way.
             </FieldDescription>
           </span>
           <FieldControl>
@@ -693,28 +692,49 @@ function plainText(node: DocNode): string {
   return block ? `${inner.join('')}\n` : inner.join('');
 }
 
-/** The agenda, written once as rich text and kept with its plain words for mail and calendars. */
+/**
+ * The agenda, written once as rich text and kept with its plain words for
+ * mail and calendars. It opens on the one last written for this interview of
+ * the job; AI can draft it from the job, to edit.
+ */
 function AgendaEditor({
   value,
   onChange,
+  onDraft,
+  drafting,
 }: {
   readonly value: { html: string; text: string } | null;
   readonly onChange: (next: { html: string; text: string } | null) => void;
+  readonly onDraft: () => void;
+  readonly drafting: boolean;
 }): JSX.Element {
   // The editor reports its HTML, then its tree, on every change: the HTML is held for the tree's turn.
   const html = useRef(value?.html ?? '');
   return (
     <Field>
-      <FieldLabel>Agenda</FieldLabel>
-      <FieldDescription>
-        What the interview is about and how to prepare. It goes in the invitation and as the
-        calendar event’s description.
-      </FieldDescription>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <FieldLabel>Agenda</FieldLabel>
+          <FieldDescription>
+            In the invitation and the calendar event. Kept for the next time this interview is
+            booked.
+          </FieldDescription>
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          loading={drafting}
+          startIcon={<icons.assistant aria-hidden />}
+          onClick={onDraft}
+        >
+          {value === null ? 'Draft with AI' : 'Redraft with AI'}
+        </Button>
+      </div>
       <FieldControl>
         <RichTextEditor
           label="Agenda"
           value={value?.html ?? ''}
-          minHeight="8rem"
+          minHeight="10rem"
           onChange={(next) => {
             html.current = next;
           }}
@@ -815,7 +835,8 @@ function WhereFields({
 export function Schedule(props: ScreenProps<ScheduleData>): JSX.Element {
   return (
     <Loaded load={props.load} what="the schedule">
-      {(data) => <ScheduleBody data={data} props={props} />}
+      {/* Another interview of the plan starts from its own agenda. */}
+      {(data) => <ScheduleBody key={data.planKey ?? ''} data={data} props={props} />}
     </Loaded>
   );
 }
@@ -834,24 +855,37 @@ function ScheduleBody({
   const [video, setVideo] = useState('');
   const [place, setPlace] = useState('');
   const [note, setNote] = useState('');
-  const [agenda, setAgenda] = useState<{ html: string; text: string } | null>(null);
+  const [agenda, setAgenda] = useState<{ html: string; text: string } | null>(data.agenda);
+  // A drafted agenda replaces the editor's content: the editor is drawn again around it.
+  const [drawn, setDrawn] = useState(0);
   const [fromAsk, setFromAsk] = useState<{ askId: string; time: string } | null>(null);
   const applicationId = props.params?.['id'] ?? '';
   const plan = data.plan.find((p) => p.key === data.planKey);
   const today = DAY_KEY(data.from);
+  const nameOf = (id: string): string =>
+    data.members.find((m) => m.personId === id)?.name ?? data.names[id] ?? 'Someone';
   const back = () =>
     props.onNavigate?.(
       `/recruiting/candidates/${data.candidate.id}?application=${applicationId}&tab=process`,
     );
+  const panelReady = data.interviewers.length > 0;
   const whereInput = {
     place: where === 'place' && place !== '' ? place : null,
     videoUrl: where === 'link' && video !== '' ? video : null,
     agenda,
+    interviewerIds: data.interviewers,
   };
   const whereReady =
-    where === 'meet' || (where === 'link' && video !== '') || (where === 'place' && place !== '');
+    panelReady &&
+    (where === 'meet' || (where === 'link' && video !== '') || (where === 'place' && place !== ''));
   const offered = data.asks.filter((a) => a.kind === 'availability' && a.state === 'open');
   const unavailable = Object.fromEntries(data.holidays.map((h) => [h.date, h.name]));
+  const draft = () => {
+    act.run('DraftAgenda', { applicationId, input: { planKey: data.planKey } }, (done) => {
+      setAgenda(done as { html: string; text: string });
+      setDrawn((n) => n + 1);
+    });
+  };
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -866,8 +900,8 @@ function ScheduleBody({
           description="Add the interviews to the job’s plan first."
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
-          <div className="flex flex-col gap-4">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="flex min-w-0 flex-col gap-4">
             {offered.map((a) => (
               <Card key={a.id}>
                 <CardHeader>
@@ -898,7 +932,7 @@ function ScheduleBody({
                       startIcon={<icons.send aria-hidden />}
                       onClick={() => {
                         if (fromAsk === null) return;
-                        // Where and the agenda are the ones chosen when the link was sent.
+                        // Where, the agenda and the interviewers are the ones chosen when the link was sent.
                         act.run(
                           'BookFromAsk',
                           { applicationId, askId: a.id, input: { startsAt: fromAsk.time } },
@@ -927,30 +961,83 @@ function ScheduleBody({
             ))}
             <Card>
               <CardHeader>
+                <CardTitle level={2}>The interview</CardTitle>
+                <CardDescription>
+                  Which interview of the plan, and who runs it. Everyone chosen is invited, and only
+                  times free for all of them, and for you, are offered.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-5">
+                {data.plan.length > 1 ? (
+                  <RadioGroup
+                    aria-label="Interview"
+                    className="grid gap-2 sm:grid-cols-2"
+                    value={data.planKey ?? ''}
+                    onValueChange={(v) => props.onFilter?.({ plan: v, with: null })}
+                  >
+                    {data.plan.map((p) => (
+                      <RadioCard
+                        key={p.key}
+                        value={p.key}
+                        description={`${String(p.minutes)} min${p.competencies.length === 0 ? '' : ` · ${String(p.competencies.length)} to assess`}`}
+                      >
+                        {p.title}
+                      </RadioCard>
+                    ))}
+                  </RadioGroup>
+                ) : plan === undefined ? null : (
+                  <KeyValues
+                    items={[
+                      { label: 'Interview', value: plan.title },
+                      { label: 'Length', value: `${String(plan.minutes)} min` },
+                    ]}
+                  />
+                )}
+                <Field required>
+                  <FieldLabel>Interviewers</FieldLabel>
+                  <FieldDescription>
+                    {plan !== undefined && plan.interviewerIds.length > 0
+                      ? 'From the job’s plan. Change them for this interview only.'
+                      : 'The job’s hiring team to start. Change them for this interview.'}
+                  </FieldDescription>
+                  <FieldControl>
+                    <Combobox
+                      label="Interviewers"
+                      multiple
+                      chips
+                      placeholder="Choose who runs it"
+                      searchPlaceholder="Search people"
+                      options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
+                      value={data.interviewers}
+                      onChange={(v) => {
+                        const ids = typeof v === 'string' || v === null ? [] : v;
+                        setPicked([]);
+                        props.onFilter?.({ with: ids.length === 0 ? null : ids.join(',') });
+                      }}
+                    />
+                  </FieldControl>
+                </Field>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
                 <CardTitle level={2}>
                   {how === 'link' ? 'The candidate picks' : 'Pick a day, then a time'}
                 </CardTitle>
                 <CardDescription>
-                  {plan === undefined
-                    ? ''
-                    : `${String(plan.minutes)} min · ${plan.interviewerIds.map((id) => data.names[id] ?? id).join(', ') || 'No interviewers yet'} · free for you and every interviewer; a struck day has nothing free: a weekend, a holiday, someone away, or the hours over.`}
+                  {panelReady
+                    ? `Free for you, ${data.interviewers.map(nameOf).join(', ')}. A struck day has nothing free: a weekend, a holiday, someone away, or the hours over.`
+                    : 'Choose who runs the interview to see the times that suit them.'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                {data.plan.length > 1 ? (
-                  <ChipRow aria-label="Interview">
-                    {data.plan.map((p) => (
-                      <Chip
-                        key={p.key}
-                        selected={p.key === data.planKey}
-                        onClick={() => props.onFilter?.({ plan: p.key })}
-                      >
-                        {p.title}
-                      </Chip>
-                    ))}
-                  </ChipRow>
-                ) : null}
-                {how === 'link' ? (
+                {!panelReady ? (
+                  <EmptyState
+                    icon={<icons.people aria-hidden />}
+                    title="No interviewers yet"
+                    description="Choose them above."
+                  />
+                ) : how === 'link' ? (
                   <p className="text-sm text-fg-muted">
                     {`${data.candidate.name} gets a link to the same free times, in their own time zone, holidays and days away left out, and gives ten. You book one from here.`}
                   </p>
@@ -967,6 +1054,17 @@ function ScheduleBody({
                     onChange={setPicked}
                   />
                 )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5">
+                <AgendaEditor
+                  key={drawn}
+                  value={agenda}
+                  onChange={setAgenda}
+                  onDraft={draft}
+                  drafting={act.pending}
+                />
               </CardContent>
             </Card>
             {data.asks.length === 0 && data.booked.length === 0 ? null : (
@@ -999,7 +1097,7 @@ function ScheduleBody({
               </Card>
             )}
           </div>
-          <Card>
+          <Card className="lg:sticky lg:top-4">
             <CardHeader>
               <CardTitle level={2}>How to book</CardTitle>
             </CardHeader>
@@ -1020,7 +1118,7 @@ function ScheduleBody({
                 </RadioCard>
                 <RadioCard
                   value="offer"
-                  description={`Several times; ${data.candidate.name} picks one from their page or asks for others.`}
+                  description={`Several times; ${data.candidate.name} picks one or asks for others.`}
                 >
                   Offer times to choose from
                 </RadioCard>
@@ -1054,11 +1152,32 @@ function ScheduleBody({
                   </FieldControl>
                 </Field>
               ) : null}
-              <AgendaEditor value={agenda} onChange={setAgenda} />
+              {panelReady ? (
+                <KeyValues
+                  items={[
+                    {
+                      label: 'Invited',
+                      value: [data.candidate.name, ...data.interviewers.map(nameOf)].join(', '),
+                    },
+                    ...(how === 'link' || picked.length === 0
+                      ? []
+                      : [
+                          {
+                            label: picked.length === 1 ? 'When' : 'Times',
+                            value:
+                              picked.length === 1
+                                ? when(picked[0] ?? '')
+                                : `${String(picked.length)} offered`,
+                          },
+                        ]),
+                  ]}
+                />
+              ) : null}
               {how === 'book' ? (
                 <Button
                   disabled={picked.length === 0 || data.planKey === null || !whereReady}
                   loading={act.pending}
+                  startIcon={<icons.send aria-hidden />}
                   onClick={() => {
                     act.run(
                       'ScheduleInterview',
@@ -1076,6 +1195,7 @@ function ScheduleBody({
                 <Button
                   disabled={picked.length === 0 || data.planKey === null || !whereReady}
                   loading={act.pending}
+                  startIcon={<icons.send aria-hidden />}
                   onClick={() => {
                     act.run(
                       'ProposeSlots',
@@ -1098,6 +1218,7 @@ function ScheduleBody({
                 <Button
                   disabled={data.planKey === null || !whereReady}
                   loading={act.pending}
+                  startIcon={<icons.send aria-hidden />}
                   onClick={() => {
                     act.run(
                       'SelfScheduleLink',

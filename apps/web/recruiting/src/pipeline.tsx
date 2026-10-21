@@ -62,16 +62,16 @@ function CandidateCard({
   readonly card: CardData;
   readonly onNavigate?: ((to: string) => void) | undefined;
 }): JSX.Element {
-  // The ideal candidate (PRD §22.4, a strong match on every must) is set apart on the board.
+  // The ideal candidate (PRD §22.4, a strong match on every must): the board's border says it, this names it.
   const ideal = card.match?.band === 'strong';
   return (
-    <div
-      className={
-        ideal
-          ? '-m-2 flex flex-col gap-2 rounded-[inherit] bg-success-subtle/40 p-2 shadow-[inset_0_0_0_2px_var(--reach-color-success)]'
-          : 'flex flex-col gap-2'
-      }
-    >
+    <div className="flex flex-col gap-2">
+      {ideal ? (
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-success-fg">
+          <icons.starred aria-hidden className="size-3.5 fill-current" />
+          Ideal candidate
+        </span>
+      ) : null}
       <div className="flex items-center gap-2">
         <Avatar name={card.name} size="sm" />
         <To
@@ -108,10 +108,10 @@ function CandidateCard({
                   ? 'accent'
                   : 'neutral'
             }
-            variant={card.match.band === 'strong' ? 'solid' : 'soft'}
+            variant="soft"
             aria-label={`AI match ${String(Math.round(card.match.scoreBp / 100))} percent, ${card.match.band}`}
           >
-            {`${String(Math.round(card.match.scoreBp / 100))}% · ${card.match.band === 'strong' ? 'ideal' : card.match.band}`}
+            {`${String(Math.round(card.match.scoreBp / 100))}% match`}
           </Badge>
         )}
         <span
@@ -505,6 +505,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   items={byStage}
                   describeItem={(c) => c.name}
                   renderCard={(c) => <CandidateCard card={c} onNavigate={props.onNavigate} />}
+                  cardTone={(c) => (c.match?.band === 'strong' ? 'success' : null)}
                   onMove={(m) => {
                     const card = active.find((c) => c.applicationId === m.itemId);
                     if (card !== undefined && m.from !== m.to) move(card, m.to);
