@@ -10,7 +10,9 @@ import type {
   MinimumLeave,
   TermsAnswers,
 } from '../domain/terms/pack.js';
+import type { CategoryInfo } from '../domain/benefits/benefits.js';
 import { write, type PromptSpec } from './ai.js';
+import { catalogueOf, categoriesOf, keepChosen } from './catalogue.js';
 import type { Ctx } from './context.js';
 import { editable, refreshProjection } from './jobs.js';
 import type { Entity, JobRecord, Location } from './ports.js';
@@ -71,7 +73,15 @@ export interface TermsOptions {
   readonly weeklyMinutes: number | null;
   readonly hours: 'full_time' | 'part_time' | null;
   readonly leave: MinimumLeave | null;
-  readonly benefits: readonly { id: string; name: string; category: string; statutory: boolean }[];
+  readonly benefits: readonly {
+    id: string;
+    name: string;
+    description: string | null;
+    category: string;
+    statutory: boolean;
+  }[];
+  /** Every category, built in and the company's own, with its icon. */
+  readonly categories: readonly CategoryInfo[];
   /** The pack is awaiting a country reviewer (REC-150): said beside the choices. */
   readonly reviewed: boolean;
 }
@@ -194,17 +204,14 @@ export async function termsOptions(ctx: Ctx, terms: JobTerms): Promise<TermsOpti
       ready && terms.relationship !== null
         ? pack.minimumLeave(answers, Math.max(1, terms.workDays.length || 5))
         : null,
-    benefits:
-      entity === null
-        ? []
-        : (await ctx.tx.benefits.list())
-            .filter((b) => b.legalEntityId === entity.id)
-            .map((b) => ({
-              id: b.id,
-              name: benefitName(b.names),
-              category: b.category,
-              statutory: b.statutory,
-            })),
+    benefits: (await catalogueOf(ctx, entity?.id ?? null)).map((b) => ({
+      id: b.id,
+      name: benefitName(b.names),
+      description: b.description ?? null,
+      category: b.category,
+      statutory: b.statutory,
+    })),
+    categories: await categoriesOf(ctx),
     reviewed: pack?.reviewed ?? true,
   };
 }
@@ -361,6 +368,8 @@ export async function saveJobTerms(
     salary = null;
 
   await ctx.tx.settings.set(key(jobId), terms);
+  // A library benefit chosen here is kept in the catalogue, so the ad and offers read it.
+  if (terms.entityId !== null) await keepChosen(ctx, terms.entityId, terms.benefitIds);
   const location = terms.locationId === null ? null : await ctx.tx.locations.get(terms.locationId);
   const contract = options.contractTypes.find((t) => t.key === terms.contractType);
   const next: JobRecord = {

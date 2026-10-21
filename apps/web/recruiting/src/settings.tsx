@@ -12,6 +12,8 @@ import {
   FormSaveBar,
   FormSection,
   FormSections,
+  IconList,
+  IconListItem,
   List,
   ListItem,
   Input,
@@ -36,9 +38,11 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { CategoryHeading, CategoryIcon } from './benefits';
 import { Loaded } from './load';
 import {
   BenefitEditor,
+  CategoryEditor,
   ChainEditor,
   DepartmentEditor,
   EntityEditor,
@@ -52,6 +56,7 @@ import { Refusal, money, newId, useAct, words } from './shared';
 import type {
   ApprovalChain,
   Benefit,
+  BenefitCategory,
   CareersDomain,
   GeneralSettings,
   MessageTemplate,
@@ -1415,7 +1420,7 @@ function Lists({
   );
 }
 
-const worth = (b: Benefit): string => {
+const worth = (b: Benefit): string | null => {
   switch (b.value.kind) {
     case 'money':
       return `${money(b.value.yearlyMinor, b.value.currency)} a year`;
@@ -1424,10 +1429,16 @@ const worth = (b: Benefit): string => {
     case 'days':
       return `${String(b.value.days)} days`;
     default:
-      return 'Described';
+      return null;
   }
 };
 
+/**
+ * S6: the benefits each entity offers, by category with its icon. Every
+ * entity has the standard library to start from; the company removes what it
+ * never offers, adds its own to any category, and adds categories of its own.
+ * Statutory benefits come with the country and stay.
+ */
 function Benefits({
   data,
   props,
@@ -1436,7 +1447,11 @@ function Benefits({
   readonly props: ScreenProps<SettingsData>;
 }): JSX.Element {
   const act = useAct(props);
-  const [benefit, setBenefit] = useState<Benefit | null | 'new'>(null);
+  const [entityId, setEntityId] = useState(data.entities[0]?.id ?? '');
+  const [benefit, setBenefit] = useState<{ held: Benefit | null; category: string } | null>(null);
+  const [category, setCategory] = useState<BenefitCategory | 'new' | null>(null);
+  const mine = data.benefits.filter((b) => b.legalEntityId === entityId);
+  const nameOf = (b: Benefit): string => b.names['en'] ?? Object.values(b.names)[0] ?? words(b.key);
   return (
     <FormSections>
       <Refusal error={act.error} />
@@ -1447,85 +1462,166 @@ function Benefits({
       />
       <FormSection
         title="Benefits catalogue"
-        description="Per legal entity: shown on ads, the careers page, the composer and offers. Statutory ones come with the country pack and stay; tax notes describe, never calculate."
+        description="What each entity offers, by category: the tiles a job picks from and the list its ad shows. The standard benefits are here to start from; remove what you never offer and add your own. Statutory ones come with the country and stay."
       >
         {data.entities.length === 0 ? (
           <Alert tone="info" title="Add a legal entity first">
             A benefit belongs to the entity that offers it.
           </Alert>
-        ) : null}
-        {data.benefits.length === 0 ? null : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Benefit</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Entity</TableHead>
-                <TableHead>Worth</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead className="w-10">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.benefits.map((b) => {
-                const name = b.names['en'] ?? Object.values(b.names)[0] ?? words(b.key);
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              {data.entities.length === 1 ? (
+                <p className="text-sm text-fg-muted">{`For ${data.entities[0]?.name ?? ''}`}</p>
+              ) : (
+                <Field className="max-w-sm">
+                  <FieldLabel>Entity</FieldLabel>
+                  <Select value={entityId} onValueChange={setEntityId}>
+                    <FieldControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FieldControl>
+                    <SelectContent>
+                      {data.entities.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {`${e.name} (${e.country})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run('RestoreBenefitLibrary', {});
+                  }}
+                >
+                  Put back removed standard benefits
+                </Button>
+                <Button
+                  variant="secondary"
+                  startIcon={<icons.add aria-hidden />}
+                  onClick={() => {
+                    setCategory('new');
+                  }}
+                >
+                  Add category
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-8">
+              {data.benefitCategories.map((c) => {
+                const list = mine.filter((b) => b.category === c.key);
                 return (
-                  <TableRow key={b.id}>
-                    <TableCell>{name}</TableCell>
-                    <TableCell>{words(b.category)}</TableCell>
-                    <TableCell>
-                      {data.entities.find((e) => e.id === b.legalEntityId)?.name ?? '—'}
-                    </TableCell>
-                    <TableCell>{worth(b)}</TableCell>
-                    <TableCell>
-                      <Badge size="sm" tone={b.statutory ? 'neutral' : 'accent'}>
-                        {b.statutory ? 'Statutory' : 'Company'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {b.statutory ? null : (
-                        <RowMenu
-                          name={name}
-                          actions={rowActions(
-                            'benefit',
-                            () => {
-                              setBenefit(b);
-                            },
-                            () => {
-                              act.run('RemoveBenefit', { id: b.id });
-                            },
-                          )}
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <section key={c.key} aria-label={c.name} className="flex flex-col gap-3">
+                    <CategoryHeading
+                      category={c}
+                      meta={
+                        <Badge size="sm" variant="soft" className="tabular-nums">
+                          {String(list.length)}
+                        </Badge>
+                      }
+                      action={
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            startIcon={<icons.add aria-hidden />}
+                            onClick={() => {
+                              setBenefit({ held: null, category: c.key });
+                            }}
+                          >
+                            Add benefit
+                          </Button>
+                          {c.custom ? (
+                            <RowMenu
+                              name={c.name}
+                              actions={rowActions(
+                                'category',
+                                () => {
+                                  setCategory(c);
+                                },
+                                () => {
+                                  act.run('RemoveBenefitCategory', { categoryKey: c.key });
+                                },
+                              )}
+                            />
+                          ) : null}
+                        </div>
+                      }
+                    />
+                    {list.length === 0 ? (
+                      <p className="text-sm text-fg-muted">Nothing in this category yet.</p>
+                    ) : (
+                      <IconList divided>
+                        {list.map((b) => {
+                          const name = nameOf(b);
+                          const amount = worth(b);
+                          return (
+                            <IconListItem
+                              key={b.id}
+                              icon={<CategoryIcon icon={c.icon} />}
+                              tone={b.statutory ? 'info' : 'accent'}
+                              description={
+                                [b.description, amount].filter(Boolean).join(' · ') || undefined
+                              }
+                              action={
+                                b.statutory ? (
+                                  <Badge size="xs" variant="soft" tone="info">
+                                    By law
+                                  </Badge>
+                                ) : (
+                                  <RowMenu
+                                    name={name}
+                                    actions={rowActions(
+                                      'benefit',
+                                      () => {
+                                        setBenefit({ held: b, category: b.category });
+                                      },
+                                      () => {
+                                        act.run('RemoveBenefit', { id: b.id });
+                                      },
+                                    )}
+                                  />
+                                )
+                              }
+                            >
+                              {name}
+                            </IconListItem>
+                          );
+                        })}
+                      </IconList>
+                    )}
+                  </section>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
+          </>
         )}
-        <div>
-          <Button
-            variant="secondary"
-            startIcon={<icons.add aria-hidden />}
-            disabled={data.entities.length === 0}
-            onClick={() => {
-              setBenefit('new');
-            }}
-          >
-            Add benefit
-          </Button>
-        </div>
       </FormSection>
       {benefit === null ? null : (
         <BenefitEditor
-          held={benefit === 'new' ? null : benefit}
+          held={benefit.held}
+          data={data}
+          act={act}
+          startEntity={entityId}
+          startCategory={benefit.category}
+          onClose={() => {
+            setBenefit(null);
+          }}
+        />
+      )}
+      {category === null ? null : (
+        <CategoryEditor
+          held={category === 'new' ? null : category}
           data={data}
           act={act}
           onClose={() => {
-            setBenefit(null);
+            setCategory(null);
           }}
         />
       )}

@@ -5,6 +5,7 @@ import {
   Button,
   IconList,
   IconListItem,
+  IconTile,
   KeyValues,
   RichTextContent,
   Timeline,
@@ -49,7 +50,7 @@ const LANGUAGE: Readonly<Record<string, string>> = {
   hi: 'Hindi',
 };
 
-const BENEFIT_ICON: Readonly<Record<string, keyof typeof icons>> = {
+const BENEFIT_ICON: Readonly<Record<string, string>> = {
   health: 'health',
   pension: 'payment',
   meal: 'break',
@@ -66,6 +67,38 @@ const BENEFIT_ICON: Readonly<Record<string, keyof typeof icons>> = {
   flexible_pay: 'payroll',
   relocation: 'transfer',
 };
+
+type Glyph = (typeof icons)['starred'];
+
+/** A category's icon: the one Recruiting names, else the old fixed map, else a star. */
+const iconOf = (name: string | undefined): Glyph =>
+  (icons as unknown as Readonly<Record<string, Glyph | undefined>>)[name ?? ''] ?? icons.starred;
+
+/** The benefits by category, in the order the categories first appear. */
+function benefitGroups(benefits: PublicJob['benefits']): {
+  key: string;
+  name: string;
+  icon: string;
+  benefits: PublicJob['benefits'];
+}[] {
+  const groups = new Map<
+    string,
+    { key: string; name: string; icon: string; benefits: PublicJob['benefits'] }
+  >();
+  for (const b of benefits) {
+    const held = groups.get(b.category);
+    if (held !== undefined) held.benefits = [...held.benefits, b];
+    else
+      groups.set(b.category, {
+        key: b.category,
+        name:
+          b.categoryName ?? b.category.replaceAll('_', ' ').replace(/^./u, (c) => c.toUpperCase()),
+        icon: b.icon ?? BENEFIT_ICON[b.category] ?? 'starred',
+        benefits: [b],
+      });
+  }
+  return [...groups.values()];
+}
 
 const day = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
@@ -210,23 +243,36 @@ export function JobAd({
           ) : null}
           <RichTextContent sanitisedHtml={job.html} className="job-ad" />
           {job.benefits.length === 0 ? null : (
-            <section className="flex flex-col gap-4">
+            <section className="flex flex-col gap-6">
               <h2 className="text-2xl font-bold tracking-[-0.01em]">What we offer</h2>
-              <IconList className="grid gap-x-8 sm:grid-cols-2">
-                {job.benefits.map((b) => {
-                  const Icon = icons[BENEFIT_ICON[b.category] ?? 'starred'];
+              {/* By category, each led by its icon and name; every benefit a title and a line. */}
+              <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+                {benefitGroups(job.benefits).map((g) => {
+                  const Icon = iconOf(g.icon);
                   return (
-                    <IconListItem
-                      key={`${b.category}:${b.name}`}
-                      icon={<Icon aria-hidden />}
-                      tone="accent"
-                      {...(b.description === null ? {} : { description: b.description })}
-                    >
-                      {b.name}
-                    </IconListItem>
+                    <section key={g.key} className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <IconTile tone="accent" size="lg">
+                          <Icon />
+                        </IconTile>
+                        <h3 className="text-lg font-semibold">{g.name}</h3>
+                      </div>
+                      <IconList>
+                        {g.benefits.map((b) => (
+                          <IconListItem
+                            key={b.name}
+                            icon={<icons.success aria-hidden />}
+                            tone="accent"
+                            {...(b.description === null ? {} : { description: b.description })}
+                          >
+                            {b.name}
+                          </IconListItem>
+                        ))}
+                      </IconList>
+                    </section>
                   );
                 })}
-              </IconList>
+              </div>
             </section>
           )}
           {job.process.length === 0 ? null : (

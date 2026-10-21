@@ -1,3 +1,4 @@
+import { categoriesOf } from './catalogue.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { LaunchCountry, PublicJob, PublicationTarget, WorkMode } from '@kithena/contracts';
 
@@ -509,6 +510,7 @@ export async function pagesFor(
   const benefits = (await ctx.tx.benefits.list()).filter(
     (b) => (b.statutory && b.legalEntityId === job.entityId) || job.benefitIds.includes(b.id),
   );
+  const categories = await categoriesOf(ctx);
   const eligibleFor = {
     employmentType: 'permanent' as const,
     weeklyMinutes: 2400,
@@ -544,11 +546,16 @@ export async function pagesFor(
       otherLanguages: ads.filter((a) => a.language !== ad.language).map((a) => a.language),
       benefits: benefits
         .filter((b) => isEligible(b, eligibleFor) || b.statutory)
-        .map((b) => ({
-          category: b.category,
-          name: b.names[ad.language] ?? b.names['en'] ?? b.key,
-          description: null,
-        })),
+        .map((b) => {
+          const category = categories.find((c) => c.key === b.category);
+          return {
+            category: b.category,
+            categoryName: category?.name ?? b.category,
+            icon: category?.icon ?? 'starred',
+            name: b.names[ad.language] ?? b.names['en'] ?? b.key,
+            description: b.description ?? null,
+          };
+        }),
       process: stages.flatMap((s) => (s.candidateName === null ? [] : [s.candidateName])),
       form: (form?.fields ?? [])
         .filter((f) => f.shown)

@@ -78,7 +78,10 @@ export const PublicListing = z.object({
 export type PublicListing = z.infer<typeof PublicListing>;
 
 export const PublicBenefit = z.object({
-  category: pub(z.string().max(40)),
+  category: pub(z.string().max(60)),
+  /** The category as people read it, and its icon by name in Reach; absent on pages written before. */
+  categoryName: pub(z.string().max(80).optional()),
+  icon: pub(z.string().max(40).optional()),
   name: pub(z.string().max(120)),
   description: pub(z.string().max(500).nullable()),
 });

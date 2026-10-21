@@ -3,7 +3,8 @@ import { useState } from 'react';
 
 import { Field, FieldControl, FieldError, FieldLabel } from '../field/field';
 import { Switch } from '../switch/switch';
-import { Checkbox } from './checkbox';
+import { Badge } from '../badge/badge';
+import { Checkbox, CheckboxCard } from './checkbox';
 
 const meta = {
   title: 'Forms/Checkbox',
@@ -223,4 +224,48 @@ export const CheckboxOrSwitch: Story = {
       </div>
     </div>
   ),
+};
+
+/**
+ * Several picked from a set that deserves the weight: each card is the whole
+ * target, its title and a line under it. A locked choice is checked and
+ * disabled, with a badge to say why.
+ */
+export const Cards: Story = {
+  render: function CardsStory() {
+    const [picked, setPicked] = useState<readonly string[]>(['learning']);
+    const items = [
+      ['learning', 'Learning budget', 'A yearly budget for courses, books and conferences.'],
+      ['gym', 'Gym membership', 'A sports membership paid or subsidised.'],
+      ['laptop', 'Laptop of your choice', 'The machine you work best on.'],
+    ] as const;
+    return (
+      <div className="grid max-w-2xl gap-3 sm:grid-cols-2" role="group" aria-label="Benefits">
+        <CheckboxCard
+          checked
+          disabled
+          description="The company pays into a workplace pension."
+          badge={
+            <Badge size="xs" variant="soft" tone="info">
+              By law
+            </Badge>
+          }
+        >
+          Workplace pension
+        </CheckboxCard>
+        {items.map(([key, title, description]) => (
+          <CheckboxCard
+            key={key}
+            checked={picked.includes(key)}
+            description={description}
+            onCheckedChange={(on) => {
+              setPicked(on === true ? [...picked, key] : picked.filter((k) => k !== key));
+            }}
+          >
+            {title}
+          </CheckboxCard>
+        ))}
+      </div>
+    );
+  },
 };

@@ -65,6 +65,39 @@ export interface IconListItemProps extends Omit<ComponentPropsWithoutRef<'li'>, 
   children: ReactNode;
 }
 
+export interface IconTileProps extends ComponentPropsWithoutRef<'span'> {
+  tone?: keyof typeof tileTone;
+  /** `md` is a list's tile; `lg` leads a heading, such as a group's name. */
+  size?: 'md' | 'lg';
+}
+
+/**
+ * A glyph in a tinted tile: the mark an `IconListItem` leads with, on its own
+ * for a heading that names a group of them. Decorative: the words beside it
+ * carry the meaning.
+ */
+export function IconTile({
+  tone = 'neutral',
+  size = 'md',
+  className,
+  ...props
+}: IconTileProps): JSX.Element {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'grid shrink-0 place-items-center',
+        size === 'lg'
+          ? 'size-10 rounded-[0.75rem] [&_svg]:size-5'
+          : 'size-8 rounded-[0.625rem] [&_svg]:size-4 group-data-divided/icons:size-9 group-data-divided/icons:[&_svg]:size-[1.0625rem]',
+        tileTone[tone],
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export function IconListItem({
   icon,
   tone = 'neutral',
@@ -76,16 +109,7 @@ export function IconListItem({
 }: IconListItemProps): JSX.Element {
   return (
     <li className={cn('flex items-start gap-3', className)} {...props}>
-      <span
-        aria-hidden
-        className={cn(
-          'grid size-8 shrink-0 place-items-center rounded-[0.625rem] [&_svg]:size-4',
-          'group-data-divided/icons:size-9 group-data-divided/icons:[&_svg]:size-[1.0625rem]',
-          tileTone[tone],
-        )}
-      >
-        {icon}
-      </span>
+      <IconTile tone={tone}>{icon}</IconTile>
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-snug font-semibold text-fg group-data-divided/icons:text-base">
           {children}

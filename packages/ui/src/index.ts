@@ -347,8 +347,8 @@ export {
 } from './components/card/card';
 export type { CardProps } from './components/card/card';
 
-export { Checkbox } from './components/checkbox/checkbox';
-export type { CheckboxProps } from './components/checkbox/checkbox';
+export { Checkbox, CheckboxCard } from './components/checkbox/checkbox';
+export type { CheckboxCardProps, CheckboxProps } from './components/checkbox/checkbox';
 
 export { Chip, ChipGroup, ChipGroupItem, ChipRow } from './components/chip/chip';
 export type {
@@ -574,8 +574,12 @@ export {
 export type { PopoverContentProps, PopoverProps } from './components/popover/popover';
 
 export { HoverCard, HoverCardContent, HoverCardTrigger } from './components/hover-card/hover-card';
-export { IconList, IconListItem } from './components/icon-list/icon-list';
-export type { IconListItemProps, IconListProps } from './components/icon-list/icon-list';
+export { IconList, IconListItem, IconTile } from './components/icon-list/icon-list';
+export type {
+  IconListItemProps,
+  IconListProps,
+  IconTileProps,
+} from './components/icon-list/icon-list';
 export type { HoverCardProps, HoverCardTriggerProps } from './components/hover-card/hover-card';
 
 export { CircularProgress, Progress } from './components/progress/progress';

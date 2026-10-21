@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveBenefitCategory($input: JSON!, $key: String!) {\n    saveBenefitCategory(input: $input, idempotencyKey: $key)\n  }"}
