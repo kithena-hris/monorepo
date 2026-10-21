@@ -985,7 +985,8 @@ function KnockoutEditor({
               label="Knocks out below"
               value={held.below ?? null}
               onChange={(below) => {
-                set(below === null ? { below: undefined } : { below });
+                const { below: _was, ...rest } = held;
+                onChange(below === null ? rest : { ...rest, below });
               }}
             />
           ) : choices.length === 0 ? (
