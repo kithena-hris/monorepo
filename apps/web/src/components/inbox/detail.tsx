@@ -30,6 +30,7 @@ import type { Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
 import { MuteDialog } from './dialogs';
 import { PeopleBody } from './detail-people';
+import { RecruitingBody } from './detail-recruiting';
 import { TimeOffBody } from './detail-timeoff';
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
@@ -329,6 +330,17 @@ export function InboxDetail({
       <GenericBody item={item} />
     ) : item.module === 'people' ? (
       <PeopleBody
+        item={item}
+        now={now}
+        zone={zone}
+        act={act}
+        asking={asking}
+        setAsking={setAsking}
+        sendingBack={sendingBack}
+        setSendingBack={setSendingBack}
+      />
+    ) : item.module === 'recruiting' ? (
+      <RecruitingBody
         item={item}
         now={now}
         zone={zone}

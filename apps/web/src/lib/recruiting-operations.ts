@@ -158,6 +158,12 @@ export const OPERATIONS = {
   RequestInformation: write('RequestInformation', 'requestInformation', ...ID('applicationId')),
   CloseAsk: write('CloseAsk', 'closeAsk', ...two('applicationId', 'askId'), false),
   BookFromAsk: write('BookFromAsk', 'bookFromAsk', ...two('applicationId', 'askId')),
+  RequestMoreTimes: write('RequestMoreTimes', 'requestMoreTimes', ...two('applicationId', 'askId')),
+  RecruitingMyNotifications: query('RecruitingMyNotifications', 'recruitingMyNotifications'),
+  SaveRecruitingMyNotifications: write(
+    'SaveRecruitingMyNotifications',
+    'saveRecruitingMyNotifications',
+  ),
   SaveRecruitingWorkingHours: write('SaveRecruitingWorkingHours', 'saveRecruitingWorkingHours'),
   RecruitingWorkingHours: query('RecruitingWorkingHours', 'recruitingWorkingHours'),
   RecruitingConnections: query('RecruitingConnections', 'recruitingConnections'),

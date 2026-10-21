@@ -523,6 +523,8 @@ export interface Ask {
   readonly place: string | null;
   readonly videoUrl: string | null;
   readonly agenda: { readonly html: string; readonly text: string } | null;
+  /** Why it closed without an answer. */
+  readonly closedBecause?: 'replaced' | 'more_times' | 'dealt_with' | null;
   readonly label: string;
   readonly detail: string | null;
   readonly interviewId: string | null;

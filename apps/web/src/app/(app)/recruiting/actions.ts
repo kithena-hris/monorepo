@@ -57,6 +57,10 @@ const WRITES = new Set<OperationName>([
   'RequestInformation',
   'CloseAsk',
   'BookFromAsk',
+  'RequestMoreTimes',
+  'DisconnectRecruitingCalendar',
+  'ConnectRecruitingCalendar',
+  'SaveRecruitingMyNotifications',
   'AssessJob',
   'PreviewEmail',
   'SeedEmailTemplates',
@@ -116,8 +120,10 @@ const WRITES = new Set<OperationName>([
   'PlaceHold',
   'DeleteCandidate',
   'Chart',
-  // Reads a screen asks for after it has drawn: free slots, the debrief.
+  // Reads a screen asks for after it has drawn: free slots, the debrief, my calendars and emails.
   'RecruitingSlots',
+  'RecruitingConnections',
+  'RecruitingMyNotifications',
   'RecruitingWorkingHours',
   'RecruitingParsedProfile',
   'RecruitingFairness',
