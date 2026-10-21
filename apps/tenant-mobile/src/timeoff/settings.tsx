@@ -37,6 +37,7 @@ import {
   Switch,
   Text,
   Textarea,
+  TimePicker,
 } from '@reach/ui-native';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -1420,13 +1421,44 @@ const WAYS = [
   ['pin', 'Shared kiosk with a PIN', 'At a kiosk, without a badge'],
 ] as const;
 
-function Attendance(): React.JSX.Element {
-  const { load, reload } = useTimeOff<{ defaultSchedule: string | null; rules: AttendanceRules }>(
-    'TimeOffAttendanceSettings',
+type WorkWindow = { readonly start: number; readonly end: number; readonly breakMinutes: number };
+type CompanyWeek = {
+  readonly kind: string;
+  readonly name: string;
+  readonly week?: Partial<Record<string, WorkWindow>>;
+};
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const hhmm = (m: number): string =>
+  `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const minutesOf = (t: string): number => {
+  const [h = 0, m = 0] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/** "Mon–Fri 09:00–17:30", or the days one by one when they differ. */
+function weekLine(s: CompanyWeek | null): string {
+  const days = Object.entries(s?.week ?? {}).filter(
+    (e): e is [string, WorkWindow] => e[1] !== undefined,
   );
+  if (days.length === 0) return 'Not set';
+  return days
+    .map(
+      ([d, w]) => `${DAY_NAMES[Number(d) - 1]?.slice(0, 3) ?? d} ${hhmm(w.start)}–${hhmm(w.end)}`,
+    )
+    .join(', ');
+}
+
+function Attendance(): React.JSX.Element {
+  const { load, reload } = useTimeOff<{
+    defaultSchedule: CompanyWeek | null;
+    rules: AttendanceRules;
+  }>('TimeOffAttendanceSettings');
   const { act, busy } = useAct('timeoff');
   const [rules, setRules] = useState<AttendanceRules | null>(null);
-  const [open, setOpen] = useState<'breaks' | 'limits' | 'overtime' | 'offices' | null>(null);
+  const [week, setWeek] = useState<Partial<Record<string, WorkWindow>> | null>(null);
+  const [open, setOpen] = useState<'breaks' | 'limits' | 'overtime' | 'offices' | 'week' | null>(
+    null,
+  );
   const [office, setOffice] = useState({ name: '', radiusMetres: 150 });
   const [locating, setLocating] = useState<string | null>(null);
   if (load.status !== 'ready') {
@@ -1444,7 +1476,33 @@ function Attendance(): React.JSX.Element {
   const close = (): void => {
     setOpen(null);
     setRules(null);
+    setWeek(null);
     setLocating(null);
+  };
+  // The company's working week (T33), saved on its own, as on the web.
+  const w = week ?? load.data.defaultSchedule?.week ?? {};
+  const putDay = (day: string, next: WorkWindow | undefined): void => {
+    const rest = Object.fromEntries(Object.entries(w).filter(([d]) => d !== day));
+    setWeek(next === undefined ? rest : { ...rest, [day]: next });
+  };
+  const weekWrong = Object.values(w).some(
+    (x) => x !== undefined && (x.end <= x.start || x.breakMinutes > x.end - x.start),
+  );
+  const saveWeek = (): void => {
+    if (weekWrong || Object.keys(w).length === 0) return;
+    void act(
+      'SetTimeOffDefaultSchedule',
+      {
+        input: {
+          schedule: { kind: 'fixed', name: load.data.defaultSchedule?.name ?? 'Standard', week: w },
+        },
+      },
+      'Saved',
+    ).then((done) => {
+      if (done === null) return;
+      close();
+      reload();
+    });
   };
   const save = (): void => {
     void act('SetTimeOffAttendanceRules', { input: r }, 'Saved').then((done) => {
@@ -1537,7 +1595,19 @@ function Attendance(): React.JSX.Element {
       </Rules>
       {/* Three rows for what counts as a working day (v3 S16), each changed in a modal. */}
       <Rules title="Working day">
-        <Rule label="Schedule" value={load.data.defaultSchedule ?? 'Not set'} />
+        <Rule
+          label="Working week"
+          value={weekLine(load.data.defaultSchedule)}
+          {...(load.data.defaultSchedule === null ||
+          load.data.defaultSchedule.kind === 'fixed' ||
+          load.data.defaultSchedule.kind === 'flexible'
+            ? {
+                onPress: () => {
+                  setOpen('week');
+                },
+              }
+            : {})}
+        />
         <Rule
           label="Breaks"
           value={`${String(r.breakMinutes)} minutes after ${String(hours(r.breakAfterMinutes))} hours`}
@@ -1560,6 +1630,64 @@ function Attendance(): React.JSX.Element {
           }}
         />
       </Rules>
+      {open === 'week' ? (
+        <RuleDialog title="Working week" busy={busy !== null} onClose={close} onSave={saveWeek}>
+          <Text variant="footnote" tone="muted">
+            Anyone without a schedule of their own works this week. Interviews are only offered
+            inside it.
+          </Text>
+          {DAY_NAMES.map((name, i) => {
+            const day = String(i + 1);
+            const d = w[day];
+            return (
+              <View key={day} className="gap-2">
+                <ListItem
+                  listitem={false}
+                  trailing={
+                    <Switch
+                      checked={d !== undefined}
+                      accessibilityLabel={`${name} is a working day`}
+                      onCheckedChange={(on) => {
+                        putDay(
+                          day,
+                          on ? (w['1'] ?? { start: 540, end: 1050, breakMinutes: 30 }) : undefined,
+                        );
+                      }}
+                    />
+                  }
+                >
+                  {name}
+                </ListItem>
+                {d === undefined ? null : (
+                  <View className="flex-row gap-2">
+                    <View className="flex-1">
+                      <TimePicker
+                        label={`${name} starts`}
+                        size="sm"
+                        value={hhmm(d.start)}
+                        onChange={(t) => {
+                          if (t !== null) putDay(day, { ...d, start: minutesOf(t) });
+                        }}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <TimePicker
+                        label={`${name} ends`}
+                        size="sm"
+                        value={hhmm(d.end)}
+                        onChange={(t) => {
+                          if (t !== null) putDay(day, { ...d, end: minutesOf(t) });
+                        }}
+                      />
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+          {weekWrong ? <Alert tone="danger">Each working day ends after it starts.</Alert> : null}
+        </RuleDialog>
+      ) : null}
       {open === 'breaks' ? (
         <RuleDialog title="Breaks" busy={busy !== null} onClose={close} onSave={save}>
           <NumberField

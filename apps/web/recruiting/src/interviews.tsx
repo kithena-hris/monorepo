@@ -33,7 +33,7 @@ import {
   TimePicker,
   icons,
 } from '@reach/ui';
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, useAct, when, words } from './shared';
@@ -620,6 +620,24 @@ export function AskList({
 /** Where an interview happens: a Meet made at booking, a link pasted, or an address. */
 type Where = 'meet' | 'link' | 'place';
 
+/** A ProseMirror node, as the editor hands its document over. */
+interface DocNode {
+  readonly type?: string;
+  readonly text?: string;
+  readonly content?: readonly DocNode[];
+}
+
+/** The document's words, a line per block, read from the editor's tree rather than its HTML. */
+function plainText(node: DocNode): string {
+  if (node.text !== undefined) return node.text;
+  if (node.type === 'hardBreak') return '\n';
+  const inner = (node.content ?? []).map(plainText);
+  const block = ['paragraph', 'heading', 'listItem', 'blockquote', 'codeBlock'].includes(
+    node.type ?? '',
+  );
+  return block ? `${inner.join('')}\n` : inner.join('');
+}
+
 /** The agenda, written once as rich text and kept with its plain words for mail and calendars. */
 function AgendaEditor({
   value,
@@ -628,6 +646,8 @@ function AgendaEditor({
   readonly value: { html: string; text: string } | null;
   readonly onChange: (next: { html: string; text: string } | null) => void;
 }): JSX.Element {
+  // The editor reports its HTML, then its tree, on every change: the HTML is held for the tree's turn.
+  const html = useRef(value?.html ?? '');
   return (
     <Field>
       <FieldLabel>Agenda</FieldLabel>
@@ -640,17 +660,14 @@ function AgendaEditor({
           label="Agenda"
           value={value?.html ?? ''}
           minHeight="8rem"
-          onChange={(html) => {
-            const text = html
-              .replaceAll(/<\/(p|li|h[1-6]|div)>/gu, '\n')
-              .replaceAll(/<br\s*\/?>/gu, '\n')
-              .replaceAll(/<[^>]+>/gu, '')
-              .replaceAll('&amp;', '&')
-              .replaceAll('&lt;', '<')
-              .replaceAll('&gt;', '>')
-              .replaceAll('&nbsp;', ' ')
+          onChange={(next) => {
+            html.current = next;
+          }}
+          onChangeJson={(doc) => {
+            const text = plainText(doc)
+              .replaceAll(/\n{3,}/gu, '\n\n')
               .trim();
-            onChange(text === '' ? null : { html, text });
+            onChange(text === '' ? null : { html: html.current, text });
           }}
         />
       </FieldControl>
