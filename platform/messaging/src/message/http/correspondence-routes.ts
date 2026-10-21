@@ -33,6 +33,41 @@ const Request = z.object({
     )
     .max(2)
     .optional(),
+  /** Structure beside the words: times by day, facts, a button. Drawn here; never markup. */
+  parts: z
+    .object({
+      heading: z.string().max(200).nullable().optional(),
+      times: z
+        .object({
+          title: z.string().min(1).max(120),
+          days: z
+            .array(
+              z.object({
+                day: z.string().min(1).max(120),
+                times: z.array(z.string().min(1).max(120)).min(1).max(24),
+              }),
+            )
+            .max(14),
+          note: z.string().max(300).nullable().optional(),
+        })
+        .nullable()
+        .optional(),
+      facts: z
+        .array(z.object({ label: z.string().min(1).max(120), value: z.string().min(1).max(500) }))
+        .max(8)
+        .optional(),
+      action: z
+        .object({ label: z.string().min(1).max(60), href: z.url().max(2000) })
+        .nullable()
+        .optional(),
+      secondary: z
+        .object({ label: z.string().min(1).max(60), href: z.url().max(2000) })
+        .nullable()
+        .optional(),
+      themeId: z.string().max(40).nullable().optional(),
+      logoUrl: z.url().max(2000).nullable().optional(),
+    })
+    .optional(),
 });
 
 export function correspondenceRoutes({

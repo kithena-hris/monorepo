@@ -26,6 +26,7 @@ import {
   bookFromAvailability,
   linkSlots,
   offerAvailability,
+  requestMoreTimes,
   saveScorecard,
   scheduleInterview,
   scheduleScreen,
@@ -96,7 +97,8 @@ import { askForChart } from '../application/chart-ask.js';
 import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
-import { poolsScreen } from '../application/screens.js';
+import { setMyNotifications } from '../application/notify.js';
+import { poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
@@ -613,16 +615,38 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     }),
   );
   expect(notOffered.ok ? null : notOffered.error.code).toBe('NOT_OFFERED');
+  // The team is emailed only where a member asked to be; the Inbox has it either way.
+  expect(mailed.map((m) => m.subject)).not.toContainEqual(
+    expect.stringMatching(/needs other times/u),
+  );
+  await as('ada', async (ctx) => value(await setMyNotifications(ctx, true)));
   const declined = await asMailing('public', async (ctx) =>
     value(await answerAsk(ctx, yukiId, offered.id, { time: null, text: 'Away that week' })),
   );
   expect(declined.state).toBe('answered');
   expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/^Received:/u));
   expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/needs other times/u));
-  // The link: the candidate offers times, the team books one, and the invitation carries the agenda.
+  // The link: the candidate gives times, the recruiter who sent it chooses in their Inbox, and the
+  // invitation carries the where and the agenda chosen when the link was sent.
+  const agenda = { html: '<p>Agenda</p>', text: 'Walk us through two projects.' };
   const link = await asMailing('ada', async (ctx) =>
-    value(await selfScheduleLink(ctx, applied.applicationId, 'portfolio')),
+    value(
+      await selfScheduleLink(
+        ctx,
+        applied.applicationId,
+        'portfolio',
+        {},
+        [],
+        {},
+        {
+          place: null,
+          videoUrl: null,
+          agenda,
+        },
+      ),
+    ),
   );
+  expect(mailed.at(-1)?.parts?.action?.label).toBe('Choose my times');
   const linkToken = link.split('#')[1] ?? '';
   const free = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));
   expect(free.wanted).toBe(10);
@@ -633,26 +657,68 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     offerAvailability(ctx, linkToken, free.slots.slice(0, 3) as Instant[]),
   );
   expect(tooFew.ok ? null : tooFew.error.code).toBe('TIMES');
-  const availability = await asMailing('public', async (ctx) =>
-    value(await offerAvailability(ctx, linkToken, free.slots.slice(0, 10) as Instant[])),
+  const first = await asMailing('public', async (ctx) =>
+    value(
+      await offerAvailability(ctx, linkToken, free.slots.slice(0, 10) as Instant[], 'Asia/Tokyo'),
+    ),
   );
-  expect(availability.times).toHaveLength(10);
-  expect(mailed.map((m) => m.subject)).toContainEqual(expect.stringMatching(/offered 10 times/u));
+  // Thanked with the times laid out by day, in the zone they gave, and a way back to change them.
+  const toYuki = () => mailed.findLast((m) => m.to === 'yuki@example.com');
+  const thanks = toYuki();
+  expect(thanks?.parts?.times?.title).toContain('Asia/Tokyo');
+  expect(thanks?.parts?.action?.href).toContain(linkToken);
+  const choosing = async () =>
+    (await as('ada', (ctx) => recruitingInbox(ctx))).items.filter(
+      (i) => i.kind === 'recruiting.choose-time',
+    );
+  expect((await choosing()).map((i) => i.id)).toEqual([`recruiting:choose-time:${first.id}`]);
+
+  // Given again through the same link: the times before are shown picked, then replaced, task and all.
+  const again = await as('public', async (ctx) => value(await linkSlots(ctx, linkToken)));
+  expect(again.chosen).toEqual(first.times);
+  const second = await asMailing('public', async (ctx) =>
+    value(await offerAvailability(ctx, linkToken, free.slots.slice(2, 12) as Instant[])),
+  );
+  expect(toYuki()?.subject).toMatch(/^Updated:/u);
+  expect((await choosing()).map((i) => i.id)).toEqual([`recruiting:choose-time:${second.id}`]);
+
+  // None works: ask for more. The old link stops, the new one leaves every given time out.
+  const more = await asMailing('ada', async (ctx) =>
+    value(await requestMoreTimes(ctx, applied.applicationId, second.id, null)),
+  );
+  expect(await choosing()).toEqual([]);
+  expect((await as('public', (ctx) => linkSlots(ctx, linkToken))).ok).toBe(false);
+  const moreToken = more.split('#')[1] ?? '';
+  const fresh = await as('public', async (ctx) => value(await linkSlots(ctx, moreToken)));
+  expect(fresh.excluded).toBe(10);
+  expect(fresh.slots.some((t) => second.times.includes(t as Instant))).toBe(false);
+  const third = await asMailing('public', async (ctx) =>
+    value(await offerAvailability(ctx, moreToken, fresh.slots.slice(0, fresh.wanted) as Instant[])),
+  );
+  // Booked from the Inbox with nothing but a time: the agenda chosen at the start goes with it.
   const bookedFromLink = await asMailing('ada', async (ctx) =>
     value(
-      await bookFromAvailability(ctx, applied.applicationId, availability.id, {
-        startsAt: availability.times[1] as Instant,
-        place: null,
-        videoUrl: null,
-        agenda: { html: '<p>Agenda</p>', text: 'Walk us through two projects.' },
+      await bookFromAvailability(ctx, applied.applicationId, third.id, {
+        startsAt: third.times[1] as Instant,
       }),
     ),
   );
-  expect(bookedFromLink.startsAt).toBe(availability.times[1]);
-  expect(mailed.at(-1)?.text).toContain('Walk us through two projects.');
+  expect(bookedFromLink.startsAt).toBe(third.times[1]);
+  expect(toYuki()?.text).toContain('Walk us through two projects.');
+  expect(toYuki()?.parts?.facts?.map((f) => f.label)).toContain('When');
+  expect(await choosing()).toEqual([]);
+  // The interview already booked for this step was moved, not doubled.
+  expect((await uow.run(tenantId, (tx) => tx.interviews.get(interviewId)))?.state).toBe(
+    'rescheduled',
+  );
   await as('ada', async (ctx) =>
     value(await setInterviewState(ctx, bookedFromLink.id, 'cancelled')),
   );
+  // The rest of the hire runs on the first booking: put it back as it was.
+  await uow.run(tenantId, async (tx) => {
+    const held = await tx.interviews.get(interviewId);
+    if (held !== null) await tx.interviews.save({ ...held, state: 'scheduled' });
+  });
   const question = await asMailing('ada', async (ctx) =>
     value(
       await requestInformation(ctx, applied.applicationId, {
@@ -677,6 +743,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     ['change', 'closed'],
     ['info', 'answered'],
     ['availability', 'answered'],
+    ['availability', 'closed'],
+    ['availability', 'closed'],
     ['slots', 'answered'],
   ]);
 

@@ -39,6 +39,41 @@ export interface Ask {
   readonly answeredAt: Instant | null;
   /** The time chosen (`slots`), or what the candidate wrote. */
   readonly answer: { readonly time: Instant | null; readonly text: string | null } | null;
+  /** `availability`: who chooses a time from it, in their Inbox (the recruiter who sent the link). */
+  readonly owners?: readonly string[];
+  /** `availability`: the link it came through, by its hash, so a resubmission replaces it. */
+  readonly linkHash?: string | null;
+  /** Why it closed without an answer: the candidate gave new times, or the team asked for more. */
+  readonly closedBecause?: 'replaced' | 'more_times' | 'dealt_with' | null;
+}
+
+/**
+ * The open availability asks, company wide, so the Inbox finds a recruiter's
+ * without reading every application. Kept beside the asks themselves, in the
+ * same transaction: an ask opened or closed moves its entry with it.
+ *
+ * ponytail: one list for the company; a table with an index when there are thousands open.
+ */
+interface OpenEntry {
+  readonly applicationId: string;
+  readonly askId: string;
+  readonly owners: readonly string[];
+}
+const OPEN = 'asks-open';
+
+export async function openAvailability(ctx: Ctx): Promise<readonly OpenEntry[]> {
+  return ((await ctx.tx.settings.get(OPEN)) as OpenEntry[] | null) ?? [];
+}
+
+async function index(ctx: Ctx, ask: Ask): Promise<void> {
+  if (ask.kind !== 'availability') return;
+  const rest = (await openAvailability(ctx)).filter((e) => e.askId !== ask.id);
+  await ctx.tx.settings.set(
+    OPEN,
+    ask.state === 'open'
+      ? [...rest, { applicationId: ask.applicationId, askId: ask.id, owners: ask.owners ?? [] }]
+      : rest,
+  );
 }
 
 const key = (applicationId: string): string => `asks:${applicationId}`;
@@ -53,6 +88,7 @@ export async function saveAsk(ctx: Ctx, ask: Ask): Promise<Ask> {
     ? held.map((a) => (a.id === ask.id ? ask : a))
     : [...held, ask];
   await ctx.tx.settings.set(key(ask.applicationId), next);
+  await index(ctx, ask);
   return ask;
 }
 

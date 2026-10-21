@@ -58,7 +58,14 @@ export async function sendDueMessages(deps: Deps): Promise<number> {
             replyTo: await replyAddress(deps, tx, settings.companySlug, candidate.id),
           });
       }
-      return { out, replyTo: settings.replyAddress };
+      return {
+        out,
+        replyTo: settings.replyAddress,
+        brand: {
+          companyName: settings.companyName,
+          parts: { themeId: settings.themeId, logoUrl: settings.logoUrl },
+        },
+      };
     });
     for (const { m, to, replyTo } of due.out) {
       try {
@@ -68,6 +75,7 @@ export async function sendDueMessages(deps: Deps): Promise<number> {
           subject: m.subject,
           text: m.body,
           replyTo: replyTo ?? due.replyTo,
+          ...due.brand,
           dedupeKey: `message:${m.id}`,
         });
         await deps.uow.run(tenantId, (tx) => tx.messages.markSent(m.id, deps.clock.instant()));

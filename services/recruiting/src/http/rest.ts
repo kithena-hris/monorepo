@@ -45,6 +45,7 @@ import {
   answerReference,
   bookFromAvailability,
   offerAvailability,
+  requestMoreTimes,
   debriefOf,
   decide,
   kit,
@@ -66,6 +67,7 @@ import {
   rejectAndEmail,
   seedEmailTemplates,
 } from '../application/emails.js';
+import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
   answerAsk,
   closeAsk,
@@ -1110,6 +1112,10 @@ export const ROUTES: readonly Route[] = [
       away: z.record(text(80), z.array(z.iso.date()).max(400)).default({}),
       holidays: Holidays.default([]),
       weeks: Weeks.default({}),
+      /** Where it happens and what it is about, kept for the booking from what comes back. */
+      place: text(500).nullable().default(null),
+      videoUrl: z.url().nullable().default(null),
+      agenda: Agenda.nullable().default(null),
     }),
     run: (ctx, { params, body }) =>
       selfScheduleLink(
@@ -1119,7 +1125,33 @@ export const ROUTES: readonly Route[] = [
         body.away,
         body.holidays,
         body.weeks,
+        { place: body.place, videoUrl: body.videoUrl, agenda: body.agenda },
       ),
+  }),
+  route({
+    name: 'requestMoreTimes',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/asks/{askId}/more-times`,
+    summary: 'R16: none of the candidate’s times works; they get a new link that leaves those out',
+    params: z.object({ applicationId: Id, askId: Id }),
+    body: z.object({ note: text(1000).nullable().default(null) }),
+    run: (ctx, { params, body }) =>
+      requestMoreTimes(ctx, params.applicationId, params.askId, body.note),
+  }),
+  route({
+    name: 'recruitingMyNotifications',
+    method: 'GET',
+    path: `${V1}/me/notifications`,
+    summary: 'Whether I am emailed when a candidate acts',
+    run: (ctx) => myNotifications(ctx),
+  }),
+  route({
+    name: 'saveRecruitingMyNotifications',
+    method: 'PUT',
+    path: `${V1}/me/notifications`,
+    summary: 'Email me when a candidate acts, or not',
+    body: z.object({ email: z.boolean() }),
+    run: (ctx, { body }) => setMyNotifications(ctx, body.email),
   }),
   route({
     name: 'proposeSlots',
@@ -1159,9 +1191,10 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ applicationId: Id, askId: Id }),
     body: z.object({
       startsAt: Instant,
-      place: text(500).nullable(),
-      videoUrl: z.url().nullable(),
-      agenda: Agenda.nullable().default(null),
+      /** Absent: what was chosen when the link was sent. */
+      place: text(500).nullable().optional(),
+      videoUrl: z.url().nullable().optional(),
+      agenda: Agenda.nullable().optional(),
     }),
     status: 201,
     run: (ctx, { params, body }) =>
@@ -2073,11 +2106,16 @@ export const ROUTES: readonly Route[] = [
     name: 'publicBook',
     method: 'POST',
     path: `${V1}/public/{company}/schedule`,
-    summary: 'J6: up to ten times that suit the candidate; the team books one',
+    summary: 'J6: ten times that suit the candidate; given again, they replace the last',
     params: z.object({ company: text(63) }),
-    body: z.object({ times: z.array(Instant).min(1).max(10) }),
+    body: z.object({
+      times: z.array(Instant).min(1).max(10),
+      /** The candidate's own zone, so their times are written back to them as they read them. */
+      timeZone: text(64).nullable().default(null),
+    }),
     public: true,
-    run: (ctx, { body, headers }) => offerAvailability(ctx, tokenOf(headers), body.times),
+    run: (ctx, { body, headers }) =>
+      offerAvailability(ctx, tokenOf(headers), body.times, body.timeZone),
   }),
   route({
     name: 'publicJobNotices',

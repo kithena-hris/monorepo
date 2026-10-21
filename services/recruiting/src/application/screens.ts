@@ -11,7 +11,7 @@ import { TERMS_STEPS } from '@kithena/contracts';
 import { approvalState } from '../domain/requisition/requisition.js';
 import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
-import { asksOf } from './asks.js';
+import { asksOf, openAvailability } from './asks.js';
 import { jobFacts, notFound, recruiterOnly, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
 import { previewTokenFor } from './intake.js';
@@ -711,6 +711,42 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
       dueVerb: 'due',
       link: `/recruiting/interviews/${i.id}`,
       openIn: 'Recruiting',
+    });
+  }
+  // Times a candidate gave for the person to choose from (PRD §16.4): a task until booked, or replaced.
+  for (const entry of await openAvailability(ctx)) {
+    if (!entry.owners.includes(person)) continue;
+    const ask = (await asksOf(ctx, entry.applicationId)).find((a) => a.id === entry.askId);
+    const app = await ctx.tx.applications.get(entry.applicationId);
+    if (ask?.state !== 'open' || app === null || app.outcome !== 'active') continue;
+    const candidate = await ctx.tx.candidates.get(app.candidateId);
+    const job = await ctx.tx.jobs.get(app.jobId);
+    const plan = (await ctx.tx.jobs.plan(app.jobId)).find((p) => p.key === ask.planKey);
+    items.push({
+      ...base,
+      id: `recruiting:choose-time:${ask.id}`,
+      lane: 'task',
+      kind: RECRUITING_INBOX_KINDS.chooseTime,
+      module: 'recruiting',
+      icon: 'meeting',
+      title: `Choose a time: ${candidate?.name ?? 'a candidate'}, ${ask.label.toLowerCase()}`,
+      summary: `${String(ask.times.length)} times offered for ${job?.title ?? 'the role'}`,
+      at: ask.createdAt,
+      due: (ask.times[0] ?? ask.createdAt).slice(0, 10) as InboxItem['due'],
+      dueVerb: 'decide',
+      link: `/recruiting/applications/${app.id}/schedule`,
+      openIn: 'Recruiting',
+      detail: {
+        applicationId: app.id,
+        askId: ask.id,
+        candidate: candidate?.name ?? '',
+        job: job?.title ?? '',
+        interview: ask.label,
+        minutes: plan?.minutes ?? 30,
+        times: ask.times,
+        where: ask.videoUrl ?? ask.place,
+        agenda: ask.agenda?.text ?? null,
+      },
     });
   }
   return { items };

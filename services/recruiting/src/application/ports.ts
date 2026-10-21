@@ -948,6 +948,24 @@ export interface Blobs {
  * Email through `platform/messaging` (PRD §12.7); absent sends nothing.
  * Recruiting writes the candidate's thread itself, so it sends text.
  */
+/**
+ * Structure beside an email's words, drawn by messaging in the company's
+ * colours (its `correspondence.ts`): times by day, facts, a button. Never markup.
+ */
+export interface MailParts {
+  readonly heading?: string | null;
+  readonly times?: {
+    readonly title: string;
+    readonly days: readonly { readonly day: string; readonly times: readonly string[] }[];
+    readonly note?: string | null;
+  } | null;
+  readonly facts?: readonly { readonly label: string; readonly value: string }[];
+  readonly action?: { readonly label: string; readonly href: string } | null;
+  readonly secondary?: { readonly label: string; readonly href: string } | null;
+  readonly themeId?: string | null;
+  readonly logoUrl?: string | null;
+}
+
 export interface Mailer {
   send(input: {
     readonly tenantId: TenantId;
@@ -956,6 +974,9 @@ export interface Mailer {
     readonly text: string;
     readonly replyTo: string | null;
     readonly dedupeKey: string;
+    /** Who the email is from, as the candidate knows them; messaging's footer and wordmark. */
+    readonly companyName?: string;
+    readonly parts?: MailParts;
   }): Promise<void>;
 }
 
