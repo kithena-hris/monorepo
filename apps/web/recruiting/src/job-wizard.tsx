@@ -774,7 +774,7 @@ export function JobWizard({
   const last = index === WIZARD_STEPS.length - 1;
   const go = async (to: number | 'finish'): Promise<void> => {
     setMoving(true);
-    await Promise.all([...saving.current]);
+    await Promise.all(saving.current);
     // A typed answer is kept before the step changes; a refusal stays on the step.
     const kept = commit.current === null ? true : await commit.current();
     setMoving(false);
