@@ -1,3 +1,5 @@
+import { CATEGORY_ICONS } from '../domain/benefits/benefits.js';
+import { catalogueOf, categoriesOf, everyCatalogue } from './catalogue.js';
 import { err, ok, type Result } from '@kithena/domain-kit';
 import type { InboxItem, Instant } from '@kithena/contracts';
 import { RECRUITING_INBOX_KINDS } from '@kithena/contracts';
@@ -190,7 +192,7 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     scorecards: (await ctx.tx.scorecardTemplates.list()).map((s) => ({ id: s.id, name: s.name })),
     // R4: the terms in order and what each step may offer, from the ones before it.
     ...(await jobTerms(ctx, job)),
-    benefits: (await ctx.tx.benefits.list()).filter((b) => b.legalEntityId === job.entityId),
+    benefits: await catalogueOf(ctx, job.entityId),
     members: (await ctx.tx.members.list()).map((m) => ({
       personId: m.personId,
       name: m.displayName,
@@ -550,7 +552,7 @@ export async function offerScreen(ctx: Ctx, offerId: string): Promise<Result<unk
           },
     contract: await ctx.tx.contracts.forOffer(offerId),
     prehire: await ctx.tx.prehires.get(app.id),
-    benefits: (await ctx.tx.benefits.list()).filter((b) => b.legalEntityId === job.entityId),
+    benefits: await catalogueOf(ctx, job.entityId),
     bands: await ctx.tx.payBands.list(),
   });
 }
@@ -640,7 +642,10 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     questionnaires: await ctx.tx.questionnaires.list(),
     scorecards: await ctx.tx.scorecardTemplates.list(),
     templates: await ctx.tx.templates.list(),
-    benefits: await ctx.tx.benefits.list(),
+    // The full catalogue of each entity, the standard library included, and every category.
+    benefits: await everyCatalogue(ctx),
+    benefitCategories: await categoriesOf(ctx),
+    categoryIcons: CATEGORY_ICONS,
     payBands: await ctx.tx.payBands.list(),
     agencies: await ctx.tx.agencies.list(),
     careersDomain: await ctx.tx.public.careersDomain(),

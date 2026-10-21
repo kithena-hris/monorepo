@@ -282,6 +282,8 @@ type Mutation {
   ): JSON
   """Remove a company benefit; statutory ones stay"""
   removeBenefit(id: String!, idempotencyKey: String!): JSON
+  """S6: remove an empty benefit category of the company’s own"""
+  removeBenefitCategory(categoryKey: String!, idempotencyKey: String!): JSON
   """Stop serving the careers page on its own domain; admin"""
   removeCareersDomain(idempotencyKey: String!): JSON
   """Remove an approval chain"""
@@ -323,6 +325,8 @@ type Mutation {
   ): JSON
   """R18: ask a named referee"""
   requestReference(applicationId: String!, idempotencyKey: String!, referenceId: String!): JSON
+  """S6: put back the standard benefits removed from the catalogue"""
+  restoreBenefitLibrary(idempotencyKey: String!): JSON
   """R9: an agency and the jobs it may submit to"""
   saveAgency(
     id: String!
@@ -333,6 +337,14 @@ type Mutation {
   """S6: a benefit"""
   saveBenefit(
     id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """
+  S6: a benefit category of the company’s own, new or renamed, with its icon
+  """
+  saveBenefitCategory(
     idempotencyKey: String!
     """The REST body"""
     input: JSON!

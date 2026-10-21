@@ -59,12 +59,15 @@ import {
   submitRequisition,
 } from '../application/requisitions.js';
 import {
+  removeBenefit,
+  saveBenefit,
   saveEntity,
   saveGeneralSettings,
   saveLocation,
   saveScorecardTemplate,
   DEFAULT_SETTINGS,
 } from '../application/setup.js';
+import { catalogueOf, removeCategory, saveCategory } from '../application/catalogue.js';
 import {
   agencyPortal,
   openAgencySession,
@@ -577,6 +580,45 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     // The ad says what was chosen: the contract by its legal name, the hours as the week works out.
     const job = await ctx.tx.jobs.get(jobId);
     expect(job?.outline.contractType).toBe(lawful?.label);
+    // Benefits: the standard library is every entity's to pick from; a pick is kept in the catalogue.
+    const lunch = hours.options.benefits.find((b) => b.id.endsWith(':meal_allowance'));
+    expect(lunch?.description).toBe('A monthly budget for lunch.');
+    expect(hours.options.categories.find((c) => c.key === 'meal')?.icon).toBe('break');
+    value(await saveJobTerms(ctx, jobId, { benefitIds: [lunch?.id ?? ''] }));
+    expect((await ctx.tx.benefits.get(lunch?.id ?? ''))?.names['en']).toBe('Meal allowance');
+    // A category of the company's own, a benefit of its own in it, and a library one removed.
+    const club = value(await saveCategory(ctx, { key: null, name: 'Club life', icon: 'team' }));
+    expect((await saveCategory(ctx, { key: null, name: 'Club life', icon: 'team' })).ok).toBe(
+      false,
+    );
+    value(
+      await saveBenefit(ctx, {
+        id: `${entityId.slice(0, 8)}_book_club`,
+        key: 'book_club',
+        legalEntityId: entityId,
+        category: club.key,
+        names: { en: 'Book club' },
+        description: 'A book a month, on the company.',
+        value: { kind: 'descriptive' },
+        eligibility: {
+          employmentTypes: null,
+          minWeeklyMinutes: null,
+          waiting: { kind: 'none' },
+          workModes: null,
+          locationIds: null,
+        },
+        statutory: false,
+        taxNote: null,
+      }),
+    );
+    expect((await removeCategory(ctx, club.key)).ok).toBe(false);
+    const pets = `lib:${entityId}:pet_friendly`;
+    value(await removeBenefit(ctx, pets));
+    const after = await catalogueOf(ctx, entityId);
+    expect([after.some((b) => b.id === pets), after.some((b) => b.key === 'book_club')]).toEqual([
+      false,
+      true,
+    ]);
     // Change where, and what depended on it is asked again.
     const moved = value(await saveJobTerms(ctx, jobId, { entityId: null }));
     expect(moved.terms).toMatchObject({ relationship: null, contractType: null });

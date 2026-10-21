@@ -57,7 +57,8 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, newId, range, useAct, words } from './shared';
-import { TermsCards, hoursOf } from './job-terms';
+import { BenefitList } from './benefits';
+import { BenefitsChoice, TermsCards, hoursOf } from './job-terms';
 import { JobWizard } from './job-wizard';
 import type { FormField, JobData, ScreenProps } from './types';
 
@@ -1311,12 +1312,23 @@ function ChatChannel({
 }
 
 /** The parts of a job a person edits, each in its own sheet off the ad. */
-const PARTS = ['details', 'terms', 'team', 'criteria', 'plan', 'ad', 'form', 'publishing'] as const;
+const PARTS = [
+  'details',
+  'terms',
+  'benefits',
+  'team',
+  'criteria',
+  'plan',
+  'ad',
+  'form',
+  'publishing',
+] as const;
 type Part = (typeof PARTS)[number];
 
 const PART_TITLE: Readonly<Record<Part, string>> = {
   details: 'Job details',
   terms: 'Workplace, terms and pay',
+  benefits: 'Benefits',
   team: 'Hiring team',
   criteria: 'Criteria',
   plan: 'Interview plan',
@@ -1345,6 +1357,8 @@ function PartBody({
       return <Details data={data} props={props} />;
     case 'terms':
       return <TermsCards data={data} props={props} />;
+    case 'benefits':
+      return <BenefitsChoice data={data} props={props} />;
     case 'team':
       return <Team data={data} props={props} />;
     case 'criteria':
@@ -1443,16 +1457,6 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 : `${String(data.terms.vacationDays)} days a year`,
           },
           { label: 'Pay', value: pay },
-          {
-            label: 'Benefits',
-            value:
-              data.job.benefitIds.length === 0
-                ? 'None'
-                : data.options.benefits
-                    .filter((b) => data.job.benefitIds.includes(b.id))
-                    .map((b) => b.name)
-                    .join(', ') || String(data.job.benefitIds.length),
-          },
         ];
         const facts = [
           {
@@ -1463,6 +1467,10 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
           { label: 'Openings', value: String(data.job.openings) },
         ];
         const blocking = (ad?.checks ?? []).filter((c) => c.severity === 'error').length;
+        // What the ad offers: the chosen benefits and every statutory one.
+        const offered = data.options.benefits.filter(
+          (b) => b.statutory || data.job.benefitIds.includes(b.id),
+        );
         const publish = (): void => {
           const go = (): void => {
             act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
@@ -1595,6 +1603,15 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     />
                   ) : (
                     <RichTextContent sanitisedHtml={ad.html} />
+                  )}
+                </Region>
+                <Region title="What we offer" part="benefits" onEdit={edit}>
+                  {offered.length === 0 ? (
+                    <p className="text-sm text-fg-muted">
+                      No benefits chosen yet. Press to choose them by category.
+                    </p>
+                  ) : (
+                    <BenefitList benefits={offered} categories={data.options.categories} />
                   )}
                 </Region>
                 <Region title="How to apply" part="form" onEdit={edit}>

@@ -15,6 +15,7 @@ import type {
   OffersData,
   PipelineData,
   Requisition,
+  SettingsData,
 } from './types';
 
 const ready = <T,>(data: T) => ({ status: 'ready' as const, data });
@@ -214,7 +215,7 @@ const job: JobData = {
     outline: { contractType: 'permanent', hours: 'full_time', seniority: 'senior' },
     salary: { minMinor: 7_000_000, maxMinor: 8_500_000, currency: 'EUR', period: 'year' },
     searchable: true,
-    benefitIds: [],
+    benefitIds: ['lib:e1:meal_allowance'],
     scorecardTemplateId: null,
   },
   may: [],
@@ -282,7 +283,26 @@ const job: JobData = {
     weeklyMinutes: null,
     hours: null,
     leave: null,
-    benefits: [],
+    benefits: [
+      {
+        id: 'lib:e1:meal_allowance',
+        name: 'Meal allowance',
+        description: 'A monthly budget for lunch.',
+        category: 'meal',
+        statutory: false,
+      },
+      {
+        id: 'lib:e1:gym',
+        name: 'Gym or sports membership',
+        description: 'A membership, paid or subsidised.',
+        category: 'wellbeing',
+        statutory: false,
+      },
+    ],
+    categories: [
+      { key: 'meal', name: 'Food', icon: 'break', custom: false },
+      { key: 'wellbeing', name: 'Wellbeing', icon: 'favourite', custom: false },
+    ],
     reviewed: true,
   },
 };
@@ -292,6 +312,10 @@ describe('R4–R7, a job’s setup', () => {
     const { container } = render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} />);
     expect(screen.getByRole('heading', { name: 'The role' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Workplace, terms and pay' })).toBeTruthy();
+    // The chosen benefits, by category with its name, each with its line.
+    expect(screen.getByRole('heading', { name: 'Food' })).toBeTruthy();
+    expect(screen.getByText('A monthly budget for lunch.')).toBeTruthy();
+    expect(screen.queryByText('Gym or sports membership')).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThan(5);
     expect(await axeViolations(container)).toEqual([]);
   });
@@ -307,6 +331,29 @@ describe('R4–R7, a job’s setup', () => {
     expect(screen.getByRole('dialog', { name: /Set up/u })).toBeTruthy();
     expect(screen.getByText(/^Step 1 of 17/u)).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Job title' })).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('offers benefits as tiles by category, the chosen ones ticked', async () => {
+    render(
+      <screens.JobSetup
+        load={ready({
+          ...job,
+          terms: { ...job.terms, entityId: 'e1', benefitIds: ['lib:e1:meal_allowance'] },
+        })}
+        params={{ id: 'j1' }}
+        search={{ setup: '1', step: 'benefits' }}
+      />,
+    );
+    expect(screen.getByRole('group', { name: 'Food' })).toBeTruthy();
+    expect(
+      screen.getByRole('checkbox', { name: 'Meal allowance' }).getAttribute('aria-checked'),
+    ).toBe('true');
+    expect(
+      screen
+        .getByRole('checkbox', { name: 'Gym or sports membership' })
+        .getAttribute('aria-checked'),
+    ).toBe('false');
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -545,6 +592,51 @@ describe('R8, the internal board', () => {
     const { container } = render(<screens.Board load={ready(board)} />);
     expect(screen.getByRole('button', { name: 'Refer someone' })).toBeTruthy();
     expect(screen.getByText('Priya Nair')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('S6, the benefits catalogue', () => {
+  const settings = {
+    admin: true,
+    general: { ai: { assistant: false } },
+    entities: [{ id: 'e1', name: 'Acme GmbH', country: 'DE', currency: 'EUR' }],
+    benefitCategories: [
+      { key: 'meal', name: 'Food', icon: 'break', custom: false },
+      { key: 'custom_club', name: 'Club life', icon: 'team', custom: true },
+    ],
+    categoryIcons: ['break', 'team', 'starred'],
+    benefits: [
+      {
+        id: 'lib:e1:meal_allowance',
+        key: 'meal_allowance',
+        legalEntityId: 'e1',
+        category: 'meal',
+        statutory: false,
+        names: { en: 'Meal allowance' },
+        description: 'A monthly budget for lunch.',
+        value: { kind: 'descriptive' },
+        eligibility: {
+          employmentTypes: null,
+          minWeeklyMinutes: null,
+          waiting: { kind: 'none' },
+          workModes: null,
+          locationIds: null,
+        },
+        taxNote: null,
+      },
+    ],
+  } as unknown as SettingsData;
+
+  it('lists every category with its benefits, and lets a category or a benefit be added', async () => {
+    const { container } = render(
+      <screens.Settings load={ready(settings)} path="/settings/recruiting/benefits" />,
+    );
+    expect(screen.getByRole('heading', { name: 'Food' })).toBeTruthy();
+    expect(screen.getByText('A monthly budget for lunch.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Club life' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add category' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Add benefit' })).toHaveLength(2);
     expect(await axeViolations(container)).toEqual([]);
   });
 });

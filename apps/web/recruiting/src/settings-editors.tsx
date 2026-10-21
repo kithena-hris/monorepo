@@ -26,18 +26,22 @@ import {
   SelectValue,
   SortableList,
   Switch,
+  RadioCard,
+  RadioGroup,
   Textarea,
   icons,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
 import { EmailFields, PURPOSE_LABEL } from './composer';
+import { CategoryIcon } from './benefits';
 import { Refusal, newId, useAct, words } from './shared';
 import type {
   Knockout,
   ApprovalChain,
   Approver,
   Benefit,
+  BenefitCategory,
   BenefitValue,
   MessageTemplate,
   OrgUnit,
@@ -93,24 +97,6 @@ const CATEGORIES = [
   'works_council',
   'offer',
   'hired',
-] as const;
-export const BENEFIT_CATEGORIES = [
-  'health',
-  'pension',
-  'meal',
-  'transport',
-  'childcare',
-  'learning',
-  'equipment',
-  'wellbeing',
-  'mobility',
-  'equity',
-  'bonus',
-  'extra_holiday',
-  'insurance',
-  'flexible_pay',
-  'relocation',
-  'other',
 ] as const;
 const EMPLOYMENT_TYPES = [
   'permanent',
@@ -1380,16 +1366,24 @@ export function BenefitEditor({
   data,
   act,
   onClose,
+  startEntity,
+  startCategory,
 }: {
   readonly held: Benefit | null;
   readonly data: SettingsData;
   readonly act: Act;
   readonly onClose: () => void;
+  /** For a new benefit: the entity and the category it was added from. */
+  readonly startEntity?: string;
+  readonly startCategory?: string;
 }): JSX.Element {
-  const [entityId, setEntityId] = useState(held?.legalEntityId ?? data.entities[0]?.id ?? '');
+  const [entityId, setEntityId] = useState(
+    held?.legalEntityId ?? startEntity ?? data.entities[0]?.id ?? '',
+  );
   const entity = data.entities.find((e) => e.id === entityId);
-  const [category, setCategory] = useState(held?.category ?? 'health');
+  const [category, setCategory] = useState(held?.category ?? startCategory ?? 'health');
   const [name, setName] = useState(held?.names['en'] ?? Object.values(held?.names ?? {})[0] ?? '');
+  const [description, setDescription] = useState(held?.description ?? '');
   const [valueKind, setValueKind] = useState<BenefitValue['kind']>(
     held?.value.kind ?? 'descriptive',
   );
@@ -1443,12 +1437,13 @@ export function BenefitEditor({
         act.run(
           'SaveBenefit',
           {
-            id: held?.id ?? `${entityId.slice(0, 8)}_${keyOf(name)}`,
+            id: held?.id ?? `own:${entityId.slice(0, 8)}:${keyOf(name)}`,
             input: {
               key: held?.key ?? keyOf(name),
               legalEntityId: entityId,
               category,
               names: { ...held?.names, en: name.trim() },
+              description: description.trim() === '' ? null : description.trim(),
               value: value(),
               eligibility: {
                 employmentTypes: employmentTypes.length === 0 ? null : employmentTypes,
@@ -1480,6 +1475,20 @@ export function BenefitEditor({
           />
         </FieldControl>
       </Field>
+      <Field>
+        <FieldLabel>Description</FieldLabel>
+        <FieldDescription>One line a candidate reads under the name, on the ad.</FieldDescription>
+        <FieldControl>
+          <Textarea
+            autoResize
+            value={description}
+            placeholder="A yearly budget for courses, books and conferences."
+            onChange={(e) => {
+              setDescription(e.target.value);
+            }}
+          />
+        </FieldControl>
+      </Field>
       <Field required>
         <FieldLabel>Legal entity</FieldLabel>
         <Select value={entityId} disabled={held !== null} onValueChange={setEntityId}>
@@ -1500,7 +1509,7 @@ export function BenefitEditor({
               <SelectValue />
             </SelectTrigger>
           </FieldControl>
-          <Options items={BENEFIT_CATEGORIES.map((c) => [c, words(c)] as const)} />
+          <Options items={data.benefitCategories.map((c) => [c.key, c.name] as const)} />
         </Select>
       </Field>
       <Field>
@@ -1644,6 +1653,96 @@ export function BenefitEditor({
             }}
           />
         </FieldControl>
+      </Field>
+    </Editor>
+  );
+}
+
+/** The icons a category may wear, named for what they look like. */
+const ICON_NAMES: Readonly<Record<string, string>> = {
+  health: 'Health',
+  payroll: 'Savings',
+  break: 'Food',
+  travel: 'Travel',
+  parental: 'Family',
+  goal: 'Growth',
+  system: 'Equipment',
+  favourite: 'Heart',
+  location: 'Place',
+  analytics: 'Chart',
+  payment: 'Money',
+  vacation: 'Holiday',
+  locked: 'Protection',
+  transfer: 'Exchange',
+  home: 'Home',
+  more: 'More',
+  team: 'Team',
+  company: 'Company',
+  calendar: 'Calendar',
+  document: 'Document',
+  starred: 'Star',
+  work: 'Work',
+  meeting: 'Meeting',
+  approve: 'Tick',
+};
+
+/** S6: a benefit category of the company's own: its name and the icon it wears. */
+export function CategoryEditor({
+  held,
+  data,
+  act,
+  onClose,
+}: {
+  readonly held: BenefitCategory | null;
+  readonly data: SettingsData;
+  readonly act: Act;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const [name, setName] = useState(held?.name ?? '');
+  const [icon, setIcon] = useState(held?.icon ?? 'starred');
+  return (
+    <Editor
+      open
+      onClose={onClose}
+      title={held === null ? 'New category' : held.name}
+      description="Benefits are grouped under it, with its icon, on the job’s tiles and on the ad."
+      canSave={name.trim() !== ''}
+      pending={act.pending}
+      error={act.error}
+      onSave={() => {
+        act.run(
+          'SaveBenefitCategory',
+          { input: { key: held?.key ?? null, name: name.trim(), icon } },
+          onClose,
+        );
+      }}
+    >
+      <Field required>
+        <FieldLabel>Name</FieldLabel>
+        <FieldControl>
+          <Input
+            value={name}
+            placeholder="Community"
+            onChange={(e) => {
+              setName(e.target.value);
+            }}
+          />
+        </FieldControl>
+      </Field>
+      <Field required>
+        <FieldLabel>Icon</FieldLabel>
+        <RadioGroup
+          aria-label="Icon"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+          value={icon}
+          onValueChange={setIcon}
+        >
+          {data.categoryIcons.map((key) => (
+            <RadioCard key={key} value={key} icon={<CategoryIcon icon={key} />}>
+              {ICON_NAMES[key] ?? words(key)}
+            </RadioCard>
+          ))}
+        </RadioGroup>
       </Field>
     </Editor>
   );

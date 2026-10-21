@@ -3,12 +3,9 @@ import { LaunchCountry } from '@kithena/contracts';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { validatePipeline, defaultPipeline, type Stage } from '../domain/pipeline/pipeline.js';
-import {
-  BENEFIT_CATEGORIES,
-  statutoryBenefits,
-  type Benefit,
-} from '../domain/benefits/benefits.js';
+import { statutoryBenefits, type Benefit } from '../domain/benefits/benefits.js';
 import { validateQuestionnaire, type Questionnaire } from '../domain/screening/questionnaire.js';
+import { catalogueOf, categoriesOf, hideFromLibrary } from './catalogue.js';
 import { adminOnly, type Ctx } from './context.js';
 import type { ApprovalChain } from '../domain/requisition/requisition.js';
 import type {
@@ -307,10 +304,17 @@ export async function removeBenefit(ctx: Ctx, id: string): Promise<Result<void>>
   const may = adminOnly(ctx);
   if (!may.ok) return may;
   const held = await ctx.tx.benefits.get(id);
+  // A library benefit nothing has kept yet is only hidden; one kept is removed and hidden.
+  const [, entityId, key] = id.split(':');
+  if (held === null && id.startsWith('lib:') && entityId !== undefined && key !== undefined) {
+    await hideFromLibrary(ctx, entityId, key);
+    return ok(undefined);
+  }
   if (held === null) return err(failure('NOT_FOUND', 'No such benefit'));
   if (held.statutory)
     return err(failure('STATUTORY', 'A statutory benefit comes from the country pack and stays'));
   await ctx.tx.benefits.remove(id);
+  await hideFromLibrary(ctx, held.legalEntityId, held.key);
   return ok(undefined);
 }
 
@@ -424,10 +428,25 @@ export async function saveBenefit(ctx: Ctx, b: Benefit): Promise<Result<Benefit>
     return err(
       failure('STATUTORY', 'A statutory benefit comes from the country pack and cannot be changed'),
     );
-  if (!(BENEFIT_CATEGORIES as readonly string[]).includes(b.category))
+  if (!(await categoriesOf(ctx)).some((c) => c.key === b.category))
     return err(failure('CATEGORY', 'Choose a category'));
-  await ctx.tx.benefits.save({ ...b, statutory: false });
-  return ok(b);
+  if (Object.values(b.names).every((n) => n.trim() === ''))
+    return err(failure('NAME', 'A benefit has a name'));
+  // One benefit per key and entity: the same name twice is the same benefit.
+  const twin = (await catalogueOf(ctx, b.legalEntityId)).find(
+    (x) => x.key === b.key && x.id !== b.id,
+  );
+  if (twin !== undefined && !twin.id.startsWith('lib:'))
+    return err(failure('DUPLICATE', 'That benefit is in the catalogue already'));
+  const saved: Benefit = {
+    ...b,
+    // A new benefit named like a library one takes the library's place, not a second row.
+    id: twin?.id ?? b.id,
+    description: b.description?.trim() || null,
+    statutory: false,
+  };
+  await ctx.tx.benefits.save(saved);
+  return ok(saved);
 }
 
 export async function savePayBand(ctx: Ctx, band: PayBand): Promise<Result<PayBand>> {

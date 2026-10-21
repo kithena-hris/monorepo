@@ -259,6 +259,16 @@ export const OPERATIONS = {
   SaveScorecardTemplate: write('SaveScorecardTemplate', 'saveScorecardTemplate', ...ID('id')),
   SaveTemplate: write('SaveTemplate', 'saveTemplate', ...ID('id')),
   SaveBenefit: write('SaveBenefit', 'saveBenefit', ...ID('id')),
+  /** S6: a benefit category of the company's own, with its icon. */
+  SaveBenefitCategory: write('SaveBenefitCategory', 'saveBenefitCategory'),
+  RemoveBenefitCategory: write(
+    'RemoveBenefitCategory',
+    'removeBenefitCategory',
+    ...ID('categoryKey'),
+    false,
+  ),
+  /** S6: the standard benefits removed from the catalogue, put back. */
+  RestoreBenefitLibrary: write('RestoreBenefitLibrary', 'restoreBenefitLibrary', '', '', false),
   SavePayBand: write('SavePayBand', 'savePayBand', ...ID('id')),
   SaveOrgUnit: write('SaveOrgUnit', 'saveOrgUnit', ...ID('id')),
   RemoveEntity: write('RemoveEntity', 'removeEntity', ...ID('id'), false),

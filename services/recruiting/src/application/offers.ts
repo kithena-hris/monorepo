@@ -1,3 +1,4 @@
+import { keepChosen } from './catalogue.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type {
   CalendarDate,
@@ -154,6 +155,8 @@ export async function checkOffer(
       outsideBandReason: input.outsideBandReason,
     },
   );
+  // The library's benefits chosen here are kept, so the offer reads them back like any other.
+  await keepChosen(ctx, entity.legalEntityId, input.benefitIds);
   const catalogue = (await ctx.tx.benefits.list()).filter(
     (b) => b.legalEntityId === entity.legalEntityId,
   );

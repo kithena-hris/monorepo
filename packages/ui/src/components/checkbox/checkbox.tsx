@@ -2,7 +2,7 @@
 
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import { Check, Minus } from 'lucide-react';
-import type { ComponentPropsWithoutRef, JSX } from 'react';
+import { useId, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -57,5 +57,70 @@ export function Checkbox({ className, ...props }: CheckboxProps): JSX.Element {
         )}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
+  );
+}
+
+export interface CheckboxCardProps extends Omit<CheckboxProps, 'children'> {
+  /** The title. */
+  children: ReactNode;
+  /** A line under the title: what choosing it means. */
+  description?: ReactNode;
+  /** Beside the title: a `Badge`, such as "By law". */
+  badge?: ReactNode;
+}
+
+/**
+ * The same control as a card, for choosing several from a set that deserves
+ * the weight: the benefits a job comes with, the channels to publish on. It
+ * is `RadioCard`'s shape for a multiple choice, so the two read as one family;
+ * the whole card is the target, which is what makes it work on a phone.
+ */
+export function CheckboxCard({
+  className,
+  children,
+  description,
+  badge,
+  id,
+  ...props
+}: CheckboxCardProps): JSX.Element {
+  const generatedId = useId();
+  const controlId = id ?? generatedId;
+  const labelId = `${controlId}-label`;
+  const descriptionId = `${controlId}-description`;
+  return (
+    <label
+      htmlFor={controlId}
+      className={cn(
+        'flex h-full cursor-pointer items-start gap-3 rounded-md bg-surface p-4 shadow-sm touch:rounded-[1.125rem]',
+        'transition-[background-color,box-shadow] duration-(--animate-duration-normal) ease-standard',
+        'hover:bg-surface-hover',
+        'has-[[data-state=checked]]:bg-accent-subtle has-[[data-state=checked]]:ring-2 has-[[data-state=checked]]:ring-accent has-[[data-state=checked]]:ring-inset',
+        'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
+        'has-[:disabled]:cursor-default',
+        className,
+      )}
+    >
+      <Checkbox
+        id={controlId}
+        aria-labelledby={labelId}
+        aria-describedby={description ? descriptionId : undefined}
+        // The card draws the focus ring; a second one on the box is noise.
+        className="mt-0.5 focus-visible:outline-none touch:mt-0"
+        {...props}
+      />
+      <div className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span id={labelId} className="block text-sm font-semibold text-fg">
+            {children}
+          </span>
+          {badge}
+        </span>
+        {description ? (
+          <span id={descriptionId} className="mt-0.5 block text-sm text-fg-muted">
+            {description}
+          </span>
+        ) : null}
+      </div>
+    </label>
   );
 }

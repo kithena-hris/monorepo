@@ -68,6 +68,7 @@ import {
   seedEmailTemplates,
   sendStageExpectations,
 } from '../application/emails.js';
+import { removeCategory, restoreLibrary, saveCategory } from '../application/catalogue.js';
 import { saveJobTerms, suggestPay } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
@@ -681,7 +682,8 @@ export const ROUTES: readonly Route[] = [
         breakMinutes: z.int().min(0).max(240),
         vacationDays: z.int().min(0).max(366).nullable(),
         payKind: z.enum(['fixed', 'range']).nullable(),
-        benefitIds: z.array(Id).max(60),
+        // Text, not uuid: statutory and library benefits have stable ids of their own.
+        benefitIds: z.array(z.string().max(80)).max(120),
         /** Yearly, minor units, in the entity's currency. */
         pay: z
           .object({
@@ -1690,6 +1692,33 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/settings/templates/seed`,
     summary: 'The built-in email for each purpose the company has none for, as templates to edit',
     run: (ctx) => seedEmailTemplates(ctx),
+  }),
+  route({
+    name: 'saveBenefitCategory',
+    method: 'POST',
+    path: `${V1}/settings/benefit-categories`,
+    summary: 'S6: a benefit category of the company’s own, new or renamed, with its icon',
+    body: z.object({
+      key: z.string().max(60).nullable(),
+      name: text(60),
+      icon: z.string().max(40),
+    }),
+    run: (ctx, { body }) => saveCategory(ctx, body),
+  }),
+  route({
+    name: 'removeBenefitCategory',
+    method: 'DELETE',
+    path: `${V1}/settings/benefit-categories/{categoryKey}`,
+    summary: 'S6: remove an empty benefit category of the company’s own',
+    params: z.object({ categoryKey: z.string().max(60) }),
+    run: (ctx, { params }) => removeCategory(ctx, params.categoryKey),
+  }),
+  route({
+    name: 'restoreBenefitLibrary',
+    method: 'POST',
+    path: `${V1}/settings/benefits/library`,
+    summary: 'S6: put back the standard benefits removed from the catalogue',
+    run: (ctx) => restoreLibrary(ctx),
   }),
   route({
     name: 'saveBenefit',

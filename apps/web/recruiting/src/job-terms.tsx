@@ -7,7 +7,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Checkbox,
   Chip,
   ChipRow,
   EmptyState,
@@ -32,6 +31,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useRef, useState, useTransition, type JSX, type ReactNode } from 'react';
 
+import { BenefitPicker } from './benefits';
 import { Refusal, useAct } from './shared';
 import type { JobData, JobTerms, ScreenProps } from './types';
 
@@ -770,9 +770,21 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
   );
 }
 
-export function BenefitsChoice({ data, props }: TermsProps): JSX.Element {
-  const { act, error, save } = useTerms(data, props);
+/**
+ * Benefits: every category's tiles, chosen as many as suit, kept when the
+ * setup moves on (or by Save in the ad's panel), so a run of picks is one
+ * save rather than one per press.
+ */
+export function BenefitsChoice({ data, props, commit }: TermsProps): JSX.Element {
+  const { act, error, keep } = useTerms(data, props);
   const { terms, options } = data;
+  const [chosen, setChosen] = useState<readonly string[]>(terms.benefitIds);
+  const changed =
+    chosen.length !== terms.benefitIds.length ||
+    chosen.some((id) => !terms.benefitIds.includes(id));
+  const persist = async (): Promise<boolean> =>
+    changed ? keep({ benefitIds: [...chosen] }) : true;
+  useCommit(commit, persist);
   if (terms.entityId === null)
     return (
       <Waiting icon={<icons.company aria-hidden />} what="Choose the employing entity first." />
@@ -782,52 +794,31 @@ export function BenefitsChoice({ data, props }: TermsProps): JSX.Element {
       <EmptyState
         icon={<icons.payment aria-hidden />}
         title="No benefits in the catalogue"
-        description="Add them under Settings, Recruiting, Benefits. The ones the law requires are included either way."
+        description="Add them under Settings, Recruiting, Benefits."
       />
     );
-  const groups = new Map<string, (typeof options.benefits)[number][]>();
-  for (const b of options.benefits) groups.set(b.category, [...(groups.get(b.category) ?? []), b]);
   return (
     <>
       <Refusal error={error} />
-      {[...groups].map(([category, list]) => (
-        <section key={category} className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-fg-muted capitalize">
-            {category.replaceAll('_', ' ')}
-          </h3>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {list.map((b) => {
-              const on = b.statutory || terms.benefitIds.includes(b.id);
-              return (
-                <Field key={b.id} orientation="horizontal">
-                  <FieldControl>
-                    <Checkbox
-                      checked={on}
-                      disabled={b.statutory || act.pending}
-                      onCheckedChange={(next) => {
-                        save({
-                          benefitIds:
-                            next === true
-                              ? [...terms.benefitIds, b.id]
-                              : terms.benefitIds.filter((id) => id !== b.id),
-                        });
-                      }}
-                    />
-                  </FieldControl>
-                  <span className="flex min-w-0 items-center gap-2">
-                    <FieldLabel>{b.name}</FieldLabel>
-                    {b.statutory ? (
-                      <Badge size="xs" variant="soft" tone="info">
-                        By law
-                      </Badge>
-                    ) : null}
-                  </span>
-                </Field>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+      <BenefitPicker
+        benefits={options.benefits}
+        categories={options.categories}
+        chosen={chosen}
+        onChange={setChosen}
+      />
+      {commit === undefined ? (
+        <div className="sticky bottom-0 flex justify-end bg-canvas/95 py-3 backdrop-blur">
+          <Button
+            loading={act.pending}
+            disabled={!changed}
+            onClick={() => {
+              void persist();
+            }}
+          >
+            Save benefits
+          </Button>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -879,9 +870,6 @@ export function TermsCards({ data, props }: TermsProps): JSX.Element {
       </Group>
       <Group title="Pay" description="Yearly, in the entity’s currency.">
         <PayChoice data={data} props={props} />
-      </Group>
-      <Group title="Benefits" description="The ones the law requires are always in.">
-        <BenefitsChoice data={data} props={props} />
       </Group>
     </div>
   );

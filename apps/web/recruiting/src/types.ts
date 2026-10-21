@@ -309,13 +309,28 @@ export interface TermsOptions {
     readonly source: string;
     readonly note: string;
   } | null;
-  readonly benefits: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly category: string;
-    readonly statutory: boolean;
-  }[];
+  readonly benefits: readonly CatalogueBenefit[];
+  /** Every category, built in and the company's own, with its icon. */
+  readonly categories: readonly BenefitCategory[];
   readonly reviewed: boolean;
+}
+
+/** A benefit as a job picks it: its name, a line a candidate reads, and where it sits. */
+export interface CatalogueBenefit {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly category: string;
+  readonly statutory: boolean;
+}
+
+export interface BenefitCategory {
+  readonly key: string;
+  readonly name: string;
+  /** An icon's name in Reach. */
+  readonly icon: string;
+  /** Added by the company: it can be renamed or removed. */
+  readonly custom: boolean;
 }
 
 export interface Card {
@@ -1028,6 +1043,7 @@ export interface Benefit {
   readonly category: string;
   readonly statutory: boolean;
   readonly names: Readonly<Record<string, string>>;
+  readonly description?: string | null;
   readonly value: BenefitValue;
   readonly eligibility: {
     readonly employmentTypes: readonly string[] | null;
@@ -1064,7 +1080,11 @@ export interface SettingsData {
     readonly competencies: readonly { readonly key: string; readonly name: string }[];
   }[];
   readonly templates: readonly MessageTemplate[];
+  /** Each entity's full catalogue, the standard library included. */
   readonly benefits: readonly Benefit[];
+  readonly benefitCategories: readonly BenefitCategory[];
+  /** The icons a category may wear, by name in Reach. */
+  readonly categoryIcons: readonly string[];
   readonly payBands: readonly {
     readonly id: string;
     readonly grade: string;
