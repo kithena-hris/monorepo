@@ -515,13 +515,14 @@ export interface KitData {
 export interface Ask {
   readonly id: string;
   readonly applicationId: string;
-  readonly kind: 'slots' | 'info' | 'change';
+  readonly kind: 'slots' | 'info' | 'change' | 'availability';
   readonly createdAt: string;
   readonly by: string | null;
   readonly planKey: string | null;
   readonly times: readonly string[];
   readonly place: string | null;
   readonly videoUrl: string | null;
+  readonly agenda: { readonly html: string; readonly text: string } | null;
   readonly label: string;
   readonly detail: string | null;
   readonly interviewId: string | null;
@@ -548,6 +549,8 @@ export interface ScheduleData {
     readonly place: string | null;
     readonly videoUrl: string | null;
   }[];
+  /** A Meet (or Teams, or Zoom) is made at booking when nothing else is named. */
+  readonly meet: boolean;
 }
 
 export interface DebriefData {

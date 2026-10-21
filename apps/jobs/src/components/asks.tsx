@@ -91,6 +91,23 @@ export function noticesOf(
           });
           continue;
         }
+        if (r.kind === 'availability') {
+          out.push({
+            id: r.id,
+            company,
+            application,
+            kind: 'answered',
+            title:
+              r.answer?.time != null
+                ? `Booked: ${r.label}, ${whenLong(r.answer.time)}`
+                : `You offered ${String(r.times.length)} time${r.times.length === 1 ? '' : 's'} for the ${r.label.toLowerCase()}`,
+            detail: job,
+            at: r.createdAt,
+            open: false,
+            request: r,
+          });
+          continue;
+        }
         if (r.state === 'open')
           out.push({
             id: r.id,

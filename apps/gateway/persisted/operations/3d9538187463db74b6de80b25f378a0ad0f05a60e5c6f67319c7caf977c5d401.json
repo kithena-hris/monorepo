@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation BookFromAsk($applicationId: String!, $askId: String!, $input: JSON!, $key: String!) {\n    bookFromAsk(applicationId: $applicationId, askId: $askId, input: $input, idempotencyKey: $key)\n  }"}
