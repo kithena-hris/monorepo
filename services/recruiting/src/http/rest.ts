@@ -657,9 +657,23 @@ export const ROUTES: readonly Route[] = [
       openings: z.int().min(1).max(500),
       languages: z.array(text(5)),
       hiringManagerId: Id.nullable(),
+      seniority: z.enum(['entry', 'mid', 'senior', 'lead', 'executive']).nullable().optional(),
+      targetHireDate: CalendarDate.nullable().optional(),
+      /** Opened from the setup: the work mode is asked on its own page, which the setup goes on to. */
+      setup: z.object({ step: z.string().max(40) }).optional(),
     }),
     status: 201,
-    run: (ctx, { body }) => createJob(ctx, body),
+    run: async (ctx, { body }) => {
+      const { setup, ...input } = body;
+      const made = await createJob(ctx, input);
+      if (!made.ok || setup === undefined) return made;
+      // One request makes the job as the setup's first page described it.
+      const terms = await saveJobTerms(ctx, made.value.id, {
+        workMode: null,
+        setupStep: setup.step,
+      });
+      return terms.ok ? made : terms;
+    },
   }),
   route({
     name: 'saveJobDetails',

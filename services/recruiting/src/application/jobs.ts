@@ -41,6 +41,9 @@ export interface NewJob {
   readonly openings: number;
   readonly languages: readonly string[];
   readonly hiringManagerId: string | null;
+  /** From the setup's first page, so one request makes the job as it was described. */
+  readonly seniority?: JobRecord['outline']['seniority'] | undefined;
+  readonly targetHireDate?: JobRecord['targetHireDate'] | undefined;
 }
 
 export async function createJob(ctx: Ctx, input: NewJob): Promise<Result<JobRecord>> {
@@ -71,14 +74,14 @@ export async function createJob(ctx: Ctx, input: NewJob): Promise<Result<JobReco
     confidential: false,
     openings: input.openings,
     hired: 0,
-    targetHireDate: null,
+    targetHireDate: input.targetHireDate ?? null,
     state: 'draft',
     entityId: input.entityId,
     locationIds: input.locationIds,
     slug: slugFor(input.title, input.id),
     openedAt: null,
     createdAt: ctx.at,
-    outline: { contractType: null, hours: 'full_time', seniority: null },
+    outline: { contractType: null, hours: 'full_time', seniority: input.seniority ?? null },
     salary: null,
     searchable: settings.searchable,
     benefitIds: [],

@@ -1208,11 +1208,14 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
         entityId: null,
         locationIds: [],
         department: team,
-        // A placeholder the workplace part asks about; it is cleared below.
+        // A placeholder: with `setup`, the work mode is left unanswered for its own page.
         workMode: 'onsite',
         openings: openings ?? 1,
         languages: ['en'],
         hiringManagerId: null,
+        seniority: level,
+        targetHireDate: start,
+        setup: { step: 'where' },
       },
     });
     if (!made.ok) {
@@ -1220,21 +1223,7 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
       setError(made.message);
       return;
     }
-    // Together, not one after the other: how the work is done is its own question,
-    // and the level and start go with the details.
-    const job = made.data as JobRecord;
-    await Promise.all([
-      act.call('SaveJobTerms', { jobId: id, input: { workMode: null, setupStep: 'where' } }),
-      level === null && start === null
-        ? Promise.resolve()
-        : act.call('SaveJobDetails', {
-            jobId: id,
-            input: detailsOf(job, {
-              outline: { ...job.outline, seniority: level },
-              targetHireDate: start,
-            }),
-          }),
-    ]);
+    // One request made the job as described; the next page opens at once.
     props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&step=where&entered=1`);
   };
   return (
