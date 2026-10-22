@@ -304,10 +304,12 @@ export async function rejectApplication(
   ctx: Ctx,
   applicationId: string,
   how: Rejecting,
+  /** Recruiting itself, on a knockout the company set to reject on its own: no person to check. */
+  bySystem = false,
 ): Promise<Result<true>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
-  if (!may(ctx.viewer, loaded.value.facts, 'pipeline.move')) return err(forbidden());
+  if (!bySystem && !may(ctx.viewer, loaded.value.facts, 'pipeline.move')) return err(forbidden());
   const settings = await generalSettings(ctx);
   if (!settings.rejectionReasons.includes(how.reasonKey))
     return err(failure('REASON', 'Choose one of the company’s rejection reasons'));

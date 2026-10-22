@@ -1018,9 +1018,10 @@ function KnockoutEditor({
             <span className="flex min-w-0 flex-col">
               <FieldLabel>Reject on its own</FieldLabel>
               <FieldDescription>
-                Off: a knockout flags the application for a person to review. On: it is rejected,
-                and the email offers a human review. A German or Spanish job allows this only for a
-                legal requirement.
+                Off: a knockout flags the application for a person to review. On: it is rejected
+                and the rejection email sent the next working day at 09:00 in the candidate’s time
+                zone, never the moment they apply; until then the team can move it on instead. A
+                German or Spanish job allows this only for a legal requirement.
               </FieldDescription>
             </span>
             <FieldControl>

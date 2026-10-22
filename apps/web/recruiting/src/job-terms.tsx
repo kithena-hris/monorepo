@@ -57,9 +57,13 @@ import type { JobData, JobTerms, ScreenProps } from './types';
  * the setup moves on, through `commit`, or by its own Save in the panel.
  */
 
-/** What the setup calls before it moves on: true when the step's typed values are kept. */
+/**
+ * What the setup calls before it moves on. A page holds several parts, and
+ * each part that holds typed values adds what keeps them; the page moves on
+ * only when every one returns true.
+ */
 export interface Commit {
-  current: (() => Promise<boolean>) | null;
+  readonly add: (keep: () => Promise<boolean>) => () => void;
 }
 
 export interface TermsProps {
@@ -133,13 +137,7 @@ export function useCommit(commit: Commit | undefined, fn: () => Promise<boolean>
   useEffect(() => {
     latest.current = fn;
   });
-  useEffect(() => {
-    if (commit === undefined) return;
-    commit.current = () => latest.current();
-    return () => {
-      commit.current = null;
-    };
-  }, [commit]);
+  useEffect(() => commit?.add(() => latest.current()), [commit]);
 }
 
 /** A step that waits on an earlier one, said plainly rather than shown empty. */

@@ -107,6 +107,42 @@ export function defaultPipeline(newId: () => string): Stage[] {
   ];
 }
 
+const DAY_MS = 86_400_000;
+
+/** The wall clock in a zone: year, month, day, hour and minute as numbers. */
+function wallClock(at: Date, timeZone: string): readonly [number, number, number, number, number] {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(at);
+  const n = (type: string): number => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return [n('year'), n('month'), n('day'), n('hour'), n('minute')];
+}
+
+/**
+ * When a knockout's rejection is told (PRD §15.2): the next working day,
+ * Monday to Friday, at 09:00 in the candidate's zone. Never the moment they
+ * apply, which reads as a machine's answer to a person's application.
+ *
+ * ponytail: weekends only; the workplace's public holidays when Time Off's
+ * calendar reaches the intake.
+ */
+export function nextWorkingMorning(at: Date, timeZone: string): Date {
+  const [y, m, d] = wallClock(at, timeZone);
+  let day = Date.UTC(y, m - 1, d) + DAY_MS;
+  while ([0, 6].includes(new Date(day).getUTCDay())) day += DAY_MS;
+  // 09:00 on that day as if the zone were UTC, then moved by the zone's offset at that moment.
+  const naive = day + 9 * 3_600_000;
+  const [ly, lm, ld, lh, lmin] = wallClock(new Date(naive), timeZone);
+  const offset = Date.UTC(ly, lm - 1, ld, lh, lmin) - naive;
+  return new Date(naive - offset);
+}
+
 /**
  * When an automated email may go (PRD §12.1): after its delay, and never
  * between 21:00 and 08:00 in the candidate's time zone — then at 08:00.

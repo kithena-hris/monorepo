@@ -7,6 +7,8 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  IconList,
+  IconListItem,
   Input,
   ModalPage,
   ModalPageBody,
@@ -17,17 +19,21 @@ import {
   Progress,
   RadioCard,
   RadioGroup,
+  Reveal,
   RichTextEditor,
   Textarea,
   icons,
+  staggerStyle,
 } from '@reach/ui';
 import {
   use,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useTransition,
+  type CSSProperties,
   type JSX,
   type ReactNode,
 } from 'react';
@@ -53,184 +59,42 @@ import { Refusal, newId, useAct } from './shared';
 import type { JobData, JobRecord, ScreenProps } from './types';
 
 /**
- * R4–R7: a new job, set up on a page of its own over the jobs list. One small
- * question at a time, in the order the law needs them answered: the role, then
- * where the work is, then the kind of work and the contracts that country
- * allows for it, hours, leave, pay and benefits, then who hires and how, and
- * last the role's description, drafted by AI from all of it. Every answer is
- * kept as it is given, so closing loses nothing; the bar at the top says how
- * much is done. Finishing shows the ad as candidates will see it, to publish.
+ * R4–R7: a job, set up on a page of its own over the jobs list. Eight pages,
+ * each one question in a few parts, in the order the law needs them answered:
+ * the role, where the work is, the kind of contract, when they work, what it
+ * pays and offers, who hires and against what, how they apply and are
+ * interviewed, and last the description, drafted by AI from all of it.
+ *
+ * A part that depends on an earlier one unfolds when that one is answered.
+ * Picks are kept the moment they are made; typed answers when the page moves
+ * on, which happens in the browser, without waiting for the server. Finishing
+ * shows the ad as candidates will read it, to publish.
  */
 
 /** The parts of the job this setup borrows from the ad's edit panels. */
 export type BorrowedPart = 'team' | 'criteria' | 'plan' | 'form';
 
-interface Step {
+type Render = (p: TermsProps, part: (part: BorrowedPart, commit: Commit) => ReactNode) => ReactNode;
+
+interface Block {
   readonly key: string;
-  readonly group: string;
   readonly label: string;
-  readonly title: string;
-  readonly hint: (data: JobData) => string;
-  /** Answered; null for a step with nothing it must have, done once passed. */
+  readonly hint?: (data: JobData) => string;
+  /** Its earlier parts are answered, so it can be asked. */
+  readonly ready: (data: JobData) => boolean;
+  /** Answered; null for a part with nothing it must have. */
   readonly done: (data: JobData) => boolean | null;
+  readonly render: Render;
 }
 
-const FIRST: Step = {
-  key: 'title',
-  group: 'The role',
-  label: 'Title',
-  title: 'What is the job called?',
-  hint: () =>
-    'As candidates will read it. In Germany, add a gender-neutral marker such as (m/w/d).',
-  done: (d) => d.job.title.trim() !== '',
-};
+interface Page {
+  readonly key: string;
+  readonly title: string;
+  readonly hint: (data: JobData) => string;
+  readonly blocks: readonly Block[];
+}
 
-export const WIZARD_STEPS: readonly Step[] = [
-  FIRST,
-  {
-    key: 'role',
-    group: 'The role',
-    label: 'Team and level',
-    title: 'Which team is it in, and how senior?',
-    hint: () => 'The level shapes the description and the pay estimate.',
-    done: (d) => d.job.department !== null && d.job.outline.seniority !== null,
-  },
-  {
-    key: 'openings',
-    group: 'The role',
-    label: 'Openings',
-    title: 'How many people, and from when?',
-    hint: () => 'The start date is a target for the team, not a promise in the ad.',
-    done: () => null,
-  },
-  {
-    key: 'entity',
-    group: 'Where',
-    label: 'Employer',
-    title: 'Who employs them?',
-    hint: () => 'The entity’s country sets the law for every step after this one.',
-    done: (d) => d.terms.entityId !== null,
-  },
-  {
-    key: 'place',
-    group: 'Where',
-    label: 'Workplace',
-    title: 'Where is the work?',
-    hint: (d) => `Workplaces of the entity in ${countryName(d.options.country)}.`,
-    done: (d) => d.terms.locationId !== null,
-  },
-  {
-    key: 'mode',
-    group: 'Where',
-    label: 'Work mode',
-    title: 'How is the work done?',
-    hint: () => 'Shown in the ad, and it changes which contracts and checks apply.',
-    done: (d) =>
-      d.terms.workMode !== null &&
-      (d.terms.workMode !== 'hybrid' || d.terms.hybridDaysOnsite !== null),
-  },
-  {
-    key: 'worktype',
-    group: 'Terms',
-    label: 'Work type',
-    title: 'What kind of work is it?',
-    hint: (d) => `As the law in ${countryName(d.options.country)} sees it.`,
-    done: (d) => d.terms.relationship !== null,
-  },
-  {
-    key: 'contract',
-    group: 'Terms',
-    label: 'Contract',
-    title: 'Which contract?',
-    hint: (d) =>
-      `Only the contracts ${countryName(d.options.country)} allows for this kind of work. One that does not fit says why.`,
-    done: (d) =>
-      d.terms.contractType !== null &&
-      (d.options.fixedTermReasons.length === 0 || d.terms.fixedTermReason !== null),
-  },
-  {
-    key: 'days',
-    group: 'Terms',
-    label: 'Work days',
-    title: 'Which days are worked?',
-    hint: () => 'The days decide the legal minimum of leave.',
-    done: (d) => d.terms.workDays.length > 0,
-  },
-  {
-    key: 'hours',
-    group: 'Terms',
-    label: 'Hours',
-    title: 'What does a working day look like?',
-    hint: () => 'In the workplace’s own time. The week is checked against the legal limit.',
-    done: (d) => d.terms.dayStart !== null && d.terms.dayEnd !== null,
-  },
-  {
-    key: 'leave',
-    group: 'Terms',
-    label: 'Time off',
-    title: 'How much paid holiday?',
-    hint: () => 'Set to the legal minimum to start. More is a reason to apply.',
-    done: (d) => d.terms.vacationDays !== null,
-  },
-  {
-    key: 'pay',
-    group: 'Pay and benefits',
-    label: 'Pay',
-    title: 'What does it pay?',
-    hint: () =>
-      'Filled in with what the market pays for this role there, as AI estimates it. Change anything.',
-    done: (d) => d.job.salary !== null,
-  },
-  {
-    key: 'benefits',
-    group: 'Pay and benefits',
-    label: 'Benefits',
-    title: 'Which benefits come with it?',
-    hint: () => 'From the entity’s catalogue.',
-    done: () => null,
-  },
-  {
-    key: 'team',
-    group: 'Hiring',
-    label: 'Hiring team',
-    title: 'Who is hiring?',
-    hint: () => 'A hiring manager at least. They see every candidate and decide with you.',
-    done: (d) => d.team.some((t) => t.role === 'hiring_manager'),
-  },
-  {
-    key: 'criteria',
-    group: 'Hiring',
-    label: 'What you look for',
-    title: 'What must they bring?',
-    hint: () => 'Must-haves and nice-to-haves. The match on each candidate is read against them.',
-    done: (d) => d.criteria.length > 0,
-  },
-  {
-    key: 'interviews',
-    group: 'Hiring',
-    label: 'Interviews',
-    title: 'How will you interview?',
-    hint: () => 'Each interview with its length, who runs it, and what they rate.',
-    done: (d) => d.plan.length > 0,
-  },
-  {
-    key: 'apply',
-    group: 'Hiring',
-    label: 'Apply form',
-    title: 'What do candidates send?',
-    hint: () => 'Name, email and CV are always asked. Add only what you will read.',
-    done: () => null,
-  },
-  {
-    key: 'description',
-    group: 'The ad',
-    label: 'Role description',
-    title: 'Describe the role',
-    hint: () =>
-      'Written by AI from everything so far: the title, the team, the place and the terms. Pay, contract and benefits show beside it from the job.',
-    done: (d) => d.ads.length > 0,
-  },
-];
+const always = (): boolean => true;
 
 const SENIORITY = [
   ['entry', 'Entry', 'New to the work'],
@@ -541,49 +405,6 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
   );
 }
 
-function body(key: string, p: TermsProps, part: (part: BorrowedPart) => ReactNode): ReactNode {
-  switch (key) {
-    case 'title':
-      return <TitleStep {...p} />;
-    case 'role':
-      return <RoleStep {...p} />;
-    case 'openings':
-      return <OpeningsStep {...p} />;
-    case 'entity':
-      return <EntityChoice {...p} />;
-    case 'place':
-      return <PlaceChoice {...p} />;
-    case 'mode':
-      return <ModeChoice {...p} />;
-    case 'worktype':
-      return <WorkTypeChoice {...p} />;
-    case 'contract':
-      return <ContractChoice {...p} />;
-    case 'days':
-      return <DaysChoice {...p} />;
-    case 'hours':
-      return <HoursChoice {...p} />;
-    case 'leave':
-      return <LeaveChoice {...p} />;
-    case 'pay':
-      return <PayChoice {...p} />;
-    case 'benefits':
-      return <BenefitsChoice {...p} />;
-    case 'team':
-      return part('team');
-    case 'criteria':
-      return part('criteria');
-    case 'interviews':
-      return part('plan');
-    case 'apply':
-      return part('form');
-    case 'description':
-      return <DescriptionStep {...p} />;
-    default:
-      return null;
-  }
-}
-
 /** The title, edited where it is read: in the middle of the bar, kept when it loses focus. */
 function TitleField({ data, props }: TermsProps): JSX.Element {
   const act = useAct(props);
@@ -617,10 +438,250 @@ function TitleField({ data, props }: TermsProps): JSX.Element {
   );
 }
 
+const ROLE: Page = {
+  key: 'role',
+  title: 'What is the job?',
+  hint: () =>
+    'Its title as candidates will read it, the team it sits in and how senior it is. The level shapes the description and the pay estimate.',
+  blocks: [
+    {
+      key: 'title',
+      label: 'Title',
+      ready: always,
+      done: (d) => d.job.title.trim() !== '',
+      render: (p) => <TitleStep {...p} />,
+    },
+    {
+      key: 'level',
+      label: 'Team and level',
+      ready: always,
+      done: (d) => d.job.department !== null && d.job.outline.seniority !== null,
+      render: (p) => <RoleStep {...p} />,
+    },
+    {
+      key: 'openings',
+      label: 'Openings and start',
+      hint: () => 'The start date is a target for the team, not a promise in the ad.',
+      ready: always,
+      done: () => null,
+      render: (p) => <OpeningsStep {...p} />,
+    },
+  ],
+};
+
+export const WIZARD_PAGES: readonly Page[] = [
+  ROLE,
+  {
+    key: 'where',
+    title: 'Where is the work?',
+    hint: () =>
+      'The employing entity’s country sets the law for everything after this: the contracts on offer, the hours, the leave and the pay floor.',
+    blocks: [
+      {
+        key: 'entity',
+        label: 'Employer',
+        ready: always,
+        done: (d) => d.terms.entityId !== null,
+        render: (p) => <EntityChoice {...p} />,
+      },
+      {
+        key: 'place',
+        label: 'Workplace',
+        ready: (d) => d.terms.entityId !== null,
+        done: (d) => d.terms.locationId !== null,
+        render: (p) => <PlaceChoice {...p} />,
+      },
+      {
+        key: 'mode',
+        label: 'How the work is done',
+        ready: (d) => d.terms.locationId !== null,
+        done: (d) =>
+          d.terms.workMode !== null &&
+          (d.terms.workMode !== 'hybrid' || d.terms.hybridDaysOnsite !== null),
+        render: (p) => <ModeChoice {...p} />,
+      },
+    ],
+  },
+  {
+    key: 'contract',
+    title: 'What kind of contract?',
+    hint: (d) =>
+      `As the law in ${countryName(d.options.country)} sees it: first the kind of work, then only the contracts allowed for it. One that does not fit says why.`,
+    blocks: [
+      {
+        key: 'worktype',
+        label: 'Kind of work',
+        ready: (d) => d.options.relationships.length > 0,
+        done: (d) => d.terms.relationship !== null,
+        render: (p) => <WorkTypeChoice {...p} />,
+      },
+      {
+        key: 'contract',
+        label: 'Contract',
+        ready: (d) => d.terms.relationship !== null,
+        done: (d) =>
+          d.terms.contractType !== null &&
+          (d.options.fixedTermReasons.length === 0 || d.terms.fixedTermReason !== null),
+        render: (p) => <ContractChoice {...p} />,
+      },
+    ],
+  },
+  {
+    key: 'time',
+    title: 'When do they work?',
+    hint: () =>
+      'The days and the working day, in the workplace’s own time, then the paid holiday. The week is checked against the legal limit, and the leave never falls below the minimum.',
+    blocks: [
+      {
+        key: 'days',
+        label: 'Work days',
+        ready: (d) => d.terms.contractType !== null,
+        done: (d) => d.terms.workDays.length > 0,
+        render: (p) => <DaysChoice {...p} />,
+      },
+      {
+        key: 'hours',
+        label: 'The working day',
+        ready: (d) => d.terms.workDays.length > 0,
+        done: (d) => d.terms.dayStart !== null && d.terms.dayEnd !== null,
+        render: (p) => <HoursChoice {...p} />,
+      },
+      {
+        key: 'leave',
+        label: 'Paid holiday',
+        ready: (d) => d.options.leave !== null,
+        done: (d) => d.terms.vacationDays !== null,
+        render: (p) => <LeaveChoice {...p} />,
+      },
+    ],
+  },
+  {
+    key: 'pay',
+    title: 'What does it pay and offer?',
+    hint: () =>
+      'The pay arrives filled in with what the market pays for this role there, as AI estimates it. Then choose the benefits, as many as suit.',
+    blocks: [
+      {
+        key: 'salary',
+        label: 'Pay',
+        ready: (d) => d.terms.locationId !== null,
+        done: (d) => d.job.salary !== null,
+        render: (p) => <PayChoice {...p} />,
+      },
+      {
+        key: 'benefits',
+        label: 'Benefits',
+        ready: (d) => d.terms.entityId !== null,
+        done: () => null,
+        render: (p) => <BenefitsChoice {...p} />,
+      },
+    ],
+  },
+  {
+    key: 'hiring',
+    title: 'Who hires, and for what?',
+    hint: () =>
+      'The people who decide, and what a candidate must bring. The match on each candidate is read against these criteria.',
+    blocks: [
+      {
+        key: 'team',
+        label: 'Hiring team',
+        ready: always,
+        done: (d) => d.team.some((t) => t.role === 'hiring_manager'),
+        render: (p, part) => (p.commit === undefined ? null : part('team', p.commit)),
+      },
+      {
+        key: 'criteria',
+        label: 'What they must bring',
+        ready: always,
+        done: (d) => d.criteria.length > 0,
+        render: (p, part) => (p.commit === undefined ? null : part('criteria', p.commit)),
+      },
+    ],
+  },
+  {
+    key: 'process',
+    title: 'How do they apply and interview?',
+    hint: () =>
+      'The interviews in order, each with its length and who runs it, and what the apply form asks. Name, email and CV are always asked.',
+    blocks: [
+      {
+        key: 'interviews',
+        label: 'Interviews',
+        ready: always,
+        done: (d) => d.plan.length > 0,
+        render: (p, part) => (p.commit === undefined ? null : part('plan', p.commit)),
+      },
+      {
+        key: 'apply',
+        label: 'Apply form',
+        ready: always,
+        done: () => null,
+        render: (p, part) => (p.commit === undefined ? null : part('form', p.commit)),
+      },
+    ],
+  },
+  {
+    key: 'description',
+    title: 'Describe the role',
+    hint: () =>
+      'Written by AI from everything so far. Edit anything; pay, contract and benefits show beside it from the job.',
+    blocks: [
+      {
+        key: 'ad',
+        label: 'Role description',
+        ready: always,
+        done: (d) => d.ads.length > 0,
+        render: (p) => <DescriptionStep {...p} />,
+      },
+    ],
+  },
+];
+
+/** The page an address names: by its own key, or by one of its parts' (an older link). */
+const pageIndex = (key: string | null): number => {
+  const i = WIZARD_PAGES.findIndex((p) => p.key === key || p.blocks.some((b) => b.key === key));
+  return Math.max(0, i);
+};
+
+/** How much is answered, across every part that must be. */
+const percentOf = (data: JobData, visited: number): number => {
+  const parts = WIZARD_PAGES.flatMap((p, i) => p.blocks.map((b) => b.done(data) ?? i < visited));
+  return Math.round((parts.filter(Boolean).length / parts.length) * 100);
+};
+
+/** One part of a page: its name, a line, and the answer, arriving in turn. */
+function BlockView({
+  label,
+  hint,
+  order,
+  children,
+}: {
+  readonly label: string;
+  readonly hint: string | undefined;
+  readonly order: number;
+  readonly children: ReactNode;
+}): JSX.Element {
+  return (
+    <section
+      aria-label={label}
+      className="flex animate-arrive flex-col gap-4"
+      style={staggerStyle(order, 'animation')}
+    >
+      <header className="flex flex-col gap-1">
+        <h3 className="text-md font-semibold text-fg">{label}</h3>
+        {hint === undefined ? null : <p className="text-sm text-fg-muted">{hint}</p>}
+      </header>
+      {children}
+    </section>
+  );
+}
+
 /**
  * The page the setup is drawn on: the close at the start of the bar, the
- * title in the middle with how much is done, one step at the centre, and
- * Back, "Step n of N" and Continue at the foot.
+ * title in the middle with how much is done; the question and its parts in
+ * a column of their own on the left, the answers on the right; Back,
+ * "Step n of N" and Continue at the foot.
  */
 function WizardFrame({
   open,
@@ -628,8 +689,9 @@ function WizardFrame({
   title,
   percent,
   index,
-  step,
-  hint,
+  page,
+  data,
+  direction,
   moving,
   last,
   entered,
@@ -643,8 +705,10 @@ function WizardFrame({
   readonly title: ReactNode;
   readonly percent: number;
   readonly index: number;
-  readonly step: Step;
-  readonly hint: string;
+  readonly page: Page;
+  readonly data: JobData | null;
+  /** Which way the person is going: the question arrives from that side. */
+  readonly direction: 1 | -1;
   readonly moving: boolean;
   readonly last: boolean;
   /** Arriving from the page before, already open: no second entrance. */
@@ -654,6 +718,7 @@ function WizardFrame({
   readonly onNext: () => void;
   readonly children: ReactNode;
 }): JSX.Element {
+  const travel = { '--arrive-from': `${String(direction * 1.5)}rem` } as CSSProperties;
   return (
     <ModalPage
       open={open}
@@ -665,7 +730,7 @@ function WizardFrame({
         size="full"
         className={entered ? 'data-[state=open]:animate-none' : undefined}
         onOpenAutoFocus={(e) => {
-          // A step that asks for words is ready to type into; otherwise the page itself.
+          // A page that asks for words is ready to type into; otherwise the page itself.
           const first = (e.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>(
             '[data-autofocus]',
           );
@@ -693,22 +758,61 @@ function WizardFrame({
           }
         />
         <ModalPageBody>
-          <section
-            key={step.key}
-            aria-labelledby="setup-step-title"
-            className="mx-auto flex w-full max-w-2xl animate-enter flex-col gap-6 px-4 py-10 motion-reduce:animate-none sm:px-6 lg:py-16"
+          <div
+            key={page.key}
+            style={travel}
+            className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:px-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-20 lg:py-16"
           >
-            <header className="flex flex-col gap-2">
-              <h2
-                id="setup-step-title"
-                className="text-2xl font-bold tracking-[-0.02em] text-balance text-fg"
-              >
-                {step.title}
-              </h2>
-              <p className="text-fg-muted text-pretty">{hint}</p>
-            </header>
-            {children}
-          </section>
+            <aside className="lg:sticky lg:top-16 lg:self-start">
+              <div className="flex flex-col gap-4">
+                <h2
+                  id="setup-step-title"
+                  className="animate-arrive text-3xl font-bold tracking-[-0.025em] text-balance text-fg"
+                >
+                  {page.title}
+                </h2>
+                <p
+                  className="animate-arrive text-fg-muted text-pretty"
+                  style={staggerStyle(1, 'animation')}
+                >
+                  {data === null ? page.hint({} as JobData) : page.hint(data)}
+                </p>
+                {page.blocks.length < 2 || data === null ? null : (
+                  <IconList
+                    aria-label="On this page"
+                    className="mt-2 animate-arrive max-lg:hidden"
+                    style={staggerStyle(2, 'animation')}
+                  >
+                    {page.blocks.map((b) => {
+                      const done = b.done(data) === true;
+                      const ready = b.ready(data);
+                      return (
+                        <IconListItem
+                          key={b.key}
+                          tone={done ? 'success' : 'neutral'}
+                          icon={
+                            done ? (
+                              <icons.success aria-hidden />
+                            ) : ready ? (
+                              <icons.pending aria-hidden />
+                            ) : (
+                              <icons.locked aria-hidden />
+                            )
+                          }
+                          description={
+                            done ? 'Answered' : ready ? 'To answer' : 'After the part above'
+                          }
+                        >
+                          {b.label}
+                        </IconListItem>
+                      );
+                    })}
+                  </IconList>
+                )}
+              </div>
+            </aside>
+            <div className="flex min-w-0 flex-col gap-12">{children}</div>
+          </div>
         </ModalPageBody>
         <ModalPageFooter className="@2xl:justify-between">
           <Button
@@ -721,7 +825,7 @@ function WizardFrame({
           >
             Back
           </Button>
-          <span className="text-center text-sm text-fg-muted tabular-nums">{`Step ${String(index + 1)} of ${String(WIZARD_STEPS.length)}`}</span>
+          <span className="text-center text-sm text-fg-muted tabular-nums">{`Step ${String(index + 1)} of ${String(WIZARD_PAGES.length)}`}</span>
           <Button
             loading={moving}
             endIcon={last ? <icons.visible aria-hidden /> : <icons.forward aria-hidden />}
@@ -735,13 +839,21 @@ function WizardFrame({
   );
 }
 
+/** Where the setup is, kept in the address without asking the server for the page again. */
+const writeStep = (key: string): void => {
+  const url = new URL(window.location.href);
+  if (key === ROLE.key) url.searchParams.delete('step');
+  else url.searchParams.set('step', key);
+  url.searchParams.delete('entered');
+  window.history.replaceState(window.history.state, '', url);
+};
+
 export function JobWizard({
   open,
   data,
   props,
   stepKey,
   entered,
-  onStep,
   onClose,
   onFinish,
   part,
@@ -751,53 +863,76 @@ export function JobWizard({
   readonly props: ScreenProps<JobData>;
   readonly stepKey: string | null;
   readonly entered: boolean;
-  readonly onStep: (key: string) => void;
   readonly onClose: () => void;
   readonly onFinish: () => void;
-  readonly part: (part: BorrowedPart) => ReactNode;
+  readonly part: (part: BorrowedPart, commit: Commit) => ReactNode;
 }): JSX.Element {
-  const index = Math.max(
-    0,
-    WIZARD_STEPS.findIndex((s) => s.key === stepKey),
+  // The page is the browser's to change: the address follows it, the server is not asked.
+  // `seen` is the address's step as last read: only a change there (back, a link) moves the page.
+  const [step, setStep] = useState({
+    seen: stepKey,
+    index: pageIndex(stepKey),
+    direction: 1 as 1 | -1,
+  });
+  if (step.seen !== stepKey) {
+    const to = pageIndex(stepKey);
+    setStep({ seen: stepKey, index: to, direction: to >= step.index ? 1 : -1 });
+  }
+  const index = step.index;
+  const page = WIZARD_PAGES[index] ?? ROLE;
+  // Every part holding typed answers adds what keeps them; the page moves on when all have.
+  const keepers = useRef(new Set<() => Promise<boolean>>());
+  const commit = useMemo<Commit>(
+    () => ({
+      add: (keep) => {
+        keepers.current.add(keep);
+        return () => {
+          keepers.current.delete(keep);
+        };
+      },
+    }),
+    [],
   );
-  const step = WIZARD_STEPS[index] ?? FIRST;
-  const commit = useRef<Commit['current']>(null);
-  // Picks still on their way to Recruiting: a step waits for them before moving on.
+  // Picks still on their way to Recruiting: the page waits for them before moving on.
   const saving = useRef(new Set<Promise<unknown>>());
   const track = useCallback((p: Promise<unknown>) => {
     saving.current.add(p);
     void p.finally(() => saving.current.delete(p));
   }, []);
   const [moving, setMoving] = useState(false);
-  const status = WIZARD_STEPS.map((s, i) => s.done(data) ?? i < index);
-  const percent = Math.round((status.filter(Boolean).length / WIZARD_STEPS.length) * 100);
-  const last = index === WIZARD_STEPS.length - 1;
+  const last = index === WIZARD_PAGES.length - 1;
   const go = async (to: number | 'finish'): Promise<void> => {
     setMoving(true);
     await Promise.all(saving.current);
-    // A typed answer is kept before the step changes; a refusal stays on the step.
-    const kept = commit.current === null ? true : await commit.current();
+    let kept = true;
+    for (const keep of keepers.current) if (!(await keep())) kept = false;
     setMoving(false);
     if (!kept) return;
-    if (to === 'finish') onFinish();
-    else onStep(WIZARD_STEPS[to]?.key ?? FIRST.key);
+    if (to === 'finish') {
+      onFinish();
+      return;
+    }
+    const key = WIZARD_PAGES[to]?.key ?? ROLE.key;
+    setStep({ seen: step.seen, index: to, direction: to > index ? 1 : -1 });
+    writeStep(key);
   };
   return (
     <WizardFrame
       open={open}
       label={`Set up ${data.job.title}`}
       title={
-        // On the title's own step the bar only shows it: one place to type it at a time.
-        step.key === FIRST.key ? (
+        // On the page that asks for the title the bar only shows it: one place to type it at a time.
+        page.key === ROLE.key ? (
           <span className="text-md font-semibold text-fg">{data.job.title}</span>
         ) : (
           <TitleField key={data.job.title} data={data} props={props} />
         )
       }
-      percent={percent}
+      percent={percentOf(data, index)}
       index={index}
-      step={step}
-      hint={step.hint(data)}
+      page={page}
+      data={data}
+      direction={step.direction}
       moving={moving}
       last={last}
       entered={entered}
@@ -813,14 +948,38 @@ export function JobWizard({
         void go(last ? 'finish' : index + 1);
       }}
     >
-      <SaveQueue value={track}>{body(step.key, { data, props, commit }, part)}</SaveQueue>
+      <SaveQueue value={track}>
+        {page.blocks.some((b) => b.ready(data)) ? null : (
+          <Alert
+            tone="info"
+            title="This page follows from the one before"
+            className="animate-arrive"
+            style={staggerStyle(2, 'animation')}
+          >
+            Answer the earlier pages first; the questions here depend on them.
+          </Alert>
+        )}
+        {page.blocks.map((b, i) => {
+          const ready = b.ready(data);
+          return (
+            <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
+              {ready ? (
+                <BlockView label={b.label} hint={b.hint?.(data)} order={i + 2}>
+                  {b.render({ data, props, commit }, part)}
+                </BlockView>
+              ) : null}
+            </Reveal>
+          );
+        })}
+      </SaveQueue>
     </WizardFrame>
   );
 }
 
 /**
- * A new job, on the same page as its setup: the first step asks for the
- * title, and Continue creates the job and carries on to the next step.
+ * A new job, on the same page as its setup: its first part asks for the
+ * title, and Continue creates the job and carries on with the rest of the
+ * page.
  */
 export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
@@ -846,7 +1005,7 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
         entityId: null,
         locationIds: [],
         department: null,
-        // A placeholder the workplace steps ask about; it is cleared at once below.
+        // A placeholder the workplace part asks about; it is cleared at once below.
         workMode: 'onsite',
         openings: 1,
         languages: ['en'],
@@ -858,9 +1017,9 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
       setError(made.message);
       return;
     }
-    // How the work is done is a question for its own step, not a default.
+    // How the work is done is a question of its own, not a default.
     await act.call('SaveJobTerms', { jobId: id, input: { workMode: null } });
-    props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&step=role&entered=1`);
+    props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&entered=1`);
   };
   return (
     <WizardFrame
@@ -869,8 +1028,9 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
       title={<span className="text-md font-semibold text-fg">New job</span>}
       percent={0}
       index={0}
-      step={FIRST}
-      hint={FIRST.hint({} as JobData)}
+      page={ROLE}
+      data={null}
+      direction={1}
       moving={moving}
       last={false}
       entered={false}
@@ -880,15 +1040,17 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
         void create();
       }}
     >
-      <Refusal error={error} />
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void create();
-        }}
-      >
-        <TitleInput value={title} onChange={setTitle} />
-      </form>
+      <BlockView label="Title" hint={undefined} order={2}>
+        <Refusal error={error} />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void create();
+          }}
+        >
+          <TitleInput value={title} onChange={setTitle} />
+        </form>
+      </BlockView>
     </WizardFrame>
   );
 }
