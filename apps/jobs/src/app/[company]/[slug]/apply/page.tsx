@@ -1,3 +1,4 @@
+import { Avatar } from '@reach/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -35,7 +36,20 @@ export default async function Apply({
         };
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
-      <p className="text-sm text-fg-muted">{answer.data.company.name}</p>
+      {/* Whose job this is, as on its ad: the logo and the name, back to the ad. */}
+      <Link
+        href={`/${company}/${slug}`}
+        className="flex w-fit items-center gap-3 rounded-full pe-3 hover:underline"
+      >
+        <Avatar
+          name={answer.data.company.name}
+          src={answer.data.company.logoUrl ?? undefined}
+          shape="rounded"
+          fit={answer.data.company.logoUrl === null ? 'cover' : 'contain'}
+          size="lg"
+        />
+        <span className="font-semibold">{answer.data.company.name}</span>
+      </Link>
       <h1 className="text-2xl font-bold">{`Apply: ${answer.data.title}`}</h1>
       {account === null ? (
         <p className="text-sm text-fg-muted">
