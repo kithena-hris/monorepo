@@ -93,7 +93,11 @@
       "component": "Agencies"
     },
     {
-      "path": "/settings/recruiting/general",
+      "path": "/settings/recruiting/careers",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/rules",
       "component": "Settings"
     },
     {
@@ -101,7 +105,15 @@
       "component": "Settings"
     },
     {
-      "path": "/settings/recruiting/process",
+      "path": "/settings/recruiting/pipelines",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/questionnaires",
+      "component": "Settings"
+    },
+    {
+      "path": "/settings/recruiting/emails",
       "component": "Settings"
     },
     {
@@ -222,51 +234,69 @@
   "slots": {},
   "settings": [
     {
-      "path": "/settings/recruiting/general",
-      "label": "General",
-      "description": "Requisitions, internal applicants, the careers page and rejection reasons.",
-      "icon": "settings"
+      "path": "/settings/recruiting/careers",
+      "label": "Careers page",
+      "description": "Your company's name, its page on Kithena Jobs, your own domain and where replies go.",
+      "icon": "company"
+    },
+    {
+      "path": "/settings/recruiting/rules",
+      "label": "Hiring rules",
+      "description": "Approving new jobs, internal applicants, referral bonuses and rejection reasons.",
+      "icon": "agreement"
     },
     {
       "path": "/settings/recruiting/entities",
       "label": "Entities and locations",
-      "description": "The legal entities you hire through and where people work.",
-      "icon": "company"
+      "description": "Who employs, where people work, and the departments jobs sit in.",
+      "icon": "location"
     },
     {
-      "path": "/settings/recruiting/process",
+      "path": "/settings/recruiting/pipelines",
       "label": "Pipelines and approvals",
-      "description": "Pipeline templates, approval chains, questionnaires and templates.",
+      "description": "The steps candidates move through, and who approves jobs and offers.",
       "icon": "hierarchy"
+    },
+    {
+      "path": "/settings/recruiting/questionnaires",
+      "label": "Questionnaires",
+      "description": "Questions on the apply form or at a step, with kind knockouts.",
+      "icon": "document"
+    },
+    {
+      "path": "/settings/recruiting/emails",
+      "label": "Emails and letters",
+      "description": "What each moment sends, from a rejection to an offer letter.",
+      "icon": "email"
     },
     {
       "path": "/settings/recruiting/scorecards",
       "label": "Scorecards",
-      "description": "Competencies and probing questions on the four-point scale.",
+      "description": "What interviewers rate, on one four-point scale.",
       "icon": "review"
     },
     {
       "path": "/settings/recruiting/pay",
       "label": "Pay bands",
-      "description": "The ranges every offer is checked against.",
+      "description": "The range each grade pays; every offer is checked against it.",
       "icon": "payment"
     },
     {
       "path": "/settings/recruiting/benefits",
       "label": "Benefits",
-      "description": "The catalogue per legal entity, statutory ones included.",
+      "description": "What each entity offers, by category, statutory ones included.",
       "icon": "starred"
     },
     {
       "path": "/settings/recruiting/ai",
-      "label": "Kithena reading",
-      "description": "What a model may help with, and what it never sees.",
+      "label": "AI",
+      "description": "What AI may help with in hiring, and what it never sees.",
       "icon": "assistant"
     },
     {
       "path": "/settings/recruiting/integrations",
       "label": "Integrations",
-      "description": "Job boards, the careers page embed and the hired webhook.",
+      "description": "Job boards, your website, your HR system and checks.",
       "icon": "link"
     }
   ]
