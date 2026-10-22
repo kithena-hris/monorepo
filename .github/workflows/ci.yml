@@ -138,13 +138,15 @@ jobs:
           echo "changed files:"; printf '%s\n' "$changed" | head -50
 
   # Lint (with the module boundaries and the drift checks), the TS 6
-  # typecheck and the unit tests, one after another on one runner. Three
-  # runners each paid for their own checkout, install and build, and each was
-  # billed a whole minute at least; turbo's remote cache already makes the
-  # typecheck and the tests of an unchanged package a cache hit. Skipped on
-  # main when this tree passed in its pull request: a skipped job satisfies
-  # the required check.
-  verify:
+  # typecheck and the unit tests, on runners of their own at once. Run one
+  # after another on one runner they were the slowest gate of a pull request
+  # (3.5 minutes, 2026-10-22); side by side the gate is the slowest of them.
+  # Each pays its own checkout and install, and turbo's remote cache keeps an
+  # unchanged package's typecheck and tests a cache hit. `verify` itself is
+  # the aggregate below, the name the branch ruleset requires. Skipped on main
+  # when this tree passed in its pull request: the aggregate then passes.
+  verify-lint:
+    name: verify (lint)
     needs: changes
     if: needs.changes.outputs.matched != 'true'
     runs-on: ubuntu-latest
@@ -163,7 +165,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # `lint` and `boundaries` do not go through turbo, so they need the
-      # workspace built first; the typecheck and unit tests build what they need.
+      # workspace built first.
       - name: build
         run: pnpm build
 
@@ -188,19 +190,6 @@ jobs:
       - name: module boundaries
         run: pnpm boundaries
 
-      # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
-      # compilers can still disagree and the authoritative one should decide.
-      - name: typecheck on TS 6
-        run: pnpm typecheck:authoritative
-
-      # Two packages' suites at a time, not turbo's default of ten: on a
-      # 4-vCPU runner ten jsdom suites at once starved each other, and tests
-      # that take a second here timed out at five there (Documents' letters
-      # and sealing, Reach's date picker, 2026-10-16). Unchanged packages are
-      # cache hits either way, so this costs little.
-      - name: unit tests
-        run: pnpm test --concurrency=2
-
       # The invitation email carries concrete sRGB values, because a mail client
       # has no stylesheet to load, no custom properties and no `oklch()` —
       # Outlook renders through Word, which has none of the three. A snapshot of
@@ -220,6 +209,29 @@ jobs:
       # web operation fails here until the app has it or the reason is written.
       - name: the phone app reaches what the web does
         run: pnpm --filter @kithena/tenant-mobile coverage --strict
+
+  verify-types:
+    name: verify (types)
+    needs: changes
+    if: needs.changes.outputs.matched != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
+      # compilers can still disagree and the authoritative one should decide.
+      # Through turbo, which builds what each package needs first.
+      - name: typecheck on TS 6
+        run: pnpm typecheck:authoritative
 
       # `atlas migrate apply` verifies the directory against `atlas.sum` before
       # it applies anything, so a migration added without re-hashing fails the
@@ -253,6 +265,56 @@ jobs:
             exit 1
           fi
           echo "migration ledger matches the directory"
+
+  verify-tests:
+    name: verify (unit tests)
+    needs: changes
+    if: needs.changes.outputs.matched != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      # Two packages' suites at a time, not turbo's default of ten: on a
+      # 4-vCPU runner ten jsdom suites at once starved each other, and tests
+      # that take a second here timed out at five there (Documents' letters
+      # and sealing, Reach's date picker, 2026-10-16). Unchanged packages are
+      # cache hits either way, so this costs little.
+      - name: unit tests
+        run: pnpm test --concurrency=2
+
+  # The required check keeps its name: green when every part is, or when the
+  # pull request already proved this tree (the parts skip on main then).
+  verify:
+    needs: [changes, verify-lint, verify-types, verify-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every part passed
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          MATCHED: ${{ needs.changes.outputs.matched }}
+          LINT: ${{ needs.verify-lint.result }}
+          TYPES: ${{ needs.verify-types.result }}
+          TESTS: ${{ needs.verify-tests.result }}
+        run: |
+          echo "changes: $CHANGES (matched=$MATCHED), lint: $LINT, types: $TYPES, unit tests: $TESTS"
+          # A failed detector skips the parts; that is not a pass.
+          [ "$CHANGES" = success ] || exit 1
+          if [ "$MATCHED" = true ]; then
+            echo "::notice::This tree passed verify in its pull request."
+            exit 0
+          fi
+          [ "$LINT" = success ] && [ "$TYPES" = success ] && [ "$TESTS" = success ]
 
   # A pull request can restore only its own caches and main's, and `verify`
   # skips on main when the pull request proved the tree, so main would never

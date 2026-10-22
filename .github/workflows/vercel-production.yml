@@ -1,11 +1,17 @@
 name: vercel-production
 
-# Production deploys, started by hand only (`gh workflow run
-# vercel-production.yml`, or the checkbox form in `deploy-production.yml`),
-# and only of a main commit `ci` has passed: a merge deploys nothing. Merges
-# each spent a dozen of Hobby's 100 deployments a day and production ran out
-# twice in two days (2026-10-16, 2026-10-17); a deploy now ships everything
-# merged since the last one, once.
+# Production deploys, started by every merge to main, and by hand
+# (`gh workflow run vercel-production.yml`, or the checkbox form in
+# `deploy-production.yml`) for what git cannot see.
+#
+# A merge starts its deploy at once, while `ci` is still judging the commit
+# on main: the builds (images, the remotes' signed bundles) run beside it,
+# and nothing is released until `ci passed` has seen `ci` succeed on this
+# commit. So production waits for the slower of the two, not for one and then
+# the other (2026-10-22). Until then merges deployed nothing, because on
+# Hobby each spent a dozen of its 100 deployments a day; on Pro (since
+# 2026-10-18) that limit is 6,000. One deploy runs at a time and only the
+# newest waiting one is kept, which ships everything merged since the last.
 #
 # Only what changed ships: a merge that touches one module should not rebuild
 # and redeploy a dozen projects (and on Hobby, before the move to Pro, it ran
@@ -35,6 +41,8 @@ name: vercel-production
 # undoes everything this run deployed. Before 2026-10-02 all of this was one
 # job, 6.5 minutes for a web change and 14 with the VM.
 on:
+  push:
+    branches: [main]
   # Also for what git cannot see: a secret or a variable changed, or a deploy
   # needs repeating. `gh workflow run vercel-production.yml -f targets=identity,messaging`.
   # Runs on main only, and ships these on top of whatever changed.
@@ -86,7 +94,7 @@ jobs:
   # `images`, the VM images to build as a JSON list for the matrix below.
   plan:
     name: what changed
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -126,17 +134,6 @@ jobs:
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::missing production secret: VERCEL_TOKEN"
-            exit 1
-          fi
-      # Never the build the gates rejected: `ci` must have passed on this commit.
-      - name: check ci passed
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci --commit "$DEPLOY_SHA" \
-            --json conclusion -q '[.[] | select(.conclusion == "success")] | length')
-          if [ "$passed" = 0 ]; then
-            echo "::error::ci has not passed on $DEPLOY_SHA; wait for it, or fix main first"
             exit 1
           fi
       # Full history: the diff reaches back to each target's last deploy.
@@ -210,6 +207,36 @@ jobs:
             echo "::warning::VERCEL_PROJECT_ID_MESSAGING_PRODUCTION is unset, so the messaging service is not deployed. Invitations will not be emailed; enrolment links are still returned to the back-office."
           fi
           true
+
+  # Never the build the gates rejected: `ci` must have passed on this commit.
+  # It waits for `ci` rather than asking once, so a merge's deploy can start
+  # at the merge: the builds below run meanwhile and every job that releases
+  # anything needs this one. A `ci` that fails, or is cancelled by a newer
+  # merge, stops the release here, and the newer merge's deploy ships both.
+  ci-passed:
+    name: ci passed
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: wait for ci on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          while :; do
+            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci --commit "$DEPLOY_SHA" \
+              --json status,conclusion)"
+            if jq -e 'any(.[]; .conclusion == "success")' <<<"$runs" >/dev/null; then
+              echo "ci passed on $DEPLOY_SHA"
+              exit 0
+            fi
+            if jq -e 'length > 0 and all(.[]; .status == "completed")' <<<"$runs" >/dev/null; then
+              echo "::error::ci did not pass on $DEPLOY_SHA ($(jq -c 'map(.conclusion)' <<<"$runs")); fix main, or the next merge's deploy ships it"
+              exit 1
+            fi
+            sleep 10
+          done
 
   # People's, the router's, Slack's, audit's, Time Off's and the assistant's
   # images, one runner each,
@@ -394,7 +421,7 @@ jobs:
   # migration, reviewed like any other change.
   migrate:
     name: migrate production
-    needs: plan
+    needs: [plan, ci-passed]
     if: needs.plan.outputs.migrations == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -517,7 +544,7 @@ jobs:
   # the upload, and Vercel installs and builds from the lockfile itself.
   identity:
     name: identity
-    needs: [plan, migrate]
+    needs: [plan, ci-passed, migrate]
     if: >
       !cancelled() && !failure() &&
       needs.plan.outputs.identity == 'true'
@@ -584,7 +611,7 @@ jobs:
   # reason not in this repository.
   messaging:
     name: messaging
-    needs: [plan, identity]
+    needs: [plan, ci-passed, identity]
     if: >
       !cancelled() && !failure() &&
       needs.plan.outputs.messaging == 'true' && vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION != ''
@@ -661,7 +688,7 @@ jobs:
   # VM exists.
   vm:
     name: VM (people, assistant, slack, audit, timeoff, documents, recruiting, onboarding, performance, router)
-    needs: [plan, images, migrate, identity, messaging]
+    needs: [plan, ci-passed, images, migrate, identity, messaging]
     if: >
       !cancelled() && !failure() &&
       vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
@@ -1255,7 +1282,7 @@ jobs:
   # job that signed it and this one — never reaches the domain.
   people-remote:
     name: people remote
-    needs: [plan, people-remote-build, vm]
+    needs: [plan, ci-passed, people-remote-build, vm]
     if: >
       !cancelled() && !failure() &&
       vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != '' && needs.plan.outputs.people-remote == 'true'
@@ -1348,7 +1375,7 @@ jobs:
 
   timeoff-remote:
     name: time off remote
-    needs: [plan, timeoff-remote-build, vm]
+    needs: [plan, ci-passed, timeoff-remote-build, vm]
     if: >
       !cancelled() && !failure() &&
       vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_PRODUCTION != '' && needs.plan.outputs.timeoff-remote == 'true'
@@ -1435,7 +1462,7 @@ jobs:
 
   documents-remote:
     name: documents remote
-    needs: [plan, documents-remote-build, vm]
+    needs: [plan, ci-passed, documents-remote-build, vm]
     if: >
       !cancelled() && !failure() &&
       vars.VERCEL_PROJECT_ID_DOCUMENTS_REMOTE_PRODUCTION != '' && needs.plan.outputs.documents-remote == 'true'
@@ -1522,7 +1549,7 @@ jobs:
 
   recruiting-remote:
     name: recruiting remote
-    needs: [plan, recruiting-remote-build, vm]
+    needs: [plan, ci-passed, recruiting-remote-build, vm]
     if: >
       !cancelled() && !failure() &&
       vars.VERCEL_PROJECT_ID_RECRUITING_REMOTE_PRODUCTION != '' && needs.plan.outputs.recruiting-remote == 'true'
@@ -1609,7 +1636,7 @@ jobs:
 
   onboarding-remote:
     name: onboarding remote
-    needs: [plan, onboarding-remote-build, vm]
+    needs: [plan, ci-passed, onboarding-remote-build, vm]
     if: >
       !cancelled() && !failure() &&
       vars.VERCEL_PROJECT_ID_ONBOARDING_REMOTE_PRODUCTION != '' && needs.plan.outputs.onboarding-remote == 'true'
@@ -1696,7 +1723,7 @@ jobs:
 
   performance-remote:
     name: performance remote
-    needs: [plan, performance-remote-build, vm]
+    needs: [plan, ci-passed, performance-remote-build, vm]
     if: >
       !cancelled() && !failure() &&
       vars.VERCEL_PROJECT_ID_PERFORMANCE_REMOTE_PRODUCTION != '' && needs.plan.outputs.performance-remote == 'true'
@@ -1764,6 +1791,7 @@ jobs:
     needs:
       [
         plan,
+        ci-passed,
         identity,
         messaging,
         vm,
@@ -1871,7 +1899,7 @@ jobs:
   # A client of identity, so after it; it reaches nothing on the VM.
   auth:
     name: auth
-    needs: [plan, identity, messaging]
+    needs: [plan, ci-passed, identity, messaging]
     if: >
       !cancelled() && !failure() &&
       needs.plan.outputs.auth == 'true'
@@ -1911,7 +1939,7 @@ jobs:
   # A client of identity's internal API, so after it; nothing on the VM.
   admin:
     name: back-office
-    needs: [plan, identity, messaging]
+    needs: [plan, ci-passed, identity, messaging]
     if: >
       !cancelled() && !failure() &&
       needs.plan.outputs.admin == 'true'
@@ -1953,7 +1981,7 @@ jobs:
   # the project exists.
   jobs:
     name: kithena jobs
-    needs: [plan, vm]
+    needs: [plan, ci-passed, vm]
     if: >
       !cancelled() && !failure() &&
       vars.VERCEL_PROJECT_ID_JOBS_PRODUCTION != '' && needs.plan.outputs.jobs == 'true'
@@ -2003,7 +2031,7 @@ jobs:
   # noticing.
   docs:
     name: docs
-    needs: plan
+    needs: [plan, ci-passed]
     if: needs.plan.outputs.docs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -2049,7 +2077,7 @@ jobs:
 
   storybook:
     name: storybook
-    needs: plan
+    needs: [plan, ci-passed]
     if: needs.plan.outputs.storybook == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -2099,7 +2127,7 @@ jobs:
   # web Storybook's reason (Hobby cannot protect a custom domain).
   storybook-mobile:
     name: storybook (mobile)
-    needs: plan
+    needs: [plan, ci-passed]
     if: needs.plan.outputs.storybook-mobile == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -2374,6 +2402,7 @@ jobs:
     needs:
       [
         plan,
+        ci-passed,
         images,
         migrate,
         identity,
