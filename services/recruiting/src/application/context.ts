@@ -158,12 +158,39 @@ export function asPerson(ctx: Ctx): Result<string> {
 }
 
 /** Send what a transaction queued, after it committed; a failed email never undoes the work. */
+/** The company's name, logo and theme, from its settings; nothing when they cannot be read. */
+async function companyBrand(
+  deps: Deps,
+  tenantId: Caller['tenantId'],
+): Promise<{ readonly companyName: string | null; readonly parts: MailParts }> {
+  try {
+    const general = (await deps.uow.run(tenantId, (tx) => tx.settings.get('general'))) as {
+      companyName?: unknown;
+      logoUrl?: unknown;
+      themeId?: unknown;
+    } | null;
+    const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+    const logoUrl = text(general?.logoUrl);
+    const themeId = text(general?.themeId);
+    return {
+      companyName: text(general?.companyName),
+      parts: { ...(logoUrl === null ? {} : { logoUrl }), ...(themeId === null ? {} : { themeId }) },
+    };
+  } catch {
+    return { companyName: null, parts: {} };
+  }
+}
+
 export async function deliver(
   deps: Deps,
   tenantId: Caller['tenantId'],
   mail: readonly Outgoing[],
 ): Promise<void> {
-  if (deps.mailer === undefined) return;
+  if (deps.mailer === undefined || mail.length === 0) return;
+  // Every email in the company's name, with its logo and colours: a candidate
+  // hears from the company they applied to, never from Kithena. Read once, for
+  // the emails that did not say; one that did keeps its own.
+  const brand = await companyBrand(deps, tenantId);
   for (const m of mail) {
     try {
       await deps.mailer.send({
@@ -173,8 +200,10 @@ export async function deliver(
         text: m.text,
         replyTo: null,
         dedupeKey: m.dedupeKey,
-        ...(m.companyName === undefined ? {} : { companyName: m.companyName }),
-        ...(m.parts === undefined ? {} : { parts: m.parts }),
+        ...((m.companyName ?? brand.companyName) === null
+          ? {}
+          : { companyName: m.companyName ?? brand.companyName ?? '' }),
+        parts: { ...brand.parts, ...m.parts },
       });
     } catch {
       // ponytail: a lost notice is retried by nothing; a delivery queue when one is missed.

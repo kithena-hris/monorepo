@@ -67,7 +67,30 @@ export async function listingsAnswer(
     const [company = '', slug = ''] = parts.slice(3);
     if (!SLUG.test(company) || !SLUG.test(slug)) return notFound;
     const job = await listings.job(company, slug, at.searchParams.get('language'));
-    return job === null ? notFound : { status: 200, body: job };
+    if (job === null) return notFound;
+    // The company as it is now, not as it was when the job was published: a logo
+    // or a name changed since shows on every job of theirs, old and new.
+    // A confidential job names no company, so it keeps its own.
+    const current =
+      job.company.name === 'Confidential'
+        ? null
+        : ((await listings.company(company))?.company ?? null);
+    return {
+      status: 200,
+      body:
+        current === null
+          ? job
+          : {
+              ...job,
+              company: {
+                ...job.company,
+                name: current.name,
+                logoUrl: current.logoUrl,
+                themeId: current.themeId,
+                about: current.about,
+              },
+            },
+    };
   }
   // Which company a careers domain of its own shows (REC-136); Kithena Jobs asks per request.
   if (parts[2] === 'companies' && parts[3] === 'by-host' && parts.length === 5) {

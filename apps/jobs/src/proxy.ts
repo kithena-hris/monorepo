@@ -52,17 +52,44 @@ async function companyFor(host: string): Promise<string | null> {
   return company;
 }
 
+/** Shared pages that belong to one company, named second: `/preview/acme/…`. */
+const PER_COMPANY = new Set(['agency', 'alerts', 'me', 'preview', 'reference', 'schedule']);
+const SLUG = /^[a-z0-9][a-z0-9-]{1,62}$/u;
+
+/** The company a page is for, by its path; null for Kithena Jobs' own pages. */
+export function companyOf(pathname: string): string | null {
+  const [first = '', second = ''] = pathname.split('/').filter(Boolean);
+  if (first === '') return null;
+  if (!SHARED.has(first)) return SLUG.test(first) ? first : null;
+  return PER_COMPANY.has(first) && SLUG.test(second) && second !== 'cv' ? second : null;
+}
+
+/**
+ * The page, told which company it is for (`x-kithena-company`), so it wears
+ * that company's name, logo and colours rather than Kithena Jobs': a
+ * candidate applies to the company, not to us.
+ */
+function forCompany(request: NextRequest, company: string | null, url?: URL): NextResponse {
+  const headers = new Headers(request.headers);
+  headers.delete('x-kithena-company');
+  if (company !== null) headers.set('x-kithena-company', company);
+  return url === undefined
+    ? NextResponse.next({ request: { headers } })
+    : NextResponse.rewrite(url, { request: { headers } });
+}
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const host = (request.headers.get('host') ?? '').toLowerCase().replace(/:\d+$/u, '');
-  if (host === '' || OURS.test(host)) return NextResponse.next();
-  const company = await companyFor(host);
-  if (company === null) return NextResponse.next();
   const { pathname } = request.nextUrl;
+  if (host === '' || OURS.test(host)) return forCompany(request, companyOf(pathname));
+  const company = await companyFor(host);
+  if (company === null) return forCompany(request, companyOf(pathname));
   const first = pathname.split('/')[1] ?? '';
-  if (first === company || SHARED.has(first)) return NextResponse.next();
+  // On a company's own domain every page is theirs.
+  if (first === company || SHARED.has(first)) return forCompany(request, company);
   const url = request.nextUrl.clone();
   url.pathname = `/${company}${pathname === '/' ? '' : pathname}`;
-  return NextResponse.rewrite(url);
+  return forCompany(request, company, url);
 }
 
 export const config = {
