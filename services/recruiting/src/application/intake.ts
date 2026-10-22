@@ -1,4 +1,4 @@
-import { scheduleKnockout } from './knockouts.js';
+import { scheduleKnockout } from './knockout-schedule.js';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import {
   ApplyPayload,

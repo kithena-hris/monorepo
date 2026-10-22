@@ -1,8 +1,6 @@
-import type { Instant } from '@kithena/contracts';
-
 import { currentStage } from '../domain/pipeline/application.js';
-import { nextWorkingMorning } from '../domain/pipeline/pipeline.js';
 import type { Ctx } from './context.js';
+import { dueKnockouts, keepDueKnockouts } from './knockout-schedule.js';
 import { emailFor, emailValues } from './emails.js';
 import { loadApplication, rejectApplication, render, sendNow } from './moves.js';
 import { generalSettings } from './setup.js';
@@ -14,39 +12,9 @@ import { generalSettings } from './setup.js';
  * may move it on; a moved or decided application is left alone.
  */
 
-const DUE = 'knockouts-due';
-
-interface Due {
-  readonly applicationId: string;
-  readonly at: Instant;
-}
-
-async function due(ctx: Ctx): Promise<readonly Due[]> {
-  return ((await ctx.tx.settings.get(DUE)) as Due[] | null) ?? [];
-}
-
-/** At intake: when the rejection will be told. */
-export async function scheduleKnockout(
-  ctx: Ctx,
-  applicationId: string,
-  timeZone: string,
-): Promise<Instant> {
-  const at = nextWorkingMorning(new Date(ctx.at), timeZone).toISOString() as Instant;
-  await ctx.tx.settings.set(DUE, [
-    ...(await due(ctx)).filter((d) => d.applicationId !== applicationId),
-    { applicationId, at },
-  ]);
-  return at;
-}
-
-/** When a knocked-out application will be rejected; null when none is pending. */
-export async function knockoutDueAt(ctx: Ctx, applicationId: string): Promise<Instant | null> {
-  return (await due(ctx)).find((d) => d.applicationId === applicationId)?.at ?? null;
-}
-
 /** Every minute, as the system: reject what is due and still untouched, and tell the candidate. */
 export async function rejectDueKnockouts(ctx: Ctx): Promise<number> {
-  const all = await due(ctx);
+  const all = await dueKnockouts(ctx);
   const now = all.filter((d) => d.at <= ctx.at);
   if (now.length === 0) return 0;
   const settings = await generalSettings(ctx);
@@ -81,8 +49,8 @@ export async function rejectDueKnockouts(ctx: Ctx): Promise<number> {
     );
     rejected += 1;
   }
-  await ctx.tx.settings.set(
-    DUE,
+  await keepDueKnockouts(
+    ctx,
     all.filter((d) => d.at > ctx.at),
   );
   return rejected;

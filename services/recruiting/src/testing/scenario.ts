@@ -15,7 +15,8 @@ import * as z from 'zod';
 import { contextOf, deliver, type Ctx, type Outgoing } from '../application/context.js';
 import { uuidv7 } from '../infrastructure/ids.js';
 import { apply, requestCode } from '../application/intake.js';
-import { rejectDueKnockouts, scheduleKnockout } from '../application/knockouts.js';
+import { scheduleKnockout } from '../application/knockout-schedule.js';
+import { rejectDueKnockouts } from '../application/knockouts.js';
 import {
   createJob,
   publishTo,
