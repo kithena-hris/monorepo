@@ -1,4 +1,4 @@
-import { Badge, Button, CheckboxCard, IconList, IconListItem, IconTile, icons } from '@reach/ui';
+import { Badge, Button, CheckboxCard, IconTile, icons } from '@reach/ui';
 import type { ComponentType, JSX, ReactNode, SVGProps } from 'react';
 
 import type { BenefitCategory, CatalogueBenefit } from './types';
@@ -168,18 +168,17 @@ export function BenefitList({
       {grouped(benefits, categories).map(({ category, benefits: list }) => (
         <section key={category.key} className="flex flex-col gap-3">
           <CategoryHeading category={category} />
-          <IconList>
+          {/* Only the category carries a mark; its benefits read as words under its name. */}
+          <ul className="flex flex-col gap-3 ps-13">
             {list.map((b) => (
-              <IconListItem
-                key={b.id}
-                icon={<icons.success aria-hidden />}
-                tone="accent"
-                {...(b.description === null ? {} : { description: b.description })}
-              >
-                {b.name}
-              </IconListItem>
+              <li key={b.id} className="flex flex-col gap-0.5">
+                <span className="font-medium text-fg">{b.name}</span>
+                {b.description === null ? null : (
+                  <span className="text-sm text-pretty text-fg-muted">{b.description}</span>
+                )}
+              </li>
             ))}
-          </IconList>
+          </ul>
         </section>
       ))}
     </div>

@@ -314,16 +314,32 @@ const job: JobData = {
 };
 
 describe('R4–R7, a job’s setup', () => {
-  it('shows the ad as a candidate reads it, every part with its own Edit', async () => {
-    const { container } = render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} />);
-    expect(screen.getByRole('heading', { name: 'The role' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Workplace, terms and pay' })).toBeTruthy();
+  it('shows the ad as a candidate reads it, every part pressed to edit it', async () => {
+    const { container } = render(
+      <screens.JobSetup
+        load={ready({ ...job, company: { name: 'Meridian Freight', logoUrl: null } })}
+        params={{ id: 'j1' }}
+      />,
+    );
+    // Under the company's name, not the product's.
+    expect(screen.getByText('Meridian Freight')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Edit the title' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Edit the pay' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Edit the workplace' })).toBeTruthy();
     // The chosen benefits, by category with its name, each with its line.
     expect(screen.getByRole('heading', { name: 'Food' })).toBeTruthy();
     expect(screen.getByText('A monthly budget for lunch.')).toBeTruthy();
     expect(screen.queryByText('Gym or sports membership')).toBeNull();
-    expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThan(5);
+    expect(screen.getByRole('heading', { name: 'Only your team sees this' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('edits one part of the ad on its own, from the preview', () => {
+    render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ edit: 'title' }} />);
+    expect(screen.getByRole('dialog', { name: 'Title' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: /^Job title/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+    expect(screen.queryByText(/Step \d of/u)).toBeNull();
   });
 
   it('shows the ad’s checks that block publishing, in the ad’s sheet', () => {

@@ -301,3 +301,26 @@ export const Assistant: Story = {
     </Card>
   ),
 };
+
+export const PressToEdit: Story = {
+  name: 'Part of a page, pressed to edit',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`variant="bare" interactive`: reads as the page itself until pointed at, then a wash and a ring say it opens. A stretched button inside is the target, so a keyboard reaches it and a screen reader hears what it does.',
+      },
+    },
+  },
+  render: () => (
+    <Card variant="bare" interactive padded className="relative flex max-w-md items-start gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-fg-muted">Pays</p>
+        <p className="text-2xl font-bold">€62,000 – €74,000 a year</p>
+      </div>
+      <Button size="xs" variant="ghost" className="after:absolute after:inset-0">
+        Edit pay
+      </Button>
+    </Card>
+  ),
+};

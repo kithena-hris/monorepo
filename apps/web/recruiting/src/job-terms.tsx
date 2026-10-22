@@ -2,11 +2,6 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Chip,
   ChipRow,
   EmptyState,
@@ -962,57 +957,5 @@ export function BenefitsChoice({ data, props, commit }: TermsProps): JSX.Element
         </div>
       ) : null}
     </>
-  );
-}
-
-function Group({
-  title,
-  description,
-  children,
-}: {
-  readonly title: string;
-  readonly description: string;
-  readonly children: ReactNode;
-}): JSX.Element {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle level={2}>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">{children}</CardContent>
-    </Card>
-  );
-}
-
-/** The ad's edit panel: every term grouped, in the same order the setup asks for them. */
-export function TermsCards({ data, props }: TermsProps): JSX.Element {
-  return (
-    <div className="flex flex-col gap-4">
-      <Group title="Workplace" description="The employing entity, where the work is, and how.">
-        <EntityChoice data={data} props={props} />
-        <PlaceChoice data={data} props={props} />
-        <ModeChoice data={data} props={props} />
-      </Group>
-      <Group
-        title="Work type"
-        description={`The kinds of work ${countryName(data.options.country)} recognises.`}
-      >
-        <WorkTypeChoice data={data} props={props} />
-      </Group>
-      <Group title="Contract" description="Only what the law there allows for this kind of work.">
-        <ContractChoice data={data} props={props} />
-      </Group>
-      <Group title="Days and hours" description="Checked against the legal week.">
-        <DaysChoice data={data} props={props} />
-        <HoursChoice data={data} props={props} />
-      </Group>
-      <Group title="Time off" description="Never below the legal minimum.">
-        <LeaveChoice data={data} props={props} />
-      </Group>
-      <Group title="Pay" description="Yearly, in the entity’s currency.">
-        <PayChoice data={data} props={props} />
-      </Group>
-    </div>
   );
 }

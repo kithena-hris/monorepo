@@ -178,6 +178,8 @@ export interface JobRecord {
 
 export interface JobData {
   readonly job: JobRecord;
+  /** The company as candidates see it on the ad. */
+  readonly company?: { readonly name: string; readonly logoUrl: string | null };
   readonly may: readonly string[];
   readonly team: readonly {
     readonly personId: string;
