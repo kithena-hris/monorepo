@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import manifest from '../module.manifest.js';
-import { daily, sendDueMessages } from './application/background.js';
+import { daily, rejectKnockouts, sendDueMessages } from './application/background.js';
 import { composeRecruiting } from './composition.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 
@@ -10,7 +10,7 @@ startTelemetry(`kithena-${manifest.key}`);
 const { listener, storage } = await composeRecruiting(process.env);
 wireConsumers(process.env, storage?.deps ?? null);
 
-// The thread's emails every minute; offers, pool consents and retention daily.
+// The thread's emails and due knockout rejections every minute; offers, pool consents and retention daily.
 // ponytail: timers in one process; BullMQ repeatable jobs when Recruiting runs twice.
 if (storage !== null) {
   const every = (ms: number, name: string, job: () => Promise<unknown>) => {
@@ -26,6 +26,7 @@ if (storage !== null) {
     });
   };
   every(60_000, 'recruiting messages', () => sendDueMessages(storage.deps));
+  every(60_000, 'recruiting knockouts', () => rejectKnockouts(storage.deps));
   every(24 * 60 * 60_000, 'recruiting daily', () => daily(storage.deps));
 }
 

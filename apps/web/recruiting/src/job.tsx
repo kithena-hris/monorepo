@@ -58,7 +58,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 import { Loaded } from './load';
 import { Refusal, StateBadge, newId, range, useAct, words } from './shared';
 import { BenefitList } from './benefits';
-import { BenefitsChoice, TermsCards, hoursOf } from './job-terms';
+import { BenefitsChoice, TermsCards, hoursOf, useCommit, type Commit } from './job-terms';
 import { JobWizard, NewJobWizard } from './job-wizard';
 import type { FormField, JobData, ScreenProps } from './types';
 
@@ -295,206 +295,289 @@ function Details({
   );
 }
 
+/** Keeps a borrowed part's edits: by its own Save in the ad's panel, or when the setup moves on. */
+function useKeep(
+  props: ScreenProps<JobData>,
+  commit: Commit | undefined,
+  changed: boolean,
+  name: string,
+  variables: () => Readonly<Record<string, unknown>>,
+) {
+  const act = useAct(props);
+  const [error, setError] = useState<string | null>(null);
+  const keep = async (): Promise<boolean> => {
+    if (!changed) return true;
+    setError(null);
+    const done = await act.call(name, variables());
+    if (!done.ok) {
+      setError(done.message);
+      return false;
+    }
+    props.onRefresh?.();
+    return true;
+  };
+  useCommit(commit, keep);
+  return { act, error: error ?? act.error, keep };
+}
+
 function Team({
   data,
   props,
+  commit,
 }: {
   readonly data: JobData;
   readonly props: ScreenProps<JobData>;
+  readonly commit?: Commit | undefined;
 }): JSX.Element {
-  const act = useAct(props);
   const [team, setTeam] = useState(data.team.map((t) => ({ personId: t.personId, role: t.role })));
-  const [adding, setAdding] = useState('');
+  const changed =
+    JSON.stringify(team) !==
+    JSON.stringify(data.team.map((t) => ({ personId: t.personId, role: t.role })));
+  const { act, error, keep } = useKeep(props, commit, changed, 'SetJobTeam', () => ({
+    jobId: data.job.id,
+    input: { team },
+  }));
   const name = (id: string) => data.members.find((m) => m.personId === id)?.name ?? id;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle level={2}>Hiring team</CardTitle>
-        <CardDescription>Who may see what is set by the role on this job</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <Refusal error={act.error} />
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>
-                <span className="sr-only">Remove</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {team.map((t, i) => (
-              <TableRow key={`${t.personId}:${String(i)}`}>
-                <TableCell>{name(t.personId)}</TableCell>
-                <TableCell>
-                  <Select
-                    value={t.role}
-                    onValueChange={(v) => {
-                      setTeam(team.map((x, j) => (j === i ? { ...x, role: v } : x)));
-                    }}
-                  >
-                    <SelectTrigger aria-label={`${name(t.personId)}’s role`} className="w-44">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {words(r)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Remove ${name(t.personId)}`}
-                    startIcon={<icons.delete aria-hidden />}
-                    onClick={() => {
-                      setTeam(team.filter((_, j) => j !== i));
-                    }}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <div className="flex flex-wrap items-end gap-2">
-          <Select value={adding} onValueChange={setAdding}>
-            <SelectTrigger aria-label="Add a person" className="w-64">
-              <SelectValue placeholder="Add a person…" />
-            </SelectTrigger>
-            <SelectContent>
-              {data.members
-                .filter((m) => !team.some((t) => t.personId === m.personId))
-                .map((m) => (
-                  <SelectItem key={m.personId} value={m.personId}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="secondary"
-            disabled={adding === ''}
-            onClick={() => {
-              setTeam([...team, { personId: adding, role: 'interviewer' }]);
-              setAdding('');
+  const body = (
+    <div className="flex flex-col gap-4">
+      <Refusal error={error} />
+      {team.length === 0 ? null : (
+        <ul className="flex flex-col gap-2">
+          {team.map((t, i) => (
+            <li key={t.personId} className="flex flex-wrap items-center gap-3">
+              <Avatar name={name(t.personId)} size="sm" aria-hidden />
+              <span className="min-w-0 flex-1 truncate font-medium">{name(t.personId)}</span>
+              <Select
+                value={t.role}
+                onValueChange={(v) => {
+                  setTeam(team.map((x, j) => (j === i ? { ...x, role: v } : x)));
+                }}
+              >
+                <SelectTrigger aria-label={`${name(t.personId)}’s role`} className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {words(r)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Remove ${name(t.personId)}`}
+                startIcon={<icons.delete aria-hidden />}
+                onClick={() => {
+                  setTeam(team.filter((_, j) => j !== i));
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <Field>
+        <FieldLabel>Add someone</FieldLabel>
+        <FieldControl>
+          <Combobox
+            label="Add someone"
+            placeholder="Search people"
+            searchPlaceholder="Search people"
+            options={data.members
+              .filter((m) => !team.some((t) => t.personId === m.personId))
+              .map((m) => ({ value: m.personId, label: m.name }))}
+            value={null}
+            onChange={(v) => {
+              if (typeof v === 'string')
+                setTeam([
+                  ...team,
+                  {
+                    personId: v,
+                    role: team.some((t) => t.role === 'hiring_manager')
+                      ? 'interviewer'
+                      : 'hiring_manager',
+                  },
+                ]);
             }}
-          >
-            Add
-          </Button>
-          <span className="flex-1" />
+          />
+        </FieldControl>
+        <FieldDescription>
+          The first person added is the hiring manager; change any role beside the name.
+        </FieldDescription>
+      </Field>
+      {commit === undefined ? (
+        <div className="flex justify-end">
           <Button
             loading={act.pending}
+            disabled={!changed}
             onClick={() => {
-              act.run('SetJobTeam', { jobId: data.job.id, input: { team } });
+              void keep();
             }}
           >
             Save team
           </Button>
         </div>
-      </CardContent>
+      ) : null}
+    </div>
+  );
+  return commit === undefined ? (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>Hiring team</CardTitle>
+        <CardDescription>What each person may see follows their role on this job.</CardDescription>
+      </CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
+  ) : (
+    body
   );
 }
 
+/**
+ * What a candidate must bring, each a sentence a CV can show, must-have or
+ * nice-to-have, weighted. The match on each candidate is read against them.
+ */
 function Criteria({
   data,
   props,
+  commit,
 }: {
   readonly data: JobData;
   readonly props: ScreenProps<JobData>;
+  readonly commit?: Commit | undefined;
 }): JSX.Element {
-  const act = useAct(props);
   const [rows, setRows] = useState(data.criteria);
   const [text, setText] = useState('');
-  return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <Card>
-        <CardHeader>
-          <CardTitle level={2}>Criteria</CardTitle>
-          <CardDescription>
-            Each a sentence a CV can show. The weight sets how much it counts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <Refusal error={act.error} />
+  const [must, setMust] = useState(true);
+  const changed = JSON.stringify(rows) !== JSON.stringify(data.criteria);
+  const { act, error, keep } = useKeep(props, commit, changed, 'SetJobCriteria', () => ({
+    jobId: data.job.id,
+    input: { criteria: rows },
+  }));
+  const add = (): void => {
+    if (text.trim() === '') return;
+    setRows([...rows, { id: newId(), text: text.trim(), must, weight: 1 }]);
+    setText('');
+  };
+  const body = (
+    <div className="flex flex-col gap-4">
+      <Refusal error={error} />
+      {rows.length === 0 ? null : (
+        <ol className="flex flex-col divide-y divide-border">
           {rows.map((c, i) => (
-            <div
+            <li
               key={c.id}
-              className="flex flex-wrap items-center gap-3 border-b border-[var(--reach-line)] pb-2"
+              className="flex flex-col gap-3 py-3 first:pt-0 sm:flex-row sm:items-center"
             >
-              <span className="min-w-0 flex-1">{c.text}</span>
-              <Badge size="sm" tone={c.must ? 'accent' : 'neutral'}>
-                {c.must ? 'Must have' : 'Nice to have'}
-              </Badge>
-              <SegmentedControl
-                size="sm"
-                value={String(c.weight)}
-                onValueChange={(v) => {
-                  setRows(rows.map((x, j) => (j === i ? { ...x, weight: Number(v) } : x)));
-                }}
-                aria-label="Weight"
-              >
-                <SegmentedControlItem value="1">×1</SegmentedControlItem>
-                <SegmentedControlItem value="2">×2</SegmentedControlItem>
-                <SegmentedControlItem value="3">×3</SegmentedControlItem>
-              </SegmentedControl>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={`Remove ${c.text}`}
-                startIcon={<icons.delete aria-hidden />}
-                onClick={() => {
-                  setRows(rows.filter((_, j) => j !== i));
-                }}
-              />
-            </div>
+              <span className="min-w-0 flex-1 text-sm text-pretty">{c.text}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <SegmentedControl
+                  size="sm"
+                  aria-label={`How much “${c.text}” matters`}
+                  value={c.must ? 'must' : 'nice'}
+                  onValueChange={(v) => {
+                    setRows(rows.map((x, j) => (j === i ? { ...x, must: v === 'must' } : x)));
+                  }}
+                >
+                  <SegmentedControlItem value="must">Must have</SegmentedControlItem>
+                  <SegmentedControlItem value="nice">Nice to have</SegmentedControlItem>
+                </SegmentedControl>
+                <SegmentedControl
+                  size="sm"
+                  aria-label={`Weight of “${c.text}”`}
+                  value={String(c.weight)}
+                  onValueChange={(v) => {
+                    setRows(rows.map((x, j) => (j === i ? { ...x, weight: Number(v) } : x)));
+                  }}
+                >
+                  <SegmentedControlItem value="1">×1</SegmentedControlItem>
+                  <SegmentedControlItem value="2">×2</SegmentedControlItem>
+                  <SegmentedControlItem value="3">×3</SegmentedControlItem>
+                </SegmentedControl>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove “${c.text}”`}
+                  startIcon={<icons.delete aria-hidden />}
+                  onClick={() => {
+                    setRows(rows.filter((_, j) => j !== i));
+                  }}
+                />
+              </div>
+            </li>
           ))}
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setRows([...rows, { id: newId(), text: text.trim(), must: true, weight: 1 }]);
-              setText('');
+        </ol>
+      )}
+      <Field>
+        <FieldLabel>A criterion</FieldLabel>
+        <FieldControl>
+          <Textarea
+            autoResize
+            rows={2}
+            value={text}
+            placeholder="Five years building backend services in production"
+            onChange={(e) => {
+              setText(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+        </FieldControl>
+        <FieldDescription>
+          One sentence a CV can show. With the match switched on, each candidate is read against it:
+          met counts 1, partly met a half, times its weight.
+        </FieldDescription>
+      </Field>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedControl
+          aria-label="The new criterion is"
+          value={must ? 'must' : 'nice'}
+          onValueChange={(v) => {
+            setMust(v === 'must');
+          }}
+        >
+          <SegmentedControlItem value="must">Must have</SegmentedControlItem>
+          <SegmentedControlItem value="nice">Nice to have</SegmentedControlItem>
+        </SegmentedControl>
+        <Button
+          variant="secondary"
+          startIcon={<icons.add aria-hidden />}
+          disabled={text.trim() === ''}
+          onClick={add}
+        >
+          Add criterion
+        </Button>
+      </div>
+      {commit === undefined ? (
+        <div className="flex justify-end">
+          <Button
+            loading={act.pending}
+            disabled={!changed}
+            onClick={() => {
+              void keep();
             }}
           >
-            <Input
-              aria-label="A criterion"
-              placeholder="Five years building backend services in production"
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-              }}
-            />
-            <Button type="submit" variant="secondary" disabled={text.trim() === ''}>
-              Add
-            </Button>
-          </form>
-          <div className="flex justify-end">
-            <Button
-              loading={act.pending}
-              onClick={() => {
-                act.run('SetJobCriteria', { jobId: data.job.id, input: { criteria: rows } });
-              }}
-            >
-              Save criteria
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      <Card padded>
-        <p className="text-sm text-fg-muted">
-          With the matrix switched on, a model returns Met, Partly met, Not met or Not evidenced for
-          each, with the passages that support it. Kithena checks every quote and computes the
-          score: met 1, partly 0.5, weighted. A weak band is a label, never a stage.
-        </p>
-      </Card>
+            Save criteria
+          </Button>
+        </div>
+      ) : null}
     </div>
+  );
+  return commit === undefined ? (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>Criteria</CardTitle>
+        <CardDescription>What a candidate must bring, and what is a bonus.</CardDescription>
+      </CardHeader>
+      <CardContent>{body}</CardContent>
+    </Card>
+  ) : (
+    body
   );
 }
 
@@ -508,20 +591,25 @@ const LENGTHS = [15, 30, 45, 60, 90, 120, 180] as const;
 function Plan({
   data,
   props,
+  commit,
 }: {
   readonly data: JobData;
   readonly props: ScreenProps<JobData>;
+  readonly commit?: Commit | undefined;
 }): JSX.Element {
-  const act = useAct(props);
   const [plan, setPlan] = useState(data.plan);
   const [title, setTitle] = useState('');
   const change = (i: number, patch: Partial<(typeof plan)[number]>): void => {
     setPlan(plan.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   };
   const changed = JSON.stringify(plan) !== JSON.stringify(data.plan);
+  const { act, error, keep } = useKeep(props, commit, changed, 'SetJobPlan', () => ({
+    jobId: data.job.id,
+    input: { plan },
+  }));
   return (
     <div className="flex flex-col gap-4">
-      <Refusal error={act.error} />
+      <Refusal error={error} />
       {plan.length === 0 ? (
         <EmptyState
           icon={<icons.meeting aria-hidden />}
@@ -666,17 +754,19 @@ function Plan({
           Add
         </Button>
       </form>
-      <div className="flex justify-end">
-        <Button
-          loading={act.pending}
-          disabled={!changed || plan.some((p) => p.title.trim() === '')}
-          onClick={() => {
-            act.run('SetJobPlan', { jobId: data.job.id, input: { plan } });
-          }}
-        >
-          Save plan
-        </Button>
-      </div>
+      {commit === undefined ? (
+        <div className="flex justify-end">
+          <Button
+            loading={act.pending}
+            disabled={!changed || plan.some((p) => p.title.trim() === '')}
+            onClick={() => {
+              void keep();
+            }}
+          >
+            Save plan
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -889,16 +979,30 @@ function Ad({
 function Form({
   data,
   props,
+  commit,
 }: {
   readonly data: JobData;
   readonly props: ScreenProps<JobData>;
+  readonly commit?: Commit | undefined;
 }): JSX.Element {
-  const act = useAct(props);
   const [fields, setFields] = useState<readonly FormField[]>(data.form?.fields ?? []);
   const [questionnaire, setQuestionnaire] = useState(data.form?.questionnaireId ?? 'none');
+  const changed =
+    JSON.stringify(fields) !== JSON.stringify(data.form?.fields ?? []) ||
+    questionnaire !== (data.form?.questionnaireId ?? 'none');
+  const { act, error, keep } = useKeep(props, commit, changed, 'SaveJobForm', () => ({
+    jobId: data.job.id,
+    input: { fields, questionnaireId: questionnaire === 'none' ? null : questionnaire },
+  }));
   const locked = (k: string) => k === 'name' || k === 'email';
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div
+      className={
+        commit === undefined
+          ? 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]'
+          : 'flex flex-col gap-4'
+      }
+    >
       <Card>
         <CardHeader>
           <CardTitle level={2}>Apply form</CardTitle>
@@ -908,7 +1012,7 @@ function Form({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <Refusal error={act.error} />
+          <Refusal error={error} />
           <Table>
             <TableHeader>
               <TableRow>
@@ -973,26 +1077,28 @@ function Form({
             </Select>
             <FieldDescription>
               Screening questions asked on the apply form, written under Settings, Pipelines and
-              approvals. A knockout answer flags the application on the board, or rejects it where
-              the questionnaire says so.
+              approvals.
             </FieldDescription>
           </Field>
-          <div className="flex justify-end">
-            <Button
-              loading={act.pending}
-              onClick={() => {
-                act.run('SaveJobForm', {
-                  jobId: data.job.id,
-                  input: {
-                    fields,
-                    questionnaireId: questionnaire === 'none' ? null : questionnaire,
-                  },
-                });
-              }}
-            >
-              Save form
-            </Button>
-          </div>
+          <Alert tone="info" title="Knockout answers">
+            A knockout answer flags the application for the team. Where the questionnaire lets it
+            reject on its own, the application is rejected and the rejection email sent the next
+            working day at 09:00 in the candidate’s time zone, never the moment they apply. Until
+            then the team sees it flagged and can move it on instead.
+          </Alert>
+          {commit === undefined ? (
+            <div className="flex justify-end">
+              <Button
+                loading={act.pending}
+                disabled={!changed}
+                onClick={() => {
+                  void keep();
+                }}
+              >
+                Save form
+              </Button>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
       <Card>
@@ -1265,10 +1371,13 @@ function PartBody({
   part,
   data,
   props,
+  commit,
 }: {
   readonly part: Part;
   readonly data: JobData;
   readonly props: ScreenProps<JobData>;
+  /** Inside the setup: the part's edits are kept when the setup moves on. */
+  readonly commit?: Commit | undefined;
 }): JSX.Element {
   switch (part) {
     case 'details':
@@ -1278,15 +1387,15 @@ function PartBody({
     case 'benefits':
       return <BenefitsChoice data={data} props={props} />;
     case 'team':
-      return <Team data={data} props={props} />;
+      return <Team data={data} props={props} commit={commit} />;
     case 'criteria':
-      return <Criteria data={data} props={props} />;
+      return <Criteria data={data} props={props} commit={commit} />;
     case 'plan':
-      return <Plan data={data} props={props} />;
+      return <Plan data={data} props={props} commit={commit} />;
     case 'ad':
       return <Ad data={data} props={props} />;
     case 'form':
-      return <Form data={data} props={props} />;
+      return <Form data={data} props={props} commit={commit} />;
     case 'publishing':
       return <Publishing data={data} props={props} />;
   }
@@ -1643,12 +1752,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               props={props}
               stepKey={props.search?.['step'] ?? null}
               entered={props.search?.['entered'] === '1'}
-              onStep={(key) =>
-                props.onFilter?.({ setup: '1', step: key === 'title' ? null : key, entered: null })
-              }
               onClose={() => props.onFilter?.({ setup: null, step: null, entered: null })}
               onFinish={() => props.onFilter?.({ setup: null, step: null, entered: null })}
-              part={(p) => <PartBody part={p} data={data} props={props} />}
+              part={(p, commit) => <PartBody part={p} data={data} props={props} commit={commit} />}
             />
           </div>
         );

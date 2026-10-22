@@ -329,8 +329,8 @@ describe('R4–R7, a job’s setup', () => {
   it('walks a new job through its steps on a page of its own', async () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ setup: '1' }} />);
     expect(screen.getByRole('dialog', { name: /Set up/u })).toBeTruthy();
-    expect(screen.getByText('Step 1 of 18')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'What is the job called?' })).toBeTruthy();
+    expect(screen.getByText('Step 1 of 8')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What is the job?' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: /^Job title/u })).toBeTruthy();
     // No step list: the foot says where you are.
     expect(screen.queryByRole('navigation', { name: 'Set-up steps' })).toBeNull();
@@ -360,11 +360,26 @@ describe('R4–R7, a job’s setup', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
+  it('puts the hiring team and the criteria on one page, a criterion with room to write it', () => {
+    render(
+      <screens.JobSetup
+        load={ready(job)}
+        params={{ id: 'j1' }}
+        search={{ setup: '1', step: 'hiring' }}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Who hires, and for what?' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Hiring team' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'A criterion' }).tagName).toBe('TEXTAREA');
+    // Kept when the page moves on: no separate save on this page.
+    expect(screen.queryByRole('button', { name: 'Save criteria' })).toBeNull();
+  });
+
   it('starts a new job on the same page, with its title', async () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'new' }} />);
     expect(screen.getByRole('dialog', { name: 'New job' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'What is the job called?' })).toBeTruthy();
-    expect(screen.getByText('Step 1 of 18')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What is the job?' })).toBeTruthy();
+    expect(screen.getByText('Step 1 of 8')).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -376,7 +391,8 @@ describe('R4–R7, a job’s setup', () => {
         search={{ setup: '1', step: 'contract' }}
       />,
     );
-    expect(screen.getByText('Choose the work type first.')).toBeTruthy();
+    // Nothing here can be asked before the workplace is set: the page says so.
+    expect(screen.getByText('This page follows from the one before')).toBeTruthy();
   });
 });
 

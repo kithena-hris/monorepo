@@ -6,6 +6,7 @@ import { chatDaily } from './chat.js';
 import { expireOffer } from '../domain/offer/offer.js';
 import { contextOf, deliver, type Ctx, type Outgoing } from './context.js';
 import { portalLink } from './intake.js';
+import { rejectDueKnockouts } from './knockouts.js';
 import { sweepRetention } from './privacy.js';
 import { replyAddress } from './replies.js';
 import type { Deps } from './ports.js';
@@ -86,6 +87,17 @@ export async function sendDueMessages(deps: Deps): Promise<number> {
     }
   }
   return sent;
+}
+
+/** Every minute: the knockouts whose next working morning has come are rejected, and told. */
+export async function rejectKnockouts(deps: Deps): Promise<number> {
+  let rejected = 0;
+  for (const { tenantId } of await deps.uow.tenants()) {
+    const run = await asSystem(deps, tenantId, (ctx) => rejectDueKnockouts(ctx));
+    rejected += run.value;
+    await deliver(deps, tenantId, run.mail);
+  }
+  return rejected;
 }
 
 /** Daily: expire offers past their date, ask pool members to renew, remind tomorrow's candidates, chat digests and scorecard reminders, sweep retention. */

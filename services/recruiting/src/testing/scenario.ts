@@ -15,6 +15,8 @@ import * as z from 'zod';
 import { contextOf, deliver, type Ctx, type Outgoing } from '../application/context.js';
 import { uuidv7 } from '../infrastructure/ids.js';
 import { apply, requestCode } from '../application/intake.js';
+import { scheduleKnockout } from '../application/knockout-schedule.js';
+import { rejectDueKnockouts } from '../application/knockouts.js';
 import {
   createJob,
   publishTo,
@@ -632,6 +634,51 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       }),
     );
   });
+
+  // A knockout that rejects on its own: rejected, and told, the next working morning, not at once.
+  const { code: kenjiCode } = await as('public', async (ctx) =>
+    value(await requestCode(ctx, slug, 'kenji@example.com', 'Kenji Mori')),
+  );
+  const kenji = await as('public', async (ctx) =>
+    value(
+      await apply(
+        ctx,
+        {
+          jobId,
+          language: 'en',
+          answers: { name: 'Kenji Mori', email: 'kenji@example.com', right_to_work: true },
+          consent: { application: true, talentPool: false },
+          adjustments: null,
+          source: { target: 'kithena_jobs' },
+          code: kenjiCode,
+        },
+        [
+          {
+            field: 'cv',
+            fileName: 'kenji.pdf',
+            mediaType: 'application/pdf',
+            bytes: new TextEncoder().encode('Kenji Mori, designer'),
+          },
+        ],
+      ),
+    ),
+  );
+  const told = await as('ada', (ctx) =>
+    scheduleKnockout(ctx, kenji.applicationId, 'Europe/Madrid'),
+  );
+  expect(told.slice(0, 10) > new Date(now).toISOString().slice(0, 10)).toBe(true);
+  expect(await as('ada', (ctx) => rejectDueKnockouts(ctx))).toBe(0);
+  const before = now;
+  now = Date.parse(told) + 60_000;
+  expect(await as('ada', (ctx) => rejectDueKnockouts(ctx))).toBe(1);
+  const knocked = await uow.run(tenantId, (tx) => tx.applications.get(kenji.applicationId));
+  expect(knocked?.outcome).toBe('rejected');
+  const thread = await uow.run(tenantId, (tx) => tx.messages.thread(kenji.candidateId));
+  expect(thread.some((m) => m.direction === 'out')).toBe(true);
+  expect(
+    (await uow.run(tenantId, (tx) => tx.applications.get(applied.applicationId)))?.outcome,
+  ).toBe('active');
+  now = before;
 
   // Interview, scorecard, offer.
   const stages = await uow.run(tenantId, (tx) => tx.jobs.stages(jobId));

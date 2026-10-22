@@ -151,8 +151,13 @@ export function Reveal({
  * The step and the ceiling are tokens, so a stagger is the same speed
  * everywhere and one change re-times all of them.
  */
-export function staggerStyle(index: number): { transitionDelay: string } {
-  return {
-    transitionDelay: `min(calc(${String(index)} * var(--animate-stagger-step)), var(--animate-stagger-max))`,
-  };
+export function staggerStyle(index: number): { transitionDelay: string };
+/** As a delay on an entrance animation (`animate-arrive`, `animate-enter`) rather than a transition. */
+export function staggerStyle(index: number, kind: 'animation'): { animationDelay: string };
+export function staggerStyle(
+  index: number,
+  kind: 'transition' | 'animation' = 'transition',
+): { transitionDelay: string } | { animationDelay: string } {
+  const delay = `min(calc(${String(index)} * var(--animate-stagger-step)), var(--animate-stagger-max))`;
+  return kind === 'animation' ? { animationDelay: delay } : { transitionDelay: delay };
 }

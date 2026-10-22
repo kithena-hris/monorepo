@@ -15,6 +15,7 @@ import {
 } from './application.js';
 import {
   defaultPipeline,
+  nextWorkingMorning,
   sendAt,
   validatePipeline,
   withWorksCouncil,
@@ -75,6 +76,21 @@ describe('pipelines (PRD §12.1)', () => {
       'hired',
     ]);
     expect(validatePipeline(council).ok).toBe(true);
+  });
+
+  it('tells a knockout the next working day at 09:00 in the candidate’s zone, never the same day', () => {
+    // Wednesday 14 October, 15:00 in Madrid: Thursday at 09:00 CEST is 07:00 UTC.
+    expect(
+      nextWorkingMorning(new Date('2026-10-14T13:00:00Z'), 'Europe/Madrid').toISOString(),
+    ).toBe('2026-10-15T07:00:00.000Z');
+    // Friday evening in New York: Monday 19 October at 09:00 EDT is 13:00 UTC.
+    expect(
+      nextWorkingMorning(new Date('2026-10-16T22:00:00Z'), 'America/New_York').toISOString(),
+    ).toBe('2026-10-19T13:00:00.000Z');
+    // Saturday in Berlin, after the clocks went back: Monday 26 October at 09:00 CET is 08:00 UTC.
+    expect(
+      nextWorkingMorning(new Date('2026-10-24T10:00:00Z'), 'Europe/Berlin').toISOString(),
+    ).toBe('2026-10-26T08:00:00.000Z');
   });
 
   it('holds an email sent at night until 08:00 in the candidate’s zone', () => {

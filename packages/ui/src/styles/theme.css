@@ -441,6 +441,15 @@
   --animate-enter: slide-up var(--animate-duration-normal) var(--ease-entrance) backwards;
   --animate-shimmer: shimmer 1.6s linear infinite;
 
+  /* A question arriving in a flow of steps: the one authored moment such a
+     page has. It travels in from the way the person is going (set
+     `--arrive-from` to a signed length; nothing sideways by default), rises a
+     little, and resolves out of a soft blur, at the drawer spring's length so
+     it reads as placed rather than blinked. `backwards`, as `--animate-enter`,
+     so nothing paints at full strength before it starts. Stagger the parts of
+     a step with `staggerStyle(i, 'animation')`. */
+  --animate-arrive: arrive var(--animate-duration-spring-move) var(--ease-entrance) backwards;
+
   /* Panels that travel from an edge. The distance is 100% of the panel, so a
      sheet leaves and re-enters along the edge it is anchored to, the user
      keeps a mental model of where it went. */
@@ -536,6 +545,13 @@
     from {
       opacity: 0;
       transform: translateY(0.5rem);
+    }
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      transform: translate3d(var(--arrive-from, 0px), 0.75rem, 0);
+      filter: blur(6px);
     }
   }
   @keyframes shimmer {

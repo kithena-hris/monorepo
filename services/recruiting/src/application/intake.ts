@@ -1,3 +1,4 @@
+import { scheduleKnockout } from './knockout-schedule.js';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import {
   ApplyPayload,
@@ -293,6 +294,8 @@ async function land(
       scored.score,
       scored.knockedOut,
     );
+    // A knockout that may reject on its own: rejected, and told, the next working day.
+    if (scored.autoReject) await scheduleKnockout(ctx, id, candidate.timeZone ?? 'UTC');
   }
   for (const file of files) {
     const kind: CandidateFile['kind'] =
