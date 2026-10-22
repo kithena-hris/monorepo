@@ -107,7 +107,8 @@ export function recruitingListener(
         }
       }
       // A company's logo (S1): public, and named by its own hash, so cached for good.
-      const logoAt = /^\/v1\/recruiting\/logos\/([^/?]+)$/u.exec(request.url ?? '')?.[1];
+      // Under `public/`, the only prefix the tunnel lets through to Kithena Jobs.
+      const logoAt = /^\/v1\/recruiting\/public\/logos\/([^/?]+)$/u.exec(request.url ?? '')?.[1];
       if (request.method === 'GET' && logoAt !== undefined && logo !== undefined) {
         const bytes = LOGO_NAME.test(logoAt) ? await logo(logoAt) : null;
         if (bytes === null) {

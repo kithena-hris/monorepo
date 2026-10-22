@@ -37,7 +37,6 @@ import {
   ListItem,
   PageHeader,
   Reveal,
-  RowMenu,
   Select,
   SelectContent,
   SelectItem,
@@ -54,6 +53,7 @@ import {
   Textarea,
   icons,
   staggerStyle,
+  type ListItemProps,
   type UploadedImage,
 } from '@reach/ui';
 import { useState, type CSSProperties, type JSX, type ReactNode } from 'react';
@@ -70,7 +70,9 @@ import {
   LocationEditor,
   PipelineEditor,
   QuestionnaireEditor,
+  TEMPLATE_PURPOSES,
   TemplateEditor,
+  chainSentence,
   useChecks,
 } from './settings-editors';
 import { Refusal, money, newId, useAct, words } from './shared';
@@ -167,27 +169,17 @@ function rowActions(
   ];
 }
 
-/** A row People owns: changed there, so its menu goes there. */
-const inPeople = (
-  props: ScreenProps<SettingsData>,
-  path: string,
-): readonly { id: string; label: string; icon: JSX.Element; onSelect: () => void }[] => [
-  {
-    id: 'people',
-    label: 'Change it in People',
-    icon: <icons.externalLink aria-hidden />,
-    onSelect: () => props.onNavigate?.(path),
-  },
-];
-
-/** Where a row came from, when not from here. */
+/** Where a row came from, when not from here: opening it goes there. */
 function FromPeople(): JSX.Element {
   return (
     <Badge size="xs" variant="outline">
-      From People
+      Edited in People
     </Badge>
   );
 }
+
+const PEOPLE_LOCATIONS = '/settings/people/organisation/locations';
+const PEOPLE_UNITS = '/settings/people/organisation/org-units';
 
 /**
  * Removing for good asks first, once, naming what goes and what it touches;
@@ -292,6 +284,26 @@ const arrive = (i: number): { className: string; style: CSSProperties } => ({
   className: 'animate-arrive',
   style: staggerStyle(Math.min(i, 8), 'animation'),
 });
+
+/** A row that opens its editor: the whole row is the button, the menu at its end the rest. */
+function Row({
+  title,
+  index,
+  onOpen,
+  ...rest
+}: Omit<ListItemProps, 'asChild' | 'children' | 'chevron' | 'title'> & {
+  readonly title: string;
+  readonly index: number;
+  readonly onOpen: () => void;
+}): JSX.Element {
+  return (
+    <ListItem {...arrive(index)} {...rest} asChild chevron={rest.actions === undefined}>
+      <button type="button" onClick={onOpen}>
+        {title}
+      </button>
+    </ListItem>
+  );
+}
 
 /** A list of things, or a line saying there are none yet and what to do. */
 function Things({
@@ -1033,9 +1045,13 @@ const Organisation: Body = ({ data, props }) => {
             icon={<icons.company aria-hidden />}
           >
             {data.entities.map((e, i) => (
-              <ListItem
+              <Row
                 key={e.id}
-                {...arrive(i)}
+                index={i}
+                title={e.name}
+                onOpen={() => {
+                  setEntity(e);
+                }}
                 icon={<icons.company aria-hidden />}
                 description={[
                   COUNTRY[e.country] ?? e.country,
@@ -1062,9 +1078,7 @@ const Organisation: Body = ({ data, props }) => {
                         );
                       },
                 )}
-              >
-                {e.name}
-              </ListItem>
+              />
             ))}
           </Things>
           <AddButton
@@ -1080,16 +1094,22 @@ const Organisation: Body = ({ data, props }) => {
             icon={<icons.location aria-hidden />}
           >
             {data.locations.map((l, i) => (
-              <ListItem
+              <Row
                 key={l.id}
-                {...arrive(i)}
+                index={i}
+                title={l.name}
+                onOpen={() => {
+                  // People keeps its locations; they are changed there.
+                  if (l.source === 'people') props.onNavigate?.(PEOPLE_LOCATIONS);
+                  else setLocation(l);
+                }}
                 icon={<icons.location aria-hidden />}
                 description={[entityName(l.entityId), l.city, l.timeZone]
                   .filter(Boolean)
                   .join(' · ')}
                 {...(l.source === 'people' ? { meta: <FromPeople /> } : {})}
                 {...(l.source === 'people'
-                  ? { actions: inPeople(props, '/settings/people/organisation/locations') }
+                  ? {}
                   : {
                       actions: rowActions(
                         'location',
@@ -1107,9 +1127,7 @@ const Organisation: Body = ({ data, props }) => {
                         },
                       ),
                     })}
-              >
-                {l.name}
-              </ListItem>
+              />
             ))}
           </Things>
           <AddButton
@@ -1125,9 +1143,14 @@ const Organisation: Body = ({ data, props }) => {
             icon={<icons.organisation aria-hidden />}
           >
             {data.orgUnits.map((u, i) => (
-              <ListItem
+              <Row
                 key={u.id}
-                {...arrive(i)}
+                index={i}
+                title={u.name}
+                onOpen={() => {
+                  if (u.source === 'people') props.onNavigate?.(PEOPLE_UNITS);
+                  else setUnit(u);
+                }}
                 icon={<icons.organisation aria-hidden />}
                 description={
                   u.parentId === null
@@ -1136,7 +1159,7 @@ const Organisation: Body = ({ data, props }) => {
                 }
                 {...(u.source === 'people' ? { meta: <FromPeople /> } : {})}
                 {...(u.source === 'people'
-                  ? { actions: inPeople(props, '/settings/people/organisation/org-units') }
+                  ? {}
                   : {
                       actions: rowActions(
                         'department',
@@ -1154,9 +1177,7 @@ const Organisation: Body = ({ data, props }) => {
                         },
                       ),
                     })}
-              >
-                {u.name}
-              </ListItem>
+              />
             ))}
           </Things>
           <AddButton
@@ -1227,9 +1248,13 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
             icon={<icons.hierarchy aria-hidden />}
           >
             {data.pipelines.map((p, i) => (
-              <ListItem
+              <Row
                 key={p.id}
-                {...arrive(i)}
+                index={i}
+                title={p.name}
+                onOpen={() => {
+                  setPipeline(p);
+                }}
                 icon={<icons.hierarchy aria-hidden />}
                 description={p.stages.map((s) => s.name).join(' → ')}
                 {...(p.isDefault
@@ -1258,9 +1283,7 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
                         );
                       },
                 )}
-              >
-                {p.name}
-              </ListItem>
+              />
             ))}
           </Things>
           <AddButton
@@ -1270,14 +1293,25 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
             }}
           />
         </Group>
-        <Group
-          title="Approval chains"
-          description="The first that fits decides. None: no approval."
-        >
+        <Group title="Approvals">
+          <Alert tone="info" icon={<icons.approve aria-hidden />} title="How approvals work">
+            <div className="flex flex-col gap-2">
+              <p>
+                Two things can need a yes before they happen: opening a new job, and sending an
+                offer. A rule below says when, and who says yes, one after another. Each of them
+                gets a task in their Inbox; once the last says yes, it goes ahead.
+              </p>
+              <p>
+                For example: when a new job’s budget is over €100,000, ask the hiring manager’s
+                manager, then Finance. A €60,000 job fits no rule, so it opens at once.
+              </p>
+              <p>No rule fits: no approval needed. More than one fits: the narrowest is used.</p>
+            </div>
+          </Alert>
           <Things
             empty={
               data.chains.length === 0
-                ? 'No approvals yet: requisitions and offers go through as they are.'
+                ? 'No rules yet: new jobs and offers go ahead without an approval.'
                 : null
             }
             icon={<icons.approve aria-hidden />}
@@ -1285,13 +1319,17 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
             {data.chains
               .toSorted((a, b) => a.priority - b.priority)
               .map((c, i) => (
-                <ListItem
+                <Row
                   key={c.id}
-                  {...arrive(i)}
+                  index={i}
+                  title={c.name}
+                  onOpen={() => {
+                    setChain(c);
+                  }}
                   icon={<icons.approve aria-hidden />}
-                  description={`For ${words(c.appliesTo).toLowerCase()}s · ${String(c.steps.length)} ${c.steps.length === 1 ? 'approver' : 'approvers in turn'} · tried ${String(i + 1)}${i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'}`}
+                  description={chainSentence(c, data)}
                   actions={rowActions(
-                    'approval chain',
+                    'approval rule',
                     () => {
                       setChain(c);
                     },
@@ -1305,13 +1343,11 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
                       );
                     },
                   )}
-                >
-                  {c.name}
-                </ListItem>
+                />
               ))}
           </Things>
           <AddButton
-            label="Add approval chain"
+            label="Add approval rule"
             onClick={() => {
               setChain('new');
             }}
@@ -1321,7 +1357,7 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
           <InWords
             data={data}
             props={props}
-            placeholder="A pipeline for interns with no assessment, or approvals for budgets over 100k"
+            placeholder="A pipeline for interns with no assessment, or Finance approves jobs over 100k"
           />
         </Group>
       </Stack>
@@ -1381,9 +1417,13 @@ const Questionnaires: Body = ({ data, props }) => {
           icon={<icons.document aria-hidden />}
         >
           {data.questionnaires.map((q, i) => (
-            <ListItem
+            <Row
               key={q.id}
-              {...arrive(i)}
+              index={i}
+              title={q.name}
+              onOpen={() => {
+                setQuestionnaire(q);
+              }}
               icon={<icons.document aria-hidden />}
               description={`${String(q.questions.length)} ${q.questions.length === 1 ? 'question' : 'questions'} · version ${String(q.version)}`}
               {...(q.worksCouncilConsentVersion === q.version
@@ -1406,9 +1446,7 @@ const Questionnaires: Body = ({ data, props }) => {
                   });
                 },
               )}
-            >
-              {q.name}
-            </ListItem>
+            />
           ))}
         </Things>
       </Stack>
@@ -1426,29 +1464,35 @@ const Questionnaires: Body = ({ data, props }) => {
   );
 };
 
-const STANDARD_EMAILS = [
-  'rejection',
-  'selection',
-  'interview_confirmation',
-  'offer',
-  'stage_expectations',
-] as const;
+const purposeLabel = (purpose: string): string =>
+  (TEMPLATE_PURPOSES as Readonly<Record<string, string | undefined>>)[purpose] ?? words(purpose);
+
+/** An email's words, flattened to read in a row: its subject, then how it opens. */
+const firstWords = (t: { readonly subject: string | null; readonly body: string }): string =>
+  [t.subject, t.body.replaceAll(/\s+/gu, ' ').trim()].filter(Boolean).join(' — ');
 
 const EmailsAndLetters: Body = ({ data, props }) => {
   const act = useAct(props);
   const removal = useRemoval(act);
   const [template, setTemplate] = useState<MessageTemplate | null | 'new'>(null);
-  const missing = STANDARD_EMAILS.filter(
-    (purpose) => !data.templates.some((t) => t.kind === 'email' && t.purpose === purpose),
-  );
   const emails = data.templates.filter((t) => t.kind === 'email');
   const letters = data.templates.filter((t) => t.kind !== 'email');
+  // A standard email not yet the company's own sends Kithena's words: listed to read, and
+  // opened to change, which keeps a copy.
+  const builtIn = (data.builtInEmails ?? []).filter(
+    (b) => !emails.some((t) => t.purpose === b.purpose),
+  );
   const row = (t: MessageTemplate, i: number): JSX.Element => (
-    <ListItem
+    <Row
       key={t.id}
-      {...arrive(i)}
+      index={i}
+      title={t.name}
+      onOpen={() => {
+        setTemplate(t);
+      }}
       icon={t.kind === 'email' ? <icons.email aria-hidden /> : <icons.document aria-hidden />}
-      description={`${words(t.purpose)} · ${t.language.toUpperCase()}`}
+      description={`${purposeLabel(t.purpose)} · ${t.language.toUpperCase()}`}
+      supporting={firstWords(t)}
       actions={rowActions(
         'template',
         () => {
@@ -1460,15 +1504,13 @@ const EmailsAndLetters: Body = ({ data, props }) => {
           });
         },
       )}
-    >
-      {t.name}
-    </ListItem>
+    />
   );
   return (
     <>
       <Header
         title="Emails and letters"
-        description="What candidates receive, and when."
+        description="What candidates receive, and when. Open one to read or change it."
         actions={
           <Button
             variant="primary"
@@ -1483,33 +1525,38 @@ const EmailsAndLetters: Body = ({ data, props }) => {
       />
       <Stack>
         <Refusal error={act.error} />
-        {missing.length === 0 ? null : (
-          <Alert
-            tone="accent"
-            icon={<icons.email aria-hidden />}
-            title={`${String(missing.length)} standard ${missing.length === 1 ? 'email is' : 'emails are'} using the built-in words`}
-            action={
-              <Button
-                size="sm"
-                variant="primary"
-                loading={act.pending}
-                onClick={() => {
-                  act.run('SeedEmailTemplates', {});
-                }}
-              >
-                Add them to edit
-              </Button>
-            }
-          >
-            {missing.map((m) => words(m)).join(', ')}
-          </Alert>
-        )}
         <Group title="Emails">
           <Things
-            empty={emails.length === 0 ? 'No email of your own yet.' : null}
+            empty={emails.length + builtIn.length === 0 ? 'No email yet.' : null}
             icon={<icons.email aria-hidden />}
           >
             {emails.map(row)}
+            {builtIn.map((b, i) => (
+              <Row
+                key={b.purpose}
+                index={emails.length + i}
+                title={b.name}
+                onOpen={() => {
+                  setTemplate({
+                    id: newId(),
+                    kind: 'email',
+                    purpose: b.purpose,
+                    language: 'en',
+                    name: b.name,
+                    subject: b.subject,
+                    body: b.body,
+                  });
+                }}
+                icon={<icons.email aria-hidden />}
+                meta={
+                  <Badge size="xs" variant="outline">
+                    Built in
+                  </Badge>
+                }
+                description={`${purposeLabel(b.purpose)} · EN`}
+                supporting={firstWords(b)}
+              />
+            ))}
           </Things>
         </Group>
         <Group title="Letters">
@@ -1549,23 +1596,61 @@ interface Template {
 const keyOf = (name: string, i: number): string =>
   (reasonKey(name) || `c${String(i)}`).replace(/^(?![a-z])/u, 'c_');
 
-/** A new scorecard: its name and its competencies, each typed and kept with Enter. */
+interface DraftCompetency {
+  readonly id: string;
+  readonly key: string | null;
+  readonly name: string;
+  readonly description: string;
+  /** One question a line, as typed; split when saved. */
+  readonly questions: string;
+}
+
+const draftOf = (c: Template['competencies'][number] | SettingsData['scorecards'][number]['competencies'][number]): DraftCompetency => ({
+  id: newId(),
+  key: c.key,
+  name: c.name,
+  description: c.description ?? '',
+  questions: (c.questions ?? []).join('\n'),
+});
+
+const blank = (): DraftCompetency => ({
+  id: newId(),
+  key: null,
+  name: '',
+  description: '',
+  questions: '',
+});
+
+/**
+ * A scorecard: its name, and each competency interviewers rate, with notes on
+ * what good looks like and the questions that bring it out. AI can suggest the
+ * questions once the scorecard is saved; they land here to read and change.
+ */
 function ScorecardEditor({
   held,
   act,
   taken,
+  aiOn,
   onClose,
 }: {
   /** The scorecard to change, or null for a new one. */
   readonly held: SettingsData['scorecards'][number] | null;
   readonly act: Act;
   readonly taken: readonly string[];
+  readonly aiOn: boolean;
   readonly onClose: () => void;
 }): JSX.Element {
   const [name, setName] = useState(held?.name ?? '');
-  const [competencies, setCompetencies] = useState<readonly string[]>(
-    held?.competencies.map((c) => c.name) ?? [],
+  const [competencies, setCompetencies] = useState<readonly DraftCompetency[]>(
+    held === null || held.competencies.length === 0 ? [blank()] : held.competencies.map(draftOf),
   );
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggested, setSuggested] = useState(false);
+  const [aiProblem, setAiProblem] = useState<string | null>(null);
+  const update = (id: string, patch: Partial<DraftCompetency>): void => {
+    setCompetencies(competencies.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  };
+  const named = competencies.filter((c) => c.name.trim() !== '');
   const checks = useChecks({
     name:
       name.trim() === ''
@@ -1573,7 +1658,11 @@ function ScorecardEditor({
         : taken.some((t) => t.toLowerCase() === name.trim().toLowerCase() && t !== held?.name)
           ? 'A scorecard by that name is already here.'
           : null,
-    competencies: competencies.length === 0 ? 'Add at least one competency to rate.' : null,
+    competencies: named.length === 0 ? 'Add at least one competency to rate.' : null,
+    twice:
+      new Set(named.map((c) => c.name.trim().toLowerCase())).size === named.length
+        ? null
+        : 'Two competencies have the same name.',
   });
   return (
     <Dialog
@@ -1582,15 +1671,20 @@ function ScorecardEditor({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{held === null ? 'New scorecard' : held.name}</DialogTitle>
           <DialogDescription>
-            What interviewers rate, each on the four-point scale.
+            What interviewers rate after an interview, each competency on the four-point scale.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Refusal error={act.error} />
+          {checks.tried && (checks.error('competencies') ?? checks.error('twice')) !== null ? (
+            <Alert tone="danger" title="Before saving" className="animate-arrive">
+              {checks.error('competencies') ?? checks.error('twice')}
+            </Alert>
+          ) : null}
           <Field required invalid={checks.invalid('name')}>
             <FieldLabel>Name</FieldLabel>
             <FieldControl>
@@ -1604,22 +1698,140 @@ function ScorecardEditor({
             </FieldControl>
             <FieldError>{checks.error('name')}</FieldError>
           </Field>
-          <TagsInput
-            label="Competencies"
-            value={competencies}
-            placeholder="System design, then Enter"
-            invalid={checks.invalid('competencies')}
-            hint={
-              checks.error('competencies') ??
-              'Press Enter after each one. AI can suggest probing questions once it is saved.'
-            }
-            validate={(c) =>
-              competencies.some((x) => x.toLowerCase() === c.trim().toLowerCase())
-                ? 'Already on the card.'
-                : null
-            }
-            onChange={setCompetencies}
-          />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-semibold">Competencies</span>
+              {held === null ? null : (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  startIcon={<icons.assistant aria-hidden />}
+                  loading={suggesting}
+                  disabled={!aiOn}
+                  onClick={() => {
+                    setSuggesting(true);
+                    setAiProblem(null);
+                    void act.call('SuggestKitQuestions', { id: held.id }).then((done) => {
+                      setSuggesting(false);
+                      if (!done.ok) {
+                        setAiProblem(done.message);
+                        return;
+                      }
+                      const t = done.data as Template;
+                      // Suggestions fill each competency's questions; what is typed stays.
+                      setCompetencies(
+                        competencies.map((c) => {
+                          const from = t.competencies.find(
+                            (x) => x.key === c.key || x.name === c.name,
+                          );
+                          return from === undefined || from.questions.length === 0
+                            ? c
+                            : {
+                                ...c,
+                                questions: [
+                                  ...new Set([
+                                    ...c.questions.split('\n').filter((q) => q.trim() !== ''),
+                                    ...from.questions,
+                                  ]),
+                                ].join('\n'),
+                              };
+                        }),
+                      );
+                      setSuggested(true);
+                    });
+                  }}
+                >
+                  Suggest questions with AI
+                </Button>
+              )}
+            </div>
+            {aiProblem === null ? null : <Refusal error={aiProblem} />}
+            {held !== null && !aiOn ? (
+              <p className="text-sm text-fg-muted">
+                To suggest questions with AI, switch on “Write and translate job ads” under AI.
+              </p>
+            ) : null}
+            {suggested ? (
+              <div className="flex animate-arrive items-center gap-2 text-sm text-fg-muted">
+                <Badge size="sm" tone="assistant">
+                  Suggested by AI
+                </Badge>
+                <span>Questions added below. Read them, change any, then save.</span>
+              </div>
+            ) : null}
+            {competencies.map((c, i) => (
+              <div
+                key={c.id}
+                className="flex animate-arrive flex-col gap-3 rounded-lg bg-surface-sunken p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <Field required className="flex-1">
+                    <FieldLabel>{`Competency ${String(i + 1)}`}</FieldLabel>
+                    <FieldControl>
+                      <Input
+                        value={c.name}
+                        placeholder="System design"
+                        onChange={(e) => {
+                          update(c.id, { name: e.target.value });
+                        }}
+                      />
+                    </FieldControl>
+                  </Field>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    className="mt-6"
+                    aria-label={`Remove ${c.name === '' ? `competency ${String(i + 1)}` : c.name}`}
+                    startIcon={<icons.remove aria-hidden />}
+                    onClick={() => {
+                      setCompetencies(competencies.filter((x) => x.id !== c.id));
+                    }}
+                  />
+                </div>
+                <Field>
+                  <FieldLabel>Notes for interviewers</FieldLabel>
+                  <FieldControl>
+                    <Textarea
+                      autoResize
+                      rows={2}
+                      value={c.description}
+                      placeholder="What good looks like, and what to listen for."
+                      onChange={(e) => {
+                        update(c.id, { description: e.target.value });
+                      }}
+                    />
+                  </FieldControl>
+                </Field>
+                <Field>
+                  <FieldLabel>Questions to ask</FieldLabel>
+                  <FieldControl>
+                    <Textarea
+                      autoResize
+                      rows={2}
+                      value={c.questions}
+                      placeholder="One question a line"
+                      onChange={(e) => {
+                        update(c.id, { questions: e.target.value });
+                      }}
+                    />
+                  </FieldControl>
+                  <FieldDescription>One a line. Interviewers see them in their kit.</FieldDescription>
+                </Field>
+              </div>
+            ))}
+            <div>
+              <Button
+                size="sm"
+                variant="secondary"
+                startIcon={<icons.add aria-hidden />}
+                onClick={() => {
+                  setCompetencies([...competencies, blank()]);
+                }}
+              >
+                Add competency
+              </Button>
+            </div>
+          </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
@@ -1636,16 +1848,15 @@ function ScorecardEditor({
                   id: held?.id ?? newId(),
                   input: {
                     name: name.trim(),
-                    // A competency kept keeps its key, its description and its questions.
-                    competencies: competencies.map((c, i) => {
-                      const was = held?.competencies.find((x) => x.name === c);
-                      return {
-                        key: was?.key ?? keyOf(c, i),
-                        name: c,
-                        description: was?.description ?? '',
-                        questions: was?.questions ?? [],
-                      };
-                    }),
+                    competencies: named.map((c, i) => ({
+                      key: c.key ?? keyOf(c.name, i),
+                      name: c.name.trim(),
+                      description: c.description.trim(),
+                      questions: c.questions
+                        .split('\n')
+                        .map((q) => q.trim())
+                        .filter(Boolean),
+                    })),
                   },
                 },
                 onClose,
@@ -1671,12 +1882,11 @@ const Scorecards: Body = ({ data, props }) => {
   const act = useAct(props);
   const removal = useRemoval(act);
   const [editing, setEditing] = useState<SettingsData['scorecards'][number] | 'new' | null>(null);
-  const [suggested, setSuggested] = useState<Template | null>(null);
   return (
     <>
       <Header
         title="Scorecards"
-        description="What interviewers rate after each interview."
+        description="What interviewers rate after each interview. Open one to change it."
         actions={
           <Button
             variant="primary"
@@ -1700,37 +1910,25 @@ const Scorecards: Body = ({ data, props }) => {
             }
             icon={<icons.review aria-hidden />}
           >
-            {data.scorecards.map((s, i) => (
-              <ListItem
-                key={s.id}
-                {...arrive(i)}
-                icon={<icons.review aria-hidden />}
-                description={s.competencies.map((c) => c.name).join(' · ')}
-                actions={[
-                  {
-                    id: 'edit',
-                    label: 'Edit scorecard',
-                    icon: <icons.edit aria-hidden />,
-                    onSelect: () => {
+            {data.scorecards.map((s, i) => {
+              const asked = s.competencies.reduce((n, c) => n + (c.questions?.length ?? 0), 0);
+              return (
+                <Row
+                  key={s.id}
+                  index={i}
+                  title={s.name}
+                  onOpen={() => {
+                    setEditing(s);
+                  }}
+                  icon={<icons.review aria-hidden />}
+                  description={`${String(s.competencies.length)} ${s.competencies.length === 1 ? 'competency' : 'competencies'} · ${asked === 0 ? 'no questions yet' : `${String(asked)} ${asked === 1 ? 'question' : 'questions'}`}`}
+                  supporting={s.competencies.map((c) => c.name).join(' · ')}
+                  actions={rowActions(
+                    'scorecard',
+                    () => {
                       setEditing(s);
                     },
-                  },
-                  {
-                    id: 'suggest',
-                    label: 'Suggest probing questions with AI',
-                    icon: <icons.assistant aria-hidden />,
-                    onSelect: () => {
-                      act.run('SuggestKitQuestions', { id: s.id }, (t) => {
-                        setSuggested(t as Template);
-                      });
-                    },
-                  },
-                  {
-                    id: 'remove',
-                    label: 'Remove scorecard',
-                    icon: <icons.remove aria-hidden />,
-                    destructive: true,
-                    onSelect: () => {
+                    () => {
                       removal.ask(
                         s.name,
                         'Jobs that use it fall back to their own scorecard.',
@@ -1739,66 +1937,11 @@ const Scorecards: Body = ({ data, props }) => {
                         },
                       );
                     },
-                  },
-                ]}
-              >
-                {s.name}
-              </ListItem>
-            ))}
+                  )}
+                />
+              );
+            })}
           </Things>
-          {/* Suggested questions, read before they are kept. */}
-          <Reveal open={suggested !== null} from="top">
-            {suggested === null ? null : (
-              <Alert
-                tone="accent"
-                icon={<icons.assistant aria-hidden />}
-                title={`Questions suggested for ${suggested.name}`}
-              >
-                <div className="flex flex-col gap-3 pt-1">
-                  {suggested.competencies.map((c) => (
-                    <div key={c.key}>
-                      <span className="font-medium">{c.name}</span>
-                      <ul className="list-disc ps-5">
-                        {c.questions.map((q) => (
-                          <li key={q}>{q}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      loading={act.pending}
-                      onClick={() => {
-                        act.run(
-                          'SaveScorecardTemplate',
-                          {
-                            id: suggested.id,
-                            input: { name: suggested.name, competencies: suggested.competencies },
-                          },
-                          () => {
-                            setSuggested(null);
-                          },
-                        );
-                      }}
-                    >
-                      Keep these questions
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setSuggested(null);
-                      }}
-                    >
-                      Discard
-                    </Button>
-                  </div>
-                </div>
-              </Alert>
-            )}
-          </Reveal>
         </Group>
         <Group title="The scale">
           <List>
@@ -1824,6 +1967,7 @@ const Scorecards: Body = ({ data, props }) => {
           held={editing === 'new' ? null : editing}
           act={act}
           taken={data.scorecards.map((s) => s.name)}
+          aiOn={data.general.ai.writer}
           onClose={() => {
             setEditing(null);
           }}
@@ -1835,7 +1979,7 @@ const Scorecards: Body = ({ data, props }) => {
 
 type Band = SettingsData['payBands'][number];
 
-/** A pay band: its grade, the entity it pays in, and from and to, the ceiling above the floor. */
+/** A pay band: a grade, the currency it pays in, and the yearly range an offer for it should fall in. */
 function PayBandEditor({
   held,
   data,
@@ -1858,7 +2002,7 @@ function PayBandEditor({
   const checks = useChecks({
     grade:
       grade.trim() === ''
-        ? 'Name the grade, as offers refer to it.'
+        ? 'Name the grade, such as Senior or E3.'
         : data.payBands.some(
               (b) =>
                 b.id !== held?.id &&
@@ -1867,15 +2011,16 @@ function PayBandEditor({
             )
           ? 'That grade already has a band in this currency.'
           : null,
-    entity: entity === '' ? 'Choose the entity it pays in.' : null,
-    min: min === '' || Number(min) <= 0 ? 'Enter the band’s floor.' : null,
+    entity: entity === '' ? 'Choose who pays it.' : null,
+    min: min === '' || Number(min) <= 0 ? 'Enter the lowest yearly salary.' : null,
     max:
       max === ''
-        ? 'Enter the band’s ceiling.'
+        ? 'Enter the highest yearly salary.'
         : min !== '' && Number(max) <= Number(min)
-          ? 'The ceiling is above the floor.'
+          ? 'The highest is above the lowest.'
           : null,
   });
+  const complete = grade.trim() !== '' && min !== '' && max !== '' && Number(max) > Number(min);
   return (
     <Dialog
       open
@@ -1885,10 +2030,9 @@ function PayBandEditor({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{held === null ? 'New pay band' : `Pay band ${held.grade}`}</DialogTitle>
+          <DialogTitle>{held === null ? 'New pay band' : `Pay band: ${held.grade}`}</DialogTitle>
           <DialogDescription>
-            An offer for this grade is checked against it; outside it needs a reason and an
-            approval.
+            The yearly salary a grade pays, from lowest to highest.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
@@ -1898,47 +2042,56 @@ function PayBandEditor({
             <FieldControl>
               <Input
                 value={grade}
-                placeholder="E12"
+                placeholder="Senior"
                 onChange={(e) => {
                   setGrade(e.target.value);
                 }}
               />
             </FieldControl>
+            <FieldDescription>The level a job is hired at, as your offers name it.</FieldDescription>
             <FieldError>{checks.error('grade')}</FieldError>
           </Field>
-          <Field required invalid={checks.invalid('entity')}>
-            <FieldLabel>Legal entity</FieldLabel>
-            <Select value={entity} onValueChange={setEntity}>
+          {data.entities.length < 2 ? null : (
+            <Field required invalid={checks.invalid('entity')}>
+              <FieldLabel>Paid by</FieldLabel>
+              <Select value={entity} onValueChange={setEntity}>
+                <FieldControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an entity" />
+                  </SelectTrigger>
+                </FieldControl>
+                <SelectContent>
+                  {data.entities.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {`${e.name}, in ${e.currency}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError>{checks.error('entity')}</FieldError>
+            </Field>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field required invalid={checks.invalid('min')}>
+              <FieldLabel>Lowest, a year</FieldLabel>
               <FieldControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose an entity" />
-                </SelectTrigger>
+                <CurrencyField currency={currency} value={min} onValueChange={setMin} />
               </FieldControl>
-              <SelectContent>
-                {data.entities.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {`${e.name} · ${e.currency}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>The band is in its currency.</FieldDescription>
-            <FieldError>{checks.error('entity')}</FieldError>
-          </Field>
-          <Field required invalid={checks.invalid('min')}>
-            <FieldLabel>From, a year</FieldLabel>
-            <FieldControl>
-              <CurrencyField currency={currency} value={min} onValueChange={setMin} />
-            </FieldControl>
-            <FieldError>{checks.error('min')}</FieldError>
-          </Field>
-          <Field required invalid={checks.invalid('max')}>
-            <FieldLabel>To, a year</FieldLabel>
-            <FieldControl>
-              <CurrencyField currency={currency} value={max} onValueChange={setMax} />
-            </FieldControl>
-            <FieldError>{checks.error('max')}</FieldError>
-          </Field>
+              <FieldError>{checks.error('min')}</FieldError>
+            </Field>
+            <Field required invalid={checks.invalid('max')}>
+              <FieldLabel>Highest, a year</FieldLabel>
+              <FieldControl>
+                <CurrencyField currency={currency} value={max} onValueChange={setMax} />
+              </FieldControl>
+              <FieldError>{checks.error('max')}</FieldError>
+            </Field>
+          </div>
+          {complete ? (
+            <Alert tone="accent" icon={<icons.payment aria-hidden />} className="animate-arrive">
+              {`An offer for ${grade.trim()} pays between ${money(Number(min), currency)} and ${money(Number(max), currency)} a year. Outside that, whoever makes it gives a reason.`}
+            </Alert>
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
@@ -1980,11 +2133,16 @@ const PayBands: Body = ({ data, props }) => {
   const bands = data.payBands.toSorted(
     (a, b) => a.currency.localeCompare(b.currency) || a.minMinor - b.minMinor,
   );
+  const payers = (currency: string): string =>
+    data.entities
+      .filter((e) => e.currency === currency)
+      .map((e) => e.name)
+      .join(', ');
   return (
     <>
       <Header
         title="Pay bands"
-        description="The range each grade pays."
+        description="The yearly salary each grade pays. Open one to change it."
         actions={
           data.entities.length === 0 ? undefined : (
             <Button
@@ -2001,52 +2159,37 @@ const PayBands: Body = ({ data, props }) => {
       />
       <Stack>
         <Refusal error={act.error} />
+        <Alert tone="info" icon={<icons.payment aria-hidden />} title="How pay bands work">
+          A job is hired at a grade, such as Junior, Senior or E3. Its band is the range an offer
+          for that grade should fall in. An offer outside it asks for a reason, and goes to
+          whoever an approval rule names.
+        </Alert>
         {data.entities.length === 0 ? (
-          <Alert tone="info" title="Add a legal entity first">
-            A band pays in its entity’s currency.
+          <Alert tone="warning" title="Add a legal entity first">
+            A band is paid in its entity’s currency.
           </Alert>
-        ) : bands.length === 0 ? (
-          <EmptyState
-            icon={<icons.payment aria-hidden />}
-            title="No pay bands yet"
-            description="Add the range for each grade; offers outside it ask for a reason and an approval."
-          />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Grade</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
-                <TableHead>Kept in</TableHead>
-                <TableHead className="w-10">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <Group title="Bands">
+            <Things
+              empty={bands.length === 0 ? 'Add the range for each grade you hire at.' : null}
+              icon={<icons.payment aria-hidden />}
+            >
               {bands.map((b, i) => (
-                <TableRow key={b.id} {...arrive(i)}>
-                  <TableCell className="font-medium">{b.grade}</TableCell>
-                  <TableCell className="tabular-nums">{money(b.minMinor, b.currency)}</TableCell>
-                  <TableCell className="tabular-nums">{money(b.maxMinor, b.currency)}</TableCell>
-                  <TableCell>
-                    {b.source === 'people' ? (
-                      <FromPeople />
-                    ) : (
-                      <span className="text-fg-muted">Recruiting</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {b.source === 'people' ? (
-                      <RowMenu
-                        name={b.grade}
-                        actions={inPeople(props, '/settings/people/organisation/pay-bands')}
-                      />
-                    ) : (
-                      <RowMenu
-                        name={b.grade}
-                        actions={rowActions(
+                <Row
+                  key={b.id}
+                  index={i}
+                  title={b.grade}
+                  onOpen={() => {
+                    if (b.source === 'people')
+                      props.onNavigate?.('/settings/people/organisation/pay-bands');
+                    else setBand(b);
+                  }}
+                  icon={<icons.payment aria-hidden />}
+                  description={`${money(b.minMinor, b.currency)} to ${money(b.maxMinor, b.currency)} a year${payers(b.currency) === '' ? '' : ` · ${payers(b.currency)}`}`}
+                  {...(b.source === 'people'
+                    ? { meta: <FromPeople /> }
+                    : {
+                        actions: rowActions(
                           'pay band',
                           () => {
                             setBand(b);
@@ -2060,14 +2203,12 @@ const PayBands: Body = ({ data, props }) => {
                               },
                             );
                           },
-                        )}
-                      />
-                    )}
-                  </TableCell>
-                </TableRow>
+                        ),
+                      })}
+                />
               ))}
-            </TableBody>
-          </Table>
+            </Things>
+          </Group>
         )}
       </Stack>
       {removal.dialog}
@@ -2203,40 +2344,48 @@ const Benefits: Body = ({ data, props }) => {
                         <p className="ps-13 text-sm text-fg-muted">Nothing offered here yet.</p>
                       ) : (
                         <List className="ms-13">
-                          {list.map((b, i) => (
-                            <ListItem
-                              key={b.id}
-                              {...arrive(i)}
-                              description={[b.description, worth(b)].filter(Boolean).join(' · ')}
-                              {...(b.statutory
-                                ? {
-                                    meta: (
-                                      <Badge size="xs" variant="soft" tone="info">
-                                        By law
-                                      </Badge>
-                                    ),
-                                  }
-                                : {
-                                    actions: rowActions(
-                                      'benefit',
+                          {list.map((b, i) =>
+                            b.statutory ? (
+                              // The law's, from the country: kept as it is.
+                              <ListItem
+                                key={b.id}
+                                {...arrive(i)}
+                                description={[b.description, worth(b)].filter(Boolean).join(' · ')}
+                                meta={
+                                  <Badge size="xs" variant="soft" tone="info">
+                                    By law
+                                  </Badge>
+                                }
+                              >
+                                {nameOf(b)}
+                              </ListItem>
+                            ) : (
+                              <Row
+                                key={b.id}
+                                index={i}
+                                title={nameOf(b)}
+                                onOpen={() => {
+                                  setBenefit({ held: b, category: b.category });
+                                }}
+                                description={[b.description, worth(b)].filter(Boolean).join(' · ')}
+                                actions={rowActions(
+                                  'benefit',
+                                  () => {
+                                    setBenefit({ held: b, category: b.category });
+                                  },
+                                  () => {
+                                    removal.ask(
+                                      nameOf(b),
+                                      'Jobs stop offering it; a standard one can be put back.',
                                       () => {
-                                        setBenefit({ held: b, category: b.category });
+                                        act.run('RemoveBenefit', { id: b.id });
                                       },
-                                      () => {
-                                        removal.ask(
-                                          nameOf(b),
-                                          'Jobs stop offering it; a standard one can be put back.',
-                                          () => {
-                                            act.run('RemoveBenefit', { id: b.id });
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  })}
-                            >
-                              {nameOf(b)}
-                            </ListItem>
-                          ))}
+                                    );
+                                  },
+                                )}
+                              />
+                            ),
+                          )}
                         </List>
                       )}
                     </section>
