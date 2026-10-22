@@ -9,6 +9,11 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   CurrencyField,
   DatePicker,
   Dialog,
@@ -25,8 +30,6 @@ import {
   FieldError,
   FieldLabel,
   FormSaveBar,
-  FormSection,
-  FormSections,
   Input,
   List,
   ListItem,
@@ -220,6 +223,32 @@ function useRemoval(act: Act): {
   };
 }
 
+/** A page's parts, one under another, in a readable width. */
+function Stack({ children }: { readonly children: ReactNode }): JSX.Element {
+  return <div className="flex max-w-3xl flex-col gap-6">{children}</div>;
+}
+
+/** One part of a page: a card with its name, a line only where one is needed, and its settings. */
+function Group({
+  title,
+  description,
+  children,
+}: {
+  readonly title: string;
+  readonly description?: string;
+  readonly children: ReactNode;
+}): JSX.Element {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>{title}</CardTitle>
+        {description === undefined ? null : <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">{children}</CardContent>
+    </Card>
+  );
+}
+
 /** One switch on its own row: what it does on the left, the switch at the trailing edge. */
 function SwitchRow({
   label,
@@ -327,16 +356,10 @@ const CareersPage: Body = ({ data, props }) => {
   });
   return (
     <>
-      <Header
-        title="Careers page"
-        description="How candidates meet your company: its name, its page on Kithena Jobs, and where their replies go."
-      />
-      <FormSections>
+      <Header title="Careers page" description="Your company as candidates see it." />
+      <Stack>
         <Refusal error={act.error} />
-        <FormSection
-          title="Your company"
-          description="Shown at the top of your careers page and on every job."
-        >
+        <Group title="Your company">
           <Field required invalid={checks.invalid('name')}>
             <FieldLabel>Company name</FieldLabel>
             <FieldControl>
@@ -363,13 +386,9 @@ const CareersPage: Body = ({ data, props }) => {
                 }}
               />
             </FieldControl>
-            <FieldDescription>A short paragraph; it opens your careers page.</FieldDescription>
           </Field>
-        </FormSection>
-        <FormSection
-          title="Where candidates find you"
-          description="Your page’s address on Kithena Jobs, and on a domain of your own if you like."
-        >
+        </Group>
+        <Group title="Where candidates find you">
           <Field required invalid={checks.invalid('slug')}>
             <FieldLabel>Address on Kithena Jobs</FieldLabel>
             <FieldControl>
@@ -382,15 +401,12 @@ const CareersPage: Body = ({ data, props }) => {
                 }}
               />
             </FieldControl>
-            <FieldDescription>{`jobs.kithena.com/${g.companySlug === '' ? '…' : g.companySlug}. Changing it changes every link you have shared.`}</FieldDescription>
+            <FieldDescription>{`jobs.kithena.com/${g.companySlug === '' ? '…' : g.companySlug}`}</FieldDescription>
             <FieldError>{checks.error('slug')}</FieldError>
           </Field>
-        </FormSection>
+        </Group>
         {data.domainsOn ? <OwnDomain domain={data.careersDomain} props={props} /> : null}
-        <FormSection
-          title="Replies"
-          description="Where a candidate’s reply to any email from you arrives."
-        >
+        <Group title="Replies">
           <Field invalid={checks.invalid('reply')}>
             <FieldLabel>Reply-to address</FieldLabel>
             <FieldControl>
@@ -405,12 +421,10 @@ const CareersPage: Body = ({ data, props }) => {
                 }}
               />
             </FieldControl>
-            <FieldDescription>
-              Empty: replies come back into each candidate’s thread here.
-            </FieldDescription>
+            <FieldDescription>Optional.</FieldDescription>
             <FieldError>{checks.error('reply')}</FieldError>
           </Field>
-        </FormSection>
+        </Group>
         <FormSaveBar
           open={changed}
           saving={act.pending}
@@ -420,7 +434,7 @@ const CareersPage: Body = ({ data, props }) => {
             if (checks.pass()) save();
           }}
         />
-      </FormSections>
+      </Stack>
     </>
   );
 };
@@ -462,23 +476,17 @@ const HiringRules: Body = ({ data, props }) => {
   });
   return (
     <>
-      <Header
-        title="Hiring rules"
-        description="How hiring runs here: whether jobs need approval, who hears of internal moves, referrals and why candidates are turned down."
-      />
-      <FormSections>
+      <Header title="Hiring rules" description="How hiring runs at your company." />
+      <Stack>
         <Refusal error={act.error} />
-        <FormSection
-          title="Opening a job"
-          description="Whether a job needs approving before recruiters can open it."
-        >
+        <Group title="Opening a job">
           <List>
             <SwitchRow
               label="Approve jobs before they open"
               description={
                 g.requisitionsOn
-                  ? 'On: a manager asks for the role, the approval chain decides, and the job opens once approved.'
-                  : 'Off: recruiters open jobs directly, without approval.'
+                  ? 'A job opens once its request is approved.'
+                  : 'Recruiters open jobs directly.'
               }
               checked={g.requisitionsOn}
               onChange={(on) => {
@@ -486,11 +494,8 @@ const HiringRules: Body = ({ data, props }) => {
               }}
             />
           </List>
-        </FormSection>
-        <FormSection
-          title="Internal applicants"
-          description="An employee applying for another role stays private from their own manager until then."
-        >
+        </Group>
+        <Group title="Internal applicants">
           <Field>
             <FieldLabel>Their manager learns of it</FieldLabel>
             <Select
@@ -513,15 +518,12 @@ const HiringRules: Body = ({ data, props }) => {
               </SelectContent>
             </Select>
           </Field>
-        </FormSection>
-        <FormSection
-          title="Referrals"
-          description="A thank-you for the employee who brought in a hire."
-        >
+        </Group>
+        <Group title="Referrals">
           <List>
             <SwitchRow
               label="Pay a referral bonus"
-              description="Paid to the employee who referred the person hired."
+              description="To the employee who referred the hire."
               checked={bonus !== null}
               onChange={(on) => {
                 set({
@@ -599,16 +601,12 @@ const HiringRules: Body = ({ data, props }) => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <FieldDescription>Once the person hired is still with you then.</FieldDescription>
                 </Field>
               </div>
             )}
           </Reveal>
-        </FormSection>
-        <FormSection
-          title="Rejection reasons"
-          description="Chosen when a candidate is turned down, for your reports. Never shown to the candidate."
-        >
+        </Group>
+        <Group title="Rejection reasons" description="Internal only; candidates never see them.">
           <TagsInput
             label="Reasons"
             value={g.rejectionReasons.map(words)}
@@ -624,22 +622,19 @@ const HiringRules: Body = ({ data, props }) => {
               set({ rejectionReasons: next.map(reasonKey).filter((k) => /^[a-z]/u.test(k)) });
             }}
           />
-        </FormSection>
-        <FormSection
-          title="Equal opportunity"
-          description="For employers the US government contracts with."
-        >
+        </Group>
+        <Group title="Equal opportunity">
           <List>
             <SwitchRow
               label="US federal contractor"
-              description="Adds the equal-opportunity statement to every job in the United States."
+              description="Adds the equal-opportunity statement to US jobs."
               checked={g.federalContractor}
               onChange={(on) => {
                 set({ federalContractor: on });
               }}
             />
           </List>
-        </FormSection>
+        </Group>
         <FormSaveBar
           open={changed}
           saving={act.pending}
@@ -649,7 +644,7 @@ const HiringRules: Body = ({ data, props }) => {
             if (checks.pass()) save();
           }}
         />
-      </FormSections>
+      </Stack>
     </>
   );
 };
@@ -670,10 +665,7 @@ function OwnDomain({
       : 'Enter a domain such as careers.yourcompany.com, without https://.',
   });
   return (
-    <FormSection
-      title="Your own domain"
-      description="Your careers page at an address of yours, such as careers.yourcompany.com"
-    >
+    <Group title="Your own domain">
       <div className="flex flex-col gap-3">
         <Refusal error={act.error} />
         {domain === null ? (
@@ -759,7 +751,7 @@ function OwnDomain({
           </>
         )}
       </div>
-    </FormSection>
+    </Group>
   );
 }
 
@@ -771,25 +763,14 @@ const Organisation: Body = ({ data, props }) => {
   const [entity, setEntity] = useState<SettingsEntity | null | 'new'>(null);
   const [location, setLocation] = useState<SettingsLocation | null | 'new'>(null);
   const [unit, setUnit] = useState<OrgUnit | null | 'new'>(null);
-  const fromPeople = data.entities.some((e) => e.source === 'people');
   const entityName = (id: string | null): string | null =>
     data.entities.find((e) => e.id === id)?.name ?? null;
   return (
     <>
-      <Header
-        title="Entities and locations"
-        description="Who employs the people you hire, where they work, and the departments jobs sit in."
-      />
-      <FormSections>
+      <Header title="Entities and locations" description="Who employs, and where people work." />
+      <Stack>
         <Refusal error={act.error} />
-        <FormSection
-          title="Legal entities"
-          description={
-            fromPeople
-              ? 'From People. Recruiting adds the currency, the full-time week and the works council.'
-              : 'Each employs in one country, whose law decides the terms a job can offer.'
-          }
-        >
+        <Group title="Legal entities">
           <Things
             empty={
               data.entities.length === 0 ? 'Add the company that employs, such as Acme GmbH.' : null
@@ -837,11 +818,8 @@ const Organisation: Body = ({ data, props }) => {
               setEntity('new');
             }}
           />
-        </FormSection>
-        <FormSection
-          title="Locations"
-          description="Where people work, each under the entity that employs there."
-        >
+        </Group>
+        <Group title="Locations">
           <Things
             empty={data.locations.length === 0 ? 'Add an office, a site or a city.' : null}
             icon={<icons.location aria-hidden />}
@@ -885,11 +863,8 @@ const Organisation: Body = ({ data, props }) => {
               setLocation('new');
             }}
           />
-        </FormSection>
-        <FormSection
-          title="Departments"
-          description="What a job is in. People’s where People is here; your own beside them."
-        >
+        </Group>
+        <Group title="Departments">
           <Things
             empty={data.orgUnits.length === 0 ? 'Add a department, such as Engineering.' : null}
             icon={<icons.organisation aria-hidden />}
@@ -935,18 +910,15 @@ const Organisation: Body = ({ data, props }) => {
               setUnit('new');
             }}
           />
-        </FormSection>
-        <FormSection
-          title="Describe a change"
-          description="Say it in words; you see the change before anything is kept."
-        >
+        </Group>
+        <Group title="Describe a change">
           <InWords
             data={data}
             props={props}
             placeholder="Add a Berlin office under Acme GmbH, or a Platform team under Engineering"
           />
-        </FormSection>
-      </FormSections>
+        </Group>
+      </Stack>
       {removal.dialog}
       {entity === null ? null : (
         <EntityEditor
@@ -990,14 +962,11 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
     <>
       <Header
         title="Pipelines and approvals"
-        description="The steps candidates move through, and who approves a new job or an offer."
+        description="How candidates move, and who approves."
       />
-      <FormSections>
+      <Stack>
         <Refusal error={act.error} />
-        <FormSection
-          title="Pipelines"
-          description="A job copies the pipeline it is given; changing one here leaves open jobs as they are."
-        >
+        <Group title="Pipelines" description="Changes apply to new jobs only.">
           <Things
             empty={data.pipelines.length === 0 ? 'Add the steps candidates move through.' : null}
             icon={<icons.hierarchy aria-hidden />}
@@ -1045,10 +1014,10 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
               setPipeline('new');
             }}
           />
-        </FormSection>
-        <FormSection
+        </Group>
+        <Group
           title="Approval chains"
-          description="The first chain whose conditions fit a requisition or an offer decides who approves it, in order. With none, they go through without approval."
+          description="The first that fits decides. None: no approval."
         >
           <Things
             empty={
@@ -1092,18 +1061,15 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
               setChain('new');
             }}
           />
-        </FormSection>
-        <FormSection
-          title="Describe a change"
-          description="Say it in words; you see the change before anything is kept."
-        >
+        </Group>
+        <Group title="Describe a change">
           <InWords
             data={data}
             props={props}
             placeholder="A pipeline for interns with no assessment, or approvals for budgets over 100k"
           />
-        </FormSection>
-      </FormSections>
+        </Group>
+      </Stack>
       {removal.dialog}
       {pipeline === null ? null : (
         <PipelineEditor
@@ -1136,7 +1102,7 @@ const Questionnaires: Body = ({ data, props }) => {
     <>
       <Header
         title="Questionnaires"
-        description="Questions asked on the apply form or sent at a step, with knockouts that turn a candidate down kindly."
+        description="Questions candidates answer when they apply."
         actions={
           <Button
             variant="primary"
@@ -1149,12 +1115,8 @@ const Questionnaires: Body = ({ data, props }) => {
           </Button>
         }
       />
-      <FormSections>
+      <Stack>
         <Refusal error={act.error} />
-        <Alert tone="info" title="Every change is a new version">
-          A job keeps the version it was given. In Germany, the works council agrees to a version
-          before a job can use it.
-        </Alert>
         <Things
           empty={
             data.questionnaires.length === 0
@@ -1194,7 +1156,7 @@ const Questionnaires: Body = ({ data, props }) => {
             </ListItem>
           ))}
         </Things>
-      </FormSections>
+      </Stack>
       {removal.dialog}
       {questionnaire === null ? null : (
         <QuestionnaireEditor
@@ -1251,7 +1213,7 @@ const EmailsAndLetters: Body = ({ data, props }) => {
     <>
       <Header
         title="Emails and letters"
-        description="The words each moment sends, from a rejection to an offer letter. A recruiter sees every email before it goes."
+        description="What candidates receive, and when."
         actions={
           <Button
             variant="primary"
@@ -1264,7 +1226,7 @@ const EmailsAndLetters: Body = ({ data, props }) => {
           </Button>
         }
       />
-      <FormSections>
+      <Stack>
         <Refusal error={act.error} />
         {missing.length === 0 ? null : (
           <Alert
@@ -1287,23 +1249,23 @@ const EmailsAndLetters: Body = ({ data, props }) => {
             {missing.map((m) => words(m)).join(', ')}
           </Alert>
         )}
-        <FormSection title="Emails" description="Sent to candidates at a moment in their journey.">
+        <Group title="Emails">
           <Things
             empty={emails.length === 0 ? 'No email of your own yet.' : null}
             icon={<icons.email aria-hidden />}
           >
             {emails.map(row)}
           </Things>
-        </FormSection>
-        <FormSection title="Letters" description="What an offer or a contract starts from.">
+        </Group>
+        <Group title="Letters">
           <Things
             empty={letters.length === 0 ? 'No letter yet.' : null}
             icon={<icons.document aria-hidden />}
           >
             {letters.map(row)}
           </Things>
-        </FormSection>
-      </FormSections>
+        </Group>
+      </Stack>
       {removal.dialog}
       {template === null ? null : (
         <TemplateEditor
@@ -1450,7 +1412,7 @@ const Scorecards: Body = ({ data, props }) => {
     <>
       <Header
         title="Scorecards"
-        description="What interviewers rate after each interview, so every candidate is judged on the same things."
+        description="What interviewers rate after each interview."
         actions={
           <Button
             variant="primary"
@@ -1463,12 +1425,9 @@ const Scorecards: Body = ({ data, props }) => {
           </Button>
         }
       />
-      <FormSections>
+      <Stack>
         <Refusal error={act.error} />
-        <FormSection
-          title="Scorecards"
-          description="A job uses one; each interview may use its own."
-        >
+        <Group title="Scorecards">
           <Things
             empty={
               data.scorecards.length === 0
@@ -1568,11 +1527,8 @@ const Scorecards: Body = ({ data, props }) => {
               </Alert>
             )}
           </Reveal>
-        </FormSection>
-        <FormSection
-          title="The scale"
-          description="Four points and no middle, so every rating leans one way. The same for every scorecard."
-        >
+        </Group>
+        <Group title="The scale">
           <List>
             {SCALE.map(([n, label, line]) => (
               <ListItem
@@ -1588,8 +1544,8 @@ const Scorecards: Body = ({ data, props }) => {
               </ListItem>
             ))}
           </List>
-        </FormSection>
-      </FormSections>
+        </Group>
+      </Stack>
       {removal.dialog}
       {adding ? (
         <ScorecardEditor
@@ -1755,7 +1711,7 @@ const PayBands: Body = ({ data, props }) => {
     <>
       <Header
         title="Pay bands"
-        description="The range each grade pays. Every offer is checked against its grade’s band."
+        description="The range each grade pays."
         actions={
           data.entities.length === 0 ? undefined : (
             <Button
@@ -1770,7 +1726,7 @@ const PayBands: Body = ({ data, props }) => {
           )
         }
       />
-      <FormSections>
+      <Stack>
         <Refusal error={act.error} />
         {data.entities.length === 0 ? (
           <Alert tone="info" title="Add a legal entity first">
@@ -1835,7 +1791,7 @@ const PayBands: Body = ({ data, props }) => {
             </TableBody>
           </Table>
         )}
-      </FormSections>
+      </Stack>
       {removal.dialog}
       {band === null ? null : (
         <PayBandEditor
@@ -1882,7 +1838,7 @@ const Benefits: Body = ({ data, props }) => {
     <>
       <Header
         title="Benefits"
-        description="What each entity offers, by category: the tiles a job picks from and the list its ad shows."
+        description="What each entity offers."
         {...(data.entities.length === 0
           ? {}
           : {
@@ -1899,7 +1855,7 @@ const Benefits: Body = ({ data, props }) => {
               ),
             })}
       />
-      <FormSections>
+      <Stack>
         <Refusal error={act.error} />
         {data.entities.length === 0 ? (
           <Alert tone="info" title="Add a legal entity first">
@@ -1907,10 +1863,7 @@ const Benefits: Body = ({ data, props }) => {
           </Alert>
         ) : (
           <>
-            <FormSection
-              title="Catalogue"
-              description="The standard benefits are here to start from; remove what you never offer and add your own. Statutory ones come with the country and stay."
-            >
+            <Group title="Catalogue">
               {data.entities.length === 1 ? null : (
                 <Field>
                   <FieldLabel>Benefits of</FieldLabel>
@@ -2012,11 +1965,8 @@ const Benefits: Body = ({ data, props }) => {
                   );
                 })}
               </div>
-            </FormSection>
-            <FormSection
-              title="Standard benefits"
-              description="Removed one by mistake? Put every standard benefit back; your own stay as they are."
-            >
+            </Group>
+            <Group title="Standard benefits">
               <div>
                 <Button
                   variant="secondary"
@@ -2029,20 +1979,17 @@ const Benefits: Body = ({ data, props }) => {
                   Put back the standard benefits
                 </Button>
               </div>
-            </FormSection>
-            <FormSection
-              title="Describe a change"
-              description="Say it in words; you see the change before anything is kept."
-            >
+            </Group>
+            <Group title="Describe a change">
               <InWords
                 data={data}
                 props={props}
                 placeholder="A €50 a month meal allowance for Acme GmbH, after probation"
               />
-            </FormSection>
+            </Group>
           </>
         )}
-      </FormSections>
+      </Stack>
       {removal.dialog}
       {benefit === null ? null : (
         <BenefitEditor
@@ -2094,44 +2041,33 @@ const Ai: Body = ({ data, props }) => {
   );
   return (
     <>
-      <Header
-        title="AI"
-        description="What AI may help with in hiring, and what it never sees. Every screen works with all of it off."
-      />
-      <FormSections>
+      <Header title="AI" description="What AI helps with, and what it never sees." />
+      <Stack>
         <Refusal error={act.error} />
-        <Alert
-          tone="info"
-          icon={<icons.assistant aria-hidden />}
-          title="AI suggests; people decide"
-        >
-          It drafts, reads and plans, and never moves, rejects or ranks a candidate. Applications
-          are never used to train a model.
-        </Alert>
-        <FormSection title="What it helps with" description="Each switched on or off on its own.">
+        <Group title="What it helps with">
           <List>
             {feature(
               'writer',
               'Write and translate job ads',
-              'Drafts the description from the job, and translates it.',
+              'Drafts and translates the description.',
             )}
             {feature('parser', 'Read CVs', 'Fills the candidate’s profile from their CV.')}
             {feature(
               'matrix',
               'Evidence against the criteria',
-              'For each criterion: met, partly met, not met or not evidenced, with the passages. A label, never a step.',
+              'Shows how a CV meets each criterion. Never moves a candidate.',
             )}
             {feature(
               'assistant',
               'Answer candidates and take settings in words',
-              'The job assistant on Kithena Jobs, and changes to these settings described in words, which an administrator applies.',
+              'The job assistant, and settings changed in words.',
             )}
             {feature('charts', 'Charts on request', 'Draws a hiring chart asked for in words.')}
           </List>
-        </FormSection>
-        <FormSection
+        </Group>
+        <Group
           title="What it never sees"
-          description="Name, photo, age, gender markers, nationality, address beyond the city, marital status, religion, health and union membership are always masked."
+          description="Name, photo, age, gender, nationality and other personal details are always hidden."
         >
           <List>
             <SwitchRow
@@ -2143,10 +2079,10 @@ const Ai: Body = ({ data, props }) => {
               }}
             />
           </List>
-        </FormSection>
-        <FormSection
+        </Group>
+        <Group
           title="Voluntary self-identification"
-          description="Asked after applying and sealed. Counted only in groups of five, never seen by a hiring team or by AI."
+          description="Optional, private, and only counted in groups."
         >
           <List>
             <SwitchRow
@@ -2166,11 +2102,8 @@ const Ai: Body = ({ data, props }) => {
               }}
             />
           </List>
-        </FormSection>
-        <FormSection
-          title="New York City"
-          description="Jobs in New York City keep the evidence matrix off until an independent bias audit is recorded."
-        >
+        </Group>
+        <Group title="New York City" description="Needed before AI evidence is used on NYC jobs.">
           <Field>
             <FieldLabel>Last independent bias audit</FieldLabel>
             <FieldControl>
@@ -2184,7 +2117,7 @@ const Ai: Body = ({ data, props }) => {
             </FieldControl>
             <FieldDescription>Empty: no audit yet.</FieldDescription>
           </Field>
-        </FormSection>
+        </Group>
         <FormSaveBar
           open={JSON.stringify({ ai, selfId }) !== JSON.stringify(saved)}
           saving={act.pending}
@@ -2199,7 +2132,7 @@ const Ai: Body = ({ data, props }) => {
             });
           }}
         />
-      </FormSections>
+      </Stack>
     </>
   );
 };
@@ -2246,13 +2179,10 @@ const Integrations: Body = ({ data }) => {
   } as const;
   return (
     <>
-      <Header
-        title="Integrations"
-        description="Where your jobs go beyond your careers page, and what connects to Recruiting."
-      />
-      <FormSections>
+      <Header title="Integrations" description="Where your jobs go, and what connects." />
+      <Stack>
         {groups.map(([title, description, rows]) => (
-          <FormSection key={title} title={title} description={description}>
+          <Group key={title} title={title} description={description}>
             <List>
               {rows.map(([name, line, state], i) => (
                 <ListItem
@@ -2269,9 +2199,9 @@ const Integrations: Body = ({ data }) => {
                 </ListItem>
               ))}
             </List>
-          </FormSection>
+          </Group>
         ))}
-      </FormSections>
+      </Stack>
     </>
   );
 };
