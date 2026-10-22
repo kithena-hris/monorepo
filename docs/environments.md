@@ -36,15 +36,21 @@ PR opened / pushed
    └─ ci (14 checks) ──green──▶ migrate staging ──▶ deploy ──▶ smoke test
                                                               └─ url on the PR
 merge to main
-   └─ ci (14 checks)
-started by hand, from main
-   └─ ci passed on it? ──▶ migrate production ──▶ deploy
-                                              └─ smoke test
-                                                 └─ fails? roll back
+   ├─ ci (14 checks) ─────────────────┐
+   └─ production deploy, at once      │
+        ├─ builds (images, remotes)   │
+        └─ ci passed? ◀────────────────┘ waits for it
+              └──▶ migrate production ──▶ deploy
+                                         └─ smoke test
+                                            └─ fails? roll back
 ```
 
-A production deploy is started by hand and refuses a commit `ci` has not
-passed, so the build the gates rejected is never published.
+A merge starts the production deploy at once. Its builds run beside `ci` on
+main, and nothing is released until the deploy's `ci passed` job has seen `ci`
+succeed on that commit, so the build the gates rejected is never published and
+production waits for the slower of the two rather than for each in turn. It
+can also be started by hand, for what git cannot see (a secret, a variable, a
+deploy to repeat).
 
 ### A merge is not tested twice
 
