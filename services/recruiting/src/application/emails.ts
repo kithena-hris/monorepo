@@ -82,6 +82,20 @@ export const DEFAULT_EMAILS: Readonly<
   },
 };
 
+/**
+ * The email asking a candidate to choose their interview times: not one the
+ * composer opens, so kept beside the standard ones, and the company's own
+ * once it writes one in settings. `{{interview}}` is the interview's name.
+ */
+export const INVITATION_EMAIL = {
+  name: 'Choose your interview times',
+  subject: 'Appointment requested: choose times for your {{interview}} with {{company}}',
+  body: "Hello {{first_name}},\n\n{{company}} would like to meet you for a {{interview}} about {{job}}. Pick ten times that suit you; every one already fits the team's calendars. We will confirm one of them by email.\n\nThe link works for fourteen days.\n\n{{sender}}\n{{company}}",
+} as const;
+
+/** Every email Recruiting sends in words a company may change, with Kithena's words for each. */
+export const BUILT_IN_EMAILS = { ...DEFAULT_EMAILS, interview_invitation: INVITATION_EMAIL };
+
 const fmt = (iso: string, timeZone: string): string =>
   new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone }).format(
     new Date(iso),
@@ -160,7 +174,7 @@ async function expectationsOf(ctx: Ctx, loaded: Loaded, category: string): Promi
 /** The company's template for a purpose, in the candidate's language first, else the built-in words. */
 export async function emailFor(
   ctx: Ctx,
-  purpose: EmailPurpose,
+  purpose: keyof typeof BUILT_IN_EMAILS,
   language: string | null,
 ): Promise<{
   readonly subject: string;
@@ -173,7 +187,7 @@ export async function emailFor(
   const chosen = mine.find((t) => t.language === language) ?? mine[0];
   if (chosen !== undefined)
     return { subject: chosen.subject ?? '', body: chosen.body, templateId: chosen.id };
-  const built = DEFAULT_EMAILS[purpose];
+  const built = BUILT_IN_EMAILS[purpose];
   return { subject: built.subject, body: built.body, templateId: null };
 }
 

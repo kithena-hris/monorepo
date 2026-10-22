@@ -1144,6 +1144,13 @@ export interface SettingsData {
     }[];
   }[];
   readonly templates: readonly MessageTemplate[];
+  /** The words each standard email sends until the company writes its own. */
+  readonly builtInEmails?: readonly {
+    readonly purpose: string;
+    readonly name: string;
+    readonly subject: string;
+    readonly body: string;
+  }[];
   /** Each entity's full catalogue, the standard library included. */
   readonly benefits: readonly Benefit[];
   readonly benefitCategories: readonly BenefitCategory[];

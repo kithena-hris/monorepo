@@ -562,14 +562,19 @@ export async function selfScheduleLink(
     recruiterId: ctx.caller.personId,
     ...setting,
   });
-  const settings = await generalSettings(ctx);
   const { candidate } = loaded.value;
+  // The company's words when it wrote its own in settings, else Kithena's.
+  const words = await emailFor(ctx, 'interview_invitation', candidate.language);
+  const filled = {
+    ...(await emailValues(ctx, loaded.value)),
+    interview: plan.title.toLowerCase(),
+  };
   await sendNow(
     ctx,
     candidate,
     applicationId,
-    `Appointment requested: choose times for your ${plan.title.toLowerCase()} with ${settings.companyName}`,
-    `Hello ${candidate.name.split(' ')[0] ?? candidate.name},\n\n${settings.companyName} would like to meet you for a ${plan.title.toLowerCase()} (${String(plan.minutes)} minutes). Pick ten times that suit you; every one already fits the team's calendars. We will confirm one of them by email.\n\nThe link works for fourteen days.`,
+    render(words.subject, filled),
+    render(words.body, filled),
     {
       heading: `Choose times for your ${plan.title.toLowerCase()}`,
       facts: [

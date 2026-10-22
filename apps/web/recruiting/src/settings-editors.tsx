@@ -27,6 +27,7 @@ import {
   SelectValue,
   SortableList,
   Switch,
+  TagsInput,
   RadioCard,
   RadioGroup,
   Textarea,
@@ -36,7 +37,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { EmailFields, PURPOSE_LABEL } from './composer';
 import { CategoryIcon } from './benefits';
-import { Refusal, newId, useAct, words } from './shared';
+import { Refusal, money as amount, newId, useAct, words } from './shared';
 import type {
   Knockout,
   ApprovalChain,
@@ -605,6 +606,8 @@ export function DepartmentEditor({
 
 type DraftStage = Stage & { readonly locked?: boolean };
 
+const rank = (c: Stage['category']): number => CATEGORIES.indexOf(c);
+
 const stage = (name: string, category: Stage['category']): DraftStage => ({
   id: newId(),
   name,
@@ -636,24 +639,34 @@ export function PipelineEditor({
   const update = (id: string, patch: Partial<Stage>): void => {
     setStages(stages.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   };
+  // Recruiting's rules for a pipeline (`validatePipeline`), said before saving rather than after.
+  const backwards = stages.find(
+    (s, i) => i > 0 && rank(s.category) < rank(stages[i - 1]?.category ?? 'applied'),
+  );
+  const shape = [
+    stages.length < 2 ? 'A pipeline has at least two steps.' : null,
+    stages.some((s) => s.name.trim() === '') ? 'Every step needs a name.' : null,
+    stages[0]?.category === 'applied' ? null : 'The first step is of the type Applied.',
+    stages.at(-1)?.category === 'hired' && stages.filter((s) => s.category === 'hired').length === 1
+      ? null
+      : 'The last step, and only the last, is of the type Hired.',
+    stages.some((s) => s.category === 'offer') ? null : 'One step is of the type Offer.',
+    backwards === undefined
+      ? null
+      : `“${backwards.name}” comes after a later type of step; move it up or change its type.`,
+  ];
   const checks = useChecks({
     name: name.trim() === '' ? 'Name the pipeline, as recruiters will pick it.' : null,
-    steps:
-      stages.length < 2 || stages.some((s) => s.name.trim() === '')
-        ? 'Steps are incomplete.'
-        : null,
+    steps: shape.some((p) => p !== null) ? 'Steps are incomplete.' : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New pipeline' : held.name}
-      description="Starts at applied, ends at hired, has an offer, and never goes back a category. A job copies it; changes here leave open jobs alone."
+      description="The steps a candidate moves through, from applying to being hired. A new job copies them; jobs already open keep theirs."
       checks={checks}
-      problems={[
-        stages.length < 2 ? 'A pipeline has at least two steps.' : null,
-        stages.some((s) => s.name.trim() === '') ? 'Every step needs a name.' : null,
-      ]}
+      problems={shape}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -693,18 +706,31 @@ export function PipelineEditor({
       </Field>
       <Field orientation="horizontal">
         <span className="flex min-w-0 flex-col">
-          <FieldLabel>Default</FieldLabel>
-          <FieldDescription>What a new job starts with.</FieldDescription>
+          <FieldLabel>Use for new jobs</FieldLabel>
+          <FieldDescription>A new job starts with this pipeline; it can pick another.</FieldDescription>
         </span>
         <FieldControl>
           <Switch checked={isDefault} onCheckedChange={setDefault} />
         </FieldControl>
       </Field>
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-semibold">Stages</span>
+        <span className="text-sm font-semibold">Steps, in order</span>
+        <span className="text-sm text-fg-muted">
+          Drag to reorder. The type tells Kithena what happens at a step: an interview step
+          books interviews, an offer step sends offers.
+        </span>
+        {/* What each column is, once, rather than a label on every row. */}
+        <div
+          aria-hidden
+          className="flex items-center gap-2 ps-10 pe-9 text-xs font-medium text-fg-subtle"
+        >
+          <span className="min-w-32 flex-1">Step</span>
+          <span className="w-36">Type</span>
+          <span className="w-24 text-end">Candidates see it</span>
+        </div>
         <SortableList
           items={stages}
-          label="Stages"
+          label="Steps"
           activator="handle"
           appearance="plain"
           itemLabel={(s) => s.name}
@@ -714,24 +740,18 @@ export function PipelineEditor({
           }}
         >
           {(s) => (
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 py-1">
+            <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
               <Input
-                aria-label="Stage name"
+                aria-label="Step name"
                 className="min-w-32 flex-1"
                 size="sm"
                 value={s.name}
                 onChange={(e) => {
-                  update(s.id, { name: e.target.value });
-                }}
-              />
-              <Input
-                aria-label="Name the candidate sees"
-                className="min-w-32 flex-1"
-                size="sm"
-                placeholder="Hidden from the candidate"
-                value={s.candidateName ?? ''}
-                onChange={(e) => {
-                  update(s.id, { candidateName: e.target.value === '' ? null : e.target.value });
+                  // A step candidates see is shown to them under its name.
+                  update(s.id, {
+                    name: e.target.value,
+                    ...(s.candidateName === null ? {} : { candidateName: e.target.value }),
+                  });
                 }}
               />
               <Select
@@ -740,11 +760,20 @@ export function PipelineEditor({
                   update(s.id, { category: c as Stage['category'] });
                 }}
               >
-                <SelectTrigger aria-label="Category" size="sm" className="w-36">
+                <SelectTrigger aria-label={`Type of ${s.name}`} size="sm" className="w-36">
                   <SelectValue />
                 </SelectTrigger>
                 <Options items={CATEGORIES.map((c) => [c, words(c)] as const)} />
               </Select>
+              <span className="flex w-24 justify-end">
+                <Switch
+                  aria-label={`Candidates see ${s.name}`}
+                  checked={s.candidateName !== null}
+                  onCheckedChange={(on) => {
+                    update(s.id, { candidateName: on ? s.name : null });
+                  }}
+                />
+              </span>
               <Button
                 size="xs"
                 variant="ghost"
@@ -764,7 +793,7 @@ export function PipelineEditor({
             startIcon={<icons.add aria-hidden />}
             onClick={() => {
               const before = stages.findIndex((s) => s.category === 'offer');
-              const next = stage('New stage', 'interview');
+              const next = stage('New step', 'interview');
               setStages(
                 before < 0
                   ? [...stages, next]
@@ -772,7 +801,7 @@ export function PipelineEditor({
               );
             }}
           >
-            Add stage
+            Add step
           </Button>
         </div>
       </div>
@@ -784,13 +813,51 @@ export function PipelineEditor({
 
 type DraftStep = { readonly id: string; readonly approver: Approver };
 
-const approverLabel = (a: Approver, members: SettingsData['members']): string =>
+/** Who says yes at a step, in words. */
+export const approverLabel = (a: Approver, members: SettingsData['members']): string =>
   a.kind === 'person'
-    ? (members.find((m) => m.personId === a.personId)?.name ?? 'Somebody')
-    : a.kind === 'role'
-      ? words(a.role)
-      : 'The hiring manager’s manager';
+    ? (members.find((m) => m.personId === a.personId)?.name ?? 'someone')
+    : a.kind === 'managers_manager'
+      ? 'the hiring manager’s manager'
+      : a.role === 'recruiting_admin'
+        ? 'a Recruiting administrator'
+        : a.role === 'hr'
+          ? 'HR'
+          : 'Finance';
 
+/** A rule as one sentence: "New jobs over €100,000: the hiring manager's manager, then Finance." */
+export const chainSentence = (
+  c: Pick<ApprovalChain, 'appliesTo' | 'when' | 'steps'>,
+  data: SettingsData,
+): string => {
+  const currency = data.entities[0]?.currency ?? 'EUR';
+  const when = [
+    c.when.budgetAboveMinor === undefined
+      ? null
+      : `with a budget over ${amount(c.when.budgetAboveMinor, currency)}`,
+    c.when.outsideBand === true ? 'outside the pay band' : null,
+    c.when.aboveBudget === true ? 'above the job’s budget' : null,
+    c.when.legalEntityIds === undefined || c.when.legalEntityIds.length === 0
+      ? null
+      : `at ${c.when.legalEntityIds.map((id) => data.entities.find((e) => e.id === id)?.name ?? '—').join(' or ')}`,
+  ].filter(Boolean);
+  const what =
+    c.appliesTo === 'requisition'
+      ? when.length === 0
+        ? 'Every new job'
+        : 'New jobs'
+      : when.length === 0
+        ? 'Every offer'
+        : 'Offers';
+  const who = c.steps.map((a) => approverLabel(a, data.members)).join(', then ');
+  return `${what}${when.length === 0 ? '' : ` ${when.join(', ')}`}: ${who === '' ? 'nobody yet' : who}`;
+};
+
+/**
+ * One approval rule, set out as a sentence: what needs a yes, when, and who
+ * says it, in turn. The narrowest rule wins, so the order is worked out from
+ * the conditions rather than asked for.
+ */
 export function ChainEditor({
   held,
   data,
@@ -806,31 +873,51 @@ export function ChainEditor({
   const [appliesTo, setAppliesTo] = useState<ApprovalChain['appliesTo']>(
     held?.appliesTo ?? 'requisition',
   );
-  const [priority, setPriority] = useState<number | null>(held?.priority ?? 10);
   const [budget, setBudget] = useState(
     held?.when.budgetAboveMinor === undefined ? '' : String(held.when.budgetAboveMinor),
   );
+  const [outsideBand, setOutsideBand] = useState(held?.when.outsideBand === true);
+  const [aboveBudget, setAboveBudget] = useState(held?.when.aboveBudget === true);
   const [entityIds, setEntityIds] = useState<readonly string[]>(held?.when.legalEntityIds ?? []);
   const [steps, setSteps] = useState<readonly DraftStep[]>(
-    (held?.steps ?? [{ kind: 'role', role: 'hr' }]).map((approver) => ({ id: newId(), approver })),
+    (held?.steps ?? [{ kind: 'managers_manager' }]).map((approver) => ({
+      id: newId(),
+      approver,
+    })),
   );
   const currency = data.entities[0]?.currency ?? 'EUR';
   const setStep = (id: string, approver: Approver): void => {
     setSteps(steps.map((s) => (s.id === id ? { ...s, approver } : s)));
   };
+  const job = appliesTo === 'requisition';
+  const when: ApprovalChain['when'] = {
+    // What this editor does not show (reasons, grades) is kept as it was.
+    ...(held?.when.reasons === undefined ? {} : { reasons: held.when.reasons }),
+    ...(held?.when.grades === undefined ? {} : { grades: held.when.grades }),
+    ...(job && budget !== '' ? { budgetAboveMinor: Number(budget) } : {}),
+    ...(!job && outsideBand ? { outsideBand: true } : {}),
+    ...(!job && aboveBudget ? { aboveBudget: true } : {}),
+    ...(entityIds.length === 0 ? {} : { legalEntityIds: entityIds }),
+  };
+  const draft = { appliesTo, when, steps: steps.map((s) => s.approver) };
   const checks = useChecks({
-    name: name.trim() === '' ? 'Name the chain.' : null,
-    priority: priority === null ? 'Give it a priority; the lowest number is tried first.' : null,
-    steps: steps.length === 0 ? 'No approval steps.' : null,
+    name: name.trim() === '' ? 'Name the rule, such as “Large budgets”.' : null,
+    steps: steps.length === 0 ? 'Add who says yes.' : null,
+    person: steps.some((s) => s.approver.kind === 'person' && s.approver.personId === '')
+      ? 'Pick the person.'
+      : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New approval chain' : held.name}
-      description="Each step gets an Inbox task in turn. The first chain whose conditions hold is used, lowest priority first."
+      title={held === null ? 'New approval rule' : held.name}
+      description="When something fits this rule, each person below gets a task in their Inbox, one after another. It goes ahead once the last says yes; anyone can say no."
       checks={checks}
-      problems={[steps.length === 0 ? 'A chain has at least one approval step.' : null]}
+      problems={[
+        steps.length === 0 ? 'Add at least one person who says yes.' : null,
+        checks.error('person'),
+      ]}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -841,16 +928,9 @@ export function ChainEditor({
             input: {
               name: name.trim(),
               appliesTo,
-              priority: priority ?? 10,
-              when: {
-                ...held?.when,
-                ...(budget === ''
-                  ? { budgetAboveMinor: undefined }
-                  : { budgetAboveMinor: Number(budget) }),
-                ...(entityIds.length === 0
-                  ? { legalEntityIds: undefined }
-                  : { legalEntityIds: entityIds }),
-              },
+              // The narrowest rule first: each condition makes it more particular.
+              priority: 100 - 10 * Object.keys(when).length,
+              when,
               steps: steps.map((s) => s.approver),
             },
           },
@@ -858,77 +938,86 @@ export function ChainEditor({
         );
       }}
     >
-      <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
-        <FieldControl>
-          <Input
-            value={name}
-            placeholder="Large requisitions"
-            onChange={(e) => {
-              setName(e.target.value);
-            }}
-          />
-        </FieldControl>
-        <FieldError>{checks.error('name')}</FieldError>
-      </Field>
       <Field>
-        <FieldLabel>Applies to</FieldLabel>
-        <Select
+        <FieldLabel>What needs a yes</FieldLabel>
+        <RadioGroup
+          aria-label="What needs a yes"
+          className="grid gap-2 sm:grid-cols-2"
           value={appliesTo}
           onValueChange={(v) => {
             setAppliesTo(v as ApprovalChain['appliesTo']);
           }}
         >
+          <RadioCard
+            value="requisition"
+            icon={<icons.work />}
+            description="A hiring manager asks to open a job (a requisition)."
+          >
+            Opening a new job
+          </RadioCard>
+          <RadioCard
+            value="offer"
+            icon={<icons.document />}
+            description="An offer, before it goes to the candidate."
+          >
+            Sending an offer
+          </RadioCard>
+        </RadioGroup>
+      </Field>
+      {job ? (
+        <Field>
+          <FieldLabel>Only when the budget is over</FieldLabel>
           <FieldControl>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
+            <CurrencyField currency={currency} value={budget} onValueChange={setBudget} />
           </FieldControl>
-          <Options
-            items={[
-              ['requisition', 'Requisitions'],
-              ['offer', 'Offers'],
-            ]}
-          />
-        </Select>
-      </Field>
-      <NumberField
-        label="Priority"
-        hint="Lower goes first when more than one chain matches."
-        value={priority}
-        min={0}
-        max={100}
-        onChange={setPriority}
-      />
-      <Field>
-        <FieldLabel>Only when the budget is above</FieldLabel>
-        <FieldControl>
-          <CurrencyField currency={currency} value={budget} onValueChange={setBudget} />
-        </FieldControl>
-        <FieldDescription>Blank: any budget.</FieldDescription>
-      </Field>
-      <Field>
-        <FieldLabel>Only for these entities</FieldLabel>
-        <FieldControl>
-          <Combobox
-            label="Legal entities"
-            multiple
-            chips
-            clearable
-            placeholder="Any entity"
-            options={data.entities.map((e) => ({ value: e.id, label: e.name }))}
-            value={entityIds}
-            onChange={(v) => {
-              setEntityIds(Array.isArray(v) ? v : v === null ? [] : [v as string]);
-            }}
-          />
-        </FieldControl>
-      </Field>
+          <FieldDescription>Leave it empty to ask for every new job.</FieldDescription>
+        </Field>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <Field orientation="horizontal">
+            <span className="flex min-w-0 flex-col">
+              <FieldLabel>Only when the pay is outside the pay band</FieldLabel>
+              <FieldDescription>The grade’s band, under Pay bands.</FieldDescription>
+            </span>
+            <FieldControl>
+              <Switch checked={outsideBand} onCheckedChange={setOutsideBand} />
+            </FieldControl>
+          </Field>
+          <Field orientation="horizontal">
+            <span className="flex min-w-0 flex-col">
+              <FieldLabel>Only when the pay is above the job’s budget</FieldLabel>
+              <FieldDescription>Both off: every offer asks.</FieldDescription>
+            </span>
+            <FieldControl>
+              <Switch checked={aboveBudget} onCheckedChange={setAboveBudget} />
+            </FieldControl>
+          </Field>
+        </div>
+      )}
+      {data.entities.length < 2 ? null : (
+        <Field>
+          <FieldLabel>Only at these entities</FieldLabel>
+          <FieldControl>
+            <Combobox
+              label="Legal entities"
+              multiple
+              chips
+              clearable
+              placeholder="Any entity"
+              options={data.entities.map((e) => ({ value: e.id, label: e.name }))}
+              value={entityIds}
+              onChange={(v) => {
+                setEntityIds(Array.isArray(v) ? v : v === null ? [] : [v as string]);
+              }}
+            />
+          </FieldControl>
+        </Field>
+      )}
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-semibold">Steps, in order</span>
+        <span className="text-sm font-semibold">Who says yes, in this order</span>
         <SortableList
           items={steps}
-          label="Approval steps"
+          label="Who says yes"
           activator="handle"
           appearance="plain"
           itemLabel={(s) => approverLabel(s.approver, data.members)}
@@ -943,8 +1032,7 @@ export function ChainEditor({
                 value={s.approver.kind === 'role' ? `role:${s.approver.role}` : s.approver.kind}
                 onValueChange={(v) => {
                   if (v === 'managers_manager') setStep(s.id, { kind: 'managers_manager' });
-                  else if (v === 'person')
-                    setStep(s.id, { kind: 'person', personId: data.members[0]?.personId ?? '' });
+                  else if (v === 'person') setStep(s.id, { kind: 'person', personId: '' });
                   else
                     setStep(s.id, {
                       kind: 'role',
@@ -952,16 +1040,16 @@ export function ChainEditor({
                     });
                 }}
               >
-                <SelectTrigger aria-label="Who approves" size="sm" className="w-56">
+                <SelectTrigger aria-label="Who says yes" size="sm" className="w-60">
                   <SelectValue />
                 </SelectTrigger>
                 <Options
                   items={[
-                    ['role:hr', 'HR'],
-                    ['role:finance', 'Finance'],
-                    ['role:recruiting_admin', 'A Recruiting administrator'],
                     ['managers_manager', 'The hiring manager’s manager'],
-                    ['person', 'A named person'],
+                    ['role:hr', 'Anyone in HR'],
+                    ['role:finance', 'Anyone in Finance'],
+                    ['role:recruiting_admin', 'A Recruiting administrator'],
+                    ['person', 'A person I choose'],
                   ]}
                 />
               </Select>
@@ -971,8 +1059,9 @@ export function ChainEditor({
                   size="sm"
                   className="min-w-48 flex-1"
                   placeholder="Pick a person"
+                  aria-invalid={checks.invalid('person') && s.approver.personId === ''}
                   options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
-                  value={s.approver.personId}
+                  value={s.approver.personId === '' ? null : s.approver.personId}
                   onChange={(v) => {
                     if (typeof v === 'string') setStep(s.id, { kind: 'person', personId: v });
                   }}
@@ -981,7 +1070,7 @@ export function ChainEditor({
               <Button
                 size="xs"
                 variant="ghost"
-                aria-label="Remove step"
+                aria-label="Remove"
                 startIcon={<icons.remove aria-hidden />}
                 onClick={() => {
                   setSteps(steps.filter((x) => x.id !== s.id));
@@ -999,10 +1088,26 @@ export function ChainEditor({
               setSteps([...steps, { id: newId(), approver: { kind: 'role', role: 'finance' } }]);
             }}
           >
-            Add step
+            Add someone
           </Button>
         </div>
       </div>
+      <Alert tone="accent" icon={<icons.approve aria-hidden />} title="This rule reads">
+        {chainSentence(draft, data)}
+      </Alert>
+      <Field required invalid={checks.invalid('name')}>
+        <FieldLabel>Name</FieldLabel>
+        <FieldControl>
+          <Input
+            value={name}
+            placeholder={job ? 'Large budgets' : 'Offers outside the band'}
+            onChange={(e) => {
+              setName(e.target.value);
+            }}
+          />
+        </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
+      </Field>
     </Editor>
   );
 }
@@ -1268,23 +1373,20 @@ export function QuestionnaireEditor({
               />
             ) : null}
             {q.kind === 'single' || q.kind === 'multiple' ? (
-              <Field>
-                <FieldLabel>Options, one per line</FieldLabel>
-                <FieldControl>
-                  <Textarea
-                    autoResize
-                    value={q.options.join('\n')}
-                    onChange={(e) => {
-                      update(q.id, {
-                        options: e.target.value
-                          .split('\n')
-                          .map((o) => o.trim())
-                          .filter(Boolean),
-                      });
-                    }}
-                  />
-                </FieldControl>
-              </Field>
+              <TagsInput
+                label="Answers to choose from"
+                value={q.options}
+                placeholder="Type one, then Enter"
+                hint="Press Enter after each one."
+                validate={(o) =>
+                  q.options.some((x) => x.toLowerCase() === o.trim().toLowerCase())
+                    ? 'Already there.'
+                    : null
+                }
+                onChange={(options) => {
+                  update(q.id, { options });
+                }}
+              />
             ) : null}
           </div>
         ))}
@@ -1307,6 +1409,12 @@ export function QuestionnaireEditor({
 
 /* ---------------------------------------------------------- templates -- */
 
+/** What a template can be for: the composer's moments, and the invitation to choose interview times. */
+export const TEMPLATE_PURPOSES: Readonly<Record<string, string>> = {
+  ...PURPOSE_LABEL,
+  interview_invitation: 'Invitation to choose interview times',
+};
+
 export function TemplateEditor({
   held,
   act,
@@ -1322,7 +1430,7 @@ export function TemplateEditor({
   const [name, setName] = useState(held?.name ?? '');
   const [subject, setSubject] = useState(held?.subject ?? '');
   const [body, setBody] = useState(held?.body ?? '');
-  const known = Object.keys(PURPOSE_LABEL).includes(purpose);
+  const known = Object.keys(TEMPLATE_PURPOSES).includes(purpose);
   const [customPurpose, setCustomPurpose] = useState(!known && purpose !== '');
   const checks = useChecks({
     name: name.trim() === '' ? 'Name the template.' : null,
@@ -1413,7 +1521,7 @@ export function TemplateEditor({
           </FieldControl>
           <Options
             items={[
-              ...Object.entries(PURPOSE_LABEL),
+              ...Object.entries(TEMPLATE_PURPOSES),
               ['custom', 'Something else, for a stage’s automation'],
             ]}
           />

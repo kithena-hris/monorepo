@@ -14,7 +14,7 @@ export async function GET(
 ): Promise<Response> {
   const { file } = await params;
   if (!NAME.test(file)) return new Response('Not found', { status: 404 });
-  const answer = await fetch(`${base()}/v1/recruiting/logos/${file}`, {
+  const answer = await fetch(`${base()}/v1/recruiting/public/logos/${file}`, {
     next: { revalidate: 31_536_000 },
   });
   if (!answer.ok) return new Response('Not found', { status: 404 });
