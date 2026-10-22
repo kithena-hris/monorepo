@@ -208,19 +208,42 @@ jobs:
           fi
           true
 
-  # Never the build the gates rejected: `ci` must have passed on this commit.
-  # It waits for `ci` rather than asking once, so a merge's deploy can start
-  # at the merge: the builds below run meanwhile and every job that releases
-  # anything needs this one. A `ci` that fails, or is cancelled by a newer
-  # merge, stops the release here, and the newer merge's deploy ships both.
+  # Never the build the gates rejected. A commit whose tree a green pull
+  # request run already tested, byte for byte (`ci/tested-tree`, the record
+  # `ci` on main reads to skip what it would only repeat), is released at once:
+  # that run passed every required check on exactly this code. Otherwise it
+  # waits for `ci` to succeed on this commit. Either way `ci` on main still
+  # runs what the pull request narrowed (web acceptance, in full), and a red
+  # result there is the next merge's to fix; it no longer holds back a release
+  # the pull request already proved (2026-10-22: four minutes of every web
+  # deploy). A `ci` that fails, or is cancelled by a newer merge, stops an
+  # unproven release here, and the newer merge's deploy ships both.
   ci-passed:
     name: ci passed
     needs: plan
     if: needs.plan.outputs.any == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      statuses: read
     steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: proven in its pull request?
+        id: proven
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ env.DEPLOY_SHA }}
+        run: .github/scripts/retested-tree.sh
       - name: wait for ci on this commit
+        if: steps.proven.outputs.matched != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -237,6 +260,9 @@ jobs:
             fi
             sleep 10
           done
+      - name: released on the pull request's proof
+        if: steps.proven.outputs.matched == 'true'
+        run: echo "::notice::This tree passed every required check in its pull request; ci on main runs on beside the release."
 
   # People's, the router's, Slack's, audit's, Time Off's and the assistant's
   # images, one runner each,

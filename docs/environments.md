@@ -46,9 +46,12 @@ merge to main
 ```
 
 A merge starts the production deploy at once. Its builds run beside `ci` on
-main, and nothing is released until the deploy's `ci passed` job has seen `ci`
-succeed on that commit, so the build the gates rejected is never published and
-production waits for the slower of the two rather than for each in turn. It
+main. Nothing is released until the deploy's `ci passed` job is satisfied: at
+once when the merge's tree is exactly the one a green pull request run tested
+(the `ci/tested-tree` record below), otherwise when `ci` succeeds on the
+commit. So the build the gates rejected is never published, and a proven merge
+does not wait for `ci` on main to repeat the web acceptance its pull request
+narrowed; that run still finishes, and a red one is fixed forward. It
 can also be started by hand, for what git cannot see (a secret, a variable, a
 deploy to repeat).
 
