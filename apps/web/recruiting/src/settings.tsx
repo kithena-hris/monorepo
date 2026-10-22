@@ -223,9 +223,9 @@ function useRemoval(act: Act): {
   };
 }
 
-/** A page's parts, one under another, in a readable width. */
+/** A page's parts, one under another. */
 function Stack({ children }: { readonly children: ReactNode }): JSX.Element {
-  return <div className="flex max-w-3xl flex-col gap-6">{children}</div>;
+  return <div className="flex flex-col gap-6">{children}</div>;
 }
 
 /** One part of a page: a card with its name, a line only where one is needed, and its settings. */
@@ -2237,7 +2237,8 @@ export function Settings(props: ScreenProps<SettingsData>): JSX.Element {
             description="It may have moved; Settings lists every one."
           />
         ) : (
-          <div className="flex flex-col gap-4">
+          // The page's title and its cards in one column, centred in the space beside the menu.
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
             <Section data={data} props={props} />
           </div>
         )
