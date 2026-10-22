@@ -232,9 +232,14 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
 }
 
 const MODES = [
-  ['onsite', 'On site', 'Every day at the workplace.'],
-  ['hybrid', 'Hybrid', 'Some days at the workplace, the rest from home.'],
-  ['remote', 'Remote', 'From home, within the country’s law.'],
+  ['onsite', 'On site', 'Every day at the workplace.', <icons.company key="i" aria-hidden />],
+  [
+    'hybrid',
+    'Hybrid',
+    'Some days at the workplace, the rest from home.',
+    <icons.transfer key="i" aria-hidden />,
+  ],
+  ['remote', 'Remote', 'From home, within the country’s law.', <icons.home key="i" aria-hidden />],
 ] as const;
 
 export function ModeChoice({ data, props }: TermsProps): JSX.Element {
@@ -252,8 +257,8 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
           save({ workMode: v as NonNullable<JobTerms['workMode']> });
         }}
       >
-        {MODES.map(([key, label, description]) => (
-          <RadioCard key={key} value={key} description={description}>
+        {MODES.map(([key, label, description, icon]) => (
+          <RadioCard key={key} value={key} description={description} icon={icon}>
             {label}
           </RadioCard>
         ))}
@@ -348,6 +353,7 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
             key={t.key}
             value={t.key}
             disabled={t.unavailable != null}
+            icon={t.fixedTerm ? <icons.calendar aria-hidden /> : <icons.agreement aria-hidden />}
             badge={
               <Badge size="xs" variant="soft" tone={t.fixedTerm ? 'warning' : 'neutral'}>
                 {t.fixedTerm ? 'Fixed term' : 'Open-ended'}
@@ -629,18 +635,17 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
 
 const major = (minor: number): number => Math.round(minor / 100);
 
-interface PaySuggestion {
-  readonly minMinor: number;
-  readonly maxMinor: number;
-  readonly basis: string;
-  readonly confidence: 'low' | 'medium' | 'high';
-}
+const amount = (value: number, currency: string): string =>
+  new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 0 }).format(
+    value,
+  );
 
 /**
  * Pay: one figure, or a range from and to, yearly, in the entity's currency.
  * The first time, a model estimates what the market pays for the job where it
- * is and the figures arrive filled in, marked as its suggestion; a person
- * keeps or changes them. Recruiting refuses anything below the legal minimum.
+ * is and the figures arrive filled in. The estimate stays beneath them in
+ * muted words, kept with the job, with a press to go back to it after a
+ * change. Recruiting refuses anything below the legal minimum.
  */
 export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
   const { act, error, keep, setError } = useTerms(data, props);
@@ -653,10 +658,19 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
     job.salary === null ? null : major(job.salary.maxMinor),
   );
   const [shown, setShown] = useState(job.salaryShown);
-  const [suggested, setSuggested] = useState<PaySuggestion | null>(null);
-  const [touched, setTouched] = useState(false);
+  // The model's last estimate: the one kept with the job, or the one it has just given.
+  const [estimate, setEstimate] = useState(terms.payEstimate);
   const [asking, startAsking] = useTransition();
   const ready = options.currency !== null && terms.locationId !== null;
+  const figures = (k: 'fixed' | 'range', e: NonNullable<typeof estimate>): [number, number] =>
+    k === 'fixed'
+      ? [major(e.medianMinor), major(e.medianMinor)]
+      : [major(e.lowMinor), major(e.highMinor)];
+  const use = (k: 'fixed' | 'range', e: NonNullable<typeof estimate>): void => {
+    const [low, high] = figures(k, e);
+    setMin(low);
+    setMax(high);
+  };
   const ask = (k: 'fixed' | 'range'): void => {
     startAsking(async () => {
       const done = await act.call('SuggestJobPay', { jobId: job.id, input: { kind: k } });
@@ -664,19 +678,32 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
         setError(done.message);
         return;
       }
-      const s = done.data as PaySuggestion;
-      setSuggested(s);
-      setTouched(false);
+      const s = done.data as {
+        minMinor: number;
+        maxMinor: number;
+        basis: string;
+        confidence: 'low' | 'medium' | 'high';
+        currency: string;
+      };
+      // The kept estimate arrives with the next read; the figures for this kind are here now.
       setMin(major(s.minMinor));
       setMax(major(s.maxMinor));
+      props.onRefresh?.();
     });
   };
+  // A fresh estimate from the server replaces the one shown.
+  const [seen, setSeen] = useState(terms.payEstimate);
+  if (seen !== terms.payEstimate) {
+    setSeen(terms.payEstimate);
+    setEstimate(terms.payEstimate);
+  }
   // The first visit with no pay set: the market's figures arrive filled in.
   const asked = useRef(false);
   useEffect(() => {
     if (asked.current || job.salary !== null || !ready) return;
     asked.current = true;
-    ask(kind);
+    if (estimate === null) ask(kind);
+    else use(kind, estimate);
   });
   const persist = async (): Promise<boolean> => {
     if (min === null) return true;
@@ -697,6 +724,9 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
     );
   const currency = options.currency;
   const floor = options.minimumPayMinor === null ? null : Math.ceil(options.minimumPayMinor / 100);
+  const suggested = estimate === null ? null : figures(kind, estimate);
+  const changed =
+    suggested !== null && (min !== suggested[0] || (kind === 'range' && max !== suggested[1]));
   return (
     <>
       <Refusal error={error} />
@@ -706,8 +736,8 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
         onValueChange={(v) => {
           const next = v as 'fixed' | 'range';
           setKind(next);
-          // Untouched figures are the model's: ask it again for the other kind.
-          if (!touched && suggested !== null) ask(next);
+          // Untouched figures follow the estimate into the other kind.
+          if (estimate !== null && !changed) use(next, estimate);
           else if (next === 'fixed' && min !== null && max !== null)
             setMin(Math.round((min + max) / 2 / 500) * 500);
           else if (next === 'range' && max === null) setMax(min);
@@ -724,10 +754,7 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
           step={500}
           prefix={currency}
           disabled={asking}
-          onChange={(n) => {
-            setTouched(true);
-            setMin(n);
-          }}
+          onChange={setMin}
         />
         {kind === 'range' ? (
           <NumberField
@@ -737,44 +764,57 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
             step={500}
             prefix={currency}
             disabled={asking}
-            onChange={(n) => {
-              setTouched(true);
-              setMax(n);
-            }}
+            onChange={setMax}
           />
         ) : null}
       </div>
-      {asking ? (
-        <Alert tone="info" icon={<icons.assistant aria-hidden />} title="Estimating the market pay">
-          From the role, the level and the place.
-        </Alert>
-      ) : suggested !== null ? (
-        <Alert
-          tone="info"
-          icon={<icons.assistant aria-hidden />}
-          title={`${touched ? 'Changed from the' : 'The'} AI’s estimate, ${suggested.confidence} confidence`}
-        >
-          {`${suggested.basis} An estimate, not survey data: check it against what you pay today.`}
-        </Alert>
-      ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-fg-muted">
-          {floor === null
-            ? 'Yearly and gross, before tax.'
-            : `Yearly and gross. The legal minimum at these hours is ${currency} ${floor.toLocaleString()}.`}
-        </p>
-        <Button
-          size="sm"
-          variant="secondary"
-          loading={asking}
-          startIcon={<icons.assistant aria-hidden />}
-          onClick={() => {
-            ask(kind);
-          }}
-        >
-          {suggested === null ? 'Suggest with AI' : 'Estimate again'}
-        </Button>
+      {/* The estimate, always in view under the figures, in muted words. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
+        <icons.assistant aria-hidden className="size-4 shrink-0" />
+        {asking ? (
+          <span>Estimating what the market pays for this role there…</span>
+        ) : estimate === null || suggested === null ? (
+          <span>No estimate yet.</span>
+        ) : (
+          <span className="min-w-0 flex-1">
+            {`AI estimate: ${
+              kind === 'fixed'
+                ? amount(suggested[0], estimate.currency)
+                : `${amount(suggested[0], estimate.currency)} to ${amount(suggested[1], estimate.currency)}`
+            } a year, ${estimate.confidence} confidence. ${estimate.basis}`}
+          </span>
+        )}
+        <span className="flex gap-1">
+          {changed && estimate !== null ? (
+            <Button
+              size="xs"
+              variant="ghost"
+              startIcon={<icons.undo aria-hidden />}
+              onClick={() => {
+                use(kind, estimate);
+              }}
+            >
+              Use the estimate
+            </Button>
+          ) : null}
+          <Button
+            size="xs"
+            variant="ghost"
+            loading={asking}
+            startIcon={<icons.refresh aria-hidden />}
+            onClick={() => {
+              ask(kind);
+            }}
+          >
+            {estimate === null ? 'Estimate with AI' : 'Estimate again'}
+          </Button>
+        </span>
       </div>
+      <p className="text-sm text-fg-muted">
+        {floor === null
+          ? 'Yearly and gross, before tax.'
+          : `Yearly and gross. The legal minimum at these hours is ${amount(floor, currency)}.`}
+      </p>
       <Field orientation="horizontal">
         <span className="flex min-w-0 flex-col">
           <FieldLabel>Show the pay in the ad</FieldLabel>

@@ -21,11 +21,14 @@ import {
   RadioGroup,
   Reveal,
   RichTextEditor,
+  SegmentedControl,
+  SegmentedControlItem,
   Textarea,
   icons,
   staggerStyle,
 } from '@reach/ui';
 import {
+  createContext,
   use,
   useCallback,
   useEffect,
@@ -97,11 +100,11 @@ interface Page {
 const always = (): boolean => true;
 
 const SENIORITY = [
-  ['entry', 'Entry', 'New to the work'],
-  ['mid', 'Mid', 'Works on their own'],
-  ['senior', 'Senior', 'Leads the work'],
-  ['lead', 'Lead', 'Leads people or a field'],
-  ['executive', 'Executive', 'Leads a function'],
+  ['entry', 'Entry', 'New to the work', <icons.goal key="i" aria-hidden />],
+  ['mid', 'Mid', 'Works on their own', <icons.person key="i" aria-hidden />],
+  ['senior', 'Senior', 'Leads the work', <icons.starred key="i" aria-hidden />],
+  ['lead', 'Lead', 'Leads people or a field', <icons.team key="i" aria-hidden />],
+  ['executive', 'Executive', 'Leads a function', <icons.organisation key="i" aria-hidden />],
 ] as const;
 
 /** Every detail of the job as it stands, with a change: the details save is whole, never partial. */
@@ -196,8 +199,8 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
             });
           }}
         >
-          {SENIORITY.map(([key, label, description]) => (
-            <RadioCard key={key} value={key} description={description}>
+          {SENIORITY.map(([key, label, description, icon]) => (
+            <RadioCard key={key} value={key} description={description} icon={icon}>
               {label}
             </RadioCard>
           ))}
@@ -208,9 +211,18 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
 }
 
 /** The title, the first thing a job is given: kept when the setup moves on. */
+/** The title as it is being typed: the bar at the top shows it word by word. */
+const DraftTitle = createContext<{
+  readonly value: string;
+  readonly set: (title: string) => void;
+} | null>(null);
+
 function TitleStep({ data, props, commit }: TermsProps): JSX.Element {
   const act = useAct(props);
-  const [title, setTitle] = useState(data.job.title);
+  const draft = use(DraftTitle);
+  const [own, setOwn] = useState(data.job.title);
+  const title = draft?.value ?? own;
+  const setTitle = draft?.set ?? setOwn;
   const [error, setError] = useState<string | null>(null);
   useCommit(commit, async () => {
     const next = title.trim();
@@ -305,10 +317,35 @@ interface Draft {
   readonly html: string;
 }
 
+const LENGTHS = [
+  ['150', 'Short'],
+  ['300', 'Medium'],
+  ['500', 'Long'],
+] as const;
+
+const TONES = [
+  ['professional', 'Professional'],
+  ['warm', 'Warm'],
+  ['direct', 'Direct'],
+  ['energetic', 'Energetic'],
+] as const;
+
+/** Words in a document, for the length a change starts from. */
+const wordsIn = (doc: unknown): number => {
+  const walk = (n: unknown): string => {
+    if (typeof n !== 'object' || n === null) return '';
+    const node = n as { text?: unknown; content?: readonly unknown[] };
+    return `${typeof node.text === 'string' ? node.text : ''} ${(node.content ?? []).map(walk).join(' ')}`;
+  };
+  return walk(doc).split(/\s+/u).filter(Boolean).length;
+};
+
 /**
- * The role's description: drafted by AI the first time the step opens, from
- * the job as set up so far, and kept when the setup moves on. Redrafting
- * takes a line of what the team wants said.
+ * The role's description: drafted by AI the first time the page opens, from
+ * the job as set up so far, as rich text. How long and in what voice is the
+ * team's to choose, and a draft can be made longer, shorter or said another
+ * way. The title and every fact stay the job's own: Recruiting keeps the
+ * title and drops any amount of money a model writes.
  */
 function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
   const act = useAct(props);
@@ -318,15 +355,32 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
   const [doc, setDoc] = useState<Record<string, unknown> | null>(null);
   const [drawn, setDrawn] = useState<{ html: string; n: number } | null>(null);
   const [note, setNote] = useState('');
+  const [words, setWords] = useState('300');
+  const [tone, setTone] = useState('professional');
   const [error, setError] = useState<string | null>(null);
   const [drafting, startDrafting] = useTransition();
-  const draft = (): void => {
+  const [doing, setDoing] = useState<string | null>(null);
+  // What a change revises: the words in the editor, else the ad as saved.
+  const base: unknown = doc ?? ad?.doc ?? null;
+  const draft = (
+    change: 'longer' | 'shorter' | 'rephrase' | null,
+    length = Number(words),
+  ): void => {
+    setDoing(change ?? 'draft');
     startDrafting(async () => {
       setError(null);
       const done = await act.call('DraftAd', {
         jobId: data.job.id,
-        input: { language, intake: note },
+        input: {
+          language,
+          intake: note,
+          words: length,
+          tone,
+          change,
+          ...(change === null || base === null ? {} : { current: base }),
+        },
       });
+      setDoing(null);
       if (!done.ok) {
         setError(done.message);
         return;
@@ -341,7 +395,7 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
   useEffect(() => {
     if (asked.current || ad !== undefined) return;
     asked.current = true;
-    draft();
+    draft(null);
   });
   useCommit(commit, async () => {
     if (doc === null) return true;
@@ -357,12 +411,99 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
     props.onRefresh?.();
     return true;
   });
+  const current = base === null ? Number(words) : Math.max(80, wordsIn(base));
   return (
     <>
       <Refusal error={error} />
+      <div className="flex flex-col gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel>Length</FieldLabel>
+            <SegmentedControl aria-label="Length" value={words} onValueChange={setWords}>
+              {LENGTHS.map(([value, label]) => (
+                <SegmentedControlItem key={value} value={value}>
+                  {`${label}, ${value}`}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </Field>
+          <Field>
+            <FieldLabel>Tone</FieldLabel>
+            <SegmentedControl aria-label="Tone" value={tone} onValueChange={setTone}>
+              {TONES.map(([value, label]) => (
+                <SegmentedControlItem key={value} value={value}>
+                  {label}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </Field>
+        </div>
+        <Field>
+          <FieldLabel>Anything the AI should say</FieldLabel>
+          <FieldControl>
+            <Textarea
+              autoResize
+              value={note}
+              placeholder="They join the payments team rebuilding checkout in TypeScript."
+              onChange={(e) => {
+                setNote(e.target.value);
+              }}
+            />
+          </FieldControl>
+          <FieldDescription>
+            Pay, hours, holiday and the contract are never written into the text: the ad shows them
+            from the job, exactly as set.
+          </FieldDescription>
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            loading={drafting && doing === 'draft'}
+            disabled={drafting}
+            startIcon={<icons.assistant aria-hidden />}
+            onClick={() => {
+              draft(null);
+            }}
+          >
+            {ad === undefined && drawn === null ? 'Write it' : 'Write it again'}
+          </Button>
+          <Button
+            variant="secondary"
+            loading={drafting && doing === 'longer'}
+            disabled={drafting || base === null}
+            startIcon={<icons.add aria-hidden />}
+            onClick={() => {
+              draft('longer', Math.min(900, Math.round(current * 1.4)));
+            }}
+          >
+            Longer
+          </Button>
+          <Button
+            variant="secondary"
+            loading={drafting && doing === 'shorter'}
+            disabled={drafting || base === null}
+            startIcon={<icons.remove aria-hidden />}
+            onClick={() => {
+              draft('shorter', Math.max(80, Math.round(current * 0.7)));
+            }}
+          >
+            Shorter
+          </Button>
+          <Button
+            variant="secondary"
+            loading={drafting && doing === 'rephrase'}
+            disabled={drafting || base === null}
+            startIcon={<icons.refresh aria-hidden />}
+            onClick={() => {
+              draft('rephrase', current);
+            }}
+          >
+            Rephrase
+          </Button>
+        </div>
+      </div>
       {drafting ? (
-        <Alert tone="info" icon={<icons.assistant aria-hidden />} title="Writing the description">
-          {`From ${data.job.title}, the team, the place and the terms. It takes a few seconds.`}
+        <Alert tone="info" icon={<icons.assistant aria-hidden />} title="Writing">
+          {`From ${data.job.title}, the team, the place and the terms. A few seconds.`}
         </Alert>
       ) : null}
       <RichTextEditor
@@ -372,35 +513,8 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
         onChangeJson={(next) => {
           setDoc(next);
         }}
-        minHeight="22rem"
+        minHeight="24rem"
       />
-      <Field>
-        <FieldLabel>Anything the AI should say</FieldLabel>
-        <FieldDescription>
-          A line or two, such as the project they join or the tools you use. Redrafting replaces the
-          text above.
-        </FieldDescription>
-        <FieldControl>
-          <Textarea
-            autoResize
-            value={note}
-            placeholder="They join the payments team rebuilding checkout in TypeScript."
-            onChange={(e) => {
-              setNote(e.target.value);
-            }}
-          />
-        </FieldControl>
-      </Field>
-      <div className="flex justify-end">
-        <Button
-          variant="secondary"
-          loading={drafting}
-          startIcon={<icons.assistant aria-hidden />}
-          onClick={draft}
-        >
-          {ad === undefined && drawn === null ? 'Draft with AI' : 'Redraft with AI'}
-        </Button>
-      </div>
     </>
   );
 }
@@ -650,7 +764,7 @@ const percentOf = (data: JobData, visited: number): number => {
   return Math.round((parts.filter(Boolean).length / parts.length) * 100);
 };
 
-/** One part of a page: its name, a line, and the answer, arriving in turn. */
+/** One part of a page: its name, a line, and the answer, arriving in turn. Its name stays in view as its answer scrolls. */
 function BlockView({
   label,
   hint,
@@ -668,8 +782,8 @@ function BlockView({
       className="flex animate-arrive flex-col gap-4"
       style={staggerStyle(order, 'animation')}
     >
-      <header className="flex flex-col gap-1">
-        <h3 className="text-md font-semibold text-fg">{label}</h3>
+      <header className="z-10 -mx-2 flex flex-col gap-1 bg-canvas/90 px-2 py-2 backdrop-blur-md lg:sticky lg:top-0">
+        <h3 className="text-lg font-semibold tracking-[-0.01em] text-fg">{label}</h3>
         {hint === undefined ? null : <p className="text-sm text-fg-muted">{hint}</p>}
       </header>
       {children}
@@ -680,8 +794,8 @@ function BlockView({
 /**
  * The page the setup is drawn on: the close at the start of the bar, the
  * title in the middle with how much is done; the question and its parts in
- * a column of their own on the left, the answers on the right; Back,
- * "Step n of N" and Continue at the foot.
+ * a column of their own on the left, staying while the answers scroll on the
+ * right; Back, "Step n of N" and Continue at the foot.
  */
 function WizardFrame({
   open,
@@ -695,6 +809,7 @@ function WizardFrame({
   moving,
   last,
   entered,
+  notice,
   onClose,
   onBack,
   onNext,
@@ -713,12 +828,14 @@ function WizardFrame({
   readonly last: boolean;
   /** Arriving from the page before, already open: no second entrance. */
   readonly entered: boolean;
+  /** Something on a page already left did not save: said here, with the way back. */
+  readonly notice?: ReactNode;
   readonly onClose: () => void;
   readonly onBack: (() => void) | null;
   readonly onNext: () => void;
   readonly children: ReactNode;
 }): JSX.Element {
-  const travel = { '--arrive-from': `${String(direction * 1.5)}rem` } as CSSProperties;
+  const travel = { '--arrive-from': `${String(direction * 2)}rem` } as CSSProperties;
   return (
     <ModalPage
       open={open}
@@ -761,18 +878,18 @@ function WizardFrame({
           <div
             key={page.key}
             style={travel}
-            className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:px-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-20 lg:py-16"
+            className="mx-auto grid w-full max-w-6xl gap-x-20 gap-y-8 px-4 pb-16 sm:px-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:pt-16"
           >
-            <aside className="lg:sticky lg:top-16 lg:self-start">
-              <div className="flex flex-col gap-4">
+            <aside className="sticky top-0 z-20 -mx-4 bg-canvas/90 px-4 pt-6 pb-3 backdrop-blur-md sm:-mx-8 sm:px-8 lg:top-16 lg:mx-0 lg:self-start lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+              <div className="flex flex-col gap-3 lg:gap-4">
                 <h2
                   id="setup-step-title"
-                  className="animate-arrive text-3xl font-bold tracking-[-0.025em] text-balance text-fg"
+                  className="animate-arrive text-2xl font-bold tracking-[-0.025em] text-balance text-fg lg:text-4xl"
                 >
                   {page.title}
                 </h2>
                 <p
-                  className="animate-arrive text-fg-muted text-pretty"
+                  className="animate-arrive text-fg-muted text-pretty max-lg:hidden lg:text-lg"
                   style={staggerStyle(1, 'animation')}
                 >
                   {data === null ? page.hint({} as JobData) : page.hint(data)}
@@ -811,7 +928,16 @@ function WizardFrame({
                 )}
               </div>
             </aside>
-            <div className="flex min-w-0 flex-col gap-12">{children}</div>
+            <div className="flex min-w-0 flex-col gap-14">
+              <p
+                className="animate-arrive text-fg-muted text-pretty lg:hidden"
+                style={staggerStyle(1, 'animation')}
+              >
+                {data === null ? page.hint({} as JobData) : page.hint(data)}
+              </p>
+              {notice}
+              {children}
+            </div>
           </div>
         </ModalPageBody>
         <ModalPageFooter className="@2xl:justify-between">
@@ -867,20 +993,35 @@ export function JobWizard({
   readonly onFinish: () => void;
   readonly part: (part: BorrowedPart, commit: Commit) => ReactNode;
 }): JSX.Element {
-  // The page is the browser's to change: the address follows it, the server is not asked.
+  const act = useAct(props);
+  // Opened without a page named: where it was left last time.
+  const asked = stepKey ?? data.terms.setupStep;
+  // The page is the browser's to change: the address follows, the server is not asked.
   // `seen` is the address's step as last read: only a change there (back, a link) moves the page.
   const [step, setStep] = useState({
-    seen: stepKey,
-    index: pageIndex(stepKey),
+    seen: asked,
+    index: pageIndex(asked),
     direction: 1 as 1 | -1,
   });
-  if (step.seen !== stepKey) {
-    const to = pageIndex(stepKey);
-    setStep({ seen: stepKey, index: to, direction: to >= step.index ? 1 : -1 });
+  if (step.seen !== asked) {
+    const to = pageIndex(asked);
+    setStep({ seen: asked, index: to, direction: to >= step.index ? 1 : -1 });
   }
   const index = step.index;
   const page = WIZARD_PAGES[index] ?? ROLE;
-  // Every part holding typed answers adds what keeps them; the page moves on when all have.
+  // The title as it is typed, shown in the bar word by word.
+  const [title, setTitle] = useState({ base: data.job.title, value: data.job.title });
+  if (title.base !== data.job.title) setTitle({ base: data.job.title, value: data.job.title });
+  const draftTitle = useMemo(
+    () => ({
+      value: title.value,
+      set: (value: string) => {
+        setTitle((t) => ({ ...t, value }));
+      },
+    }),
+    [title.value],
+  );
+  // Every part holding typed answers adds what keeps them.
   const keepers = useRef(new Set<() => Promise<boolean>>());
   const commit = useMemo<Commit>(
     () => ({
@@ -893,93 +1034,145 @@ export function JobWizard({
     }),
     [],
   );
-  // Picks still on their way to Recruiting: the page waits for them before moving on.
+  // Saves still on their way to Recruiting.
   const saving = useRef(new Set<Promise<unknown>>());
   const track = useCallback((p: Promise<unknown>) => {
     saving.current.add(p);
     void p.finally(() => saving.current.delete(p));
   }, []);
   const [moving, setMoving] = useState(false);
+  const [failed, setFailed] = useState<number | null>(null);
   const last = index === WIZARD_PAGES.length - 1;
-  const go = async (to: number | 'finish'): Promise<void> => {
-    setMoving(true);
-    await Promise.all(saving.current);
-    let kept = true;
-    for (const keep of keepers.current) if (!(await keep())) kept = false;
-    setMoving(false);
-    if (!kept) return;
-    if (to === 'finish') {
-      onFinish();
-      return;
-    }
+  /** Start keeping what the page holds; the promise says whether all of it was kept. */
+  const keepPage = (): Promise<boolean> => {
+    const kept = [...keepers.current].map((keep) => keep());
+    return Promise.all(kept).then((all) => all.every(Boolean));
+  };
+  const remember = (key: string): void => {
+    track(act.call('SaveJobTerms', { jobId: data.job.id, input: { setupStep: key } }));
+  };
+  const go = (to: number): void => {
+    // The next page is shown at once; what this one holds is kept on the way.
+    const from = index;
+    const kept = keepPage();
+    track(kept);
+    void kept.then((ok) => {
+      if (!ok) setFailed(from);
+    });
     const key = WIZARD_PAGES[to]?.key ?? ROLE.key;
+    setFailed(null);
     setStep({ seen: step.seen, index: to, direction: to > index ? 1 : -1 });
     writeStep(key);
+    remember(key);
+  };
+  const settle = async (): Promise<boolean> => {
+    setMoving(true);
+    const ok = await keepPage();
+    await Promise.all(saving.current);
+    setMoving(false);
+    return ok;
   };
   return (
-    <WizardFrame
-      open={open}
-      label={`Set up ${data.job.title}`}
-      title={
-        // On the page that asks for the title the bar only shows it: one place to type it at a time.
-        page.key === ROLE.key ? (
-          <span className="text-md font-semibold text-fg">{data.job.title}</span>
-        ) : (
-          <TitleField key={data.job.title} data={data} props={props} />
-        )
-      }
-      percent={percentOf(data, index)}
-      index={index}
-      page={page}
-      data={data}
-      direction={step.direction}
-      moving={moving}
-      last={last}
-      entered={entered}
-      onClose={onClose}
-      onBack={
-        index === 0
-          ? null
-          : () => {
-              void go(index - 1);
-            }
-      }
-      onNext={() => {
-        void go(last ? 'finish' : index + 1);
-      }}
-    >
-      <SaveQueue value={track}>
-        {page.blocks.some((b) => b.ready(data)) ? null : (
-          <Alert
-            tone="info"
-            title="This page follows from the one before"
-            className="animate-arrive"
-            style={staggerStyle(2, 'animation')}
-          >
-            Answer the earlier pages first; the questions here depend on them.
-          </Alert>
-        )}
-        {page.blocks.map((b, i) => {
-          const ready = b.ready(data);
-          return (
-            <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
-              {ready ? (
-                <BlockView label={b.label} hint={b.hint?.(data)} order={i + 2}>
-                  {b.render({ data, props, commit }, part)}
-                </BlockView>
-              ) : null}
-            </Reveal>
-          );
-        })}
-      </SaveQueue>
-    </WizardFrame>
+    <DraftTitle value={draftTitle}>
+      <WizardFrame
+        open={open}
+        label={`Set up ${title.value.trim() === '' ? 'a job' : title.value}`}
+        title={
+          // On the page that asks for the title the bar shows it as it is typed: one place to type it.
+          page.key === ROLE.key ? (
+            <span className="truncate text-md font-semibold text-fg">
+              {title.value.trim() === '' ? 'New job' : title.value}
+            </span>
+          ) : (
+            <TitleField key={data.job.title} data={data} props={props} />
+          )
+        }
+        percent={percentOf(data, index)}
+        index={index}
+        page={page}
+        data={data}
+        direction={step.direction}
+        moving={moving}
+        last={last}
+        entered={entered}
+        notice={
+          failed === null ? null : (
+            <Alert
+              tone="danger"
+              title={`Something on “${WIZARD_PAGES[failed]?.title ?? ''}” did not save`}
+              className="animate-arrive"
+            >
+              <span className="flex flex-wrap items-center gap-3">
+                Go back to it to see what Recruiting said.
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    go(failed);
+                  }}
+                >
+                  Go back
+                </Button>
+              </span>
+            </Alert>
+          )
+        }
+        onClose={() => {
+          // Closing midway keeps everything typed, and where it was left.
+          remember(page.key);
+          void settle().then(onClose);
+        }}
+        onBack={
+          index === 0
+            ? null
+            : () => {
+                go(index - 1);
+              }
+        }
+        onNext={() => {
+          if (!last) {
+            go(index + 1);
+            return;
+          }
+          // The ad is read straight after: the last page is kept first.
+          void settle().then((ok) => {
+            if (ok) onFinish();
+          });
+        }}
+      >
+        <SaveQueue value={track}>
+          {page.blocks.some((b) => b.ready(data)) ? null : (
+            <Alert
+              tone="info"
+              title="This page follows from the one before"
+              className="animate-arrive"
+              style={staggerStyle(2, 'animation')}
+            >
+              Answer the earlier pages first; the questions here depend on them.
+            </Alert>
+          )}
+          {page.blocks.map((b, i) => {
+            const ready = b.ready(data);
+            return (
+              <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
+                {ready ? (
+                  <BlockView label={b.label} hint={b.hint?.(data)} order={i + 2}>
+                    {b.render({ data, props, commit }, part)}
+                  </BlockView>
+                ) : null}
+              </Reveal>
+            );
+          })}
+        </SaveQueue>
+      </WizardFrame>
+    </DraftTitle>
   );
 }
 
 /**
  * A new job, on the same page as its setup: its first part asks for the
- * title, and Continue creates the job and carries on with the rest of the
- * page.
+ * title, the bar showing it as it is typed, and Continue creates the job and
+ * carries on with the rest of the page.
  */
 export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
@@ -1024,8 +1217,12 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
   return (
     <WizardFrame
       open
-      label="New job"
-      title={<span className="text-md font-semibold text-fg">New job</span>}
+      label={title.trim() === '' ? 'New job' : `Set up ${title.trim()}`}
+      title={
+        <span className="truncate text-md font-semibold text-fg">
+          {title.trim() === '' ? 'New job' : title}
+        </span>
+      }
       percent={0}
       index={0}
       page={ROLE}

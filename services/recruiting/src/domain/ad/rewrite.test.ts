@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { docFrom, textsOf, withTexts } from './rewrite.js';
+import {
+  docFrom,
+  docToMarkdown,
+  markdownToDoc,
+  textsOf,
+  withTexts,
+  withoutAmounts,
+} from './rewrite.js';
+import { renderAd } from './render.js';
 
 const doc = {
   type: 'doc',
@@ -46,5 +54,42 @@ describe('an ad’s words, apart from its structure (PRD §22.3)', () => {
         { type: 'paragraph', content: [{ type: 'text', text: 'Two.' }] },
       ],
     });
+  });
+});
+
+describe('a drafted ad as rich text (PRD §22.3)', () => {
+  it('turns the model’s markdown into the editor’s headings, lists and marks', () => {
+    const md = [
+      '## What you will do',
+      '',
+      'Build **checkout** with a small team,',
+      'shipping every week.',
+      '',
+      '- Own the *payments* service',
+      '- Pair with design',
+      '',
+      '### Nice to have',
+      '1. Go',
+      '2. Kafka',
+    ].join('\n');
+    expect(renderAd(markdownToDoc(md)).html).toBe(
+      '<h2>What you will do</h2><p>Build <strong>checkout</strong> with a small team, shipping every week.</p>' +
+        '<ul><li><p>Own the <em>payments</em> service</p></li><li><p>Pair with design</p></li></ul>' +
+        '<h3>Nice to have</h3><ol><li><p>Go</p></li><li><p>Kafka</p></li></ol>',
+    );
+  });
+
+  it('reads a document back as the same markdown, so a model can revise it', () => {
+    const md = '## The role\n\nDesign the product **with us**.\n\n- One\n- Two';
+    expect(docToMarkdown(markdownToDoc(md))).toBe(md);
+    expect(docToMarkdown(doc)).toBe('## The role\n\nDesign the product **with us**.');
+  });
+
+  it('keeps no amount of money the model wrote: the page shows the pay from the job', () => {
+    expect(
+      withoutAmounts(
+        'A great team. You earn €60,000 a year. Remote friendly.\n\n- Salary up to $90k\n- Free lunch',
+      ),
+    ).toBe('A great team. Remote friendly.\n\n- Free lunch');
   });
 });
