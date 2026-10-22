@@ -874,13 +874,15 @@ function WizardFrame({
             </Button>
           }
         />
-        <ModalPageBody>
+        {/* On a wide screen the question stays where it is and only the answers scroll;
+            on a phone the page scrolls under a bar that keeps the question. */}
+        <ModalPageBody className="lg:overflow-hidden">
           <div
             key={page.key}
             style={travel}
-            className="mx-auto grid w-full max-w-6xl gap-x-20 gap-y-8 px-4 pb-16 sm:px-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:pt-16"
+            className="mx-auto grid w-full max-w-6xl gap-x-20 gap-y-8 px-4 pb-16 sm:px-8 lg:h-full lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:pb-0"
           >
-            <aside className="sticky top-0 z-20 -mx-4 bg-canvas/90 px-4 pt-6 pb-3 backdrop-blur-md sm:-mx-8 sm:px-8 lg:top-16 lg:mx-0 lg:self-start lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+            <aside className="sticky top-0 z-20 -mx-4 bg-canvas/90 px-4 pt-6 pb-3 backdrop-blur-md sm:-mx-8 sm:px-8 lg:static lg:mx-0 lg:overflow-y-auto lg:bg-transparent lg:px-0 lg:py-16 lg:backdrop-blur-none">
               <div className="flex flex-col gap-3 lg:gap-4">
                 <h2
                   id="setup-step-title"
@@ -928,7 +930,7 @@ function WizardFrame({
                 )}
               </div>
             </aside>
-            <div className="flex min-w-0 flex-col gap-14">
+            <div className="flex min-w-0 flex-col gap-14 lg:-mr-8 lg:overflow-y-auto lg:overscroll-contain lg:py-16 lg:pr-8">
               <p
                 className="animate-arrive text-fg-muted text-pretty lg:hidden"
                 style={staggerStyle(1, 'animation')}
@@ -1170,13 +1172,21 @@ export function JobWizard({
 }
 
 /**
- * A new job, on the same page as its setup: its first part asks for the
- * title, the bar showing it as it is typed, and Continue creates the job and
- * carries on with the rest of the page.
+ * A new job, on the same first page as any job's setup: the title, the team
+ * and level, the openings. Nothing exists until Continue, which creates the
+ * job with all of it and goes straight on to where the work is.
  */
 export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
+  const orgUnits =
+    props.load.status === 'ready'
+      ? ((props.load.data as unknown as { orgUnits?: JobData['orgUnits'] }).orgUnits ?? [])
+      : [];
   const [title, setTitle] = useState('');
+  const [team, setTeam] = useState<string | null>(null);
+  const [level, setLevel] = useState<string | null>(null);
+  const [openings, setOpenings] = useState<number | null>(1);
+  const [start, setStart] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requisition = props.search?.['requisition'] ?? null;
@@ -1197,12 +1207,15 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
         requisitionIds: requisition === null ? [] : [requisition],
         entityId: null,
         locationIds: [],
-        department: null,
-        // A placeholder the workplace part asks about; it is cleared at once below.
+        department: team,
+        // A placeholder: with `setup`, the work mode is left unanswered for its own page.
         workMode: 'onsite',
-        openings: 1,
+        openings: openings ?? 1,
         languages: ['en'],
         hiringManagerId: null,
+        seniority: level,
+        targetHireDate: start,
+        setup: { step: 'where' },
       },
     });
     if (!made.ok) {
@@ -1210,9 +1223,8 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
       setError(made.message);
       return;
     }
-    // How the work is done is a question of its own, not a default.
-    await act.call('SaveJobTerms', { jobId: id, input: { workMode: null } });
-    props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&entered=1`);
+    // One request made the job as described; the next page opens at once.
+    props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&step=where&entered=1`);
   };
   return (
     <WizardFrame
@@ -1237,8 +1249,8 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
         void create();
       }}
     >
+      <Refusal error={error} />
       <BlockView label="Title" hint={undefined} order={2}>
-        <Refusal error={error} />
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1247,6 +1259,55 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
         >
           <TitleInput value={title} onChange={setTitle} />
         </form>
+      </BlockView>
+      <BlockView label="Team and level" hint={undefined} order={3}>
+        <Field required>
+          <FieldLabel>Team</FieldLabel>
+          <FieldControl>
+            <Combobox
+              label="Team"
+              placeholder="Choose a team"
+              searchPlaceholder="Search teams"
+              options={orgUnits.map((u) => ({ value: u.name, label: u.name }))}
+              value={team}
+              emptyMessage="No team by that name. Add teams under Settings."
+              onChange={(v) => {
+                setTeam(typeof v === 'string' ? v : null);
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Field required>
+          <FieldLabel>Level</FieldLabel>
+          <RadioGroup
+            aria-label="Level"
+            className="grid gap-2 sm:grid-cols-2"
+            value={level ?? ''}
+            onValueChange={setLevel}
+          >
+            {SENIORITY.map(([key, label, description, icon]) => (
+              <RadioCard key={key} value={key} description={description} icon={icon}>
+                {label}
+              </RadioCard>
+            ))}
+          </RadioGroup>
+        </Field>
+      </BlockView>
+      <BlockView
+        label="Openings and start"
+        hint="The start date is a target for the team, not a promise in the ad."
+        order={4}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <NumberField label="Openings" value={openings} min={1} max={500} onChange={setOpenings} />
+          <Field>
+            <FieldLabel>Target start</FieldLabel>
+            <FieldControl>
+              <DatePicker label="Target start" value={start} onChange={setStart} />
+            </FieldControl>
+            <FieldDescription>Optional.</FieldDescription>
+          </Field>
+        </div>
       </BlockView>
     </WizardFrame>
   );

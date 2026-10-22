@@ -536,6 +536,20 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       await saveJobTerms(ctx, jobId, { entityId, locationId, workMode: 'onsite' }),
     );
     expect(where.options.relationships.map((r) => r.key)).toContain('employee');
+    // Hybrid: days on site, set or of the person's choosing; never more set days than the week has.
+    const hybrid = value(
+      await saveJobTerms(ctx, jobId, {
+        workMode: 'hybrid',
+        hybridDaysOnsite: 2,
+        hybridOnsiteDays: [3, 1],
+      }),
+    );
+    expect(hybrid.terms.hybridOnsiteDays).toEqual([1, 3]);
+    const tooMany = await saveJobTerms(ctx, jobId, { hybridOnsiteDays: [1, 2, 3] });
+    expect(tooMany.ok ? null : tooMany.error.code).toBe('HYBRID_DAYS');
+    const chosen = value(await saveJobTerms(ctx, jobId, { hybridOnsiteDays: null }));
+    expect(chosen.terms.hybridOnsiteDays).toBeNull();
+    value(await saveJobTerms(ctx, jobId, { workMode: 'onsite' }));
     expect((await saveJobTerms(ctx, jobId, { relationship: 'astronaut' })).ok).toBe(false);
     const work = value(await saveJobTerms(ctx, jobId, { relationship: 'employee' }));
     const lawful = work.options.contractTypes.find((t) => t.unavailable === null && !t.fixedTerm);

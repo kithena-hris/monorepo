@@ -18,6 +18,7 @@ import {
   NumberField,
   RadioCard,
   RadioGroup,
+  Reveal,
   SegmentedControl,
   SegmentedControlItem,
   Select,
@@ -263,24 +264,82 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
           </RadioCard>
         ))}
       </RadioGroup>
-      {terms.workMode === 'hybrid' ? (
-        <Field required>
-          <FieldLabel>Days on site a week</FieldLabel>
-          <SegmentedControl
-            aria-label="Days on site a week"
-            value={terms.hybridDaysOnsite === null ? '' : String(terms.hybridDaysOnsite)}
-            onValueChange={(v) => {
-              save({ hybridDaysOnsite: Number(v) });
-            }}
-          >
-            {[1, 2, 3, 4].map((n) => (
-              <SegmentedControlItem key={n} value={String(n)}>
-                {`${String(n)} day${n === 1 ? '' : 's'}`}
-              </SegmentedControlItem>
-            ))}
-          </SegmentedControl>
-        </Field>
-      ) : null}
+      <Reveal open={terms.workMode === 'hybrid'} unmountOnExit>
+        <div className="flex flex-col gap-5 pt-1">
+          <Field required>
+            <FieldLabel>Days on site a week</FieldLabel>
+            <SegmentedControl
+              aria-label="Days on site a week"
+              value={terms.hybridDaysOnsite === null ? '' : String(terms.hybridDaysOnsite)}
+              onValueChange={(v) => {
+                save({ hybridDaysOnsite: Number(v) });
+              }}
+            >
+              {[1, 2, 3, 4].map((n) => (
+                <SegmentedControlItem key={n} value={String(n)}>
+                  {`${String(n)} day${n === 1 ? '' : 's'}`}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </Field>
+          <Field required>
+            <FieldLabel>Which days</FieldLabel>
+            <RadioGroup
+              aria-label="Which days on site"
+              className="grid gap-2 sm:grid-cols-2"
+              value={terms.hybridOnsiteDays === null ? 'chosen' : 'set'}
+              onValueChange={(v) => {
+                save({ hybridOnsiteDays: v === 'set' ? [] : null });
+              }}
+            >
+              <RadioCard
+                value="chosen"
+                icon={<icons.calendar aria-hidden />}
+                description="They pick their own days each week."
+              >
+                Any days they choose
+              </RadioCard>
+              <RadioCard
+                value="set"
+                icon={<icons.scheduled aria-hidden />}
+                description="The same days every week, for the whole team."
+              >
+                Set days
+              </RadioCard>
+            </RadioGroup>
+          </Field>
+          <Reveal open={terms.hybridOnsiteDays !== null} unmountOnExit>
+            <Field required>
+              <FieldLabel>Days on site</FieldLabel>
+              <ChipRow aria-label="Days on site">
+                {DAYS.map(([d, label]) => {
+                  const set = terms.hybridOnsiteDays ?? [];
+                  const on = set.includes(d);
+                  const full =
+                    terms.hybridDaysOnsite !== null && set.length >= terms.hybridDaysOnsite;
+                  return (
+                    <Chip
+                      key={d}
+                      selected={on}
+                      disabled={!on && full}
+                      onClick={() => {
+                        save({ hybridOnsiteDays: on ? set.filter((x) => x !== d) : [...set, d] });
+                      }}
+                    >
+                      {label}
+                    </Chip>
+                  );
+                })}
+              </ChipRow>
+              <FieldDescription>
+                {terms.hybridDaysOnsite === null
+                  ? 'Choose how many days first.'
+                  : `${String((terms.hybridOnsiteDays ?? []).length)} of ${String(terms.hybridDaysOnsite)} chosen.`}
+              </FieldDescription>
+            </Field>
+          </Reveal>
+        </div>
+      </Reveal>
     </>
   );
 }

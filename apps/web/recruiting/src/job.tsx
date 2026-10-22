@@ -1361,6 +1361,16 @@ const PART_TITLE: Readonly<Record<Part, string>> = {
   publishing: 'Publishing',
 };
 
+const WEEKDAY: Readonly<Record<number, string>> = {
+  1: 'Mon',
+  2: 'Tue',
+  3: 'Wed',
+  4: 'Thu',
+  5: 'Fri',
+  6: 'Sat',
+  7: 'Sun',
+};
+
 const MODE: Readonly<Record<string, string>> = {
   onsite: 'On site',
   hybrid: 'Hybrid',
@@ -1466,7 +1476,17 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
           },
           {
             label: 'Work mode',
-            value: `${MODE[data.job.workMode] ?? data.job.workMode}${data.terms.workMode === 'hybrid' && data.terms.hybridDaysOnsite !== null ? `, ${String(data.terms.hybridDaysOnsite)} days on site` : ''}`,
+            value: `${MODE[data.job.workMode] ?? data.job.workMode}${
+              data.terms.workMode === 'hybrid' && data.terms.hybridDaysOnsite !== null
+                ? `, ${String(data.terms.hybridDaysOnsite)} days on site${
+                    data.terms.hybridOnsiteDays === null
+                      ? ', any days'
+                      : data.terms.hybridOnsiteDays.length === 0
+                        ? ''
+                        : ` (${data.terms.hybridOnsiteDays.map((d) => WEEKDAY[d] ?? '').join(', ')})`
+                  }`
+                : ''
+            }`,
           },
           { label: 'Contract', value: data.job.outline.contractType ?? 'Not set' },
           {

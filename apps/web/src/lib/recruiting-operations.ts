@@ -33,6 +33,8 @@ export const OPERATIONS = {
   RecruitingRequisitions: query('RecruitingRequisitions', 'recruitingRequisitions'),
   /** R4–R7, R14 */
   RecruitingJob: query('RecruitingJob', 'recruitingJob', '$jobId: String!', 'jobId: $jobId'),
+  /** R4: a new job's first page */
+  RecruitingNewJob: query('RecruitingNewJob', 'recruitingNewJob'),
   /** R10, filtered in the address */
   RecruitingPipeline: query(
     'RecruitingPipeline',

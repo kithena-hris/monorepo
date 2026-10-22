@@ -658,6 +658,8 @@ type Query {
   recruitingKit(interviewId: String!): JSON
   """Whether I am emailed when a candidate acts"""
   recruitingMyNotifications: JSON
+  """R4: a new job’s first page, before the job exists"""
+  recruitingNewJob: JSON
   """R19–R22: an offer, its terms, approval and contract"""
   recruitingOffer(offerId: String!): JSON
   """Offers"""

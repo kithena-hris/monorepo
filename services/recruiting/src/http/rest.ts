@@ -138,6 +138,7 @@ import {
   home,
   interviewsScreen,
   jobScreen,
+  newJobScreen,
   offerScreen,
   offersScreen,
   pipelineScreen,
@@ -422,6 +423,13 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx) => ok(await requisitionsScreen(ctx)),
   }),
   route({
+    name: 'recruitingNewJob',
+    method: 'GET',
+    path: `${V1}/new-job`,
+    summary: 'R4: a new job’s first page, before the job exists',
+    run: (ctx) => newJobScreen(ctx),
+  }),
+  route({
     name: 'recruitingJob',
     method: 'GET',
     path: `${V1}/jobs/{jobId}`,
@@ -649,9 +657,23 @@ export const ROUTES: readonly Route[] = [
       openings: z.int().min(1).max(500),
       languages: z.array(text(5)),
       hiringManagerId: Id.nullable(),
+      seniority: z.enum(['entry', 'mid', 'senior', 'lead', 'executive']).nullable().optional(),
+      targetHireDate: CalendarDate.nullable().optional(),
+      /** Opened from the setup: the work mode is asked on its own page, which the setup goes on to. */
+      setup: z.object({ step: z.string().max(40) }).optional(),
     }),
     status: 201,
-    run: (ctx, { body }) => createJob(ctx, body),
+    run: async (ctx, { body }) => {
+      const { setup, ...input } = body;
+      const made = await createJob(ctx, input);
+      if (!made.ok || setup === undefined) return made;
+      // One request makes the job as the setup's first page described it.
+      const terms = await saveJobTerms(ctx, made.value.id, {
+        workMode: null,
+        setupStep: setup.step,
+      });
+      return terms.ok ? made : terms;
+    },
   }),
   route({
     name: 'saveJobDetails',
@@ -675,6 +697,8 @@ export const ROUTES: readonly Route[] = [
         locationId: Id.nullable(),
         workMode: z.enum(['onsite', 'hybrid', 'remote']).nullable(),
         hybridDaysOnsite: z.int().min(1).max(4).nullable(),
+        /** Set weekdays on site, Monday 1; null when the person chooses. */
+        hybridOnsiteDays: z.array(z.int().min(1).max(7)).max(4).nullable(),
         relationship: text(40).nullable(),
         contractType: text(80).nullable(),
         fixedTermReason: text(80).nullable(),

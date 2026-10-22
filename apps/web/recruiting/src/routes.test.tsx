@@ -258,6 +258,7 @@ const job: JobData = {
     locationId: null,
     workMode: 'hybrid',
     hybridDaysOnsite: null,
+    hybridOnsiteDays: null,
     relationship: null,
     contractType: null,
     fixedTermReason: null,
@@ -398,10 +399,38 @@ describe('R4–R7, a job’s setup', () => {
     expect(screen.getByText('Step 7 of 8')).toBeTruthy();
   });
 
+  it('lets a hybrid week have set days on site or any the person chooses', () => {
+    render(
+      <screens.JobSetup
+        load={ready({
+          ...job,
+          terms: {
+            ...job.terms,
+            entityId: 'e1',
+            locationId: 'l1',
+            workMode: 'hybrid',
+            hybridDaysOnsite: 2,
+            hybridOnsiteDays: [1],
+          },
+        })}
+        params={{ id: 'j1' }}
+        search={{ setup: '1', step: 'where' }}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: 'Set days' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Mon' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('1 of 2 chosen.')).toBeTruthy();
+  });
+
   it('starts a new job on the same page, with its title', async () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'new' }} />);
     expect(screen.getByRole('dialog', { name: 'New job' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'What is the job?' })).toBeTruthy();
+    // The whole first page, not a page for the title alone before it.
+    expect(screen.getByRole('region', { name: 'Team and level' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Openings and start' })).toBeTruthy();
     expect(screen.getByText('Step 1 of 8')).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });
