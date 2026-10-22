@@ -910,8 +910,8 @@ describe('Recruiting settings, one job a page', () => {
     render(<screens.Settings load={ready(settings)} path="/settings/recruiting/pay" />);
     fireEvent.click(screen.getByRole('button', { name: 'Add pay band' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Add pay band' }).at(-1) as HTMLElement);
-    expect(screen.getByText('Name the grade, as offers refer to it.')).toBeTruthy();
-    expect(screen.getByText('Enter the band’s ceiling.')).toBeTruthy();
+    expect(screen.getByText('Name the grade, such as Senior or E3.')).toBeTruthy();
+    expect(screen.getByText('Enter the highest yearly salary.')).toBeTruthy();
   });
 });
 
