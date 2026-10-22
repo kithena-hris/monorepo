@@ -72,8 +72,22 @@ export interface TermsPatch extends Partial<JobTerms> {
 
 export interface TermsOptions {
   readonly country: string | null;
-  readonly entities: readonly { id: string; name: string; country: string; currency: string }[];
+  readonly entities: readonly {
+    id: string;
+    name: string;
+    country: string;
+    currency: string;
+    fullTimeWeeklyMinutes: number;
+  }[];
   readonly locations: readonly { id: string; name: string; city: string | null; country: string }[];
+  /** Every entity's workplaces, so a choice of entity shows its own at once. */
+  readonly places: readonly {
+    id: string;
+    name: string;
+    city: string | null;
+    country: string;
+    entityId: string | null;
+  }[];
   readonly relationships: readonly Choice[];
   readonly contractTypes: readonly (Pick<ContractTypeChoice, 'key' | 'label' | 'fixedTerm'> & {
     readonly unavailable: string | null;
@@ -190,8 +204,16 @@ export async function termsOptions(ctx: Ctx, terms: JobTerms): Promise<TermsOpti
       name: e.name,
       country: e.country,
       currency: e.currency,
+      fullTimeWeeklyMinutes: e.fullTimeWeeklyMinutes,
     })),
     locations: locations.map((l) => ({ id: l.id, name: l.name, city: l.city, country: l.country })),
+    places: (await ctx.tx.locations.list()).map((l) => ({
+      id: l.id,
+      name: l.name,
+      city: l.city,
+      country: l.country,
+      entityId: l.entityId,
+    })),
     relationships: ready ? pack.relationships() : [],
     contractTypes: types.map((t) => ({
       key: t.key,
@@ -519,5 +541,73 @@ export async function suggestPay(
     currency: options.currency,
     basis: estimated.value.basis,
     confidence: estimated.value.confidence,
+  });
+}
+
+/** A country's contract, as the setup lists it before anything is saved. */
+export interface CatalogueContract {
+  readonly key: string;
+  readonly label: string;
+  readonly fixedTerm: boolean;
+  readonly unavailable: string | null;
+  readonly note: string | null;
+  readonly maxWeeklyMinutes: number;
+}
+
+/**
+ * R4: all of a country's terms the setup asks about, at once: the kinds of
+ * work, the contracts for each, the reasons a fixed term may have, the leave
+ * the law gives for each kind of work by days worked a week, and the legal
+ * week for each contract. The same for every entity in the country, so the
+ * screen fetches it once per country, ahead of being asked, and lists it the
+ * moment an entity is chosen. Recruiting still checks every save.
+ */
+export async function termsCatalogue(
+  ctx: Ctx,
+  country: string,
+): Promise<
+  Result<{
+    readonly country: string;
+    readonly reviewed: boolean;
+    readonly relationships: readonly Choice[];
+    readonly contracts: Readonly<Record<string, readonly CatalogueContract[]>>;
+    readonly reasons: Readonly<Record<string, readonly Choice[]>>;
+    readonly leave: Readonly<Record<string, readonly MinimumLeave[]>>;
+  }>
+> {
+  const entity = (await ctx.tx.entities.list()).find((e) => e.country === country);
+  if (entity === undefined) return refused('NOT_FOUND', 'No entity in that country');
+  const pack = packFor(entity.country);
+  const facts = factsOf(entity);
+  const relationships = pack.relationships();
+  const contracts: Record<string, CatalogueContract[]> = {};
+  const reasons: Record<string, readonly Choice[]> = {};
+  const leave: Record<string, MinimumLeave[]> = {};
+  for (const r of relationships) {
+    const answers: TermsAnswers = {
+      relationship: r.key as NonNullable<TermsAnswers['relationship']>,
+    };
+    contracts[r.key] = pack.contractTypes(answers, facts).map((t) => {
+      const withType = { ...answers, contractType: t.key };
+      const fixed = pack.fixedTermReasons(withType);
+      if (fixed.length > 0) reasons[t.key] = fixed;
+      return {
+        key: t.key,
+        label: t.label,
+        fixedTerm: t.fixedTerm,
+        unavailable: t.unavailable ?? null,
+        note: t.note ?? null,
+        maxWeeklyMinutes: pack.limits(withType, facts, ctx.today).maxWeeklyMinutes,
+      };
+    });
+    leave[r.key] = [1, 2, 3, 4, 5, 6, 7].map((days) => pack.minimumLeave(answers, days));
+  }
+  return ok({
+    country: entity.country,
+    reviewed: pack.reviewed,
+    relationships,
+    contracts,
+    reasons,
+    leave,
   });
 }

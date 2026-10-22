@@ -678,6 +678,10 @@ type Query {
   R16: the plan and free slots for one of its interviews, a week at a time
   """
   recruitingSlots(applicationId: String!, away: String, from: String, holidays: String, interviewers: String, planKey: String, weeks: String): JSON
+  """
+  R4: a country’s kinds of work, contracts, fixed-term reasons, leave and legal week, at once, for the setup to list ahead of time
+  """
+  recruitingTermsCatalogue(country: String!): JSON
   """My working hours, for slots without a calendar"""
   recruitingWorkingHours: JSON
 }

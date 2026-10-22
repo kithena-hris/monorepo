@@ -59,7 +59,15 @@ import {
   type TermsProps,
 } from './job-terms';
 import { Refusal, newId, useAct } from './shared';
-import type { JobData, JobRecord, ScreenProps } from './types';
+import {
+  TermsPicks,
+  prefetchCatalogues,
+  stillPending,
+  useCatalogue,
+  viewOf,
+  type Picks,
+} from './terms-view';
+import type { Done, JobData, JobRecord, JobTerms, ScreenProps } from './types';
 
 /**
  * R4–R7: a job, set up on a page of its own over the jobs list. Eight pages,
@@ -355,7 +363,7 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
   const [doc, setDoc] = useState<Record<string, unknown> | null>(null);
   const [drawn, setDrawn] = useState<{ html: string; n: number } | null>(null);
   const [note, setNote] = useState('');
-  const [words, setWords] = useState('300');
+  const [words, setWords] = useState(DEFAULT_WORDS);
   const [tone, setTone] = useState('professional');
   const [error, setError] = useState<string | null>(null);
   const [drafting, startDrafting] = useTransition();
@@ -391,11 +399,30 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
       setDrawn((was) => ({ html: d.html, n: (was?.n ?? 0) + 1 }));
     });
   };
-  const asked = useRef(false);
+  const opened = useRef(false);
   useEffect(() => {
-    if (asked.current || ad !== undefined) return;
-    asked.current = true;
-    draft(null);
+    if (opened.current || ad !== undefined) return;
+    opened.current = true;
+    // Written ahead on the page before: taken as it is, or waited on if still being written.
+    const ahead = drafts.get(data.job.id);
+    if (ahead === undefined) {
+      draft(null);
+      return;
+    }
+    drafts.delete(data.job.id);
+    setDoing('draft');
+    startDrafting(async () => {
+      const done = await ahead;
+      setDoing(null);
+      if (!done.ok) {
+        setError(done.message);
+        return;
+      }
+      const d = done.data as Draft;
+      setTitle(d.title);
+      setDoc(d.doc);
+      setDrawn((was) => ({ html: d.html, n: (was?.n ?? 0) + 1 }));
+    });
   });
   useCommit(commit, async () => {
     if (doc === null) return true;
@@ -967,6 +994,47 @@ function WizardFrame({
   );
 }
 
+type Call = (name: string, variables: Readonly<Record<string, unknown>>) => Promise<Done>;
+
+const prefetched = new Set<string>();
+
+/** The market pay, estimated once a job has a place and before its page is reached. */
+function prefetchPay(call: Call, data: JobData, refresh: (() => void) | undefined): void {
+  if (
+    data.terms.payEstimate !== null ||
+    data.job.salary !== null ||
+    data.terms.locationId === null ||
+    prefetched.has(`pay:${data.job.id}`)
+  )
+    return;
+  prefetched.add(`pay:${data.job.id}`);
+  void call('SuggestJobPay', { jobId: data.job.id, input: { kind: 'range' } }).then((done) => {
+    if (done.ok) refresh?.();
+  });
+}
+
+/** Drafts written ahead, by job: the description page takes its first from here. */
+const drafts = new Map<string, Promise<Done>>();
+
+const DEFAULT_WORDS = '500';
+
+function prefetchDraft(call: Call, data: JobData): void {
+  if (data.ads.length > 0 || drafts.has(data.job.id)) return;
+  drafts.set(
+    data.job.id,
+    call('DraftAd', {
+      jobId: data.job.id,
+      input: {
+        language: data.job.languages[0] ?? 'en',
+        intake: '',
+        words: Number(DEFAULT_WORDS),
+        tone: 'professional',
+        change: null,
+      },
+    }),
+  );
+}
+
 /** Where the setup is, kept in the address without asking the server for the page again. */
 const writeStep = (key: string): void => {
   const url = new URL(window.location.href);
@@ -978,7 +1046,7 @@ const writeStep = (key: string): void => {
 
 export function JobWizard({
   open,
-  data,
+  data: served,
   props,
   stepKey,
   entered,
@@ -996,6 +1064,46 @@ export function JobWizard({
   readonly part: (part: BorrowedPart, commit: Commit) => ReactNode;
 }): JSX.Element {
   const act = useAct(props);
+  // Picks on their way to Recruiting, which every part reads: what they unlock shows at once.
+  const [picks, setPicks] = useState<{ base: JobTerms; value: Partial<JobTerms> }>({
+    base: served.terms,
+    value: {},
+  });
+  if (picks.base !== served.terms)
+    setPicks({ base: served.terms, value: stillPending(picks.value, served.terms) });
+  const shared = useMemo<Picks>(
+    () => ({
+      picks: picks.value,
+      add: (patch) => {
+        setPicks((p) => ({ ...p, value: { ...p.value, ...patch } }));
+      },
+      drop: (keys) => {
+        setPicks((p) => ({
+          ...p,
+          value: Object.fromEntries(
+            Object.entries(p.value).filter(([k]) => !keys.includes(k)),
+          ),
+        }));
+      },
+    }),
+    [picks.value],
+  );
+  const chosenEntity =
+    picks.value.entityId === undefined ? served.terms.entityId : picks.value.entityId;
+  const catalogue = useCatalogue(
+    served.options.entities.find((e) => e.id === chosenEntity)?.country ?? null,
+  );
+  // The job as the setup shows it: the server's, the picks on top, choices from the country's catalogue.
+  const data = useMemo(
+    () => viewOf(served, picks.value, catalogue),
+    [served, picks.value, catalogue],
+  );
+  // Ahead of being asked: every country's terms as the setup opens.
+  const call = useRef(act.call);
+  call.current = act.call;
+  useEffect(() => {
+    prefetchCatalogues((name, variables) => call.current(name, variables), served);
+  }, [served]);
   // Opened without a page named: where it was left last time.
   const asked = stepKey ?? data.terms.setupStep;
   // The page is the browser's to change: the address follows, the server is not asked.
@@ -1011,6 +1119,13 @@ export function JobWizard({
   }
   const index = step.index;
   const page = WIZARD_PAGES[index] ?? ROLE;
+  // On the page before theirs, the pay estimate and the description are asked for, so each
+  // is already there when its page opens.
+  const next = WIZARD_PAGES[index + 1]?.key;
+  useEffect(() => {
+    if (next === 'pay') prefetchPay((n, v) => call.current(n, v), served, props.onRefresh);
+    if (next === 'description') prefetchDraft((n, v) => call.current(n, v), served);
+  }, [next, served, props.onRefresh]);
   // The title as it is typed, shown in the bar word by word.
   const [title, setTitle] = useState({ base: data.job.title, value: data.job.title });
   if (title.base !== data.job.title) setTitle({ base: data.job.title, value: data.job.title });
@@ -1143,28 +1258,30 @@ export function JobWizard({
         }}
       >
         <SaveQueue value={track}>
-          {page.blocks.some((b) => b.ready(data)) ? null : (
-            <Alert
-              tone="info"
-              title="This page follows from the one before"
-              className="animate-arrive"
-              style={staggerStyle(2, 'animation')}
-            >
-              Answer the earlier pages first; the questions here depend on them.
-            </Alert>
-          )}
-          {page.blocks.map((b, i) => {
-            const ready = b.ready(data);
-            return (
-              <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
-                {ready ? (
-                  <BlockView label={b.label} hint={b.hint?.(data)} order={i + 2}>
-                    {b.render({ data, props, commit }, part)}
-                  </BlockView>
-                ) : null}
-              </Reveal>
-            );
-          })}
+          <TermsPicks value={shared}>
+            {page.blocks.some((b) => b.ready(data)) ? null : (
+              <Alert
+                tone="info"
+                title="This page follows from the one before"
+                className="animate-arrive"
+                style={staggerStyle(2, 'animation')}
+              >
+                Answer the earlier pages first; the questions here depend on them.
+              </Alert>
+            )}
+            {page.blocks.map((b, i) => {
+              const ready = b.ready(data);
+              return (
+                <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
+                  {ready ? (
+                    <BlockView label={b.label} hint={b.hint?.(data)} order={i + 2}>
+                      {b.render({ data, props, commit }, part)}
+                    </BlockView>
+                  ) : null}
+                </Reveal>
+              );
+            })}
+          </TermsPicks>
         </SaveQueue>
       </WizardFrame>
     </DraftTitle>

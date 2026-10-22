@@ -16,7 +16,9 @@ import type {
   PipelineData,
   Requisition,
   SettingsData,
+  TermsCatalogue,
 } from './types';
+import { stillPending, viewOf } from './terms-view';
 
 const ready = <T,>(data: T) => ({ status: 'ready' as const, data });
 const routes = new Set(manifest.routes.map((r) => r.path));
@@ -276,6 +278,7 @@ const job: JobData = {
     country: null,
     entities: [],
     locations: [],
+    places: [],
     relationships: [],
     contractTypes: [],
     fixedTermReasons: [],
@@ -717,5 +720,90 @@ describe('S6, the benefits catalogue', () => {
     expect(screen.getByRole('button', { name: 'Add category' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Add benefit' })).toHaveLength(2);
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('R4, the setup’s terms ahead of the server', () => {
+  const catalogue: TermsCatalogue = {
+    country: 'DE',
+    reviewed: true,
+    relationships: [{ key: 'employee', label: 'Arbeitnehmer (employee)', note: 'On the payroll.' }],
+    contracts: {
+      employee: [
+        { key: 'unbefristet', label: 'Unbefristet', fixedTerm: false, maxWeeklyMinutes: 2880 },
+        {
+          key: 'befristet_mit_sachgrund',
+          label: 'Befristet',
+          fixedTerm: true,
+          maxWeeklyMinutes: 2880,
+        },
+      ],
+    },
+    reasons: { befristet_mit_sachgrund: [{ key: 'substitution', label: 'Covering for another' }] },
+    leave: {
+      employee: [1, 2, 3, 4, 5, 6, 7].map((d) => ({
+        days: 4 * d,
+        unit: 'working_days' as const,
+        source: 'BUrlG § 3',
+        note: '',
+      })),
+    },
+  };
+  const german = {
+    ...job,
+    options: {
+      ...job.options,
+      entities: [
+        {
+          id: 'e1',
+          name: 'Acme GmbH',
+          country: 'DE',
+          currency: 'EUR',
+          fullTimeWeeklyMinutes: 2400,
+        },
+      ],
+      places: [{ id: 'l1', name: 'Berlin', city: 'Berlin', country: 'DE', entityId: 'e1' }],
+    },
+  };
+
+  it('lists the workplaces of an entity the moment it is chosen, before Recruiting answers', () => {
+    const view = viewOf(german, { entityId: 'e1' }, null);
+    expect(view.options.locations.map((l) => l.name)).toEqual(['Berlin']);
+    expect(view.options.currency).toBe('EUR');
+  });
+
+  it('lists the country’s contracts for a kind of work from its catalogue, with their reasons and leave', () => {
+    const view = viewOf(
+      german,
+      {
+        entityId: 'e1',
+        locationId: 'l1',
+        workMode: 'onsite',
+        relationship: 'employee',
+        contractType: 'befristet_mit_sachgrund',
+        workDays: [1, 2, 3, 4, 5],
+        dayStart: 540,
+        dayEnd: 1020,
+        breakMinutes: 60,
+      },
+      catalogue,
+    );
+    expect(view.options.contractTypes.map((t) => t.key)).toEqual([
+      'unbefristet',
+      'befristet_mit_sachgrund',
+    ]);
+    expect(view.options.fixedTermReasons.map((r) => r.key)).toEqual(['substitution']);
+    expect(view.options.leave?.days).toBe(20);
+    expect(view.options.weeklyMinutes).toBe(5 * 7 * 60);
+    // 35 hours against the entity's 40: part time.
+    expect(view.options.hours).toBe('part_time');
+  });
+
+  it('keeps only the picks Recruiting has not answered yet', () => {
+    expect(
+      stillPending({ entityId: 'e1', locationId: 'l1' }, { ...job.terms, entityId: 'e1' }),
+    ).toEqual({
+      locationId: 'l1',
+    });
   });
 });
