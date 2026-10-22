@@ -1819,7 +1819,13 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                       }}
                     >
                       <div className="flex flex-col gap-2">
-                        <Button size="lg" disabled tabIndex={-1} className="w-full">
+                        <Button
+                          variant="primary"
+                          size="lg"
+                          disabled
+                          tabIndex={-1}
+                          className="w-full"
+                        >
                           Apply now
                         </Button>
                         <p className="text-sm text-fg-muted">
