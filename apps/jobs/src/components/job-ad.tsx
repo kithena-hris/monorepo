@@ -155,11 +155,11 @@ export function JobAd({
     ...(job.validThrough === null ? [] : [{ label: 'Open until', value: day(job.validThrough) }]),
   ];
   const apply = preview ? (
-    <Button size="lg" disabled className="w-full">
+    <Button variant="primary" size="lg" disabled className="w-full">
       Apply now
     </Button>
   ) : (
-    <Button asChild size="lg" className="w-full">
+    <Button asChild variant="primary" size="lg" className="w-full">
       <Link href={applyHref}>Apply now</Link>
     </Button>
   );
@@ -321,7 +321,7 @@ export function JobAd({
             <span className="min-w-0 flex-1 truncate text-sm font-semibold">
               {pay ?? job.title}
             </span>
-            <Button asChild size="md">
+            <Button asChild variant="primary" size="md">
               <Link href={applyHref}>Apply now</Link>
             </Button>
           </div>

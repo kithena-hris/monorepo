@@ -44,7 +44,7 @@ export function StickyTitle({
             <span className="block truncate text-xs text-fg-muted">{company}</span>
           </span>
           {applyHref === null ? null : (
-            <Button asChild size="sm" tabIndex={shown ? 0 : -1}>
+            <Button asChild variant="primary" size="sm" tabIndex={shown ? 0 : -1}>
               <Link href={applyHref}>Apply now</Link>
             </Button>
           )}

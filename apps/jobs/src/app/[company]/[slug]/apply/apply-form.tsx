@@ -367,6 +367,7 @@ export function ApplyForm({
             </div>
           ))}
           <Button
+            variant="primary"
             className="self-end"
             disabled={filesMissing.length > 0}
             onClick={() => {
@@ -414,6 +415,7 @@ export function ApplyForm({
               Back
             </Button>
             <Button
+              variant="primary"
               disabled={answersMissing.length > 0}
               onClick={() => {
                 setStep(2);
@@ -494,6 +496,7 @@ export function ApplyForm({
             </Button>
             {account === null ? (
               <Button
+                variant="primary"
                 disabled={
                   !consent || name === '' || !email.includes('@') || (job.nycNotice && !nyc)
                 }
@@ -504,6 +507,7 @@ export function ApplyForm({
               </Button>
             ) : (
               <Button
+                variant="primary"
                 disabled={
                   !consent || name === '' || !email.includes('@') || (job.nycNotice && !nyc)
                 }
@@ -525,7 +529,7 @@ export function ApplyForm({
             <Button variant="ghost" loading={pending} onClick={askCode}>
               Send a new code
             </Button>
-            <Button disabled={code.length !== 6} loading={pending} onClick={send}>
+            <Button variant="primary" disabled={code.length !== 6} loading={pending} onClick={send}>
               Send application
             </Button>
           </div>
