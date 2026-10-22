@@ -154,9 +154,13 @@ export async function requisitionsScreen(ctx: Ctx): Promise<unknown> {
 }
 
 /** R4–R7, R14: a job's setup in one answer. */
-/** R4: what a new job's first page offers before the job exists: the teams to choose from. */
+/** R4: what a new job's first page offers before the job exists: the teams to choose from, and the entities' countries. */
 export async function newJobScreen(ctx: Ctx): Promise<Result<unknown>> {
-  return ok({ orgUnits: await ctx.tx.orgUnits.list() });
+  return ok({
+    orgUnits: await ctx.tx.orgUnits.list(),
+    // So each country's terms are fetched ahead of the page that asks for them.
+    entities: (await ctx.tx.entities.list()).map((e) => ({ id: e.id, country: e.country })),
+  });
 }
 
 export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown>> {
