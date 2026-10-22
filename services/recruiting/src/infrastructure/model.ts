@@ -28,10 +28,23 @@ export function modelFrom(env: Readonly<Record<string, string | undefined>>): Mo
     return undefined;
   }
   const name = env['ASSISTANT_MODEL'] ?? DEFAULT_MODEL;
-  return gatewayModel(name, chat(baseUrl, apiKey, name));
+  const model = gatewayModel(name, chat(baseUrl, apiKey, name));
+  // Groq's GPT-OSS models carry a web search of their own; elsewhere there is none.
+  const searching = gatewayModel(name, chat(baseUrl, apiKey, name, true));
+  return baseUrl === GROQ && name.startsWith('openai/gpt-oss')
+    ? {
+        ...model,
+        research: (tenantId, prompt) => searching.complete(tenantId, prompt),
+      }
+    : model;
 }
 
-function chat(baseUrl: string, apiKey: string | null, model: string): ModelTransport {
+function chat(
+  baseUrl: string,
+  apiKey: string | null,
+  model: string,
+  search = false,
+): ModelTransport {
   return async (prompt) => {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
@@ -43,14 +56,17 @@ function chat(baseUrl: string, apiKey: string | null, model: string): ModelTrans
         model,
         temperature: 0,
         max_tokens: 4096,
-        response_format: { type: 'json_object' },
+        // With a search the answer is JSON in the text: the provider takes a tool or a format, not both.
+        ...(search
+          ? { tools: [{ type: 'browser_search' }], tool_choice: 'auto' }
+          : { response_format: { type: 'json_object' } }),
         messages: [
           { role: 'system', content: prompt.instruction },
           { role: 'user', content: JSON.stringify(prompt.context) },
         ],
       }),
       // A person is waiting on R10 or R11; a batch runs in the background.
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(search ? 45_000 : 20_000),
     });
     if (!response.ok) throw new Error(`the model answered ${String(response.status)}`);
     const body = (await response.json()) as { choices?: { message?: { content?: string } }[] };

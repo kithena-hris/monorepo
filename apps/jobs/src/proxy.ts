@@ -18,6 +18,7 @@ const SHARED = new Set([
   'embed',
   'embed.js',
   'feeds',
+  'logos',
   'me',
   'reference',
   'schedule',

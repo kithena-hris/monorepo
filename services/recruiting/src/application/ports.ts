@@ -617,6 +617,19 @@ export interface Model {
     tenantId: string,
     prompt: { readonly instruction: string; readonly context: Readonly<Record<string, unknown>> },
   ): Promise<string | null>;
+  /**
+   * The same, with the provider's web search open to the model, where the
+   * provider has one; its answer is JSON in its text. Absent: no web search.
+   */
+  research?(
+    tenantId: string,
+    prompt: { readonly instruction: string; readonly context: Readonly<Record<string, unknown>> },
+  ): Promise<string | null>;
+}
+
+/** The public web, read: a host's home page as its words (S1, a company's "about"). */
+export interface Web {
+  read(host: string): Promise<{ readonly url: string; readonly text: string } | null>;
 }
 
 export interface ReferenceRequest {
@@ -1092,6 +1105,8 @@ export interface Deps {
   readonly inbound?: { readonly domain: string; readonly token: string };
   /** Absent without an AI key: every AI feature is then off, and Recruiting works without it. */
   readonly model?: Model;
+  /** A company's own website, read for its "about"; absent, the model writes from its search alone. */
+  readonly web?: Web;
   /**
    * Seals what only aggregates may read (§24.4, self-ID), bound to its row's
    * id. Absent without `RECRUITING_ENCRYPTION_KEY`: self-ID is then off.

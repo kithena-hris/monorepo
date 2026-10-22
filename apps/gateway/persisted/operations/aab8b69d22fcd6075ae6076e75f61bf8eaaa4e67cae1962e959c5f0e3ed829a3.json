@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation UploadCompanyLogo($input: JSON!, $key: String!) {\n    uploadCompanyLogo(input: $input, idempotencyKey: $key)\n  }"}

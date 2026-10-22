@@ -8,6 +8,7 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
   Avatar,
+  AvatarUploader,
   Badge,
   Button,
   Card,
@@ -53,6 +54,7 @@ import {
   Textarea,
   icons,
   staggerStyle,
+  type UploadedImage,
 } from '@reach/ui';
 import { useState, type CSSProperties, type JSX, type ReactNode } from 'react';
 
@@ -338,6 +340,14 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const unset = (g: GeneralSettings): boolean =>
   g.companyName === 'Your company' && g.companySlug === 'company';
 
+/** `meridian-freight` read as a name: "Meridian Freight". */
+const nameOf = (slug: string): string =>
+  slug
+    .split(/[-_]+/u)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
 /** A company's address in Kithena, made fit for a careers page's: small letters, digits, hyphens. */
 const slugOf = (text: string): string =>
   text
@@ -357,7 +367,8 @@ const prefilled = (data: SettingsData): GeneralSettings => {
   if (company === undefined || !unset(g)) return g;
   return {
     ...g,
-    companyName: company.name ?? g.companyName,
+    // The company's address in Kithena, `meridian-freight.app.kithena.com`, read as its name.
+    companyName: nameOf(company.slug) || g.companyName,
     companySlug: slugOf(company.slug) || g.companySlug,
     logoUrl: g.logoUrl ?? company.logoUrl,
     themeId: company.themeId ?? g.themeId,
@@ -386,6 +397,182 @@ function useGeneral(data: SettingsData, props: ScreenProps<SettingsData>) {
       });
     },
   };
+}
+
+/** A file as base64, for the upload's JSON. */
+const base64Of = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(typeof reader.result === 'string' ? (reader.result.split(',')[1] ?? '') : '');
+    };
+    reader.onerror = () => {
+      reject(new Error('That file could not be read'));
+    };
+    reader.readAsDataURL(file);
+  });
+
+/**
+ * The company's logo, uploaded here: it shows on the careers page, on every
+ * job, in search and in every email once the settings are saved.
+ */
+function LogoField({
+  name,
+  logoUrl,
+  act,
+  onChange,
+}: {
+  readonly name: string;
+  readonly logoUrl: string | null;
+  readonly act: Act;
+  readonly onChange: (logoUrl: string | null) => void;
+}): JSX.Element {
+  const [picked, setPicked] = useState<readonly UploadedImage[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  return (
+    <AvatarUploader
+      label={busy ? 'Logo, uploading' : 'Logo'}
+      hint={problem ?? 'PNG, JPEG or WebP, up to 1 MB. A square one fits best.'}
+      shape="rounded"
+      fit="contain"
+      size="lg"
+      value={picked}
+      src={logoUrl}
+      fallback={<Avatar name={name} shape="rounded" size="xl" className="ring-0" />}
+      accept={['image/png', 'image/jpeg', 'image/webp']}
+      maxSize={1_000_000}
+      disabled={busy}
+      invalid={problem !== null}
+      onReject={(rejections) => {
+        setProblem(rejections[0]?.message ?? 'That image was not accepted.');
+      }}
+      onChange={(next) => {
+        const file = next[0]?.file;
+        setPicked(next);
+        setProblem(null);
+        if (file === undefined) {
+          onChange(null);
+          return;
+        }
+        setBusy(true);
+        void base64Of(file)
+          .then((data) => act.call('UploadCompanyLogo', { input: { mediaType: file.type, data } }))
+          .then((done) => {
+            setBusy(false);
+            if (!done.ok) {
+              setProblem(done.message);
+              return;
+            }
+            onChange((done.data as { logoUrl: string }).logoUrl);
+          })
+          .catch(() => {
+            setBusy(false);
+            setProblem('That file could not be read.');
+          });
+      }}
+    />
+  );
+}
+
+/** Where a company's own website may be: its reply address's domain, and its careers domain's. */
+const domainsOf = (data: SettingsData, g: GeneralSettings): string[] =>
+  [
+    g.replyAddress?.split('@')[1] ?? null,
+    data.careersDomain?.host.split('.').slice(1).join('.') ?? null,
+  ].filter((d): d is string => d !== null && d.includes('.'));
+
+/**
+ * The company's "about", typed, or written by AI from its own website and a
+ * web search, and then always said to be the AI's until someone changes it.
+ */
+function AboutField({
+  data,
+  g,
+  act,
+  onChange,
+}: {
+  readonly data: SettingsData;
+  readonly g: GeneralSettings;
+  readonly act: Act;
+  readonly onChange: (about: string | null) => void;
+}): JSX.Element {
+  const [drafted, setDrafted] = useState<{
+    text: string;
+    sources: readonly string[];
+    searched: boolean;
+  } | null>(null);
+  const [writing, setWriting] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const aiOn = data.general.ai.writer;
+  const fromAi = drafted !== null && (g.about ?? '') === drafted.text;
+  const hosts = drafted?.sources.map((u) => new URL(u).hostname) ?? [];
+  return (
+    <Field invalid={problem !== null}>
+      <FieldLabel>About the company</FieldLabel>
+      <FieldControl>
+        <Textarea
+          autoResize
+          rows={3}
+          value={g.about ?? ''}
+          disabled={writing}
+          placeholder="What you do, for whom, and what it is like to work here."
+          onChange={(e) => {
+            onChange(e.target.value === '' ? null : e.target.value);
+          }}
+        />
+      </FieldControl>
+      {drafted === null ? null : (
+        <div className="flex animate-arrive flex-wrap items-center gap-2 text-sm text-fg-muted">
+          <Badge size="sm" tone="assistant">
+            {fromAi ? 'Written by AI' : 'Started by AI, edited by you'}
+          </Badge>
+          <span>
+            {`From ${hosts.length === 0 ? `what the AI knows of ${g.companyName}` : [...new Set(hosts)].join(', ')}${drafted.searched ? ' and a web search' : ''}. Check every line before saving.`}
+          </span>
+        </div>
+      )}
+      <FieldError>{problem}</FieldError>
+      <div>
+        <Button
+          variant="secondary"
+          size="sm"
+          startIcon={<icons.assistant aria-hidden />}
+          loading={writing}
+          disabled={!aiOn || g.companyName.trim() === ''}
+          onClick={() => {
+            setWriting(true);
+            setProblem(null);
+            void act
+              .call('DescribeCompany', {
+                input: { name: g.companyName, domains: domainsOf(data, g) },
+              })
+              .then((done) => {
+                setWriting(false);
+                if (!done.ok) {
+                  setProblem(done.message);
+                  return;
+                }
+                const d = done.data as { about: string; sources: string[]; searched: boolean };
+                setDrafted({ text: d.about, sources: d.sources, searched: d.searched });
+                onChange(d.about);
+              });
+          }}
+        >
+          {writing
+            ? 'Searching the web'
+            : (g.about ?? '') === ''
+              ? 'Write it with AI'
+              : 'Rewrite it with AI'}
+        </Button>
+      </div>
+      {aiOn ? null : (
+        <FieldDescription>
+          To write it with AI, switch on “Write and translate job ads” under AI.
+        </FieldDescription>
+      )}
+    </Field>
+  );
 }
 
 const CareersPage: Body = ({ data, props }) => {
@@ -429,40 +616,22 @@ const CareersPage: Body = ({ data, props }) => {
             </FieldControl>
             <FieldError>{checks.error('name')}</FieldError>
           </Field>
-          <List>
-            <ListItem
-              leading={
-                <Avatar
-                  name={g.companyName}
-                  src={g.logoUrl ?? undefined}
-                  shape="rounded"
-                  fit={g.logoUrl === null ? 'cover' : 'contain'}
-                  size="lg"
-                />
-              }
-              description={
-                g.logoUrl === null
-                  ? 'No logo yet: your initials stand in. Add one to your company’s profile.'
-                  : 'From your company’s profile.'
-              }
-            >
-              Logo
-            </ListItem>
-          </List>
-          <Field>
-            <FieldLabel>About the company</FieldLabel>
-            <FieldControl>
-              <Textarea
-                autoResize
-                rows={3}
-                value={g.about ?? ''}
-                placeholder="What you do, for whom, and what it is like to work here."
-                onChange={(e) => {
-                  set({ about: e.target.value === '' ? null : e.target.value });
-                }}
-              />
-            </FieldControl>
-          </Field>
+          <LogoField
+            name={g.companyName}
+            logoUrl={g.logoUrl}
+            act={act}
+            onChange={(logoUrl) => {
+              set({ logoUrl });
+            }}
+          />
+          <AboutField
+            data={data}
+            g={g}
+            act={act}
+            onChange={(about) => {
+              set({ about });
+            }}
+          />
         </Group>
         <Group title="Where candidates find you">
           <Field required invalid={checks.invalid('slug')}>
