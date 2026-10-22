@@ -128,7 +128,9 @@ const WRITES = new Set<OperationName>([
   'PlaceHold',
   'DeleteCandidate',
   'Chart',
-  // Reads a screen asks for after it has drawn: free slots, the debrief, my calendars and emails.
+  // Reads a screen asks for after it has drawn: free slots, the debrief, my calendars and emails,
+  // and a new job's own screen, read while its first page is still being answered.
+  'RecruitingJob',
   'RecruitingSlots',
   'RecruitingConnections',
   'RecruitingMyNotifications',

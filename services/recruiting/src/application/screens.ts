@@ -172,8 +172,11 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
   const team = await Promise.all(
     facts.team.map(async (t) => ({ ...t, name: await nameOf(ctx, t.personId) })),
   );
+  const general = await generalSettings(ctx);
   return ok({
     job,
+    // The company as candidates see it, for the ad's preview.
+    company: { name: general.companyName, logoUrl: general.logoUrl },
     may: [...permissions],
     team,
     stages: await ctx.tx.jobs.stages(jobId),

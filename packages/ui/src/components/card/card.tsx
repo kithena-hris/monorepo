@@ -22,6 +22,12 @@ const card = cva('rounded-lg bg-surface text-fg touch:rounded-[1.375rem]', {
       fill: 'bg-surface-sunken',
       /** The earlier name for `fill`. */
       sunken: 'bg-surface-sunken',
+      /**
+       * No fill and no edge: part of the page it sits on until pointed at.
+       * With `interactive`, a wash and a ring say it can be pressed rather
+       * than a lift, for a preview whose every part opens its own editor.
+       */
+      bare: 'bg-transparent',
       /** Lifted off the canvas. Reserve for content that floats over context. */
       elevated: 'bg-surface-raised shadow-lg',
       /**
@@ -71,6 +77,17 @@ const card = cva('rounded-lg bg-surface text-fg touch:rounded-[1.375rem]', {
       false: '',
     },
   },
+  compoundVariants: [
+    {
+      variant: 'bare',
+      interactive: true,
+      className: [
+        'hover:bg-surface-sunken/70 hover:shadow-[inset_0_0_0_1px_var(--reach-color-border-strong)]',
+        'focus-within:bg-surface-sunken/70 focus-within:shadow-[inset_0_0_0_2px_var(--reach-color-accent)]',
+        'transition-[background-color,box-shadow]',
+      ],
+    },
+  ],
   defaultVariants: { variant: 'raised', padded: false, interactive: false, tone: 'default' },
 });
 

@@ -3,8 +3,6 @@ import {
   Avatar,
   Badge,
   Button,
-  IconList,
-  IconListItem,
   IconTile,
   KeyValues,
   RichTextContent,
@@ -245,7 +243,7 @@ export function JobAd({
           {job.benefits.length === 0 ? null : (
             <section className="flex flex-col gap-6">
               <h2 className="text-2xl font-bold tracking-[-0.01em]">What we offer</h2>
-              {/* By category, each led by its icon and name; every benefit a title and a line. */}
+              {/* By category, each led by its icon and name; every benefit a name and a line. */}
               <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
                 {benefitGroups(job.benefits).map((g) => {
                   const Icon = iconOf(g.icon);
@@ -257,18 +255,19 @@ export function JobAd({
                         </IconTile>
                         <h3 className="text-lg font-semibold">{g.name}</h3>
                       </div>
-                      <IconList>
+                      {/* Only the category carries a mark; its benefits read as words under its name. */}
+                      <ul className="flex flex-col gap-3 ps-13">
                         {g.benefits.map((b) => (
-                          <IconListItem
-                            key={b.name}
-                            icon={<icons.success aria-hidden />}
-                            tone="accent"
-                            {...(b.description === null ? {} : { description: b.description })}
-                          >
-                            {b.name}
-                          </IconListItem>
+                          <li key={b.name} className="flex flex-col gap-0.5">
+                            <span className="font-medium text-fg">{b.name}</span>
+                            {b.description === null ? null : (
+                              <span className="text-sm text-pretty text-fg-muted">
+                                {b.description}
+                              </span>
+                            )}
+                          </li>
                         ))}
-                      </IconList>
+                      </ul>
                     </section>
                   );
                 })}

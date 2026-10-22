@@ -23,6 +23,13 @@ import {
   RichTextEditor,
   SegmentedControl,
   SegmentedControlItem,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
   Textarea,
   icons,
   staggerStyle,
@@ -117,7 +124,7 @@ const SENIORITY = [
 ] as const;
 
 /** Every detail of the job as it stands, with a change: the details save is whole, never partial. */
-const detailsOf = (job: JobRecord, change: Partial<JobRecord>): Record<string, unknown> => {
+export const detailsOf = (job: JobRecord, change: Partial<JobRecord>): Record<string, unknown> => {
   const next = { ...job, ...change };
   return {
     title: next.title,
@@ -839,6 +846,10 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
 ];
 
+/** A page of the setup, or one part of one, by its key. */
+export const isSetupPart = (key: string): boolean =>
+  WIZARD_PAGES.some((p) => p.key === key || p.blocks.some((b) => b.key === key));
+
 /** The page an address names: by its own key, or by one of its parts' (an older link). */
 const pageIndex = (key: string | null): number => {
   const i = WIZARD_PAGES.findIndex((p) => p.key === key || p.blocks.some((b) => b.key === key));
@@ -856,11 +867,14 @@ function BlockView({
   label,
   hint,
   order,
+  pinned = true,
   children,
 }: {
   readonly label: string;
   readonly hint: string | undefined;
   readonly order: number;
+  /** Its name stays at the top while its answer scrolls: on the setup's page, not in a panel. */
+  readonly pinned?: boolean;
   readonly children: ReactNode;
 }): JSX.Element {
   return (
@@ -869,7 +883,13 @@ function BlockView({
       className="flex animate-arrive flex-col gap-4"
       style={staggerStyle(order, 'animation')}
     >
-      <header className="z-10 -mx-2 flex flex-col gap-1 bg-canvas/90 px-2 py-2 backdrop-blur-md lg:sticky lg:top-0">
+      <header
+        className={
+          pinned
+            ? 'z-10 -mx-2 flex flex-col gap-1 bg-canvas/90 px-2 py-2 backdrop-blur-md lg:sticky lg:top-0'
+            : 'flex flex-col gap-1'
+        }
+      >
         <h3 className="text-lg font-semibold tracking-[-0.01em] text-fg">{label}</h3>
         {hint === undefined ? null : <p className="text-sm text-fg-muted">{hint}</p>}
       </header>
@@ -1130,6 +1150,7 @@ export function JobWizard({
   onClose,
   onFinish,
   part,
+  focus = null,
 }: {
   readonly open: boolean;
   readonly data: JobData;
@@ -1139,6 +1160,8 @@ export function JobWizard({
   readonly onClose: () => void;
   readonly onFinish: () => void;
   readonly part: (part: BorrowedPart, commit: Commit) => ReactNode;
+  /** One page or one part of it, edited on its own in a panel off the ad: pressed in the preview. */
+  readonly focus?: string | null;
 }): JSX.Element {
   const act = useAct(props);
   // Picks on their way to Recruiting, which every part reads: what they unlock shows at once.
@@ -1192,8 +1215,12 @@ export function JobWizard({
     const to = pageIndex(asked);
     setStep({ seen: asked, index: to, direction: to >= step.index ? 1 : -1 });
   }
-  const index = step.index;
+  const index = focus === null ? step.index : pageIndex(focus);
   const page = WIZARD_PAGES[index] ?? ROLE;
+  // A part pressed in the preview is asked alone; a page pressed, every part on it.
+  const blocks =
+    focus === null || page.key === focus ? page.blocks : page.blocks.filter((b) => b.key === focus);
+  const alone = focus !== null && blocks.length === 1 ? blocks[0] : undefined;
   // On the page before theirs, the pay estimate and the description are asked for, so each
   // is already there when its page opens.
   const next = WIZARD_PAGES[index + 1]?.key;
@@ -1273,6 +1300,72 @@ export function JobWizard({
     setMoving(false);
     return ok;
   };
+  const body = (
+    <SaveQueue value={track}>
+      <TermsPicks value={shared}>
+        {blocks.some((b) => b.ready(gate)) ? null : (
+          <Alert
+            tone="info"
+            title="This page follows from the one before"
+            className="animate-arrive"
+            style={staggerStyle(2, 'animation')}
+          >
+            Answer the earlier pages first; the questions here depend on them.
+          </Alert>
+        )}
+        {blocks.map((b, i) => {
+          const ready = b.ready(gate);
+          return (
+            <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
+              {!ready ? null : alone === undefined ? (
+                <BlockView
+                  label={b.label}
+                  hint={b.hint?.(data)}
+                  order={i + 2}
+                  pinned={focus === null}
+                >
+                  {b.render({ data, props, commit }, part)}
+                </BlockView>
+              ) : (
+                b.render({ data, props, commit }, part)
+              )}
+            </Reveal>
+          );
+        })}
+      </TermsPicks>
+    </SaveQueue>
+  );
+  if (focus !== null) {
+    // Done keeps what was typed; the panel stays open on a refusal, which the part shows.
+    const done = (): void => {
+      void settle().then((ok) => {
+        if (ok) onClose();
+      });
+    };
+    return (
+      <JobDraftContext value={jobDraft}>
+        <Sheet
+          open={open}
+          onOpenChange={(o) => {
+            if (!o) done();
+          }}
+        >
+          <SheetContent size="xl">
+            <SheetHeader>
+              <SheetTitle>{alone?.label ?? page.title}</SheetTitle>
+              <SheetDescription>{alone?.hint?.(data) ?? page.hint(data)}</SheetDescription>
+            </SheetHeader>
+            <SheetBody className="flex flex-col gap-10">{body}</SheetBody>
+            <SheetFooter>
+              <Button loading={moving} onClick={done}>
+                Done
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      </JobDraftContext>
+    );
+  }
   return (
     <JobDraftContext value={jobDraft}>
       <WizardFrame
@@ -1341,32 +1434,7 @@ export function JobWizard({
           });
         }}
       >
-        <SaveQueue value={track}>
-          <TermsPicks value={shared}>
-            {page.blocks.some((b) => b.ready(gate)) ? null : (
-              <Alert
-                tone="info"
-                title="This page follows from the one before"
-                className="animate-arrive"
-                style={staggerStyle(2, 'animation')}
-              >
-                Answer the earlier pages first; the questions here depend on them.
-              </Alert>
-            )}
-            {page.blocks.map((b, i) => {
-              const ready = b.ready(gate);
-              return (
-                <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
-                  {ready ? (
-                    <BlockView label={b.label} hint={b.hint?.(data)} order={i + 2}>
-                      {b.render({ data, props, commit }, part)}
-                    </BlockView>
-                  ) : null}
-                </Reveal>
-              );
-            })}
-          </TermsPicks>
-        </SaveQueue>
+        {body}
       </WizardFrame>
     </JobDraftContext>
   );
@@ -1380,7 +1448,18 @@ export function JobWizard({
  * has nothing left to save and opens the next page at once. Every entity's
  * country's terms are fetched meanwhile, for the page after.
  */
-export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
+export function NewJobWizard({
+  part,
+  ...props
+}: ScreenProps<JobData> & {
+  /** The parts the setup borrows from the ad's panels, for the job once it is made. */
+  readonly part: (
+    part: BorrowedPart,
+    commit: Commit,
+    data: JobData,
+    props: ScreenProps<JobData>,
+  ) => ReactNode;
+}): JSX.Element {
   const act = useAct(props);
   const loaded =
     props.load.status === 'ready'
@@ -1409,6 +1488,18 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
   now.current = { title, team, level, openings, start };
   const [id] = useState(newId);
   const made = useRef<JobRecord | null>(null);
+  // The job's own screen, read as soon as it is made, so the next page opens here at once
+  // rather than after a trip to the server for a page of its own.
+  const screen = useRef<Promise<Done> | null>(null);
+  const [opened, setOpened] = useState<JobData | null>(null);
+  const reads = useRef(0);
+  const reread = useCallback(() => {
+    const n = ++reads.current;
+    void call.current('RecruitingJob', { jobId: id }).then((done) => {
+      if (done.ok && n === reads.current) setOpened(done.data as JobData);
+    });
+  }, [id]);
+  const here = useMemo(() => ({ ...props, onRefresh: reread }), [props, reread]);
   const creating = useRef<Promise<JobRecord | null> | null>(null);
   const saving = useRef(new Set<Promise<unknown>>());
   const track = (p: Promise<unknown>): void => {
@@ -1463,6 +1554,7 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
           return null;
         }
         made.current = done.data as JobRecord;
+        screen.current = act.call('RecruitingJob', { jobId: id });
         // Anything answered while it was being made.
         keep();
         return made.current;
@@ -1496,8 +1588,32 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
     }
     keep();
     await Promise.all(saving.current);
-    props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&step=where&entered=1`);
+    const read = await screen.current;
+    const at = `/recruiting/jobs/${id}/setup?setup=1&step=where&entered=1`;
+    if (read?.ok !== true || made.current === null) {
+      props.onNavigate?.(at);
+      return;
+    }
+    // The job read when it was made, with this page's answers as last kept.
+    setOpened({ ...(read.data as JobData), job: made.current });
+    window.history.replaceState(window.history.state, '', at);
   };
+  if (opened !== null) {
+    // Leaving the setup, or finishing it, lands on the ad, which is now the job's own page.
+    const ad = (): void => props.onNavigate?.(`/recruiting/jobs/${id}/setup`);
+    return (
+      <JobWizard
+        open
+        data={opened}
+        props={here}
+        stepKey="where"
+        entered
+        onClose={ad}
+        onFinish={ad}
+        part={(p, commit) => part(p, commit, opened, here)}
+      />
+    );
+  }
   const named = title.trim() !== '';
   const placed = team !== null && level !== null;
   const parts = [

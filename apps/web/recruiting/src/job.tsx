@@ -10,7 +10,6 @@ import {
   Alert,
   Avatar,
   Badge,
-  Banner,
   Button,
   Card,
   CardContent,
@@ -50,16 +49,18 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  Timeline,
+  TimelineItem,
   cn,
   icons,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, newId, range, useAct, words } from './shared';
+import { Refusal, StateBadge, day, newId, range, useAct, words } from './shared';
 import { BenefitList } from './benefits';
-import { BenefitsChoice, TermsCards, hoursOf, useCommit, type Commit } from './job-terms';
-import { JobWizard, NewJobWizard } from './job-wizard';
+import { hoursOf, useCommit, type Commit } from './job-terms';
+import { JobWizard, NewJobWizard, isSetupPart } from './job-wizard';
 import type { FormField, JobData, ScreenProps } from './types';
 
 /**
@@ -1335,28 +1336,15 @@ function ChatChannel({
   );
 }
 
-/** The parts of a job a person edits, each in its own sheet off the ad. */
-const PARTS = [
-  'details',
-  'terms',
-  'benefits',
-  'team',
-  'criteria',
-  'plan',
-  'ad',
-  'form',
-  'publishing',
-] as const;
-type Part = (typeof PARTS)[number];
+/** The parts of a job edited in a panel of their own, off the ad or inside the setup. */
+type Part = 'details' | 'team' | 'criteria' | 'plan' | 'ad' | 'form' | 'publishing';
 
 const PART_TITLE: Readonly<Record<Part, string>> = {
-  details: 'Job details',
-  terms: 'Workplace, terms and pay',
-  benefits: 'Benefits',
+  details: 'Internal details',
   team: 'Hiring team',
   criteria: 'Criteria',
   plan: 'Interview plan',
-  ad: 'The ad',
+  ad: 'Languages and checks',
   form: 'Apply form',
   publishing: 'Publishing',
 };
@@ -1392,10 +1380,6 @@ function PartBody({
   switch (part) {
     case 'details':
       return <Details data={data} props={props} />;
-    case 'terms':
-      return <TermsCards data={data} props={props} />;
-    case 'benefits':
-      return <BenefitsChoice data={data} props={props} />;
     case 'team':
       return <Team data={data} props={props} commit={commit} />;
     case 'criteria':
@@ -1414,29 +1398,25 @@ function PartBody({
 /** One region of the ad as the team sees it: press anywhere on it to edit that part. */
 function Region({
   title,
-  part,
   onEdit,
   children,
   className,
 }: {
   readonly title: string;
-  readonly part: Part;
-  readonly onEdit: (part: Part) => void;
+  readonly onEdit: () => void;
   readonly children: ReactNode;
   readonly className?: string;
 }): JSX.Element {
   return (
-    <Card padded interactive className={cn('group/region relative', className)}>
+    <Card padded interactive className={cn('relative', className)}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-muted">{title}</h2>
+        <h3 className="text-sm font-semibold text-fg-muted">{title}</h3>
         <Button
           size="xs"
           variant="ghost"
           startIcon={<icons.edit aria-hidden />}
           className="after:absolute after:inset-0"
-          onClick={() => {
-            onEdit(part);
-          }}
+          onClick={onEdit}
         >
           Edit
         </Button>
@@ -1447,55 +1427,157 @@ function Region({
 }
 
 /**
- * R4–R7 and R14, a job's setup. A new job is a stepper in a dialog: job and
- * team, criteria, interviews, the apply form, then the ad, drafted with AI
- * from everything before it. After that the page is the ad as a candidate
- * will read it, every region pressed to edit that part in a sheet, and one
- * primary press to publish.
+ * A part of the ad, shown as candidates will read it, that opens its own
+ * editor when pressed. The pencil shows on pointing; under a finger, always.
+ */
+function Editable({
+  label,
+  onEdit,
+  children,
+  className,
+}: {
+  /** What pressing it edits, said to a screen reader: "the pay". */
+  readonly label: string;
+  readonly onEdit: () => void;
+  readonly children: ReactNode;
+  readonly className?: string;
+}): JSX.Element {
+  return (
+    <Card
+      variant="bare"
+      interactive
+      className={cn('group/edit relative -mx-3 flex items-start gap-2 px-3 py-2', className)}
+    >
+      <div className="min-w-0 flex-1">{children}</div>
+      <Button
+        size="xs"
+        variant="ghost"
+        startIcon={<icons.edit aria-hidden />}
+        aria-label={`Edit ${label}`}
+        className="opacity-0 transition-opacity group-hover/edit:opacity-100 focus-visible:opacity-100 after:absolute after:inset-0 touch:opacity-100"
+        onClick={onEdit}
+      />
+    </Card>
+  );
+}
+
+/** The panels that are not a page of the setup: the rest of the details, languages and checks, publishing. */
+const SHEET_PARTS = ['details', 'ad', 'publishing'] as const;
+
+/**
+ * R4–R7 and R14, a job's setup. A new job is set up on a page of its own, a
+ * few questions at a time. After that, and straight after the setup, the page
+ * is the ad as a candidate will read it, under the company's name and logo:
+ * the title, each fact, the pay, the words, the benefits and the interviews
+ * each open their own editor when pressed, and Publish is at the top. What
+ * only the team sees sits under the ad.
  */
 export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
-  if (props.params?.['id'] === 'new') return <NewJobWizard {...props} />;
+  if (props.params?.['id'] === 'new')
+    return (
+      <NewJobWizard
+        {...props}
+        part={(p, commit, data, here) => (
+          <PartBody part={p} data={data} props={here} commit={commit} />
+        )}
+      />
+    );
   const wizard = props.search?.['setup'] === '1';
-  const part = PARTS.find((p) => p === props.search?.['edit']);
-  const edit = (next: Part | null) => props.onFilter?.({ edit: next });
+  const asked = props.search?.['edit'] ?? null;
+  const part = SHEET_PARTS.find((p) => p === asked);
+  // Any other part pressed is a page of the setup, or one question on it, in a panel.
+  const focus = part === undefined && asked !== null && isSetupPart(asked) ? asked : null;
+  const edit = (next: string | null) => props.onFilter?.({ edit: next });
   return (
     <Loaded load={props.load} what="the job">
       {(data) => {
         const ad = data.ads[0];
         const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
         const places = data.locations.filter((l) => data.job.locationIds.includes(l.id));
+        const company = data.company ?? { name: 'Your company', logoUrl: null };
         const pay =
           data.job.salary === null
-            ? 'Not set'
-            : `${range(data.job.salary.minMinor, data.job.salary.maxMinor, data.job.salary.currency)} a ${data.job.salary.period}${data.job.salaryShown ? '' : ', not shown'}`;
-        const terms = [
+            ? null
+            : `${range(data.job.salary.minMinor, data.job.salary.maxMinor, data.job.salary.currency)} a ${data.job.salary.period}`;
+        const mode = `${MODE[data.job.workMode] ?? data.job.workMode}${
+          data.terms.workMode === 'hybrid' && data.terms.hybridDaysOnsite !== null
+            ? `, ${String(data.terms.hybridDaysOnsite)} days on site${
+                data.terms.hybridOnsiteDays === null
+                  ? ', any days'
+                  : data.terms.hybridOnsiteDays.length === 0
+                    ? ''
+                    : ` (${data.terms.hybridOnsiteDays.map((d) => WEEKDAY[d] ?? '').join(', ')})`
+              }`
+            : ''
+        }`;
+        const hours =
+          data.options.weeklyMinutes === null
+            ? words(data.job.outline.hours)
+            : `${hoursOf(data.options.weeklyMinutes)} a week`;
+        const where = places.length === 0 ? null : places.map((l) => l.name).join(', ');
+        // Each fact at the top of the ad, and the part of the setup that changes it.
+        const facts: readonly {
+          key: string;
+          label: string;
+          icon: ReactNode;
+          value: string | null;
+          missing: string;
+        }[] = [
           {
-            label: 'Workplace',
-            value: places.length === 0 ? 'Not set' : places.map((l) => l.name).join(', '),
+            key: 'where',
+            label: 'the workplace',
+            icon: <icons.location aria-hidden />,
+            value: where,
+            missing: 'Add the workplace',
           },
           {
-            label: 'Work mode',
-            value: `${MODE[data.job.workMode] ?? data.job.workMode}${
-              data.terms.workMode === 'hybrid' && data.terms.hybridDaysOnsite !== null
-                ? `, ${String(data.terms.hybridDaysOnsite)} days on site${
-                    data.terms.hybridOnsiteDays === null
-                      ? ', any days'
-                      : data.terms.hybridOnsiteDays.length === 0
-                        ? ''
-                        : ` (${data.terms.hybridOnsiteDays.map((d) => WEEKDAY[d] ?? '').join(', ')})`
-                  }`
-                : ''
-            }`,
+            key: 'mode',
+            label: 'the work mode',
+            icon: <icons.home aria-hidden />,
+            value: mode,
+            missing: 'Add the work mode',
           },
-          { label: 'Contract', value: data.job.outline.contractType ?? 'Not set' },
           {
-            label: 'Hours',
+            key: 'contract',
+            label: 'the contract',
+            icon: <icons.agreement aria-hidden />,
+            value: data.job.outline.contractType,
+            missing: 'Add the contract',
+          },
+          {
+            key: 'time',
+            label: 'the hours',
+            icon: <icons.pending aria-hidden />,
+            value: hours,
+            missing: 'Add the hours',
+          },
+          {
+            key: 'salary',
+            label: 'the pay',
+            icon: <icons.payment aria-hidden />,
+            value: pay === null ? null : data.job.salaryShown ? pay : `${pay}, not shown`,
+            missing: 'Add the pay',
+          },
+          {
+            key: 'level',
+            label: 'the team and level',
+            icon: <icons.goal aria-hidden />,
             value:
-              data.options.weeklyMinutes === null
-                ? words(data.job.outline.hours)
-                : `${hoursOf(data.options.weeklyMinutes)} a week, ${words(data.job.outline.hours).toLowerCase()}`,
+              [
+                data.job.outline.seniority === null ? null : words(data.job.outline.seniority),
+                data.job.department,
+              ]
+                .filter((v) => v !== null)
+                .join(' · ') || null,
+            missing: 'Add the team and level',
           },
+        ];
+        const rail = [
+          { label: 'Location', value: where ?? 'Not set' },
+          { label: 'Work mode', value: mode },
+          { label: 'Contract', value: data.job.outline.contractType ?? 'Not set' },
+          { label: 'Hours', value: hours },
           {
             label: 'Holiday',
             value:
@@ -1503,21 +1585,13 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 ? 'Not set'
                 : `${String(data.terms.vacationDays)} days a year`,
           },
-          { label: 'Pay', value: pay },
-        ];
-        const facts = [
-          {
-            label: 'Level',
-            value: data.job.outline.seniority ? words(data.job.outline.seniority) : 'Not set',
-          },
-          { label: 'Team', value: data.job.department ?? 'Not set' },
-          { label: 'Openings', value: String(data.job.openings) },
         ];
         const blocking = (ad?.checks ?? []).filter((c) => c.severity === 'error').length;
         // What the ad offers: the chosen benefits and every statutory one.
         const offered = data.options.benefits.filter(
           (b) => b.statutory || data.job.benefitIds.includes(b.id),
         );
+        const asks = (data.form?.fields ?? []).filter((f) => f.shown);
         const publish = (): void => {
           const go = (): void => {
             act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
@@ -1526,14 +1600,14 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
           else act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } }, go);
         };
         return (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <PageHeader
               title={data.job.title}
               meta={<StateBadge state={data.job.state} />}
               description={
-                ad === undefined
-                  ? 'No ad yet. Set the job up and draft one.'
-                  : 'The ad as a candidate reads it. Press a part to change it.'
+                live
+                  ? 'Live. Press any part of the ad to change it.'
+                  : 'The ad as candidates will read it. Press any part to change it, then publish.'
               }
               actions={
                 <>
@@ -1572,115 +1646,212 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     >
                       Live on Kithena Jobs
                     </Button>
-                  ) : null}
-                </>
-              }
-            />
-            <Refusal error={act.error} />
-            {/* Before it is live: the one thing left to do, said once, with the press that does it. */}
-            {live ? null : (
-              <Banner
-                tone={ad === undefined || blocking > 0 ? 'warning' : 'accent'}
-                rounded
-                icon={<icons.send aria-hidden />}
-                title={
-                  ad === undefined
-                    ? 'Not published. The ad has no description yet.'
-                    : blocking > 0
-                      ? `Not published. ${String(blocking)} ${blocking === 1 ? 'check blocks' : 'checks block'} publishing.`
-                      : 'Ready to publish.'
-                }
-                actions={
-                  ad === undefined || blocking > 0 ? (
+                  ) : ad === undefined ? (
                     <Button
-                      variant="secondary"
+                      startIcon={<icons.assistant aria-hidden />}
+                      onClick={() => {
+                        edit('description');
+                      }}
+                    >
+                      Write the description to publish
+                    </Button>
+                  ) : blocking > 0 ? (
+                    <Button
+                      startIcon={<icons.warning aria-hidden />}
                       onClick={() => {
                         edit('ad');
                       }}
                     >
-                      {ad === undefined ? 'Write the description' : 'See the checks'}
+                      {`Fix ${String(blocking)} ${blocking === 1 ? 'check' : 'checks'} to publish`}
                     </Button>
                   ) : (
                     <Button
-                      size="lg"
                       startIcon={<icons.send aria-hidden />}
                       loading={act.pending}
                       onClick={publish}
                     >
-                      {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
+                      Publish
                     </Button>
-                  )
-                }
-              >
-                This is the ad as candidates will read it. Press any part to change it.
-              </Banner>
-            )}
-            {/* The ad as Kithena Jobs lays it out: the facts, the words, the rail. */}
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-              <div className="flex min-w-0 flex-col gap-4">
-                <Region title="The role" part="details" onEdit={edit}>
-                  <h3 className="text-2xl font-bold tracking-[-0.01em]">{data.job.title}</h3>
-                  <KeyValues
-                    items={facts}
-                    layout="aligned"
-                    labelWidth="7rem"
-                    className="mt-3 text-sm"
+                  )}
+                </>
+              }
+            />
+            <Refusal error={act.error} />
+
+            {/* The ad as Kithena Jobs lays it out: the company, the title, the facts, the words, the rail. */}
+            <article className="overflow-hidden rounded-2xl bg-canvas shadow-md">
+              <header className="flex flex-col gap-5 bg-accent-subtle/60 px-5 pt-8 pb-10 sm:px-10 sm:pt-12 sm:pb-14">
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    name={company.name}
+                    src={company.logoUrl ?? undefined}
+                    shape="rounded"
+                    fit={company.logoUrl === null ? 'cover' : 'contain'}
+                    size="lg"
                   />
-                </Region>
-                <Region title="Workplace, terms and pay" part="terms" onEdit={edit}>
-                  <KeyValues items={terms} layout="aligned" labelWidth="7rem" className="text-sm" />
-                </Region>
-                <Region title="The ad" part="ad" onEdit={edit}>
-                  {ad === undefined ? (
-                    <EmptyState
-                      icon={<icons.document aria-hidden />}
-                      title="No ad yet"
-                      description="Draft one with AI from the job, its criteria and the interview plan, or write it."
-                      action={
-                        <Button
-                          size="sm"
-                          startIcon={<icons.assistant aria-hidden />}
-                          onClick={() => {
-                            edit('ad');
-                          }}
-                        >
-                          Draft the ad
+                  <span className="font-semibold">{company.name}</span>
+                </div>
+                <Editable
+                  label="the title"
+                  onEdit={() => {
+                    edit('title');
+                  }}
+                  className="-my-2"
+                >
+                  <h2 className="text-4xl font-bold tracking-[-0.02em] text-balance sm:text-5xl">
+                    {data.job.title}
+                  </h2>
+                </Editable>
+                <ul
+                  className="-mx-3 flex flex-wrap gap-x-1 gap-y-1 text-base"
+                  aria-label="At a glance"
+                >
+                  {facts.map((f) => (
+                    <li key={f.key} className="mx-3">
+                      <Editable
+                        label={f.label}
+                        onEdit={() => {
+                          edit(f.key);
+                        }}
+                        className="py-1"
+                      >
+                        <span className="flex items-center gap-2 [&_svg]:size-[18px] [&_svg]:text-accent-fg">
+                          {f.icon}
+                          {f.value === null ? (
+                            <span className="text-fg-muted">{f.missing}</span>
+                          ) : (
+                            <span className={f.key === 'salary' ? 'font-semibold' : undefined}>
+                              {f.value}
+                            </span>
+                          )}
+                        </span>
+                      </Editable>
+                    </li>
+                  ))}
+                </ul>
+              </header>
+
+              <div className="grid gap-10 px-5 py-10 sm:px-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-12">
+                <div className="flex min-w-0 flex-col gap-8">
+                  <Editable
+                    label="the description"
+                    onEdit={() => {
+                      edit('description');
+                    }}
+                  >
+                    {ad === undefined ? (
+                      <EmptyState
+                        icon={<icons.document aria-hidden />}
+                        title="No description yet"
+                        description="AI writes it from the job, its criteria and the interviews. Press to write it."
+                      />
+                    ) : (
+                      <RichTextContent sanitisedHtml={ad.html} className="job-ad" />
+                    )}
+                  </Editable>
+                  <Editable
+                    label="the benefits"
+                    onEdit={() => {
+                      edit('benefits');
+                    }}
+                  >
+                    <section className="flex flex-col gap-5">
+                      <h3 className="text-2xl font-bold tracking-[-0.01em]">What we offer</h3>
+                      {offered.length === 0 ? (
+                        <p className="text-fg-muted">
+                          No benefits chosen yet. Press to choose them by category.
+                        </p>
+                      ) : (
+                        <BenefitList benefits={offered} categories={data.options.categories} />
+                      )}
+                    </section>
+                  </Editable>
+                  <Editable
+                    label="the interviews"
+                    onEdit={() => {
+                      edit('interviews');
+                    }}
+                  >
+                    <section className="flex flex-col gap-4">
+                      <h3 className="text-2xl font-bold tracking-[-0.01em]">How we hire</h3>
+                      {data.plan.length === 0 ? (
+                        <p className="text-fg-muted">No interviews planned yet.</p>
+                      ) : (
+                        <Timeline>
+                          {data.plan.map((p, i) => (
+                            <TimelineItem
+                              key={p.key}
+                              title={p.title}
+                              tone={i === 0 ? 'accent' : 'neutral'}
+                              icon={<Badge size="sm">{String(i + 1)}</Badge>}
+                            />
+                          ))}
+                        </Timeline>
+                      )}
+                    </section>
+                  </Editable>
+                </div>
+
+                {/* The rail: what it pays and the way in, as a candidate sees them beside the words. */}
+                <aside className="flex min-w-0 flex-col lg:sticky lg:top-6 lg:self-start">
+                  <Card variant="elevated" className="flex flex-col gap-4 p-5">
+                    <Editable
+                      label="the pay"
+                      onEdit={() => {
+                        edit('salary');
+                      }}
+                    >
+                      {pay === null ? (
+                        <p className="text-lg font-semibold text-fg-muted">No pay yet</p>
+                      ) : (
+                        <div className="flex flex-col">
+                          <span className="text-sm text-fg-muted">
+                            {data.job.salaryShown ? 'Pays' : 'Pays, not shown to candidates'}
+                          </span>
+                          <span className="text-2xl font-bold tracking-[-0.01em]">{pay}</span>
+                        </div>
+                      )}
+                    </Editable>
+                    <Editable
+                      label="the apply form"
+                      onEdit={() => {
+                        edit('apply');
+                      }}
+                    >
+                      <div className="flex flex-col gap-2">
+                        <Button size="lg" disabled tabIndex={-1} className="w-full">
+                          Apply now
                         </Button>
-                      }
+                        <p className="text-sm text-fg-muted">
+                          {asks.length === 0
+                            ? 'Asks for the name, email and CV.'
+                            : `Asks for the name, email, CV and ${asks.map((f) => f.label.toLowerCase()).join(', ')}.`}
+                        </p>
+                      </div>
+                    </Editable>
+                    <KeyValues
+                      items={rail}
+                      layout="aligned"
+                      labelWidth="6rem"
+                      className="text-sm"
                     />
-                  ) : (
-                    <RichTextContent sanitisedHtml={ad.html} />
-                  )}
-                </Region>
-                <Region title="What we offer" part="benefits" onEdit={edit}>
-                  {offered.length === 0 ? (
-                    <p className="text-sm text-fg-muted">
-                      No benefits chosen yet. Press to choose them by category.
-                    </p>
-                  ) : (
-                    <BenefitList benefits={offered} categories={data.options.categories} />
-                  )}
-                </Region>
-                <Region title="How to apply" part="form" onEdit={edit}>
-                  {data.form === null || data.form.fields.length === 0 ? (
-                    <p className="text-sm text-fg-muted">The standard form: name, email, CV.</p>
-                  ) : (
-                    <ul className="flex flex-wrap gap-1.5">
-                      {data.form.fields
-                        .filter((f) => f.shown)
-                        .map((f) => (
-                          <li key={f.key}>
-                            <Badge size="sm" variant={f.required ? 'solid' : 'outline'}>
-                              {f.label}
-                            </Badge>
-                          </li>
-                        ))}
-                    </ul>
-                  )}
-                </Region>
+                  </Card>
+                </aside>
               </div>
-              <aside className="flex min-w-0 flex-col gap-4">
-                <Region title="Hiring team" part="team" onEdit={edit}>
+            </article>
+
+            {/* What candidates never see: who hires, on what, how many, and where the ad goes. */}
+            <section className="flex flex-col gap-3" aria-labelledby="team-only">
+              <h2 id="team-only" className="text-lg font-semibold">
+                Only your team sees this
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <Region
+                  title="Hiring team"
+                  onEdit={() => {
+                    edit('team');
+                  }}
+                >
                   {data.team.length === 0 ? (
                     <p className="text-sm text-fg-muted">Nobody yet.</p>
                   ) : (
@@ -1695,7 +1866,12 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     </ul>
                   )}
                 </Region>
-                <Region title="What we look for" part="criteria" onEdit={edit}>
+                <Region
+                  title="What we look for"
+                  onEdit={() => {
+                    edit('criteria');
+                  }}
+                >
                   {data.criteria.length === 0 ? (
                     <p className="text-sm text-fg-muted">
                       No criteria yet; the AI matrix needs them.
@@ -1713,24 +1889,28 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     </ul>
                   )}
                 </Region>
-                <Region title="The process" part="plan" onEdit={edit}>
-                  {data.plan.length === 0 ? (
-                    <p className="text-sm text-fg-muted">No interviews planned yet.</p>
-                  ) : (
-                    <ol className="flex flex-col gap-1 text-sm">
-                      {data.plan.map((p, i) => (
-                        <li key={p.key} className="flex items-center gap-2">
-                          <span className="text-xs text-fg-muted tabular-nums">
-                            {String(i + 1)}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{p.title}</span>
-                          <span className="text-xs text-fg-muted">{`${String(p.minutes)} min`}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
+                <Region
+                  title="Openings and start"
+                  onEdit={() => {
+                    edit('openings');
+                  }}
+                >
+                  <KeyValues
+                    items={[
+                      { label: 'Openings', value: String(data.job.openings) },
+                      { label: 'Target start', value: day(data.job.targetHireDate) },
+                    ]}
+                    layout="aligned"
+                    labelWidth="7rem"
+                    className="text-sm"
+                  />
                 </Region>
-                <Region title="Where it is published" part="publishing" onEdit={edit}>
+                <Region
+                  title="Where it is published"
+                  onEdit={() => {
+                    edit('publishing');
+                  }}
+                >
                   {data.targets.filter((t) => t.state === 'live').length === 0 ? (
                     <p className="text-sm text-fg-muted">Nowhere yet.</p>
                   ) : (
@@ -1745,10 +1925,45 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     </ul>
                   )}
                 </Region>
-              </aside>
-            </div>
+                <Region
+                  title="Languages and checks"
+                  onEdit={() => {
+                    edit('ad');
+                  }}
+                >
+                  <p className="text-sm text-fg-muted">
+                    {ad === undefined
+                      ? 'No ad yet.'
+                      : blocking > 0
+                        ? `${String(blocking)} ${blocking === 1 ? 'check blocks' : 'checks block'} publishing.`
+                        : `In ${data.ads.map((a) => a.language.toUpperCase()).join(', ')}. Every check passes.`}
+                  </p>
+                </Region>
+                <Region
+                  title="Internal details"
+                  onEdit={() => {
+                    edit('details');
+                  }}
+                >
+                  <KeyValues
+                    items={[
+                      {
+                        label: 'Internal title',
+                        value:
+                          data.job.internalTitle === '' ? 'Same as the ad' : data.job.internalTitle,
+                      },
+                      { label: 'Internal only', value: data.job.internalOnly ? 'Yes' : 'No' },
+                      { label: 'Confidential', value: data.job.confidential ? 'Yes' : 'No' },
+                    ]}
+                    layout="aligned"
+                    labelWidth="7rem"
+                    className="text-sm"
+                  />
+                </Region>
+              </div>
+            </section>
 
-            {/* A part, edited in a sheet off the ad. */}
+            {/* The rest of the details, the languages and checks, publishing: a panel off the ad. */}
             <Sheet
               open={part !== undefined}
               onOpenChange={(open) => {
@@ -1765,14 +1980,17 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               </SheetContent>
             </Sheet>
 
-            {/* A new job, set up on a page of its own over the ad, a small step at a time. */}
+            {/* The setup: a page of its own over the ad, or one part of it in a panel when pressed. */}
             <JobWizard
-              open={wizard}
+              open={wizard || focus !== null}
+              focus={wizard ? null : focus}
               data={data}
               props={props}
               stepKey={props.search?.['step'] ?? null}
               entered={props.search?.['entered'] === '1'}
-              onClose={() => props.onFilter?.({ setup: null, step: null, entered: null })}
+              onClose={() =>
+                props.onFilter?.({ setup: null, step: null, entered: null, edit: null })
+              }
               onFinish={() => props.onFilter?.({ setup: null, step: null, entered: null })}
               part={(p, commit) => <PartBody part={p} data={data} props={props} commit={commit} />}
             />
