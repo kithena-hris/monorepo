@@ -69,7 +69,7 @@ import {
   sendStageExpectations,
 } from '../application/emails.js';
 import { removeCategory, restoreLibrary, saveCategory } from '../application/catalogue.js';
-import { saveJobTerms, suggestPay } from '../application/job-terms.js';
+import { saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
   answerAsk,
@@ -421,6 +421,15 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/requisitions`,
     summary: 'R2: requisitions',
     run: async (ctx) => ok(await requisitionsScreen(ctx)),
+  }),
+  route({
+    name: 'recruitingTermsCatalogue',
+    method: 'GET',
+    path: `${V1}/terms/{country}`,
+    summary:
+      'R4: a country’s kinds of work, contracts, fixed-term reasons, leave and legal week, at once, for the setup to list ahead of time',
+    params: z.object({ country: z.string().length(2) }),
+    run: (ctx, { params }) => termsCatalogue(ctx, params.country),
   }),
   route({
     name: 'recruitingNewJob',

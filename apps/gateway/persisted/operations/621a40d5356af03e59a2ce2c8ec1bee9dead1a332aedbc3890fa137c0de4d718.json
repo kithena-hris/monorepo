@@ -1,0 +1,1 @@
+{"version":1,"body":"query RecruitingTermsCatalogue($country: String!) {\n    recruitingTermsCatalogue(country: $country)\n  }"}

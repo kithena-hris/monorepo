@@ -29,6 +29,7 @@ import {
   Switch,
   TimePicker,
   icons,
+  staggerStyle,
 } from '@reach/ui';
 import {
   createContext,
@@ -42,6 +43,7 @@ import {
 } from 'react';
 
 import { BenefitPicker } from './benefits';
+import { usePicks } from './terms-view';
 import { Refusal, useAct } from './shared';
 import type { JobData, JobTerms, ScreenProps } from './types';
 
@@ -88,14 +90,16 @@ export const SaveQueue = createContext<((save: Promise<unknown>) => void) | null
 function useTerms(data: JobData, props: ScreenProps<JobData>) {
   const act = useAct(props);
   const track = use(SaveQueue);
+  // In the setup, picks live in one overlay every part reads; elsewhere, in this part alone.
+  const shared = usePicks();
   const [error, setError] = useState<string | null>(null);
   // A pick shows the moment it is made; the server's terms replace it when they arrive.
   const [pick, setPick] = useState<{ base: JobTerms; patch: Partial<JobTerms> }>({
     base: data.terms,
     patch: {},
   });
-  if (pick.base !== data.terms) setPick({ base: data.terms, patch: {} });
-  const patch = pick.base === data.terms ? pick.patch : {};
+  if (shared === null && pick.base !== data.terms) setPick({ base: data.terms, patch: {} });
+  const patch = shared !== null ? shared.picks : pick.base === data.terms ? pick.patch : {};
   const terms: JobTerms = { ...data.terms, ...patch };
   return {
     act,
@@ -106,11 +110,13 @@ function useTerms(data: JobData, props: ScreenProps<JobData>) {
     save: (next: Patch): void => {
       setError(null);
       const { pay: _pay, salaryShown: _shown, ...shown } = next;
-      setPick({ base: data.terms, patch: { ...patch, ...shown } });
+      if (shared === null) setPick({ base: data.terms, patch: { ...patch, ...shown } });
+      else shared.add(shown);
       const saving = act.call('SaveJobTerms', { jobId: data.job.id, input: next }).then((done) => {
         if (!done.ok) {
           setError(done.message);
-          setPick({ base: data.terms, patch: {} });
+          if (shared === null) setPick({ base: data.terms, patch: {} });
+          else shared.drop(Object.keys(shown));
           return;
         }
         props.onRefresh?.();
@@ -178,15 +184,16 @@ export function EntityChoice({ data, props }: TermsProps): JSX.Element {
           save({ entityId: v });
         }}
       >
-        {data.options.entities.map((e) => (
-          <RadioCard
-            key={e.id}
-            value={e.id}
-            icon={<icons.company aria-hidden />}
-            description={`${countryName(e.country)} · pays in ${e.currency}`}
-          >
-            {e.name}
-          </RadioCard>
+        {data.options.entities.map((e, i) => (
+          <div key={e.id} className="animate-arrive" style={staggerStyle(i, 'animation')}>
+            <RadioCard
+              value={e.id}
+              icon={<icons.company aria-hidden />}
+              description={`${countryName(e.country)} · pays in ${e.currency}`}
+            >
+              {e.name}
+            </RadioCard>
+          </div>
         ))}
       </RadioGroup>
     </>
@@ -217,15 +224,16 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
           save({ locationId: v });
         }}
       >
-        {options.locations.map((l) => (
-          <RadioCard
-            key={l.id}
-            value={l.id}
-            icon={<icons.location aria-hidden />}
-            description={l.city ?? countryName(l.country)}
-          >
-            {l.name}
-          </RadioCard>
+        {options.locations.map((l, i) => (
+          <div key={l.id} className="animate-arrive" style={staggerStyle(i, 'animation')}>
+            <RadioCard
+              value={l.id}
+              icon={<icons.location aria-hidden />}
+              description={l.city ?? countryName(l.country)}
+            >
+              {l.name}
+            </RadioCard>
+          </div>
         ))}
       </RadioGroup>
     </>
@@ -373,16 +381,17 @@ export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
           save({ relationship: v });
         }}
       >
-        {options.relationships.map((r) => (
-          <RadioCard
-            key={r.key}
-            value={r.key}
-            icon={<icons.work aria-hidden />}
-            disabled={r.unavailable != null}
-            description={r.unavailable ?? r.note ?? RELATIONSHIP_NOTE[r.key] ?? ''}
-          >
-            {r.label}
-          </RadioCard>
+        {options.relationships.map((r, i) => (
+          <div key={r.key} className="animate-arrive" style={staggerStyle(i, 'animation')}>
+            <RadioCard
+              value={r.key}
+              icon={<icons.work aria-hidden />}
+              disabled={r.unavailable != null}
+              description={r.unavailable ?? r.note ?? RELATIONSHIP_NOTE[r.key] ?? ''}
+            >
+              {r.label}
+            </RadioCard>
+          </div>
         ))}
       </RadioGroup>
     </>
@@ -407,21 +416,22 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
           save({ contractType: v });
         }}
       >
-        {options.contractTypes.map((t) => (
-          <RadioCard
-            key={t.key}
-            value={t.key}
-            disabled={t.unavailable != null}
-            icon={t.fixedTerm ? <icons.calendar aria-hidden /> : <icons.agreement aria-hidden />}
-            badge={
-              <Badge size="xs" variant="soft" tone={t.fixedTerm ? 'warning' : 'neutral'}>
-                {t.fixedTerm ? 'Fixed term' : 'Open-ended'}
-              </Badge>
-            }
-            description={t.unavailable ?? t.note ?? ''}
-          >
-            {t.label}
-          </RadioCard>
+        {options.contractTypes.map((t, i) => (
+          <div key={t.key} className="animate-arrive" style={staggerStyle(i, 'animation')}>
+            <RadioCard
+              value={t.key}
+              disabled={t.unavailable != null}
+              icon={t.fixedTerm ? <icons.calendar aria-hidden /> : <icons.agreement aria-hidden />}
+              badge={
+                <Badge size="xs" variant="soft" tone={t.fixedTerm ? 'warning' : 'neutral'}>
+                  {t.fixedTerm ? 'Fixed term' : 'Open-ended'}
+                </Badge>
+              }
+              description={t.unavailable ?? t.note ?? ''}
+            >
+              {t.label}
+            </RadioCard>
+          </div>
         ))}
       </RadioGroup>
       {chosen?.fixedTerm === true && options.fixedTermReasons.length > 0 ? (

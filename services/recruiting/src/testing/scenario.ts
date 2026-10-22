@@ -105,7 +105,7 @@ import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
 import { previewEmail, sendStageExpectations } from '../application/emails.js';
-import { jobTerms, saveJobTerms, suggestPay } from '../application/job-terms.js';
+import { jobTerms, saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { setMyNotifications } from '../application/notify.js';
 import { poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -552,6 +552,14 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     value(await saveJobTerms(ctx, jobId, { workMode: 'onsite' }));
     expect((await saveJobTerms(ctx, jobId, { relationship: 'astronaut' })).ok).toBe(false);
     const work = value(await saveJobTerms(ctx, jobId, { relationship: 'employee' }));
+    // The country's catalogue, fetched ahead, lists exactly what the saved terms offer.
+    const catalogue = value(await termsCatalogue(ctx, work.options.country ?? ''));
+    expect(catalogue.contracts['employee']?.map((t) => t.key)).toEqual(
+      work.options.contractTypes.map((t) => t.key),
+    );
+    expect(catalogue.relationships.map((r) => r.key)).toEqual(
+      work.options.relationships.map((r) => r.key),
+    );
     const lawful = work.options.contractTypes.find((t) => t.unavailable === null && !t.fixedTerm);
     expect(lawful).toBeDefined();
     const hours = value(

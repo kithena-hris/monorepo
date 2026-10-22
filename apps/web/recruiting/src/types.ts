@@ -301,12 +301,21 @@ export interface TermsOptions {
     readonly name: string;
     readonly country: string;
     readonly currency: string;
+    readonly fullTimeWeeklyMinutes: number;
   }[];
   readonly locations: readonly {
     readonly id: string;
     readonly name: string;
     readonly city: string | null;
     readonly country: string;
+  }[];
+  /** Every entity's workplaces, so a choice of entity shows its own at once. */
+  readonly places: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly city: string | null;
+    readonly country: string;
+    readonly entityId: string | null;
   }[];
   readonly relationships: readonly TermsChoice[];
   readonly contractTypes: readonly (TermsChoice & { readonly fixedTerm: boolean })[];
@@ -328,6 +337,22 @@ export interface TermsOptions {
   /** Every category, built in and the company's own, with its icon. */
   readonly categories: readonly BenefitCategory[];
   readonly reviewed: boolean;
+}
+
+/** All of one country's terms the setup asks about, fetched once per country ahead of time. */
+export interface TermsCatalogue {
+  readonly country: string;
+  readonly reviewed: boolean;
+  readonly relationships: readonly TermsChoice[];
+  readonly contracts: Readonly<
+    Record<
+      string,
+      readonly (TermsChoice & { readonly fixedTerm: boolean; readonly maxWeeklyMinutes: number })[]
+    >
+  >;
+  readonly reasons: Readonly<Record<string, readonly TermsChoice[]>>;
+  /** For each kind of work, the legal leave by days worked a week, 1 to 7. */
+  readonly leave: Readonly<Record<string, readonly NonNullable<TermsOptions['leave']>[]>>;
 }
 
 /** A benefit as a job picks it: its name, a line a candidate reads, and where it sits. */
