@@ -375,9 +375,10 @@ export async function saveQuestionnaire(
   if (!valid.ok) return valid;
   const held = await ctx.tx.questionnaires.get(q.id);
   // A changed questionnaire is a new version; a works council's consent was to the old one.
+  // A new one has no consent yet: said as null, never left out, which the database refuses.
   const next =
     held === null
-      ? { ...q, version: 1 }
+      ? { ...q, version: 1, worksCouncilConsentVersion: null }
       : {
           ...q,
           version: held.version + 1,

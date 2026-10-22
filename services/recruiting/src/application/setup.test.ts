@@ -16,6 +16,7 @@ import {
   saveLocation,
   saveOrgUnit,
   savePipeline,
+  saveQuestionnaire,
 } from './setup.js';
 
 /**
@@ -202,5 +203,37 @@ describe('removing settings', () => {
     const kept = await asAdmin((ctx) => removeBenefit(ctx, statutory?.id ?? ''));
     expect(kept.ok).toBe(false);
     if (!kept.ok) expect(kept.error.code).toBe('STATUTORY');
+  });
+});
+
+describe('questionnaires', () => {
+  it('saves a new questionnaire with no works council consent yet, and versions a change', async () => {
+    const { asAdmin } = harness();
+    const id = randomUUID();
+    const question = {
+      id: randomUUID(),
+      text: 'Do you have the right to work in the UK?',
+      kind: 'yes_no' as const,
+      required: true,
+      options: [],
+      points: null,
+      knockout: null,
+    };
+    // As the editor sends it: a name and the questions, nothing about consent or version.
+    const first = await asAdmin((ctx) =>
+      saveQuestionnaire(ctx, { id, name: 'Right to work', questions: [question] } as never),
+    );
+    expect(first.ok).toBe(true);
+    if (first.ok)
+      expect([first.value.version, first.value.worksCouncilConsentVersion]).toEqual([1, null]);
+    const second = await asAdmin((ctx) =>
+      saveQuestionnaire(ctx, {
+        id,
+        name: 'Right to work in the UK',
+        questions: [question],
+      } as never),
+    );
+    if (second.ok)
+      expect([second.value.version, second.value.worksCouncilConsentVersion]).toEqual([2, null]);
   });
 });
