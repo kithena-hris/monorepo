@@ -105,7 +105,7 @@ import { askAboutJob, planSearch } from '../application/job-assistant.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
 import { draftAd, draftEmail, suggestQuestions, translateAd } from '../application/writer.js';
 import { previewEmail, sendStageExpectations } from '../application/emails.js';
-import { saveJobTerms, suggestPay } from '../application/job-terms.js';
+import { jobTerms, saveJobTerms, suggestPay } from '../application/job-terms.js';
 import { setMyNotifications } from '../application/notify.js';
 import { poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
@@ -1174,8 +1174,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
                               ),
                             })
                           : JSON.stringify({
-                              title: place.jobTitle,
-                              sections: [{ heading: 'The role', paragraphs: ['Design with us.'] }],
+                              markdown:
+                                '## The role\n\nDesign with us. You earn €99,000 a year.\n\n- Ship weekly',
                             }),
         ),
     },
@@ -1186,6 +1186,17 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     value(await asWriter((ctx) => draftAd(ctx, jobId, { language: 'en', intake: 'A designer.' })))
       .html,
   ).toContain('Design with us.');
+  // The draft is rich text, the title the job's own, and no amount of money the model wrote survives.
+  const drafted = value(
+    await asWriter((ctx) =>
+      draftAd(ctx, jobId, { language: 'en', intake: '', words: 200, tone: 'warm' }),
+    ),
+  );
+  expect(drafted.html).toContain('<ul><li><p>Ship weekly</p></li></ul>');
+  expect(drafted.html).not.toContain('99,000');
+  expect(drafted.title).toBe(
+    await uow.run(tenantId, async (tx) => (await tx.jobs.get(jobId))?.title),
+  );
   // R4: the model estimates the market pay; the domain sorts it, rounds it and keeps it lawful.
   const fixedPay = value(await asWriter((ctx) => suggestPay(ctx, jobId, 'fixed')));
   expect(fixedPay.minMinor).toBe(fixedPay.maxMinor);
@@ -1193,6 +1204,20 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(rangePay.minMinor).toBeLessThanOrEqual(fixedPay.minMinor);
   expect(rangePay.maxMinor).toBeGreaterThanOrEqual(fixedPay.maxMinor);
   expect(rangePay.maxMinor % 50_000).toBe(0);
+  // The estimate is kept with the job, to show under the pay and go back to.
+  const keptEstimate = await asWriter(async (ctx) => {
+    const job = await ctx.tx.jobs.get(jobId);
+    return job === null ? null : (await jobTerms(ctx, job)).terms.payEstimate;
+  });
+  expect(keptEstimate?.medianMinor).toBe(fixedPay.minMinor);
+  // Where the setup was left, kept on its own.
+  value(await asWriter((ctx) => saveJobTerms(ctx, jobId, { setupStep: 'pay' })));
+  expect(
+    await asWriter(async (ctx) => {
+      const job = await ctx.tx.jobs.get(jobId);
+      return job === null ? null : (await jobTerms(ctx, job)).terms.setupStep;
+    }),
+  ).toBe('pay');
   expect(
     value(await asWriter((ctx) => translateAd(ctx, jobId, { from: 'en', to: 'es' }))).html,
   ).toContain('DESIGN THE PRODUCT WITH US.');

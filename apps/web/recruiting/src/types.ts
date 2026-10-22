@@ -192,6 +192,8 @@ export interface JobData {
   readonly ads: readonly {
     readonly language: string;
     readonly title: string;
+    /** The editor's document, what a change to the words revises. */
+    readonly doc?: unknown;
     readonly html: string;
     readonly plain: string;
     readonly checks: readonly AdCheck[];
@@ -268,6 +270,17 @@ export interface JobTerms {
   readonly vacationDays: number | null;
   /** One figure, or a range; the figures are the job's salary. */
   readonly payKind: 'fixed' | 'range' | null;
+  /** The last market estimate a model gave, to show under the pay and go back to. */
+  readonly payEstimate: {
+    readonly lowMinor: number;
+    readonly medianMinor: number;
+    readonly highMinor: number;
+    readonly currency: string;
+    readonly basis: string;
+    readonly confidence: 'low' | 'medium' | 'high';
+  } | null;
+  /** The setup's page last open. */
+  readonly setupStep: string | null;
   readonly benefitIds: readonly string[];
 }
 

@@ -208,6 +208,8 @@ import {
 } from '../application/providers.js';
 import {
   draftAgenda,
+  AD_CHANGES,
+  AD_TONES,
   draftAd,
   draftEmail,
   explainPhrase,
@@ -682,6 +684,7 @@ export const ROUTES: readonly Route[] = [
         breakMinutes: z.int().min(0).max(240),
         vacationDays: z.int().min(0).max(366).nullable(),
         payKind: z.enum(['fixed', 'range']).nullable(),
+        setupStep: z.string().max(40).nullable(),
         // Text, not uuid: statutory and library benefits have stable ids of their own.
         benefitIds: z.array(z.string().max(80)).max(120),
         /** Yearly, minor units, in the entity's currency. */
@@ -772,7 +775,15 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/jobs/{jobId}/ad-drafts`,
     summary: 'R5: a draft ad from the intake, for a person to edit and save',
     params: z.object({ jobId: Id }),
-    body: z.object({ language: z.string().min(2).max(8), intake: text(4000) }),
+    body: z.object({
+      language: z.string().min(2).max(8),
+      intake: text(4000),
+      words: z.int().min(80).max(900).optional(),
+      tone: z.enum(AD_TONES).optional(),
+      change: z.enum(AD_CHANGES).nullable().optional(),
+      /** The editor's document now, for a change to revise. */
+      current: z.unknown().optional(),
+    }),
     run: (ctx, { params, body }) => draftAd(ctx, params.jobId, body),
   }),
   route({

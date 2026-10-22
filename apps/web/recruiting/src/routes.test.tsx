@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import manifest from '../public/routes.json';
@@ -267,6 +267,8 @@ const job: JobData = {
     breakMinutes: 60,
     vacationDays: null,
     payKind: null,
+    payEstimate: null,
+    setupStep: null,
     benefitIds: [],
   },
   options: {
@@ -373,6 +375,27 @@ describe('R4–R7, a job’s setup', () => {
     expect(screen.getByRole('textbox', { name: 'A criterion' }).tagName).toBe('TEXTAREA');
     // Kept when the page moves on: no separate save on this page.
     expect(screen.queryByRole('button', { name: 'Save criteria' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save team' })).toBeNull();
+  });
+
+  it('shows the title in the bar as it is typed', () => {
+    render(<screens.JobSetup load={ready(job)} params={{ id: 'new' }} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /^Job title/u }), {
+      target: { value: 'Staff designer' },
+    });
+    expect(screen.getByRole('dialog', { name: 'Set up Staff designer' })).toBeTruthy();
+  });
+
+  it('opens where it was left last time', () => {
+    render(
+      <screens.JobSetup
+        load={ready({ ...job, terms: { ...job.terms, setupStep: 'process' } })}
+        params={{ id: 'j1' }}
+        search={{ setup: '1' }}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'How do they apply and interview?' })).toBeTruthy();
+    expect(screen.getByText('Step 7 of 8')).toBeTruthy();
   });
 
   it('starts a new job on the same page, with its title', async () => {

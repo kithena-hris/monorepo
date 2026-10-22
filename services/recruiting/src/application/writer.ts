@@ -2,7 +2,13 @@ import * as z from 'zod';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { renderAd } from '../domain/ad/render.js';
-import { docFrom, textsOf, withTexts } from '../domain/ad/rewrite.js';
+import {
+  docToMarkdown,
+  markdownToDoc,
+  textsOf,
+  withTexts,
+  withoutAmounts,
+} from '../domain/ad/rewrite.js';
 import { write, type PromptSpec } from './ai.js';
 import { adminOnly, forbidden, notFound, type Ctx } from './context.js';
 import { competenciesOf } from './interviews.js';
@@ -24,30 +30,38 @@ const LANGUAGES = { en: 'English', es: 'Spanish', de: 'German', hi: 'Hindi' } as
 const name = (language: string): string =>
   (LANGUAGES as Readonly<Record<string, string | undefined>>)[language] ?? language;
 
-const Draft = z.object({
-  title: z.string().max(160),
-  sections: z
-    .array(
-      z.object({
-        heading: z.string().max(120).nullable(),
-        paragraphs: z.array(z.string().max(1500)).max(8),
-      }),
-    )
-    .max(8),
-});
+const Draft = z.object({ markdown: z.string().max(12_000) });
+
+/** How the ad sounds. */
+export const AD_TONES = ['warm', 'professional', 'direct', 'energetic'] as const;
+export type AdTone = (typeof AD_TONES)[number];
+
+/** What to do with the words already there; null drafts afresh. */
+export const AD_CHANGES = ['longer', 'shorter', 'rephrase'] as const;
+export type AdChange = (typeof AD_CHANGES)[number];
 
 const DRAFT: PromptSpec<z.infer<typeof Draft>> = {
   feature: 'writer',
-  version: 'ad-draft@2',
-  instruction: `You draft a job ad from the facts given. Return a JSON object {"title":"","sections":[{"heading":""|null,"paragraphs":[""]}]} in the language named in "language".
-Sections: the role, what you will do, what you bring, how we work. Draw on the title, the team, the level, the place and how the work is done; "intake" may add what the team said, and may be empty. Use what is typical for such a role in that place, never facts about the company it was not given. Plain, specific, warm, no clichés. Gender-neutral throughout. Never mention age, nationality, appearance, family, religion or health, and never ask for a photo. Leave out salary, contract terms and benefits: the page shows those from data.`,
+  version: 'ad-draft@3',
+  instruction: `You write the description of a job ad from the facts given. Return a JSON object {"markdown":""} in the language named in "language".
+Write markdown a rich-text editor shows: "## " headings for the sections (the role, what you will do, what you bring, how we work), short paragraphs, "- " bullet lists for duties and requirements, **bold** sparingly. No title line: the page shows the job's title. About "words" words, in a "tone" voice.
+When "current" is given and "change" is "longer", "shorter" or "rephrase", revise "current" that way and keep its meaning and its structure where it serves; otherwise write afresh. "intake" may add what the team said and may be empty.
+The facts are the job's own: never contradict them, never invent others about the company, and never write an amount of money, a number of hours or of holiday days, or a contract name: the page shows those from the job, exactly. Use what is typical for such a role in that place. Plain, specific, no clichés. Gender-neutral throughout. Never mention age, nationality, appearance, family, religion or health, and never ask for a photo.`,
   answer: Draft,
 };
 
 export async function draftAd(
   ctx: Ctx,
   jobId: string,
-  input: { readonly language: string; readonly intake: string },
+  input: {
+    readonly language: string;
+    readonly intake: string;
+    readonly words?: number | undefined;
+    readonly tone?: AdTone | undefined;
+    readonly change?: AdChange | null | undefined;
+    /** The editor's document now: what a change revises. */
+    readonly current?: unknown;
+  },
 ): Promise<Result<{ readonly title: string; readonly doc: unknown; readonly html: string }>> {
   const held = await editable(ctx, jobId);
   if (!held.ok) return held;
@@ -56,8 +70,13 @@ export async function draftAd(
   const place =
     job.locationIds[0] === undefined ? null : await ctx.tx.locations.get(job.locationIds[0]);
   const settings = await generalSettings(ctx);
+  const current = input.current === undefined ? '' : docToMarkdown(input.current);
   const drafted = await write(ctx, DRAFT, {
     language: name(input.language),
+    words: Math.min(900, Math.max(80, Math.round(input.words ?? 300))),
+    tone: input.tone ?? 'professional',
+    change: current === '' ? null : (input.change ?? null),
+    current: current.slice(0, 8000),
     company: settings.companyName,
     title: job.title,
     team: job.department,
@@ -73,8 +92,9 @@ export async function draftAd(
     intake: input.intake.slice(0, 4000),
   });
   if (!drafted.ok) return drafted;
-  const doc = docFrom(drafted.value.sections);
-  return ok({ title: drafted.value.title, doc, html: renderAd(doc).html });
+  // The job's facts stay the job's: no salary a model guessed, and the title as the team wrote it.
+  const doc = markdownToDoc(withoutAmounts(drafted.value.markdown));
+  return ok({ title: job.title, doc, html: renderAd(doc).html });
 }
 
 const Hint = z.object({ explanation: z.string().max(600), suggestion: z.string().max(300) });

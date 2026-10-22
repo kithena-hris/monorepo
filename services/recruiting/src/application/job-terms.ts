@@ -45,8 +45,21 @@ export interface JobTerms {
   readonly vacationDays: number | null;
   /** One figure, or a range from and to; the figures are the job's salary. */
   readonly payKind: 'fixed' | 'range' | null;
+  /** The last market estimate a model gave, kept so it can be shown and gone back to. */
+  readonly payEstimate: PayEstimateHeld | null;
+  /** The setup's page last open, so it opens there again. */
+  readonly setupStep: string | null;
   /** Chosen from the entity's catalogue; its statutory benefits are always in. */
   readonly benefitIds: readonly string[];
+}
+
+export interface PayEstimateHeld {
+  readonly lowMinor: number;
+  readonly medianMinor: number;
+  readonly highMinor: number;
+  readonly currency: string;
+  readonly basis: string;
+  readonly confidence: 'low' | 'medium' | 'high';
 }
 
 /** What a save may carry beyond the terms: the pay itself, yearly, in the entity's currency. */
@@ -102,6 +115,8 @@ const EMPTY: JobTerms = {
   breakMinutes: 60,
   vacationDays: null,
   payKind: null,
+  payEstimate: null,
+  setupStep: null,
   benefitIds: [],
 };
 
@@ -242,7 +257,13 @@ export async function saveJobTerms(
   if (!held.ok) return held;
   const job = held.value;
   const before = await termsOf(ctx, job);
-  const { pay, salaryShown, ...patch } = input;
+  const { pay, salaryShown, payEstimate: _estimate, ...patch } = input;
+  // Where the setup is: kept on its own, nothing else to check or redraw.
+  if (Object.keys(patch).every((k) => k === 'setupStep') && pay === undefined) {
+    const kept = { ...before, setupStep: patch.setupStep ?? null };
+    await ctx.tx.settings.set(key(jobId), kept);
+    return ok({ terms: kept, options: await termsOptions(ctx, kept) });
+  }
   let terms: JobTerms = { ...before, ...patch };
 
   // Where: the entity, a place of it in its country, and how the work is done.
@@ -460,6 +481,18 @@ export async function suggestPay(
     .map((n) => Math.max(n, options.minimumPayMinor ?? 0))
     .toSorted((a, b) => a - b) as [number, number, number];
   if (median <= 0) return refused('AI_UNAVAILABLE', 'The assistant could not estimate this pay');
+  // Kept with the terms, so it shows under the pay and can be gone back to.
+  await ctx.tx.settings.set(key(jobId), {
+    ...terms,
+    payEstimate: {
+      lowMinor: low,
+      medianMinor: median,
+      highMinor: high,
+      currency: options.currency,
+      basis: estimated.value.basis,
+      confidence: estimated.value.confidence,
+    },
+  });
   return ok({
     kind,
     minMinor: kind === 'fixed' ? median : low,
