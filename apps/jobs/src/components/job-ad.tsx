@@ -16,6 +16,9 @@ import type { JSX, ReactNode } from 'react';
 import { countryName, hours as hoursOf, salary as salaryOf, where } from '../lib/format';
 import { StickyTitle } from './sticky-title';
 
+/** The rail's Apply now, which the bars watch so only one is ever on screen. */
+const APPLY_ID = 'apply-now';
+
 /**
  * A job as Kithena Jobs shows it (J3, R7): the page a candidate reads and the
  * one a recruiter previews are the same component, so what the team sees is
@@ -24,9 +27,9 @@ import { StickyTitle } from './sticky-title';
  * The first viewport is the offer itself: the company, the title at display
  * size, and the four facts a candidate decides on (where, how, what kind of
  * contract, what it pays) before a word of the ad. Then the ad reads as an
- * article beside a rail that keeps the facts and the apply button in reach;
- * on a phone the rail folds under the title and the apply button stays at
- * the thumb. One entrance, staggered down the hero, and nothing else moves.
+ * article beside a rail with the facts and the apply button; once that
+ * button scrolls away a bar keeps the title and Apply now at the top, and on
+ * a phone at the thumb. One entrance, staggered down the hero, and nothing else moves.
  */
 
 const SENIORITY: Readonly<Record<string, string>> = {
@@ -155,12 +158,14 @@ export function JobAd({
     ...(job.validThrough === null ? [] : [{ label: 'Open until', value: day(job.validThrough) }]),
   ];
   const apply = preview ? (
-    <Button variant="primary" size="lg" disabled className="w-full">
+    <Button id={APPLY_ID} variant="primary" size="lg" disabled className="w-full">
       Apply now
     </Button>
   ) : (
     <Button asChild variant="primary" size="lg" className="w-full">
-      <Link href={applyHref}>Apply now</Link>
+      <Link id={APPLY_ID} href={applyHref}>
+        Apply now
+      </Link>
     </Button>
   );
   return (
@@ -228,6 +233,8 @@ export function JobAd({
         title={job.title}
         company={job.company.name}
         applyHref={preview ? null : applyHref}
+        thumb={pay ?? job.title}
+        watch={APPLY_ID}
       />
 
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-14">
@@ -292,7 +299,7 @@ export function JobAd({
         </div>
 
         {/* The rail: what it pays and the way in, in reach while reading. */}
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className="flex flex-col gap-4 lg:self-start">
           <div className="flex flex-col gap-5 rounded-2xl bg-surface p-6 shadow-md">
             {pay === null ? (
               <p className="text-lg font-semibold text-fg-muted">Pay not shown</p>
@@ -313,20 +320,6 @@ export function JobAd({
           {assistant}
         </aside>
       </div>
-
-      {/* On a phone the way in stays at the thumb. */}
-      {preview ? null : (
-        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-canvas/95 p-3 backdrop-blur lg:hidden">
-          <div className="mx-auto flex max-w-6xl items-center gap-3">
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-              {pay ?? job.title}
-            </span>
-            <Button asChild variant="primary" size="md">
-              <Link href={applyHref}>Apply now</Link>
-            </Button>
-          </div>
-        </div>
-      )}
     </article>
   );
 }

@@ -70,7 +70,7 @@ export default async function RootLayout({
       </head>
       <body className="flex min-h-dvh flex-col bg-canvas text-fg">
         <TooltipProvider>
-          <header className="sticky top-0 z-20 border-b border-border bg-canvas/90 backdrop-blur">
+          <header className="sticky top-0 z-20 border-b border-border bg-canvas">
             <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
               {company === null ? (
                 <>
