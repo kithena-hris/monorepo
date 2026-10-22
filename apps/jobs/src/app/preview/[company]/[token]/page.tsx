@@ -25,8 +25,8 @@ export default async function PreviewPage({
   return (
     <>
       <Alert tone="info" title="A preview" className="-mb-2">
-        This is how the ad will look on Kithena Jobs. It is not published, and this link is the
-        team’s for a day.
+        This is how candidates will see the ad. It is not published, and this link is the team’s
+        for a day.
       </Alert>
       <JobAd job={j} company={company} slug={j.slug} preview />
     </>

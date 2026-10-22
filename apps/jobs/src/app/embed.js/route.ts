@@ -24,9 +24,6 @@ const SCRIPT = `(function () {
         item.appendChild(where);
         list.appendChild(item);
       });
-      var by = document.createElement('li');
-      by.textContent = 'Powered by Kithena Jobs';
-      list.appendChild(by);
     });
 })();
 `;

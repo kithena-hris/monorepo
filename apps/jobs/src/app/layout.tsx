@@ -1,24 +1,57 @@
-import { Button, KithenaMark, TooltipProvider } from '@reach/ui';
+import { Avatar, Button, KithenaMark, TooltipProvider } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
+import type { PublicCompany } from '@kithena/contracts';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
 import './globals.css';
 import { AccountMenu } from '../components/account-menu';
 import { ThemeToggle } from '../components/theme-toggle';
 import { SESSION_COOKIE, me } from '../lib/account';
+import { company as readCompany } from '../lib/api';
 import { THEME_KEY, themeScript } from '../lib/theme';
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com'),
-  title: { default: 'Kithena Jobs', template: '%s · Kithena Jobs' },
-  description: 'Every open job at companies that hire on Kithena. No account needed to apply.',
-  icons: { icon: kithenaMarkDataUri },
-};
+/**
+ * The company a page is for (`x-kithena-company`, set by the proxy from the
+ * path or the company's own domain), as its careers page shows it; null on
+ * Kithena Jobs' own pages, or when the company cannot be read.
+ */
+async function pageCompany(): Promise<PublicCompany | null> {
+  const slug = (await headers()).get('x-kithena-company');
+  if (slug === null) return null;
+  const answer = await readCompany(slug);
+  return answer.ok ? answer.data.company : null;
+}
 
-/** Kithena Jobs (REC-090): one header, the page, a short footer, nothing else. */
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await pageCompany();
+  const metadataBase = new URL(process.env['JOBS_ORIGIN'] ?? 'https://jobs.kithena.com');
+  // A company's pages carry its name and its logo, in the tab as on the page.
+  return company === null
+    ? {
+        metadataBase,
+        title: { default: 'Kithena Jobs', template: '%s · Kithena Jobs' },
+        description:
+          'Every open job at companies that hire on Kithena. No account needed to apply.',
+        icons: { icon: kithenaMarkDataUri },
+      }
+    : {
+        metadataBase,
+        title: { default: `Careers at ${company.name}`, template: `%s · ${company.name}` },
+        description: company.about ?? `Open jobs at ${company.name}.`,
+        icons: { icon: company.logoUrl ?? kithenaMarkDataUri },
+      };
+}
+
+/**
+ * Kithena Jobs (REC-090): one header, the page, a short footer, nothing else.
+ * On a company's pages (its careers page, a job, applying, a preview, its
+ * scheduling, alerts, agency and candidate pages) the header and footer are
+ * the company's: its logo and name, and the way back to its jobs. A
+ * candidate applies to the company; Kithena is not the one hiring.
+ */
 export default async function RootLayout({
   children,
 }: {
@@ -29,6 +62,7 @@ export default async function RootLayout({
   const account = jar.get(SESSION_COOKIE) === undefined ? null : await me();
   // The chosen theme on the server too, so the first paint is already right; the script covers the system default.
   const dark = jar.get(THEME_KEY)?.value === 'dark';
+  const company = await pageCompany();
   return (
     <html lang="en" className={dark ? 'dark' : undefined} suppressHydrationWarning>
       <head>
@@ -38,21 +72,47 @@ export default async function RootLayout({
         <TooltipProvider>
           <header className="sticky top-0 z-20 border-b border-border bg-canvas/90 backdrop-blur">
             <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-              <Link
-                href="/"
-                className="flex items-center gap-2 text-lg font-bold tracking-[-0.01em]"
-              >
-                <KithenaMark className="size-6 text-accent" />
-                Kithena Jobs
-              </Link>
-              <nav aria-label="Site" className="flex items-center gap-1 sm:gap-2">
-                <Button asChild variant="ghost" size="sm">
-                  <Link href="/">Jobs</Link>
-                </Button>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href="/search">Search</Link>
-                </Button>
-              </nav>
+              {company === null ? (
+                <>
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 text-lg font-bold tracking-[-0.01em]"
+                  >
+                    <KithenaMark className="size-6 text-accent" />
+                    Kithena Jobs
+                  </Link>
+                  <nav aria-label="Site" className="flex items-center gap-1 sm:gap-2">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href="/">Jobs</Link>
+                    </Button>
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href="/search">Search</Link>
+                    </Button>
+                  </nav>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href={`/${company.slug}`}
+                    className="flex min-w-0 items-center gap-2.5 text-lg font-bold tracking-[-0.01em]"
+                  >
+                    <Avatar
+                      name={company.name}
+                      src={company.logoUrl ?? undefined}
+                      shape="rounded"
+                      fit="contain"
+                      size="sm"
+                      aria-hidden
+                    />
+                    <span className="truncate">{company.name}</span>
+                  </Link>
+                  <nav aria-label="Site" className="flex items-center gap-1 sm:gap-2">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/${company.slug}`}>All jobs</Link>
+                    </Button>
+                  </nav>
+                </>
+              )}
               <div className="ms-auto flex items-center gap-1 sm:gap-2">
                 <ThemeToggle />
                 {account !== null ? (
@@ -74,8 +134,17 @@ export default async function RootLayout({
           </main>
           <footer className="border-t border-border">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-fg-muted sm:px-6">
-              <span>Jobs published by companies that hire on Kithena.</span>
-              <span>Your data stays with the company you apply to.</span>
+              {company === null ? (
+                <>
+                  <span>Jobs published by companies that hire on Kithena.</span>
+                  <span>Your data stays with the company you apply to.</span>
+                </>
+              ) : (
+                <>
+                  <span>{`Careers at ${company.name}`}</span>
+                  <span>{`What you send goes to ${company.name}, and stays with them.`}</span>
+                </>
+              )}
             </div>
           </footer>
         </TooltipProvider>
