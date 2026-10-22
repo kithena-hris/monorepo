@@ -872,6 +872,29 @@ describe('Recruiting settings, one job a page', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('starts the careers page from the company’s own name and address until it is saved', () => {
+    render(
+      <screens.Settings
+        load={ready({
+          ...settings,
+          general: { ...settings.general, companyName: 'Your company', companySlug: 'company' },
+          company: { name: 'Meridian Freight', slug: 'meridian', logoUrl: null, themeId: null },
+        })}
+        path="/settings/recruiting/careers"
+      />,
+    );
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: /Company name/u }).value).toBe(
+      'Meridian Freight',
+    );
+    expect(
+      screen.getByRole<HTMLInputElement>('textbox', { name: /Address on Kithena Jobs/u }).value,
+    ).toBe('meridian');
+    expect(screen.getByText('Filled in from your company’s profile')).toBeTruthy();
+    expect(
+      screen.getByRole('switch', { name: 'Show your jobs in Kithena Jobs search' }),
+    ).toBeTruthy();
+  });
+
   it('says what is wrong with the careers page’s address only once Save is pressed', () => {
     render(<screens.Settings load={ready(settings)} path="/settings/recruiting/careers" />);
     fireEvent.change(screen.getByRole('textbox', { name: /Address on Kithena Jobs/u }), {

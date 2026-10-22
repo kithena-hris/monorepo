@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { currentTenant } from './branding';
 import { recruiting, timeOff } from './people';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
 import type { OperationName } from './recruiting-operations';
@@ -179,8 +180,24 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         source: or(s['source']),
       });
     case 'Agencies':
-    case 'Settings':
-      return read('RecruitingSettings');
+    case 'Settings': {
+      // With the company as Kithena knows it, so the careers page starts from its name and address.
+      const [load, tenant] = await Promise.all([read('RecruitingSettings'), currentTenant()]);
+      return load.status !== 'ready' || tenant === null
+        ? load
+        : {
+            ...load,
+            data: {
+              ...(load.data as Record<string, unknown>),
+              company: {
+                name: tenant.branding.displayName,
+                slug: tenant.slug,
+                logoUrl: tenant.branding.logoUrl,
+                themeId: tenant.branding.themeId,
+              },
+            },
+          };
+    }
     default:
       return { status: 'none' };
   }

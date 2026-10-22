@@ -1136,7 +1136,12 @@ export interface SettingsData {
   readonly scorecards: readonly {
     readonly id: string;
     readonly name: string;
-    readonly competencies: readonly { readonly key: string; readonly name: string }[];
+    readonly competencies: readonly {
+      readonly key: string;
+      readonly name: string;
+      readonly description?: string;
+      readonly questions?: readonly string[];
+    }[];
   }[];
   readonly templates: readonly MessageTemplate[];
   /** Each entity's full catalogue, the standard library included. */
@@ -1159,6 +1164,13 @@ export interface SettingsData {
   readonly domainsOn: boolean;
   readonly jobs: readonly { readonly id: string; readonly title: string }[];
   readonly admin: boolean;
+  /** The company as the rest of Kithena knows it: what the careers page starts from. */
+  readonly company?: {
+    readonly name: string | null;
+    readonly slug: string;
+    readonly logoUrl: string | null;
+    readonly themeId: string | null;
+  };
 }
 
 export interface CareersDomain {

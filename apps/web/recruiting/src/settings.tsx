@@ -7,6 +7,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogTitle,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -164,6 +165,19 @@ function rowActions(
   ];
 }
 
+/** A row People owns: changed there, so its menu goes there. */
+const inPeople = (
+  props: ScreenProps<SettingsData>,
+  path: string,
+): readonly { id: string; label: string; icon: JSX.Element; onSelect: () => void }[] => [
+  {
+    id: 'people',
+    label: 'Change it in People',
+    icon: <icons.externalLink aria-hidden />,
+    onSelect: () => props.onNavigate?.(path),
+  },
+];
+
 /** Where a row came from, when not from here. */
 function FromPeople(): JSX.Element {
   return (
@@ -320,13 +334,45 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
  * The general settings, edited on a page and kept together: each page edits
  * its own part and saves the whole, as Recruiting keeps it.
  */
+/** Never saved here: still Recruiting's placeholders, not the company's own. */
+const unset = (g: GeneralSettings): boolean =>
+  g.companyName === 'Your company' && g.companySlug === 'company';
+
+/** A company's address in Kithena, made fit for a careers page's: small letters, digits, hyphens. */
+const slugOf = (text: string): string =>
+  text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean)
+    .join('-')
+    .slice(0, 40);
+
+/**
+ * The careers page starts from the company as the rest of Kithena knows it:
+ * its name, its address, its logo and its colours, until it is saved here.
+ */
+const prefilled = (data: SettingsData): GeneralSettings => {
+  const g = data.general;
+  const company = data.company;
+  if (company === undefined || !unset(g)) return g;
+  return {
+    ...g,
+    companyName: company.name ?? g.companyName,
+    companySlug: slugOf(company.slug) || g.companySlug,
+    logoUrl: g.logoUrl ?? company.logoUrl,
+    themeId: company.themeId ?? g.themeId,
+  };
+};
+
 function useGeneral(data: SettingsData, props: ScreenProps<SettingsData>) {
   const act = useAct(props);
   const [saved, setSaved] = useState<GeneralSettings>(data.general);
-  const [g, setG] = useState<GeneralSettings>(data.general);
+  const [g, setG] = useState<GeneralSettings>(() => prefilled(data));
   return {
     act,
     g,
+    /** Filled in from the company's profile and not yet saved. */
+    fromCompany: unset(saved) && !unset(g),
     set: (patch: Partial<GeneralSettings>) => {
       setG({ ...g, ...patch });
     },
@@ -343,7 +389,7 @@ function useGeneral(data: SettingsData, props: ScreenProps<SettingsData>) {
 }
 
 const CareersPage: Body = ({ data, props }) => {
-  const { act, g, set, changed, discard, save } = useGeneral(data, props);
+  const { act, g, set, changed, discard, save, fromCompany } = useGeneral(data, props);
   const checks = useChecks({
     name: g.companyName.trim() === '' ? 'Your company’s name, as candidates know it.' : null,
     slug: SLUG.test(g.companySlug)
@@ -359,6 +405,16 @@ const CareersPage: Body = ({ data, props }) => {
       <Header title="Careers page" description="Your company as candidates see it." />
       <Stack>
         <Refusal error={act.error} />
+        {fromCompany ? (
+          <Alert
+            tone="accent"
+            icon={<icons.company aria-hidden />}
+            title="Filled in from your company’s profile"
+            className="animate-arrive"
+          >
+            Check them, then save to use them on your careers page and in every email.
+          </Alert>
+        ) : null}
         <Group title="Your company">
           <Field required invalid={checks.invalid('name')}>
             <FieldLabel>Company name</FieldLabel>
@@ -373,6 +429,26 @@ const CareersPage: Body = ({ data, props }) => {
             </FieldControl>
             <FieldError>{checks.error('name')}</FieldError>
           </Field>
+          <List>
+            <ListItem
+              leading={
+                <Avatar
+                  name={g.companyName}
+                  src={g.logoUrl ?? undefined}
+                  shape="rounded"
+                  fit={g.logoUrl === null ? 'cover' : 'contain'}
+                  size="lg"
+                />
+              }
+              description={
+                g.logoUrl === null
+                  ? 'No logo yet: your initials stand in. Add one to your company’s profile.'
+                  : 'From your company’s profile.'
+              }
+            >
+              Logo
+            </ListItem>
+          </List>
           <Field>
             <FieldLabel>About the company</FieldLabel>
             <FieldControl>
@@ -404,6 +480,16 @@ const CareersPage: Body = ({ data, props }) => {
             <FieldDescription>{`jobs.kithena.com/${g.companySlug === '' ? '…' : g.companySlug}`}</FieldDescription>
             <FieldError>{checks.error('slug')}</FieldError>
           </Field>
+          <List>
+            <SwitchRow
+              label="Show your jobs in Kithena Jobs search"
+              description="Off: only people with your link find them."
+              checked={g.searchable}
+              onChange={(on) => {
+                set({ searchable: on });
+              }}
+            />
+          </List>
         </Group>
         {data.domainsOn ? <OwnDomain domain={data.careersDomain} props={props} /> : null}
         <Group title="Replies">
@@ -834,7 +920,7 @@ const Organisation: Body = ({ data, props }) => {
                   .join(' · ')}
                 {...(l.source === 'people' ? { meta: <FromPeople /> } : {})}
                 {...(l.source === 'people'
-                  ? {}
+                  ? { actions: inPeople(props, '/settings/people/organisation/locations') }
                   : {
                       actions: rowActions(
                         'location',
@@ -881,7 +967,7 @@ const Organisation: Body = ({ data, props }) => {
                 }
                 {...(u.source === 'people' ? { meta: <FromPeople /> } : {})}
                 {...(u.source === 'people'
-                  ? {}
+                  ? { actions: inPeople(props, '/settings/people/organisation/org-units') }
                   : {
                       actions: rowActions(
                         'department',
@@ -1296,21 +1382,26 @@ const keyOf = (name: string, i: number): string =>
 
 /** A new scorecard: its name and its competencies, each typed and kept with Enter. */
 function ScorecardEditor({
+  held,
   act,
   taken,
   onClose,
 }: {
+  /** The scorecard to change, or null for a new one. */
+  readonly held: SettingsData['scorecards'][number] | null;
   readonly act: Act;
   readonly taken: readonly string[];
   readonly onClose: () => void;
 }): JSX.Element {
-  const [name, setName] = useState('');
-  const [competencies, setCompetencies] = useState<readonly string[]>([]);
+  const [name, setName] = useState(held?.name ?? '');
+  const [competencies, setCompetencies] = useState<readonly string[]>(
+    held?.competencies.map((c) => c.name) ?? [],
+  );
   const checks = useChecks({
     name:
       name.trim() === ''
         ? 'Name the scorecard, as interviewers will pick it.'
-        : taken.some((t) => t.toLowerCase() === name.trim().toLowerCase())
+        : taken.some((t) => t.toLowerCase() === name.trim().toLowerCase() && t !== held?.name)
           ? 'A scorecard by that name is already here.'
           : null,
     competencies: competencies.length === 0 ? 'Add at least one competency to rate.' : null,
@@ -1324,7 +1415,7 @@ function ScorecardEditor({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New scorecard</DialogTitle>
+          <DialogTitle>{held === null ? 'New scorecard' : held.name}</DialogTitle>
           <DialogDescription>
             What interviewers rate, each on the four-point scale.
           </DialogDescription>
@@ -1373,22 +1464,26 @@ function ScorecardEditor({
               act.run(
                 'SaveScorecardTemplate',
                 {
-                  id: newId(),
+                  id: held?.id ?? newId(),
                   input: {
                     name: name.trim(),
-                    competencies: competencies.map((c, i) => ({
-                      key: keyOf(c, i),
-                      name: c,
-                      description: '',
-                      questions: [],
-                    })),
+                    // A competency kept keeps its key, its description and its questions.
+                    competencies: competencies.map((c, i) => {
+                      const was = held?.competencies.find((x) => x.name === c);
+                      return {
+                        key: was?.key ?? keyOf(c, i),
+                        name: c,
+                        description: was?.description ?? '',
+                        questions: was?.questions ?? [],
+                      };
+                    }),
                   },
                 },
                 onClose,
               );
             }}
           >
-            Add scorecard
+            {held === null ? 'Add scorecard' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1406,7 +1501,7 @@ const SCALE = [
 const Scorecards: Body = ({ data, props }) => {
   const act = useAct(props);
   const removal = useRemoval(act);
-  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<SettingsData['scorecards'][number] | 'new' | null>(null);
   const [suggested, setSuggested] = useState<Template | null>(null);
   return (
     <>
@@ -1418,7 +1513,7 @@ const Scorecards: Body = ({ data, props }) => {
             variant="primary"
             startIcon={<icons.add aria-hidden />}
             onClick={() => {
-              setAdding(true);
+              setEditing('new');
             }}
           >
             Add scorecard
@@ -1443,6 +1538,14 @@ const Scorecards: Body = ({ data, props }) => {
                 icon={<icons.review aria-hidden />}
                 description={s.competencies.map((c) => c.name).join(' · ')}
                 actions={[
+                  {
+                    id: 'edit',
+                    label: 'Edit scorecard',
+                    icon: <icons.edit aria-hidden />,
+                    onSelect: () => {
+                      setEditing(s);
+                    },
+                  },
                   {
                     id: 'suggest',
                     label: 'Suggest probing questions with AI',
@@ -1547,15 +1650,16 @@ const Scorecards: Body = ({ data, props }) => {
         </Group>
       </Stack>
       {removal.dialog}
-      {adding ? (
+      {editing === null ? null : (
         <ScorecardEditor
+          held={editing === 'new' ? null : editing}
           act={act}
           taken={data.scorecards.map((s) => s.name)}
           onClose={() => {
-            setAdding(false);
+            setEditing(null);
           }}
         />
-      ) : null}
+      )}
     </>
   );
 };
@@ -1765,7 +1869,12 @@ const PayBands: Body = ({ data, props }) => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {b.source === 'people' ? null : (
+                    {b.source === 'people' ? (
+                      <RowMenu
+                        name={b.grade}
+                        actions={inPeople(props, '/settings/people/organisation/pay-bands')}
+                      />
+                    ) : (
                       <RowMenu
                         name={b.grade}
                         actions={rowActions(
