@@ -12,6 +12,8 @@ import {
   Badge,
   Button,
   Card,
+  Chip,
+  ChipRow,
   CardContent,
   CardDescription,
   CardHeader,
@@ -23,10 +25,14 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  IconList,
+  IconListItem,
   Input,
   NumberField,
   KeyValues,
   PageHeader,
+  RadioCard,
+  RadioGroup,
   RichTextContent,
   RichTextEditor,
   SegmentedControl,
@@ -49,27 +55,26 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  TimePicker,
   Timeline,
   TimelineItem,
   cn,
   icons,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { use, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, day, newId, range, useAct, words } from './shared';
+import { Refusal, StateBadge, day, newId, range, useAct, when, words } from './shared';
 import { BenefitList } from './benefits';
-import { hoursOf, useCommit, type Commit } from './job-terms';
+import { SaveQueue, hoursOf, useAnswered, useCommit, type Commit } from './job-terms';
 import { JobWizard, NewJobWizard, isSetupPart } from './job-wizard';
-import type { FormField, JobData, ScreenProps } from './types';
+import type { FormField, JobData, PlannedInterview, ScreenProps, Stage } from './types';
 
 /**
  * R4–R7 and R14, a job's setup (design R4–R7): details, the hiring team,
  * criteria, the interview plan, the ad with its checks, the apply form and
  * where it is published. Each tab is in the address; each saves on its own.
  */
-
-const ROLES = ['recruiter', 'hiring_manager', 'interviewer', 'coordinator'] as const;
 
 const TARGETS: readonly {
   readonly key: string;
@@ -321,6 +326,32 @@ function useKeep(
   return { act, error: error ?? act.error, keep };
 }
 
+/** The four roles on a job, each with what it does: every one shown, whoever holds it listed. */
+const ROLE_ROWS = [
+  ['recruiter', 'Recruiters', 'Run the hiring: the ad, the screening, the bookings.'],
+  ['hiring_manager', 'Hiring manager', 'Decides who is hired. Needed before the setup moves on.'],
+  ['interviewer', 'Interviewers', 'Meet candidates and fill in their scorecards.'],
+  ['coordinator', 'Coordinators', 'Book interviews and keep the calendar.'],
+] as const;
+
+const sameTeam = (
+  a: readonly { personId: string; role: string }[],
+  b: readonly { personId: string; role: string }[],
+): boolean => {
+  const key = (t: readonly { personId: string; role: string }[]): string =>
+    t
+      .map((x) => `${x.role}:${x.personId}`)
+      .toSorted()
+      .join();
+  return key(a) === key(b);
+};
+
+/**
+ * The hiring team, by role: the recruiters, the hiring manager, the
+ * interviewers and the coordinators, each a row with whoever holds it. A
+ * person holds one role on a job, so someone chosen for one is not offered
+ * for another.
+ */
 function Team({
   data,
   props,
@@ -330,83 +361,44 @@ function Team({
   readonly props: ScreenProps<JobData>;
   readonly commit?: Commit | undefined;
 }): JSX.Element {
-  const [team, setTeam] = useState(data.team.map((t) => ({ personId: t.personId, role: t.role })));
-  const changed =
-    JSON.stringify(team) !==
-    JSON.stringify(data.team.map((t) => ({ personId: t.personId, role: t.role })));
+  const served = data.team.map((t) => ({ personId: t.personId, role: t.role }));
+  const [team, setTeam] = useState(served);
+  const changed = !sameTeam(team, served);
   const { act, error, keep } = useKeep(props, commit, changed, 'SetJobTeam', () => ({
     jobId: data.job.id,
     input: { team },
   }));
-  const name = (id: string) => data.members.find((m) => m.personId === id)?.name ?? id;
+  useAnswered(team.some((t) => t.role === 'hiring_manager'));
   const body = (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <Refusal error={error} />
-      {team.length === 0 ? null : (
-        <ul className="flex flex-col gap-2">
-          {team.map((t, i) => (
-            <li key={t.personId} className="flex flex-wrap items-center gap-3">
-              <Avatar name={name(t.personId)} size="sm" aria-hidden />
-              <span className="min-w-0 flex-1 truncate font-medium">{name(t.personId)}</span>
-              <Select
-                value={t.role}
-                onValueChange={(v) => {
-                  setTeam(team.map((x, j) => (j === i ? { ...x, role: v } : x)));
-                }}
-              >
-                <SelectTrigger aria-label={`${name(t.personId)}’s role`} className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {words(r)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={`Remove ${name(t.personId)}`}
-                startIcon={<icons.delete aria-hidden />}
-                onClick={() => {
-                  setTeam(team.filter((_, j) => j !== i));
-                }}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-      <Field>
-        <FieldLabel>Add someone</FieldLabel>
-        <FieldControl>
-          <Combobox
-            label="Add someone"
-            placeholder="Search people"
-            searchPlaceholder="Search people"
-            options={data.members
-              .filter((m) => !team.some((t) => t.personId === m.personId))
-              .map((m) => ({ value: m.personId, label: m.name }))}
-            value={null}
-            onChange={(v) => {
-              if (typeof v === 'string')
+      {ROLE_ROWS.map(([role, label, line]) => (
+        <Field key={role} required={role === 'hiring_manager'}>
+          <FieldLabel>{label}</FieldLabel>
+          <FieldDescription>{line}</FieldDescription>
+          <FieldControl>
+            <Combobox
+              label={label}
+              multiple
+              chips
+              placeholder={`Choose ${label.toLowerCase()}`}
+              searchPlaceholder="Search people"
+              emptyMessage="Nobody by that name works here."
+              options={data.members
+                .filter((m) => !team.some((t) => t.personId === m.personId && t.role !== role))
+                .map((m) => ({ value: m.personId, label: m.name }))}
+              value={team.filter((t) => t.role === role).map((t) => t.personId)}
+              onChange={(v) => {
+                const ids = typeof v === 'string' || v === null ? [] : [...v];
                 setTeam([
-                  ...team,
-                  {
-                    personId: v,
-                    role: team.some((t) => t.role === 'hiring_manager')
-                      ? 'interviewer'
-                      : 'hiring_manager',
-                  },
+                  ...team.filter((t) => t.role !== role),
+                  ...ids.map((personId) => ({ personId, role })),
                 ]);
-            }}
-          />
-        </FieldControl>
-        <FieldDescription>
-          The first person added is the hiring manager; change any role beside the name.
-        </FieldDescription>
-      </Field>
+              }}
+            />
+          </FieldControl>
+        </Field>
+      ))}
       {commit === undefined ? (
         <div className="flex justify-end">
           <Button
@@ -435,9 +427,56 @@ function Team({
   );
 }
 
+/** One line typed and kept with Enter: the new criterion lands in its list at once. */
+function CriterionInput({
+  must,
+  onAdd,
+}: {
+  readonly must: boolean;
+  readonly onAdd: (text: string) => void;
+}): JSX.Element {
+  const [text, setText] = useState('');
+  const add = (): void => {
+    if (text.trim() === '') return;
+    onAdd(text.trim());
+    setText('');
+  };
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        add();
+      }}
+    >
+      <Input
+        aria-label={must ? 'A must-have' : 'A nice-to-have'}
+        placeholder={
+          must ? 'Five years building backend services' : 'Has run a team of three or more'
+        }
+        value={text}
+        containerClassName="min-w-0 flex-1"
+        onChange={(e) => {
+          setText(e.target.value);
+        }}
+      />
+      <Button
+        type="submit"
+        variant="secondary"
+        startIcon={<icons.add aria-hidden />}
+        disabled={text.trim() === ''}
+      >
+        Add
+      </Button>
+    </form>
+  );
+}
+
 /**
- * What a candidate must bring, each a sentence a CV can show, must-have or
- * nice-to-have, weighted. The match on each candidate is read against them.
+ * What a candidate brings, in two lists side by side: what they must have
+ * and what is a bonus. Type a line and press Enter: it lands in its list. A
+ * line moves to the other list with one press. The match on each candidate
+ * is read against them.
  */
 function Criteria({
   data,
@@ -449,111 +488,81 @@ function Criteria({
   readonly commit?: Commit | undefined;
 }): JSX.Element {
   const [rows, setRows] = useState(data.criteria);
-  const [text, setText] = useState('');
-  const [must, setMust] = useState(true);
   const changed = JSON.stringify(rows) !== JSON.stringify(data.criteria);
   const { act, error, keep } = useKeep(props, commit, changed, 'SetJobCriteria', () => ({
     jobId: data.job.id,
     input: { criteria: rows },
   }));
-  const add = (): void => {
-    if (text.trim() === '') return;
-    setRows([...rows, { id: newId(), text: text.trim(), must, weight: 1 }]);
-    setText('');
+  useAnswered(rows.some((r) => r.must));
+  const column = (must: boolean): JSX.Element => {
+    const list = rows.filter((r) => r.must === must);
+    const name = must ? 'Must have' : 'Nice to have';
+    return (
+      <section aria-label={name} className="flex min-w-0 flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <h4 className="font-semibold">{name}</h4>
+          <Badge
+            size="sm"
+            variant="soft"
+            tone={must ? 'accent' : 'neutral'}
+            className="tabular-nums"
+          >
+            {String(list.length)}
+          </Badge>
+        </div>
+        {list.length === 0 ? (
+          <p className="text-sm text-fg-muted">
+            {must ? 'At least one, so the match has something to read.' : 'Optional.'}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {list.map((c) => (
+              <li key={c.id}>
+                <Card variant="fill" className="flex items-start gap-2 py-2 ps-3 pe-1.5">
+                  <span className="min-w-0 flex-1 py-1 text-sm text-pretty">{c.text}</span>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    aria-label={`Move “${c.text}” to ${must ? 'nice to have' : 'must have'}`}
+                    startIcon={must ? <icons.down aria-hidden /> : <icons.up aria-hidden />}
+                    onClick={() => {
+                      setRows(rows.map((x) => (x.id === c.id ? { ...x, must: !must } : x)));
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    aria-label={`Remove “${c.text}”`}
+                    startIcon={<icons.close aria-hidden />}
+                    onClick={() => {
+                      setRows(rows.filter((x) => x.id !== c.id));
+                    }}
+                  />
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+        <CriterionInput
+          must={must}
+          onAdd={(text) => {
+            setRows([...rows, { id: newId(), text, must, weight: 1 }]);
+          }}
+        />
+      </section>
+    );
   };
   const body = (
     <div className="flex flex-col gap-4">
       <Refusal error={error} />
-      {rows.length === 0 ? null : (
-        <ol className="flex flex-col divide-y divide-border">
-          {rows.map((c, i) => (
-            <li
-              key={c.id}
-              className="flex flex-col gap-3 py-3 first:pt-0 sm:flex-row sm:items-center"
-            >
-              <span className="min-w-0 flex-1 text-sm text-pretty">{c.text}</span>
-              <div className="flex flex-wrap items-center gap-2">
-                <SegmentedControl
-                  size="sm"
-                  aria-label={`How much “${c.text}” matters`}
-                  value={c.must ? 'must' : 'nice'}
-                  onValueChange={(v) => {
-                    setRows(rows.map((x, j) => (j === i ? { ...x, must: v === 'must' } : x)));
-                  }}
-                >
-                  <SegmentedControlItem value="must">Must have</SegmentedControlItem>
-                  <SegmentedControlItem value="nice">Nice to have</SegmentedControlItem>
-                </SegmentedControl>
-                <SegmentedControl
-                  size="sm"
-                  aria-label={`Weight of “${c.text}”`}
-                  value={String(c.weight)}
-                  onValueChange={(v) => {
-                    setRows(rows.map((x, j) => (j === i ? { ...x, weight: Number(v) } : x)));
-                  }}
-                >
-                  <SegmentedControlItem value="1">×1</SegmentedControlItem>
-                  <SegmentedControlItem value="2">×2</SegmentedControlItem>
-                  <SegmentedControlItem value="3">×3</SegmentedControlItem>
-                </SegmentedControl>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Remove “${c.text}”`}
-                  startIcon={<icons.delete aria-hidden />}
-                  onClick={() => {
-                    setRows(rows.filter((_, j) => j !== i));
-                  }}
-                />
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-      <Field>
-        <FieldLabel>A criterion</FieldLabel>
-        <FieldControl>
-          <Textarea
-            autoResize
-            rows={2}
-            value={text}
-            placeholder="Five years building backend services in production"
-            onChange={(e) => {
-              setText(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                add();
-              }
-            }}
-          />
-        </FieldControl>
-        <FieldDescription>
-          One sentence a CV can show. With the match switched on, each candidate is read against it:
-          met counts 1, partly met a half, times its weight.
-        </FieldDescription>
-      </Field>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SegmentedControl
-          aria-label="The new criterion is"
-          value={must ? 'must' : 'nice'}
-          onValueChange={(v) => {
-            setMust(v === 'must');
-          }}
-        >
-          <SegmentedControlItem value="must">Must have</SegmentedControlItem>
-          <SegmentedControlItem value="nice">Nice to have</SegmentedControlItem>
-        </SegmentedControl>
-        <Button
-          variant="secondary"
-          startIcon={<icons.add aria-hidden />}
-          disabled={text.trim() === ''}
-          onClick={add}
-        >
-          Add criterion
-        </Button>
+      <div className="grid gap-8 md:grid-cols-2">
+        {column(true)}
+        {column(false)}
       </div>
+      <p className="text-sm text-fg-muted">
+        One sentence a CV can show. With the match switched on, each candidate is read against every
+        line.
+      </p>
       {commit === undefined ? (
         <div className="flex justify-end">
           <Button
@@ -582,14 +591,285 @@ function Criteria({
   );
 }
 
-const LENGTHS = [15, 30, 45, 60, 90, 120, 180] as const;
+const LENGTHS = [15, 30, 45, 60, 90, 120] as const;
+
+/** The steps where a candidate is met: the only ones that take an interview. */
+const MEETS: ReadonlySet<string> = new Set(['screening', 'interview', 'assessment']);
+
+const lengthOf = (m: number): string =>
+  m < 60 || m % 60 !== 0 ? `${String(m)} min` : `${String(m / 60)} h`;
+
+/** The same steps, by name and kind, as a pipeline: how a job's copy is matched to its template. */
+const sameSteps = (a: readonly Stage[], b: readonly Stage[]): boolean => {
+  const key = (s: readonly Stage[]): string =>
+    s
+      .filter((x) => x.category !== 'works_council')
+      .map((x) => `${x.category}:${x.name}`)
+      .join('|');
+  return key(a) === key(b);
+};
+
+const twoDigits = (n: number): string => String(n).padStart(2, '0');
+
+/** A set time, as the date and the time the pickers show, in the reader's zone. */
+const pickersOf = (
+  iso: string | null | undefined,
+): { date: string | null; time: string | null } => {
+  if (iso == null) return { date: null, time: null };
+  const at = new Date(iso);
+  return {
+    date: `${String(at.getFullYear())}-${twoDigits(at.getMonth() + 1)}-${twoDigits(at.getDate())}`,
+    time: `${twoDigits(at.getHours())}:${twoDigits(at.getMinutes())}`,
+  };
+};
 
 /**
- * The interviews in order. Each is a card: its name, how long, who runs it
- * (several may), and the scorecard they fill in. Scheduling starts from these
- * and can change who runs one interview without touching the plan.
+ * One step's interview: what it is called, how long, who of the hiring team
+ * runs it, how the time is set, where, and what it is about. Under it, in
+ * plain words, what happens when a candidate reaches the step.
  */
-function Plan({
+function InterviewCard({
+  step,
+  interview,
+  team,
+  onChange,
+  onRemove,
+}: {
+  readonly step: Stage;
+  readonly interview: PlannedInterview;
+  readonly team: JobData['team'];
+  readonly onChange: (patch: Partial<PlannedInterview>) => void;
+  readonly onRemove: () => void;
+}): JSX.Element {
+  const mode = interview.mode ?? 'slots';
+  const where = interview.place != null ? 'place' : interview.videoUrl != null ? 'link' : 'video';
+  const [when, setWhen] = useState(() => pickersOf(interview.fixedAt));
+  const fix = (next: { date: string | null; time: string | null }): void => {
+    setWhen(next);
+    onChange({
+      fixedAt:
+        next.date === null || next.time === null
+          ? null
+          : new Date(`${next.date}T${next.time}`).toISOString(),
+    });
+  };
+  const panel = team.filter((t) => interview.interviewerIds.includes(t.personId));
+  return (
+    <Card variant="outline" padded className="flex flex-col gap-5">
+      <div className="flex items-start gap-3">
+        <Field className="min-w-0 flex-1">
+          <FieldLabel>Interview</FieldLabel>
+          <FieldControl>
+            <Input
+              value={interview.title}
+              placeholder={step.name}
+              onChange={(e) => {
+                onChange({ title: e.target.value });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-6"
+          aria-label={`Remove the interview from ${step.name}`}
+          startIcon={<icons.delete aria-hidden />}
+          onClick={onRemove}
+        />
+      </div>
+      <Field>
+        <FieldLabel>Length</FieldLabel>
+        <ChipRow aria-label={`${interview.title} length`}>
+          {[...new Set([...LENGTHS, interview.minutes])]
+            .toSorted((x, y) => x - y)
+            .map((m) => (
+              <Chip
+                key={m}
+                selected={interview.minutes === m}
+                onClick={() => {
+                  onChange({ minutes: m });
+                }}
+              >
+                {lengthOf(m)}
+              </Chip>
+            ))}
+        </ChipRow>
+      </Field>
+      <Field required>
+        <FieldLabel>Who meets them</FieldLabel>
+        <FieldDescription>
+          From the hiring team; each gets the calendar invitation.
+        </FieldDescription>
+        {team.length === 0 ? (
+          <p className="text-sm text-fg-muted">Add the hiring team on the page before first.</p>
+        ) : (
+          <ChipRow aria-label={`Who runs ${interview.title}`}>
+            {team.map((t) => {
+              const on = interview.interviewerIds.includes(t.personId);
+              return (
+                <Chip
+                  key={t.personId}
+                  selected={on}
+                  onClick={() => {
+                    onChange({
+                      interviewerIds: on
+                        ? interview.interviewerIds.filter((x) => x !== t.personId)
+                        : [...interview.interviewerIds, t.personId],
+                    });
+                  }}
+                >
+                  {`${t.name ?? t.personId} · ${words(t.role).toLowerCase()}`}
+                </Chip>
+              );
+            })}
+          </ChipRow>
+        )}
+      </Field>
+      <Field>
+        <FieldLabel>How the time is set</FieldLabel>
+        <RadioGroup
+          aria-label="How the time is set"
+          className="grid gap-2 md:grid-cols-2"
+          value={mode}
+          onValueChange={(v) => {
+            onChange({ mode: v as 'slots' | 'fixed' });
+          }}
+        >
+          <RadioCard
+            value="slots"
+            icon={<icons.calendar aria-hidden />}
+            description="Picks from times that fit everyone’s calendars; you confirm one."
+          >
+            The candidate chooses
+          </RadioCard>
+          <RadioCard
+            value="fixed"
+            icon={<icons.scheduled aria-hidden />}
+            description="Everyone who reaches this step is invited to the same time."
+          >
+            One set time
+          </RadioCard>
+        </RadioGroup>
+      </Field>
+      {mode === 'fixed' ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field required>
+            <FieldLabel>Date</FieldLabel>
+            <FieldControl>
+              <DatePicker
+                label="Date"
+                value={when.date}
+                onChange={(d) => {
+                  fix({ ...when, date: d });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field required>
+            <FieldLabel>Time</FieldLabel>
+            <FieldControl>
+              <TimePicker
+                label="Time"
+                step={15}
+                value={when.time}
+                onChange={(t) => {
+                  fix({ ...when, time: t });
+                }}
+              />
+            </FieldControl>
+          </Field>
+        </div>
+      ) : null}
+      <Field>
+        <FieldLabel>Where</FieldLabel>
+        <SegmentedControl
+          aria-label="Where"
+          value={where}
+          onValueChange={(v) => {
+            onChange(
+              v === 'place'
+                ? { place: interview.place ?? '', videoUrl: null }
+                : v === 'link'
+                  ? { place: null, videoUrl: interview.videoUrl ?? '' }
+                  : { place: null, videoUrl: null },
+            );
+          }}
+        >
+          <SegmentedControlItem value="video">Video call</SegmentedControlItem>
+          <SegmentedControlItem value="place">In person</SegmentedControlItem>
+          <SegmentedControlItem value="link">Our own link</SegmentedControlItem>
+        </SegmentedControl>
+        {where === 'video' ? (
+          <FieldDescription>A meeting link is made on the organiser’s calendar.</FieldDescription>
+        ) : (
+          <FieldControl>
+            <Input
+              aria-label={where === 'place' ? 'The address' : 'The meeting link'}
+              placeholder={where === 'place' ? 'Hauptstraße 1, Berlin, reception' : 'https://'}
+              value={(where === 'place' ? interview.place : interview.videoUrl) ?? ''}
+              onChange={(e) => {
+                onChange(
+                  where === 'place' ? { place: e.target.value } : { videoUrl: e.target.value },
+                );
+              }}
+            />
+          </FieldControl>
+        )}
+      </Field>
+      <Field>
+        <FieldLabel>Agenda</FieldLabel>
+        <FieldControl>
+          <Textarea
+            autoResize
+            rows={2}
+            placeholder="Walk us through two projects; then your questions for us."
+            value={interview.agenda ?? ''}
+            onChange={(e) => {
+              onChange({ agenda: e.target.value });
+            }}
+          />
+        </FieldControl>
+        <FieldDescription>In the invitation and on everyone’s calendar.</FieldDescription>
+      </Field>
+      {/* What happens, said once, so nobody has to guess what moving a candidate sets off. */}
+      <IconList aria-label="When a candidate reaches this step">
+        {mode === 'fixed' ? (
+          <>
+            <IconListItem icon={<icons.email aria-hidden />} tone="accent">
+              {`The candidate is invited for ${when.date === null || when.time === null ? 'the set time' : day(when.date)}${when.time === null ? '' : `, ${when.time}`}, with the agenda.`}
+            </IconListItem>
+            <IconListItem icon={<icons.calendar aria-hidden />} tone="accent">
+              {panel.length === 0
+                ? 'Whoever meets them gets the calendar invitation.'
+                : `${panel.map((p) => p.name ?? p.personId).join(', ')} get the calendar invitation.`}
+            </IconListItem>
+          </>
+        ) : (
+          <>
+            <IconListItem icon={<icons.email aria-hidden />} tone="accent">
+              The candidate is emailed to choose times that fit everyone, with the agenda.
+            </IconListItem>
+            <IconListItem icon={<icons.inbox aria-hidden />} tone="accent">
+              Their times reach the recruiter’s Inbox and email; the recruiter confirms one.
+            </IconListItem>
+            <IconListItem icon={<icons.calendar aria-hidden />} tone="accent">
+              The team gets the calendar invitation; the candidate a confirmation.
+            </IconListItem>
+          </>
+        )}
+      </IconList>
+    </Card>
+  );
+}
+
+/**
+ * How candidates move through the job: its pipeline, chosen from the
+ * company's, and each step where a candidate is met with its interview, one
+ * at most. An interview step needs one. Reaching a step asks the candidate
+ * for its interview by itself: a time to choose, or an invitation.
+ */
+function Steps({
   data,
   props,
   commit,
@@ -598,176 +878,173 @@ function Plan({
   readonly props: ScreenProps<JobData>;
   readonly commit?: Commit | undefined;
 }): JSX.Element {
+  const act = useAct(props);
+  const track = use(SaveQueue);
   const [plan, setPlan] = useState(data.plan);
-  const [title, setTitle] = useState('');
-  const change = (i: number, patch: Partial<(typeof plan)[number]>): void => {
-    setPlan(plan.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const [error, setError] = useState<string | null>(null);
+  // A pipeline just chosen shows at once; Recruiting's copy replaces it when it arrives.
+  const [chosen, setChosen] = useState<{ base: readonly Stage[]; stages: readonly Stage[] } | null>(
+    null,
+  );
+  const stages = chosen !== null && chosen.base === data.stages ? chosen.stages : data.stages;
+  const stagesSaved = useRef<Promise<unknown>>(Promise.resolve());
+  const kept = plan.filter((p) => p.stageId == null || stages.some((s) => s.id === p.stageId));
+  const changed = JSON.stringify(kept) !== JSON.stringify(data.plan);
+  // Kept as the page moves on, once the steps it names are Recruiting's.
+  useCommit(commit, async () => {
+    await stagesSaved.current;
+    if (!changed) return true;
+    setError(null);
+    const done = await act.call('SetJobPlan', { jobId: data.job.id, input: { plan: kept } });
+    if (!done.ok) {
+      setError(done.message);
+      return false;
+    }
+    props.onRefresh?.();
+    return true;
+  });
+  const needing = stages.filter((s) => s.category === 'interview');
+  useAnswered(needing.every((s) => kept.some((p) => p.stageId === s.id)));
+  const pipelines = data.pipelines ?? [];
+  const current = pipelines.find((p) => sameSteps(p.stages, stages))?.id ?? 'own';
+  const change = (key: string, patch: Partial<PlannedInterview>): void => {
+    setPlan(plan.map((p) => (p.key === key ? { ...p, ...patch } : p)));
   };
-  const changed = JSON.stringify(plan) !== JSON.stringify(data.plan);
-  const { act, error, keep } = useKeep(props, commit, changed, 'SetJobPlan', () => ({
-    jobId: data.job.id,
-    input: { plan },
-  }));
+  const choose = (id: string): void => {
+    const template = pipelines.find((p) => p.id === id);
+    if (template === undefined) return;
+    const copy = template.stages.map((s) => ({ ...s, id: newId() }));
+    // A works council's step stays, before the first offer.
+    const council = stages.find((s) => s.category === 'works_council');
+    const at = copy.findIndex((s) => s.category === 'offer');
+    const next =
+      council === undefined || copy.some((s) => s.category === 'works_council') || at < 0
+        ? copy
+        : [...copy.slice(0, at), council, ...copy.slice(at)];
+    // An interview follows its step to the step of the same name in the new pipeline.
+    setPlan(
+      plan.flatMap((p) => {
+        const was = stages.find((s) => s.id === p.stageId);
+        const to = was === undefined ? undefined : next.find((s) => s.name === was.name);
+        return to === undefined ? [] : [{ ...p, stageId: to.id }];
+      }),
+    );
+    setChosen({ base: data.stages, stages: next });
+    const saving = act
+      .call('SetJobStages', { jobId: data.job.id, input: { stages: next } })
+      .then((done) => {
+        if (!done.ok) {
+          setError(done.message);
+          setChosen(null);
+          return;
+        }
+        props.onRefresh?.();
+      });
+    stagesSaved.current = saving;
+    track?.(saving);
+  };
   return (
-    <div className="flex flex-col gap-4">
-      <Refusal error={error} />
-      {plan.length === 0 ? (
-        <EmptyState
-          icon={<icons.meeting aria-hidden />}
-          title="No interviews planned"
-          description="Add the first below: a screen, a technical interview, a meeting with the team."
-        />
-      ) : (
-        <ol className="flex flex-col gap-3">
-          {plan.map((p, i) => (
-            <li key={p.key}>
-              <Card padded className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <Badge size="sm" variant="soft" tone="accent" className="tabular-nums">
-                    {String(i + 1)}
-                  </Badge>
-                  <Input
-                    aria-label={`Interview ${String(i + 1)}’s name`}
-                    value={p.title}
-                    className="min-w-0 flex-1 font-semibold"
-                    onChange={(e) => {
-                      change(i, { title: e.target.value });
+    <div className="flex flex-col gap-6">
+      <Refusal error={error ?? act.error} />
+      <Field>
+        <FieldLabel>Pipeline</FieldLabel>
+        <Select value={current} onValueChange={choose}>
+          <FieldControl>
+            <SelectTrigger className="max-w-md">
+              <SelectValue />
+            </SelectTrigger>
+          </FieldControl>
+          <SelectContent>
+            {current === 'own' ? <SelectItem value="own">This job’s own steps</SelectItem> : null}
+            {pipelines.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.isDefault ? `${p.name} (the default)` : p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FieldDescription>
+          The company’s pipelines, from Settings. Choosing one gives this job its steps.
+        </FieldDescription>
+      </Field>
+      <ol className="flex flex-col gap-4" aria-label="The steps">
+        {stages.map((s, i) => {
+          const interview = kept.find((p) => p.stageId === s.id);
+          const meets = MEETS.has(s.category);
+          return (
+            <li key={s.id} className="flex gap-4">
+              <Badge
+                size="sm"
+                variant={interview === undefined ? 'outline' : 'soft'}
+                tone={interview === undefined ? 'neutral' : 'accent'}
+                className="mt-0.5 shrink-0 tabular-nums"
+              >
+                {String(i + 1)}
+              </Badge>
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{s.name}</span>
+                  <span className="text-sm text-fg-muted">{words(s.category)}</span>
+                  {s.category === 'interview' && interview === undefined ? (
+                    <Badge size="xs" tone="attention">
+                      Needs an interview
+                    </Badge>
+                  ) : null}
+                </div>
+                {interview !== undefined ? (
+                  <InterviewCard
+                    step={s}
+                    interview={interview}
+                    team={data.team}
+                    onChange={(patch) => {
+                      change(interview.key, patch);
+                    }}
+                    onRemove={() => {
+                      setPlan(plan.filter((p) => p.key !== interview.key));
                     }}
                   />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Remove ${p.title}`}
-                    startIcon={<icons.delete aria-hidden />}
-                    onClick={() => {
-                      setPlan(plan.filter((_, j) => j !== i));
-                    }}
-                  />
-                </div>
-                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  <Field className="md:col-span-2">
-                    <FieldLabel>Length</FieldLabel>
-                    <SegmentedControl
-                      aria-label={`${p.title}’s length`}
-                      value={String(p.minutes)}
-                      onValueChange={(v) => {
-                        change(i, { minutes: Number(v) });
+                ) : meets ? (
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      startIcon={<icons.add aria-hidden />}
+                      onClick={() => {
+                        setPlan([
+                          ...plan.filter((p) => p.stageId !== s.id),
+                          {
+                            key: `i_${s.id
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]/gu, '')
+                              .slice(0, 30)}`,
+                            title: s.name,
+                            minutes: 45,
+                            interviewerIds: data.team
+                              .filter(
+                                (t) => t.role === 'hiring_manager' || t.role === 'interviewer',
+                              )
+                              .map((t) => t.personId),
+                            competencies: [],
+                            scorecardTemplateId: null,
+                            stageId: s.id,
+                            mode: 'slots',
+                            fixedAt: null,
+                            place: null,
+                            videoUrl: null,
+                            agenda: null,
+                          },
+                        ]);
                       }}
                     >
-                      {[...new Set([...LENGTHS, p.minutes])]
-                        .toSorted((x, y) => x - y)
-                        .map((m) => (
-                          <SegmentedControlItem key={m} value={String(m)}>
-                            {m < 60 || m % 60 !== 0 ? `${String(m)} min` : `${String(m / 60)} h`}
-                          </SegmentedControlItem>
-                        ))}
-                    </SegmentedControl>
-                  </Field>
-                  <Field>
-                    <FieldLabel>Interviewers</FieldLabel>
-                    <FieldDescription>Invited to every booking of it.</FieldDescription>
-                    <FieldControl>
-                      <Combobox
-                        label={`${p.title}’s interviewers`}
-                        multiple
-                        chips
-                        placeholder="Choose who runs it"
-                        searchPlaceholder="Search people"
-                        options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
-                        value={p.interviewerIds}
-                        onChange={(v) => {
-                          change(i, {
-                            interviewerIds: typeof v === 'string' || v === null ? [] : [...v],
-                          });
-                        }}
-                      />
-                    </FieldControl>
-                  </Field>
-                  <Field>
-                    <FieldLabel>Scorecard</FieldLabel>
-                    <FieldDescription>What each interviewer rates.</FieldDescription>
-                    <Select
-                      value={p.scorecardTemplateId ?? 'none'}
-                      onValueChange={(v) => {
-                        change(i, { scorecardTemplateId: v === 'none' ? null : v });
-                      }}
-                    >
-                      <FieldControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FieldControl>
-                      <SelectContent>
-                        <SelectItem value="none">The job’s scorecard</SelectItem>
-                        {data.scorecards.map((sc) => (
-                          <SelectItem key={sc.id} value={sc.id}>
-                            {sc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-              </Card>
+                      Add an interview
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             </li>
-          ))}
-        </ol>
-      )}
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const key =
-            title
-              .trim()
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/gu, '_')
-              .replace(/^_+|_+$/gu, '')
-              .slice(0, 40) || `interview_${String(plan.length + 1)}`;
-          setPlan([
-            ...plan,
-            {
-              key: /^[a-z]/u.test(key) ? key : `i_${key}`,
-              title: title.trim(),
-              minutes: 60,
-              interviewerIds: [],
-              competencies: [],
-              scorecardTemplateId: null,
-            },
-          ]);
-          setTitle('');
-        }}
-      >
-        <Input
-          aria-label="A new interview"
-          placeholder="Add an interview, e.g. Technical interview"
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-          }}
-        />
-        <Button
-          type="submit"
-          variant="secondary"
-          startIcon={<icons.add aria-hidden />}
-          disabled={title.trim() === ''}
-        >
-          Add
-        </Button>
-      </form>
-      {commit === undefined ? (
-        <div className="flex justify-end">
-          <Button
-            loading={act.pending}
-            disabled={!changed || plan.some((p) => p.title.trim() === '')}
-            onClick={() => {
-              void keep();
-            }}
-          >
-            Save plan
-          </Button>
-        </div>
-      ) : null}
+          );
+        })}
+      </ol>
     </div>
   );
 }
@@ -1385,7 +1662,7 @@ function PartBody({
     case 'criteria':
       return <Criteria data={data} props={props} commit={commit} />;
     case 'plan':
-      return <Plan data={data} props={props} commit={commit} />;
+      return <Steps data={data} props={props} commit={commit} />;
     case 'ad':
       return <Ad data={data} props={props} />;
     case 'form':
@@ -1462,7 +1739,7 @@ function Editable({
 }
 
 /** The panels that are not a page of the setup: the rest of the details, languages and checks, publishing. */
-const SHEET_PARTS = ['details', 'ad', 'publishing'] as const;
+const SHEET_PARTS = ['details', 'ad', 'publishing', 'form'] as const;
 
 /**
  * R4–R7 and R14, a job's setup. A new job is set up on a page of its own, a
@@ -1774,20 +2051,28 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   >
                     <section className="flex flex-col gap-4">
                       <h3 className="text-2xl font-bold tracking-[-0.01em]">How we hire</h3>
-                      {data.plan.length === 0 ? (
-                        <p className="text-fg-muted">No interviews planned yet.</p>
-                      ) : (
-                        <Timeline>
-                          {data.plan.map((p, i) => (
-                            <TimelineItem
-                              key={p.key}
-                              title={p.title}
-                              tone={i === 0 ? 'accent' : 'neutral'}
-                              icon={<Badge size="sm">{String(i + 1)}</Badge>}
-                            />
-                          ))}
-                        </Timeline>
-                      )}
+                      {/* The steps a candidate sees, each with its interview and how long it takes. */}
+                      <Timeline>
+                        {data.stages
+                          .filter((st) => st.candidateName !== null)
+                          .map((st, i, shown) => {
+                            const meet = data.plan.find((p) => p.stageId === st.id);
+                            return (
+                              <TimelineItem
+                                key={st.id}
+                                title={st.candidateName ?? st.name}
+                                timestamp={
+                                  meet === undefined
+                                    ? undefined
+                                    : `${meet.title}, ${String(meet.minutes)} min`
+                                }
+                                tone={meet === undefined ? 'neutral' : 'accent'}
+                                icon={<Badge size="sm">{String(i + 1)}</Badge>}
+                                last={i === shown.length - 1}
+                              />
+                            );
+                          })}
+                      </Timeline>
                     </section>
                   </Editable>
                 </div>
@@ -1815,7 +2100,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     <Editable
                       label="the apply form"
                       onEdit={() => {
-                        edit('apply');
+                        edit('form');
                       }}
                     >
                       <div className="flex flex-col gap-2">
@@ -1858,18 +2143,62 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     edit('team');
                   }}
                 >
-                  {data.team.length === 0 ? (
-                    <p className="text-sm text-fg-muted">Nobody yet.</p>
+                  {/* Every role, whoever holds it: an empty one says so rather than vanishing. */}
+                  <dl className="flex flex-col gap-3 text-sm">
+                    {ROLE_ROWS.map(([role, label]) => {
+                      const held = data.team.filter((m) => m.role === role);
+                      return (
+                        <div key={role} className="flex flex-col gap-1">
+                          <dt className="text-xs font-medium text-fg-muted">{label}</dt>
+                          <dd className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            {held.length === 0 ? (
+                              <span className="text-fg-muted">Nobody yet</span>
+                            ) : (
+                              held.map((m) => (
+                                <span key={m.personId} className="flex items-center gap-1.5">
+                                  <Avatar name={m.name ?? m.personId} size="xs" aria-hidden />
+                                  {m.name ?? m.personId}
+                                </span>
+                              ))
+                            )}
+                          </dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+                </Region>
+                <Region
+                  title="Interviews, by step"
+                  onEdit={() => {
+                    edit('interviews');
+                  }}
+                >
+                  {data.plan.every((p) => p.stageId == null) ? (
+                    <p className="text-sm text-fg-muted">No step has its interview yet.</p>
                   ) : (
-                    <ul className="flex flex-col gap-2">
-                      {data.team.map((m) => (
-                        <li key={m.personId} className="flex items-center gap-2 text-sm">
-                          <Avatar name={m.name ?? m.personId} size="xs" aria-hidden />
-                          <span className="min-w-0 flex-1 truncate">{m.name ?? m.personId}</span>
-                          <span className="text-xs text-fg-muted">{words(m.role)}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <ol className="flex flex-col gap-3 text-sm">
+                      {data.stages.flatMap((st) => {
+                        const meet = data.plan.find((p) => p.stageId === st.id);
+                        if (meet === undefined) return [];
+                        const panel = data.team
+                          .filter((m) => meet.interviewerIds.includes(m.personId))
+                          .map((m) => m.name ?? m.personId);
+                        return [
+                          <li key={st.id} className="flex flex-col gap-0.5">
+                            <span className="font-medium">{`${st.name}: ${meet.title}`}</span>
+                            <span className="text-fg-muted">
+                              {[
+                                `${String(meet.minutes)} min`,
+                                meet.mode === 'fixed' && meet.fixedAt != null
+                                  ? `at ${when(meet.fixedAt)}`
+                                  : 'the candidate chooses the time',
+                                panel.length === 0 ? 'nobody to meet them yet' : panel.join(', '),
+                              ].join(' · ')}
+                            </span>
+                          </li>,
+                        ];
+                      })}
+                    </ol>
                   )}
                 </Region>
                 <Region

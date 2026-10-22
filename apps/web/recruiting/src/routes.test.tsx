@@ -351,7 +351,9 @@ describe('R4–R7, a job’s setup', () => {
   it('walks a new job through its steps on a page of its own', async () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'j1' }} search={{ setup: '1' }} />);
     expect(screen.getByRole('dialog', { name: /Set up/u })).toBeTruthy();
-    expect(screen.getByText('Step 1 of 8')).toBeTruthy();
+    // Continue waits for every answer on the page, and says which are left.
+    expect(screen.getByText(/^To continue: /u)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Continue' }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('heading', { name: 'What is the job?' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: /^Job title/u })).toBeTruthy();
     // No step list: the foot says where you are.
@@ -382,7 +384,7 @@ describe('R4–R7, a job’s setup', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
-  it('puts the hiring team and the criteria on one page, a criterion with room to write it', () => {
+  it('puts the hiring team by role and the criteria in two lists on one page', () => {
     render(
       <screens.JobSetup
         load={ready(job)}
@@ -392,7 +394,17 @@ describe('R4–R7, a job’s setup', () => {
     );
     expect(screen.getByRole('heading', { name: 'Who hires, and for what?' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Hiring team' })).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: 'A criterion' }).tagName).toBe('TEXTAREA');
+    // Every role is shown, whoever holds it.
+    for (const role of ['Recruiters', 'Hiring manager', 'Interviewers', 'Coordinators'])
+      expect(screen.getAllByText(role).length).toBeGreaterThan(0);
+    // A line typed and kept with Enter lands in its list.
+    fireEvent.change(screen.getByRole('textbox', { name: 'A must-have' }), {
+      target: { value: 'Ships TypeScript' },
+    });
+    fireEvent.submit(screen.getByRole('textbox', { name: 'A must-have' }));
+    expect(screen.getByRole('region', { name: 'Must have' }).textContent).toContain(
+      'Ships TypeScript',
+    );
     // Kept when the page moves on: no separate save on this page.
     expect(screen.queryByRole('button', { name: 'Save criteria' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Save team' })).toBeNull();
@@ -409,13 +421,37 @@ describe('R4–R7, a job’s setup', () => {
   it('opens where it was left last time', () => {
     render(
       <screens.JobSetup
-        load={ready({ ...job, terms: { ...job.terms, setupStep: 'process' } })}
+        load={ready({
+          ...job,
+          stages: [
+            {
+              id: 's1',
+              name: 'Applied',
+              candidateName: 'Received',
+              category: 'applied',
+              automations: [],
+            },
+            {
+              id: 's2',
+              name: 'Interview',
+              candidateName: 'Interviews',
+              category: 'interview',
+              automations: [],
+            },
+            { id: 's4', name: 'Hired', candidateName: 'Hired', category: 'hired', automations: [] },
+          ],
+          terms: { ...job.terms, setupStep: 'process' },
+        })}
         params={{ id: 'j1' }}
         search={{ setup: '1' }}
       />,
     );
-    expect(screen.getByRole('heading', { name: 'How do they apply and interview?' })).toBeTruthy();
-    expect(screen.getByText('Step 7 of 8')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'How do candidates move through?' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: /Pipeline/u })).toBeTruthy();
+    // A step where the candidate is met takes one interview, with who runs it and how the time is set.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add an interview' })[0] as HTMLElement);
+    expect(screen.getByText('Who meets them')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /The candidate chooses/u })).toBeTruthy();
   });
 
   it('lets a hybrid week have set days on site or any the person chooses', () => {
@@ -474,7 +510,7 @@ describe('R4–R7, a job’s setup', () => {
     });
     expect(screen.getByRole('region', { name: 'Team and level' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Openings and start' })).toBeNull();
-    expect(screen.getByText('Step 1 of 8')).toBeTruthy();
+    expect(screen.getByText(/^To continue: team and level, openings and start$/u)).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 

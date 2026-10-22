@@ -191,6 +191,13 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     chat: ctx.deps.chat === undefined ? null : { channel: await jobChannel(ctx, jobId) },
     criteria: await ctx.tx.jobs.criteria(jobId),
     plan: await ctx.tx.jobs.plan(jobId),
+    // The pipelines to choose from: choosing one gives the job a copy of its steps.
+    pipelines: (await ctx.tx.pipelines.list()).map((p) => ({
+      id: p.id,
+      name: p.name,
+      isDefault: p.isDefault,
+      stages: p.stages,
+    })),
     counts: await counts(ctx, job),
     locations: await ctx.tx.locations.list(),
     entities: await ctx.tx.entities.list(),

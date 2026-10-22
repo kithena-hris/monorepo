@@ -69,6 +69,7 @@ import {
   sendStageExpectations,
 } from '../application/emails.js';
 import { removeCategory, restoreLibrary, saveCategory } from '../application/catalogue.js';
+import { interviewOnEntry } from '../application/stage-interviews.js';
 import { saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
@@ -880,11 +881,18 @@ export const ROUTES: readonly Route[] = [
             interviewerIds: z.array(Id),
             competencies: z.array(text(60)),
             scorecardTemplateId: z.string().max(80).nullable(),
+            stageId: Id.nullable().default(null),
+            mode: z.enum(['slots', 'fixed']).default('slots'),
+            fixedAt: z.iso.datetime().nullable().default(null),
+            place: text(200).nullable().default(null),
+            videoUrl: z.url().max(500).nullable().default(null),
+            agenda: z.string().max(4000).nullable().default(null),
           }),
         )
         .max(12),
     }),
-    run: (ctx, { params, body }) => setPlan(ctx, params.jobId, body.plan),
+    // `fixedAt` is checked as an ISO instant above.
+    run: (ctx, { params, body }) => setPlan(ctx, params.jobId, body.plan as never),
   }),
   route({
     name: 'moveJob',
@@ -979,14 +987,17 @@ export const ROUTES: readonly Route[] = [
       /** The composer's words to the candidate, sent at once; none moves quietly. */
       message: ComposedEmail.nullable().default(null),
     }),
-    run: (ctx, { params, body }) =>
-      moveAndEmail(
+    run: async (ctx, { params, body }) => {
+      const moved = await moveAndEmail(
         ctx,
         params.applicationId,
         body.to,
         body.interviewType === undefined ? {} : { interviewType: body.interviewType },
         body.message,
-      ),
+      );
+      if (moved.ok) await interviewOnEntry(ctx, params.applicationId, body.to);
+      return moved;
+    },
   }),
   route({
     name: 'sendStageExpectations',
@@ -1066,7 +1077,11 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx, { body }) =>
       ok(
         await bulk(ctx, body.ids, async (id) => {
-          if (body.action === 'move') return moveApplication(ctx, id, body.to);
+          if (body.action === 'move') {
+            const moved = await moveApplication(ctx, id, body.to);
+            if (moved.ok) await interviewOnEntry(ctx, id, body.to);
+            return moved;
+          }
           if (body.action === 'reject')
             return rejectAndEmail(ctx, id, {
               reasonKey: body.reasonKey,
