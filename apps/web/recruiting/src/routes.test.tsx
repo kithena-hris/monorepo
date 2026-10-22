@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import manifest from '../public/routes.json';
@@ -427,13 +427,37 @@ describe('R4–R7, a job’s setup', () => {
     expect(screen.getByText('1 of 2 chosen.')).toBeTruthy();
   });
 
+  it('ticks each part of the first page as it is filled, the start date included', () => {
+    render(
+      <screens.JobSetup
+        load={ready({
+          ...job,
+          job: {
+            ...job.job,
+            department: 'Engineering',
+            targetHireDate: '2026-12-01',
+            outline: { ...job.job.outline, seniority: 'senior' },
+          },
+        })}
+        params={{ id: 'j1' }}
+        search={{ setup: '1' }}
+      />,
+    );
+    const parts = within(screen.getByRole('list', { name: 'On this page' }));
+    expect(parts.getAllByText('Answered')).toHaveLength(3);
+  });
+
   it('starts a new job on the same page, with its title', async () => {
     render(<screens.JobSetup load={ready(job)} params={{ id: 'new' }} />);
     expect(screen.getByRole('dialog', { name: 'New job' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'What is the job?' })).toBeTruthy();
-    // The whole first page, not a page for the title alone before it.
+    // The whole first page, its parts unfolding in turn: the team and level once there is a title.
+    expect(screen.queryByRole('region', { name: 'Team and level' })).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: /^Job title/u }), {
+      target: { value: 'Staff designer' },
+    });
     expect(screen.getByRole('region', { name: 'Team and level' })).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Openings and start' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Openings and start' })).toBeNull();
     expect(screen.getByText('Step 1 of 8')).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });

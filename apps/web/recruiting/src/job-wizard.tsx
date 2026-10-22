@@ -61,6 +61,7 @@ import {
 import { Refusal, newId, useAct } from './shared';
 import {
   TermsPicks,
+  prefetchCatalogue,
   prefetchCatalogues,
   stillPending,
   useCatalogue,
@@ -139,32 +140,69 @@ const detailsOf = (job: JobRecord, change: Partial<JobRecord>): Record<string, u
   };
 };
 
-/** A value shown the moment it is picked; the server's replaces it when it arrives. */
-function useShown<T>(server: T): [T, (value: T) => void] {
-  const [held, setHeld] = useState({ server, value: server });
-  if (!Object.is(held.server, server)) setHeld({ server, value: server });
-  return [
-    Object.is(held.server, server) ? held.value : server,
-    (value) => {
-      setHeld({ server, value });
-    },
-  ];
+/** The first page's answers as they are typed and picked, ahead of Recruiting: one draft the
+ * bar, the checklist and the parts all read, so each part unfolds and ticks as it is filled. */
+interface JobDraft {
+  readonly title?: string;
+  readonly department?: string | null;
+  readonly seniority?: string | null;
+  readonly openings?: number;
+  readonly targetHireDate?: string | null;
+}
+
+const JobDraftContext = createContext<{
+  readonly job: JobRecord;
+  readonly set: (patch: JobDraft) => void;
+} | null>(null);
+
+/** The job with the draft on top. */
+const withDraft = (job: JobRecord, draft: JobDraft): JobRecord => ({
+  ...job,
+  ...(draft.title === undefined ? {} : { title: draft.title }),
+  ...(draft.department === undefined ? {} : { department: draft.department }),
+  ...(draft.openings === undefined ? {} : { openings: draft.openings }),
+  ...(draft.targetHireDate === undefined ? {} : { targetHireDate: draft.targetHireDate }),
+  outline:
+    draft.seniority === undefined ? job.outline : { ...job.outline, seniority: draft.seniority },
+});
+
+/** The draft's edits Recruiting has not caught up with yet. */
+const stillDrafted = (draft: JobDraft, job: JobRecord): JobDraft =>
+  Object.fromEntries(
+    Object.entries(draft).filter(([k, v]) =>
+      k === 'seniority' ? job.outline.seniority !== v : job[k as keyof JobRecord] !== v,
+    ),
+  );
+
+function useJobDraft(data: JobData): {
+  readonly job: JobRecord;
+  readonly set: (patch: JobDraft) => void;
+} {
+  const shared = use(JobDraftContext);
+  const [own, setOwn] = useState<JobDraft>({});
+  return (
+    shared ?? {
+      job: withDraft(data.job, own),
+      set: (patch) => {
+        setOwn((d) => ({ ...d, ...patch }));
+      },
+    }
+  );
 }
 
 function RoleStep({ data, props }: TermsProps): JSX.Element {
   const act = useAct(props);
   const track = use(SaveQueue);
+  const draft = useJobDraft(data);
   const [error, setError] = useState<string | null>(null);
-  const [team, setTeam] = useShown(data.job.department);
-  const [level, setLevel] = useShown(data.job.outline.seniority);
-  const save = (change: Partial<JobRecord>, undo: () => void): void => {
+  const save = (change: Partial<JobRecord>, undo: JobDraft): void => {
     setError(null);
     const saving = act
       .call('SaveJobDetails', { jobId: data.job.id, input: detailsOf(data.job, change) })
       .then((done) => {
         if (!done.ok) {
           setError(done.message);
-          undo();
+          draft.set(undo);
           return;
         }
         props.onRefresh?.();
@@ -182,14 +220,12 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
             placeholder="Choose a team"
             searchPlaceholder="Search teams"
             options={data.orgUnits.map((u) => ({ value: u.name, label: u.name }))}
-            value={team}
+            value={draft.job.department}
             emptyMessage="No team by that name. Add teams under Settings."
             onChange={(v) => {
               const next = typeof v === 'string' ? v : null;
-              setTeam(next);
-              save({ department: next }, () => {
-                setTeam(data.job.department);
-              });
+              draft.set({ department: next });
+              save({ department: next }, { department: data.job.department });
             }}
           />
         </FieldControl>
@@ -199,12 +235,13 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
         <RadioGroup
           aria-label="Level"
           className="grid gap-2 sm:grid-cols-2"
-          value={level ?? ''}
+          value={draft.job.outline.seniority ?? ''}
           onValueChange={(v) => {
-            setLevel(v);
-            save({ outline: { ...data.job.outline, seniority: v } }, () => {
-              setLevel(data.job.outline.seniority);
-            });
+            draft.set({ seniority: v });
+            save(
+              { outline: { ...data.job.outline, seniority: v } },
+              { seniority: data.job.outline.seniority },
+            );
           }}
         >
           {SENIORITY.map(([key, label, description, icon]) => (
@@ -218,19 +255,11 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
   );
 }
 
-/** The title, the first thing a job is given: kept when the setup moves on. */
-/** The title as it is being typed: the bar at the top shows it word by word. */
-const DraftTitle = createContext<{
-  readonly value: string;
-  readonly set: (title: string) => void;
-} | null>(null);
-
+/** The title, the first thing a job is given: the bar shows it as it is typed; kept when the setup moves on. */
 function TitleStep({ data, props, commit }: TermsProps): JSX.Element {
   const act = useAct(props);
-  const draft = use(DraftTitle);
-  const [own, setOwn] = useState(data.job.title);
-  const title = draft?.value ?? own;
-  const setTitle = draft?.set ?? setOwn;
+  const draft = useJobDraft(data);
+  const title = draft.job.title;
   const [error, setError] = useState<string | null>(null);
   useCommit(commit, async () => {
     const next = title.trim();
@@ -253,7 +282,12 @@ function TitleStep({ data, props, commit }: TermsProps): JSX.Element {
   return (
     <>
       <Refusal error={error} />
-      <TitleInput value={title} onChange={setTitle} />
+      <TitleInput
+        value={title}
+        onChange={(t) => {
+          draft.set({ title: t });
+        }}
+      />
     </>
   );
 }
@@ -286,14 +320,14 @@ function TitleInput({
 
 function OpeningsStep({ data, props, commit }: TermsProps): JSX.Element {
   const act = useAct(props);
-  const [openings, setOpenings] = useState<number | null>(data.job.openings);
-  const [start, setStart] = useState<string | null>(data.job.targetHireDate);
+  const draft = useJobDraft(data);
+  const { openings, targetHireDate: start } = draft.job;
   const [error, setError] = useState<string | null>(null);
   useCommit(commit, async () => {
-    if ((openings ?? 1) === data.job.openings && start === data.job.targetHireDate) return true;
+    if (openings === data.job.openings && start === data.job.targetHireDate) return true;
     const done = await act.call('SaveJobDetails', {
       jobId: data.job.id,
-      input: detailsOf(data.job, { openings: openings ?? 1, targetHireDate: start }),
+      input: detailsOf(data.job, { openings, targetHireDate: start }),
     });
     if (!done.ok) {
       setError(done.message);
@@ -305,17 +339,42 @@ function OpeningsStep({ data, props, commit }: TermsProps): JSX.Element {
   return (
     <>
       <Refusal error={error} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <NumberField label="Openings" value={openings} min={1} max={500} onChange={setOpenings} />
-        <Field>
-          <FieldLabel>Target start</FieldLabel>
-          <FieldControl>
-            <DatePicker label="Target start" value={start} onChange={setStart} />
-          </FieldControl>
-          <FieldDescription>Optional.</FieldDescription>
-        </Field>
-      </div>
+      <OpeningsFields
+        openings={openings}
+        start={start}
+        onOpenings={(n) => {
+          draft.set({ openings: n ?? 1 });
+        }}
+        onStart={(d) => {
+          draft.set({ targetHireDate: d });
+        }}
+      />
     </>
+  );
+}
+
+function OpeningsFields({
+  openings,
+  start,
+  onOpenings,
+  onStart,
+}: {
+  readonly openings: number | null;
+  readonly start: string | null;
+  readonly onOpenings: (n: number | null) => void;
+  readonly onStart: (d: string | null) => void;
+}): JSX.Element {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <NumberField label="Openings" value={openings} min={1} max={500} onChange={onOpenings} />
+      <Field>
+        <FieldLabel>Target start</FieldLabel>
+        <FieldControl>
+          <DatePicker label="Target start" value={start} onChange={onStart} />
+        </FieldControl>
+        <FieldDescription>Optional.</FieldDescription>
+      </Field>
+    </div>
   );
 }
 
@@ -595,7 +654,8 @@ const ROLE: Page = {
     {
       key: 'level',
       label: 'Team and level',
-      ready: always,
+      // Each part of the first page unfolds once the one before it is filled.
+      ready: (d) => d.job.title.trim() !== '',
       done: (d) => d.job.department !== null && d.job.outline.seniority !== null,
       render: (p) => <RoleStep {...p} />,
     },
@@ -603,8 +663,8 @@ const ROLE: Page = {
       key: 'openings',
       label: 'Openings and start',
       hint: () => 'The start date is a target for the team, not a promise in the ad.',
-      ready: always,
-      done: () => null,
+      ready: (d) => d.job.department !== null && d.job.outline.seniority !== null,
+      done: (d) => d.job.openings >= 1 && d.job.targetHireDate !== null,
       render: (p) => <OpeningsStep {...p} />,
     },
   ],
@@ -837,6 +897,7 @@ function WizardFrame({
   last,
   entered,
   notice,
+  parts,
   onClose,
   onBack,
   onNext,
@@ -857,6 +918,13 @@ function WizardFrame({
   readonly entered: boolean;
   /** Something on a page already left did not save: said here, with the way back. */
   readonly notice?: ReactNode;
+  /** The checklist, when there is no job to judge it on yet (a new one). */
+  readonly parts?: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly done: boolean;
+    readonly ready: boolean;
+  }[];
   readonly onClose: () => void;
   readonly onBack: (() => void) | null;
   readonly onNext: () => void;
@@ -903,13 +971,15 @@ function WizardFrame({
         />
         {/* On a wide screen the question stays where it is and only the answers scroll;
             on a phone the page scrolls under a bar that keeps the question. */}
-        <ModalPageBody className="lg:overflow-hidden">
+        <ModalPageBody>
           <div
             key={page.key}
             style={travel}
-            className="mx-auto grid w-full max-w-6xl gap-x-20 gap-y-8 px-4 pb-16 sm:px-8 lg:h-full lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:pb-0"
+            className="mx-auto grid w-full max-w-6xl gap-x-20 gap-y-8 px-4 pb-16 sm:px-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:pb-24"
           >
-            <aside className="sticky top-0 z-20 -mx-4 bg-canvas/90 px-4 pt-6 pb-3 backdrop-blur-md sm:-mx-8 sm:px-8 lg:static lg:mx-0 lg:overflow-y-auto lg:bg-transparent lg:px-0 lg:py-16 lg:backdrop-blur-none">
+            {/* One scroll for the page. The question stays where it is on the left while the
+                answers pass on the right, each part's name pinned at the top as they go. */}
+            <aside className="sticky top-0 z-20 -mx-4 bg-canvas/90 px-4 pt-6 pb-3 backdrop-blur-md sm:-mx-8 sm:px-8 lg:mx-0 lg:max-h-full lg:self-start lg:bg-transparent lg:px-0 lg:pt-16 lg:pb-0 lg:backdrop-blur-none">
               <div className="flex flex-col gap-3 lg:gap-4">
                 <h2
                   id="setup-step-title"
@@ -923,15 +993,22 @@ function WizardFrame({
                 >
                   {data === null ? page.hint({} as JobData) : page.hint(data)}
                 </p>
-                {page.blocks.length < 2 || data === null ? null : (
+                {page.blocks.length < 2 || (data === null && parts === undefined) ? null : (
                   <IconList
                     aria-label="On this page"
                     className="mt-2 animate-arrive max-lg:hidden"
                     style={staggerStyle(2, 'animation')}
                   >
-                    {page.blocks.map((b) => {
-                      const done = b.done(data) === true;
-                      const ready = b.ready(data);
+                    {(
+                      parts ??
+                      page.blocks.map((b) => ({
+                        key: b.key,
+                        label: b.label,
+                        done: data !== null && b.done(data) === true,
+                        ready: data !== null && b.ready(data),
+                      }))
+                    ).map((b) => {
+                      const { done, ready } = b;
                       return (
                         <IconListItem
                           key={b.key}
@@ -957,7 +1034,7 @@ function WizardFrame({
                 )}
               </div>
             </aside>
-            <div className="flex min-w-0 flex-col gap-14 lg:-mr-8 lg:overflow-y-auto lg:overscroll-contain lg:py-16 lg:pr-8">
+            <div className="flex min-w-0 flex-col gap-14 lg:pt-16">
               <p
                 className="animate-arrive text-fg-muted text-pretty lg:hidden"
                 style={staggerStyle(1, 'animation')}
@@ -1080,9 +1157,7 @@ export function JobWizard({
       drop: (keys) => {
         setPicks((p) => ({
           ...p,
-          value: Object.fromEntries(
-            Object.entries(p.value).filter(([k]) => !keys.includes(k)),
-          ),
+          value: Object.fromEntries(Object.entries(p.value).filter(([k]) => !keys.includes(k))),
         }));
       },
     }),
@@ -1127,17 +1202,26 @@ export function JobWizard({
     if (next === 'description') prefetchDraft((n, v) => call.current(n, v), served);
   }, [next, served, props.onRefresh]);
   // The title as it is typed, shown in the bar word by word.
-  const [title, setTitle] = useState({ base: data.job.title, value: data.job.title });
-  if (title.base !== data.job.title) setTitle({ base: data.job.title, value: data.job.title });
-  const draftTitle = useMemo(
+  // The first page's answers as typed and picked: the bar, the checklist and the parts read them.
+  const [draft, setDraft] = useState<{ base: JobRecord; value: JobDraft }>({
+    base: served.job,
+    value: {},
+  });
+  if (draft.base !== served.job)
+    setDraft({ base: served.job, value: stillDrafted(draft.value, served.job) });
+  const drafted = useMemo(() => withDraft(data.job, draft.value), [data.job, draft.value]);
+  const jobDraft = useMemo(
     () => ({
-      value: title.value,
-      set: (value: string) => {
-        setTitle((t) => ({ ...t, value }));
+      job: drafted,
+      set: (patch: JobDraft) => {
+        setDraft((d) => ({ ...d, value: { ...d.value, ...patch } }));
       },
     }),
-    [title.value],
+    [drafted],
   );
+  // What the checklist, the progress and each part's turn are judged on.
+  const gate = useMemo(() => ({ ...data, job: drafted }), [data, drafted]);
+  const title = { value: drafted.title };
   // Every part holding typed answers adds what keeps them.
   const keepers = useRef(new Set<() => Promise<boolean>>());
   const commit = useMemo<Commit>(
@@ -1190,7 +1274,7 @@ export function JobWizard({
     return ok;
   };
   return (
-    <DraftTitle value={draftTitle}>
+    <JobDraftContext value={jobDraft}>
       <WizardFrame
         open={open}
         label={`Set up ${title.value.trim() === '' ? 'a job' : title.value}`}
@@ -1204,10 +1288,10 @@ export function JobWizard({
             <TitleField key={data.job.title} data={data} props={props} />
           )
         }
-        percent={percentOf(data, index)}
+        percent={percentOf(gate, index)}
         index={index}
         page={page}
-        data={data}
+        data={gate}
         direction={step.direction}
         moving={moving}
         last={last}
@@ -1259,7 +1343,7 @@ export function JobWizard({
       >
         <SaveQueue value={track}>
           <TermsPicks value={shared}>
-            {page.blocks.some((b) => b.ready(data)) ? null : (
+            {page.blocks.some((b) => b.ready(gate)) ? null : (
               <Alert
                 tone="info"
                 title="This page follows from the one before"
@@ -1270,7 +1354,7 @@ export function JobWizard({
               </Alert>
             )}
             {page.blocks.map((b, i) => {
-              const ready = b.ready(data);
+              const ready = b.ready(gate);
               return (
                 <Reveal key={b.key} open={ready} unmountOnExit from="bottom">
                   {ready ? (
@@ -1284,21 +1368,34 @@ export function JobWizard({
           </TermsPicks>
         </SaveQueue>
       </WizardFrame>
-    </DraftTitle>
+    </JobDraftContext>
   );
 }
 
 /**
- * A new job, on the same first page as any job's setup: the title, the team
- * and level, the openings. Nothing exists until Continue, which creates the
- * job with all of it and goes straight on to where the work is.
+ * A new job, on the same first page as any job's setup: the title, then the
+ * team and level, then the openings, each unfolding once the one before is
+ * filled. The job is made as soon as a title has been typed, in the
+ * background, and every answer after it is kept as it is given, so Continue
+ * has nothing left to save and opens the next page at once. Every entity's
+ * country's terms are fetched meanwhile, for the page after.
  */
 export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
   const act = useAct(props);
-  const orgUnits =
+  const loaded =
     props.load.status === 'ready'
-      ? ((props.load.data as unknown as { orgUnits?: JobData['orgUnits'] }).orgUnits ?? [])
-      : [];
+      ? (props.load.data as unknown as {
+          orgUnits?: JobData['orgUnits'];
+          entities?: readonly { country: string }[];
+        })
+      : null;
+  const orgUnits = loaded?.orgUnits ?? [];
+  const call = useRef(act.call);
+  call.current = act.call;
+  useEffect(() => {
+    for (const country of new Set((loaded?.entities ?? []).map((e) => e.country)))
+      prefetchCatalogue((n, v) => call.current(n, v), country);
+  }, [loaded]);
   const [title, setTitle] = useState('');
   const [team, setTeam] = useState<string | null>(null);
   const [level, setLevel] = useState<string | null>(null);
@@ -1307,63 +1404,132 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requisition = props.search?.['requisition'] ?? null;
-  const create = async (): Promise<void> => {
-    const name = title.trim();
-    if (name === '') {
+  // The answers now, for whatever is kept next.
+  const now = useRef({ title, team, level, openings, start });
+  now.current = { title, team, level, openings, start };
+  const [id] = useState(newId);
+  const made = useRef<JobRecord | null>(null);
+  const creating = useRef<Promise<JobRecord | null> | null>(null);
+  const saving = useRef(new Set<Promise<unknown>>());
+  const track = (p: Promise<unknown>): void => {
+    saving.current.add(p);
+    void p.finally(() => saving.current.delete(p));
+  };
+  /** The job as answered so far, kept: one save of whatever differs from what Recruiting holds. */
+  const keep = (): void => {
+    const job = made.current;
+    if (job === null) return;
+    const v = now.current;
+    const change: Partial<JobRecord> = {
+      title: v.title.trim() === '' ? job.title : v.title.trim(),
+      internalTitle: v.title.trim() === '' ? job.internalTitle : v.title.trim(),
+      department: v.team,
+      openings: v.openings ?? 1,
+      targetHireDate: v.start,
+      outline: { ...job.outline, seniority: v.level },
+    };
+    const next = { ...job, ...change };
+    if (JSON.stringify(detailsOf(job, {})) === JSON.stringify(detailsOf(next, {}))) return;
+    made.current = next;
+    track(act.call('SaveJobDetails', { jobId: id, input: detailsOf(job, change) }));
+  };
+  const ensure = (): Promise<JobRecord | null> => {
+    if (creating.current !== null) return creating.current;
+    const v = now.current;
+    creating.current = act
+      .call('CreateJob', {
+        input: {
+          id,
+          title: v.title.trim(),
+          internalTitle: v.title.trim(),
+          requisitionIds: requisition === null ? [] : [requisition],
+          entityId: null,
+          locationIds: [],
+          department: v.team,
+          // A placeholder: with `setup`, the work mode is left unanswered for its own page.
+          workMode: 'onsite',
+          openings: v.openings ?? 1,
+          languages: ['en'],
+          hiringManagerId: null,
+          seniority: v.level,
+          targetHireDate: v.start,
+          setup: { step: 'role' },
+        },
+      })
+      .then((done) => {
+        if (!done.ok) {
+          setError(done.message);
+          creating.current = null;
+          return null;
+        }
+        made.current = done.data as JobRecord;
+        // Anything answered while it was being made.
+        keep();
+        return made.current;
+      });
+    track(creating.current);
+    return creating.current;
+  };
+  // Made once a title has rested a moment; then each answer is kept as it is given.
+  useEffect(() => {
+    if (title.trim() === '') return;
+    const wait = setTimeout(() => {
+      if (creating.current === null) void ensure();
+      else keep();
+    }, 600);
+    return () => {
+      clearTimeout(wait);
+    };
+    // `ensure` and `keep` read the answers through `now`.
+  }, [title, team, level, openings, start]);
+  const next = async (): Promise<void> => {
+    if (title.trim() === '') {
       setError('A job needs a title');
       return;
     }
     setMoving(true);
     setError(null);
-    const id = newId();
-    const made = await act.call('CreateJob', {
-      input: {
-        id,
-        title: name,
-        internalTitle: name,
-        requisitionIds: requisition === null ? [] : [requisition],
-        entityId: null,
-        locationIds: [],
-        department: team,
-        // A placeholder: with `setup`, the work mode is left unanswered for its own page.
-        workMode: 'onsite',
-        openings: openings ?? 1,
-        languages: ['en'],
-        hiringManagerId: null,
-        seniority: level,
-        targetHireDate: start,
-        setup: { step: 'where' },
-      },
-    });
-    if (!made.ok) {
+    const job = await ensure();
+    if (job === null) {
       setMoving(false);
-      setError(made.message);
       return;
     }
-    // One request made the job as described; the next page opens at once.
+    keep();
+    await Promise.all(saving.current);
     props.onNavigate?.(`/recruiting/jobs/${id}/setup?setup=1&step=where&entered=1`);
   };
+  const named = title.trim() !== '';
+  const placed = team !== null && level !== null;
+  const parts = [
+    { key: 'title', label: 'Title', done: named, ready: true },
+    { key: 'level', label: 'Team and level', done: placed, ready: named },
+    { key: 'openings', label: 'Openings and start', done: start !== null, ready: placed },
+  ];
+  const total = WIZARD_PAGES.reduce((n, p) => n + p.blocks.length, 0);
   return (
     <WizardFrame
       open
-      label={title.trim() === '' ? 'New job' : `Set up ${title.trim()}`}
+      label={named ? `Set up ${title.trim()}` : 'New job'}
       title={
-        <span className="truncate text-md font-semibold text-fg">
-          {title.trim() === '' ? 'New job' : title}
-        </span>
+        <span className="truncate text-md font-semibold text-fg">{named ? title : 'New job'}</span>
       }
-      percent={0}
+      percent={Math.round((parts.filter((p) => p.done).length / total) * 100)}
       index={0}
       page={ROLE}
       data={null}
+      parts={parts}
       direction={1}
       moving={moving}
       last={false}
       entered={false}
-      onClose={() => props.onNavigate?.('/recruiting/jobs')}
+      onClose={() => {
+        // Closing keeps what was answered: the job stays as a draft once it has a title.
+        if (named && made.current !== null) keep();
+        props.onNavigate?.('/recruiting/jobs');
+      }}
       onBack={null}
       onNext={() => {
-        void create();
+        void next();
       }}
     >
       <Refusal error={error} />
@@ -1371,61 +1537,65 @@ export function NewJobWizard(props: ScreenProps<JobData>): JSX.Element {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void create();
+            void next();
           }}
         >
           <TitleInput value={title} onChange={setTitle} />
         </form>
       </BlockView>
-      <BlockView label="Team and level" hint={undefined} order={3}>
-        <Field required>
-          <FieldLabel>Team</FieldLabel>
-          <FieldControl>
-            <Combobox
-              label="Team"
-              placeholder="Choose a team"
-              searchPlaceholder="Search teams"
-              options={orgUnits.map((u) => ({ value: u.name, label: u.name }))}
-              value={team}
-              emptyMessage="No team by that name. Add teams under Settings."
-              onChange={(v) => {
-                setTeam(typeof v === 'string' ? v : null);
-              }}
-            />
-          </FieldControl>
-        </Field>
-        <Field required>
-          <FieldLabel>Level</FieldLabel>
-          <RadioGroup
-            aria-label="Level"
-            className="grid gap-2 sm:grid-cols-2"
-            value={level ?? ''}
-            onValueChange={setLevel}
+      <Reveal open={named} unmountOnExit from="bottom">
+        {named ? (
+          <BlockView label="Team and level" hint={undefined} order={0}>
+            <Field required>
+              <FieldLabel>Team</FieldLabel>
+              <FieldControl>
+                <Combobox
+                  label="Team"
+                  placeholder="Choose a team"
+                  searchPlaceholder="Search teams"
+                  options={orgUnits.map((u) => ({ value: u.name, label: u.name }))}
+                  value={team}
+                  emptyMessage="No team by that name. Add teams under Settings."
+                  onChange={(v) => {
+                    setTeam(typeof v === 'string' ? v : null);
+                  }}
+                />
+              </FieldControl>
+            </Field>
+            <Field required>
+              <FieldLabel>Level</FieldLabel>
+              <RadioGroup
+                aria-label="Level"
+                className="grid gap-2 sm:grid-cols-2"
+                value={level ?? ''}
+                onValueChange={setLevel}
+              >
+                {SENIORITY.map(([key, label, description, icon]) => (
+                  <RadioCard key={key} value={key} description={description} icon={icon}>
+                    {label}
+                  </RadioCard>
+                ))}
+              </RadioGroup>
+            </Field>
+          </BlockView>
+        ) : null}
+      </Reveal>
+      <Reveal open={placed} unmountOnExit from="bottom">
+        {placed ? (
+          <BlockView
+            label="Openings and start"
+            hint="The start date is a target for the team, not a promise in the ad."
+            order={0}
           >
-            {SENIORITY.map(([key, label, description, icon]) => (
-              <RadioCard key={key} value={key} description={description} icon={icon}>
-                {label}
-              </RadioCard>
-            ))}
-          </RadioGroup>
-        </Field>
-      </BlockView>
-      <BlockView
-        label="Openings and start"
-        hint="The start date is a target for the team, not a promise in the ad."
-        order={4}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <NumberField label="Openings" value={openings} min={1} max={500} onChange={setOpenings} />
-          <Field>
-            <FieldLabel>Target start</FieldLabel>
-            <FieldControl>
-              <DatePicker label="Target start" value={start} onChange={setStart} />
-            </FieldControl>
-            <FieldDescription>Optional.</FieldDescription>
-          </Field>
-        </div>
-      </BlockView>
+            <OpeningsFields
+              openings={openings}
+              start={start}
+              onOpenings={setOpenings}
+              onStart={setStart}
+            />
+          </BlockView>
+        ) : null}
+      </Reveal>
     </WizardFrame>
   );
 }
