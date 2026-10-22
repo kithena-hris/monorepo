@@ -110,7 +110,7 @@ export function settingsModules(
       key: 'recruiting',
       title: 'Recruiting',
       description:
-        'How hiring runs: entities, pipelines, scorecards, pay bands, benefits and the careers page.',
+        'Your careers page, the hiring rules, pipelines and approvals, scorecards, pay and benefits.',
       settings: [
         ...recruiting.map((place) => ({
           path: place.path,

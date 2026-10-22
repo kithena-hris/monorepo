@@ -16,6 +16,7 @@ import {
   Field,
   FieldControl,
   FieldDescription,
+  FieldError,
   FieldLabel,
   Input,
   NumberField,
@@ -151,6 +152,44 @@ function Options({
   );
 }
 
+/**
+ * What an editor checks before it saves, field by field, shown the way a
+ * person expects: nothing while they first fill it in, then, once Save has
+ * been pressed with something wrong, every problem under its field, kept
+ * current as they fix it, and the first one focused. Save stays pressable:
+ * pressing it is how the reasons are asked for.
+ */
+export function useChecks(problems: Readonly<Record<string, string | null>>): {
+  readonly invalid: (key: string) => boolean;
+  readonly error: (key: string) => string | null;
+  /** Shows the problems; true when there are none. */
+  readonly pass: () => boolean;
+  readonly tried: boolean;
+} {
+  const [tried, setTried] = useState(false);
+  const ok = Object.values(problems).every((p) => p === null);
+  return {
+    invalid: (key) => tried && (problems[key] ?? null) !== null,
+    error: (key) => (tried ? (problems[key] ?? null) : null),
+    tried,
+    pass: () => {
+      setTried(true);
+      if (!ok)
+        // After the errors render: the first field that needs a change takes the focus.
+        requestAnimationFrame(() => {
+          document
+            .querySelector<HTMLElement>(
+              '[role="dialog"] [aria-invalid="true"], [aria-invalid="true"]',
+            )
+            ?.focus();
+        });
+      return ok;
+    },
+  };
+}
+
+type Checks = ReturnType<typeof useChecks>;
+
 /** One dialog shape for every editor: a title, the fields, Cancel and Save. */
 function Editor({
   open,
@@ -158,7 +197,8 @@ function Editor({
   title,
   description,
   children,
-  canSave,
+  checks,
+  problems,
   pending,
   error,
   onSave,
@@ -169,12 +209,15 @@ function Editor({
   readonly title: string;
   readonly description?: string;
   readonly children: ReactNode;
-  readonly canSave: boolean;
+  readonly checks: Checks;
+  /** A problem with the whole, not one field (a list too short): said above the fields. */
+  readonly problems?: readonly (string | null)[];
   readonly pending: boolean;
   readonly error: string | null;
   readonly onSave: () => void;
   readonly saveLabel?: string;
 }): JSX.Element {
+  const whole = (problems ?? []).filter((p): p is string => p !== null);
   return (
     <Dialog
       open={open}
@@ -189,13 +232,24 @@ function Editor({
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Refusal error={error} />
+          {checks.tried && whole.length > 0 ? (
+            <Alert tone="danger" title="Before saving" className="animate-arrive">
+              {whole.join(' ')}
+            </Alert>
+          ) : null}
           {children}
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={!canSave} loading={pending} onClick={onSave}>
+          <Button
+            variant="primary"
+            loading={pending}
+            onClick={() => {
+              if (checks.pass()) onSave();
+            }}
+          >
             {saveLabel}
           </Button>
         </DialogFooter>
@@ -225,13 +279,21 @@ export function EntityEditor({
   const [hours, setHours] = useState<number | null>((held?.fullTimeWeeklyMinutes ?? 2400) / 60);
   const [headcount, setHeadcount] = useState<number | null>(held?.headcount ?? 0);
   const [worksCouncil, setWorksCouncil] = useState(held?.worksCouncil ?? false);
+  const checks = useChecks({
+    name: name.trim() === '' ? 'Give the entity its legal name.' : null,
+    hours:
+      hours === null || hours < 10 || hours > 60
+        ? 'A full-time week is between 10 and 60 hours.'
+        : null,
+    headcount: headcount === null || headcount < 0 ? 'Enter how many people it employs.' : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New legal entity' : held.name}
       {...(theirs ? { description: 'From People: its name and country are changed there.' } : {})}
-      canSave={name.trim() !== '' && hours !== null && headcount !== null}
+      checks={checks}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -254,7 +316,7 @@ export function EntityEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -266,6 +328,7 @@ export function EntityEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Country</FieldLabel>
@@ -299,7 +362,8 @@ export function EntityEditor({
       </Field>
       <NumberField
         label="Full-time week"
-        hint="Hours; what a full FTE works here."
+        hint={checks.error('hours') ?? 'Hours; what a full FTE works here.'}
+        invalid={checks.invalid('hours')}
         value={hours}
         min={10}
         max={60}
@@ -308,7 +372,8 @@ export function EntityEditor({
       />
       <NumberField
         label="Headcount"
-        hint="Some statutory thresholds depend on it."
+        hint={checks.error('headcount') ?? 'Some statutory thresholds depend on it.'}
+        invalid={checks.invalid('headcount')}
         value={headcount}
         min={0}
         onChange={setHeadcount}
@@ -343,12 +408,15 @@ export function LocationEditor({
   const [country, setCountry] = useState(held?.country ?? entity?.country ?? 'DE');
   const [city, setCity] = useState(held?.city ?? '');
   const [timeZone, setTimeZone] = useState(held?.timeZone ?? ZONE[country] ?? 'UTC');
+  const checks = useChecks({
+    name: name.trim() === '' ? 'Name the location, as people call it.' : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New location' : held.name}
-      canSave={name.trim() !== ''}
+      checks={checks}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -369,7 +437,7 @@ export function LocationEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -380,6 +448,7 @@ export function LocationEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Legal entity</FieldLabel>
@@ -467,12 +536,20 @@ export function DepartmentEditor({
 }): JSX.Element {
   const [name, setName] = useState(held?.name ?? '');
   const [parentId, setParentId] = useState(held?.parentId ?? '');
+  const checks = useChecks({
+    name:
+      name.trim() === ''
+        ? 'Name the department.'
+        : units.some((u) => u.id !== held?.id && u.name.toLowerCase() === name.trim().toLowerCase())
+          ? 'A department by that name is already here.'
+          : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New department' : held.name}
-      canSave={name.trim() !== ''}
+      checks={checks}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -486,7 +563,7 @@ export function DepartmentEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -497,6 +574,7 @@ export function DepartmentEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Under</FieldLabel>
@@ -558,15 +636,24 @@ export function PipelineEditor({
   const update = (id: string, patch: Partial<Stage>): void => {
     setStages(stages.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   };
+  const checks = useChecks({
+    name: name.trim() === '' ? 'Name the pipeline, as recruiters will pick it.' : null,
+    steps:
+      stages.length < 2 || stages.some((s) => s.name.trim() === '')
+        ? 'Steps are incomplete.'
+        : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New pipeline' : held.name}
       description="Starts at applied, ends at hired, has an offer, and never goes back a category. A job copies it; changes here leave open jobs alone."
-      canSave={
-        name.trim() !== '' && stages.length >= 2 && stages.every((s) => s.name.trim() !== '')
-      }
+      checks={checks}
+      problems={[
+        stages.length < 2 ? 'A pipeline has at least two steps.' : null,
+        stages.some((s) => s.name.trim() === '') ? 'Every step needs a name.' : null,
+      ]}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -591,7 +678,7 @@ export function PipelineEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -602,6 +689,7 @@ export function PipelineEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field orientation="horizontal">
         <span className="flex min-w-0 flex-col">
@@ -730,13 +818,19 @@ export function ChainEditor({
   const setStep = (id: string, approver: Approver): void => {
     setSteps(steps.map((s) => (s.id === id ? { ...s, approver } : s)));
   };
+  const checks = useChecks({
+    name: name.trim() === '' ? 'Name the chain.' : null,
+    priority: priority === null ? 'Give it a priority; the lowest number is tried first.' : null,
+    steps: steps.length === 0 ? 'No approval steps.' : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New approval chain' : held.name}
       description="Each step gets an Inbox task in turn. The first chain whose conditions hold is used, lowest priority first."
-      canSave={name.trim() !== '' && steps.length > 0 && priority !== null}
+      checks={checks}
+      problems={[steps.length === 0 ? 'A chain has at least one approval step.' : null]}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -764,7 +858,7 @@ export function ChainEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -775,6 +869,7 @@ export function ChainEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Applies to</FieldLabel>
@@ -1018,10 +1113,10 @@ function KnockoutEditor({
             <span className="flex min-w-0 flex-col">
               <FieldLabel>Reject on its own</FieldLabel>
               <FieldDescription>
-                Off: a knockout flags the application for a person to review. On: it is rejected
-                and the rejection email sent the next working day at 09:00 in the candidate’s time
-                zone, never the moment they apply; until then the team can move it on instead. A
-                German or Spanish job allows this only for a legal requirement.
+                Off: a knockout flags the application for a person to review. On: it is rejected and
+                the rejection email sent the next working day at 09:00 in the candidate’s time zone,
+                never the moment they apply; until then the team can move it on instead. A German or
+                Spanish job allows this only for a legal requirement.
               </FieldDescription>
             </span>
             <FieldControl>
@@ -1053,6 +1148,13 @@ export function QuestionnaireEditor({
   const update = (id: string, patch: Partial<Question>): void => {
     setQuestions(questions.map((q) => (q.id === id ? { ...q, ...patch } : q)));
   };
+  const checks = useChecks({
+    name: name.trim() === '' ? 'Name the questionnaire.' : null,
+    questions:
+      questions.length === 0 || questions.some((q) => q.text.trim() === '')
+        ? 'Questions are incomplete.'
+        : null,
+  });
   return (
     <Editor
       open
@@ -1063,9 +1165,11 @@ export function QuestionnaireEditor({
           ? 'Asked on the apply form, or sent at a stage. Changing it later makes a new version.'
           : `Version ${String(held.version)}; saving makes version ${String(held.version + 1)}.`
       }
-      canSave={
-        name.trim() !== '' && questions.length > 0 && questions.every((q) => q.text.trim() !== '')
-      }
+      checks={checks}
+      problems={[
+        questions.length === 0 ? 'Add at least one question.' : null,
+        questions.some((q) => q.text.trim() === '') ? 'Every question needs its words.' : null,
+      ]}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -1086,7 +1190,7 @@ export function QuestionnaireEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -1097,6 +1201,7 @@ export function QuestionnaireEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <div className="flex flex-col gap-3">
         <span className="text-sm font-semibold">Questions</span>
@@ -1219,13 +1324,19 @@ export function TemplateEditor({
   const [body, setBody] = useState(held?.body ?? '');
   const known = Object.keys(PURPOSE_LABEL).includes(purpose);
   const [customPurpose, setCustomPurpose] = useState(!known && purpose !== '');
+  const checks = useChecks({
+    name: name.trim() === '' ? 'Name the template.' : null,
+    purpose: purpose.trim() === '' ? 'Choose what it is used for.' : null,
+    body: body.trim() === '' ? 'Write what it says.' : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New template' : held.name}
       description="What a stage, a decision or an offer sends. Placeholders are filled in for each candidate."
-      canSave={name.trim() !== '' && purpose.trim() !== '' && body.trim() !== ''}
+      checks={checks}
+      problems={[kind === 'email' && body.trim() === '' ? 'Write the email’s words.' : null]}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -1246,7 +1357,7 @@ export function TemplateEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -1257,6 +1368,7 @@ export function TemplateEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Kind</FieldLabel>
@@ -1280,7 +1392,7 @@ export function TemplateEditor({
           />
         </Select>
       </Field>
-      <Field required>
+      <Field required invalid={checks.invalid('purpose')}>
         <FieldLabel>Used for</FieldLabel>
         <Select
           value={customPurpose ? 'custom' : purpose === '' ? 'rejection' : purpose}
@@ -1322,6 +1434,7 @@ export function TemplateEditor({
             ? 'A short key a stage’s automation picks it by.'
             : 'The composer opens with this template at that moment.'}
         </FieldDescription>
+        <FieldError>{checks.error('purpose')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Language</FieldLabel>
@@ -1343,7 +1456,7 @@ export function TemplateEditor({
           }}
         />
       ) : (
-        <Field required>
+        <Field required invalid={checks.invalid('body')}>
           <FieldLabel>Body</FieldLabel>
           <FieldControl>
             <Textarea
@@ -1354,6 +1467,7 @@ export function TemplateEditor({
               }}
             />
           </FieldControl>
+          <FieldError>{checks.error('body')}</FieldError>
         </Field>
       )}
     </Editor>
@@ -1425,13 +1539,17 @@ export function BenefitEditor({
         return { kind: 'descriptive' };
     }
   };
+  const checks = useChecks({
+    name: name.trim() === '' ? 'Name the benefit, as a candidate reads it.' : null,
+    entity: entityId === '' ? 'Choose the entity that offers it.' : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New benefit' : name}
       description="Shown on ads, the careers page, the composer and offers. A tax note describes, never calculates."
-      canSave={name.trim() !== '' && entityId !== ''}
+      checks={checks}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -1464,7 +1582,7 @@ export function BenefitEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -1475,6 +1593,7 @@ export function BenefitEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Description</FieldLabel>
@@ -1490,7 +1609,7 @@ export function BenefitEditor({
           />
         </FieldControl>
       </Field>
-      <Field required>
+      <Field required invalid={checks.invalid('entity')}>
         <FieldLabel>Legal entity</FieldLabel>
         <Select value={entityId} disabled={held !== null} onValueChange={setEntityId}>
           <FieldControl>
@@ -1501,6 +1620,7 @@ export function BenefitEditor({
           <Options items={data.entities.map((e) => [e.id, `${e.name} (${e.country})`] as const)} />
         </Select>
         <FieldDescription>Who offers it; a benefit belongs to one entity.</FieldDescription>
+        <FieldError>{checks.error('entity')}</FieldError>
       </Field>
       <Field>
         <FieldLabel>Category</FieldLabel>
@@ -1701,13 +1821,23 @@ export function CategoryEditor({
 }): JSX.Element {
   const [name, setName] = useState(held?.name ?? '');
   const [icon, setIcon] = useState(held?.icon ?? 'starred');
+  const checks = useChecks({
+    name:
+      name.trim() === ''
+        ? 'Name the category.'
+        : data.benefitCategories.some(
+              (c) => c.key !== held?.key && c.name.toLowerCase() === name.trim().toLowerCase(),
+            )
+          ? 'A category by that name is already here.'
+          : null,
+  });
   return (
     <Editor
       open
       onClose={onClose}
       title={held === null ? 'New category' : held.name}
       description="Benefits are grouped under it, with its icon, on the job’s tiles and on the ad."
-      canSave={name.trim() !== ''}
+      checks={checks}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -1718,7 +1848,7 @@ export function CategoryEditor({
         );
       }}
     >
-      <Field required>
+      <Field required invalid={checks.invalid('name')}>
         <FieldLabel>Name</FieldLabel>
         <FieldControl>
           <Input
@@ -1729,6 +1859,7 @@ export function CategoryEditor({
             }}
           />
         </FieldControl>
+        <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field required>
         <FieldLabel>Icon</FieldLabel>

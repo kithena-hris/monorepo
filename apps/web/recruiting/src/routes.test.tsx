@@ -799,6 +799,99 @@ describe('S6, the benefits catalogue', () => {
   });
 });
 
+describe('Recruiting settings, one job a page', () => {
+  const general = {
+    requisitionsOn: true,
+    revealInternalAt: 'interview',
+    replyAddress: null,
+    federalContractor: false,
+    rejectionReasons: ['not_a_fit', 'withdrew'],
+    referralBonus: null,
+    companyName: 'Meridian Freight',
+    companySlug: 'meridian-freight',
+    about: null,
+    themeId: 'default',
+    logoUrl: null,
+    searchable: true,
+    ai: {
+      parser: true,
+      matrix: false,
+      writer: true,
+      assistant: false,
+      charts: false,
+      nycAuditOn: null,
+    },
+  };
+  const settings = {
+    admin: true,
+    general,
+    entities: [
+      {
+        id: 'e1',
+        name: 'Acme GmbH',
+        country: 'DE',
+        currency: 'EUR',
+        source: 'recruiting',
+        worksCouncil: true,
+      },
+    ],
+    locations: [],
+    orgUnits: [],
+    members: [],
+    pipelines: [],
+    chains: [],
+    questionnaires: [],
+    scorecards: [],
+    templates: [],
+    benefits: [],
+    benefitCategories: [],
+    categoryIcons: [],
+    payBands: [],
+    agencies: [],
+    careersDomain: null,
+    domainsOn: false,
+    jobs: [],
+  } as unknown as SettingsData;
+
+  it.each([
+    ['careers', 'Careers page'],
+    ['rules', 'Hiring rules'],
+    ['entities', 'Entities and locations'],
+    ['pipelines', 'Pipelines and approvals'],
+    ['questionnaires', 'Questionnaires'],
+    ['emails', 'Emails and letters'],
+    ['scorecards', 'Scorecards'],
+    ['pay', 'Pay bands'],
+    ['ai', 'AI'],
+    ['integrations', 'Integrations'],
+  ])('draws %s under its own title, with nothing an axe objects to', async (key, title) => {
+    const { container } = render(
+      <screens.Settings load={ready(settings)} path={`/settings/recruiting/${key}`} />,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: title })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('says what is wrong with the careers page’s address only once Save is pressed', () => {
+    render(<screens.Settings load={ready(settings)} path="/settings/recruiting/careers" />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Address on Kithena Jobs/u }), {
+      target: { value: 'Meridian Freight!' },
+    });
+    // Typed as people type: the space became a hyphen, and nothing is said yet.
+    expect(screen.queryByText(/lowercase letters, numbers and hyphens/u)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByText(/lowercase letters, numbers and hyphens/u)).toBeTruthy();
+  });
+
+  it('checks a pay band’s ceiling is above its floor', () => {
+    render(<screens.Settings load={ready(settings)} path="/settings/recruiting/pay" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add pay band' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add pay band' }).at(-1) as HTMLElement);
+    expect(screen.getByText('Name the grade, as offers refer to it.')).toBeTruthy();
+    expect(screen.getByText('Enter the band’s ceiling.')).toBeTruthy();
+  });
+});
+
 describe('R4, the setup’s terms ahead of the server', () => {
   const catalogue: TermsCatalogue = {
     country: 'DE',
