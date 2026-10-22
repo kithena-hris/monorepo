@@ -259,6 +259,9 @@ export const OPERATIONS = {
 
   /* ------------------------------------------------------------ settings -- */
   SaveRecruitingSettings: write('SaveRecruitingSettings', 'saveSettings'),
+  /** S1: the company's logo, and an "about" AI writes from its website. */
+  UploadCompanyLogo: write('UploadCompanyLogo', 'uploadCompanyLogo'),
+  DescribeCompany: write('DescribeCompany', 'describeCompany'),
   SaveEntity: write('SaveEntity', 'saveEntity', ...ID('id')),
   SaveLocation: write('SaveLocation', 'saveLocation', ...ID('id')),
   SavePipeline: write('SavePipeline', 'savePipeline', ...ID('id')),

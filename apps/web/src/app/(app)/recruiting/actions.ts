@@ -96,6 +96,8 @@ const WRITES = new Set<OperationName>([
   'PresentToWorksCouncil',
   'WorksCouncilDecides',
   'SaveRecruitingSettings',
+  'UploadCompanyLogo',
+  'DescribeCompany',
   'SaveEntity',
   'SaveLocation',
   'SavePipeline',

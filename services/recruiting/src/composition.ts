@@ -11,6 +11,7 @@ import { recruitingListener, recruitingServer } from './http/server.js';
 import { blobsFrom } from './infrastructure/blobs.js';
 import { uuidv7 } from './infrastructure/ids.js';
 import { modelFrom } from './infrastructure/model.js';
+import { webReader } from './infrastructure/web.js';
 import { sealerFrom } from './infrastructure/sealer.js';
 import {
   fakeAssessments,
@@ -101,7 +102,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(env['JOBS_GOOGLE_CLIENT_ID']
         ? { verifyGoogle: googleVerifier(env['JOBS_GOOGLE_CLIENT_ID']) }
         : {}),
-      ...(model === undefined ? {} : { model }),
+      ...(model === undefined ? {} : { model, web: webReader() }),
       ...(sealer === undefined ? {} : { sealer }),
       ...(domains === undefined ? {} : { domains }),
       ...(connections.length === 0 ? {} : { connections }),

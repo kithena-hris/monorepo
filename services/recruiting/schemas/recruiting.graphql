@@ -159,6 +159,14 @@ type Mutation {
   ): JSON
   """Delete a candidate on request (GDPR art. 17)"""
   deleteCandidate(candidateId: String!, idempotencyKey: String!): JSON
+  """
+  S1: an “about” for the careers page, written by AI from the company’s website
+  """
+  describeCompany(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """Disconnect a calendar or Zoom"""
   disconnectRecruitingCalendar(idempotencyKey: String!, kind: String!): JSON
   """R5: a draft ad from the intake, for a person to edit and save"""
@@ -608,6 +616,12 @@ type Mutation {
   ): JSON
   """R7: take the job down everywhere"""
   unpublishJob(idempotencyKey: String!, jobId: String!): JSON
+  """S1: the company’s logo, for its careers page, its jobs and its emails"""
+  uploadCompanyLogo(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
   """R22: the signed contract, uploaded"""
   uploadSignedContract(
     idempotencyKey: String!

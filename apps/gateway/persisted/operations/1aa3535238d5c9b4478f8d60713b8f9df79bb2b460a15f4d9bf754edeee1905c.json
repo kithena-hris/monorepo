@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DescribeCompany($input: JSON!, $key: String!) {\n    describeCompany(input: $input, idempotencyKey: $key)\n  }"}

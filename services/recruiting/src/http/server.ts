@@ -7,6 +7,7 @@ import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import type { CallerFrom } from './caller.js';
 import { accountsAnswer, type AccountsAnswer } from './accounts.js';
 import { listingsAnswer } from './listings.js';
+import { LOGO_NAME } from '../application/company.js';
 import { allowed } from './limits.js';
 import { planSearch } from '../application/job-assistant.js';
 import type { JobSearch } from '@kithena/contracts';
@@ -64,6 +65,8 @@ export function recruitingListener(
     headers: Readonly<Record<string, string | string[] | undefined>>,
     body: string | null,
   ) => Promise<AccountsAnswer | null>,
+  /** A company's uploaded logo, by its hashed name, for Kithena Jobs to serve. */
+  logo?: (name: string) => Promise<Uint8Array | null>,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
@@ -102,6 +105,27 @@ export function recruitingListener(
             .end();
           return;
         }
+      }
+      // A company's logo (S1): public, and named by its own hash, so cached for good.
+      const logoAt = /^\/v1\/recruiting\/logos\/([^/?]+)$/u.exec(request.url ?? '')?.[1];
+      if (request.method === 'GET' && logoAt !== undefined && logo !== undefined) {
+        const bytes = LOGO_NAME.test(logoAt) ? await logo(logoAt) : null;
+        if (bytes === null) {
+          response.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
+          return;
+        }
+        response
+          .writeHead(200, {
+            'content-type': logoAt.endsWith('.png')
+              ? 'image/png'
+              : logoAt.endsWith('.webp')
+                ? 'image/webp'
+                : 'image/jpeg',
+            'cache-control': 'public, max-age=31536000, immutable',
+            'x-content-type-options': 'nosniff',
+          })
+          .end(Buffer.from(bytes));
+        return;
       }
       const read =
         listings === undefined
@@ -260,6 +284,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly mailer?: Deps['mailer'];
   readonly inbound?: Deps['inbound'];
   readonly model?: Deps['model'];
+  readonly web?: Deps['web'];
   readonly sealer?: Deps['sealer'];
   readonly assessmentProvider?: Deps['assessmentProvider'];
   readonly backgroundChecks?: Deps['backgroundChecks'];
@@ -289,6 +314,7 @@ export function recruitingServer(
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.inbound === undefined ? {} : { inbound: options.inbound }),
     ...(options.model === undefined ? {} : { model: options.model }),
+    ...(options.web === undefined ? {} : { web: options.web }),
     ...(options.sealer === undefined ? {} : { sealer: options.sealer }),
     ...(options.assessmentProvider === undefined
       ? {}
@@ -331,6 +357,7 @@ export function recruitingServer(
               headers,
               body,
             ),
+      (name) => deps.blobs.get(`logos/${name}`),
     ),
   };
 }

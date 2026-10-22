@@ -69,6 +69,7 @@ import {
   sendStageExpectations,
 } from '../application/emails.js';
 import { removeCategory, restoreLibrary, saveCategory } from '../application/catalogue.js';
+import { LogoUpload, describeCompany, saveSettings, uploadLogo } from '../application/company.js';
 import { interviewOnEntry } from '../application/stage-interviews.js';
 import { saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
@@ -165,7 +166,6 @@ import {
   saveBenefit,
   saveChain,
   saveEntity,
-  saveGeneralSettings,
   saveLocation,
   saveOrgUnit,
   savePayBand,
@@ -1634,7 +1634,26 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/settings`,
     summary: 'S1: general',
     body: z.record(z.string(), z.unknown()),
-    run: (ctx, { body }) => saveGeneralSettings(ctx, body),
+    run: (ctx, { body }) => saveSettings(ctx, body),
+  }),
+  route({
+    name: 'uploadCompanyLogo',
+    method: 'POST',
+    path: `${V1}/settings/logo`,
+    summary: 'S1: the company’s logo, for its careers page, its jobs and its emails',
+    body: LogoUpload,
+    run: (ctx, { body }) => uploadLogo(ctx, body),
+  }),
+  route({
+    name: 'describeCompany',
+    method: 'POST',
+    path: `${V1}/settings/describe`,
+    summary: 'S1: an “about” for the careers page, written by AI from the company’s website',
+    body: z.object({
+      name: text(200),
+      domains: z.array(z.string().max(253)).max(4).default([]),
+    }),
+    run: (ctx, { body }) => describeCompany(ctx, body),
   }),
   route({
     name: 'setCareersDomain',

@@ -4,6 +4,7 @@ import type { Clock } from '@kithena/domain-kit';
 import { describe, expect, it } from 'vitest';
 
 import { memoryBlobs, memoryUnitOfWork } from '../testing/memory.js';
+import { describeCompany, domainsFor, uploadLogo } from './company.js';
 import { contextOf, type Ctx } from './context.js';
 import type { Deps } from './ports.js';
 import {
@@ -17,6 +18,7 @@ import {
   saveOrgUnit,
   savePipeline,
   saveQuestionnaire,
+  DEFAULT_SETTINGS,
 } from './setup.js';
 
 /**
@@ -34,9 +36,10 @@ const clock: Clock = {
   date: () => CalendarDate.parse(at.slice(0, 10)),
 };
 
-function harness() {
+function harness(extra: Partial<Deps> = {}) {
   const uow = memoryUnitOfWork();
   const deps: Deps = {
+    ...extra,
     uow,
     blobs: memoryBlobs(),
     clock,
@@ -57,7 +60,7 @@ function harness() {
         }),
       );
     });
-  return { uow, asAdmin };
+  return { uow, deps, asAdmin };
 }
 
 // GB: a country whose pack ships statutory benefits (pension auto-enrolment).
@@ -235,5 +238,65 @@ describe('questionnaires', () => {
     );
     if (second.ok)
       expect([second.value.version, second.value.worksCouncilConsentVersion]).toEqual([2, null]);
+  });
+});
+
+describe('the company on its careers page', () => {
+  it('keeps an uploaded logo by its hash, served by Kithena Jobs', async () => {
+    const { deps, asAdmin } = harness();
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+    const done = await asAdmin((ctx) =>
+      uploadLogo(ctx, { mediaType: 'image/png', data: png.toString('base64') }),
+    );
+    expect(done.ok).toBe(true);
+    if (!done.ok) return;
+    const name = done.value.logoUrl.split('/logos/')[1] ?? '';
+    expect(done.value.logoUrl.startsWith('https://jobs.example/logos/')).toBe(true);
+    expect(name).toMatch(/^[a-f0-9]{64}\.png$/u);
+    expect(Buffer.from((await deps.blobs.get(`logos/${name}`)) ?? []).equals(png)).toBe(true);
+  });
+
+  it('writes the about from the company’s own site, says where from, and is the AI’s', async () => {
+    const seen: string[] = [];
+    const { uow, asAdmin } = harness({
+      web: {
+        read: (host) => {
+          seen.push(host);
+          return Promise.resolve(
+            host === 'meridianfreight.com'
+              ? {
+                  url: 'https://meridianfreight.com/',
+                  text: 'Meridian Freight moves goods by rail.',
+                }
+              : null,
+          );
+        },
+      },
+      model: {
+        name: 'test',
+        complete: (_tenant, prompt) => {
+          expect(JSON.stringify(prompt.context)).toContain('moves goods by rail');
+          return Promise.resolve(
+            '{"about":"Meridian Freight moves goods by rail across Europe.","sources":[]}',
+          );
+        },
+      },
+    });
+    await uow.run(tenantId, async (tx) => {
+      await tx.settings.set('general', {
+        ...DEFAULT_SETTINGS,
+        ai: { ...DEFAULT_SETTINGS.ai, writer: true },
+      });
+    });
+    expect(domainsFor('Meridian Freight GmbH')).toContain('meridianfreight.com');
+    const done = await asAdmin((ctx) =>
+      describeCompany(ctx, { name: 'Meridian Freight', domains: [] }),
+    );
+    expect(seen[0]).toBe('meridianfreight.com');
+    expect(done.ok ? done.value : null).toEqual({
+      about: 'Meridian Freight moves goods by rail across Europe.',
+      sources: ['https://meridianfreight.com/'],
+      searched: false,
+    });
   });
 });
