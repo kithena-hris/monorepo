@@ -138,6 +138,7 @@ import {
   home,
   interviewsScreen,
   jobScreen,
+  newJobScreen,
   offerScreen,
   offersScreen,
   pipelineScreen,
@@ -422,6 +423,13 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx) => ok(await requisitionsScreen(ctx)),
   }),
   route({
+    name: 'recruitingNewJob',
+    method: 'GET',
+    path: `${V1}/new-job`,
+    summary: 'R4: a new job’s first page, before the job exists',
+    run: (ctx) => newJobScreen(ctx),
+  }),
+  route({
     name: 'recruitingJob',
     method: 'GET',
     path: `${V1}/jobs/{jobId}`,
@@ -675,6 +683,8 @@ export const ROUTES: readonly Route[] = [
         locationId: Id.nullable(),
         workMode: z.enum(['onsite', 'hybrid', 'remote']).nullable(),
         hybridDaysOnsite: z.int().min(1).max(4).nullable(),
+        /** Set weekdays on site, Monday 1; null when the person chooses. */
+        hybridOnsiteDays: z.array(z.int().min(1).max(7)).max(4).nullable(),
         relationship: text(40).nullable(),
         contractType: text(80).nullable(),
         fixedTermReason: text(80).nullable(),

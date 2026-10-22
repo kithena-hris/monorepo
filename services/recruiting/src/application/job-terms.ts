@@ -32,6 +32,8 @@ export interface JobTerms {
   readonly workMode: WorkMode | null;
   /** Hybrid: days a week on site. */
   readonly hybridDaysOnsite: number | null;
+  /** Hybrid: the weekdays on site (Monday 1) when they are set; null when the person chooses. */
+  readonly hybridOnsiteDays: readonly number[] | null;
   readonly relationship: string | null;
   readonly contractType: string | null;
   readonly fixedTermReason: string | null;
@@ -106,6 +108,7 @@ const EMPTY: JobTerms = {
   locationId: null,
   workMode: null,
   hybridDaysOnsite: null,
+  hybridOnsiteDays: null,
   relationship: null,
   contractType: null,
   fixedTermReason: null,
@@ -285,12 +288,28 @@ export async function saveJobTerms(
       return refused('LOCATION', 'Choose a workplace of that entity, in its country');
     terms = { ...terms, locationId: null };
   }
-  if (terms.workMode !== 'hybrid') terms = { ...terms, hybridDaysOnsite: null };
+  if (terms.workMode !== 'hybrid')
+    terms = { ...terms, hybridDaysOnsite: null, hybridOnsiteDays: null };
   else if (
     terms.hybridDaysOnsite !== null &&
     (terms.hybridDaysOnsite < 1 || terms.hybridDaysOnsite > 4)
   )
     return refused('HYBRID_DAYS', 'A hybrid week has one to four days on site');
+  // Set days on site: as many as the week has on site, each a weekday, once.
+  if (terms.hybridOnsiteDays !== null) {
+    const days = [...new Set(terms.hybridOnsiteDays)].toSorted((a, b) => a - b);
+    if (days.some((d) => !Number.isInteger(d) || d < 1 || d > 7))
+      return refused('HYBRID_DAYS', 'Days on site are Monday to Sunday');
+    if (terms.hybridDaysOnsite !== null && days.length > terms.hybridDaysOnsite) {
+      // Fewer days on site than days chosen: asked again rather than cut.
+      if (patch.hybridOnsiteDays !== undefined)
+        return refused(
+          'HYBRID_DAYS',
+          `Choose ${String(terms.hybridDaysOnsite)} day${terms.hybridDaysOnsite === 1 ? '' : 's'} on site`,
+        );
+      terms = { ...terms, hybridOnsiteDays: [] };
+    } else terms = { ...terms, hybridOnsiteDays: days };
+  }
 
   // What kind of work, and the contracts that country allows for it.
   options = await termsOptions(ctx, terms);

@@ -258,6 +258,8 @@ export interface JobTerms {
   readonly locationId: string | null;
   readonly workMode: 'onsite' | 'hybrid' | 'remote' | null;
   readonly hybridDaysOnsite: number | null;
+  /** Hybrid: the set weekdays on site, Monday 1; null when the person chooses. */
+  readonly hybridOnsiteDays: readonly number[] | null;
   readonly relationship: string | null;
   readonly contractType: string | null;
   readonly fixedTermReason: string | null;

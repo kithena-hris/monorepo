@@ -154,6 +154,11 @@ export async function requisitionsScreen(ctx: Ctx): Promise<unknown> {
 }
 
 /** R4–R7, R14: a job's setup in one answer. */
+/** R4: what a new job's first page offers before the job exists: the teams to choose from. */
+export async function newJobScreen(ctx: Ctx): Promise<Result<unknown>> {
+  return ok({ orgUnits: await ctx.tx.orgUnits.list() });
+}
+
 export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown>> {
   const job = await ctx.tx.jobs.get(jobId);
   if (job === null) return err(notFound('job'));
