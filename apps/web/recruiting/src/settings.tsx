@@ -441,12 +441,13 @@ const AFTER: readonly (readonly [
   ['six_months', 'After six months'],
 ];
 
+// Words joined by underscores; a split rather than a trim of `_+$`, which backtracks on long runs.
 const reasonKey = (text: string): string =>
   text
-    .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, '_')
-    .replace(/^_+|_+$/gu, '');
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean)
+    .join('_');
 
 const HiringRules: Body = ({ data, props }) => {
   const { act, g, set, changed, discard, save } = useGeneral(data, props);
@@ -1329,12 +1330,7 @@ interface Template {
 }
 
 const keyOf = (name: string, i: number): string =>
-  (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/gu, '_')
-      .replace(/^_+|_+$/gu, '') || `c${String(i)}`
-  ).replace(/^(?![a-z])/u, 'c_');
+  (reasonKey(name) || `c${String(i)}`).replace(/^(?![a-z])/u, 'c_');
 
 /** A new scorecard: its name and its competencies, each typed and kept with Enter. */
 function ScorecardEditor({
