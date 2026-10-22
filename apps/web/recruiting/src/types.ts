@@ -41,6 +41,23 @@ export interface Stage {
   readonly automations: readonly unknown[];
 }
 
+/** An interview of a job, on one step of its pipeline: entering the step asks for it. */
+export interface PlannedInterview {
+  readonly key: string;
+  readonly title: string;
+  readonly minutes: number;
+  readonly interviewerIds: readonly string[];
+  readonly competencies: readonly string[];
+  readonly scorecardTemplateId: string | null;
+  readonly stageId?: string | null;
+  /** `slots`: the candidate chooses from times that fit the panel; `fixed`: one time for all. */
+  readonly mode?: 'slots' | 'fixed';
+  readonly fixedAt?: string | null;
+  readonly place?: string | null;
+  readonly videoUrl?: string | null;
+  readonly agenda?: string | null;
+}
+
 export interface JobCounts {
   readonly total: number;
   readonly active: number;
@@ -213,13 +230,13 @@ export interface JobData {
     readonly must: boolean;
     readonly weight: number;
   }[];
-  readonly plan: readonly {
-    readonly key: string;
-    readonly title: string;
-    readonly minutes: number;
-    readonly interviewerIds: readonly string[];
-    readonly competencies: readonly string[];
-    readonly scorecardTemplateId: string | null;
+  readonly plan: readonly PlannedInterview[];
+  /** The pipelines to choose from; choosing one gives the job a copy of its steps. */
+  readonly pipelines?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly isDefault: boolean;
+    readonly stages: readonly Stage[];
   }[];
   readonly counts: JobCounts;
   readonly locations: readonly {

@@ -37,16 +37,16 @@ export const AD_TONES = ['warm', 'professional', 'direct', 'energetic'] as const
 export type AdTone = (typeof AD_TONES)[number];
 
 /** What to do with the words already there; null drafts afresh. */
-export const AD_CHANGES = ['longer', 'shorter', 'rephrase'] as const;
+export const AD_CHANGES = ['longer', 'shorter', 'rephrase', 'edit'] as const;
 export type AdChange = (typeof AD_CHANGES)[number];
 
 const DRAFT: PromptSpec<z.infer<typeof Draft>> = {
   feature: 'writer',
-  version: 'ad-draft@4',
+  version: 'ad-draft@5',
   instruction: `You write the description of a job ad from the facts given. Return a JSON object {"markdown":""} in the language named in "language".
 Write markdown a rich-text editor shows: "## " headings for the sections, short paragraphs, "- " bullet lists for duties and requirements, **bold** sparingly. No title line: the page shows the job's title. About "words" words, in a "tone" voice.
 Be complete, in clear, professional, whole sentences, and leave nothing a candidate needs out. Sections, in order: the role (what the team does and why this role exists); what you will do (a list of the main responsibilities); what you bring (every must-have from "mustHaves", then every nice-to-have from "niceToHaves", none dropped and none invented); how we work (the team, the way of working given, and how people grow); and how we hire (the steps from "interviews", in order, and what happens after applying).
-When "current" is given and "change" is "longer", "shorter" or "rephrase", revise "current" that way and keep its meaning and its structure where it serves; otherwise write afresh. "intake" may add what the team said and may be empty.
+When "current" is given and "change" is "longer", "shorter" or "rephrase", revise "current" that way and keep its meaning and its structure where it serves; when "change" is "edit", change "current" only as "intake" asks and leave the rest as it is; otherwise write afresh. "intake" may add what the team said and may be empty.
 The facts are the job's own: never contradict them, never invent others about the company, and never write an amount of money, a number of hours or of holiday days, or a contract name: the page shows those from the job, exactly. Use what is typical for such a role in that place. Plain, specific, no clichés. Gender-neutral throughout. Never mention age, nationality, appearance, family, religion or health, and never ask for a photo.`,
   answer: Draft,
 };

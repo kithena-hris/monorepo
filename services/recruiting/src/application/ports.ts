@@ -183,6 +183,17 @@ export interface PlannedInterview {
   readonly interviewerIds: readonly string[];
   readonly competencies: readonly string[];
   readonly scorecardTemplateId: string | null;
+  /** The step of the job's pipeline it belongs to: entering that step asks for it. One per step. */
+  readonly stageId?: string | null;
+  /** `slots`: the candidate chooses from times that fit the panel; `fixed`: one time for all. */
+  readonly mode?: 'slots' | 'fixed';
+  /** With `fixed`: when it is. */
+  readonly fixedAt?: Instant | null;
+  /** Where it happens; neither this nor a link makes a video call on the organiser's calendar. */
+  readonly place?: string | null;
+  readonly videoUrl?: string | null;
+  /** What it is about, in the invitation and on the calendar. */
+  readonly agenda?: string | null;
 }
 
 export interface JobRecord extends Job {

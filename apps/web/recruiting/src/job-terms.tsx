@@ -12,6 +12,7 @@ import {
   KeyValues,
   NumberField,
   RadioCard,
+  RangeBar,
   RadioGroup,
   Reveal,
   SegmentedControl,
@@ -21,6 +22,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Slider,
   Switch,
   TimePicker,
   icons,
@@ -81,6 +83,23 @@ type Patch = Partial<JobTerms> & {
  * nothing waits.
  */
 export const SaveQueue = createContext<((save: Promise<unknown>) => void) | null>(null);
+
+/**
+ * Whether each part of a setup page is answered, as it stands on the screen:
+ * a part that keeps typed values until the page moves on says so here, so
+ * Continue waits for every answer without waiting for a save. The setup
+ * provides both; outside it nothing listens.
+ */
+export const Answers = createContext<((key: string, answered: boolean) => void) | null>(null);
+export const PartKey = createContext<string | null>(null);
+
+export function useAnswered(answered: boolean): void {
+  const report = use(Answers);
+  const key = use(PartKey);
+  useEffect(() => {
+    if (report !== null && key !== null) report(key, answered);
+  }, [report, key, answered]);
+}
 
 function useTerms(data: JobData, props: ScreenProps<JobData>) {
   const act = useAct(props);
@@ -468,6 +487,11 @@ const DAYS = [
   [7, 'Sun'],
 ] as const;
 
+const WEEKS = [
+  [[1, 2, 3, 4, 5], 'Monday to Friday'],
+  [[1, 2, 3, 4], 'Monday to Thursday'],
+] as const;
+
 export function DaysChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   if (terms.contractType === null)
@@ -493,25 +517,24 @@ export function DaysChoice({ data, props }: TermsProps): JSX.Element {
           );
         })}
       </ChipRow>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            save({ workDays: [1, 2, 3, 4, 5] });
-          }}
-        >
-          Monday to Friday
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            save({ workDays: [1, 2, 3, 4] });
-          }}
-        >
-          Monday to Thursday
-        </Button>
+      {/* Shortcuts that fill the days above, said as such: they are not a second setting. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
+        <span>Fill in a common week:</span>
+        {WEEKS.filter(
+          ([days]) => days.join() !== terms.workDays.toSorted((a, b) => a - b).join(),
+        ).map(([days, label]) => (
+          <Button
+            key={label}
+            size="xs"
+            variant="ghost"
+            startIcon={<icons.calendar aria-hidden />}
+            onClick={() => {
+              save({ workDays: [...days] });
+            }}
+          >
+            {label}
+          </Button>
+        ))}
       </div>
     </>
   );
@@ -554,6 +577,8 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
             <TimePicker
               label="Starts"
               step={15}
+              // Only times before the end, when the end is chosen first.
+              {...(terms.dayEnd === null ? {} : { max: hhmm(terms.dayEnd - 15) ?? '23:45' })}
               value={hhmm(terms.dayStart)}
               onChange={(t) => {
                 save({ dayStart: minutesOf(t) });
@@ -567,6 +592,8 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
             <TimePicker
               label="Ends"
               step={15}
+              // Only times after the start.
+              {...(terms.dayStart === null ? {} : { min: hhmm(terms.dayStart + 15) ?? '00:00' })}
               value={hhmm(terms.dayEnd)}
               onChange={(t) => {
                 save({ dayEnd: minutesOf(t) });
@@ -641,6 +668,7 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
   const persist = async (): Promise<boolean> =>
     days === null || days === terms.vacationDays ? true : keep({ vacationDays: days });
   useCommit(commit, persist);
+  useAnswered(days !== null);
   if (leave === null)
     return <Waiting icon={<icons.vacation aria-hidden />} what="Choose the work type first." />;
   const unit = leave.unit === 'calendar_days' ? 'calendar days' : 'working days';
@@ -662,6 +690,7 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
         value={days}
         min={leave.days}
         max={60}
+        suffix={days === 1 ? 'day' : 'days'}
         onChange={setDays}
         className="max-w-xs"
       />
@@ -699,6 +728,108 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
 
 const major = (minor: number): number => Math.round(minor / 100);
 
+/** "€62k": the band's axis, where the full figure would crowd. */
+const short = (value: number, currency: string): string =>
+  new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency,
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+
+/**
+ * The pay against the market, drawn: the model's band hatched, its median a
+ * line, the job's pay solid over it, and a slider under it on the same axis
+ * to move the pay by eye. The figures above stay the exact way to set it.
+ */
+function PayBand({
+  estimate,
+  kind,
+  min,
+  max,
+  floor,
+  disabled,
+  onChange,
+}: {
+  readonly estimate: NonNullable<JobTerms['payEstimate']>;
+  readonly kind: 'fixed' | 'range';
+  readonly min: number;
+  readonly max: number;
+  readonly floor: number | null;
+  readonly disabled: boolean;
+  readonly onChange: (min: number, max: number) => void;
+}): JSX.Element {
+  const low = major(estimate.lowMinor);
+  const high = major(estimate.highMinor);
+  const median = major(estimate.medianMinor);
+  const from = Math.max(floor ?? 0, Math.floor(Math.min(low * 0.75, min) / 1000) * 1000);
+  const to = Math.ceil(Math.max(high * 1.25, max) / 1000) * 1000;
+  const sliver = (to - from) / 200;
+  const money = (v: number): string => amount(v, estimate.currency);
+  return (
+    <div className="flex flex-col gap-3">
+      <RangeBar
+        label="The pay against the market"
+        domain={[from, to]}
+        now={median}
+        format={(v) => short(v, estimate.currency)}
+        summary={`The market pays ${money(low)} to ${money(high)}, ${money(median)} in the middle. This job pays ${kind === 'fixed' ? money(min) : `${money(min)} to ${money(max)}`}.`}
+        segments={[
+          {
+            start: low,
+            end: high,
+            label: 'What the market pays',
+            tone: 'neutral',
+            pattern: 'hatched',
+          },
+          {
+            start: min,
+            end: kind === 'fixed' ? min + sliver : max,
+            label: 'This job',
+            tone: 'accent',
+            size: 'thin',
+          },
+        ]}
+      />
+      <Slider
+        label={kind === 'fixed' ? 'Yearly salary' : 'Pay range'}
+        {...(kind === 'range' ? { thumbLabels: ['From', 'To'] } : {})}
+        min={from}
+        max={to}
+        step={500}
+        minStepsBetweenThumbs={1}
+        disabled={disabled}
+        value={kind === 'fixed' ? [min] : [min, max]}
+        tip={money}
+        onValueChange={(v) => {
+          const [a = min, b = a] = v;
+          onChange(a, b);
+        }}
+      />
+      <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-fg-muted" aria-hidden>
+        <li className="flex items-center gap-1.5">
+          <Badge size="xs" variant="outline">
+            Hatched
+          </Badge>
+          {`What the market pays, ${money(low)} to ${money(high)}`}
+        </li>
+        <li className="flex items-center gap-1.5">
+          <Badge size="xs" variant="outline">
+            Line
+          </Badge>
+          {`The middle, ${money(median)}`}
+        </li>
+        <li className="flex items-center gap-1.5">
+          <Badge size="xs" tone="accent" variant="soft">
+            Solid
+          </Badge>
+          This job
+        </li>
+      </ul>
+    </div>
+  );
+}
+
 const amount = (value: number, currency: string): string =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 0 }).format(
     value,
@@ -721,7 +852,8 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
   const [max, setMax] = useState<number | null>(
     job.salary === null ? null : major(job.salary.maxMinor),
   );
-  const [shown, setShown] = useState(job.salaryShown);
+  // Shown in the ad unless the team has said otherwise: candidates apply more readily, and some places require it.
+  const [shown, setShown] = useState(job.salary === null ? true : job.salaryShown);
   // The model's last estimate: the one kept with the job, or the one it has just given.
   const [estimate, setEstimate] = useState(terms.payEstimate);
   const [asking, startAsking] = useTransition();
@@ -779,6 +911,7 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
     });
   };
   useCommit(commit, persist);
+  useAnswered(min !== null);
   if (!ready)
     return (
       <Waiting
@@ -832,47 +965,65 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
           />
         ) : null}
       </div>
-      {/* The estimate, always in view under the figures, in muted words. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
-        <icons.assistant aria-hidden className="size-4 shrink-0" />
-        {asking ? (
-          <span>Estimating what the market pays for this role there…</span>
-        ) : estimate === null || suggested === null ? (
-          <span>No estimate yet.</span>
-        ) : (
-          <span className="min-w-0 flex-1">
-            {`AI estimate: ${
-              kind === 'fixed'
-                ? amount(suggested[0], estimate.currency)
-                : `${amount(suggested[0], estimate.currency)} to ${amount(suggested[1], estimate.currency)}`
-            } a year, ${estimate.confidence} confidence. ${estimate.basis}`}
+      {/* Where the pay sits against the market, drawn: dragged here, typed above. */}
+      {estimate === null || min === null ? null : (
+        <PayBand
+          estimate={estimate}
+          kind={kind}
+          min={min}
+          max={kind === 'fixed' ? min : (max ?? min)}
+          floor={floor}
+          disabled={asking}
+          onChange={(low, high) => {
+            setMin(low);
+            if (kind === 'range') setMax(high);
+          }}
+        />
+      )}
+      {/* The model's estimate, in its own words, under the figures. */}
+      <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <icons.assistant aria-hidden className="size-4 shrink-0 text-accent-fg" />
+          <span className="min-w-0 flex-1 font-medium">
+            {asking
+              ? 'Estimating what the market pays for this role there…'
+              : estimate === null || suggested === null
+                ? 'No estimate yet.'
+                : `AI estimate: ${
+                    kind === 'fixed'
+                      ? amount(suggested[0], estimate.currency)
+                      : `${amount(suggested[0], estimate.currency)} to ${amount(suggested[1], estimate.currency)}`
+                  } a year · ${estimate.confidence} confidence`}
           </span>
-        )}
-        <span className="flex gap-1">
-          {changed && estimate !== null ? (
+          <span className="flex gap-1">
+            {changed && estimate !== null ? (
+              <Button
+                size="xs"
+                variant="ghost"
+                startIcon={<icons.undo aria-hidden />}
+                onClick={() => {
+                  use(kind, estimate);
+                }}
+              >
+                Use the estimate
+              </Button>
+            ) : null}
             <Button
               size="xs"
               variant="ghost"
-              startIcon={<icons.undo aria-hidden />}
+              loading={asking}
+              startIcon={<icons.refresh aria-hidden />}
               onClick={() => {
-                use(kind, estimate);
+                ask(kind);
               }}
             >
-              Use the estimate
+              {estimate === null ? 'Estimate with AI' : 'Estimate again'}
             </Button>
-          ) : null}
-          <Button
-            size="xs"
-            variant="ghost"
-            loading={asking}
-            startIcon={<icons.refresh aria-hidden />}
-            onClick={() => {
-              ask(kind);
-            }}
-          >
-            {estimate === null ? 'Estimate with AI' : 'Estimate again'}
-          </Button>
-        </span>
+          </span>
+        </div>
+        {asking || estimate === null ? null : (
+          <p className="text-pretty whitespace-pre-line text-fg-muted">{estimate.basis}</p>
+        )}
       </div>
       <p className="text-sm text-fg-muted">
         {floor === null

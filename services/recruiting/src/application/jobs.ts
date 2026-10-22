@@ -312,6 +312,15 @@ export async function setPlan(
   for (const p of plan)
     if (p.minutes < 5 || p.minutes > 480)
       return err(failure('PLAN_MINUTES', 'An interview lasts 5 minutes to 8 hours'));
+  // Each interview belongs to a step of this job's pipeline, and a step has one at most.
+  const stages = new Set((await ctx.tx.jobs.stages(jobId)).map((s) => s.id));
+  const steps = plan.flatMap((p) => (p.stageId == null ? [] : [p.stageId]));
+  if (steps.some((s) => !stages.has(s)))
+    return err(failure('PLAN_STAGE', 'An interview belongs to a step of this job’s pipeline'));
+  if (new Set(steps).size !== steps.length)
+    return err(failure('PLAN_STAGE_TWICE', 'A step of the pipeline has one interview at most'));
+  if (plan.some((p) => p.mode === 'fixed' && p.fixedAt == null))
+    return err(failure('PLAN_FIXED_AT', 'An interview at one set time needs that time'));
   await ctx.tx.jobs.setPlan(jobId, plan);
   return ok(plan);
 }
